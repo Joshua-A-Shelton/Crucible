@@ -1,7 +1,7 @@
 #ifndef CRUCIBLE_WINDOW_H
 #define CRUCIBLE_WINDOW_H
 #include <slag/Swapchain.h>
-#include <SDL2/SDL.h>
+#include <SDL.h>
 #include <slag/Shader.h>
 #include "Vertex.h"
 #include "Mesh.h"

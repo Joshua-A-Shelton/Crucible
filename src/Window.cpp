@@ -1,7 +1,7 @@
 #include "Window.h"
 #include <slag/SlagLib.h>
 #include <slag/Swapchain.h>
-#include <SDL2/SDL_vulkan.h>
+#include <SDL_vulkan.h>
 #include <iostream>
 
 
@@ -10,7 +10,7 @@ namespace crucible
     Window::Window(int width, int height, const char* title)
     {
         SDL_WindowFlags flags = static_cast<SDL_WindowFlags>(SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
-        _handle = SDL_CreateWindow(title,SDL_WINDOWPOS_UNDEFINED,SDL_WINDOWPOS_UNDEFINED, width, height,flags);
+        _handle = SDL_CreateWindow(title, width, height,flags);
         SDL_Vulkan_CreateSurface(_handle,slag::SlagLib::instance(),&_surface);
         _swapchain = new slag::Swapchain(_surface,width,height,slag::RenderMode::VSYNC);
         _swapchain->clearColor = {0,0,0,1};
@@ -62,16 +62,17 @@ namespace crucible
             {
                 switch (e.type)
                 {
-                    case SDL_QUIT:
+                    case SDL_EVENT_QUIT:
                         quit = true;
                         break;
-                    case SDL_WINDOWEVENT:
-                        switch (e.window.event)
+                    case SDL_EVENT_WINDOW_RESIZED:
+                        resize();
+                        /*switch (e.window.event)
                         {
                             case SDL_WINDOWEVENT_SIZE_CHANGED:
                                 resize();
                                 break;
-                        }
+                        }*/
                         break;
                 }
 
