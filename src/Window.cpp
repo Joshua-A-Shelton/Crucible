@@ -1,7 +1,7 @@
 #include "Window.h"
 #include <slag/SlagLib.h>
 #include <slag/Swapchain.h>
-#include <SDL_vulkan.h>
+#include <SDL3/SDL_vulkan.h>
 #include <iostream>
 
 
@@ -15,7 +15,7 @@ namespace crucible
         _swapchain = new slag::Swapchain(_surface,width,height,slag::RenderMode::VSYNC);
         _swapchain->clearColor = {0,0,0,1};
         auto description = _swapchain->currentFramebuffer().description();
-        _testShader = slag::Shader::Create("assets/shaders/triangle.vert.spv","assets/shaders/triangle.frag.spv",description,Vertex::description());
+        _testShader = std::make_shared<slag::Shader>("assets/shaders/triangle.vert.spv","assets/shaders/triangle.frag.spv",description,Vertex::description());
         std::vector<Vertex> verts(3);
         //vertex positions
         verts[0].position = { 1.f, 1.f, 0.0f };
@@ -67,12 +67,6 @@ namespace crucible
                         break;
                     case SDL_EVENT_WINDOW_RESIZED:
                         resize();
-                        /*switch (e.window.event)
-                        {
-                            case SDL_WINDOWEVENT_SIZE_CHANGED:
-                                resize();
-                                break;
-                        }*/
                         break;
                 }
 

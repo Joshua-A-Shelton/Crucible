@@ -2,17 +2,19 @@ cmake_minimum_required(VERSION 3.24)
 project(crucible)
 
 set(CMAKE_CXX_STANDARD 20)
-add_subdirectory(third-party/slag)
 
+set(SDL_STATIC ON)
+set(SDL_SHARED OFF)
 add_subdirectory(third-party/sdl)
+add_subdirectory(third-party/slag)
 add_subdirectory(third-party/glm)
 
 add_library(crucible-lib src/Window.cpp src/Window.h src/CrucibleLib.cpp src/CrucibleLib.h src/Vertex.cpp src/Vertex.h src/Mesh.cpp src/Mesh.h)
 add_executable(crucible editor/main.cpp)
-target_link_libraries(crucible-lib slag  SDL3::SDL3)
+target_link_libraries(crucible-lib slag SDL3::SDL3)
 target_link_libraries(crucible crucible-lib)
 
-target_include_directories(crucible-lib PUBLIC third-party/glm SDL3::Headers)
+target_include_directories(crucible-lib PUBLIC third-party/glm third-party/sdl/include)
 target_include_directories(crucible PRIVATE src)
 
 
