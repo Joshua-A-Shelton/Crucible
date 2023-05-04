@@ -90,6 +90,12 @@ namespace crucible
             slag::Framebuffer defaultFramebuffer(attachments,w,h);
             cmd.setTargetFramebuffer(defaultFramebuffer);
             cmd.useShader(_testShader);
+
+            glm::vec4 fogColor(1,.1,.1,1);
+
+            cmd.bindUniformData(_testShader,0,0,&fogColor,sizeof(fogColor),&frame.value());
+
+
             cmd.bindVertexBuffer(_testMesh->vertexBuffer());
             cmd.draw(3,1,0,0);
             cmd.endTargetFramebuffer();
