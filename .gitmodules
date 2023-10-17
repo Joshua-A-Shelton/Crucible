@@ -1,0 +1,6 @@
+[submodule "third-party/slag"]
+	path = third-party/slag
+	url = https://github.com/Joshua-A-Shelton/Slag
+[submodule "third-party/glm"]
+	path = third-party/glm
+	url = https://github.com/g-truc/glm
