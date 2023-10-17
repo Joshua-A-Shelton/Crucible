@@ -11,7 +11,6 @@ namespace crucible
         SlagInitDetails details;
         details.backend = VULKAN;
         auto success = SlagLib::initialize(details);
-        int i=0;
     }
 
     void Engine::cleanup()
