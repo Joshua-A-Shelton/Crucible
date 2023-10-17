@@ -8,3 +8,6 @@
 	path = third-party/dear-imgui
 	url = https://github.com/ocornut/imgui
 	branch = docking
+[submodule "third-party/entt"]
+	path = third-party/entt
+	url = https://github.com/skypjack/entt

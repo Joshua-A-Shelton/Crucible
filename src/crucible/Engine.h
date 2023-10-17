@@ -1,6 +1,6 @@
 #ifndef CRUCIBLE_ENGINE_H
 #define CRUCIBLE_ENGINE_H
-#include "Window.h"
+
 
 namespace crucible
 {
