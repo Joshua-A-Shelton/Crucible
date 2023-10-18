@@ -6,15 +6,46 @@ find_package(SDL2 REQUIRED)
 
 add_subdirectory(third-party/slag)
 add_subdirectory(third-party/entt)
+#get mono details
+set(MONO_BIN_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}/third-party/mono/bin")
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(MONO_BUILD_FOLDER "debug")
+elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+    set(MONO_BUILD_FOLDER "release")
+endif()
+
+if(WIN32)
+    set(MONO_PLATFORM_FOLDER "Windows")
+    set(LIB_EXTENSION ".lib")
+    set(DYN_LIB_EXTENSION ".dll")
+    file(COPY third-party/mono/bin/${MONO_BUILD_FOLDER}/Windows/mono-2.0-sgen.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+    file(COPY third-party/mono/bin/${MONO_BUILD_FOLDER}/Windows/MonoPosixHelper.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+elseif(LINUX)
+    set(MONO_PLATFORM_FOLDER "Linux")
+    set(LIB_EXTENSION ".a")
+    set(DYN_LIB_EXTENSION ".so")
+endif()
+set(MONO_DIR ${MONO_BIN_FOLDER}/${MONO_BUILD_FOLDER}/${MONO_PLATFORM_FOLDER})
+message("using mono folder ${MONO_DIR}")
+list(APPEND MONO_LIBS ${MONO_DIR}/eglib${LIB_EXTENSION})
+list(APPEND MONO_LIBS ${MONO_DIR}/libgcmonosgen${LIB_EXTENSION})
+list(APPEND MONO_LIBS ${MONO_DIR}/libmini-sgen${LIB_EXTENSION})
+list(APPEND MONO_LIBS ${MONO_DIR}/libmono-static-sgen${LIB_EXTENSION})
+list(APPEND MONO_LIBS ${MONO_DIR}/libmonoruntime-sgen${LIB_EXTENSION})
+list(APPEND MONO_LIBS ${MONO_DIR}/libmonoutils${LIB_EXTENSION})
+list(APPEND MONO_LIBS ${MONO_DIR}/mono-2.0-sgen${LIB_EXTENSION})
+list(APPEND MONO_LIBS ${MONO_DIR}/MonoPosixHelper${LIB_EXTENSION})
+
+
 
 add_library(Crucible src/crucible/Engine.cpp src/crucible/Engine.h src/crucible/Graphics/Model.cpp src/crucible/Graphics/Model.h src/crucible/Graphics/Mesh.cpp src/crucible/Graphics/Mesh.h src/crucible/Graphics/Vertex3D.h src/crucible/GameObject.cpp src/crucible/GameObject.h src/crucible/EntityComponentSystem.cpp src/crucible/EntityComponentSystem.h)
 add_executable(CrucibleEditor editor/Program.cpp)
 
-target_include_directories(Crucible PUBLIC third-party/glm third-party/dear-imgui ${SDL2_LIBRARIES})
+target_include_directories(Crucible PUBLIC third-party/glm third-party/dear-imgui third-party/mono ${SDL2_LIBRARIES})
 target_include_directories(CrucibleEditor PRIVATE src)
 
 
-target_link_libraries(Crucible Slag SDL2::SDL2 EnTT::EnTT)
+target_link_libraries(Crucible Slag SDL2::SDL2 EnTT::EnTT ${MONO_LIBS})
 
 target_link_libraries(CrucibleEditor Crucible)
 
@@ -53,5 +84,11 @@ foreach(source IN LISTS SHADERS)
 endforeach()
 
 add_custom_target(shaders ALL DEPENDS ${SPV_SHADERS})
+
+
+
+#===================================================
+#Copy mono runtime libs
+file(COPY third-party/mono/lib DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/mono)
 
 

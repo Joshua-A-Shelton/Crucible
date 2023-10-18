@@ -1,6 +1,8 @@
 #include "Engine.h"
 #include <slag/SlagLib.h>
 #include <SDL.h>
+#include <mono/jit/jit.h>
+#include <mono/metadata/assembly.h>
 
 using namespace slag;
 namespace crucible
@@ -10,7 +12,8 @@ namespace crucible
         SDL_Init(SDL_INIT_EVERYTHING);
         SlagInitDetails details;
         details.backend = VULKAN;
-        auto success = SlagLib::initialize(details);
+        SlagLib::initialize(details);
+        mono_set_assemblies_path("mono/lib");
     }
 
     void Engine::cleanup()

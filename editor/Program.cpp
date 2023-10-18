@@ -3,5 +3,6 @@
 
 int main()
 {
-
+    crucible::Engine::initialize();
+    crucible::Engine::cleanup();
 }
