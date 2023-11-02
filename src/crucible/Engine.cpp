@@ -1,9 +1,8 @@
 #include "Engine.h"
 #include <slag/SlagLib.h>
 #include <SDL.h>
-#include <hostfxr.h>
-#include <nethost.h>
-#include <cassert>
+
+
 
 using namespace slag;
 namespace crucible
