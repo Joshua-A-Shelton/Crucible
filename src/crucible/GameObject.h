@@ -3,6 +3,7 @@
 #include <entt/entt.hpp>
 #include <unordered_set>
 #include <string>
+#include <memory>
 namespace crucible
 {
 
@@ -20,6 +21,8 @@ namespace crucible
         template<class T> void removeComponent();
         template<class T> T& getComponent();
     private:
+        std::weak_ptr<GameObject> _parent;
+        std::unordered_set<std::shared_ptr<GameObject>> _children;
         void move(GameObject&& from);
         entt::entity _entity;
         std::string _name;

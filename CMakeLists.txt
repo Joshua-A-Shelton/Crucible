@@ -2,8 +2,10 @@ cmake_minimum_required(VERSION 3.24)
 project(Crucible)
 
 set(CMAKE_CXX_STANDARD 20)
+
 find_package(SDL2 REQUIRED)
 find_package(unofficial-nethost REQUIRED)
+find_package(Vulkan REQUIRED)
 
 add_subdirectory(third-party/slag)
 add_subdirectory(third-party/entt)
@@ -17,12 +19,20 @@ elseif()
 endif()
 link_directories(third-party/nethost/lib/${CRUCIBLE_PLATFORM_DIR})
 
+list(APPEND CRUCIBLE_DEAR_IMGUI third-party/dear-imgui/imgui.cpp)
+list(APPEND CRUCIBLE_DEAR_IMGUI third-party/dear-imgui/imgui_demo.cpp)
+list(APPEND CRUCIBLE_DEAR_IMGUI third-party/dear-imgui/imgui_draw.cpp)
+list(APPEND CRUCIBLE_DEAR_IMGUI third-party/dear-imgui/imgui_tables.cpp)
+list(APPEND CRUCIBLE_DEAR_IMGUI third-party/dear-imgui/imgui_widgets.cpp)
+list(APPEND CRUCIBLE_DEAR_IMGUI third-party/dear-imgui/backends/imgui_impl_sdl2.cpp)
+list(APPEND CRUCIBLE_DEAR_IMGUI third-party/dear-imgui/backends/imgui_impl_vulkan.cpp)
 
-add_library(Crucible src/crucible/Engine.cpp src/crucible/Engine.h src/crucible/Graphics/Model.cpp src/crucible/Graphics/Model.h src/crucible/Graphics/Mesh.cpp src/crucible/Graphics/Mesh.h src/crucible/Graphics/Vertex3D.h src/crucible/GameObject.cpp src/crucible/GameObject.h src/crucible/EntityComponentSystem.cpp src/crucible/EntityComponentSystem.h)
-add_executable(CrucibleEditor editor/Program.cpp)
 
-target_include_directories(Crucible PUBLIC third-party/glm third-party/dear-imgui third-party/nethost ${SDL2_LIBRARIES})
-target_include_directories(CrucibleEditor PRIVATE src)
+add_library(Crucible src/crucible/Engine.cpp src/crucible/Engine.h src/crucible/Graphics/Model.cpp src/crucible/Graphics/Model.h src/crucible/Graphics/Mesh.cpp src/crucible/Graphics/Mesh.h src/crucible/Graphics/Vertex3D.h src/crucible/GameObject.cpp src/crucible/GameObject.h src/crucible/EntityComponentSystem.cpp src/crucible/EntityComponentSystem.h src/crucible/Scripting/ScriptingEngine.cpp src/crucible/Scripting/ScriptingEngine.h)
+add_executable(CrucibleEditor ${CRUCIBLE_DEAR_IMGUI} editor/Program.cpp)
+
+target_include_directories(Crucible PUBLIC third-party/glm third-party/nethost ${SDL2_LIBRARIES})
+target_include_directories(CrucibleEditor PRIVATE third-party/dear-imgui ${Vulkan_INCLUDE_DIR} src)
 
 
 target_link_libraries(Crucible Slag SDL2::SDL2 EnTT::EnTT nethost)
