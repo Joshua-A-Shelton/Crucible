@@ -92,7 +92,7 @@ int main(int argc, char** args)
     init_info.Allocator = nullptr;
     init_info.CheckVkResultFn = nullptr;
     init_info.UseDynamicRendering = true;
-    init_info.ColorAttachmentFormat = VK_FORMAT_B8G8R8A8_SRGB;
+    init_info.ColorAttachmentFormat = VK_FORMAT_B8G8R8A8_UNORM;
     ImGui_ImplVulkan_Init(&init_info, nullptr);
 // (this gets a bit more complicated, see example app for full reference)
     slag::vulkan::VulkanLib::graphicsCard()->runOneTimeCommands(slag::vulkan::VulkanLib::graphicsCard()->graphicsQueue(),slag::vulkan::VulkanLib::graphicsCard()->graphicsQueueFamily(),[=](VkCommandBuffer commandBuffer)

@@ -1,7 +1,7 @@
 #include "Engine.h"
 #include <slag/SlagLib.h>
 #include <SDL.h>
-
+#include "Scripting/ScriptingEngine.h"
 
 
 using namespace slag;
@@ -14,7 +14,6 @@ namespace crucible
         SlagInitDetails details;
         details.backend = VULKAN;
         SlagLib::initialize(details);
-
     }
 
     void Engine::cleanup()

@@ -1,7 +1,7 @@
 #include "ScriptingEngine.h"
-#include <hostfxr.h>
-#include <nethost.h>
-#include <coreclr_delegates.h>
+#include <nethost/hostfxr.h>
+#include <nethost/nethost.h>
+#include <nethost/coreclr_delegates.h>
 
 #ifdef WIN32
 #include <Windows.h>

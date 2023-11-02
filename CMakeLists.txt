@@ -4,7 +4,6 @@ project(Crucible)
 set(CMAKE_CXX_STANDARD 20)
 
 find_package(SDL2 REQUIRED)
-find_package(unofficial-nethost REQUIRED)
 find_package(Vulkan REQUIRED)
 
 add_subdirectory(third-party/slag)
@@ -13,7 +12,7 @@ add_subdirectory(third-party/entt)
 if(WIN32)
     set(CRUCIBLE_PLATFORM_DIR "Windows")
     set(CRUCIBLE_DYN_EXT ".dll")
-elseif()
+elseif(UNIX)
     set(CRUCIBLE_PLATFORM_DIR "Linux")
     set(CRUCIBLE_DYN_EXT ".so")
 endif()
@@ -31,7 +30,7 @@ list(APPEND CRUCIBLE_DEAR_IMGUI third-party/dear-imgui/backends/imgui_impl_vulka
 add_library(Crucible src/crucible/Engine.cpp src/crucible/Engine.h src/crucible/Graphics/Model.cpp src/crucible/Graphics/Model.h src/crucible/Graphics/Mesh.cpp src/crucible/Graphics/Mesh.h src/crucible/Graphics/Vertex3D.h src/crucible/GameObject.cpp src/crucible/GameObject.h src/crucible/EntityComponentSystem.cpp src/crucible/EntityComponentSystem.h src/crucible/Scripting/ScriptingEngine.cpp src/crucible/Scripting/ScriptingEngine.h)
 add_executable(CrucibleEditor ${CRUCIBLE_DEAR_IMGUI} editor/Program.cpp)
 
-target_include_directories(Crucible PUBLIC third-party/glm third-party/nethost ${SDL2_LIBRARIES})
+target_include_directories(Crucible PUBLIC third-party/glm third-party/nethost/include ${SDL2_LIBRARIES})
 target_include_directories(CrucibleEditor PRIVATE third-party/dear-imgui ${Vulkan_INCLUDE_DIR} src)
 
 
@@ -75,4 +74,6 @@ endforeach()
 
 add_custom_target(shaders ALL DEPENDS ${SPV_SHADERS})
 
-file(COPY third-party/nethost/shared/${CRUCIBLE_PLATFORM_DIR}/nethost${CRUCIBLE_DYN_EXT} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+if(WIN32)
+    file(COPY third-party/nethost/shared/${CRUCIBLE_PLATFORM_DIR}/nethost${CRUCIBLE_DYN_EXT} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+endif()
