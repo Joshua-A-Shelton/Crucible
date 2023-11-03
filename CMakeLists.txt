@@ -19,7 +19,6 @@ endif()
 link_directories(third-party/nethost/lib/${CRUCIBLE_PLATFORM_DIR})
 
 list(APPEND CRUCIBLE_DEAR_IMGUI third-party/dear-imgui/imgui.cpp)
-list(APPEND CRUCIBLE_DEAR_IMGUI third-party/dear-imgui/imgui_demo.cpp)
 list(APPEND CRUCIBLE_DEAR_IMGUI third-party/dear-imgui/imgui_draw.cpp)
 list(APPEND CRUCIBLE_DEAR_IMGUI third-party/dear-imgui/imgui_tables.cpp)
 list(APPEND CRUCIBLE_DEAR_IMGUI third-party/dear-imgui/imgui_widgets.cpp)

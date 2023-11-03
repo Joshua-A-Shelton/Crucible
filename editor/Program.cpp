@@ -114,6 +114,10 @@ int main(int argc, char** args)
             {
                 open = false;
             }
+            else if(e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE)
+            {
+                open = false;
+            }
             else if(e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED)
             {
                 int w,h;
@@ -130,11 +134,19 @@ int main(int argc, char** args)
             ImGui::NewFrame();
 
             auto* commandBuffer = frame->getCommandBuffer();
+            ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
+            ImGui::Begin("Scene View");
+            ImGui::End();
+
+            ImGui::Begin("Inspector");
+            ImGui::End();
+
+            ImGui::Begin("Scene Tree");
+            ImGui::End();
 
             slag::Rectangle view{{0,0},{swapchain->width(),swapchain->height()}};
             slag::Attachment colorAttachment{.texture = frame->getBackBuffer(), .clearOnLoad = true, .clear={0.5,0.5,0.5,0.5}};
             commandBuffer->setTargetFramebuffer(view,&colorAttachment,1);
-            ImGui::ShowDemoWindow();
             ImGui::Render();
             ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), static_cast<slag::vulkan::VulkanCommandBuffer*>(commandBuffer)->vulkanCommandBuffer());
             commandBuffer->endTargetFramebuffer();
