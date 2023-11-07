@@ -101,7 +101,7 @@ namespace crucible
         load_assembly_and_get_function_pointer(
             platformString(executableDirectory.string() + DIR_SEPARATOR + "Crucible.dll").c_str(),
             //              namespace.class, dll name
-            platformString("DotNetLib.Lib, Crucible").c_str(),
+            platformString("Crucible.Lib, Crucible").c_str(),
             platformString("Hello").c_str(),
             nullptr,
             nullptr,
