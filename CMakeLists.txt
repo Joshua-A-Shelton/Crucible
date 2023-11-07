@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 
 find_package(SDL2 REQUIRED)
 find_package(Vulkan REQUIRED)
+find_package(Boost REQUIRED COMPONENTS filesystem)
 
 add_subdirectory(third-party/slag)
 add_subdirectory(third-party/entt)
@@ -29,14 +30,19 @@ list(APPEND CRUCIBLE_DEAR_IMGUI third-party/dear-imgui/backends/imgui_impl_vulka
 add_library(Crucible src/crucible/Engine.cpp src/crucible/Engine.h src/crucible/Graphics/Model.cpp src/crucible/Graphics/Model.h src/crucible/Graphics/Mesh.cpp src/crucible/Graphics/Mesh.h src/crucible/Graphics/Vertex3D.h src/crucible/GameObject.cpp src/crucible/GameObject.h src/crucible/EntityComponentSystem.cpp src/crucible/EntityComponentSystem.h src/crucible/Scripting/ScriptingEngine.cpp src/crucible/Scripting/ScriptingEngine.h)
 add_executable(CrucibleEditor ${CRUCIBLE_DEAR_IMGUI} editor/Program.cpp)
 
-target_include_directories(Crucible PUBLIC third-party/glm third-party/nethost/include ${SDL2_LIBRARIES})
+target_include_directories(Crucible PUBLIC third-party/glm third-party/nethost/include ${SDL2_LIBRARIES} ${Boost_INCLUDE_DIRS})
 target_include_directories(CrucibleEditor PRIVATE third-party/dear-imgui ${Vulkan_INCLUDE_DIR} src)
 
 
-target_link_libraries(Crucible Slag SDL2::SDL2 EnTT::EnTT nethost)
+target_link_libraries(Crucible Slag SDL2::SDL2 EnTT::EnTT nethost ${Boost_LIBRARIES})
 
 target_link_libraries(CrucibleEditor Crucible)
 
+
+#==============================================================================
+#Compile dotnet
+#
+file(COPY dotnet/Crucible/Crucible/bin/Debug/net7.0/Crucible.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 #==============================================================================
 # COMPILE SHADERS
@@ -76,3 +82,4 @@ add_custom_target(shaders ALL DEPENDS ${SPV_SHADERS})
 if(WIN32)
     file(COPY third-party/nethost/shared/${CRUCIBLE_PLATFORM_DIR}/nethost${CRUCIBLE_DYN_EXT} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 endif()
+    file(COPY config DESTINATION ${CMAKE_CURRENT_BINARY_DIR})

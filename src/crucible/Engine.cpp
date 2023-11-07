@@ -14,10 +14,12 @@ namespace crucible
         SlagInitDetails details;
         details.backend = VULKAN;
         SlagLib::initialize(details);
+        ScriptingEngine::initialize();
     }
 
     void Engine::cleanup()
     {
+        ScriptingEngine::cleanup();
         SlagLib::cleanup();
     }
 } // crucible
