@@ -31,11 +31,11 @@
 namespace crucible
 {
 
-    hostfxr_initialize_for_dotnet_command_line_fn init_for_cmd_line_fptr;
-    hostfxr_initialize_for_runtime_config_fn init_for_config_fptr;
-    hostfxr_get_runtime_delegate_fn get_delegate_fptr;
-    hostfxr_run_app_fn run_app_fptr;
-    hostfxr_close_fn close_fptr;
+    hostfxr_initialize_for_dotnet_command_line_fn init_for_cmd_line_fptr = nullptr;
+    hostfxr_initialize_for_runtime_config_fn init_for_config_fptr = nullptr;
+    hostfxr_get_runtime_delegate_fn get_delegate_fptr = nullptr;
+    hostfxr_run_app_fn run_app_fptr = nullptr;
+    hostfxr_close_fn close_fptr = nullptr;
 
 
     // Forward declarations
@@ -91,7 +91,6 @@ namespace crucible
 
     void ScriptingEngine::initialize()
     {
-
         // This sample assumes the managed assembly to load and its runtime configuration file are next to the host
         auto executableDirectory = boost::filesystem::current_path();
 
@@ -100,13 +99,14 @@ namespace crucible
 
         component_entry_point_fn hello = nullptr;
         load_assembly_and_get_function_pointer(
-                platformString(executableDirectory.string() + DIR_SEPARATOR + "Crucible.dll").c_str(),
-                STR("DotNetLib.Lib, DotNetLib"),
-                STR("Hello"),
-                nullptr,
-                nullptr,
-                (void**)(&hello)
-                );
+            platformString(executableDirectory.string() + DIR_SEPARATOR + "Crucible.dll").c_str(),
+            //              namespace.class, dll name
+            platformString("DotNetLib.Lib, Crucible").c_str(),
+            platformString("Hello").c_str(),
+            nullptr,
+            nullptr,
+            (void**)(&hello)
+        );
 
         struct lib_args
         {

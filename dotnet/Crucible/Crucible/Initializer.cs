@@ -24,6 +24,7 @@ namespace DotNetLib
             LibArgs libArgs = Marshal.PtrToStructure<LibArgs>(arg);
             Console.WriteLine($"Hello, world! from {nameof(Lib)} [count: {s_CallCount++}]");
             PrintLibArgs(libArgs);
+            Console.WriteLine("'Sup?");
             return 0;
         }
 
