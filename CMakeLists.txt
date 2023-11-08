@@ -17,6 +17,12 @@ elseif(UNIX)
     set(CRUCIBLE_PLATFORM_DIR "Linux")
     set(CRUCIBLE_DYN_EXT ".so")
 endif()
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(CRUCIBLE_BUILD_TYPE "Debug")
+else()
+    set(CRUCIBLE_BUILD_TYPE "Release")
+endif()
+
 link_directories(third-party/nethost/lib/${CRUCIBLE_PLATFORM_DIR})
 
 list(APPEND CRUCIBLE_DEAR_IMGUI third-party/dear-imgui/imgui.cpp)
@@ -42,7 +48,12 @@ target_link_libraries(CrucibleEditor Crucible)
 #==============================================================================
 #Compile dotnet
 #
-file(COPY dotnet/Crucible/Crucible/bin/Debug/net7.0/Crucible.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+set(DOTNET_OUTPUT_TARGET ${CMAKE_CURRENT_BINARY_DIR}/Crucible.dll)
+file(GLOB_RECURSE DOTNETRUNTIME CONFIGURE_DEPENDS dotnet/Crucible/*.*)
+add_custom_target(dotnetruntime-build ALL DEPENDS ${DOTNETRUNTIME} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/dotnet/Crucible COMMAND dotnet build -c ${CRUCIBLE_BUILD_TYPE} -p 'AnyCPU' COMMENT "Building .net runtime")
+add_custom_target(dotnetruntime-move ALL DEPENDS dotnetruntime-build COMMAND)
+ADD_DEPENDENCIES(Crucible dotnetruntime-build)
+
 
 #==============================================================================
 # COMPILE SHADERS
