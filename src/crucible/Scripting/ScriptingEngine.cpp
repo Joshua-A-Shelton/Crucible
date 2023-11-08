@@ -82,7 +82,7 @@ namespace crucible
         return f;
     }
 
-    std::string& platformString(std::string& multi)
+    std::string platformString(const std::string& multi)
     {
         return multi;
     }
