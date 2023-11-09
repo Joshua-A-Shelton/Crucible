@@ -31,10 +31,8 @@
 namespace crucible
 {
 
-    hostfxr_initialize_for_dotnet_command_line_fn init_for_cmd_line_fptr = nullptr;
     hostfxr_initialize_for_runtime_config_fn init_for_config_fptr = nullptr;
     hostfxr_get_runtime_delegate_fn get_delegate_fptr = nullptr;
-    hostfxr_run_app_fn run_app_fptr = nullptr;
     hostfxr_close_fn close_fptr = nullptr;
 
 
@@ -139,10 +137,8 @@ namespace crucible
 
         // Load hostfxr and get desired exports
         void *lib = load_library(buffer);
-        init_for_cmd_line_fptr = (hostfxr_initialize_for_dotnet_command_line_fn)get_export(lib, "hostfxr_initialize_for_dotnet_command_line");
         init_for_config_fptr = (hostfxr_initialize_for_runtime_config_fn)get_export(lib, "hostfxr_initialize_for_runtime_config");
         get_delegate_fptr = (hostfxr_get_runtime_delegate_fn)get_export(lib, "hostfxr_get_runtime_delegate");
-        run_app_fptr = (hostfxr_run_app_fn)get_export(lib, "hostfxr_run_app");
         close_fptr = (hostfxr_close_fn)get_export(lib, "hostfxr_close");
 
         return (init_for_config_fptr && get_delegate_fptr && close_fptr);
