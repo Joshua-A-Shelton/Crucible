@@ -49,9 +49,13 @@ target_link_libraries(CrucibleEditor Crucible)
 #Compile dotnet
 #
 set(DOTNET_OUTPUT_TARGET ${CMAKE_CURRENT_BINARY_DIR}/Crucible.dll)
-file(GLOB_RECURSE DOTNETRUNTIME CONFIGURE_DEPENDS dotnet/Crucible/*.*)
-add_custom_target(dotnetruntime-build ALL DEPENDS ${DOTNETRUNTIME} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/dotnet/Crucible COMMAND dotnet build -c ${CRUCIBLE_BUILD_TYPE} -p 'AnyCPU' COMMENT "Building .net runtime")
-add_custom_target(dotnetruntime-move ALL DEPENDS dotnetruntime-build COMMAND)
+file(GLOB_RECURSE DOTNETRUNTIME CONFIGURE_DEPENDS dotnet/Crucible/*.cs)
+add_custom_target(dotnetruntime-build
+        DEPENDS ${DOTNETRUNTIME}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/dotnet/Crucible
+        COMMAND dotnet build -c ${CRUCIBLE_BUILD_TYPE} -p 'AnyCPU'
+        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/dotnet/Crucible/Crucible/bin/${CRUCIBLE_BUILD_TYPE}/net7.0/Crucible.dll ${DOTNET_OUTPUT_TARGET}
+        COMMENT "Building .net runtime")
 ADD_DEPENDENCIES(Crucible dotnetruntime-build)
 
 
