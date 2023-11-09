@@ -3,6 +3,7 @@
 #include <nethost/nethost.h>
 #include <nethost/coreclr_delegates.h>
 #include <boost/filesystem.hpp>
+#include "Interop.h"
 
 #ifdef WIN32
 #include <Windows.h>
@@ -94,6 +95,20 @@ namespace crucible
 
         loadHostFXR();
         load_assembly_and_get_function_pointer_fn load_assembly_and_get_function_pointer = get_dotnet_load_assembly(platformString(executableDirectory.string() + DIR_SEPARATOR+ "config"+DIR_SEPARATOR+"CSharpConfig.json").c_str());
+
+        void(*initFunc)(void*,uint32_t) = nullptr;
+        load_assembly_and_get_function_pointer(
+                platformString(executableDirectory.string() + DIR_SEPARATOR + "Crucible.dll").c_str(),
+                //              namespace.class, dll name
+                platformString("Crucible.Lib, Crucible").c_str(),
+                platformString("RegisterFunction").c_str(),
+                nullptr,
+                nullptr,
+                (void**)(&initFunc)
+        );
+
+        initFunc(crucibleVector3Cross,sizeof(initFunc));
+
 
         component_entry_point_fn hello = nullptr;
         load_assembly_and_get_function_pointer(

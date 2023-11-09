@@ -14,6 +14,12 @@ namespace Crucible
             public int Number;
         }
 
+        [StructLayout(LayoutKind.Sequential)]
+        public struct FunctionArgs
+        {
+            public IntPtr FunctionPtr;
+        }
+
         public static int Hello(IntPtr arg, int argLength)
         {
             if (argLength < System.Runtime.InteropServices.Marshal.SizeOf(typeof(LibArgs)))
@@ -25,6 +31,31 @@ namespace Crucible
             Console.WriteLine($"Hello, world! from {nameof(Lib)} [count: {s_CallCount++}]");
             PrintLibArgs(libArgs);
             Console.WriteLine("'Sup die down?");
+
+            Vector3 v1 = new Vector3(1, 2, 3);
+            Vector3 v2 = new Vector3(4, 5, 6);
+
+            try
+            {
+                Vector3 cross = Vector3.Cross(v1, v2);
+                Console.WriteLine(cross);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
+           
+            return 0;
+        }
+        
+        public static unsafe int RegisterFunction(IntPtr unmanagedFunction, int argLength)
+        {
+            if (argLength < System.Runtime.InteropServices.Marshal.SizeOf(typeof(FunctionArgs)))
+            {
+                return 1;
+            }
+            Console.WriteLine("Registering Function");
+            Interop.vector3Cross = (delegate* unmanaged[Cdecl]<Vector3, Vector3, out Vector3, void*>)unmanagedFunction;
             return 0;
         }
 
@@ -51,5 +82,7 @@ namespace Crucible
             Console.WriteLine($"-- message: {message}");
             Console.WriteLine($"-- number: {libArgs.Number}");
         }
+        
+        
     }
 }
