@@ -35,8 +35,6 @@ namespace crucible
     hostfxr_initialize_for_runtime_config_fn init_for_config_fptr = nullptr;
     hostfxr_get_runtime_delegate_fn get_delegate_fptr = nullptr;
     hostfxr_close_fn close_fptr = nullptr;
-
-
     // Forward declarations
     void *load_library(const char_t *);
     void *get_export(void *, const char *);
@@ -60,7 +58,7 @@ namespace crucible
         size_t n = 0, len = multi.length () + 1;
         while (auto res = mbrtowc (&w, multi.c_str () + n, len - n, &mb)) {
             if (res == size_t (-1) || res == size_t (-2))
-                throw "invalid encoding";
+                throw std::runtime_error("invalid encoding");
 
             n += res;
             wide += w;
@@ -96,50 +94,27 @@ namespace crucible
         loadHostFXR();
         load_assembly_and_get_function_pointer_fn load_assembly_and_get_function_pointer = get_dotnet_load_assembly(platformString(executableDirectory.string() + DIR_SEPARATOR+ "config"+DIR_SEPARATOR+"CSharpConfig.json").c_str());
 
-        void(*initFunc)(void*,uint32_t) = nullptr;
+        component_entry_point_fn initFunc = nullptr;
         load_assembly_and_get_function_pointer(
                 platformString(executableDirectory.string() + DIR_SEPARATOR + "Crucible.dll").c_str(),
                 //              namespace.class, dll name
-                platformString("Crucible.Lib, Crucible").c_str(),
-                platformString("RegisterFunction").c_str(),
+                platformString("Crucible.Initializer, Crucible").c_str(),
+                platformString("RuntimeEntry").c_str(),
                 nullptr,
                 nullptr,
                 (void**)(&initFunc)
         );
 
-        initFunc(crucibleVector3Cross,sizeof(initFunc));
+        InitArgs initArgs;
+        initFunc(&initArgs,sizeof(InitArgs));
 
+        _registerUnmanagedFunction_fn_ptr = initArgs.RegisterUnmanagedFunction;
 
-        component_entry_point_fn hello = nullptr;
-        load_assembly_and_get_function_pointer(
-            platformString(executableDirectory.string() + DIR_SEPARATOR + "Crucible.dll").c_str(),
-            //              namespace.class, dll name
-            platformString("Crucible.Lib, Crucible").c_str(),
-            platformString("Hello").c_str(),
-            nullptr,
-            nullptr,
-            (void**)(&hello)
-        );
+        //register unmanaged functions
+        registerUnmanagedFunction("UnmanagedVector3Cross", reinterpret_cast<void **>(&crucibleVector3Cross));
+        registerUnmanagedFunction("UnmanagedVector3Dot", reinterpret_cast<void**>(&crucibleVector3Dot));
 
-        struct lib_args
-        {
-            const char_t *message;
-            int number;
-        };
-        for (int i = 0; i < 3; ++i)
-        {
-            // <SnippetCallManaged>
-            lib_args args
-                    {
-                            STR("from host!"),
-                            i
-                    };
-
-            hello(&args, sizeof(args));
-            // </SnippetCallManaged>
-        }
-        int i=0;
-    };
+    }
 
     bool ScriptingEngine::loadHostFXR()
     {
@@ -188,8 +163,17 @@ namespace crucible
         return (load_assembly_and_get_function_pointer_fn)load_assembly_and_get_function_pointer;
     }
 
+    void ScriptingEngine::registerUnmanagedFunction(const std::string &managedFunctionName, void **functionPointer)
+    {
+        auto ps = platformString(managedFunctionName);
+        FunctionMapping mapping{ps.c_str(),functionPointer};
+        _registerUnmanagedFunction_fn_ptr(mapping);
+    }
+
     void ScriptingEngine::cleanup()
     {
 
     }
+
+
 } // crucible
