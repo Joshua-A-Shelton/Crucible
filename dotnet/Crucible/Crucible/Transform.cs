@@ -15,6 +15,11 @@ public struct Transform3D
         }
     }
 
+    public Transform3D()
+    {
+        _position = new Vector3();
+    }
+
     public void Translate(float x, float y, float z)
     {
         _position.Translate(x,y,z);

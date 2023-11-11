@@ -19,6 +19,7 @@
 #include <limits.h>
 #include <cassert>
 #include <stdexcept>
+#include <iostream>
 
 #define STR(s) s
 #define CH(c) c
@@ -109,11 +110,17 @@ namespace crucible
         initFunc(&initArgs,sizeof(InitArgs));
 
         _registerUnmanagedFunction_fn_ptr = initArgs.RegisterUnmanagedFunction;
+        _freeUnmanagedGCHandleFunction_fn_ptr = initArgs.FreeUnmanagedGCHandleFunction;
+        _getComponentTypesFunction_fn_ptr = initArgs.GetComponentTypesFunction;
+
 
         //register unmanaged functions
+        registerUnmanagedFunction("UnmanagedPushStringToList", reinterpret_cast<void**>(cruciblePushString));
         registerUnmanagedFunction("UnmanagedVector3Cross", reinterpret_cast<void **>(&crucibleVector3Cross));
         registerUnmanagedFunction("UnmanagedVector3Dot", reinterpret_cast<void**>(&crucibleVector3Dot));
 
+        std::vector<std::string> componentNames;
+        _getComponentTypesFunction_fn_ptr(componentNames);
     }
 
     bool ScriptingEngine::loadHostFXR()

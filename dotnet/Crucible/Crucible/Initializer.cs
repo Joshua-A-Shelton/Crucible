@@ -10,6 +10,8 @@ namespace Crucible
         internal unsafe struct EntryArgs
         {
             public IntPtr RegisterUnmanagedFunction_ptr;
+            public IntPtr FreeUnmanagedGCHandle_ptr;
+            public IntPtr GetComponentTypesFunction_ptr;
         }
         
         
@@ -24,8 +26,9 @@ namespace Crucible
             {
                 var args = (EntryArgs*) entryArgs;
                 //Tell C++ about managed functions
-                Interop.RegisterUnmanagedFunction_ptr registerUnmanagedFunction = Interop.RegisterUnmanagedFunction;
-                args->RegisterUnmanagedFunction_ptr = Marshal.GetFunctionPointerForDelegate(registerUnmanagedFunction);
+                args->RegisterUnmanagedFunction_ptr = Marshal.GetFunctionPointerForDelegate(Interop.RegisterUnmanagedFunction_ptr);
+                args->FreeUnmanagedGCHandle_ptr = Marshal.GetFunctionPointerForDelegate(Interop.FreeUnmanagedGcHandle_ptr);
+                args->GetComponentTypesFunction_ptr = Marshal.GetFunctionPointerForDelegate(Interop.GetComponentTypes_ptr);
             }
             catch (Exception e)
             {
