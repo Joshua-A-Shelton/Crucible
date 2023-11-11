@@ -12,9 +12,9 @@ internal struct FunctionMap
 internal static unsafe class Interop
 {
     public delegate void RegisterUnmanagedFunction_ptr(FunctionMap map);
-    public static void RegisterUnmanagedFunction(FunctionMap mapping)
+    public static void RegisterUnmanagedFunction(ref FunctionMap mapping)
     {
-        string? mapTo = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? Marshal.PtrToStringUni(mapping.FunctionName) : Marshal.PtrToStringUTF8(mapping.FunctionPointer);
+        string? mapTo = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? Marshal.PtrToStringUni(mapping.FunctionName) : Marshal.PtrToStringUTF8(mapping.FunctionName);
 
         if (mapTo != null)
         {

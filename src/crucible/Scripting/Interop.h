@@ -1,7 +1,8 @@
 #ifndef CRUCIBLE_INTEROP_H
 #define CRUCIBLE_INTEROP_H
 #include <glm/vec3.hpp>
-#include <hostfxr.h>
+#include <nethost/hostfxr.h>
+
 
 namespace crucible
 {
