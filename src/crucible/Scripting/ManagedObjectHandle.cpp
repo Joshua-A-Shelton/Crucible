@@ -1,12 +1,12 @@
 #include <utility>
 #include "ManagedObjectHandle.h"
-#include "ScriptingEngine.h"
+#include "Interop.h"
 
 namespace crucible
 {
     ManagedObjectHandle::~ManagedObjectHandle()
     {
-        ScriptingEngine::_freeUnmanagedGCHandleFunction_fn_ptr(_gcHandle);
+        managedFunctionPointers.freeUnmanagedGCHandle(_gcHandle);
     }
 
     void ManagedObjectHandle::move(ManagedObjectHandle& from)

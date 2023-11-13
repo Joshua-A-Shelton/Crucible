@@ -1,7 +1,6 @@
 [submodule "third-party/slag"]
 	path = third-party/slag
 	url = https://github.com/Joshua-A-Shelton/Slag
-	update = merge
 [submodule "third-party/glm"]
 	path = third-party/glm
 	url = https://github.com/g-truc/glm
@@ -9,6 +8,3 @@
 	path = third-party/dear-imgui
 	url = https://github.com/ocornut/imgui
 	branch = docking
-[submodule "third-party/entt"]
-	path = third-party/entt
-	url = https://github.com/skypjack/entt

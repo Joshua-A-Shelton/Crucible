@@ -5,9 +5,9 @@ namespace Crucible
 {
     public static class Initializer
     {
-        //This must mirrror the InitArgs struct found in Interop.h
+        //This must mirrror the ManagedFunctionPointers struct found in Interop.h
         [StructLayout(LayoutKind.Sequential)]
-        internal unsafe struct EntryArgs
+        internal unsafe struct ManagedFunctionPointers
         {
             public IntPtr RegisterUnmanagedFunction_ptr;
             public IntPtr FreeUnmanagedGCHandle_ptr;
@@ -17,14 +17,14 @@ namespace Crucible
         
         public static unsafe int RuntimeEntry(IntPtr entryArgs, int argLength)
         {
-            if (argLength < System.Runtime.InteropServices.Marshal.SizeOf(typeof(EntryArgs)))
+            if (argLength < System.Runtime.InteropServices.Marshal.SizeOf(typeof(ManagedFunctionPointers)))
             {
                 return 1;
             }
 
             try
             {
-                var args = (EntryArgs*) entryArgs;
+                var args = (ManagedFunctionPointers*) entryArgs;
                 //Tell C++ about managed functions
                 args->RegisterUnmanagedFunction_ptr = Marshal.GetFunctionPointerForDelegate(Interop.RegisterUnmanagedFunction_ptr);
                 args->FreeUnmanagedGCHandle_ptr = Marshal.GetFunctionPointerForDelegate(Interop.FreeUnmanagedGcHandle_ptr);

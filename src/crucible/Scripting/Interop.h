@@ -14,19 +14,24 @@ namespace crucible
         void** NativeFunctionPointer;
     };
 
-    struct InitArgs
+    struct ManagedFunctionPointers
     {
-        void* (*RegisterUnmanagedFunction)(FunctionMapping&) = nullptr;
-        void* (*FreeUnmanagedGCHandleFunction)(void*) = nullptr;
-        void* (*GetComponentTypesFunction)(std::vector<std::string>&) = nullptr;
+        void* (*registerUnmanagedFunction)(FunctionMapping&) = nullptr;
+        void* (*freeUnmanagedGCHandle)(void*) = nullptr;
+        void* (*getComponentTypes)(std::vector<std::string>&) = nullptr;
     };
 
+    static inline ManagedFunctionPointers managedFunctionPointers;
+
+    extern "C"
+    {
     //Miscellaneous
-    void cruciblePushString(std::vector<std::string>& vector, char* string);
+    void cruciblePushString(std::vector<std::string> &vector, char *string);
 
     //Vectors
-    void crucibleVector3Cross(glm::vec3& v1, glm::vec3& v2, glm::vec3& outResult);
-    void crucibleVector3Dot(glm::vec3& v1, glm::vec3& v2, float& outResult);
+    void crucibleVector3Cross(glm::vec3 &v1, glm::vec3 &v2, glm::vec3 &outResult);
+    void crucibleVector3Dot(glm::vec3 &v1, glm::vec3 &v2, float &outResult);
+    }
 }
 
 

@@ -97,21 +97,16 @@ namespace crucible
 
         component_entry_point_fn initFunc = nullptr;
         load_assembly_and_get_function_pointer(
-                platformString(executableDirectory.string() + DIR_SEPARATOR + "Crucible.dll").c_str(),
+                platformString(executableDirectory.string() + DIR_SEPARATOR + "Crucible-Runtime.dll").c_str(),
                 //              namespace.class, dll name
-                platformString("Crucible.Initializer, Crucible").c_str(),
+                platformString("Crucible.Initializer, Crucible-Runtime").c_str(),
                 platformString("RuntimeEntry").c_str(),
                 nullptr,
                 nullptr,
                 (void**)(&initFunc)
         );
 
-        InitArgs initArgs;
-        initFunc(&initArgs,sizeof(InitArgs));
-
-        _registerUnmanagedFunction_fn_ptr = initArgs.RegisterUnmanagedFunction;
-        _freeUnmanagedGCHandleFunction_fn_ptr = initArgs.FreeUnmanagedGCHandleFunction;
-        _getComponentTypesFunction_fn_ptr = initArgs.GetComponentTypesFunction;
+        initFunc(&managedFunctionPointers,sizeof(ManagedFunctionPointers));
 
 
         //register unmanaged functions
@@ -120,7 +115,7 @@ namespace crucible
         registerUnmanagedFunction("UnmanagedVector3Dot", reinterpret_cast<void**>(&crucibleVector3Dot));
 
         std::vector<std::string> componentNames;
-        _getComponentTypesFunction_fn_ptr(componentNames);
+        managedFunctionPointers.getComponentTypes(componentNames);
     }
 
     bool ScriptingEngine::loadHostFXR()
@@ -174,7 +169,7 @@ namespace crucible
     {
         auto ps = platformString(managedFunctionName);
         FunctionMapping mapping{ps.c_str(),functionPointer};
-        _registerUnmanagedFunction_fn_ptr(mapping);
+        managedFunctionPointers.registerUnmanagedFunction(mapping);
     }
 
     void ScriptingEngine::cleanup()

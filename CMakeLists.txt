@@ -8,7 +8,6 @@ find_package(Vulkan REQUIRED)
 find_package(Boost REQUIRED COMPONENTS filesystem)
 
 add_subdirectory(third-party/slag)
-add_subdirectory(third-party/entt)
 
 if(WIN32)
     set(CRUCIBLE_PLATFORM_DIR "Windows")
@@ -33,14 +32,14 @@ list(APPEND CRUCIBLE_DEAR_IMGUI third-party/dear-imgui/backends/imgui_impl_sdl2.
 list(APPEND CRUCIBLE_DEAR_IMGUI third-party/dear-imgui/backends/imgui_impl_vulkan.cpp)
 
 
-add_library(Crucible src/crucible/Engine.cpp src/crucible/Engine.h src/crucible/Graphics/Model.cpp src/crucible/Graphics/Model.h src/crucible/Graphics/Mesh.cpp src/crucible/Graphics/Mesh.h src/crucible/Graphics/Vertex3D.h src/crucible/GameObject.cpp src/crucible/GameObject.h src/crucible/EntityComponentSystem.cpp src/crucible/EntityComponentSystem.h src/crucible/Scripting/ScriptingEngine.cpp src/crucible/Scripting/ScriptingEngine.h src/crucible/Scripting/Interop.cpp src/crucible/Scripting/Interop.h src/crucible/Scripting/ManagedObjectHandle.h src/crucible/Scripting/ManagedObjectHandle.cpp)
+add_library(Crucible src/crucible/Engine.cpp src/crucible/Engine.h src/crucible/Graphics/Model.cpp src/crucible/Graphics/Model.h src/crucible/Graphics/Mesh.cpp src/crucible/Graphics/Mesh.h src/crucible/Graphics/Vertex3D.h src/crucible/Scripting/ScriptingEngine.cpp src/crucible/Scripting/ScriptingEngine.h src/crucible/Scripting/Interop.cpp src/crucible/Scripting/Interop.h src/crucible/Scripting/ManagedObjectHandle.h src/crucible/Scripting/ManagedObjectHandle.cpp)
 add_executable(CrucibleEditor ${CRUCIBLE_DEAR_IMGUI} editor/Program.cpp)
 
 target_include_directories(Crucible PUBLIC third-party/glm third-party/nethost/include ${SDL2_LIBRARIES} ${Boost_INCLUDE_DIRS})
 target_include_directories(CrucibleEditor PRIVATE third-party/dear-imgui ${Vulkan_INCLUDE_DIR} src)
 
 
-target_link_libraries(Crucible Slag SDL2::SDL2 EnTT::EnTT nethost ${Boost_LIBRARIES})
+target_link_libraries(Crucible Slag SDL2::SDL2 nethost ${Boost_LIBRARIES})
 
 target_link_libraries(CrucibleEditor Crucible)
 
@@ -48,13 +47,13 @@ target_link_libraries(CrucibleEditor Crucible)
 #==============================================================================
 #Compile dotnet
 #
-set(DOTNET_OUTPUT_TARGET ${CMAKE_CURRENT_BINARY_DIR}/Crucible.dll)
+set(DOTNET_OUTPUT_TARGET ${CMAKE_CURRENT_BINARY_DIR}/Crucible-Runtime.dll)
 file(GLOB_RECURSE DOTNETRUNTIME CONFIGURE_DEPENDS dotnet/Crucible/*.cs)
 add_custom_target(dotnetruntime-build
         DEPENDS ${DOTNETRUNTIME}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/dotnet/Crucible
-        COMMAND dotnet build -c ${CRUCIBLE_BUILD_TYPE} -p 'AnyCPU'
-        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/dotnet/Crucible/Crucible/bin/${CRUCIBLE_BUILD_TYPE}/net7.0/Crucible.dll ${DOTNET_OUTPUT_TARGET}
+        #COMMAND dotnet build -c ${CRUCIBLE_BUILD_TYPE} -p 'AnyCPU'
+        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/dotnet/Crucible/Crucible/bin/${CRUCIBLE_BUILD_TYPE}/net7.0/Crucible-Runtime.dll ${DOTNET_OUTPUT_TARGET}
         COMMENT "Building .net runtime")
 ADD_DEPENDENCIES(Crucible dotnetruntime-build)
 

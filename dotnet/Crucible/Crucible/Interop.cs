@@ -61,7 +61,7 @@ internal static unsafe class Interop
         }
     }
     
-    public static delegate* unmanaged<Vector3, Vector3, out Vector3, void*> UnmanagedVector3Cross = null;
+    public static delegate* unmanaged[Cdecl]<Vector3, Vector3, out Vector3, void*> UnmanagedVector3Cross = null;
     public static delegate* unmanaged<Vector3, Vector3, out float, void*> UnmanagedVector3Dot = null;
     public static delegate* unmanaged<IntPtr, string, void*> UnmanagedPushStringToList = null;
 

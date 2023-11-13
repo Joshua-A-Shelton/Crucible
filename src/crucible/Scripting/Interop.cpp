@@ -1,6 +1,5 @@
 #include "Interop.h"
 #include <glm/geometric.hpp>
-#include <iostream>
 
 namespace crucible
 {
