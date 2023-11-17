@@ -25,15 +25,15 @@ endif()
 link_directories(third-party/nethost/lib/${CRUCIBLE_PLATFORM_DIR})
 
 list(APPEND CRUCIBLE_DEAR_IMGUI third-party/dear-imgui/imgui.cpp)
+list(APPEND CRUCIBLE_DEAR_IMGUI third-party/dear-imgui/imgui_demo.cpp)
 list(APPEND CRUCIBLE_DEAR_IMGUI third-party/dear-imgui/imgui_draw.cpp)
 list(APPEND CRUCIBLE_DEAR_IMGUI third-party/dear-imgui/imgui_tables.cpp)
 list(APPEND CRUCIBLE_DEAR_IMGUI third-party/dear-imgui/imgui_widgets.cpp)
 list(APPEND CRUCIBLE_DEAR_IMGUI third-party/dear-imgui/backends/imgui_impl_sdl2.cpp)
-list(APPEND CRUCIBLE_DEAR_IMGUI third-party/dear-imgui/backends/imgui_impl_vulkan.cpp)
 
 
 add_library(Crucible src/crucible/Engine.cpp src/crucible/Engine.h src/crucible/Graphics/Model.cpp src/crucible/Graphics/Model.h src/crucible/Graphics/Mesh.cpp src/crucible/Graphics/Mesh.h src/crucible/Graphics/Vertex3D.h src/crucible/Scripting/ScriptingEngine.cpp src/crucible/Scripting/ScriptingEngine.h src/crucible/Scripting/Interop.cpp src/crucible/Scripting/Interop.h src/crucible/Scripting/ManagedObjectHandle.h src/crucible/Scripting/ManagedObjectHandle.cpp)
-add_executable(CrucibleEditor ${CRUCIBLE_DEAR_IMGUI} editor/Program.cpp)
+add_executable(CrucibleEditor ${CRUCIBLE_DEAR_IMGUI} editor/Program.cpp editor/Graphics/DearImGUI/imgui_impl_slag.cpp editor/Graphics/DearImGUI/imgui_impl_slag.h)
 
 target_include_directories(Crucible PUBLIC third-party/glm third-party/nethost/include ${SDL2_LIBRARIES} ${Boost_INCLUDE_DIRS})
 target_include_directories(CrucibleEditor PRIVATE third-party/dear-imgui ${Vulkan_INCLUDE_DIR} src)
@@ -80,7 +80,7 @@ foreach(source IN LISTS SHADERS)
     get_filename_component(FILENAME ${source} NAME)
     add_custom_command(
             COMMAND
-            ${glslc_executable}
+            glslc
             #      -MD -MF ${SHADER_BINARY_DIR}/${FILENAME}.d
             -o ${SHADER_BINARY_DIR}/${FILENAME}.spv
             ${source}
@@ -92,6 +92,7 @@ foreach(source IN LISTS SHADERS)
 endforeach()
 
 add_custom_target(shaders ALL DEPENDS ${SPV_SHADERS})
+add_dependencies(CrucibleEditor shaders)
 
 if(WIN32)
     file(COPY third-party/nethost/shared/${CRUCIBLE_PLATFORM_DIR}/nethost${CRUCIBLE_DYN_EXT} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})

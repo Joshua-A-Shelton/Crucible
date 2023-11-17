@@ -4,8 +4,8 @@ namespace crucible
 {
     Mesh::Mesh(std::vector<Vertex3D>&& verticies, std::vector<uint16_t>&& indicies)
     {
-        _verticies = Buffer::create(verticies.data(),sizeof(Vertex3D)*verticies.size(),Buffer::Usage::GPU_ONLY);
-        _indicies = Buffer::create(indicies.data(),sizeof(uint16_t)*indicies.size(),Buffer::Usage::GPU_ONLY);
+        _verticies = VertexBuffer::create(verticies.data(),sizeof(Vertex3D)*verticies.size(),Buffer::Usage::GPU);
+        _indicies = IndexBuffer::create(indicies.data(),sizeof(uint16_t)*indicies.size(),Buffer::Usage::GPU);
     }
 
     Mesh::~Mesh()
