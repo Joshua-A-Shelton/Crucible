@@ -9,7 +9,7 @@
 IMGUI_IMPL_API bool     ImGui_ImplSlag_Init(slag::Pixels::PixelFormat renderTargetFormat);
 IMGUI_IMPL_API void     ImGui_ImplSlag_Shutdown();
 IMGUI_IMPL_API void     ImGui_ImplSlag_NewFrame();
-IMGUI_IMPL_API void     ImGui_ImplSlag_RenderDrawData(ImDrawData *draw_data, slag::CommandBuffer *commandBuffer, slag::Shader* shader,slag::UniformSetDataAllocator* allocator);
+IMGUI_IMPL_API void     ImGui_ImplSlag_RenderDrawData(ImDrawData *draw_data, slag::Frame* frame, slag::Shader* shader);
 
 
 struct ImGui_SlagBackEndData
@@ -28,7 +28,7 @@ struct ImGui_SlagWindowRenderBuffers
 {
     uint32_t            Index = 0;
     uint32_t            Count = 0;
-    ImGui_SlagFrameRenderBuffers* FrameRenderBuffers = nullptr;
+    //ImGui_SlagFrameRenderBuffers* FrameRenderBuffers = nullptr;
 };
 struct ImGui_SlagViewPort
 {

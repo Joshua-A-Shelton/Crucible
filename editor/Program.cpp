@@ -21,7 +21,7 @@ int main(int argc, char** args)
     pd.nativeWindowHandle = reinterpret_cast<void*>(wmInfo.info.x11.window);
     pd.nativeDisplayType = wmInfo.info.x11.display;
 #endif
-    slag::Swapchain* swapchain = slag::SwapchainBuilder(pd).setDesiredBackBuffers(2).setHeight(500).setWidth(800).create();
+    slag::Swapchain* swapchain = slag::SwapchainBuilder(pd).setDesiredBackBuffers(2).addVertexBufferResource("ImGuiVerts",{15000,slag::Buffer::Usage::GPU}).addIndexBufferResource("ImGuiIndexes",{15000,slag::Buffer::Usage::GPU}).setHeight(500).setWidth(800).create();
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -77,7 +77,7 @@ int main(int argc, char** args)
 
             ImGui::ShowDemoWindow();
             ImGui::Render();
-            ImGui_ImplSlag_RenderDrawData(ImGui::GetDrawData(),commandBuffer, nullptr,frame->getUniformSetDataAllocator());
+            ImGui_ImplSlag_RenderDrawData(ImGui::GetDrawData(),frame, nullptr);
             commandBuffer->endTargetFramebuffer();
             ImGui::UpdatePlatformWindows();
             ImGui::RenderPlatformWindowsDefault();

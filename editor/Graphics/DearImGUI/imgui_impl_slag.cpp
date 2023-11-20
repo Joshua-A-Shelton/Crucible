@@ -58,7 +58,7 @@ void ImGui_ImplSlag_NewFrame()
     IM_UNUSED(bd);
 }
 
-void ImGui_ImplSlag_RenderDrawData(ImDrawData *draw_data, slag::CommandBuffer *commandBuffer, slag::Shader* shader,slag::UniformSetDataAllocator* allocator)
+void ImGui_ImplSlag_RenderDrawData(ImDrawData *draw_data, slag::Frame* frame, slag::Shader* shader)
 {
 // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
     int fb_width = (int)(draw_data->DisplaySize.x * draw_data->FramebufferScale.x);
@@ -72,18 +72,21 @@ void ImGui_ImplSlag_RenderDrawData(ImDrawData *draw_data, slag::CommandBuffer *c
         shader = backEndData->shader;
     }
 
+    auto commandBuffer = frame->getCommandBuffer();
+    auto allocator = frame->getUniformSetDataAllocator();
+
     // Allocate array to store enough vertex/index buffers. Each unique viewport gets its own storage.
     ImGui_SlagViewPort* viewport_renderer_data = (ImGui_SlagViewPort*)draw_data->OwnerViewport->RendererUserData;
     IM_ASSERT(viewport_renderer_data != nullptr);
 
     ImGui_SlagWindowRenderBuffers* windowRenderBuffers = &viewport_renderer_data->RenderBuffers;
-    if (windowRenderBuffers->FrameRenderBuffers == nullptr)
+    /*if (windowRenderBuffers->FrameRenderBuffers == nullptr)
     {
         windowRenderBuffers->Index = 0;
         //windowRenderBuffers->Count = v->ImageCount;
         windowRenderBuffers->FrameRenderBuffers = (ImGui_SlagFrameRenderBuffers*)IM_ALLOC(sizeof(ImGui_SlagFrameRenderBuffers) * windowRenderBuffers->Count);
         memset(windowRenderBuffers->FrameRenderBuffers, 0, sizeof(ImGui_SlagFrameRenderBuffers) * windowRenderBuffers->Count);
-    }
+    }*/
     //IM_ASSERT(wrb->Count == v->ImageCount);
     //windowRenderBuffers->Index = (windowRenderBuffers->Index + 1) % windowRenderBuffers->Count;
     //ImGui_SlagFrameRenderBuffers* rb = &windowRenderBuffers->FrameRenderBuffers[windowRenderBuffers->Index];
@@ -91,12 +94,23 @@ void ImGui_ImplSlag_RenderDrawData(ImDrawData *draw_data, slag::CommandBuffer *c
     std::vector<ImDrawVert> verts;
     std::vector<ImDrawIdx> idxs;
 
+
+    slag::VertexBuffer* vertexBuffer = frame->getVertexBufferResource("ImGuiVerts");
+    slag::IndexBuffer* indexBuffer = frame->getIndexBufferResource("ImGuiIndexes");
     if (draw_data->TotalVtxCount > 0)
     {
         // Create or resize the vertex/index buffers
         size_t vertex_size = draw_data->TotalVtxCount * sizeof(ImDrawVert);
+        if(vertexBuffer->size() < vertex_size)
+        {
+            vertexBuffer->rebuild(vertex_size);
+        }
         verts.resize(draw_data->TotalVtxCount);
         size_t index_size = draw_data->TotalIdxCount * sizeof(ImDrawIdx);
+        if(indexBuffer->size() < index_size)
+        {
+            indexBuffer->rebuild(index_size);
+        }
         idxs.resize(draw_data->TotalIdxCount);
 
 
@@ -111,10 +125,10 @@ void ImGui_ImplSlag_RenderDrawData(ImDrawData *draw_data, slag::CommandBuffer *c
             vtx_dst += cmd_list->VtxBuffer.Size;
             idx_dst += cmd_list->IdxBuffer.Size;
         }
-    }
 
-    slag::VertexBuffer* vertexBuffer = slag::VertexBuffer::create(verts.data(),verts.size()*sizeof(ImDrawVert),slag::Buffer::Usage::GPU);
-    slag::IndexBuffer* indexBuffer = slag::IndexBuffer::create(idxs.data(),idxs.size()*sizeof(ImDrawIdx),slag::Buffer::Usage::GPU);
+        vertexBuffer->update(0,verts.data(),vertex_size);
+        indexBuffer->update(0,idxs.data(),index_size);
+    }
 
     // Setup desired Vulkan state
     ImGui_Slag_SetupRenderState(draw_data, shader, commandBuffer, vertexBuffer, indexBuffer, fb_width, fb_height);
@@ -177,9 +191,6 @@ void ImGui_ImplSlag_RenderDrawData(ImDrawData *draw_data, slag::CommandBuffer *c
         global_vtx_offset += cmd_list->VtxBuffer.Size;
     }
 
-    delete vertexBuffer;
-    delete indexBuffer;
-
     // Note: at this point both vkCmdSetViewport() and vkCmdSetScissor() have been called.
     // Our last values will leak into user/application rendering IF:
     // - Your app uses a pipeline with VK_DYNAMIC_STATE_VIEWPORT or VK_DYNAMIC_STATE_SCISSOR dynamic state
@@ -209,7 +220,7 @@ void ImGui_Slag_RenderWindow(ImGuiViewport *viewport, void *)
         slag::Attachment colorAttachment{.texture = frame->getBackBuffer(), .clearOnLoad = true, .clear={0.5,0.5,0.5,0.5}};
         commandBuffer->setTargetFramebuffer(view,&colorAttachment,1);
         commandBuffer->bindShader(backEndData->shader);
-        ImGui_ImplSlag_RenderDrawData(viewport->DrawData,commandBuffer, nullptr,frame->getUniformSetDataAllocator());
+        ImGui_ImplSlag_RenderDrawData(viewport->DrawData,frame, nullptr);
         commandBuffer->endTargetFramebuffer();
         frame->end();
     }
@@ -288,7 +299,7 @@ void ImGui_Slag_CreateWindow(ImGuiViewport* viewport)
     pd.nativeDisplayType = wmInfo.info.x11.display;
 #endif
 
-    viewportData->window = slag::SwapchainBuilder(pd).create();
+    viewportData->window = slag::SwapchainBuilder(pd).addVertexBufferResource("ImGuiVerts",{15000,slag::Buffer::Usage::GPU}).addIndexBufferResource("ImGuiIndexes",{15000,slag::Buffer::Usage::GPU}).create();
     viewportData->handle = window;
     viewportData->WindowOwned = true;
 }
