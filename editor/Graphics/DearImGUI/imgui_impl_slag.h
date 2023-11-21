@@ -19,23 +19,11 @@ struct ImGui_SlagBackEndData
     slag::Pixels::PixelFormat renderTargetFormat;
     slag::Texture* fontAtlas = nullptr;
 };
-struct ImGui_SlagFrameRenderBuffers
-{
-    slag::VertexBuffer* vertexBuffer = nullptr;
-    slag::IndexBuffer* indexBuffer = nullptr;
-};
-struct ImGui_SlagWindowRenderBuffers
-{
-    uint32_t            Index = 0;
-    uint32_t            Count = 0;
-    //ImGui_SlagFrameRenderBuffers* FrameRenderBuffers = nullptr;
-};
 struct ImGui_SlagViewPort
 {
     bool WindowOwned = false;
     slag::Swapchain* window = nullptr;
     SDL_Window* handle = nullptr;
-    ImGui_SlagWindowRenderBuffers RenderBuffers;
 
 };
 
