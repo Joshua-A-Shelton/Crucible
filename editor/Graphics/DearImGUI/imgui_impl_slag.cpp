@@ -1,5 +1,17 @@
 #include "imgui_impl_slag.h"
 #include <SDL_syswm.h>
+#include <iostream>
+
+struct ImGui_ImplSDL2_ViewportData
+{
+    SDL_Window*     Window;
+    Uint32          WindowID;
+    bool            WindowOwned;
+    SDL_GLContext   GLContext;
+
+    ImGui_ImplSDL2_ViewportData() { Window = nullptr; WindowID = 0; WindowOwned = false; GLContext = nullptr; }
+    ~ImGui_ImplSDL2_ViewportData() { IM_ASSERT(Window == nullptr && GLContext == nullptr); }
+};
 
 bool ImGui_ImplSlag_Init(slag::Pixels::PixelFormat renderTargetFormat)
 {
@@ -48,7 +60,6 @@ void ImGui_ImplSlag_Shutdown()
     delete backEndData->sampler;
     delete backEndData->fontAtlas;
     delete backEndData;
-    ImGui::DestroyPlatformWindows();
 }
 
 void ImGui_ImplSlag_NewFrame()
@@ -78,18 +89,6 @@ void ImGui_ImplSlag_RenderDrawData(ImDrawData *draw_data, slag::Frame* frame, sl
     // Allocate array to store enough vertex/index buffers. Each unique viewport gets its own storage.
     ImGui_SlagViewPort* viewport_renderer_data = (ImGui_SlagViewPort*)draw_data->OwnerViewport->RendererUserData;
     IM_ASSERT(viewport_renderer_data != nullptr);
-
-    ImGui_SlagWindowRenderBuffers* windowRenderBuffers = &viewport_renderer_data->RenderBuffers;
-    /*if (windowRenderBuffers->FrameRenderBuffers == nullptr)
-    {
-        windowRenderBuffers->Index = 0;
-        //windowRenderBuffers->Count = v->ImageCount;
-        windowRenderBuffers->FrameRenderBuffers = (ImGui_SlagFrameRenderBuffers*)IM_ALLOC(sizeof(ImGui_SlagFrameRenderBuffers) * windowRenderBuffers->Count);
-        memset(windowRenderBuffers->FrameRenderBuffers, 0, sizeof(ImGui_SlagFrameRenderBuffers) * windowRenderBuffers->Count);
-    }*/
-    //IM_ASSERT(wrb->Count == v->ImageCount);
-    //windowRenderBuffers->Index = (windowRenderBuffers->Index + 1) % windowRenderBuffers->Count;
-    //ImGui_SlagFrameRenderBuffers* rb = &windowRenderBuffers->FrameRenderBuffers[windowRenderBuffers->Index];
 
     std::vector<ImDrawVert> verts;
     std::vector<ImDrawIdx> idxs;
@@ -228,8 +227,6 @@ void ImGui_Slag_RenderWindow(ImGuiViewport *viewport, void *)
 
 void ImGui_Slag_SetupRenderState(ImDrawData *draw_data, slag::Shader *pipeline, slag::CommandBuffer *command_buffer, slag::VertexBuffer* vertexBuffer, slag:: IndexBuffer* indexBuffer, int fb_width, int fb_height)
 {
-    auto backEndData = ImGui_SlagBackEndData();
-
     // Bind pipeline:
     command_buffer->bindShader(pipeline);
 
@@ -272,13 +269,10 @@ void ImGui_Slag_SetupRenderState(ImDrawData *draw_data, slag::Shader *pipeline, 
 void ImGui_Slag_InitPlatformInterface()
 {
     ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
-    if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-        IM_ASSERT(platform_io.Platform_CreateVkSurface != nullptr && "Platform needs to setup the CreateVkSurface handler.");
     platform_io.Renderer_CreateWindow = ImGui_Slag_CreateWindow;
     platform_io.Renderer_DestroyWindow = ImGui_Slag_DestroyWindow;
     platform_io.Renderer_SetWindowSize = ImGui_Slag_SetWindowSize;
     platform_io.Renderer_RenderWindow = ImGui_Slag_RenderWindow;
-    platform_io.Platform_SetWindowPos = ImGui_Slag_SetWindowPos;
     platform_io.Renderer_SwapBuffers = nullptr;
 }
 
@@ -286,8 +280,11 @@ void ImGui_Slag_InitPlatformInterface()
 void ImGui_Slag_CreateWindow(ImGuiViewport* viewport)
 {
     ImGui_SlagViewPort* viewportData = new ImGui_SlagViewPort();
+    auto platformUserData = (ImGui_ImplSDL2_ViewportData*)viewport->PlatformUserData;
+
     viewport->RendererUserData = viewportData;
-    auto window = SDL_CreateWindow("Crucible",viewport->Pos.x,viewport->Pos.y,viewport->Size.x,viewport->Size.y,SDL_WindowFlags::SDL_WINDOW_VULKAN | SDL_WindowFlags::SDL_WINDOW_BORDERLESS | SDL_WindowFlags::SDL_WINDOW_RESIZABLE);
+    ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
+    auto window = platformUserData->Window;
     slag::PlatformData pd;
     SDL_SysWMinfo wmInfo;
     SDL_VERSION(&wmInfo.version);
@@ -302,6 +299,7 @@ void ImGui_Slag_CreateWindow(ImGuiViewport* viewport)
     viewportData->window = slag::SwapchainBuilder(pd).addVertexBufferResource("ImGuiVerts",{15000,slag::Buffer::Usage::GPU}).addIndexBufferResource("ImGuiIndexes",{15000,slag::Buffer::Usage::GPU}).create();
     viewportData->handle = window;
     viewportData->WindowOwned = true;
+    std::cout << "created window" <<std::endl;
 }
 
 void ImGui_Slag_DestroyWindow(ImGuiViewport* viewport)
@@ -312,11 +310,13 @@ void ImGui_Slag_DestroyWindow(ImGuiViewport* viewport)
         if (viewportData->WindowOwned)
         {
             delete viewportData->window;
-            SDL_DestroyWindow(viewportData->handle);
+            std::cout << "destroyed window" <<std::endl;
         }
         delete viewportData;
+        std::cout << "destroyed window viewport data" <<std::endl;
     }
     viewport->RendererUserData = nullptr;
+
 }
 
 void ImGui_Slag_SetWindowSize(ImGuiViewport* viewport, ImVec2 size)
@@ -327,14 +327,3 @@ void ImGui_Slag_SetWindowSize(ImGuiViewport* viewport, ImVec2 size)
     SDL_SetWindowSize(viewportData->handle,size.x,size.y);
     viewportData->window->resize(size.x,size.y);
 }
-
-void ImGui_Slag_SetWindowPos(ImGuiViewport* viewport, ImVec2 pos)
-{
-    ImGui_SlagViewPort* viewportData = (ImGui_SlagViewPort*)viewport->RendererUserData;
-    if (viewportData == nullptr) // This is nullptr for the main viewport (which is left to the user/app to handle)
-        return;
-    SDL_SetWindowPosition(viewportData->handle,pos.x,pos.y);
-}
-
-
-
