@@ -35,7 +35,6 @@ static void ImGui_Slag_InitPlatformInterface();
 static void ImGui_Slag_CreateWindow(ImGuiViewport* viewport);
 static void ImGui_Slag_DestroyWindow(ImGuiViewport* viewport);
 static void ImGui_Slag_SetWindowSize(ImGuiViewport* viewport, ImVec2 size);
-static void ImGui_Slag_SetWindowPos(ImGuiViewport* viewport, ImVec2 pos);
 
 
 #endif //CRUCIBLE_IMGUI_IMPL_SLAG_H
