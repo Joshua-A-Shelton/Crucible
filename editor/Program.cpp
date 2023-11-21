@@ -23,8 +23,8 @@ int main(int argc, char** args)
 #endif
     slag::Swapchain* swapchain = slag::SwapchainBuilder(pd)
             .setDesiredBackBuffers(2)
-            .addVertexBufferResource("ImGuiVerts",{15000,slag::Buffer::Usage::CPU})
-            .addIndexBufferResource("ImGuiIndexes",{15000,slag::Buffer::Usage::CPU})
+            .addVertexBufferResource("ImGuiVerts",{15000,slag::Buffer::Usage::GPU})
+            .addIndexBufferResource("ImGuiIndexes",{15000,slag::Buffer::Usage::GPU})
             .setHeight(500).setWidth(800).create();
 
     // Setup Dear ImGui context

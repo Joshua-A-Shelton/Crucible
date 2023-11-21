@@ -299,7 +299,6 @@ void ImGui_Slag_CreateWindow(ImGuiViewport* viewport)
     viewportData->window = slag::SwapchainBuilder(pd).addVertexBufferResource("ImGuiVerts",{15000,slag::Buffer::Usage::GPU}).addIndexBufferResource("ImGuiIndexes",{15000,slag::Buffer::Usage::GPU}).create();
     viewportData->handle = window;
     viewportData->WindowOwned = true;
-    std::cout << "created window" <<std::endl;
 }
 
 void ImGui_Slag_DestroyWindow(ImGuiViewport* viewport)
@@ -310,10 +309,8 @@ void ImGui_Slag_DestroyWindow(ImGuiViewport* viewport)
         if (viewportData->WindowOwned)
         {
             delete viewportData->window;
-            std::cout << "destroyed window" <<std::endl;
         }
         delete viewportData;
-        std::cout << "destroyed window viewport data" <<std::endl;
     }
     viewport->RendererUserData = nullptr;
 
