@@ -52,7 +52,7 @@ file(GLOB_RECURSE DOTNETRUNTIME CONFIGURE_DEPENDS dotnet/Crucible/*.cs)
 add_custom_target(dotnetruntime-build
         DEPENDS ${DOTNETRUNTIME}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/dotnet/Crucible
-        COMMAND dotnet build -c ${CRUCIBLE_BUILD_TYPE} -p 'AnyCPU'
+        #COMMAND dotnet build -c ${CRUCIBLE_BUILD_TYPE} -p 'AnyCPU'
         COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/dotnet/Crucible/Crucible/bin/${CRUCIBLE_BUILD_TYPE}/net7.0/Crucible-Runtime.dll ${DOTNET_OUTPUT_TARGET}
         COMMENT "Building .net runtime")
 ADD_DEPENDENCIES(Crucible dotnetruntime-build)
