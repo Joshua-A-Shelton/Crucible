@@ -33,7 +33,7 @@ list(APPEND CRUCIBLE_DEAR_IMGUI third-party/dear-imgui/backends/imgui_impl_sdl2.
 
 
 add_library(Crucible src/crucible/Engine.cpp src/crucible/Engine.h src/crucible/Graphics/Model.cpp src/crucible/Graphics/Model.h src/crucible/Graphics/Mesh.cpp src/crucible/Graphics/Mesh.h src/crucible/Graphics/Vertex3D.h src/crucible/Scripting/ScriptingEngine.cpp src/crucible/Scripting/ScriptingEngine.h src/crucible/Scripting/Interop.cpp src/crucible/Scripting/Interop.h src/crucible/Scripting/ManagedObjectHandle.h src/crucible/Scripting/ManagedObjectHandle.cpp)
-add_executable(CrucibleEditor ${CRUCIBLE_DEAR_IMGUI} editor/Program.cpp editor/Graphics/DearImGUI/imgui_impl_slag.cpp editor/Graphics/DearImGUI/imgui_impl_slag.h editor/Graphics/Fonts.h)
+add_executable(CrucibleEditor ${CRUCIBLE_DEAR_IMGUI} editor/Program.cpp editor/Graphics/DearImGUI/imgui_impl_slag.cpp editor/Graphics/DearImGUI/imgui_impl_slag.h editor/Graphics/Fonts.h editor/Controls/MenuBar.cpp editor/Controls/MenuBar.h editor/Controls/Control.h editor/Controls/MainViewport.cpp editor/Controls/MainViewport.h editor/Controls/SceneTree.cpp editor/Controls/SceneTree.h editor/Controls/Inspector.cpp editor/Controls/Inspector.h editor/Controls/Resources.cpp editor/Controls/Resources.h)
 
 target_include_directories(Crucible PUBLIC third-party/glm third-party/nethost/include ${SDL2_LIBRARIES} ${Boost_INCLUDE_DIRS})
 target_include_directories(CrucibleEditor PRIVATE third-party/dear-imgui ${Vulkan_INCLUDE_DIR} src)

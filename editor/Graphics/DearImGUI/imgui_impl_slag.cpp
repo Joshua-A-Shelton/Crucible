@@ -104,11 +104,19 @@ void ImGui_ImplSlag_RenderDrawData(ImDrawData *draw_data, slag::Frame* frame, sl
         {
             vertexBuffer->rebuild(vertex_size);
         }
+        else if(vertexBuffer->size() > vertex_size*1.5)
+        {
+            vertexBuffer->rebuild(vertex_size * 1.3);
+        }
         verts.resize(draw_data->TotalVtxCount);
         size_t index_size = draw_data->TotalIdxCount * sizeof(ImDrawIdx);
         if(indexBuffer->size() < index_size)
         {
             indexBuffer->rebuild(index_size);
+        }
+        else if(indexBuffer->size() > index_size*1.5)
+        {
+            indexBuffer->rebuild(index_size*1.3);
         }
         idxs.resize(draw_data->TotalIdxCount);
 

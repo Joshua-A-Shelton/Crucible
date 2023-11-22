@@ -7,11 +7,16 @@
 #include "Graphics/DearImGUI/imgui_impl_slag.h"
 #include <backends/imgui_impl_sdl2.h>
 #include "Graphics/Fonts.h"
+#include "Controls/MenuBar.h"
+#include "Controls/MainViewport.h"
+#include "Controls/SceneTree.h"
+#include "Controls/Inspector.h"
+#include "Controls/Resources.h"
 
 int main(int argc, char** args)
 {
     crucible::Engine::initialize();
-    auto mainWindow = SDL_CreateWindow("Crucible",SDL_WINDOWPOS_UNDEFINED,SDL_WINDOWPOS_UNDEFINED,800,500,SDL_WindowFlags::SDL_WINDOW_VULKAN | SDL_WindowFlags::SDL_WINDOW_RESIZABLE);
+    auto mainWindow = SDL_CreateWindow("Crucible",SDL_WINDOWPOS_UNDEFINED,SDL_WINDOWPOS_UNDEFINED,800,500,SDL_WindowFlags::SDL_WINDOW_VULKAN | SDL_WindowFlags::SDL_WINDOW_RESIZABLE | SDL_WINDOW_MAXIMIZED);
     int x,y,channels;
     unsigned char* pixels = stbi_load("Crucible.png",&x,&y,&channels,4);
     // Calculate pitch
@@ -71,6 +76,12 @@ int main(int argc, char** args)
     ImGui_ImplSDL2_InitForOther(mainWindow);
     ImGui_ImplSlag_Init(swapchain->imageFormat());
 
+    crucible::controls::MenuBar menuBar;
+    crucible::controls::MainViewport mainViewport;
+    crucible::controls::SceneTree sceneTree;
+    crucible::controls::Inspector inspector;
+    crucible::controls::Resources resources;
+
     while(open)
     {
         SDL_Event e;
@@ -113,20 +124,13 @@ int main(int argc, char** args)
             commandBuffer->setTargetFramebuffer(view,&colorAttachment,1);
 
             ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
-            ImGui::BeginMainMenuBar();
-            ImGui::EndMainMenuBar();
 
-            ImGui::Begin("Main Viewport");
-            ImGui::End();
+            menuBar.show();
+            mainViewport.show();
+            sceneTree.show();
+            inspector.show();
+            resources.show();
 
-            ImGui::Begin("Scene Tree");
-            ImGui::End();
-
-            ImGui::Begin("Inspector");
-            ImGui::End();
-
-            ImGui::Begin("Resources");
-            ImGui::End();
 
             ImGui::PopFont();
             ImGui::Render();
