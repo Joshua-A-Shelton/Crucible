@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Linq.Expressions;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -10,8 +11,20 @@ internal struct FunctionMap
     public IntPtr FunctionName;
     public IntPtr FunctionPointer;
 }
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct ManagedType
+{
+    public IntPtr TypePointer = IntPtr.Zero;
+    public ManagedType()
+    {
+        TypePointer = IntPtr.Zero;
+    }
+}
 internal static unsafe class Interop
 {
+
+    private static HashSet<Delegate> _delegates;
     public delegate void RegisterUnmanagedFunctionDelegate(ref FunctionMap map);
 
     public static RegisterUnmanagedFunctionDelegate RegisterUnmanagedFunction_ptr = RegisterUnmanagedFunction;
@@ -32,18 +45,18 @@ internal static unsafe class Interop
         }
     }
 
-    public delegate void FreeUnmanagedGCHandleDelegate(GCHandle handle);
+    public delegate void FreeUnmanagedGCHandleDelegate(IntPtr handle);
 
     public static FreeUnmanagedGCHandleDelegate FreeUnmanagedGcHandle_ptr = FreeUnmanagedGCHandle;
-    public static void FreeUnmanagedGCHandle(GCHandle handle)
+    public static void FreeUnmanagedGCHandle(IntPtr handle)
     {
-        handle.Free();
+        var mhandle = GCHandle.FromIntPtr(handle);
+        mhandle.Free();
     }
 
     public delegate void GetComponentTypesFunctionDelegate(IntPtr unmanagedList);
 
     public static GetComponentTypesFunctionDelegate GetComponentTypes_ptr = GetComponentTypes;
-
     public static void GetComponentTypes(IntPtr unmanagedList)
     {
         var typesWithMyAttribute =
@@ -60,7 +73,52 @@ internal static unsafe class Interop
             UnmanagedPushStringToList(unmanagedList, typeName);
         }
     }
-    
+
+    public delegate IntPtr GetFunctionDelegate(ref ManagedType type, string name);
+
+    public static GetFunctionDelegate GetFunction_ptr = GetFunctionHandle;
+    public static IntPtr GetFunctionHandle(ref ManagedType type, string name)
+    {
+
+        IntPtr method = IntPtr.Zero;
+        var handle = RuntimeTypeHandle.FromIntPtr(type.TypePointer);
+        Type? realType = Type.GetTypeFromHandle(handle);
+        if (realType != null)
+        {
+            var methodData = realType.GetMethod(name);
+            List<Type> paramTypes = new List<Type>();
+            if (!methodData.IsStatic)
+            {
+                paramTypes.Add(realType);
+            }
+            foreach(ParameterInfo pinfo in methodData.GetParameters())
+            {
+                paramTypes.Add(pinfo.ParameterType);
+            }
+            var del = DelegateCreator.NewDelegateType(methodData.ReturnType, paramTypes.ToArray());
+            var func = Delegate.CreateDelegate(del, null, methodData);
+            //prevent GC from collecting TODO: possibly leave this to the native side
+            _delegates.Add(func);
+            return Marshal.GetFunctionPointerForDelegate(func);
+        }
+        return method;
+    }
+
+    public delegate ManagedType GetTypeHandleDelegate(string typeName);
+
+    public static GetTypeHandleDelegate GetTypeHandle_ptr = GetTypeHandle;
+    public static ManagedType GetTypeHandle(string typeName)
+    {
+        ManagedType mtype = new ManagedType();
+        var type = Type.GetType(typeName);
+        if (type != null)
+        {
+            mtype.TypePointer = type.TypeHandle.Value;
+        }
+        return mtype;
+    }
+
+
     public static delegate* unmanaged[Cdecl]<Vector3, Vector3, out Vector3, void*> UnmanagedVector3Cross = null;
     public static delegate* unmanaged<Vector3, Vector3, out float, void*> UnmanagedVector3Dot = null;
     public static delegate* unmanaged<IntPtr, string, void*> UnmanagedPushStringToList = null;

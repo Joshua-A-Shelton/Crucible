@@ -172,10 +172,19 @@ namespace crucible
         managedFunctionPointers.registerUnmanagedFunction(mapping);
     }
 
+    ManagedType ScriptingEngine::getManagedType(const std::string& typeName)
+    {
+        return managedFunctionPointers.getType(typeName.c_str());
+    }
+
+    void** ScriptingEngine::getManagedFunction(ManagedType& type, const std::string& fullyQualifiedFunctionName)
+    {
+        return managedFunctionPointers.getFunctionPointer(type,fullyQualifiedFunctionName.c_str());
+    }
+
     void ScriptingEngine::cleanup()
     {
 
     }
-
 
 } // crucible

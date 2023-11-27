@@ -32,7 +32,7 @@ list(APPEND CRUCIBLE_DEAR_IMGUI third-party/dear-imgui/imgui_widgets.cpp)
 list(APPEND CRUCIBLE_DEAR_IMGUI third-party/dear-imgui/backends/imgui_impl_sdl2.cpp)
 
 
-add_library(Crucible src/crucible/Engine.cpp src/crucible/Engine.h src/crucible/Graphics/Model.cpp src/crucible/Graphics/Model.h src/crucible/Graphics/Mesh.cpp src/crucible/Graphics/Mesh.h src/crucible/Graphics/Vertex3D.h src/crucible/Scripting/ScriptingEngine.cpp src/crucible/Scripting/ScriptingEngine.h src/crucible/Scripting/Interop.cpp src/crucible/Scripting/Interop.h src/crucible/Scripting/ManagedObjectHandle.h src/crucible/Scripting/ManagedObjectHandle.cpp)
+add_library(Crucible src/crucible/Engine.cpp src/crucible/Engine.h src/crucible/Graphics/Model.cpp src/crucible/Graphics/Model.h src/crucible/Graphics/Mesh.cpp src/crucible/Graphics/Mesh.h src/crucible/Graphics/Vertex3D.h src/crucible/Scripting/ScriptingEngine.cpp src/crucible/Scripting/ScriptingEngine.h src/crucible/Scripting/Interop.cpp src/crucible/Scripting/Interop.h src/crucible/Scripting/ManagedObjectHandle.h src/crucible/Scripting/ManagedObjectHandle.cpp src/crucible/Scripting/ManagedType.cpp src/crucible/Scripting/ManagedType.h src/crucible/Scripting/ManagedFunction.cpp src/crucible/Scripting/ManagedFunction.h)
 add_executable(CrucibleEditor ${CRUCIBLE_DEAR_IMGUI} editor/Program.cpp editor/Graphics/DearImGUI/imgui_impl_slag.cpp editor/Graphics/DearImGUI/imgui_impl_slag.h editor/Graphics/Fonts.h editor/Controls/MenuBar.cpp editor/Controls/MenuBar.h editor/Controls/Control.h editor/Controls/MainViewport.cpp editor/Controls/MainViewport.h editor/Controls/SceneTree.cpp editor/Controls/SceneTree.h editor/Controls/Inspector.cpp editor/Controls/Inspector.h editor/Controls/Resources.cpp editor/Controls/Resources.h)
 
 target_include_directories(Crucible PUBLIC third-party/glm third-party/nethost/include ${SDL2_LIBRARIES} ${Boost_INCLUDE_DIRS})
@@ -52,7 +52,7 @@ file(GLOB_RECURSE DOTNETRUNTIME CONFIGURE_DEPENDS dotnet/Crucible/*.cs)
 add_custom_target(dotnetruntime-build
         DEPENDS ${DOTNETRUNTIME}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/dotnet/Crucible
-        #COMMAND dotnet build -c ${CRUCIBLE_BUILD_TYPE} -p 'AnyCPU'
+        COMMAND dotnet build -c ${CRUCIBLE_BUILD_TYPE} -p 'AnyCPU'
         COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/dotnet/Crucible/Crucible/bin/${CRUCIBLE_BUILD_TYPE}/net7.0/Crucible-Runtime.dll ${DOTNET_OUTPUT_TARGET}
         COMMENT "Building .net runtime")
 ADD_DEPENDENCIES(Crucible dotnetruntime-build)

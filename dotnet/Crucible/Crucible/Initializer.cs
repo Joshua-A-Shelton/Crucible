@@ -11,6 +11,8 @@ namespace Crucible
         {
             public IntPtr RegisterUnmanagedFunction_ptr;
             public IntPtr FreeUnmanagedGCHandle_ptr;
+            public IntPtr GetFunction_ptr;
+            public IntPtr GetType_ptr;
             public IntPtr GetComponentTypesFunction_ptr;
         }
         
@@ -28,6 +30,8 @@ namespace Crucible
                 //Tell C++ about managed functions
                 args->RegisterUnmanagedFunction_ptr = Marshal.GetFunctionPointerForDelegate(Interop.RegisterUnmanagedFunction_ptr);
                 args->FreeUnmanagedGCHandle_ptr = Marshal.GetFunctionPointerForDelegate(Interop.FreeUnmanagedGcHandle_ptr);
+                args->GetFunction_ptr = Marshal.GetFunctionPointerForDelegate(Interop.GetFunction_ptr);
+                args->GetType_ptr = Marshal.GetFunctionPointerForDelegate(Interop.GetTypeHandle_ptr);
                 args->GetComponentTypesFunction_ptr = Marshal.GetFunctionPointerForDelegate(Interop.GetComponentTypes_ptr);
             }
             catch (Exception e)

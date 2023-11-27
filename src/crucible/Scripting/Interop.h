@@ -4,6 +4,9 @@
 #include <nethost/hostfxr.h>
 #include <vector>
 #include <string>
+#include "ManagedObjectHandle.h"
+#include "ManagedType.h"
+#include "ManagedFunction.h"
 
 namespace crucible
 {
@@ -18,6 +21,8 @@ namespace crucible
     {
         void* (*registerUnmanagedFunction)(FunctionMapping&) = nullptr;
         void* (*freeUnmanagedGCHandle)(void*) = nullptr;
+        void** (*getFunctionPointer)(ManagedType& type, const char* functionName);
+        ManagedType (*getType)(const char* fullyQualifiedTypeName);
         void* (*getComponentTypes)(std::vector<std::string>&) = nullptr;
     };
 

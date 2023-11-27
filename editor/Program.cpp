@@ -1,5 +1,6 @@
 #define SDL_MAIN_HANDLED
 #include <crucible/Engine.h>
+#include <crucible/Scripting/ScriptingEngine.h>
 #include <slag/SlagLib.h>
 #include <SDL.h>
 #include "../third-party/slag/third-party/stb/stb_image.h"
@@ -81,6 +82,12 @@ int main(int argc, char** args)
     crucible::controls::SceneTree sceneTree;
     crucible::controls::Inspector inspector;
     crucible::controls::Resources resources;
+
+
+    auto type = crucible::ScriptingEngine::getManagedType("Crucible.GameWorld");
+    void** (*sceneObjects)(int& count) = reinterpret_cast<void** (*)(int&)>(crucible::ScriptingEngine::getManagedFunction(type, "SceneObjects"));
+    int total = 0;
+    void** objects = sceneObjects(total);
 
     while(open)
     {
