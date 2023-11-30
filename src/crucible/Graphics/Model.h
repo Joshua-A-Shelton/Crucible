@@ -1,11 +1,12 @@
 #ifndef CRUCIBLE_MODEL_H
 #define CRUCIBLE_MODEL_H
+#include "../Crucible.h"
 #include "Mesh.h"
 #include <vector>
 
 namespace crucible
 {
-    class Model
+    class CRUCIBLE_EXPORT Model
     {
     public:
     private:

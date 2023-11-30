@@ -1,11 +1,12 @@
 #ifndef CRUCIBLE_MESH_H
 #define CRUCIBLE_MESH_H
+#include "../Crucible.h"
 #include <slag/SlagLib.h>
 #include <vector>
 #include "Vertex3D.h"
 namespace crucible
 {
-    class Mesh
+    class CRUCIBLE_EXPORT Mesh
     {
     public:
         Mesh(std::vector<Vertex3D>&& verticies, std::vector<uint16_t>&& indicies);
