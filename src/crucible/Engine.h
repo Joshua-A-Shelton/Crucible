@@ -1,9 +1,10 @@
 #ifndef CRUCIBLE_ENGINE_H
 #define CRUCIBLE_ENGINE_H
+#include "Crucible.h"
 
 namespace crucible
 {
-    class Engine
+    class CRUCIBLE_EXPORT Engine
     {
     public:
         static void initialize();

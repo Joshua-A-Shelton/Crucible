@@ -1,9 +1,11 @@
 #ifndef CRUCIBLE_MANAGEDTYPE_H
 #define CRUCIBLE_MANAGEDTYPE_H
 
+#include "../Crucible.h"
+
 namespace crucible
 {
-    class ManagedType
+    class CRUCIBLE_EXPORT ManagedType
     {
     private:
         void* runtimeTypeHandle = nullptr;
