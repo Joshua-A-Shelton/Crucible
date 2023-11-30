@@ -46,3 +46,5 @@ endif()
 
 # Copy over resources
 file(COPY config DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+target_include_directories(Crucible PUBLIC src)
