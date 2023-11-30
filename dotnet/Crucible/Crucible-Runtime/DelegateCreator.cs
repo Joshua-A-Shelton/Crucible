@@ -1,0 +1,17 @@
+using System.Linq.Expressions;
+using System.Reflection;
+
+namespace Crucible;
+
+internal static class DelegateCreator
+{
+    private static readonly Func<Type[],Type> MakeNewCustomDelegate = (Func<Type[],Type>)Delegate.CreateDelegate(typeof(Func<Type[],Type>), typeof(Expression).Assembly.GetType("System.Linq.Expressions.Compiler.DelegateHelpers").GetMethod("MakeNewCustomDelegate", BindingFlags.NonPublic | BindingFlags.Static));
+
+    public static Type NewDelegateType(Type ret, params Type[] parameters)
+    {
+        Type[] args = new Type[parameters.Length+1];
+        parameters.CopyTo(args, 0);
+        args[args.Length-1] = ret;
+        return MakeNewCustomDelegate(args);
+    }
+}

@@ -1,4 +1,4 @@
-#include "EntityComponentSystem.h"
+#include "ManagedType.h"
 
 namespace crucible
 {
