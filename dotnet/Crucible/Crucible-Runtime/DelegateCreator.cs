@@ -9,7 +9,7 @@ internal static class DelegateCreator
 
     public static Type NewDelegateType(Type ret, params Type[] parameters)
     {
-        Type[] args = new Type[parameters.Length];
+        Type[] args = new Type[parameters.Length+1];
         parameters.CopyTo(args, 0);
         args[args.Length-1] = ret;
         return MakeNewCustomDelegate(args);

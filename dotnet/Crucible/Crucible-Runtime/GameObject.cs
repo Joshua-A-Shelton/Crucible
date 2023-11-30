@@ -9,7 +9,7 @@ public class GameObject
     private Entity _entity;
     public string Name { get; set; }
     
-    private List<GameObject> _children;
+    private List<GameObject> _children = new List<GameObject>();
     private IReadOnlyCollection<GameObject> Children
     {
         get { return _children; }

@@ -106,16 +106,13 @@ namespace crucible
                 (void**)(&initFunc)
         );
 
-        initFunc(&managedFunctionPointers,sizeof(ManagedFunctionPointers));
+        initFunc(&Interop::managedFunctionPointers,sizeof(ManagedFunctionPointers));
 
 
         //register unmanaged functions
-        registerUnmanagedFunction("UnmanagedPushStringToList", reinterpret_cast<void**>(cruciblePushString));
-        registerUnmanagedFunction("UnmanagedVector3Cross", reinterpret_cast<void **>(&crucibleVector3Cross));
-        registerUnmanagedFunction("UnmanagedVector3Dot", reinterpret_cast<void**>(&crucibleVector3Dot));
-
-        std::vector<std::string> componentNames;
-        managedFunctionPointers.getComponentTypes(componentNames);
+        registerUnmanagedFunction("","UnmanagedPushStringToList", reinterpret_cast<void**>(cruciblePushString));
+        registerUnmanagedFunction("","UnmanagedVector3Cross", reinterpret_cast<void **>(&crucibleVector3Cross));
+        registerUnmanagedFunction("","UnmanagedVector3Dot", reinterpret_cast<void**>(&crucibleVector3Dot));
     }
 
     bool ScriptingEngine::loadHostFXR()
@@ -165,21 +162,27 @@ namespace crucible
         return (load_assembly_and_get_function_pointer_fn)load_assembly_and_get_function_pointer;
     }
 
-    void ScriptingEngine::registerUnmanagedFunction(const std::string &managedFunctionName, void **functionPointer)
+    void ScriptingEngine::registerUnmanagedFunction(const std::string& assemblyQualifiedClassName,const std::string &managedDelegateName, void **functionPointer)
     {
-        auto ps = platformString(managedFunctionName);
-        FunctionMapping mapping{ps.c_str(),functionPointer};
-        managedFunctionPointers.registerUnmanagedFunction(mapping);
+        auto className = platformString(assemblyQualifiedClassName);
+        auto delegate = platformString(managedDelegateName);
+        FunctionMapping mapping{className.c_str(),delegate.c_str(),functionPointer};
+        Interop::managedFunctionPointers.registerUnmanagedFunction(mapping);
     }
 
     ManagedType ScriptingEngine::getManagedType(const std::string& typeName)
     {
-        return managedFunctionPointers.getType(typeName.c_str());
-    }
 
-    void** ScriptingEngine::getManagedFunction(ManagedType& type, const std::string& fullyQualifiedFunctionName)
+        ManagedType m;
+        Interop::managedFunctionPointers.getType(typeName.c_str(),m);
+        return m;
+    };
+
+    void* ScriptingEngine::getManagedFunction(ManagedType& type, const std::string& fullyQualifiedFunctionName)
     {
-        return managedFunctionPointers.getFunctionPointer(type,fullyQualifiedFunctionName.c_str());
+        void* fptr = nullptr;
+        Interop::managedFunctionPointers.getFunctionPointer(type,fullyQualifiedFunctionName.c_str(),&fptr);
+        return fptr;
     }
 
     void ScriptingEngine::cleanup()

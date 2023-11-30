@@ -16,12 +16,12 @@ namespace crucible
         static void cleanup();
 
         static ManagedType getManagedType(const std::string& typeName);
-        static void** getManagedFunction(ManagedType& type,const std::string& fullyQualifiedFunctionName);
+        static void* getManagedFunction(ManagedType& type,const std::string& fullyQualifiedFunctionName);
     private:
         static bool loadHostFXR();
         static load_assembly_and_get_function_pointer_fn get_dotnet_load_assembly(const char_t *config_path);
 
-        static void registerUnmanagedFunction(const std::string& managedFunctionName, void** functionPointer);
+        static void registerUnmanagedFunction(const std::string& assemblyQualifiedClassName, const std::string& managedDelegateName, void** functionPointer);
 
 
     };

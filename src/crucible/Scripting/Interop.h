@@ -4,7 +4,7 @@
 #include <nethost/hostfxr.h>
 #include <vector>
 #include <string>
-#include "ManagedObjectHandle.h"
+#include "ManagedObjectGCHandle.h"
 #include "ManagedType.h"
 #include "ManagedFunction.h"
 
@@ -13,20 +13,25 @@ namespace crucible
 
     struct FunctionMapping
     {
-        const char_t* CSharpFunctionName;
-        void** NativeFunctionPointer;
+        const char_t* CSharpClassName = nullptr;
+        const char_t* CSharpDelegateName = nullptr;
+        void** NativeFunctionPointer = nullptr;
     };
 
     struct ManagedFunctionPointers
     {
         void* (*registerUnmanagedFunction)(FunctionMapping&) = nullptr;
         void* (*freeUnmanagedGCHandle)(void*) = nullptr;
-        void** (*getFunctionPointer)(ManagedType& type, const char* functionName);
-        ManagedType (*getType)(const char* fullyQualifiedTypeName);
-        void* (*getComponentTypes)(std::vector<std::string>&) = nullptr;
+        void* (*getFunctionPointer)(ManagedType&, const char* FunctionName, void**)= nullptr;
+        void* (*getType)(const char* assemblyQualifiedName, ManagedType& type)= nullptr;
+        void (*loadLibrary)(const char* path)=nullptr;
     };
 
-    static inline ManagedFunctionPointers managedFunctionPointers;
+    struct Interop
+    {
+        static inline ManagedFunctionPointers managedFunctionPointers;
+    };
+
 
     extern "C"
     {
