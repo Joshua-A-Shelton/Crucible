@@ -1,5 +1,6 @@
 #ifndef CRUCIBLE_INTEROP_H
 #define CRUCIBLE_INTEROP_H
+#include "../Crucible.h"
 #include <glm/vec3.hpp>
 #include <nethost/hostfxr.h>
 #include <vector>
@@ -11,14 +12,14 @@
 namespace crucible
 {
 
-    struct FunctionMapping
+    struct CRUCIBLE_EXPORT FunctionMapping
     {
         const char_t* CSharpClassName = nullptr;
         const char_t* CSharpDelegateName = nullptr;
         void** NativeFunctionPointer = nullptr;
     };
 
-    struct ManagedFunctionPointers
+    struct CRUCIBLE_EXPORT ManagedFunctionPointers
     {
         void* (*registerUnmanagedFunction)(FunctionMapping&) = nullptr;
         void* (*freeUnmanagedGCHandle)(void*) = nullptr;
@@ -27,7 +28,7 @@ namespace crucible
         void (*loadLibrary)(const char* path)=nullptr;
     };
 
-    struct Interop
+    struct CRUCIBLE_EXPORT Interop
     {
         static inline ManagedFunctionPointers managedFunctionPointers;
     };
@@ -36,11 +37,11 @@ namespace crucible
     extern "C"
     {
     //Miscellaneous
-    void cruciblePushString(std::vector<std::string> &vector, char *string);
+    CRUCIBLE_EXPORT void cruciblePushString(std::vector<std::string> &vector, char *string);
 
     //Vectors
-    void crucibleVector3Cross(glm::vec3 &v1, glm::vec3 &v2, glm::vec3 &outResult);
-    void crucibleVector3Dot(glm::vec3 &v1, glm::vec3 &v2, float &outResult);
+    CRUCIBLE_EXPORT void crucibleVector3Cross(glm::vec3 &v1, glm::vec3 &v2, glm::vec3 &outResult);
+    CRUCIBLE_EXPORT void crucibleVector3Dot(glm::vec3 &v1, glm::vec3 &v2, float &outResult);
     }
 }
 

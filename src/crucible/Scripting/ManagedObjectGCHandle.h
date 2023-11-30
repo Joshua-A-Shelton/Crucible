@@ -1,9 +1,11 @@
 #ifndef CRUCIBLE_MANAGEDOBJECTGCHANDLE_H
 #define CRUCIBLE_MANAGEDOBJECTGCHANDLE_H
 
+#include "../Crucible.h"
+
 namespace crucible
 {
-    class ManagedObjectGCHandle
+    class CRUCIBLE_EXPORT ManagedObjectGCHandle
     {
     public:
         ~ManagedObjectGCHandle();

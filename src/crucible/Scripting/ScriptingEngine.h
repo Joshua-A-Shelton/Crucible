@@ -1,6 +1,7 @@
 #ifndef CRUCIBLE_SCRIPTINGENGINE_H
 #define CRUCIBLE_SCRIPTINGENGINE_H
 
+#include "../Crucible.h"
 #include <string>
 #include "nethost/hostfxr.h"
 #include "nethost/coreclr_delegates.h"
@@ -9,7 +10,7 @@
 namespace crucible
 {
 
-    class ScriptingEngine
+    class CRUCIBLE_EXPORT ScriptingEngine
     {
     public:
         static void initialize();

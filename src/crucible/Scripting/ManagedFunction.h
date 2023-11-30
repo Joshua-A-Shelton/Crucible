@@ -1,9 +1,11 @@
 #ifndef CRUCIBLE_MANAGEDFUNCTION_H
 #define CRUCIBLE_MANAGEDFUNCTION_H
 
+#include "../Crucible.h"
+
 namespace crucible
 {
-    class ManagedFunction
+    class CRUCIBLE_EXPORT ManagedFunction
     {
     private:
         void* _gcHandle = nullptr;
