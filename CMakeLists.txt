@@ -21,11 +21,9 @@ else()
     set(CRUCIBLE_BUILD_TYPE "Release")
 endif()
 
-link_directories(third-party/nethost/lib/${CRUCIBLE_PLATFORM_DIR})
-
-
 add_library(Crucible SHARED src/crucible/Engine.cpp src/crucible/Engine.h src/crucible/Graphics/Model.cpp src/crucible/Graphics/Model.h src/crucible/Graphics/Mesh.cpp src/crucible/Graphics/Mesh.h src/crucible/Graphics/Vertex3D.h src/crucible/Scripting/ScriptingEngine.cpp src/crucible/Scripting/ScriptingEngine.h src/crucible/Scripting/Interop.cpp src/crucible/Scripting/Interop.h src/crucible/Scripting/ManagedObjectGCHandle.h src/crucible/Scripting/ManagedObjectGCHandle.cpp src/crucible/Scripting/ManagedType.cpp src/crucible/Scripting/ManagedType.h src/crucible/Scripting/ManagedFunction.cpp src/crucible/Scripting/ManagedFunction.h src/crucible/Crucible.h)
 target_include_directories(Crucible PUBLIC third-party/glm third-party/nethost/include ${SDL2_LIBRARIES} ${Boost_INCLUDE_DIRS})
+target_link_directories(Crucible PUBLIC third-party/nethost/lib/${CRUCIBLE_PLATFORM_DIR})
 target_link_libraries(Crucible Slag SDL2::SDL2 nethost ${Boost_LIBRARIES})
 
 
