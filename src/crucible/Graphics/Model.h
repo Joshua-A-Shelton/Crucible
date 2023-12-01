@@ -9,6 +9,8 @@ namespace crucible
     class CRUCIBLE_EXPORT Model
     {
     public:
+        Model(const Model&)=delete;
+        Model& operator=(const Model&)=delete;
     private:
         std::vector<Mesh> meshes;
     };
