@@ -34,15 +34,15 @@ file(GLOB_RECURSE DOTNETRUNTIME CONFIGURE_DEPENDS dotnet/Crucible/*.cs)
 add_custom_target(dotnetruntime-build
         DEPENDS ${DOTNETRUNTIME}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/dotnet/Crucible/Crucible-Runtime
-        COMMAND dotnet publish -c ${CRUCIBLE_BUILD_TYPE} -o ${CMAKE_CURRENT_BINARY_DIR}
+        COMMAND dotnet publish -c ${CRUCIBLE_BUILD_TYPE} -o ${CMAKE_BINARY_DIR}
         COMMENT "Building .net runtime")
 ADD_DEPENDENCIES(Crucible dotnetruntime-build)
 
 if(WIN32)
-    file(COPY third-party/nethost/shared/${CRUCIBLE_PLATFORM_DIR}/nethost${CRUCIBLE_DYN_EXT} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+    file(COPY third-party/nethost/shared/${CRUCIBLE_PLATFORM_DIR}/nethost${CRUCIBLE_DYN_EXT} DESTINATION ${CMAKE_BINARY_DIR})
 endif()
 
 # Copy over resources
-file(COPY config DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY config DESTINATION ${CMAKE_BINARY_DIR})
 
 target_include_directories(Crucible PUBLIC src)
