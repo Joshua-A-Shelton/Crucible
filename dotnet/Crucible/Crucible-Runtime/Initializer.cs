@@ -32,6 +32,7 @@ namespace Crucible
                 args->FreeUnmanagedGCHandle_ptr = Marshal.GetFunctionPointerForDelegate(Interop.FreeUnmanagedGcHandle_ptr);
                 args->GetFunction_ptr = Marshal.GetFunctionPointerForDelegate(Interop.GetFunction_ptr);
                 args->GetType_ptr = Marshal.GetFunctionPointerForDelegate(Interop.GetTypeHandle_ptr);
+                args->LoadLibrary_ptr = Marshal.GetFunctionPointerForDelegate(Interop.LoadLibrary_ptr);
             }
             catch (Exception e)
             {
