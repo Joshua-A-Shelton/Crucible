@@ -187,7 +187,7 @@ namespace crucible
 
     void ScriptingEngine::loadManagedDll(const char* path)
     {
-        Interop::managedFunctionPointers.loadLibrary(path)
+        Interop::managedFunctionPointers.loadLibrary(path);
     }
 
     void ScriptingEngine::cleanup()
