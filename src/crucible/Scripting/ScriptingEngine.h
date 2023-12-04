@@ -18,6 +18,7 @@ namespace crucible
 
         static ManagedType getManagedType(const std::string& typeName);
         static void* getManagedFunction(ManagedType& type,const std::string& fullyQualifiedFunctionName);
+        static void loadManagedDll(const char* path);
     private:
         static bool loadHostFXR();
         static load_assembly_and_get_function_pointer_fn get_dotnet_load_assembly(const char_t *config_path);

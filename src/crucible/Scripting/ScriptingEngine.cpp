@@ -185,6 +185,11 @@ namespace crucible
         return fptr;
     }
 
+    void ScriptingEngine::loadManagedDll(const char* path)
+    {
+        Interop::managedFunctionPointers.loadLibrary(path)
+    }
+
     void ScriptingEngine::cleanup()
     {
 
