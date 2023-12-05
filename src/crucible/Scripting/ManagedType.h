@@ -2,7 +2,7 @@
 #define CRUCIBLE_MANAGEDTYPE_H
 
 #include "../Crucible.h"
-#include "ScriptingEngine.h"
+#include <string>
 
 namespace crucible
 {
@@ -10,11 +10,12 @@ namespace crucible
     {
     private:
         void* runtimeTypeHandle = nullptr;
+        void* _getFunction(const std::string& functionName);
     public:
         template<class T>
         T getFunction(const std::string& functionName)
         {
-            return static_cast<T>(ScriptingEngine::getManagedFunction(this,functionName));
+            return static_cast<T>(_getFunction(functionName));
         }
     };
 } // crucible
