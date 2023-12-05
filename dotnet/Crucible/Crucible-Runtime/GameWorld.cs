@@ -1,12 +1,10 @@
+using System.Runtime.CompilerServices;
+
 namespace Crucible;
 
 public static class GameWorld
 {
     public static Scene Scene = new Scene();
 
-    public static Scene SceneObjects(ref int totalObjects)
-    {
-        totalObjects = Scene.GameObjects.Count;
-        return Scene;
-    }
+    internal static Dictionary<Guid, WeakReference<GameObject>> gameObjects = new Dictionary<Guid, WeakReference<GameObject>>();
 }

@@ -6,7 +6,7 @@ using System;
 public class GameObject
 {
     private static World _world = World.Create();
-    public Guid Uuid { get; private set; } = Guid.NewGuid();
+    public Guid Uuid { get; private set; }
     private Entity _entity;
     public string Name { get; set; }
     
@@ -41,16 +41,20 @@ public class GameObject
     {
         Name = "Game Object";
         _entity = _world.Create();
+        Uuid = Guid.NewGuid();
+        GameWorld.gameObjects.Add(Uuid,new WeakReference<GameObject>(this));
     }
 
-    private GameObject(string name, Entity entity)
+    private GameObject(string name, Guid uuid)
     {
         Name = name;
-        _entity = entity;
+        Uuid = uuid;
+        _entity = _world.Create();
     }
 
     ~GameObject()
     {
+        GameWorld.gameObjects.Remove(Uuid);
         _world.Destroy(_entity);
     }
 
