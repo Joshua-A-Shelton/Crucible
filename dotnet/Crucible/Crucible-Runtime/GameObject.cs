@@ -10,7 +10,7 @@ public class GameObject
     public string Name { get; set; }
     
     private List<GameObject> _children = new List<GameObject>();
-    private IReadOnlyCollection<GameObject> Children
+    public IReadOnlyCollection<GameObject> Children
     {
         get { return _children; }
     }
