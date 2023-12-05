@@ -72,5 +72,10 @@ public class GameObject
     {
         return _entity.Has<T>();
     }
+
+    public int ID()
+    {
+        return _entity.Id;
+    }
     
 }
