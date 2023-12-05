@@ -15,7 +15,7 @@ namespace crucible
         template<class T>
         T getFunction(const std::string& functionName)
         {
-            return static_cast<T>(_getFunction(functionName));
+            return (T)(_getFunction(functionName));
         }
     };
 } // crucible

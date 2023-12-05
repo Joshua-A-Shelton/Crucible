@@ -7,7 +7,6 @@
 #include <string>
 #include "ManagedObjectGCHandle.h"
 #include "ManagedType.h"
-#include "ManagedFunction.h"
 
 namespace crucible
 {
