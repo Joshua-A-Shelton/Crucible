@@ -6,6 +6,7 @@ using System;
 public class GameObject
 {
     private static World _world = World.Create();
+    public Guid Uuid { get; private set; } = Guid.NewGuid();
     private Entity _entity;
     public string Name { get; set; }
     
@@ -72,10 +73,4 @@ public class GameObject
     {
         return _entity.Has<T>();
     }
-
-    public int ID()
-    {
-        return _entity.Id;
-    }
-    
 }
