@@ -77,4 +77,16 @@ public class GameObject
     {
         return _entity.Has<T>();
     }
+
+    public IReadOnlyList<Type> ComponentTypes()
+    {
+        var archetype = _entity.GetArchetype();
+        List<Type> types = new List<Type>(archetype.Entities);
+        foreach (var atype in _entity.GetArchetype().Types)
+        {
+            types.Add(atype.Type);
+        }
+
+        return types;
+    }
 }
