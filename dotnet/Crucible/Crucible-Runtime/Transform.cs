@@ -5,6 +5,7 @@ public struct Transform3D
 {
     private bool _needsUpdate = true;
     private Vector3 _position;
+    [Expose]
     public Vector3 Position
     {
         get { return _position; }

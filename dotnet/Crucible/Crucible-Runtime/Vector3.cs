@@ -7,8 +7,11 @@ namespace Crucible;
 [StructLayout(LayoutKind.Sequential)]
 public struct Vector3
 {
+    [Expose]
     public float x;
+    [Expose]
     public float y;
+    [Expose]
     public float z;
 
     public Vector3()
