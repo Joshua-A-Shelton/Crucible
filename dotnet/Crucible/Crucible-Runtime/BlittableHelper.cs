@@ -15,6 +15,10 @@ public class BlittableHelper
         if(type.IsArray)
         {
             var elem = type.GetElementType();
+            if (elem == null)
+            {
+                return false;
+            }
             return elem.IsValueType && IsBlittable(elem);
         }
         try{
