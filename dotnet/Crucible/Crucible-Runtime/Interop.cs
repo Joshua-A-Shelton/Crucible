@@ -49,7 +49,12 @@ internal static unsafe class Interop
             string? className = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? Marshal.PtrToStringUni(mapping.ClassName) : Marshal.PtrToStringUTF8(mapping.ClassName);
             if (!string.IsNullOrEmpty(className))
             {
-                source = Type.GetType(className);
+                var t = Type.GetType(className);
+                if (t == null)
+                {
+                    throw new ArgumentException("No such type \"" + className + "\" exists");
+                }
+                source = t;
             }
             var fieldInfo = source.GetField(mapTo,
                 BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public);
