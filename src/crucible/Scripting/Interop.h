@@ -7,6 +7,7 @@
 #include <string>
 #include "ManagedObjectGCHandle.h"
 #include "ManagedType.h"
+#include "../Graphics/Mesh.h"
 
 namespace crucible
 {
@@ -35,12 +36,13 @@ namespace crucible
 
     extern "C"
     {
-    //Miscellaneous
-    CRUCIBLE_EXPORT void cruciblePushString(std::vector<std::string> &vector, char *string);
-
     //Vectors
-    CRUCIBLE_EXPORT void crucibleVector3Cross(glm::vec3 &v1, glm::vec3 &v2, glm::vec3 &outResult);
-    CRUCIBLE_EXPORT void crucibleVector3Dot(glm::vec3 &v1, glm::vec3 &v2, float &outResult);
+    CRUCIBLE_EXPORT void cs_Vector3Cross(glm::vec3 &v1, glm::vec3 &v2, glm::vec3 &outResult);
+    CRUCIBLE_EXPORT void cs_Vector3Dot(glm::vec3 &v1, glm::vec3 &v2, float &outResult);
+
+    //Meshes
+    CRUCIBLE_EXPORT Mesh* cs_CreateMesh();
+    CRUCIBLE_EXPORT void cs_DeleteMesh(Mesh* mesh);
     }
 }
 

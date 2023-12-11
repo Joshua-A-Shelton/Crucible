@@ -9,18 +9,23 @@ namespace crucible
     class CRUCIBLE_EXPORT Mesh
     {
     public:
-        Mesh(std::vector<Vertex3D>&& verticies, std::vector<uint16_t>&& indicies);
+        Mesh(std::vector<Vertex3D>& verticies, std::vector<uint16_t>& indecies);
         ~Mesh();
         Mesh(const Mesh&)=delete;
         Mesh& operator=(Mesh&)=delete;
         Mesh(Mesh&& from);
         Mesh& operator=(Mesh&& from);
-        slag::Buffer* verticies();
-        slag::Buffer* indicies();
+        slag::VertexBuffer* verticies();
+        slag::IndexBuffer* indecies();
+        size_t vertexCount();
+        size_t indeciesCount();
     private:
-        slag::Buffer* _verticies = nullptr;
-        slag::Buffer* _indicies = nullptr;
+        size_t _vertexCount;
+        slag::VertexBuffer* _verticies = nullptr;
+        size_t _indeciesCount;
+        slag::IndexBuffer* _indecies = nullptr;
         void move(Mesh&& from);
     };
+
 } // crucible
 #endif //CRUCIBLE_MESH_H

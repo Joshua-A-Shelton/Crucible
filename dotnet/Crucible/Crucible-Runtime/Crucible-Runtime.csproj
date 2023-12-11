@@ -18,6 +18,7 @@
 
     <ItemGroup>
       <PackageReference Include="Arch" Version="1.2.7" />
+      <PackageReference Include="Arch.System" Version="1.0.2" />
     </ItemGroup>
 
 </Project>

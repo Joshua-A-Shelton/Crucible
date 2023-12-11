@@ -108,11 +108,9 @@ namespace crucible
 
         initFunc(&Interop::managedFunctionPointers,sizeof(ManagedFunctionPointers));
 
-
         //register unmanaged functions
-        registerUnmanagedFunction("","UnmanagedPushStringToList", reinterpret_cast<void**>(cruciblePushString));
-        registerUnmanagedFunction("","UnmanagedVector3Cross", reinterpret_cast<void **>(&crucibleVector3Cross));
-        registerUnmanagedFunction("","UnmanagedVector3Dot", reinterpret_cast<void**>(&crucibleVector3Dot));
+        registerCoreFunctions();
+
     }
 
     bool ScriptingEngine::loadHostFXR()
@@ -193,6 +191,19 @@ namespace crucible
     void ScriptingEngine::cleanup()
     {
 
+    }
+
+    void ScriptingEngine::registerCoreFunctions()
+    {
+        //Vector3
+        const char* vector3 = "Crucible.Vector3";
+        registerUnmanagedFunction(vector3,"_cross_ptr", reinterpret_cast<void **>(cs_Vector3Cross));
+        registerUnmanagedFunction(vector3,"_dot_ptr", reinterpret_cast<void**>(cs_Vector3Dot));
+
+        //Mesh
+        const char* mesh = "Crucible.Mesh";
+        registerUnmanagedFunction(mesh, "_createMesh_ptr", reinterpret_cast<void **>(cs_CreateMesh));
+        registerUnmanagedFunction(mesh, "_deleteMesh_ptr", reinterpret_cast<void **>(cs_DeleteMesh));
     }
 
 } // crucible

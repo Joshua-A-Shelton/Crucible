@@ -5,8 +5,10 @@ namespace Crucible;
 
 
 [StructLayout(LayoutKind.Sequential)]
-public struct Vector3
+public unsafe struct Vector3
 {
+    private static delegate* unmanaged<Vector3, Vector3, out Vector3, void> _cross_ptr;
+    private static delegate* unmanaged<Vector3, Vector3, out float, void> _dot_ptr;
     [Expose]
     public float x;
     [Expose]
@@ -47,18 +49,19 @@ public struct Vector3
         return "{" + x + ", " + y + ", " + z + "}";
     }
 
-    public static unsafe Vector3 Cross(Vector3 v1, Vector3 v2)
+    public static Vector3 Cross(Vector3 v1, Vector3 v2)
     {
         Vector3 returnVector = new Vector3();
-        Interop.UnmanagedVector3Cross(v1, v2, out returnVector);
+        _cross_ptr(v1, v2, out returnVector);
         return returnVector;
     }
 
     public static unsafe float Dot(Vector3 v1, Vector3 v2)
     {
         float returnFloat = 0;
-        Interop.UnmanagedVector3Dot(v1, v2, out returnFloat);
+        _dot_ptr(v1, v2, out returnFloat);
         return returnFloat;
     }
+    
 
 }
