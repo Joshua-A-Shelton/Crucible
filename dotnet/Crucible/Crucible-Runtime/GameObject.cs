@@ -5,7 +5,6 @@ namespace Crucible;
 using System;
 public class GameObject
 {
-    private static World _world = World.Create();
     public Guid Uuid { get; private set; }
     private Entity _entity;
     public string Name { get; set; }
@@ -40,7 +39,7 @@ public class GameObject
     public GameObject()
     {
         Name = "Game Object";
-        _entity = _world.Create();
+        _entity = GameWorld._world.Create();
         Uuid = Guid.NewGuid();
         GameWorld.gameObjects.Add(Uuid,new WeakReference<GameObject>(this));
     }
@@ -49,13 +48,13 @@ public class GameObject
     {
         Name = name;
         Uuid = uuid;
-        _entity = _world.Create();
+        _entity = GameWorld._world.Create();
     }
 
     ~GameObject()
     {
         GameWorld.gameObjects.Remove(Uuid);
-        _world.Destroy(_entity);
+        GameWorld._world.Destroy(_entity);
     }
 
     public void AddChild(GameObject gameObject)

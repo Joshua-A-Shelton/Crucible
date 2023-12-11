@@ -5,7 +5,7 @@
 
 namespace crucible
 {
-    class CRUCIBLE_EXPORT Vertex3D
+    struct CRUCIBLE_EXPORT Vertex3D
     {
         glm::vec3 position;
         glm::vec3 normal;

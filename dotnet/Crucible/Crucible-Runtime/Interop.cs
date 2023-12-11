@@ -1,7 +1,6 @@
-﻿using System.Linq.Expressions;
-using System.Reflection;
+﻿using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Text;
+
 
 namespace Crucible;
 
@@ -33,7 +32,7 @@ internal struct StringWrapper
         RawString = IntPtr.Zero;
     }
 }
-internal static unsafe class Interop
+internal static class Interop
 {
 
     private static HashSet<Delegate> _delegates = new HashSet<Delegate>();
@@ -99,7 +98,6 @@ internal static unsafe class Interop
             {
                 paramTypes.Add(realType);
             }
-            var pinf = methodData.GetParameters();
             foreach(ParameterInfo pinfo in methodData.GetParameters())
             {
                 paramTypes.Add(pinfo.ParameterType);
@@ -151,9 +149,4 @@ internal static unsafe class Interop
         var full = Path.GetFullPath(path);
         Assembly.LoadFrom(full);
     }
-
-    public static delegate* unmanaged[Cdecl]<Vector3, Vector3, out Vector3, void*> UnmanagedVector3Cross = null;
-    public static delegate* unmanaged<Vector3, Vector3, out float, void*> UnmanagedVector3Dot = null;
-    public static delegate* unmanaged<IntPtr, string, void*> UnmanagedPushStringToList = null;
-
 }

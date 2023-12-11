@@ -6,11 +6,5 @@ public class Scene
 
     public Scene()
     {
-        GameObjects.Add(new GameObject());
-    }
-
-    public void hello()
-    {
-        Console.WriteLine("Hello, I have "+GameObjects.Count+" gameObjects");
     }
 }

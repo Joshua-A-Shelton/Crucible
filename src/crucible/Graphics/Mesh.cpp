@@ -2,10 +2,12 @@
 using namespace slag;
 namespace crucible
 {
-    Mesh::Mesh(std::vector<Vertex3D>&& verticies, std::vector<uint16_t>&& indicies)
+    Mesh::Mesh(std::vector<Vertex3D>& verticies, std::vector<uint16_t>& indecies)
     {
         _verticies = VertexBuffer::create(verticies.data(),sizeof(Vertex3D)*verticies.size(),Buffer::Usage::GPU);
-        _indicies = IndexBuffer::create(indicies.data(),sizeof(uint16_t)*indicies.size(),Buffer::Usage::GPU);
+        _vertexCount = verticies.size();
+        _indecies = IndexBuffer::create(indecies.data(),sizeof(uint16_t)*indecies.size(),Buffer::Usage::GPU);
+        _indeciesCount = indecies.size();
     }
 
     Mesh::~Mesh()
@@ -14,9 +16,9 @@ namespace crucible
         {
             delete _verticies;
         }
-        if(_indicies)
+        if(_indecies)
         {
-            delete _indicies;
+            delete _indecies;
         }
 
     }
@@ -32,20 +34,30 @@ namespace crucible
         return *this;
     }
 
-    slag::Buffer* Mesh::verticies()
+    slag::VertexBuffer* Mesh::verticies()
     {
         return _verticies;
     }
 
-    slag::Buffer* Mesh::indicies()
+    slag::IndexBuffer* Mesh::indecies()
     {
-        return _indicies;
+        return _indecies;
     }
 
     void Mesh::move(Mesh&& from)
     {
         std::swap(_verticies,from._verticies);
-        std::swap(_indicies,from._indicies);
+        std::swap(_indecies,from._indecies);
+    }
+
+    size_t Mesh::vertexCount()
+    {
+        return _vertexCount;
+    }
+
+    size_t Mesh::indeciesCount()
+    {
+        return _indeciesCount;
     }
 
 } // crucible
