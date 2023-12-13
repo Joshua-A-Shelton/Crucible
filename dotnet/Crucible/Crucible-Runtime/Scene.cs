@@ -6,5 +6,6 @@ public class Scene
 
     public Scene()
     {
+        GameObjects.Add(new GameObject());
     }
 }

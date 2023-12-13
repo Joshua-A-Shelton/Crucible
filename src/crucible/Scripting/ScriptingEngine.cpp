@@ -197,8 +197,8 @@ namespace crucible
     {
         //Vector3
         const char* vector3 = "Crucible.Vector3";
-        registerUnmanagedFunction(vector3,"_cross_ptr", reinterpret_cast<void **>(cs_Vector3Cross));
-        registerUnmanagedFunction(vector3,"_dot_ptr", reinterpret_cast<void**>(cs_Vector3Dot));
+        //registerUnmanagedFunction(vector3,"_cross_ptr", reinterpret_cast<void **>(cs_Vector3Cross));
+        //registerUnmanagedFunction(vector3,"_dot_ptr", reinterpret_cast<void**>(cs_Vector3Dot));
 
         //Mesh
         const char* mesh = "Crucible.Mesh";
