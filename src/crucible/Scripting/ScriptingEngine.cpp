@@ -204,6 +204,9 @@ namespace crucible
         const char* mesh = "Crucible.Mesh";
         registerUnmanagedFunction(mesh, "_createMesh_ptr", reinterpret_cast<void **>(cs_CreateMesh));
         registerUnmanagedFunction(mesh, "_deleteMesh_ptr", reinterpret_cast<void **>(cs_DeleteMesh));
+
+        //texture
+        const char* texture = "Crucible.Texture";
     }
 
 } // crucible

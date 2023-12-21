@@ -43,6 +43,12 @@ namespace crucible
     //Meshes
     CRUCIBLE_EXPORT Mesh* cs_CreateMesh();
     CRUCIBLE_EXPORT void cs_DeleteMesh(Mesh* mesh);
+
+    //Textures
+    CRUCIBLE_EXPORT slag::Texture* cs_CreateTexture();
+    CRUCIBLE_EXPORT void cs_DeleteTexture(slag::Texture* texture);
+
+    //Swapchain
     }
 }
 
