@@ -6,6 +6,7 @@ namespace crucible
 {
     void Game::run(const char* gameName, const char* iconPath)
     {
+        buildSwapchain(gameName);
         initialize(gameName,iconPath);
 
         Uint64 now = SDL_GetPerformanceCounter();
@@ -17,7 +18,7 @@ namespace crucible
             if(running)
             {
                 update(deltaTime);
-                if(slag::Frame* currentFrame = swapchain->next())
+                if(slag::Frame* currentFrame = _swapchain->next())
                 {
                     render(currentFrame);
                 }
@@ -27,14 +28,16 @@ namespace crucible
             deltaTime = ((now - last)*1000 / (float)SDL_GetPerformanceFrequency());
         }
         cleanup();
+        destroySwapchain();
+
     }
 
     void Game::initialize(const char* gameName,const char* iconPath)
     {
-        window = SDL_CreateWindow(gameName,SDL_WINDOWPOS_UNDEFINED,SDL_WINDOWPOS_UNDEFINED,800,500,SDL_WindowFlags::SDL_WINDOW_VULKAN | SDL_WindowFlags::SDL_WINDOW_RESIZABLE | SDL_WINDOW_MAXIMIZED);
+
 
         int x,y,channels;
-        unsigned char* pixels = stbi_load(iconPath,&x,&y,&channels,4);
+        auto pixels = stbi_load(iconPath,&x,&y,&channels,4);
         // Calculate pitch
         int pitch;
         pitch = x * channels;
@@ -54,29 +57,20 @@ namespace crucible
     Bmask = 0x0000FF00 >> s;
     Amask = 0x000000FF >> s;
 #endif
-        SDL_Surface* icon = SDL_CreateRGBSurfaceFrom(pixels, x, y, channels*8, pitch, Rmask, Gmask,Bmask, Amask);
+        auto icon = SDL_CreateRGBSurfaceFrom(pixels, x, y, channels*8, pitch, Rmask, Gmask,Bmask, Amask);
 
+        SDL_SetWindowIcon(_window,icon);
 
-        SDL_SetWindowIcon(window,icon);
         SDL_FreeSurface(icon);
         stbi_image_free(pixels);
 
-        slag::PlatformData pd;
-        SDL_SysWMinfo wmInfo;
-        SDL_VERSION(&wmInfo.version);
-        SDL_GetWindowWMInfo(window, &wmInfo);
-#ifdef _WIN32
-        pd.nativeWindowHandle = wmInfo.info.win.window;
-        pd.nativeDisplayType = wmInfo.info.win.hinstance;
+    }
 
-#elif __linux
-        pd.nativeWindowHandle = reinterpret_cast<void*>(wmInfo.info.x11.window);
-    pd.nativeDisplayType = wmInfo.info.x11.display;
-#endif
-        swapchain = slag::SwapchainBuilder(pd)
-                .addTextureResource("Color",{slag::TextureResourceDescription::SizingMode::Absolute,1920,1080,slag::Pixels::R8G8B8A8_UNORM,slag::Texture::Usage::COLOR,true})
-                .addTextureResource("Depth",{slag::TextureResourceDescription::SizingMode::Absolute,1920,1080,slag::Pixels::D32_SFLOAT,slag::Texture::Usage::DEPTH,true})
-                .create();
+    void Game::addResources(std::unordered_map<std::string, slag::TextureResourceDescription> &textures, std::unordered_map<std::string, slag::VertexBufferResourceDescription> &vertexBuffers,
+                            std::unordered_map<std::string, slag::IndexBufferResourceDescription> &indexBuffers)
+    {
+        textures["Color"] = {slag::TextureResourceDescription::SizingMode::Absolute, 1920, 1080, slag::Pixels::R8G8B8A8_UNORM, slag::Texture::Usage::COLOR, true};
+        textures["Depth"] = {slag::TextureResourceDescription::SizingMode::Absolute, 1920, 1080, slag::Pixels::D32_SFLOAT, slag::Texture::Usage::DEPTH, true};
     }
 
     void Game::processEvents()
@@ -96,9 +90,7 @@ namespace crucible
             }
             else if(e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED)
             {
-                int w,h;
-                SDL_GetWindowSize(window,&w,&h);
-                swapchain->resize(w,h);
+                handleResize();
             }
 
         }
@@ -117,7 +109,66 @@ namespace crucible
 
     void Game::cleanup()
     {
-        delete swapchain;
-        SDL_DestroyWindow(window);
     }
+
+    void Game::buildSwapchain(const char* gameName)
+    {
+        _window = SDL_CreateWindow(gameName,SDL_WINDOWPOS_UNDEFINED,SDL_WINDOWPOS_UNDEFINED,800,500,SDL_WindowFlags::SDL_WINDOW_VULKAN | SDL_WindowFlags::SDL_WINDOW_RESIZABLE | SDL_WINDOW_MAXIMIZED);
+        slag::PlatformData pd;
+        SDL_SysWMinfo wmInfo;
+        SDL_VERSION(&wmInfo.version);
+        SDL_GetWindowWMInfo(_window, &wmInfo);
+#ifdef _WIN32
+        pd.nativeWindowHandle = wmInfo.info.win.window;
+        pd.nativeDisplayType = wmInfo.info.win.hinstance;
+
+#elif __linux
+        pd.nativeWindowHandle = reinterpret_cast<void*>(wmInfo.info.x11.window);
+    pd.nativeDisplayType = wmInfo.info.x11.display;
+#endif
+        auto builder = slag::SwapchainBuilder(pd);
+        std::unordered_map<std::string, slag::TextureResourceDescription> textures;
+        std::unordered_map<std::string, slag::VertexBufferResourceDescription> vertexBuffers;
+        std::unordered_map<std::string, slag::IndexBufferResourceDescription> indexBuffers;
+        addResources(textures,vertexBuffers,indexBuffers);
+
+        for(auto& texture : textures)
+        {
+            builder.addTextureResource(texture.first,texture.second);
+        }
+        for(auto& vertexBuffer: vertexBuffers)
+        {
+            builder.addVertexBufferResource(vertexBuffer.first,vertexBuffer.second);
+        }
+        for(auto& indexBuffer: indexBuffers)
+        {
+            builder.addIndexBufferResource(indexBuffer.first,indexBuffer.second);
+        }
+
+        _swapchain = builder.setDesiredBackBuffers(2).setHeight(500).setWidth(800).create();
+    }
+
+    void Game::destroySwapchain()
+    {
+        delete _swapchain;
+        SDL_DestroyWindow(_window);
+    }
+
+    void Game::handleResize()
+    {
+        int w,h;
+        SDL_GetWindowSize(_window,&w,&h);
+        _swapchain->resize(w,h);
+    }
+
+    slag::Swapchain *Game::swapchain()
+    {
+        return _swapchain;
+    }
+
+    SDL_Window *Game::window()
+    {
+        return _window;
+    }
+
 } // crucible
