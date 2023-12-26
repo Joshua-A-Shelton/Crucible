@@ -18,11 +18,7 @@ namespace crucible
 
 
         virtual void initialize(const char* gameName,const char* iconPath);
-        virtual void addResources(
-                std::unordered_map<std::string,slag::TextureResourceDescription>& textures,
-                std::unordered_map<std::string,slag::VertexBufferResourceDescription>& vertexBuffers,
-                std::unordered_map<std::string,slag::IndexBufferResourceDescription>& indexBuffers
-                );
+        virtual void setUpSwapchain(slag::SwapchainBuilder& builder);
         virtual void processEvents();
         virtual void update(float deltaTime);
         virtual void render(slag::Frame* frame);

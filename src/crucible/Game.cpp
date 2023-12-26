@@ -66,11 +66,10 @@ namespace crucible
 
     }
 
-    void Game::addResources(std::unordered_map<std::string, slag::TextureResourceDescription> &textures, std::unordered_map<std::string, slag::VertexBufferResourceDescription> &vertexBuffers,
-                            std::unordered_map<std::string, slag::IndexBufferResourceDescription> &indexBuffers)
+    void Game::setUpSwapchain(slag::SwapchainBuilder& builder)
     {
-        textures["Color"] = {slag::TextureResourceDescription::SizingMode::Absolute, 1920, 1080, slag::Pixels::R8G8B8A8_UNORM, slag::Texture::Usage::COLOR, true};
-        textures["Depth"] = {slag::TextureResourceDescription::SizingMode::Absolute, 1920, 1080, slag::Pixels::D32_SFLOAT, slag::Texture::Usage::DEPTH, true};
+        builder.addTextureResource("Color",{slag::TextureResourceDescription::SizingMode::Absolute, 1920, 1080, slag::Pixels::R8G8B8A8_UNORM, slag::Texture::Usage::COLOR, true});
+        builder.addTextureResource("Depth",{slag::TextureResourceDescription::SizingMode::Absolute, 1920, 1080, slag::Pixels::D32_SFLOAT, slag::Texture::Usage::DEPTH, true});
     }
 
     void Game::processEvents()
@@ -88,7 +87,7 @@ namespace crucible
             {
                 running = false;
             }
-            else if(e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED)
+            else if(e.type == SDL_WINDOWEVENT && (e.window.event == SDL_WINDOWEVENT_RESIZED || e.window.event == SDL_WINDOWEVENT_MAXIMIZED || e.window.event == SDL_WINDOWEVENT_MINIMIZED))
             {
                 handleResize();
             }
@@ -127,24 +126,7 @@ namespace crucible
     pd.nativeDisplayType = wmInfo.info.x11.display;
 #endif
         auto builder = slag::SwapchainBuilder(pd);
-        std::unordered_map<std::string, slag::TextureResourceDescription> textures;
-        std::unordered_map<std::string, slag::VertexBufferResourceDescription> vertexBuffers;
-        std::unordered_map<std::string, slag::IndexBufferResourceDescription> indexBuffers;
-        addResources(textures,vertexBuffers,indexBuffers);
-
-        for(auto& texture : textures)
-        {
-            builder.addTextureResource(texture.first,texture.second);
-        }
-        for(auto& vertexBuffer: vertexBuffers)
-        {
-            builder.addVertexBufferResource(vertexBuffer.first,vertexBuffer.second);
-        }
-        for(auto& indexBuffer: indexBuffers)
-        {
-            builder.addIndexBufferResource(indexBuffer.first,indexBuffer.second);
-        }
-
+        setUpSwapchain(builder);
         _swapchain = builder.setDesiredBackBuffers(2).setHeight(500).setWidth(800).create();
     }
 

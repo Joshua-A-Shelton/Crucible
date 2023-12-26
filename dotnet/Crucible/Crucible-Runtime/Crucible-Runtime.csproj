@@ -21,4 +21,8 @@
       <PackageReference Include="Arch.System" Version="1.0.2" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="LowLevel" />
+    </ItemGroup>
+
 </Project>
