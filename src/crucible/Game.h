@@ -3,6 +3,7 @@
 
 #include <slag/SlagLib.h>
 #include <SDL.h>
+#include "Graphics/RenderRegistry.h"
 
 namespace crucible
 {
@@ -15,7 +16,7 @@ namespace crucible
         SDL_Window* window();
     protected:
         bool running = true;
-
+        RenderRegistry renderRegistry;
 
         virtual void initialize(const char* gameName,const char* iconPath);
         virtual void setUpSwapchain(slag::SwapchainBuilder& builder);

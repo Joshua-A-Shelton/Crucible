@@ -4,6 +4,7 @@
 #include <nethost/coreclr_delegates.h>
 #include <boost/filesystem.hpp>
 #include "Interop.h"
+#include "GameWorld.h"
 
 #ifdef WIN32
 #include <Windows.h>
@@ -110,6 +111,8 @@ namespace crucible
 
         //register unmanaged functions
         registerCoreFunctions();
+        //get managed functions
+        getCoreFunctions();
 
     }
 
@@ -200,6 +203,11 @@ namespace crucible
         //registerUnmanagedFunction(vector3,"_cross_ptr", reinterpret_cast<void **>(cs_Vector3Cross));
         //registerUnmanagedFunction(vector3,"_dot_ptr", reinterpret_cast<void**>(cs_Vector3Dot));
 
+        //Matrix
+        const char* matrix = "Crucible.Matrix4x4";
+        registerUnmanagedFunction(matrix, "_matrix_matrix_multiply", reinterpret_cast<void **>(cs_MatrixMatrixMultiply));
+        registerUnmanagedFunction(matrix, "_matrixFromTRS", reinterpret_cast<void **>(cs_MatrixFromTRS));
+
         //Mesh
         const char* mesh = "Crucible.Mesh";
         registerUnmanagedFunction(mesh, "_createMesh_ptr", reinterpret_cast<void **>(cs_CreateMesh));
@@ -207,6 +215,16 @@ namespace crucible
 
         //texture
         const char* texture = "Crucible.Texture";
+        registerUnmanagedFunction(texture, "_createColorTexture_ptr", reinterpret_cast<void **>(cs_CreateColorTexture));
+        registerUnmanagedFunction(texture, "_createDepthTexture_ptr", reinterpret_cast<void **>(cs_CreateDepthTexture));
+        registerUnmanagedFunction(texture, "_deleteTexture_ptr", reinterpret_cast<void **>(cs_DeleteTexture));
+        registerUnmanagedFunction(texture, "_textureWidth_ptr", reinterpret_cast<void **>(cs_TextureWidth));
+        registerUnmanagedFunction(texture, "_textureHeight_ptr", reinterpret_cast<void **>(cs_TextureHeight));
+    }
+
+    void ScriptingEngine::getCoreFunctions()
+    {
+        GameWorld::getManagedFunctions();
     }
 
 } // crucible
