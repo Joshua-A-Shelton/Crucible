@@ -26,6 +26,7 @@ namespace crucible
         virtual void cleanup();
         void handleResize();
     private:
+        void gameLoop();
         void buildSwapchain(const char* gameName);
         void destroySwapchain();
         slag::Swapchain* _swapchain = nullptr;

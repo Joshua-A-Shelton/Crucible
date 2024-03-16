@@ -8,7 +8,14 @@ namespace crucible
     {
         buildSwapchain(gameName);
         initialize(gameName,iconPath);
+        gameLoop();
+        cleanup();
+        destroySwapchain();
 
+    }
+
+    void Game::gameLoop()
+    {
         Uint64 now = SDL_GetPerformanceCounter();
         Uint64 last = 0;
         float deltaTime = 0;
@@ -27,15 +34,10 @@ namespace crucible
             now = SDL_GetPerformanceCounter();
             deltaTime = ((now - last)*1000 / (float)SDL_GetPerformanceFrequency());
         }
-        cleanup();
-        destroySwapchain();
-
     }
 
     void Game::initialize(const char* gameName,const char* iconPath)
     {
-
-
         int x,y,channels;
         auto pixels = stbi_load(iconPath,&x,&y,&channels,4);
         // Calculate pitch
@@ -152,5 +154,6 @@ namespace crucible
     {
         return _window;
     }
+
 
 } // crucible

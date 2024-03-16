@@ -186,14 +186,19 @@ namespace crucible
         return fptr;
     }
 
-    void ScriptingEngine::loadManagedDll(const char* path)
+    void ScriptingEngine::loadManagedDll(const char* contextName,const char* path)
     {
-        Interop::managedFunctionPointers.loadLibrary(path);
+        Interop::managedFunctionPointers.loadLibrary(contextName,path);
+    }
+
+    void ScriptingEngine::unloadManagedDllContext(const char* contextName)
+    {
+        Interop::managedFunctionPointers.unloadLibrary(contextName);
     }
 
     void ScriptingEngine::cleanup()
     {
-
+        Interop::managedFunctionPointers.unloadAllContexts();
     }
 
     void ScriptingEngine::registerCoreFunctions()

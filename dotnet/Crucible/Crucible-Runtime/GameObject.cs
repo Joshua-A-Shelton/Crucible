@@ -88,4 +88,9 @@ public class GameObject
 
         return types;
     }
+
+    public object[] Components()
+    {
+        return _entity.GetAllComponents().ToArray();
+    }
 }

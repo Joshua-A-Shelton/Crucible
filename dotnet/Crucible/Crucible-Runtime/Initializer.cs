@@ -13,7 +13,9 @@ namespace Crucible
             public IntPtr FreeUnmanagedGCHandle_ptr;
             public IntPtr GetFunction_ptr;
             public IntPtr GetType_ptr;
-            public IntPtr LoadLibrary_ptr;
+            public IntPtr LoadManagedDll_ptr;
+            public IntPtr UnloadContext_ptr;
+            public IntPtr UnloadAllContexts_ptr;
         }
         
         
@@ -32,7 +34,9 @@ namespace Crucible
                 args->FreeUnmanagedGCHandle_ptr = Marshal.GetFunctionPointerForDelegate(Interop.FreeUnmanagedGcHandle_ptr);
                 args->GetFunction_ptr = Marshal.GetFunctionPointerForDelegate(Interop.GetFunction_ptr);
                 args->GetType_ptr = Marshal.GetFunctionPointerForDelegate(Interop.GetTypeHandle_ptr);
-                args->LoadLibrary_ptr = Marshal.GetFunctionPointerForDelegate(Interop.LoadLibrary_ptr);
+                args->LoadManagedDll_ptr = Marshal.GetFunctionPointerForDelegate(Interop.LoadLibrary_ptr);
+                args->UnloadContext_ptr = Marshal.GetFunctionPointerForDelegate(Interop.UnloadLibrary_ptr);
+                args->UnloadAllContexts_ptr = Marshal.GetFunctionPointerForDelegate(Interop.UnloadAllContexts_ptr);
             }
             catch (Exception e)
             {
