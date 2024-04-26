@@ -4,7 +4,6 @@
 #include <nethost/coreclr_delegates.h>
 #include <boost/filesystem.hpp>
 #include "Interop.h"
-#include "GameWorld.h"
 
 #ifdef WIN32
 #include <Windows.h>
