@@ -110,8 +110,6 @@ namespace crucible
 
         //register unmanaged functions
         registerCoreFunctions();
-        //get managed functions
-        getCoreFunctions();
 
     }
 
@@ -224,11 +222,6 @@ namespace crucible
         registerUnmanagedFunction(texture, "_deleteTexture_ptr", reinterpret_cast<void **>(cs_DeleteTexture));
         registerUnmanagedFunction(texture, "_textureWidth_ptr", reinterpret_cast<void **>(cs_TextureWidth));
         registerUnmanagedFunction(texture, "_textureHeight_ptr", reinterpret_cast<void **>(cs_TextureHeight));
-    }
-
-    void ScriptingEngine::getCoreFunctions()
-    {
-        GameWorld::getManagedFunctions();
     }
 
 } // crucible
