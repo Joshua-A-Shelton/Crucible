@@ -25,7 +25,9 @@ namespace crucible
         void* (*freeUnmanagedGCHandle)(void*) = nullptr;
         void* (*getFunctionPointer)(ManagedType&, const char* FunctionName, void**)= nullptr;
         void* (*getType)(const char* assemblyQualifiedName, ManagedType& type)= nullptr;
-        void (*loadLibrary)(const char* path)=nullptr;
+        void* (*loadLibrary)(const char* contextName,const char* path)=nullptr;
+        void* (*unloadLibrary)(const char* path)= nullptr;
+        void* (*unloadAllContexts)()= nullptr;
     };
 
     struct CRUCIBLE_EXPORT Interop

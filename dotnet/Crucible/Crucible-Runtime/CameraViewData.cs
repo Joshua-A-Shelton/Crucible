@@ -2,7 +2,6 @@
 
 namespace Crucible;
 
-[Component]
 [StructLayout(LayoutKind.Sequential)]
 public struct CameraViewData
 {

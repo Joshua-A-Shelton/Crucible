@@ -1,11 +1,15 @@
+using Crucible.Nodes;
+
 namespace Crucible;
 
 public class Scene
 {
-    public List<GameObject> GameObjects { get; set; } = new List<GameObject>();
+    public List<Node> Nodes { get; set; } = new List<Node>();
 
     public Scene()
     {
-        GameObjects.Add(new GameObject());
+        Node go = new Node3D();
+        go.Name = "Top";
+        Nodes.Add(go);
     }
 }

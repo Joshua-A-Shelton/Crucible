@@ -4,7 +4,6 @@
 #include <nethost/coreclr_delegates.h>
 #include <boost/filesystem.hpp>
 #include "Interop.h"
-#include "GameWorld.h"
 
 #ifdef WIN32
 #include <Windows.h>
@@ -111,8 +110,6 @@ namespace crucible
 
         //register unmanaged functions
         registerCoreFunctions();
-        //get managed functions
-        getCoreFunctions();
 
     }
 
@@ -186,14 +183,19 @@ namespace crucible
         return fptr;
     }
 
-    void ScriptingEngine::loadManagedDll(const char* path)
+    void ScriptingEngine::loadManagedDll(const char* contextName,const char* path)
     {
-        Interop::managedFunctionPointers.loadLibrary(path);
+        Interop::managedFunctionPointers.loadLibrary(contextName,path);
+    }
+
+    void ScriptingEngine::unloadManagedDllContext(const char* contextName)
+    {
+        Interop::managedFunctionPointers.unloadLibrary(contextName);
     }
 
     void ScriptingEngine::cleanup()
     {
-
+        Interop::managedFunctionPointers.unloadAllContexts();
     }
 
     void ScriptingEngine::registerCoreFunctions()
@@ -220,11 +222,6 @@ namespace crucible
         registerUnmanagedFunction(texture, "_deleteTexture_ptr", reinterpret_cast<void **>(cs_DeleteTexture));
         registerUnmanagedFunction(texture, "_textureWidth_ptr", reinterpret_cast<void **>(cs_TextureWidth));
         registerUnmanagedFunction(texture, "_textureHeight_ptr", reinterpret_cast<void **>(cs_TextureHeight));
-    }
-
-    void ScriptingEngine::getCoreFunctions()
-    {
-        GameWorld::getManagedFunctions();
     }
 
 } // crucible

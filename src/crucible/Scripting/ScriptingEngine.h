@@ -19,13 +19,13 @@ namespace crucible
         static ManagedType getManagedType(const std::string& typeName);
         static void* getManagedFunction(ManagedType& type,const std::string& fullyQualifiedFunctionName);
         static void registerUnmanagedFunction(const std::string& assemblyQualifiedClassName, const std::string& managedDelegateName, void** functionPointer);
-        static void loadManagedDll(const char* path);
+        static void loadManagedDll(const char* contextName, const char* path);
+        static void unloadManagedDllContext(const char* contextName);
     private:
         static bool loadHostFXR();
         static load_assembly_and_get_function_pointer_fn get_dotnet_load_assembly(const char_t *config_path);
 
         static void registerCoreFunctions();
-        static void getCoreFunctions();
     };
 
 } // crucible

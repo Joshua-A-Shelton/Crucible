@@ -62,6 +62,16 @@ public unsafe struct Vector3
         _dot_ptr(v1, v2, out returnFloat);
         return returnFloat;
     }
+
+    public static bool operator ==(Vector3 v1, Vector3 v2)
+    {
+        return (v1.x == v2.x && v1.y == v2.y && v1.z == v2.z);
+    }
+
+    public static bool operator !=(Vector3 v1, Vector3 v2)
+    {
+        return (v1.x != v2.x || v1.y != v2.y || v1.z != v2.z);
+    }
     
 
 }

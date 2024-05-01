@@ -1,7 +1,6 @@
 ﻿namespace Crucible;
 
-[Component]
-public struct Transform3D
+public class Transform3D
 {
     private bool _needsUpdate = true;
     private Vector3 _position;
@@ -75,5 +74,10 @@ public struct Transform3D
     {
         _position.Translate(translation);
         _needsUpdate = true;
+    }
+
+    public override string ToString()
+    {
+        return "["+_position.ToString()+"]["+_rotation+"]["+_scale+"]";
     }
 }

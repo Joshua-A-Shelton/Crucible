@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Runtime.Loader;
 
 
 namespace Crucible;
@@ -34,6 +35,9 @@ internal struct StringWrapper
 }
 internal static class Interop
 {
+
+    private static Dictionary<string, CrucibleAssemblyLoadContext> _loadedContexts =
+        new Dictionary<string, CrucibleAssemblyLoadContext>();
 
     private static HashSet<Delegate> _delegates = new HashSet<Delegate>();
     public delegate void RegisterUnmanagedFunctionDelegate(ref FunctionMap map);
@@ -120,7 +124,10 @@ internal static class Interop
         string tname = delegateName;
         if (!string.IsNullOrEmpty(tname))
         {
-            var type = Type.GetType(tname);
+            var type = Type.GetType(tname, (name) =>
+            {
+                return AppDomain.CurrentDomain.GetAssemblies().Where(z => z.FullName == name.FullName || z.GetName().Name == name.Name).FirstOrDefault();
+            },null,true);
             if (type != null)
             {
                 returnType.TypePointer = type.TypeHandle.Value;
@@ -135,18 +142,69 @@ internal static class Interop
         {
             throw new Exception("Unable to decode name of type");
         }
-
        
     }
 
 
-    public delegate void LoadLibraryDelegate(string path);
+    public delegate void LoadLibraryDelegate(string contextName,string path);
 
-    public static LoadLibraryDelegate LoadLibrary_ptr=LoadLibrary;
+    public static LoadLibraryDelegate LoadLibrary_ptr=LoadAssembly;
 
-    public static void LoadLibrary(string path)
+    public static void LoadAssembly(string contextName,string path)
+    {
+        try
+        {
+            var full = Path.GetFullPath(path);
+            AssemblyLoadContext context = null;
+            if (string.IsNullOrEmpty(contextName))
+            {
+                context = AssemblyLoadContext.Default;
+            }
+            else if (_loadedContexts.ContainsKey(contextName))
+            {
+                context = _loadedContexts[contextName];
+            }
+            else
+            {
+                context = new CrucibleAssemblyLoadContext(full);
+                _loadedContexts[contextName] = (CrucibleAssemblyLoadContext)context;
+            }
+        
+       
+            context.LoadFromAssemblyPath(full);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
+        
+    }
+
+    public delegate void UnloadLibraryDelegate(string path);
+
+    public static UnloadLibraryDelegate UnloadLibrary_ptr = UnloadAssembly;
+    public static void UnloadAssembly(string path)
     {
         var full = Path.GetFullPath(path);
-        Assembly.LoadFrom(full);
+        CrucibleAssemblyLoadContext? context;
+        if (_loadedContexts.TryGetValue(full, out context))
+        {
+            context.Unload();
+            _loadedContexts.Remove(full);
+        }
+    }
+
+    public delegate void UnloadAllContextsDelegate();
+
+    public static UnloadAllContextsDelegate UnloadAllContexts_ptr = UnloadAllContexts;
+
+    public static void UnloadAllContexts()
+    {
+        foreach (var context in _loadedContexts)
+        {
+            context.Value.Unload();
+        }
+        _loadedContexts.Clear();
     }
 }
