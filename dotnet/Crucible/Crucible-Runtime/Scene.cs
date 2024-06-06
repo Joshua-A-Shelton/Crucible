@@ -11,5 +11,6 @@ public class Scene
         Node go = new Node3D();
         go.Name = "Top";
         Nodes.Add(go);
+        
     }
 }
