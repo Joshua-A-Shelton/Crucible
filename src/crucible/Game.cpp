@@ -115,6 +115,11 @@ namespace crucible
     void Game::buildSwapchain(const char* gameName)
     {
         _window = SDL_CreateWindow(gameName,SDL_WINDOWPOS_UNDEFINED,SDL_WINDOWPOS_UNDEFINED,800,500,SDL_WindowFlags::SDL_WINDOW_VULKAN | SDL_WindowFlags::SDL_WINDOW_RESIZABLE | SDL_WINDOW_MAXIMIZED);
+        if(_window == nullptr)
+        {
+            auto message = SDL_GetError();
+            throw std::runtime_error(message);
+        }
         slag::PlatformData pd;
         SDL_SysWMinfo wmInfo;
         SDL_VERSION(&wmInfo.version);
