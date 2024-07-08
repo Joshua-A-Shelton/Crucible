@@ -70,8 +70,8 @@ namespace crucible
 
     void Game::setUpSwapchain(slag::SwapchainBuilder& builder)
     {
-        builder.addTextureResource("Color",{slag::TextureResourceDescription::SizingMode::Absolute, 1920, 1080, slag::Pixels::R8G8B8A8_UNORM, slag::Texture::Usage::COLOR, true});
-        builder.addTextureResource("Depth",{slag::TextureResourceDescription::SizingMode::Absolute, 1920, 1080, slag::Pixels::D32_SFLOAT, slag::Texture::Usage::DEPTH, true});
+        builder.addTextureResource("Color",{slag::TextureResourceDescription::SizingMode::Absolute, 1920, 1080,1, slag::Pixels::R8G8B8A8_UNORM, slag::Texture::Usage::COLOR, true});
+        builder.addTextureResource("Depth",{slag::TextureResourceDescription::SizingMode::Absolute, 1920, 1080,1, slag::Pixels::D32_SFLOAT, slag::Texture::Usage::DEPTH, true});
     }
 
     void Game::processEvents()
