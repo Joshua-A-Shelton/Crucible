@@ -52,9 +52,17 @@ internal static class Interop
             string? className = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? Marshal.PtrToStringUni(mapping.ClassName) : Marshal.PtrToStringUTF8(mapping.ClassName);
             if (!string.IsNullOrEmpty(className))
             {
-                var t = Type.GetType(className);
+                var t = Type.GetType(className, (name) =>
+                {
+                    return AppDomain.CurrentDomain.GetAssemblies().Where(z => z.FullName == name.FullName || z.GetName().Name == name.Name).FirstOrDefault();
+                },null,true);
                 if (t == null)
                 {
+                    Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
+                    foreach (var assembly in assemblies)
+                    {
+                        Console.WriteLine(assembly.GetName());
+                    }
                     throw new ArgumentException("No such type \"" + className + "\" exists");
                 }
                 source = t;
@@ -169,8 +177,7 @@ internal static class Interop
                 context = new CrucibleAssemblyLoadContext(full);
                 _loadedContexts[contextName] = (CrucibleAssemblyLoadContext)context;
             }
-        
-       
+
             context.LoadFromAssemblyPath(full);
         }
         catch (Exception e)

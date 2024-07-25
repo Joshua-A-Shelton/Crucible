@@ -48,7 +48,7 @@ namespace crucible
     CRUCIBLE_EXPORT void cs_DeleteMesh(Mesh* mesh);
 
     //Textures
-    CRUCIBLE_EXPORT slag::Texture* cs_CreateColorTexture(int width, int height, glm::vec4 defaultColor, int mipLevels = 1, bool renderTargetable = false);
+    CRUCIBLE_EXPORT slag::Texture* cs_CreateColorTexture(int width, int height, glm::vec4 defaultColor, int mipLevels = 1, slag::Texture::Features features = slag::Texture::Features::SAMPLED_IMAGE);
     CRUCIBLE_EXPORT slag::Texture* cs_CreateDepthTexture(int width, int height);
     CRUCIBLE_EXPORT void cs_DeleteTexture(slag::Texture* texture);
     CRUCIBLE_EXPORT int cs_TextureWidth(slag::Texture* texture);

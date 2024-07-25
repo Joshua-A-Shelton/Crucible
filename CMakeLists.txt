@@ -26,7 +26,16 @@ else()
 endif()
 
 #TODO: make this work as shared library
-add_library(Crucible src/crucible/Engine.cpp src/crucible/Engine.h src/crucible/Graphics/Model.cpp src/crucible/Graphics/Model.h src/crucible/Graphics/Mesh.cpp src/crucible/Graphics/Mesh.h src/crucible/Graphics/Vertex3D.h src/crucible/Scripting/ScriptingEngine.cpp src/crucible/Scripting/ScriptingEngine.h src/crucible/Scripting/Interop.cpp src/crucible/Scripting/Interop.h src/crucible/Scripting/ManagedObjectGCHandle.h src/crucible/Scripting/ManagedObjectGCHandle.cpp src/crucible/Scripting/ManagedType.cpp src/crucible/Scripting/ManagedType.h src/crucible/Crucible.h src/crucible/Graphics/RenderRegistry.cpp src/crucible/Graphics/RenderRegistry.h src/crucible/Game.cpp src/crucible/Game.h src/crucible/Graphics/CameraViewData.h src/crucible/Graphics/CameraViewData.cpp src/crucible/Graphics/Vertex2D.h src/crucible/Core/Node.cpp src/crucible/Core/Node.h)
+add_library(Crucible src/crucible/Engine.cpp src/crucible/Engine.h src/crucible/Graphics/Model.cpp src/crucible/Graphics/Model.h src/crucible/Graphics/Mesh.cpp src/crucible/Graphics/Mesh.h src/crucible/Graphics/Vertex3D.h src/crucible/Scripting/ScriptingEngine.cpp src/crucible/Scripting/ScriptingEngine.h src/crucible/Scripting/Interop.cpp src/crucible/Scripting/Interop.h src/crucible/Scripting/ManagedObjectGCHandle.h src/crucible/Scripting/ManagedObjectGCHandle.cpp src/crucible/Scripting/ManagedType.cpp src/crucible/Scripting/ManagedType.h src/crucible/Crucible.h src/crucible/Game.cpp src/crucible/Game.h src/crucible/Graphics/Vertex2D.h src/crucible/Core/Node.cpp src/crucible/Core/Node.h
+        src/crucible/Graphics/Shaders/MaterialShader.cpp
+        src/crucible/Graphics/Shaders/MaterialShader.h
+        src/crucible/Graphics/Shaders/EngineShader.cpp
+        src/crucible/Graphics/Shaders/EngineShader.h
+        src/crucible/Graphics/Shaders/ShaderLibrary.cpp
+        src/crucible/Graphics/Shaders/ShaderLibrary.h
+        src/crucible/Graphics/Camera.cpp
+        src/crucible/Graphics/Camera.h
+)
 target_include_directories(Crucible PUBLIC third-party/glm third-party/nethost/include ${SDL2_LIBRARIES} ${Boost_INCLUDE_DIRS})
 target_link_directories(Crucible PUBLIC ${NETHOST_LOCATION})
 target_link_libraries(Crucible Slag SDL2::SDL2 nethost ${Boost_LIBRARIES})

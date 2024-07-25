@@ -4,14 +4,16 @@
 
 namespace crucible
 {
+    Game::Game(void* fromHandle)
+    {
+        _fromHandle = fromHandle;
+    }
+
     void Game::run(const char* gameName, const char* iconPath)
     {
-        buildSwapchain(gameName);
-        initialize(gameName,iconPath);
+        setupResources(gameName,iconPath);
         gameLoop();
-        cleanup();
-        destroySwapchain();
-
+        teardownResources();
     }
 
     void Game::gameLoop()
@@ -21,57 +23,65 @@ namespace crucible
         float deltaTime = 0;
         while(running)
         {
-            processEvents();
-            if(running)
-            {
-                update(deltaTime);
-                if(slag::Frame* currentFrame = _swapchain->next())
-                {
-                    render(currentFrame);
-                }
-            }
+            runFrame(deltaTime);
             last = now;
             now = SDL_GetPerformanceCounter();
             deltaTime = ((now - last)*1000 / (float)SDL_GetPerformanceFrequency());
         }
     }
 
+    void Game::runFrame(float deltaTime)
+    {
+        processEvents();
+        if(running)
+        {
+            update(deltaTime);
+            if(slag::Frame* currentFrame = _swapchain->next())
+            {
+                render(currentFrame);
+            }
+        }
+    }
+
     void Game::initialize(const char* gameName,const char* iconPath)
     {
-        int x,y,channels;
-        auto pixels = stbi_load(iconPath,&x,&y,&channels,4);
-        // Calculate pitch
-        int pitch;
-        pitch = x * channels;
-        pitch = (pitch + 3) & ~3;
+        if(strlen(iconPath)!=0)
+        {
+            int x, y, channels;
+            auto pixels = stbi_load(iconPath, &x, &y, &channels, 4);
+            // Calculate pitch
+            int pitch;
+            pitch = x * channels;
+            pitch = (pitch + 3) & ~3;
 
-        // Setup relevance bitmask
-        int32_t Rmask, Gmask, Bmask, Amask;
+            // Setup relevance bitmask
+            int32_t Rmask, Gmask, Bmask, Amask;
 #if SDL_BYTEORDER == SDL_LIL_ENDIAN
-        Rmask = 0x000000FF;
-        Gmask = 0x0000FF00;
-        Bmask = 0x00FF0000;
-        Amask = (channels == 4) ? 0xFF000000 : 0;
+            Rmask = 0x000000FF;
+            Gmask = 0x0000FF00;
+            Bmask = 0x00FF0000;
+            Amask = (channels == 4) ? 0xFF000000 : 0;
 #else
-        int s = (channels == 4) ? 0 : 8;
-    Rmask = 0xFF000000 >> s;
-    Gmask = 0x00FF0000 >> s;
-    Bmask = 0x0000FF00 >> s;
-    Amask = 0x000000FF >> s;
+            int s = (channels == 4) ? 0 : 8;
+        Rmask = 0xFF000000 >> s;
+        Gmask = 0x00FF0000 >> s;
+        Bmask = 0x0000FF00 >> s;
+        Amask = 0x000000FF >> s;
 #endif
-        auto icon = SDL_CreateRGBSurfaceFrom(pixels, x, y, channels*8, pitch, Rmask, Gmask,Bmask, Amask);
+            auto icon = SDL_CreateRGBSurfaceFrom(pixels, x, y, channels * 8, pitch, Rmask, Gmask, Bmask, Amask);
 
-        SDL_SetWindowIcon(_window,icon);
+            SDL_SetWindowIcon(_window, icon);
 
-        SDL_FreeSurface(icon);
-        stbi_image_free(pixels);
+            SDL_FreeSurface(icon);
+            stbi_image_free(pixels);
+        }
 
     }
 
     void Game::setUpSwapchain(slag::SwapchainBuilder& builder)
     {
-        builder.addTextureResource("Color",{slag::TextureResourceDescription::SizingMode::Absolute, 1920, 1080,1, slag::Pixels::R8G8B8A8_UNORM, slag::Texture::Usage::COLOR, true});
-        builder.addTextureResource("Depth",{slag::TextureResourceDescription::SizingMode::Absolute, 1920, 1080,1, slag::Pixels::D32_SFLOAT, slag::Texture::Usage::DEPTH, true});
+        builder.addTextureResource("Color",{slag::TextureResourceDescription::SizingMode::Absolute, 1920, 1080,1, slag::Pixels::R8G8B8A8_UNORM, slag::Texture::Usage::COLOR, slag::Texture::Features::COLOR_ATTACHMENT});
+        builder.addTextureResource("Depth",{slag::TextureResourceDescription::SizingMode::Absolute, 1920, 1080,1, slag::Pixels::D32_SFLOAT, slag::Texture::Usage::DEPTH, slag::Texture::Features::DEPTH_ATTACHMENT});
     }
 
     void Game::processEvents()
@@ -112,9 +122,29 @@ namespace crucible
     {
     }
 
+    void Game::setupResources(const char* gameName, const char* iconPath)
+    {
+        buildSwapchain(gameName);
+        initialize(gameName,iconPath);
+    }
+
+    void Game::teardownResources()
+    {
+        cleanup();
+        destroySwapchain();
+    }
+
     void Game::buildSwapchain(const char* gameName)
     {
-        _window = SDL_CreateWindow(gameName,SDL_WINDOWPOS_UNDEFINED,SDL_WINDOWPOS_UNDEFINED,800,500,SDL_WindowFlags::SDL_WINDOW_VULKAN | SDL_WindowFlags::SDL_WINDOW_RESIZABLE | SDL_WINDOW_MAXIMIZED);
+        if(_fromHandle)
+        {
+            _window = SDL_CreateWindowFrom(_fromHandle);
+        }
+        else
+        {
+            _window = SDL_CreateWindow(gameName, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 800, 500,
+                                       SDL_WindowFlags::SDL_WINDOW_VULKAN | SDL_WindowFlags::SDL_WINDOW_RESIZABLE | SDL_WINDOW_MAXIMIZED);
+        }
         if(_window == nullptr)
         {
             auto message = SDL_GetError();
@@ -159,6 +189,5 @@ namespace crucible
     {
         return _window;
     }
-
 
 } // crucible

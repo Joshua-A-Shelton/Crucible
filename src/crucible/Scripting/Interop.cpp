@@ -41,16 +41,17 @@ namespace crucible
     }
 
     //TODO: make backing structure selectable, we're currently using R32G32B32A32_SFLOAT to match colors vector
-    slag::Texture *cs_CreateColorTexture(int width, int height, glm::vec4 defaultColor, int mipLevels, bool renderTargetable)
+    slag::Texture *cs_CreateColorTexture(int width, int height, glm::vec4 defaultColor, int mipLevels, slag::Texture::Features features)
     {
         std::vector<glm::vec4> colors(width*height,defaultColor);
-        return slag::Texture::create(width,height,slag::Pixels::R32G32B32A32_SFLOAT,colors.data(),mipLevels, renderTargetable);
+        slag::Texture::Layout layout = slag::Texture::Layout::SHADER_RESOURCE;
+        return slag::Texture::create(width,height,slag::Pixels::R32G32B32A32_SFLOAT,colors.data(),mipLevels,layout, features);
     }
 
     slag::Texture *cs_CreateDepthTexture(int width, int height)
     {
         std::vector<float> colors(width*height,0);
-        return slag::Texture::create(width,height,slag::Pixels::D32_SFLOAT,colors.data(),1, true);
+        return slag::Texture::create(width,height,slag::Pixels::D32_SFLOAT,colors.data(),1,slag::Texture::Layout::SHADER_RESOURCE,slag::Texture::Features::SAMPLED_IMAGE);
     }
 
     void cs_DeleteTexture(slag::Texture *texture)

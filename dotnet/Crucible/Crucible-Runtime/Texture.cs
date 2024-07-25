@@ -20,15 +20,25 @@ public unsafe class Texture
         Depth
     }
 
-    private static delegate* unmanaged<int, int, Vector4, int, bool, IntPtr> _createColorTexture_ptr;
+    [Flags]
+    public enum TextureFeatures:uint
+    {
+        SampledImage=0x00000001,
+        Storage=0x00000010,
+        ColorAttachment=0x00000100,
+        DepthAttachment=0x00001000,
+        InputAttachment=0x00010000
+    }
+
+    private static delegate* unmanaged<int, int, Vector4, int, TextureFeatures, IntPtr> _createColorTexture_ptr;
     private static delegate* unmanaged<int, int, IntPtr> _createDepthTexture_ptr;
 
-    public Texture(int width, int height, Vector4 defaultColor, TextureType type = TextureType.Color, int mipLevels = 1, bool renderTargetable = false)
+    public Texture(int width, int height, Vector4 defaultColor, TextureType type = TextureType.Color, int mipLevels = 1, TextureFeatures features = TextureFeatures.SampledImage)
     {
         switch (type)
         {
             case TextureType.Color:
-                lowLevelHandle = _createColorTexture_ptr(width, height, defaultColor,mipLevels,renderTargetable);
+                lowLevelHandle = _createColorTexture_ptr(width, height, defaultColor,mipLevels,features);
                 break;
             case TextureType.Depth:
                 lowLevelHandle = _createDepthTexture_ptr(width, height);

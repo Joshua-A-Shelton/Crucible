@@ -170,7 +170,6 @@ namespace crucible
 
     ManagedType ScriptingEngine::getManagedType(const std::string& typeName)
     {
-
         ManagedType m;
         Interop::managedFunctionPointers.getType(typeName.c_str(),m);
         return m;
