@@ -45,7 +45,7 @@ else()
     set(NETHOST_FILE_EXTENSION "so")
 endif()
 
-add_library(Crucible SHARED
+add_library(Crucible
         src/crucible/core/Window.cpp
         src/crucible/core/Window.h
         src/crucible/Crucible.cpp
@@ -97,8 +97,3 @@ if(CrucibleExampleProject)
 endif ()
 
 target_include_directories(Crucible PUBLIC src)
-install(TARGETS Crucible
-        ARCHIVE DESTINATION ${CMAKE_BINARY_DIR}
-        LIBRARY DESTINATION ${CMAKE_BINARY_DIR}
-        RUNTIME DESTINATION ${CMAKE_BINARY_DIR}
-)
