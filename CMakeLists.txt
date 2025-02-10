@@ -87,7 +87,7 @@ add_custom_command(
 add_custom_target(Crucible-Runtime ALL DEPENDS ${CMAKE_BINARY_DIR}/Crucible-Runtime.dll)
 add_dependencies(Crucible Crucible-Runtime)
 
-option(CrucibleExampleProject "Build an example of crucible project" ON)
+option(CrucibleExampleProject "Build an example of crucible project" OFF)
 if(CrucibleExampleProject)
     add_executable(CrucibleExample
             tests/example.cpp)
