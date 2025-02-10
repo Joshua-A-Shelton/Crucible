@@ -1,6 +1,7 @@
 #ifndef CRUCIBLE_CRUCIBLE_H
 #define CRUCIBLE_CRUCIBLE_H
 #include "CrucibleCore.h"
+#include "Game.h"
 namespace crucible
 {
 
