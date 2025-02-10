@@ -95,3 +95,5 @@ if(CrucibleExampleProject)
     target_include_directories(CrucibleExample PRIVATE src)
     configure_file(tests/crucible.png ${CMAKE_BINARY_DIR}/crucible.png COPYONLY)
 endif ()
+
+target_include_directories(Crucible PUBLIC src)
