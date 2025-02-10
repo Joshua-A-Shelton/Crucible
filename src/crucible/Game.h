@@ -22,7 +22,7 @@ namespace crucible
         void move(Game& from);
         virtual void handleEvent(SDL_Event& event);
         virtual void update(double deltaTime);
-        virtual void draw(slag::CommandBuffer* commandBuffer, slag::Texture* drawBuffer);
+        virtual void draw(slag::CommandBuffer* commandBuffer, slag::Texture* drawBuffer, slag::DescriptorPool* descriptorPool);
 
         SDL_Window* _window = nullptr;
         bool _windowManaged = false;

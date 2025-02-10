@@ -7,13 +7,16 @@ namespace crucible
     {
     public:
         slag::CommandBuffer* commandBuffer = nullptr;
+        slag::DescriptorPool* descriptorPool = nullptr;
         CrucibleFrameResources()
         {
             commandBuffer = slag::CommandBuffer::newCommandBuffer(slag::GpuQueue::GRAPHICS);
+            descriptorPool = slag::DescriptorPool::newDescriptorPool();
         }
         ~CrucibleFrameResources()override
         {
-            delete(commandBuffer);
+            delete commandBuffer;
+            delete descriptorPool;
         }
         void waitForResourcesToFinish()override
         {
@@ -144,7 +147,7 @@ namespace crucible
 
     }
 
-    void Game::draw(slag::CommandBuffer* commandBuffer, slag::Texture* drawBuffer)
+    void Game::draw(slag::CommandBuffer* commandBuffer, slag::Texture* drawBuffer, slag::DescriptorPool* descriptorPool)
     {
         commandBuffer->begin();
         commandBuffer->clearColorImage(drawBuffer,{.floats{1.0f,.15f,0.1,1.0f}},slag::Texture::UNDEFINED,slag::Texture::PRESENT,slag::PipelineStageFlags::NONE,slag::PipelineStageFlags::ALL_COMMANDS);
@@ -189,7 +192,7 @@ namespace crucible
             if(auto frame = _swapChain->next())
             {
                 auto resources = static_cast<CrucibleFrameResources*>(frame->resources);
-                draw(resources->commandBuffer,frame->backBuffer());
+                draw(resources->commandBuffer,frame->backBuffer(),resources->descriptorPool);
                 slag::SlagLib::graphicsCard()->graphicsQueue()->submit(&resources->commandBuffer,1, nullptr,0, nullptr,0,frame);
             }
         }
