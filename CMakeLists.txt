@@ -97,3 +97,8 @@ if(CrucibleExampleProject)
 endif ()
 
 target_include_directories(Crucible PUBLIC src)
+install(TARGETS Crucible
+        ARCHIVE DESTINATION ${CMAKE_BINARY_DIR}
+        LIBRARY DESTINATION ${CMAKE_BINARY_DIR}
+        RUNTIME DESTINATION ${CMAKE_BINARY_DIR}
+)
