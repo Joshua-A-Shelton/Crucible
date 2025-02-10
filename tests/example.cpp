@@ -1,5 +1,5 @@
-#include <Crucible.h>
-#include <Game.h>
+#include <crucible/Crucible.h>
+#include <crucible/Game.h>
 int main(int argc, char** argv)
 {
     if(crucible::Crucible::initialize(crucible::Crucible::VULKAN,true))

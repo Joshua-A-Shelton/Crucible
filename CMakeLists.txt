@@ -46,19 +46,19 @@ else()
 endif()
 
 add_library(Crucible SHARED
-        src/core/Window.cpp
-        src/core/Window.h
-        src/Crucible.cpp
-        src/Crucible.h
-        src/Game.cpp
-        src/Game.h
-        src/CrucibleCore.h
-        src/scripting/ScriptingEngine.cpp
-        src/scripting/ScriptingEngine.h
-        src/scripting/ManagedType.h
-        src/scripting/ManagedType.cpp
-        src/scripting/CoreFunctions.cpp
-        src/scripting/CoreFunctions.h
+        src/crucible/core/Window.cpp
+        src/crucible/core/Window.h
+        src/crucible/Crucible.cpp
+        src/crucible/Crucible.h
+        src/crucible/Game.cpp
+        src/crucible/Game.h
+        src/crucible/CrucibleCore.h
+        src/crucible/scripting/ScriptingEngine.cpp
+        src/crucible/scripting/ScriptingEngine.h
+        src/crucible/scripting/ManagedType.h
+        src/crucible/scripting/ManagedType.cpp
+        src/crucible/scripting/CoreFunctions.cpp
+        src/crucible/scripting/CoreFunctions.h
 )
 
 target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})
