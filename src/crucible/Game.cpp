@@ -79,7 +79,7 @@ namespace crucible
             {
                 platformData.platform = slag::PlatformData::X11;
                 platformData.data.x11.display = SDL_GetPointerProperty(properties,SDL_PROP_WINDOW_X11_DISPLAY_POINTER, nullptr);
-                platformData.data.x11.window = SDL_GetPointerProperty(properties,SDL_PROP_WINDOW_X11_WINDOW_NUMBER, nullptr);
+                platformData.data.x11.window = reinterpret_cast<void*>(SDL_GetNumberProperty(properties,SDL_PROP_WINDOW_X11_WINDOW_NUMBER, 0));
             }
 #endif
 

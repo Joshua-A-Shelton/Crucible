@@ -1,12 +1,11 @@
 #include "ScriptingEngine.h"
-
-#ifdef WIN32
-#include <Windows.h>
 #include <cassert>
 #include <stdexcept>
 #include <nethost.h>
 #include <filesystem>
 #include "CoreFunctions.h"
+#ifdef WIN32
+#include <Windows.h>
 
 #define STR(s) L ## s
 #define CH(c) L ## c
@@ -16,10 +15,7 @@
 
 #else
 #include <dlfcn.h>
-#include <limits.h>
-#include <cassert>
-#include <stdexcept>
-#include <iostream>
+
 
 #define STR(s) s
 #define CH(c) c

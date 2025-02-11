@@ -39,10 +39,10 @@ find_package(glm)
 
 if(WIN32)
     set(DOT_NET_HOST_LOCATION "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Host.win-x64/9.0.1/runtimes/win-x64/native")
-    set(NETHOST_FILE_EXTENSION "dll")
+    set(NETHOST_DYNAMIC_LIBRARY "nethost.dll")
 else()
     set(DOT_NET_HOST_LOCATION "/usr/lib/dotnet/packs/Microsoft.NETCore.App.Host.ubuntu.22.04-x64/9.0.1/runtimes/ubuntu.22.04-x64/native/")
-    set(NETHOST_FILE_EXTENSION "so")
+    set(NETHOST_DYNAMIC_LIBRARY "libnethost.so")
 endif()
 
 add_library(Crucible
@@ -74,7 +74,7 @@ endif()
 #copy over c# config file (configure_file() is the copy operation, not related to the "configure file" that we're copying)
 configure_file(config/CSharpConfig.json ${CMAKE_BINARY_DIR}/config/CSharpConfig.json COPYONLY)
 #copy over library that allows us to enter c# code
-configure_file(${DOT_NET_HOST_LOCATION}/nethost.${NETHOST_FILE_EXTENSION} ${CMAKE_BINARY_DIR}/nethost.${NETHOST_FILE_EXTENSION} COPYONLY)
+configure_file(${DOT_NET_HOST_LOCATION}/${NETHOST_DYNAMIC_LIBRARY} ${CMAKE_BINARY_DIR}/${NETHOST_DYNAMIC_LIBRARY} COPYONLY)
 #build c# dll
 file(GLOB_RECURSE CRUCIBLE_CSHARP_FILES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/dotnet/*.cs)
 add_custom_command(
