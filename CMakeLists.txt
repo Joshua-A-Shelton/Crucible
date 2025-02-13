@@ -59,6 +59,17 @@ add_library(Crucible
         src/crucible/scripting/ManagedType.cpp
         src/crucible/scripting/CoreFunctions.cpp
         src/crucible/scripting/CoreFunctions.h
+        src/crucible/core/scenes/Scene.cpp
+        src/crucible/core/scenes/Scene.h
+        src/crucible/core/Transform.cpp
+        src/crucible/core/Transform.h
+        src/crucible/core/Mesh.cpp
+        src/crucible/core/Mesh.h
+        src/crucible/core/VertexAttributeStream.cpp
+        src/crucible/core/VertexAttributeStream.h
+        src/crucible/core/scenes/Node.cpp
+        src/crucible/core/scenes/Node.h
+        src/crucible/core/interop/CSharpEntity.h
 )
 
 target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})
