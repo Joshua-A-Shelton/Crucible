@@ -22,7 +22,7 @@ namespace crucible
             inline static CSharpEntity (*createEntity)()= nullptr;
             inline static void (*destroyEntity)(CSharpEntity entity)= nullptr;
             CSharpEntity _entity;
-            Node* _parent;
+            Node* _parent = nullptr;
             std::vector<Node*> _children;
         };
 
