@@ -46,8 +46,6 @@ else()
 endif()
 
 add_library(Crucible
-        src/crucible/core/Window.cpp
-        src/crucible/core/Window.h
         src/crucible/Crucible.cpp
         src/crucible/Crucible.h
         src/crucible/Game.cpp
@@ -59,8 +57,6 @@ add_library(Crucible
         src/crucible/scripting/ManagedType.cpp
         src/crucible/scripting/CoreFunctions.cpp
         src/crucible/scripting/CoreFunctions.h
-        src/crucible/core/scenes/Scene.cpp
-        src/crucible/core/scenes/Scene.h
         src/crucible/core/Transform.cpp
         src/crucible/core/Transform.h
         src/crucible/core/Mesh.cpp
@@ -101,10 +97,38 @@ add_dependencies(Crucible Crucible-Runtime)
 option(CrucibleExampleProject "Build an example of crucible project" ON)
 if(CrucibleExampleProject)
     add_executable(CrucibleExample
-            tests/example.cpp)
+            example/example.cpp)
     target_link_libraries(CrucibleExample Crucible)
     target_include_directories(CrucibleExample PRIVATE src)
-    configure_file(tests/crucible.png ${CMAKE_BINARY_DIR}/crucible.png COPYONLY)
+    configure_file(example/crucible.png ${CMAKE_BINARY_DIR}/crucible.png COPYONLY)
+endif ()
+
+option(CrucibleTests "Build crucible tests" ON)
+if(CrucibleTests)
+    message("building Crucible tests")
+    find_package(SDL2 REQUIRED)
+    find_package(glm CONFIG REQUIRED)
+    message("building tests")
+    include(FetchContent)
+    FetchContent_Declare(
+            googletest
+            URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+    )
+    # For Windows: Prevent overriding the parent project's compiler/linker settings
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    #add_definitions(-Dgtest_disable_pthreads=ON)
+    FetchContent_MakeAvailable(googletest)
+
+    enable_testing()
+
+    add_executable(CrucibleTests
+            test/Main.cpp
+            test/tests/NodeTest.cpp)
+
+    target_link_libraries(CrucibleTests Crucible GTest::gtest)
+    target_include_directories(CrucibleTests PRIVATE src)
+    include(GoogleTest)
+    gtest_discover_tests(CrucibleTests)
 endif ()
 
 target_include_directories(Crucible PUBLIC src)

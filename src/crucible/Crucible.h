@@ -1,5 +1,10 @@
 #ifndef CRUCIBLE_CRUCIBLE_H
 #define CRUCIBLE_CRUCIBLE_H
+#include "core/interop/CSharpEntity.h"
+#include "core/scenes/Node.h"
+#include "core/Mesh.h"
+#include "core/Transform.h"
+#include "core/VertexAttributeStream.h"
 #include "CrucibleCore.h"
 #include "Game.h"
 namespace crucible

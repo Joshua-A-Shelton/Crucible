@@ -5,7 +5,9 @@ namespace crucible
 {
     namespace core
     {
-
+        /**
+         * Represents an Entity on the C# side of the program
+         */
         struct CSharpEntity
         {
             int id;
