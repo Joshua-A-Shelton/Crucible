@@ -1,4 +1,6 @@
 #include "Mesh.h"
+
+#include <cstring>
 #include <unordered_set>
 #include <execution>
 #include <ranges>

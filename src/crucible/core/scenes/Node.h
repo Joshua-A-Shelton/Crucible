@@ -2,8 +2,15 @@
 #define CRUCIBLE_NODE_H
 #include <vector>
 #include <crucible/core/interop/CSharpEntity.h>
+
+
 namespace crucible
 {
+    namespace scripting
+    {
+        class ScriptingEngine;
+    }
+
     namespace core
     {
         ///Represents a node in the scene graph
@@ -16,7 +23,7 @@ namespace crucible
             Node(Node&&)=delete;
             Node& operator=(Node&&)=delete;
             ~Node();
-
+            friend class crucible::scripting::ScriptingEngine;
         private:
             Node(Node* parent);
             inline static CSharpEntity (*createEntity)()= nullptr;

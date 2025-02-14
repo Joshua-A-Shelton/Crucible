@@ -4,6 +4,7 @@
 #include <nethost.h>
 #include <filesystem>
 #include "CoreFunctions.h"
+#include "crucible/core/scenes/Node.h"
 #ifdef WIN32
 #include <Windows.h>
 
@@ -107,6 +108,8 @@ namespace crucible
 
             //register unmanaged functions
             CoreFunctionsInitializer initialize;
+            //register managed functions
+            registerManagedFunctions();
 
         }
 
@@ -188,6 +191,18 @@ namespace crucible
         {
             Interop::managedFunctionPointers.unloadLibrary(contextName);
         }
+
+        void ScriptingEngine::registerManagedFunctions()
+        {
+            //Node
+            auto gameWorldType = scripting::ScriptingEngine::getManagedType("Crucible.Core.GameWorld");
+            core::Node::createEntity = gameWorldType.getFunction<core::CSharpEntity(*)()>("UnmanagedCreateEntity");
+            assert(core::Node::createEntity!= nullptr && "Unable to find Managed Function \"UnmanagedCreateEntity\"");
+
+            core::Node::destroyEntity = gameWorldType.getFunction<void(*)(core::CSharpEntity)>("UnmanagedFreeEntity");
+            assert(core::Node::destroyEntity!= nullptr && "Unable to find Managed Function \"UnmanagedFreeEntity\"");
+        }
+
 
         void ScriptingEngine::cleanup()
         {

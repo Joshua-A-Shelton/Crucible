@@ -18,12 +18,6 @@ namespace crucible
                 parent->_children.push_back(this);
                 _parent = parent;
             }
-            if(createEntity == nullptr)
-            {
-                auto gameWorldType = scripting::ScriptingEngine::getManagedType("Crucible.Core.GameWorld");
-                createEntity = gameWorldType.getFunction<CSharpEntity(*)()>("UnmanagedCreateEntity");
-                assert(createEntity!= nullptr && "Unable to find Managed Function \"UnmanagedCreateEntity\"");
-            }
             _entity = createEntity();
         }
 
@@ -32,8 +26,7 @@ namespace crucible
             if(destroyEntity== nullptr)
             {
                 auto gameWorldType = scripting::ScriptingEngine::getManagedType("Crucible.Core.GameWorld");
-                destroyEntity = gameWorldType.getFunction<void(*)(CSharpEntity)>("UnmanagedFreeEntity");
-                assert(destroyEntity!= nullptr && "Unable to find Managed Function \"UnmanagedFreeEntity\"");
+
             }
             destroyEntity(_entity);
         }
