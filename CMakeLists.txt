@@ -15,6 +15,8 @@ fetchcontent_makeavailable(Slag)
 
 find_package(Slag REQUIRED)
 
+find_package(Boost REQUIRED)
+
 #SDL windowing and input library
 fetchcontent_declare(
         SDL3
@@ -65,12 +67,15 @@ add_library(Crucible
         src/crucible/core/VertexAttributeStream.h
         src/crucible/core/scenes/Node.cpp
         src/crucible/core/scenes/Node.h
-        src/crucible/core/interop/CSharpEntity.h
+        src/crucible/scripting/ManagedInstance.cpp
+        src/crucible/scripting/ManagedInstance.h
 )
 
+#include_directories(${Boost_INCLUDE_DIRS})
+
 target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})
-target_link_libraries(Crucible PUBLIC Slag SDL3::SDL3 glm nethost)
-target_include_directories(Crucible PRIVATE third-party/stb_image ${DOT_NET_HOST_LOCATION})
+target_link_libraries(Crucible PUBLIC Slag SDL3::SDL3 glm nethost ${Boost_LIBRARIES})
+target_include_directories(Crucible PRIVATE third-party/stb_image PUBLIC ${DOT_NET_HOST_LOCATION} ${Boost_INCLUDE_DIRS})
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(CRUCIBLE_BUILD_TYPE "Debug")

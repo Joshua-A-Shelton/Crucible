@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 #include <crucible/Crucible.h>
+#include <crucible/scripting/ScriptingEngine.h>
 using namespace crucible;
 using namespace crucible::core;
 TEST(Node,Reparent)
@@ -43,8 +44,6 @@ TEST(Node,Reparent)
     GTEST_ASSERT_EQ(grandchild2->childrenCount(),0);
     GTEST_ASSERT_EQ(greatGrandchild->getParent(),child);
     GTEST_ASSERT_EQ(child->getChild(3),greatGrandchild);
-
-    int i=0;
 
 }
 

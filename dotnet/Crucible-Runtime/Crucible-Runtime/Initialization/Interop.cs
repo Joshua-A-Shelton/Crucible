@@ -1,4 +1,8 @@
-﻿using System.Reflection;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 
@@ -74,6 +78,22 @@ internal static class Interop
             }
 
             fieldInfo.SetValue(null, mapping.FunctionPointer);
+        }
+    }
+
+    public delegate void NewInstanceDelegate(ref ManagedType type, ref IntPtr instance);
+
+    public static NewInstanceDelegate NewInstance_ptr = NewInstance;
+
+    public static void NewInstance(ref ManagedType type,ref IntPtr instance)
+    {
+        var handle = RuntimeTypeHandle.FromIntPtr(type.TypePointer);
+        Type? realType = Type.GetTypeFromHandle(handle);
+        if (realType != null)
+        {
+            var inst = Activator.CreateInstance(realType);
+            var gcHandle = GCHandle.Alloc(inst,GCHandleType.Pinned);
+            instance = GCHandle.ToIntPtr(gcHandle);
         }
     }
     

@@ -2,7 +2,7 @@
 #define CRUCIBLE_NODE_H
 #include <vector>
 #include <mutex>
-#include <crucible/core/interop/CSharpEntity.h>
+#include <boost/uuid/uuid.hpp>
 
 
 namespace crucible
@@ -54,13 +54,18 @@ namespace crucible
              * @param index
              */
             void killChild(size_t index);
-            friend class crucible::scripting::ScriptingEngine;
+            void killChildByReference(Node* child);
+            ///Locks family mutex (makes adding/removing children block until unlocked). Needed *only* in scripting side, don't use in c++
+            void lockFamily();
+            ///Unlocks family mutex. Needed *only* in scripting side, don't use in c++
+            void unlockFamily();
+            ///Gets the UUID that uniquely represents this node
+            boost::uuids::uuid uuid();
+
+            static Node* getNodeByID(boost::uuids::uuid id);
 
         private:
-
-            inline static CSharpEntity (*createEntity)()= nullptr;
-            inline static void (*destroyEntity)(CSharpEntity entity)= nullptr;
-            CSharpEntity _entity;
+            boost::uuids::uuid _uuid;
             Node* _parent = nullptr;
             std::vector<Node*> _children;
             std::mutex _familyMutex;

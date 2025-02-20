@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System;
+using System.Runtime.InteropServices;
 
 namespace Crucible.Initialization;
 
@@ -9,6 +10,7 @@ public static class Initializer
     internal unsafe struct ManagedFunctionPointers
     {
         public IntPtr RegisterUnmanagedFunction_ptr;
+        public IntPtr NewInstance_ptr;
         public IntPtr FreeUnmanagedGCHandle_ptr;
         public IntPtr GetFunction_ptr;
         public IntPtr GetType_ptr;
@@ -30,6 +32,7 @@ public static class Initializer
             var args = (ManagedFunctionPointers*) entryArgs;
             //Tell C++ about managed functions
             args->RegisterUnmanagedFunction_ptr = Marshal.GetFunctionPointerForDelegate(Interop.RegisterUnmanagedFunction_ptr);
+            args->NewInstance_ptr = Marshal.GetFunctionPointerForDelegate(Interop.NewInstance_ptr);
             args->FreeUnmanagedGCHandle_ptr = Marshal.GetFunctionPointerForDelegate(Interop.FreeUnmanagedGcHandle_ptr);
             args->GetFunction_ptr = Marshal.GetFunctionPointerForDelegate(Interop.GetFunction_ptr);
             args->GetType_ptr = Marshal.GetFunctionPointerForDelegate(Interop.GetTypeHandle_ptr);

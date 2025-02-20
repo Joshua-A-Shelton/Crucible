@@ -21,6 +21,7 @@ namespace crucible
         struct CRUCIBLE_API ManagedFunctionPointers
         {
             void* (*registerUnmanagedFunction)(FunctionMapping&) = nullptr;
+            void* (*newInstance)(void*,void*) = nullptr;
             void* (*freeUnmanagedGCHandle)(void*) = nullptr;
             void* (*getFunctionPointer)(ManagedType&, const char* FunctionName, void**)= nullptr;
             void* (*getType)(const char* assemblyQualifiedName, ManagedType& type)= nullptr;
@@ -45,6 +46,8 @@ namespace crucible
             static void registerUnmanagedFunction(const std::string& assemblyQualifiedClassName, const std::string& managedDelegateName, void** functionPointer);
             static void loadManagedDll(const char* contextName, const char* path);
             static void unloadManagedDllContext(const char* contextName);
+            static void* newInstance(const ManagedType& type);
+            static void freeGCHandle(void* handle);
         private:
             static bool loadHostFXR();
             static load_assembly_and_get_function_pointer_fn get_dotnet_load_assembly(const char_t *config_path);

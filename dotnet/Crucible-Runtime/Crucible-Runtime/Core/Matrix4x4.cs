@@ -1,4 +1,6 @@
 ﻿using System.Runtime.InteropServices;
+using System.Text;
+
 namespace Crucible.Core;
 
 [StructLayout(LayoutKind.Sequential)]
@@ -34,5 +36,24 @@ public unsafe struct Matrix4x4
         _matrixMultiply_ptr(ref m1, ref m2, ref result);
         return result;
     }
-    
+
+    public override string ToString()
+    {
+        StringBuilder sb = new StringBuilder();
+        for (int row = 0; row < 4; row++)
+        {
+            sb.Append("| ");
+            for (int column = 0; column < 4; column++)
+            {
+                sb.Append(this[column, row]);
+                if (column < 3)
+                {
+                    sb.Append(", ");
+                }
+            }
+
+            sb.Append(" |");
+        }
+        return sb.ToString();
+    }
 }

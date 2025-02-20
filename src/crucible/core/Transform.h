@@ -131,11 +131,16 @@ namespace crucible
              * @return
              */
             glm::mat4 matrix();
+            ///update the matrix based on components, called automatically when retrieving matrix, but this can be used in the scripting side
+            void updateMatrix();
 
         private:
+            inline static glm::mat4 (*getMatrix)(Transform& transform)= nullptr;
+
+
             void copy(const Transform& from);
             void move(const Transform& from);
-            void updateMatrix();
+
             glm::vec3 _position;
             glm::vec3 _scale;
             glm::quat _rotation;
