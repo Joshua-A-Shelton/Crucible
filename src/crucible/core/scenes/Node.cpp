@@ -109,7 +109,7 @@ namespace crucible
             }
         }
 
-        Node* Node::getNodeByID(boost::uuids::uuid id)
+        Node* Node::getNodeByID(const boost::uuids::uuid& id)
         {
             std::lock_guard<std::mutex> lockMap(NODE_MAP_LOCK);
             auto node = NODE_UUID_MAP.find(id);

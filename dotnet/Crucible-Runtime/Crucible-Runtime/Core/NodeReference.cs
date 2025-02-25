@@ -8,6 +8,29 @@ public unsafe struct NodeReference
     {
         _uuid = id;
     }
+
+    public static bool operator ==(NodeReference n1, NodeReference n2)
+    {
+        return n1._uuid == n2._uuid;
+    }
+
+    public static bool operator !=(NodeReference n1, NodeReference n2)
+    {
+        return n1._uuid != n2._uuid;
+    }
+    
+
+    public static void checkValid()
+    {
+        if (_nodeReferenceFromUUID_ptr == null)
+        {
+            Console.WriteLine("pointer is not mapped");
+        }
+        else
+        {
+            Console.WriteLine("pointer is mapped");
+        }
+    }
     
 #pragma warning disable 0649
     private static delegate* unmanaged<ref UUID, IntPtr> _nodeReferenceFromUUID_ptr;
@@ -22,12 +45,6 @@ public unsafe struct NodeReference
         }
 
         return null;
-    }
-
-    public bool IsValid()
-    {
-        var pointer = _nodeReferenceFromUUID_ptr(ref _uuid);
-        return pointer != IntPtr.Zero;
     }
 
     private NodePointer PointerFromUUID()
@@ -51,6 +68,13 @@ public unsafe struct NodeReference
         }
 
         return null;
+    }
+
+    public void SetParent(NodeReference newParent)
+    {
+        var pointer = PointerFromUUID();
+        var newParentPointer = newParent.PointerFromUUID();
+        pointer.SetParent(newParentPointer);
     }
 
     public int ChildCount()

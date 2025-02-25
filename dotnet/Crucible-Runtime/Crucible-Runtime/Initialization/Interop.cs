@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
@@ -39,10 +41,17 @@ internal struct StringWrapper
 internal static class Interop
 {
 
-    private static Dictionary<string, CrucibleAssemblyLoadContext> _loadedContexts =
-        new Dictionary<string, CrucibleAssemblyLoadContext>();
+    private static Dictionary<string, AssemblyLoadContext> _loadedContexts = new Dictionary<string, AssemblyLoadContext>();
+    private static Dictionary<string, Assembly> _loadedAssemblies = new Dictionary<string, Assembly>();
 
+    static Interop()
+    {
+        var me = Assembly.GetAssembly(typeof(ManagedType));
+        _loadedAssemblies.Add(me.GetName().FullName,me);
+    }
+    
     private static HashSet<Delegate> _delegates = new HashSet<Delegate>();
+
     public delegate void RegisterUnmanagedFunctionDelegate(ref FunctionMap map);
 
     public static RegisterUnmanagedFunctionDelegate RegisterUnmanagedFunction_ptr = RegisterUnmanagedFunction;
@@ -61,11 +70,6 @@ internal static class Interop
                 },null,true);
                 if (t == null)
                 {
-                    Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
-                    foreach (var assembly in assemblies)
-                    {
-                        Console.WriteLine(assembly.GetName());
-                    }
                     throw new ArgumentException("No such type \"" + className + "\" exists");
                 }
                 source = t;
@@ -124,6 +128,7 @@ internal static class Interop
             {
                 throw new ArgumentException("Cannot have non-blittable return types!");
             }
+            
             List<Type> paramTypes = new List<Type>();
             if (!methodData.IsStatic)
             {
@@ -139,6 +144,7 @@ internal static class Interop
             //prevent GC from collecting TODO: possibly leave this to the native side
             _delegates.Add(func);
             delegateHandle = Marshal.GetFunctionPointerForDelegate(func);
+            
         }
         
     }
@@ -169,15 +175,26 @@ internal static class Interop
         {
             throw new Exception("Unable to decode name of type");
         }
-       
+
+    }
+    
+    internal static Assembly? ResolveAssembly(AssemblyLoadContext? context, AssemblyName assemblyName)
+    {
+        //if we've already loaded an assembly with the given name, re-use it instead of loading it again
+        if (_loadedAssemblies.TryGetValue(assemblyName.FullName, out var loadedAssembly))
+        {
+            return loadedAssembly;
+        }
+
+        return null;
     }
 
 
-    public delegate void LoadLibraryDelegate(string contextName,string path);
+    public delegate void LoadLibraryDelegate(string contextName,string path,bool collectible);
 
     public static LoadLibraryDelegate LoadLibrary_ptr=LoadAssembly;
 
-    public static void LoadAssembly(string contextName,string path)
+    public static void LoadAssembly(string contextName,string path,bool collectible)
     {
         try
         {
@@ -193,11 +210,30 @@ internal static class Interop
             }
             else
             {
-                context = new CrucibleAssemblyLoadContext(full);
-                _loadedContexts[contextName] = (CrucibleAssemblyLoadContext)context;
+                context = new AssemblyLoadContext(full,collectible);
+                context.Resolving += ResolveAssembly;
+                context.Unloading += loadContext =>
+                {
+                    foreach (var assembly in loadContext.Assemblies)
+                    {
+                        _loadedAssemblies.Remove(assembly.GetName().FullName);
+                    }
+                };
+                
+                _loadedContexts[contextName] = context;
             }
 
-            context.LoadFromAssemblyPath(full);
+            var assembly = context.LoadFromAssemblyPath(full);
+            _loadedAssemblies.Add(assembly.GetName().FullName,assembly);
+            //this... isn't perfect, but add all assemblies referenced in the loaded assembly... I should probably set up
+            //a reference count to only unload an assembly when all it's dependents are also unloaded
+            foreach (var asmbly in context.Assemblies)
+            {
+                if (!_loadedAssemblies.ContainsKey(assembly.GetName().FullName))
+                {
+                    _loadedAssemblies.Add(assembly.GetName().FullName,asmbly);
+                }
+            }
         }
         catch (Exception e)
         {
@@ -213,7 +249,7 @@ internal static class Interop
     public static void UnloadAssembly(string path)
     {
         var full = Path.GetFullPath(path);
-        CrucibleAssemblyLoadContext? context;
+        AssemblyLoadContext? context;
         if (_loadedContexts.TryGetValue(full, out context))
         {
             context.Unload();

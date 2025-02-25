@@ -12,7 +12,7 @@ DELEGATE(Crucible.Core.NodePointer, void, _nodePointerLockFamily, cs_NodePointer
 DELEGATE(Crucible.Core.NodePointer, void, _nodePointerUnlockFamily, cs_nodePointerUnlockFamily,crucible::core::Node*)\
 DELEGATE(Crucible.Core.NodePointer, boost::uuids::uuid, _nodePointerUUID_ptr, cs_nodePointerUUID,crucible::core::Node*)\
 DELEGATE(Crucible.Core.NodePointer, crucible::core::Node*, _nodePointerParent_ptr, cs_nodePointerParent,crucible::core::Node*)\
-DELEGATE(Crucible.Core.NodePointer, void, _nodePointerParent_ptr, cs_nodePointerSetParent,crucible::core::Node*, crucible::core::Node*)\
+DELEGATE(Crucible.Core.NodePointer, void, _nodePointerSetParent_ptr, cs_nodePointerSetParent,crucible::core::Node*, crucible::core::Node*)\
 DELEGATE(Crucible.Core.NodePointer, int32_t, _nodePointerChildCount_ptr, cs_nodePointerChildCount,crucible::core::Node*)\
 DELEGATE(Crucible.Core.NodePointer, crucible::core::Node*, _nodePointerGetChild_ptr, cs_nodePointerGetChild,crucible::core::Node*, int32_t)\
 DELEGATE(Crucible.Core.NodePointer, crucible::core::Node*, _nodePointerAddChild_ptr, cs_nodePointerAddChild,crucible::core::Node*)\

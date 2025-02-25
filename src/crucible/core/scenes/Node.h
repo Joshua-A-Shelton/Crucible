@@ -62,7 +62,7 @@ namespace crucible
             ///Gets the UUID that uniquely represents this node
             boost::uuids::uuid uuid();
 
-            static Node* getNodeByID(boost::uuids::uuid id);
+            static Node* getNodeByID(const boost::uuids::uuid& id);
 
         private:
             boost::uuids::uuid _uuid;

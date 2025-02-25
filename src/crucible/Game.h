@@ -11,7 +11,7 @@ namespace crucible
     class CRUCIBLE_API Game
     {
     public:
-        Game(const std::string& name, const std::filesystem::path& icon, SDL_Window* inWindow = nullptr);
+        Game(const std::string& name, const std::filesystem::path& icon, const std::filesystem::path& gameDll, SDL_Window* inWindow = nullptr);
         ~Game();
         Game(const Game&)=delete;
         Game& operator=(const Game&)=delete;

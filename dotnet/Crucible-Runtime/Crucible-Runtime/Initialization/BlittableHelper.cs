@@ -23,7 +23,11 @@ public class BlittableHelper
             return elem.IsValueType && IsBlittable(elem);
         }
         try{
-            object instance = FormatterServices.GetUninitializedObject(type);
+            var instance = Activator.CreateInstance(type);
+            if (instance == null)
+            {
+                return false;
+            }
             GCHandle.Alloc(instance, GCHandleType.Pinned).Free();
             return true;
         }catch{

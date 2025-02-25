@@ -1,5 +1,7 @@
 #include "Game.h"
 #include <stb_image.h>
+#include "scripting/ScriptingEngine.h"
+
 namespace crucible
 {
 
@@ -33,7 +35,7 @@ namespace crucible
         return new CrucibleFrameResources();
     }
 
-    Game::Game(const std::string& name, const std::filesystem::path& icon, SDL_Window* inWindow)
+    Game::Game(const std::string& name, const std::filesystem::path& icon, const std::filesystem::path& gameDll,  SDL_Window* inWindow)
     {
         if(inWindow == nullptr)
         {
@@ -58,6 +60,8 @@ namespace crucible
 
         auto success = SDL_SetWindowIcon(_window,_icon);
         stbi_image_free(iconData);
+
+        crucible::scripting::ScriptingEngine::loadManagedDll("Game",gameDll.string().c_str(),false);
 
         auto properties = SDL_GetWindowProperties(_window);
         slag::PlatformData platformData{};

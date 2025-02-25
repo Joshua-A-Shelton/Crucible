@@ -72,3 +72,11 @@ TEST(Node,KillChild)
     GTEST_ASSERT_EQ(root.childrenCount(),1);
     GTEST_ASSERT_EQ(root.getChild(0),sibling);
 }
+
+TEST(Node,ScriptingFamily)
+{
+    auto nodeTestType = scripting::ScriptingEngine::getManagedType("CrucibleRuntimeTests.NodeTest,Crucible-Runtime-Tests");
+    auto nodeTestFamilyFunction = nodeTestType.getFunction<bool (*)(const boost::uuids::uuid&)>("Family");
+    Node root(nullptr);
+    GTEST_ASSERT_TRUE(nodeTestFamilyFunction(root.uuid()));
+}

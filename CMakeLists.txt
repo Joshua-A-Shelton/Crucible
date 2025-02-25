@@ -99,21 +99,21 @@ add_custom_command(
 add_custom_target(Crucible-Runtime ALL DEPENDS ${CMAKE_BINARY_DIR}/Crucible-Runtime.dll)
 add_dependencies(Crucible Crucible-Runtime)
 
-option(CrucibleExampleProject "Build an example of crucible project" ON)
-if(CrucibleExampleProject)
-    add_executable(CrucibleExample
-            example/example.cpp)
-    target_link_libraries(CrucibleExample Crucible)
-    target_include_directories(CrucibleExample PRIVATE src)
-    configure_file(example/crucible.png ${CMAKE_BINARY_DIR}/crucible.png COPYONLY)
-endif ()
-
 option(CrucibleTests "Build crucible tests" ON)
 if(CrucibleTests)
     message("building Crucible tests")
     find_package(SDL2 REQUIRED)
     find_package(glm CONFIG REQUIRED)
-    message("building tests")
+
+    file(GLOB_RECURSE CRUCIBLE_TEST_CSHARP_FILES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/test/dotnet/*.cs)
+    add_custom_command(
+            OUTPUT ${CMAKE_BINARY_DIR}/plugins/Crucible-Runtime-Tests.dll
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test/dotnet/Crucible-Runtime-Tests
+            COMMAND dotnet publish Crucible-Runtime-Tests /p:Configuration=${CRUCIBLE_BUILD_TYPE} /p:Platform="Any CPU" -o ${CMAKE_BINARY_DIR}/plugins
+            DEPENDS ${CRUCIBLE_TEST_CSHARP_FILES}
+            COMMENT "Building Crucible .net runtime Tests"
+    )
+
     include(FetchContent)
     FetchContent_Declare(
             googletest
@@ -134,6 +134,10 @@ if(CrucibleTests)
     target_include_directories(CrucibleTests PRIVATE src)
     include(GoogleTest)
     gtest_discover_tests(CrucibleTests)
+
+    add_custom_target(Crucible-Runtime-Tests ALL DEPENDS ${CMAKE_BINARY_DIR}/plugins/Crucible-Runtime-Tests.dll)
+    add_dependencies(Crucible-Runtime-Tests Crucible-Runtime)
+    add_dependencies(CrucibleTests Crucible-Runtime-Tests)
 endif ()
 
 target_include_directories(Crucible PUBLIC src)

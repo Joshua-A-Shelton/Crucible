@@ -25,7 +25,7 @@ namespace crucible
             void* (*freeUnmanagedGCHandle)(void*) = nullptr;
             void* (*getFunctionPointer)(ManagedType&, const char* FunctionName, void**)= nullptr;
             void* (*getType)(const char* assemblyQualifiedName, ManagedType& type)= nullptr;
-            void* (*loadLibrary)(const char* contextName,const char* path)=nullptr;
+            void* (*loadLibrary)(const char* contextName,const char* path,bool collectible)=nullptr;
             void* (*unloadLibrary)(const char* path)= nullptr;
             void* (*unloadAllContexts)()= nullptr;
         };
@@ -44,7 +44,7 @@ namespace crucible
             static ManagedType getManagedType(const std::string& typeName);
             static void* getManagedFunction(ManagedType& type,const std::string& fullyQualifiedFunctionName);
             static void registerUnmanagedFunction(const std::string& assemblyQualifiedClassName, const std::string& managedDelegateName, void** functionPointer);
-            static void loadManagedDll(const char* contextName, const char* path);
+            static void loadManagedDll(const char* contextName, const char* path, bool collectible);
             static void unloadManagedDllContext(const char* contextName);
             static void* newInstance(const ManagedType& type);
             static void freeGCHandle(void* handle);

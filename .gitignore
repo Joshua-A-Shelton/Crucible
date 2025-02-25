@@ -1,2 +1,5 @@
 /cmake-build-debug/
 /dotnet/Crucible-Runtime/Crucible-Runtime/obj/
+/test/dotnet/Crucible-Runtime-Tests/.idea/
+/test/dotnet/Crucible-Runtime-Tests/Crucible-Runtime-Tests/obj/
+/test/dotnet/Crucible-Runtime-Tests/Crucible-Runtime-Tests/bin/
