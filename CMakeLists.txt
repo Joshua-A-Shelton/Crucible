@@ -43,7 +43,7 @@ if(WIN32)
     set(DOT_NET_HOST_LOCATION "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Host.win-x64/9.0.1/runtimes/win-x64/native")
     set(NETHOST_DYNAMIC_LIBRARY "nethost.dll")
 else()
-    set(DOT_NET_HOST_LOCATION "/usr/lib/dotnet/packs/Microsoft.NETCore.App.Host.ubuntu.22.04-x64/9.0.1/runtimes/ubuntu.22.04-x64/native/")
+    set(DOT_NET_HOST_LOCATION "/usr/lib/dotnet/packs/Microsoft.NETCore.App.Host.ubuntu.22.04-x64/9.0.2/runtimes/ubuntu.22.04-x64/native/")
     set(NETHOST_DYNAMIC_LIBRARY "libnethost.so")
 endif()
 

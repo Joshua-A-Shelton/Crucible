@@ -4,7 +4,7 @@
 #include <glm/glm.hpp>
 #include <boost/uuid/uuid.hpp>
 #include "crucible/core/Transform.h"
-#include "crucible/core/Scenes/Node.h"
+#include "crucible/core/scenes/Node.h"
 //DEFINITION(C# Class, function return type, C# delegate name, C++ function name, C++ parameters)
 #define CRUCIBLE_CORE_DELEGATES \
 DELEGATE(Crucible.Core.NodeReference, crucible::core::Node*, _nodeReferenceFromUUID_ptr, cs_NodeReferenceFromUUID,boost::uuids::uuid& id)\
