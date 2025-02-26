@@ -18,6 +18,7 @@ namespace crucible
             _uuid = NODE_UUID_GENERATOR();
             std::lock_guard<std::mutex> lockMap(NODE_MAP_LOCK);
             NODE_UUID_MAP.insert({_uuid,this});
+            createCSEntity(_csEntity);
         }
 
         Node::Node(Node* parent)
@@ -34,6 +35,7 @@ namespace crucible
                 parent->_children.push_back(this);
                 _parent = parent;
             }
+            createCSEntity(_csEntity);
         }
 
         Node::~Node()
@@ -42,6 +44,10 @@ namespace crucible
             {
                 std::lock_guard<std::mutex> lockMap(NODE_MAP_LOCK);
                 NODE_UUID_MAP.erase(_uuid);
+            }
+            if(_csEntity.Id!=-1)
+            {
+                destroyCSEntity(_csEntity);
             }
             for(auto & i : _children)
             {
@@ -133,6 +139,11 @@ namespace crucible
         boost::uuids::uuid Node::uuid()
         {
             return _uuid;
+        }
+
+        scripting::CSEntity Node::csEntity()
+        {
+            return _csEntity;
         }
 
 

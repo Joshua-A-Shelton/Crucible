@@ -1,3 +1,4 @@
+#include <boost/container_hash/hash.hpp>
 #include "CoreFunctions.h"
 
 namespace crucible
@@ -58,6 +59,16 @@ namespace crucible
         void cs_nodePointerRemoveChildByValue(core::Node* node, core::Node* child)
         {
             node->killChildByReference(child);
+        }
+
+        void cs_nodePointerGetEntity(core::Node* node, CSEntity& entity)
+        {
+            entity = node->csEntity();
+        }
+//UUID
+        int32_t cs_UUIDHash(boost::uuids::uuid& id)
+        {
+            return static_cast<int32_t>(boost::hash_value(id));
         }
 //Matrix
 

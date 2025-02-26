@@ -17,7 +17,10 @@ DELEGATE(Crucible.Core.NodePointer, int32_t, _nodePointerChildCount_ptr, cs_node
 DELEGATE(Crucible.Core.NodePointer, crucible::core::Node*, _nodePointerGetChild_ptr, cs_nodePointerGetChild,crucible::core::Node*, int32_t)\
 DELEGATE(Crucible.Core.NodePointer, crucible::core::Node*, _nodePointerAddChild_ptr, cs_nodePointerAddChild,crucible::core::Node*)\
 DELEGATE(Crucible.Core.NodePointer, void, _nodePointerRemoveChildByIndex_ptr, cs_nodePointerRemoveChildByIndex,crucible::core::Node*, int32_t index)\
-DELEGATE(Crucible.Core.NodePointer, void, _nodePointerRemoveChildByValue_ptr, cs_nodePointerRemoveChildByValue,crucible::core::Node*, crucible::core::Node*)\
+DELEGATE(Crucible.Core.NodePointer, void, _nodePointerRemoveChildByValue_ptr, cs_nodePointerRemoveChildByValue,crucible::core::Node*, crucible::core::Node*) \
+DELEGATE(Crucible.Core.NodePointer, void, _nodePointerGetEntity_ptr, cs_nodePointerGetEntity, crucible::core::Node*, crucible::scripting::CSEntity&)\
+                                \
+DELEGATE(Crucible.Core.UUID, int32_t, _uuidHash_ptr, cs_UUIDHash, boost::uuids::uuid& id)\
                                 \
 DELEGATE(Crucible.Core.Matrix4x4, void, _matrixMultiply_ptr, cs_Matrix4x4Multiply, glm::mat4& m1, glm::mat4& m2, glm::mat4& result)\
                                 \

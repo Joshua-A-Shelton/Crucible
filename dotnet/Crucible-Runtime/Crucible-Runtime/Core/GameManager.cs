@@ -1,12 +1,16 @@
 ﻿using System.Reflection;
+using System.Runtime.InteropServices;
+using Arch.Core;
 
 namespace Crucible.Core;
 
 public static class GameManager
 {
     private static GameLoop _loop;
+    private static World _gameWorld = World.Create();
 
-    public static void Initialize()
+    [UnmanagedCallersOnly]
+    private static void Initialize()
     {
         var subclasses =
             from assembly in AppDomain.CurrentDomain.GetAssemblies()
@@ -32,9 +36,21 @@ public static class GameManager
         _loop = (GameLoop)gameLoopInstance;
 
     }
-
-    public static void RunLoop(double deltaTime)
+    [UnmanagedCallersOnly]
+    private static void RunLoop(double deltaTime)
     {
         _loop.Update(deltaTime);
+    }
+
+
+    private static void CreateEntity(ref Entity entity)
+    {
+        entity = _gameWorld.Create();
+    }
+    
+
+    private static void DestroyEntity(ref Entity entity)
+    {
+        _gameWorld.Destroy(entity);
     }
 }

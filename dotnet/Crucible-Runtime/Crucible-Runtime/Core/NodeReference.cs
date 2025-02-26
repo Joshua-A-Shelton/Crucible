@@ -18,20 +18,21 @@ public unsafe struct NodeReference
     {
         return n1._uuid != n2._uuid;
     }
-    
 
-    public static void checkValid()
+    public override bool Equals(object? obj)
     {
-        if (_nodeReferenceFromUUID_ptr == null)
+        if (obj is NodeReference nodeRef)
         {
-            Console.WriteLine("pointer is not mapped");
+            return this == nodeRef;
         }
-        else
-        {
-            Console.WriteLine("pointer is mapped");
-        }
+        return false;
     }
-    
+
+    public override int GetHashCode()
+    {
+        return _uuid.GetHashCode();
+    }
+
 #pragma warning disable 0649
     private static delegate* unmanaged<ref UUID, IntPtr> _nodeReferenceFromUUID_ptr;
 #pragma warning restore 0649

@@ -2,7 +2,7 @@
 
 namespace Crucible.Core;
 
-public unsafe struct UUID
+public unsafe struct UUID: IEquatable<UUID>
 {
     private fixed byte _bytes[16];
 
@@ -25,6 +25,11 @@ public unsafe struct UUID
         return !(u1 == u2);
     }
 
+    public bool Equals(UUID other)
+    {
+        return this == other;
+    }
+
     public override string ToString()
     {
         StringBuilder sb = new StringBuilder();
@@ -33,5 +38,23 @@ public unsafe struct UUID
             sb.Append((char)_bytes[i]);
         }
         return sb.ToString();
+    }
+    
+    public override bool Equals(object? obj)
+    {
+        if (obj is UUID against)
+        {
+            return this == against;
+        }
+        return false;
+    }
+    
+#pragma warning disable 0649
+    private static delegate* unmanaged<ref UUID, int> _uuidHash_ptr;
+#pragma warning restore 0649
+
+    public override int GetHashCode()
+    {
+        return _uuidHash_ptr(ref this);
     }
 }

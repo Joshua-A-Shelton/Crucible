@@ -207,13 +207,9 @@ namespace crucible
 
         void ScriptingEngine::registerManagedFunctions()
         {
-            //Node
-//            auto gameWorldType = scripting::ScriptingEngine::getManagedType("Crucible.Core.GameWorld");
-//            core::Node::createEntity = gameWorldType.getFunction<core::CSharpEntity(*)(core::Node*)>("UnmanagedCreateEntity");
-//            assert(core::Node::createEntity!= nullptr && "Unable to find Managed Function \"UnmanagedCreateEntity\"");
-//
-//            core::Node::destroyEntity = gameWorldType.getFunction<void(*)(core::CSharpEntity)>("UnmanagedFreeEntity");
-//            assert(core::Node::destroyEntity!= nullptr && "Unable to find Managed Function \"UnmanagedFreeEntity\"");
+            auto gameManagerType = scripting::ScriptingEngine::getManagedType("Crucible.Core.GameManager");
+            core::Node::createCSEntity = gameManagerType.getFunction<void (*)(scripting::CSEntity&)>("CreateEntity");
+            core::Node::destroyCSEntity = gameManagerType.getFunction<void (*)(scripting::CSEntity&)>("DestroyEntity");
 
         }
 
