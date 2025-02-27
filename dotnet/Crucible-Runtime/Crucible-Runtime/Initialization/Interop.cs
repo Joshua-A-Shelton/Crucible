@@ -96,7 +96,7 @@ internal static class Interop
         if (realType != null)
         {
             var inst = Activator.CreateInstance(realType);
-            var gcHandle = GCHandle.Alloc(inst,GCHandleType.Pinned);
+            var gcHandle = GCHandle.Alloc(inst,GCHandleType.Normal);
             instance = GCHandle.ToIntPtr(gcHandle);
         }
     }
