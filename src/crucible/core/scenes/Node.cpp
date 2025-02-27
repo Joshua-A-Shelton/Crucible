@@ -13,14 +13,14 @@ namespace crucible
         std::unordered_map<boost::uuids::uuid,Node*,boost::hash<boost::uuids::uuid>> NODE_UUID_MAP;
         std::mutex NODE_MAP_LOCK;
 
-        Node::Node()
+        Node::Node():_transform(this)
         {
             _uuid = NODE_UUID_GENERATOR();
             std::lock_guard<std::mutex> lockMap(NODE_MAP_LOCK);
             NODE_UUID_MAP.insert({_uuid,this});
         }
 
-        Node::Node(Node* parent)
+        Node::Node(Node* parent):_transform(this)
         {
             std::lock_guard<std::mutex> lockChild(_familyMutex);
             _uuid = NODE_UUID_GENERATOR();
@@ -34,6 +34,11 @@ namespace crucible
                 parent->_children.push_back(this);
                 _parent = parent;
             }
+        }
+
+        Node::Node(const scripting::ManagedType& scriptType):Node()
+        {
+            _script = scriptType.createNew();
         }
 
         Node::~Node()
@@ -135,6 +140,24 @@ namespace crucible
             return _uuid;
         }
 
+        scripting::ManagedInstance& Node::script()
+        {
+            return _script;
+        }
 
+        void Node::updateNode(double deltaTime)
+        {
+            if (!_script.isNull())
+            {
+                update(_script.gcHandle(), deltaTime);
+            }
+            //the update may move nodes around, make sure that we're updating them separately from the family hierarchy
+            std::vector<Node*> kids = _children;
+            //TODO: I need to update once, and only once, regardless of moving the children around... maybe allow killing, and creating nodes, but not moving them?
+            for (size_t i=0; i<kids.size(); i++)
+            {
+                kids[i]->updateNode(deltaTime);
+            }
+        }
     } // core
 } // crucible

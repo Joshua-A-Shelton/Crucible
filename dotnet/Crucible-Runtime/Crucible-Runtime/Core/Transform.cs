@@ -6,6 +6,7 @@ namespace Crucible.Core;
 [StructLayout(LayoutKind.Sequential)]
 public unsafe struct Transform
 {
+    private IntPtr _attachedTo;
     private Vector3 _position;
     private Quaternion _rotation;
     private Vector3 _scale;

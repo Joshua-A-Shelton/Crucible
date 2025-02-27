@@ -6,18 +6,19 @@ namespace crucible
 {
     namespace core
     {
+        class Node;
         ///Represents a position, rotation, and scale of an object in 3d space
         class Transform
         {
         public:
-            Transform();
-            Transform(const glm::vec3& position, const glm::quat& rotation, float scale);
-            Transform(const glm::vec3& position, const glm::vec3& rotation, float scale);
-            Transform(const glm::vec3& position, const glm::quat& rotation, const glm::vec3& scale);
-            Transform(const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale);
+            Transform(Node* attachedTo);
+            Transform(const glm::vec3& position, const glm::quat& rotation, float scale, Node* attachedTo);
+            Transform(const glm::vec3& position, const glm::vec3& rotation, float scale, Node* attachedTo);
+            Transform(const glm::vec3& position, const glm::quat& rotation, const glm::vec3& scale, Node* attachedTo);
+            Transform(const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale, Node* attachedTo);
             ~Transform();
-            Transform(const Transform& from);
-            Transform& operator=(const Transform& from);
+            Transform(const Transform& from) = delete;
+            Transform& operator=(const Transform& from) = delete;
             Transform(Transform&& from);
             Transform& operator=(Transform&& from);
 
@@ -137,10 +138,9 @@ namespace crucible
         private:
             inline static glm::mat4 (*getMatrix)(Transform& transform)= nullptr;
 
-
-            void copy(const Transform& from);
             void move(const Transform& from);
 
+            Node* _attachedTo = nullptr;
             glm::vec3 _position;
             glm::vec3 _scale;
             glm::quat _rotation;

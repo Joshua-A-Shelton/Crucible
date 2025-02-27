@@ -13,6 +13,9 @@ public static class Initializer
         public IntPtr NewInstance_ptr;
         public IntPtr FreeUnmanagedGCHandle_ptr;
         public IntPtr GetFunction_ptr;
+        public IntPtr InvokeInstanceMethod_ptr;
+        public IntPtr InvokeInstanceMethodReturnReference_ptr;
+        public IntPtr InvokeInstanceMethodReturnValue_ptr;
         public IntPtr GetType_ptr;
         public IntPtr LoadManagedDll_ptr;
         public IntPtr UnloadContext_ptr;
@@ -35,6 +38,9 @@ public static class Initializer
             args->NewInstance_ptr = Marshal.GetFunctionPointerForDelegate(Interop.NewInstance_ptr);
             args->FreeUnmanagedGCHandle_ptr = Marshal.GetFunctionPointerForDelegate(Interop.FreeUnmanagedGcHandle_ptr);
             args->GetFunction_ptr = Marshal.GetFunctionPointerForDelegate(Interop.GetFunction_ptr);
+            args->InvokeInstanceMethod_ptr = Marshal.GetFunctionPointerForDelegate(Interop.InvokeInstanceMethod_ptr);
+            args->InvokeInstanceMethodReturnReference_ptr = Marshal.GetFunctionPointerForDelegate(Interop.InvokeInstanceMethodWithReturnValueByReferenceDelegate_ptr);
+            args->InvokeInstanceMethodReturnValue_ptr = Marshal.GetFunctionPointerForDelegate(Interop.InvokeInstanceMethodWithReturnValueByValueDelegate_ptr);
             args->GetType_ptr = Marshal.GetFunctionPointerForDelegate(Interop.GetTypeHandle_ptr);
             args->LoadManagedDll_ptr = Marshal.GetFunctionPointerForDelegate(Interop.LoadLibrary_ptr);
             args->UnloadContext_ptr = Marshal.GetFunctionPointerForDelegate(Interop.UnloadLibrary_ptr);

@@ -183,6 +183,27 @@ namespace crucible
             return fptr;
         }
 
+        void ScriptingEngine::InvokeInstanceMethod(ManagedInstance& instance, const std::string& methodName, int32_t parameterCount, void** parameterTypes, void** parameters)
+        {
+            auto type = instance.getType();
+            Interop::managedFunctionPointers.invokeInstanceMethod(&type, instance.gcHandle(),methodName.c_str(),parameterCount,parameterTypes,parameters);
+        }
+
+        ManagedInstance ScriptingEngine::InvokeInstanceMethodWithReturnObject(ManagedInstance& instance,const std::string& methodName, int32_t parameterCount, void** parameterTypes, void** parameters)
+        {
+            auto type = instance.getType();
+            void* objectInstance = nullptr;
+            ManagedType mt;
+            Interop::managedFunctionPointers.invokeInstanceMethodReturnReference(&type,instance.gcHandle(),methodName.c_str(),parameterCount,parameterTypes,parameters,&objectInstance,mt);
+            return ManagedInstance(mt,objectInstance);
+        }
+
+        void ScriptingEngine::InvokeInstanceMethodWithReturnValue(ManagedInstance& instance,const std::string& methodName, int32_t parameterCount, void** parameterTypes, void** parameters,void* valuePtr)
+        {
+            auto type = instance.getType();
+            Interop::managedFunctionPointers.invokeInstanceMethodReturnValue(&type,instance.gcHandle(),methodName.c_str(),parameterCount,parameterTypes,parameters,valuePtr);
+        }
+
         void ScriptingEngine::loadManagedDll(const char* contextName,const char* path, bool collectible)
         {
             Interop::managedFunctionPointers.loadLibrary(contextName,path,collectible);
@@ -193,11 +214,11 @@ namespace crucible
             Interop::managedFunctionPointers.unloadLibrary(contextName);
         }
 
-        void* ScriptingEngine::newInstance(const ManagedType& type)
+        ManagedInstance ScriptingEngine::newInstance(const ManagedType& type)
         {
             void* handle = nullptr;
             Interop::managedFunctionPointers.newInstance((void*) &type, &handle);
-            return nullptr;
+            return ManagedInstance(type,handle);
         }
 
         void ScriptingEngine::freeGCHandle(void* handle)
@@ -207,6 +228,9 @@ namespace crucible
 
         void ScriptingEngine::registerManagedFunctions()
         {
+            ManagedType nodeBehaviorType = getManagedType("Crucible.Core.NodeBehavior");
+            core::Node::update = nodeBehaviorType.getFunction<void(*)(void*, double)>("UpdateNode");
+            assert(core::Node::update != nullptr && "Node::update is null");
         }
 
 

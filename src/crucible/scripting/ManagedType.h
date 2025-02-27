@@ -2,19 +2,18 @@
 #define CRUCIBLE_MANAGEDTYPE_H
 #include "../CrucibleCore.h"
 #include <string>
-#include "ManagedInstance.h"
 namespace crucible
 {
     namespace scripting
     {
-
+        class ManagedInstance;
         class CRUCIBLE_API ManagedType
         {
         private:
             void* _runtimeTypeHandle = nullptr;
             void* _getFunction(const std::string& functionName);
         public:
-            ManagedInstance createNew();
+            [[nodiscard]] ManagedInstance createNew()const;
             template<class T> T getFunction(const std::string& functionName)
             {
                 return (T)(_getFunction(functionName));
@@ -22,6 +21,8 @@ namespace crucible
 
             bool operator ==(const ManagedType& against)const;
             bool operator !=(const ManagedType& against)const;
+
+            void* runtimeTypeHandle()const;
         };
 
     } // scripting

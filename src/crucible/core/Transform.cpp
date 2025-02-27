@@ -4,8 +4,9 @@ namespace crucible
 {
     namespace core
     {
-        Transform::Transform()
+        Transform::Transform(Node* attachedTo)
         {
+            _attachedTo=attachedTo;
             _position = glm::vec3(0,0,0);
             _rotation = glm::quat(1,0,0,0);
             _scale = glm::vec3(1,1,1);
@@ -13,32 +14,36 @@ namespace crucible
             _needsUpdate=false;
         }
 
-        Transform::Transform(const glm::vec3& position, const glm::quat& rotation, float scale)
+        Transform::Transform(const glm::vec3& position, const glm::quat& rotation, float scale, Node* attachedTo)
         {
+            _attachedTo=attachedTo;
             _position = position;
             _rotation = rotation;
             _scale = glm::vec3(scale,scale,scale);
             updateMatrix();
         }
 
-        Transform::Transform(const glm::vec3& position, const glm::vec3& rotation, float scale)
+        Transform::Transform(const glm::vec3& position, const glm::vec3& rotation, float scale, Node* attachedTo)
         {
+            _attachedTo=attachedTo;
             _position = position;
             _rotation = glm::quat(rotation);
             _scale = glm::vec3(scale,scale,scale);
             updateMatrix();
         }
 
-        Transform::Transform(const glm::vec3& position, const glm::quat& rotation, const glm::vec3& scale)
+        Transform::Transform(const glm::vec3& position, const glm::quat& rotation, const glm::vec3& scale, Node* attachedTo)
         {
+            _attachedTo=attachedTo;
             _position = position;
             _rotation = rotation;
             _scale = scale;
             updateMatrix();
         }
 
-        Transform::Transform(const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale)
+        Transform::Transform(const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale, Node* attachedTo)
         {
+            _attachedTo=attachedTo;
             _position = position;
             _rotation = glm::quat(rotation);
             _scale = scale;
@@ -50,17 +55,6 @@ namespace crucible
 
         }
 
-        Transform::Transform(const Transform& from)
-        {
-            copy(from);
-        }
-
-        Transform& Transform::operator=(const Transform& from)
-        {
-            copy(from);
-            return *this;
-        }
-
         Transform::Transform(Transform&& from)
         {
             move(from);
@@ -70,15 +64,6 @@ namespace crucible
         {
             move(from);
             return *this;
-        }
-
-        void Transform::copy(const Transform& from)
-        {
-            _position = from._position;
-            _rotation = from._rotation;
-            _scale = from._scale;
-            _matrix = from._matrix;
-            _needsUpdate = from._needsUpdate;
         }
 
         void Transform::move(const Transform& from)
