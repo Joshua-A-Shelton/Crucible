@@ -56,6 +56,11 @@ namespace crucible
             node->killChild(index);
         }
 
+        crucible::core::Transform* cs_nodePointerGetTransform(core::Node* node)
+        {
+            return &(node->transform());
+        }
+
 //UUID
         int32_t cs_UUIDHash(boost::uuids::uuid& id)
         {
@@ -70,6 +75,46 @@ namespace crucible
         }
 
 //Transform
+
+        void cs_TransformSetPosition(core::Transform& transform, glm::vec3& newPosition)
+        {
+            transform.setPosition(newPosition);
+        }
+
+        void cs_TransformTranslate(core::Transform& transform, glm::vec3& translation)
+        {
+            transform.translate(translation);
+        }
+
+        void cs_TransformSetRotation(core::Transform& transform, glm::quat& newRotation)
+        {
+            transform.setRotation(newRotation);
+        }
+
+        void cs_TransformRotate(core::Transform& transform, glm::quat& rotation)
+        {
+            transform.rotate(rotation);
+        }
+
+        void cs_TransformSetRotationEuler(core::Transform& transform, glm::vec3& newRotation)
+        {
+            transform.setRotation(newRotation);
+        }
+
+        void cs_TransformRotateEuler(core::Transform& transform, glm::vec3& rotation)
+        {
+            transform.rotate(rotation);
+        }
+
+        void cs_TransformSetScale(core::Transform& transform, glm::vec3& newScale)
+        {
+            transform.setScale(newScale);
+        }
+
+        void cs_TransformScale(core::Transform& transform, glm::vec3& scale)
+        {
+            transform.scale(scale);
+        }
 
         void cs_TransformUpdateMatrix(core::Transform& transform)
         {

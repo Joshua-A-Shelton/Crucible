@@ -30,6 +30,16 @@ public unsafe struct Vector3
     {
         return new Vector3(v1.X - v2.X, v1.Y - v2.Y, v1.Z - v2.Z);
     }
+
+    public static bool operator ==(Vector3 v1, Vector3 v2)
+    {
+        return v1.X == v2.X && v1.Y == v2.Y && v1.Z == v2.Z;
+    }
+
+    public static bool operator !=(Vector3 v1, Vector3 v2)
+    {
+        return !(v1 == v2);
+    }
     
 #pragma warning disable 0649
     private static delegate* unmanaged<ref Vector3, ref Vector3, float> _vector3Dot_ptr;
@@ -47,6 +57,9 @@ public unsafe struct Vector3
         _vector3Cross_ptr(ref v1, ref v2, ref v3);
         return v3;
     }
-    
-    
+
+    public override string ToString()
+    {
+        return "{"+X+", "+Y+", "+Z+"}";
+    }
 }

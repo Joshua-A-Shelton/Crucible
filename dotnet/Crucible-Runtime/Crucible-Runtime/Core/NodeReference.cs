@@ -1,4 +1,6 @@
-﻿namespace Crucible.Core;
+﻿using System.Runtime.InteropServices;
+
+namespace Crucible.Core;
 
 public unsafe struct NodeReference
 {
@@ -109,5 +111,15 @@ public unsafe struct NodeReference
         var pointer = PointerFromUUID();
         var childPointer = child.PointerFromUUID();
         pointer.RemoveChild(childPointer);
+    }
+
+    public ref Transform Transform
+    {
+        get
+        {
+            var pointer = PointerFromUUID();
+            Transform* t = (Transform*)pointer.GetTransformPointer();
+            return ref *t;
+        }
     }
 }

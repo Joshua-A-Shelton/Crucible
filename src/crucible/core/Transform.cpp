@@ -4,9 +4,8 @@ namespace crucible
 {
     namespace core
     {
-        Transform::Transform(Node* attachedTo)
+        Transform::Transform()
         {
-            _attachedTo=attachedTo;
             _position = glm::vec3(0,0,0);
             _rotation = glm::quat(1,0,0,0);
             _scale = glm::vec3(1,1,1);
@@ -14,36 +13,32 @@ namespace crucible
             _needsUpdate=false;
         }
 
-        Transform::Transform(const glm::vec3& position, const glm::quat& rotation, float scale, Node* attachedTo)
+        Transform::Transform(const glm::vec3& position, const glm::quat& rotation, float scale)
         {
-            _attachedTo=attachedTo;
             _position = position;
             _rotation = rotation;
             _scale = glm::vec3(scale,scale,scale);
             updateMatrix();
         }
 
-        Transform::Transform(const glm::vec3& position, const glm::vec3& rotation, float scale, Node* attachedTo)
+        Transform::Transform(const glm::vec3& position, const glm::vec3& rotation, float scale)
         {
-            _attachedTo=attachedTo;
             _position = position;
             _rotation = glm::quat(rotation);
             _scale = glm::vec3(scale,scale,scale);
             updateMatrix();
         }
 
-        Transform::Transform(const glm::vec3& position, const glm::quat& rotation, const glm::vec3& scale, Node* attachedTo)
+        Transform::Transform(const glm::vec3& position, const glm::quat& rotation, const glm::vec3& scale)
         {
-            _attachedTo=attachedTo;
             _position = position;
             _rotation = rotation;
             _scale = scale;
             updateMatrix();
         }
 
-        Transform::Transform(const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale, Node* attachedTo)
+        Transform::Transform(const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale)
         {
-            _attachedTo=attachedTo;
             _position = position;
             _rotation = glm::quat(rotation);
             _scale = scale;

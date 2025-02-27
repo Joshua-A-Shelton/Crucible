@@ -11,11 +11,11 @@ namespace crucible
         class Transform
         {
         public:
-            Transform(Node* attachedTo);
-            Transform(const glm::vec3& position, const glm::quat& rotation, float scale, Node* attachedTo);
-            Transform(const glm::vec3& position, const glm::vec3& rotation, float scale, Node* attachedTo);
-            Transform(const glm::vec3& position, const glm::quat& rotation, const glm::vec3& scale, Node* attachedTo);
-            Transform(const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale, Node* attachedTo);
+            Transform();
+            Transform(const glm::vec3& position, const glm::quat& rotation, float scale);
+            Transform(const glm::vec3& position, const glm::vec3& rotation, float scale);
+            Transform(const glm::vec3& position, const glm::quat& rotation, const glm::vec3& scale);
+            Transform(const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale);
             ~Transform();
             Transform(const Transform& from) = delete;
             Transform& operator=(const Transform& from) = delete;
@@ -140,7 +140,6 @@ namespace crucible
 
             void move(const Transform& from);
 
-            Node* _attachedTo = nullptr;
             glm::vec3 _position;
             glm::vec3 _scale;
             glm::quat _rotation;

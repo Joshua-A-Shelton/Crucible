@@ -13,14 +13,14 @@ namespace crucible
         std::unordered_map<boost::uuids::uuid,Node*,boost::hash<boost::uuids::uuid>> NODE_UUID_MAP;
         std::mutex NODE_MAP_LOCK;
 
-        Node::Node():_transform(this)
+        Node::Node():_transform()
         {
             _uuid = NODE_UUID_GENERATOR();
             std::lock_guard<std::mutex> lockMap(NODE_MAP_LOCK);
             NODE_UUID_MAP.insert({_uuid,this});
         }
 
-        Node::Node(Node* parent):_transform(this)
+        Node::Node(Node* parent):_transform()
         {
             std::lock_guard<std::mutex> lockChild(_familyMutex);
             _uuid = NODE_UUID_GENERATOR();
@@ -143,6 +143,11 @@ namespace crucible
         scripting::ManagedInstance& Node::script()
         {
             return _script;
+        }
+
+        Transform& Node::transform()
+        {
+            return _transform;
         }
 
         void Node::updateNode(double deltaTime)

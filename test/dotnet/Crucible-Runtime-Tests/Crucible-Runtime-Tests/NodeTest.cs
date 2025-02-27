@@ -48,4 +48,31 @@ public static class NodeTest
             return false;
         }
     }
+
+    private static bool Transforms(ref UUID nodeID1, ref UUID nodeID2)
+    {
+        var node1R = NodeReference.FromUUID(nodeID1);
+        var node2R = NodeReference.FromUUID(nodeID2);
+        if (node1R == null || node2R == null)
+        {
+            Console.WriteLine("Unable to get nodes from IDs");
+            return false;
+        }
+
+        NodeReference node1 = node1R.Value;
+        NodeReference node2 = node2R.Value;
+        
+        node1.Transform.Translate(1,2,3);
+        if (node1.Transform.Position != new Vector3(1, 2, 3))
+        {
+            Console.WriteLine("Transform didn't translate");
+            return false;
+        }
+
+        //I've got a lot more to test
+        return false;
+
+        return true;
+
+    }
 }

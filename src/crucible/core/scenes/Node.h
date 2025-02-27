@@ -65,7 +65,9 @@ namespace crucible
             void unlockFamily();
             ///Gets the UUID that uniquely represents this node
             boost::uuids::uuid uuid();
+            ///gets the instance of the script attached to this node (instance can have null gc handle, indicating no script)
             scripting::ManagedInstance& script();
+            Transform& transform();
 
             void updateNode(double deltaTime);
 

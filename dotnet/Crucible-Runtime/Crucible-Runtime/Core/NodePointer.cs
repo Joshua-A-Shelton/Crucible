@@ -23,6 +23,8 @@ internal unsafe struct NodePointer
     private static delegate* unmanaged<IntPtr, IntPtr> _nodePointerAddChild_ptr;
     private static delegate* unmanaged<IntPtr, int, void> _nodePointerRemoveChildByIndex_ptr;
     private static delegate* unmanaged<IntPtr, IntPtr, void> _nodePointerRemoveChildByValue_ptr;
+
+    private static delegate* unmanaged<IntPtr, IntPtr> _nodePointerGetTransform_ptr;
     
 #pragma warning restore 0649
 
@@ -80,6 +82,11 @@ internal unsafe struct NodePointer
     public void RemoveChild(NodePointer child)
     {
         _nodePointerRemoveChildByValue_ptr(_pointer, child._pointer);
+    }
+
+    public IntPtr GetTransformPointer()
+    {
+        return _nodePointerGetTransform_ptr(_pointer);
     }
     
 }
