@@ -207,10 +207,6 @@ namespace crucible
 
         void ScriptingEngine::registerManagedFunctions()
         {
-            auto gameManagerType = scripting::ScriptingEngine::getManagedType("Crucible.Core.GameManager");
-            core::Node::createCSEntity = gameManagerType.getFunction<void (*)(scripting::CSEntity&)>("CreateEntity");
-            core::Node::destroyCSEntity = gameManagerType.getFunction<void (*)(scripting::CSEntity&)>("DestroyEntity");
-
         }
 
 

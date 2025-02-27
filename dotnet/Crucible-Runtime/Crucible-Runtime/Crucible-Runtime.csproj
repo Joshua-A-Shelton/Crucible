@@ -15,8 +15,4 @@
       <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
 
-    <ItemGroup>
-      <PackageReference Include="Arch" Version="1.3.3-alpha" />
-    </ItemGroup>
-
 </Project>

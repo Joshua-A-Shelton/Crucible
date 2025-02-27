@@ -3,7 +3,6 @@
 #include <vector>
 #include <mutex>
 #include <boost/uuid/uuid.hpp>
-#include <crucible/scripting/CSEntity.h>
 
 
 namespace crucible
@@ -63,17 +62,11 @@ namespace crucible
             ///Gets the UUID that uniquely represents this node
             boost::uuids::uuid uuid();
 
-            scripting::CSEntity csEntity();
-
             static Node* getNodeByID(const boost::uuids::uuid& id);
             friend class crucible::scripting::ScriptingEngine;
 
         private:
-            inline static void (*createCSEntity)(scripting::CSEntity& entity)= nullptr;
-            inline static void (*destroyCSEntity)(scripting::CSEntity& entity)= nullptr;
-
             boost::uuids::uuid _uuid;
-            scripting::CSEntity _csEntity{};
             Node* _parent = nullptr;
             std::vector<Node*> _children;
             std::mutex _familyMutex;

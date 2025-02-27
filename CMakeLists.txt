@@ -69,8 +69,6 @@ add_library(Crucible
         src/crucible/core/scenes/Node.h
         src/crucible/scripting/ManagedInstance.cpp
         src/crucible/scripting/ManagedInstance.h
-        src/crucible/scripting/CSEntity.cpp
-        src/crucible/scripting/CSEntity.h
 )
 
 #include_directories(${Boost_INCLUDE_DIRS})
