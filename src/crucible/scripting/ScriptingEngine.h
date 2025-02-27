@@ -24,6 +24,9 @@ namespace crucible
             void* (*newInstance)(void*,void*) = nullptr;
             void* (*freeUnmanagedGCHandle)(void*) = nullptr;
             void* (*getFunctionPointer)(ManagedType&, const char* FunctionName, void**)= nullptr;
+            void (*invokeInstanceMethod)(void* instanceType,void* instanceHandle, const char* methodName, int32_t parameterCount, void** parameterTypes, void** parameters);
+            void (*invokeInstanceMethodReturnReference)(void* instanceType,void* instanceHandle, const char* methodName, int32_t parameterCount, void** parameterTypes, void** parameters,void** returnObjectHandle,ManagedType& returnType);
+            void (*invokeInstanceMethodReturnValue)(void* instanceType,void* instanceHandle, const char* methodName, int32_t parameterCount, void** parameterTypes, void** parameters,void* valuePtr);
             void* (*getType)(const char* assemblyQualifiedName, ManagedType& type)= nullptr;
             void* (*loadLibrary)(const char* contextName,const char* path,bool collectible)=nullptr;
             void* (*unloadLibrary)(const char* path)= nullptr;
@@ -42,11 +45,15 @@ namespace crucible
             static void cleanup();
 
             static ManagedType getManagedType(const std::string& typeName);
+            ///This only works for functions in the Crucible-Runtime.dll, Use InvokeMethod for most cases
             static void* getManagedFunction(ManagedType& type,const std::string& fullyQualifiedFunctionName);
+            static void InvokeInstanceMethod(ManagedInstance& instance, const std::string& methodName, int32_t parameterCount, void** parameterTypes, void** parameters);
+            static ManagedInstance InvokeInstanceMethodWithReturnObject(ManagedInstance& instance, const std::string& methodName, int32_t parameterCount, void** parameterTypes, void** parameters);
+            static void InvokeInstanceMethodWithReturnValue(ManagedInstance& instance, const std::string& methodName, int32_t parameterCount, void** parameterTypes, void** parameters, void* valuePtr);
             static void registerUnmanagedFunction(const std::string& assemblyQualifiedClassName, const std::string& managedDelegateName, void** functionPointer);
             static void loadManagedDll(const char* contextName, const char* path, bool collectible);
             static void unloadManagedDllContext(const char* contextName);
-            static void* newInstance(const ManagedType& type);
+            static ManagedInstance newInstance(const ManagedType& type);
             static void freeGCHandle(void* handle);
         private:
             static bool loadHostFXR();

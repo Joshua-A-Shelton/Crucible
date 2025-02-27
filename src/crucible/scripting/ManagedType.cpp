@@ -1,13 +1,13 @@
 #include "ManagedType.h"
 #include "ScriptingEngine.h"
+#include "ManagedInstance.h"
 namespace crucible
 {
     namespace scripting
     {
-        ManagedInstance ManagedType::createNew()
+        ManagedInstance ManagedType::createNew()const
         {
-            auto gcHandle = scripting::ScriptingEngine::newInstance(*this);
-            return ManagedInstance(gcHandle);
+            return scripting::ScriptingEngine::newInstance(*this);
         }
 
         void* ManagedType::_getFunction(const std::string& functionName)
@@ -25,5 +25,9 @@ namespace crucible
             return _runtimeTypeHandle != against._runtimeTypeHandle;
         }
 
+        void* ManagedType::runtimeTypeHandle() const
+        {
+            return _runtimeTypeHandle;
+        }
     }
 }

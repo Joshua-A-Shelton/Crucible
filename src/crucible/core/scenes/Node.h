@@ -3,6 +3,9 @@
 #include <vector>
 #include <mutex>
 #include <boost/uuid/uuid.hpp>
+#include <crucible/core/Transform.h>
+#include <crucible/scripting/ManagedInstance.h>
+#include <crucible/scripting/ManagedType.h>
 
 
 namespace crucible
@@ -27,6 +30,7 @@ namespace crucible
              * @param parent parent node for this one, or nullptr if this is a root node
              */
             explicit Node(Node* parent);
+            explicit Node(const scripting::ManagedType& scriptType);
             Node(const Node&)=delete;
             Node& operator=(const Node&)=delete;
             Node(Node&&)=delete;
@@ -61,15 +65,21 @@ namespace crucible
             void unlockFamily();
             ///Gets the UUID that uniquely represents this node
             boost::uuids::uuid uuid();
+            scripting::ManagedInstance& script();
+
+            void updateNode(double deltaTime);
 
             static Node* getNodeByID(const boost::uuids::uuid& id);
             friend class crucible::scripting::ScriptingEngine;
 
         private:
+            inline static void (*update)(void* scriptHandle,double deltaTime)=nullptr;
             boost::uuids::uuid _uuid;
             Node* _parent = nullptr;
             std::vector<Node*> _children;
             std::mutex _familyMutex;
+            Transform _transform;
+            scripting::ManagedInstance _script;
 
         };
 

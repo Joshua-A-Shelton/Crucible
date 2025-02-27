@@ -38,7 +38,7 @@ internal struct StringWrapper
         RawString = IntPtr.Zero;
     }
 }
-internal static class Interop
+internal static unsafe class Interop
 {
 
     private static Dictionary<string, AssemblyLoadContext> _loadedContexts = new Dictionary<string, AssemblyLoadContext>();
@@ -96,7 +96,7 @@ internal static class Interop
         if (realType != null)
         {
             var inst = Activator.CreateInstance(realType);
-            var gcHandle = GCHandle.Alloc(inst,GCHandleType.Pinned);
+            var gcHandle = GCHandle.Alloc(inst,GCHandleType.Normal);
             instance = GCHandle.ToIntPtr(gcHandle);
         }
     }
@@ -149,6 +149,99 @@ internal static class Interop
         
     }
 
+
+    private static object? InvokeInstanceMethodShared(ref ManagedType type, IntPtr instance, string methodName, int parameterCount, IntPtr* types, IntPtr* parameters)
+    {
+        var handle = RuntimeTypeHandle.FromIntPtr(type.TypePointer);
+        Type? realType = Type.GetTypeFromHandle(handle);
+        if (realType != null)
+        {
+            var inst = GCHandle.FromIntPtr(instance).Target;
+            List<Type> paramTypes = new List<Type>();
+            List<object> parametersInstances = new List<object>();
+            for (int i = 0; i < parameterCount; i++)
+            {
+                var runtimeType = RuntimeTypeHandle.FromIntPtr(types[i]);
+                Type? paramType = Type.GetTypeFromHandle(runtimeType);
+                if (paramType == null)
+                {
+                    throw new ArgumentException("Parameter " + i + "'s type is not a valid type");
+                }
+                paramTypes.Add(paramType);
+                if (paramType.IsValueType)
+                {
+                    object valInst = Marshal.PtrToStructure(parameters[i],paramType);
+                    parametersInstances.Add(valInst);
+                }
+                else
+                {
+                    var refInst =  GCHandle.FromIntPtr(parameters[i]).Target;
+                    parametersInstances.Add(refInst);
+                }
+            }
+            var methodInfo = realType.GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,paramTypes.ToArray());
+            if (methodInfo == null)
+            {
+                throw new ArgumentException("No method '" + methodName + "' exists for on type " + realType);
+            }
+            return methodInfo.Invoke(inst,parametersInstances.ToArray());
+        }
+        else
+        {
+            throw new ArgumentException("Type is not a valid type");
+        }
+    }
+    public delegate void InvokeInstanceMethodDelegate(ref ManagedType type, IntPtr instance, string methodName, int parameterCount, IntPtr* types, IntPtr* parameters);
+
+    public static InvokeInstanceMethodDelegate InvokeInstanceMethod_ptr = InvokeInstanceMethod;
+
+    public static void InvokeInstanceMethod(ref ManagedType type, IntPtr instance, string methodName, int parameterCount, IntPtr* types, IntPtr* parameters)
+    {
+        InvokeInstanceMethodShared(ref type,instance, methodName, parameterCount, types, parameters);
+    }
+    
+    public delegate void InvokeInstanceMethodWithReturnValueDelegate(ref ManagedType type, IntPtr instance, string methodName, int parameterCount, IntPtr* types, IntPtr* parameters, ref IntPtr returnValue, ref ManagedType returnType);
+
+    public static InvokeInstanceMethodWithReturnValueDelegate InvokeInstanceMethodWithReturnValueByReferenceDelegate_ptr = InvokeInstanceMethodWithReturnValueByReference;
+    public static void InvokeInstanceMethodWithReturnValueByReference(ref ManagedType type, IntPtr instance, string methodName, int parameterCount, IntPtr* types, IntPtr* parameters,ref IntPtr returnValue, ref ManagedType returnType)
+    {
+        var reference = InvokeInstanceMethodShared(ref type, instance, methodName, parameterCount, types, parameters);
+        if (reference == null)
+        {
+            returnValue = IntPtr.Zero;
+            returnType.TypePointer = IntPtr.Zero;
+            return;
+        }
+
+        if (reference.GetType().IsValueType)
+        {
+            throw new InvalidOperationException("Cannot return reference types by value");
+        }
+        var handle = GCHandle.Alloc(reference, GCHandleType.Normal);
+        returnValue = GCHandle.ToIntPtr(handle);
+        returnType.TypePointer = reference.GetType().TypeHandle.Value;
+    }
+    
+    public delegate void InvokeInstanceMethodWithReturnValueByValueDelegate(ref ManagedType type, IntPtr instance, string methodName, int parameterCount, IntPtr* types, IntPtr* parameters, IntPtr returnValue);
+
+    public static InvokeInstanceMethodWithReturnValueByValueDelegate InvokeInstanceMethodWithReturnValueByValueDelegate_ptr = InvokeInstanceMethodWithReturnValueByValue;
+
+    public static void InvokeInstanceMethodWithReturnValueByValue(ref ManagedType type, IntPtr instance, string methodName, int parameterCount, IntPtr* types, IntPtr* parameters, IntPtr returnValue)
+    {
+        var reference = InvokeInstanceMethodShared(ref type, instance, methodName, parameterCount, types, parameters);
+        if (reference == null)
+        {
+            throw new InvalidDataException("Cannot have null return value when returning value types!");
+        }
+
+        if (!reference.GetType().IsValueType)
+        {
+            throw new InvalidOperationException("Cannot return value types by reference");
+        }
+        
+        Marshal.StructureToPtr(reference, returnValue, false);
+    }
+    
     public delegate void GetTypeHandleDelegate(string delegateName, ref ManagedType returnType);
 
     public static GetTypeHandleDelegate GetTypeHandle_ptr = GetTypeHandle;
