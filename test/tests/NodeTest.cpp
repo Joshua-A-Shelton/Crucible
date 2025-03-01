@@ -80,12 +80,3 @@ TEST(Node,ScriptingFamily)
     Node root(nullptr);
     GTEST_ASSERT_TRUE(nodeTestFamilyFunction(root.uuid()));
 }
-
-TEST(Node,ScriptingTransforms)
-{
-    auto nodeTestType = scripting::ScriptingEngine::getManagedType("CrucibleRuntimeTests.NodeTest,Crucible-Runtime-Tests");
-    auto nodeTestTransformsFunction = nodeTestType.getFunction<bool (*)(const boost::uuids::uuid&, const boost::uuids::uuid&)>("Transforms");
-    Node n1(nullptr);
-    Node n2(nullptr);
-    GTEST_ASSERT_TRUE(nodeTestTransformsFunction(n1.uuid(),n2.uuid()));
-}

@@ -139,7 +139,9 @@ namespace crucible
              */
             glm::mat4 matrix();
 
-            Transform operator+(const Transform& with)const;
+            Transform operator*(const Transform& with)const;
+            Transform fastMultiply(const Transform& with)const;
+
 
         private:
             inline static glm::mat4 (*getMatrix)(Transform& transform)= nullptr;

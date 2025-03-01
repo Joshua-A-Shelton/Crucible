@@ -30,7 +30,7 @@ DELEGATE(Crucible.Core.Transform, void, _transformRotateEuler_ptr, cs_TransformR
 DELEGATE(Crucible.Core.Transform, void, _transformRotateAxisAngle_ptr, cs_TransformRotateAxisAngle, crucible::core::Transform& transform, float, glm::vec3& rotation) \
 DELEGATE(Crucible.Core.Transform, void, _transformSetScale_ptr, cs_TransformSetScale, crucible::core::Transform& transform, glm::vec3& newScale)\
 DELEGATE(Crucible.Core.Transform, void, _transformScale_ptr, cs_TransformScale, crucible::core::Transform& transform, glm::vec3& scale)\
-DELEGATE(Crucible.Core.Transform, void, _transformAddTransforms_ptr, cs_TransformAddTransforms, crucible::core::Transform& transform1, crucible::core::Transform& transform2, crucible::core::Transform& out)\
+DELEGATE(Crucible.Core.Transform, void, _transformConcatTransforms_ptr, cs_TransformConcatTransforms, crucible::core::Transform& transform1, crucible::core::Transform& transform2, crucible::core::Transform& out)\
 
 
 namespace crucible

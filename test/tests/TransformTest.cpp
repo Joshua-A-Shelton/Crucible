@@ -6,57 +6,87 @@ using namespace crucible::core;
 TEST(TransformTest,Addition)
 {
     float EPSILON = .000001;
+    float NINTEY_DEGRESS_IN_RADIANS = glm::radians(90.0);
 
     Transform transform1(glm::vec3(1,0,0),glm::quat(1,0,0,0),glm::vec3(1,1,1));
     Transform transform2(glm::vec3(0,1,0),glm::quat(1,0,0,0),glm::vec3(1,1,1));
 
-    auto transformSum = transform1 + transform2;
-    GTEST_ASSERT_EQ(transformSum.position(),glm::vec3(1,1,0));
-    GTEST_ASSERT_EQ(transformSum.rotation(),glm::quat(1,0,0,0));
-    GTEST_ASSERT_EQ(transformSum.scale(),glm::vec3(1,1,1));
+    auto transformSum = transform1 * transform2;
+
+    auto epsilonPosition = glm::epsilonEqual(transformSum.position(),glm::vec3(1,1,0),EPSILON);
+    auto epsilonRotation = glm::epsilonEqual(transformSum.rotation(),glm::quat(1,0,0,0),EPSILON);
+    auto epsilonScale = glm::epsilonEqual(transformSum.scale(),glm::vec3(1,1,1),EPSILON);
+
+    GTEST_ASSERT_TRUE(epsilonPosition.x && epsilonPosition.y && epsilonPosition.z);
+    GTEST_ASSERT_TRUE(epsilonRotation.x && epsilonRotation.y && epsilonRotation.z && 1.0f - abs(transformSum.rotation().w) <= EPSILON);
+    GTEST_ASSERT_TRUE(epsilonScale.x && epsilonScale.y && epsilonScale.z);
 
     //rotate 90 degrees
-    transform1.rotate(glm::angleAxis(1.5707963268f,glm::vec3(0.0f,0.0f,1.0f)));
+    transform1.rotate(glm::angleAxis(NINTEY_DEGRESS_IN_RADIANS,glm::vec3(0.0f,0.0f,1.0f)));
 
-    transformSum = transform1 + transform2;
-    GTEST_ASSERT_TRUE(abs(transformSum.position().x - 2) <=EPSILON && abs(transformSum.position().y) <= EPSILON && abs(transformSum.position().z) <= EPSILON);
-    GTEST_ASSERT_TRUE(transform1.rotation() == transformSum.rotation());
+    transformSum = transform1 * transform2;
+
+    epsilonPosition = glm::epsilonEqual(transformSum.position(),glm::vec3(2,0,0),EPSILON);
+    epsilonRotation = glm::epsilonEqual(transformSum.rotation(),transform1.rotation(),EPSILON);
+    epsilonScale = glm::epsilonEqual(transformSum.scale(),glm::vec3(1,1,1),EPSILON);
+
+    GTEST_ASSERT_TRUE(epsilonPosition.x && epsilonPosition.y && epsilonPosition.z);
+    GTEST_ASSERT_TRUE(epsilonRotation.x && epsilonRotation.y && epsilonRotation.z && epsilonRotation.w);
+    GTEST_ASSERT_TRUE(epsilonScale.x && epsilonScale.y && epsilonScale.z);
 
     transform1.scale(2);
-    transformSum = transform1 + transform2;
+    transformSum = transform1 * transform2;
 
-    GTEST_ASSERT_TRUE(abs(transformSum.position().x - 3) <=EPSILON && abs(transformSum.position().y) <= EPSILON && abs(transformSum.position().z) <= EPSILON);
-    GTEST_ASSERT_TRUE(transform1.rotation() == transformSum.rotation());
-    GTEST_ASSERT_TRUE(transformSum.scale() == glm::vec3(2,2,2));
+    epsilonPosition = glm::epsilonEqual(transformSum.position(),glm::vec3(3,0,0),EPSILON);
+    epsilonRotation = glm::epsilonEqual(transformSum.rotation(),transform1.rotation(),EPSILON);
+    epsilonScale = glm::epsilonEqual(transformSum.scale(),glm::vec3(2,2,2),EPSILON);
+
+    GTEST_ASSERT_TRUE(epsilonPosition.x && epsilonPosition.y && epsilonPosition.z);
+    GTEST_ASSERT_TRUE(epsilonRotation.x && epsilonRotation.y && epsilonRotation.z && epsilonRotation.w);
+    GTEST_ASSERT_TRUE(epsilonScale.x && epsilonScale.y && epsilonScale.z);
 
     Transform transform3
     (
-        glm::vec3(-15,0,0),
-        glm::quat(1.5707963268f,glm::vec3(0.0f,0.0f,1.0f)),
+        glm::vec3(1,0,0),
+        glm::angleAxis(NINTEY_DEGRESS_IN_RADIANS,glm::vec3(0.0f,0.0f,1)),
         glm::vec3(1,1,1)
     );
 
-    transform1.setPosition(1203,.3,1);
-    glm::quat r1(1.5707963268f,glm::vec3(0.0f,1.0f,0.0f));
-    transform1.setRotation(r1);
-    transform1.setScale(1);
+    auto transform4 = transform3;
+    transform1 = transform3;
+    transform2 = transform3;
 
-    transform2.setPosition(1.1,1.2,-1.3);
-    transform2.setRotation(glm::quat(1.5707963268f,glm::vec3(1.0f,0,0)));
-    transform2.setScale(2);
+    transformSum = transform1 * transform2 * transform3 * transform4;
+    epsilonPosition = glm::epsilonEqual(transformSum.position(),glm::vec3(0,0,0),EPSILON);
+    epsilonRotation = glm::epsilonEqual(transformSum.rotation(),glm::quat(1,0,0,0),EPSILON);
+    epsilonScale = glm::epsilonEqual(transformSum.scale(),glm::vec3(1,1,1),EPSILON);
 
-    transformSum = (transform1+transform2)+transform3;
-    auto transformSum2 = transform1 + (transform2 + transform3);
+    GTEST_ASSERT_TRUE(epsilonPosition.x && epsilonPosition.y && epsilonPosition.z);
+    GTEST_ASSERT_TRUE(epsilonRotation.x && epsilonRotation.y && epsilonRotation.z && 1.0f - abs(transformSum.rotation().w) <= EPSILON);
+    GTEST_ASSERT_TRUE(epsilonScale.x && epsilonScale.y && epsilonScale.z);
 
-    auto sumMatrix = (transform1.matrix()*transform2.matrix())*transform3.matrix();
-    auto sumMatrix2 = transform1.matrix()*(transform2.matrix()*transform3.matrix());
+    transform1.scale(.5);
 
-    auto differencePosition = transformSum.position() - transformSum2.position();
-    auto differenceRotation = epsilonEqual(transformSum.rotation(),transformSum2.rotation(),EPSILON);
-    auto differenceScale = transformSum.scale() - transformSum2.scale();
+    transformSum = transform1 * transform2 * transform3 * transform4;
+    epsilonPosition = glm::epsilonEqual(transformSum.position(),glm::vec3(.5,0,0),EPSILON);
+    epsilonRotation = glm::epsilonEqual(transformSum.rotation(),glm::quat(1,0,0,0),EPSILON);
+    epsilonScale = glm::epsilonEqual(transformSum.scale(),glm::vec3(.5,.5,.5),EPSILON);
 
-    GTEST_ASSERT_TRUE(abs(differencePosition.x) <= EPSILON && abs(differencePosition.y) <= EPSILON && abs(differencePosition.z) <= EPSILON);
-    GTEST_ASSERT_TRUE(differenceRotation.x && differenceRotation.y && differenceRotation.z && differenceRotation.w);
-    GTEST_ASSERT_TRUE(abs(differenceScale.x) <= EPSILON && abs(differenceScale.y) <= EPSILON && abs(differenceScale.z) <= EPSILON);
+    GTEST_ASSERT_TRUE(epsilonPosition.x && epsilonPosition.y && epsilonPosition.z);
+    GTEST_ASSERT_TRUE(epsilonRotation.x && epsilonRotation.y && epsilonRotation.z && 1.0f - abs(transformSum.rotation().w) <= EPSILON);
+    GTEST_ASSERT_TRUE(epsilonScale.x && epsilonScale.y && epsilonScale.z);
+
+    transform2.scale(2);
+    transform3.scale(.5);
+    transform4.scale(2);
+
+    transformSum = transform1 * transform2 * transform3 * transform4;
+    epsilonPosition = glm::epsilonEqual(transformSum.position(),glm::vec3(0,0,0),EPSILON);
+    epsilonRotation = glm::epsilonEqual(transformSum.rotation(),glm::quat(1,0,0,0),EPSILON);
+    epsilonScale = glm::epsilonEqual(transformSum.scale(),glm::vec3(1,1,1),EPSILON);
+
+    GTEST_ASSERT_TRUE(epsilonPosition.x && epsilonPosition.y && epsilonPosition.z);
+    GTEST_ASSERT_TRUE(epsilonRotation.x && epsilonRotation.y && epsilonRotation.z && 1.0f - abs(transformSum.rotation().w) <= EPSILON);
+    GTEST_ASSERT_TRUE(epsilonScale.x && epsilonScale.y && epsilonScale.z);
 
 }

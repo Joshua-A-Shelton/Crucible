@@ -1,5 +1,7 @@
 #include "Transform.h"
 
+#include <cstring>
+
 namespace crucible
 {
     namespace core
@@ -191,19 +193,20 @@ namespace crucible
             return translation*rotation*scale;
         }
 
-        Transform Transform::operator+(const Transform& with) const
+        Transform Transform::operator*(const Transform& with) const
         {
-            //TODO: I'm not sure this scale is correct
+            glm::vec scale = _scale * with._scale;
             glm::quat rotation = with._rotation * _rotation;
             glm::vec3 position = ((_scale * with._position) * _rotation) + _position;
-            glm::vec scale = _scale * with._scale;
-            return Transform(position,rotation,scale);
+            return Transform(position,normalize(rotation),scale);
+        }
 
-            /*
-            glm::vec3 pos = _position + _rotation * (with._position * _scale);
-            glm::quat rot = _rotation * with._rotation;
-            glm::vec3 scale = _scale * (_rotation * with._scale);
-            return Transform(pos,rot,scale);*/
+        Transform Transform::fastMultiply(const Transform& with) const
+        {
+            glm::vec scale = _scale * with._scale;
+            glm::quat rotation = with._rotation * _rotation;
+            glm::vec3 position = ((_scale * with._position) * _rotation) + _position;
+            return Transform(position,rotation,scale);
         }
     } // core
 } // crucible
