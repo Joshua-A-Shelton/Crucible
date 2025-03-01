@@ -67,12 +67,6 @@ namespace crucible
             static boost::hash<boost::uuids::uuid> hasher;
             return static_cast<int32_t>(hasher(id));
         }
-//Matrix
-
-        void cs_Matrix4x4Multiply(glm::mat4& m1, glm::mat4& m2, glm::mat4& result)
-        {
-            result = m1 * m2;
-        }
 
 //Transform
 
@@ -106,6 +100,11 @@ namespace crucible
             transform.rotate(rotation);
         }
 
+        void cs_TransformRotateAxisAngle(core::Transform& transform, float angle, glm::vec3 & axis)
+        {
+            transform.rotate(angle,axis);
+        }
+
         void cs_TransformSetScale(core::Transform& transform, glm::vec3& newScale)
         {
             transform.setScale(newScale);
@@ -116,9 +115,9 @@ namespace crucible
             transform.scale(scale);
         }
 
-        void cs_TransformUpdateMatrix(core::Transform& transform)
+        void cs_TransformConcatTransforms(core::Transform& t1,core::Transform& t2, core::Transform& out)
         {
-            transform.updateMatrix();
+            out = t1*t2;
         }
 
     } // scripting
