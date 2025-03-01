@@ -9,8 +9,6 @@ public unsafe struct Transform
     private Vector3 _position;
     private Quaternion _rotation;
     private Vector3 _scale;
-    private Matrix4x4 _matrix;
-    private bool _needsUpdate;
     
 #pragma warning disable 0649
     private static delegate* unmanaged<ref Transform, ref Vector3, void> _transformSetPosition_ptr;
@@ -19,9 +17,10 @@ public unsafe struct Transform
     private static delegate* unmanaged<ref Transform, ref Quaternion, void> _transformRotate_ptr;
     private static delegate* unmanaged<ref Transform, ref Vector3, void> _transformSetRotationEuler_ptr;
     private static delegate* unmanaged<ref Transform, ref Vector3, void> _transformRotateEuler_ptr;
+    private static delegate* unmanaged<ref Transform, float, ref Vector3, void> _transformRotateAxisAngle_ptr;
     private static delegate* unmanaged<ref Transform, ref Vector3, void> _transformSetScale_ptr;
     private static delegate* unmanaged<ref Transform, ref Vector3, void> _transformScale_ptr;
-    private static delegate* unmanaged<ref Transform, void> _transformUpdateMatrix_ptr;
+    private static delegate* unmanaged<ref Transform, ref Transform, ref Transform, void> _transformAddTransforms_ptr;
 #pragma warning restore 0649
 
     public Vector3 Position
@@ -45,6 +44,11 @@ public unsafe struct Transform
     {
         get { return _rotation; }
         set { _transformSetRotation_ptr(ref this, ref value); }
+    }
+
+    public void Rotate(float angle, Vector3 axis)
+    {
+        _transformRotateAxisAngle_ptr(ref this, angle, ref axis);
     }
 
     public void Rotate(Quaternion by)
@@ -96,19 +100,11 @@ public unsafe struct Transform
         Vector3 scaleVector = new Vector3(x, y, z);
         _transformScale_ptr(ref this, ref scaleVector);
     }
-    
-    
-    public Matrix4x4 Matrix
+
+    public static Transform operator +(Transform t1, Transform t2)
     {
-        get
-        {
-            _transformUpdateMatrix_ptr(ref this);
-            return _matrix;
-        }
-    }
-    
-    public bool IsDirty
-    {
-        get { return _needsUpdate; }
+        Transform outTransform = new Transform();
+        _transformAddTransforms_ptr(ref t1, ref t2, ref outTransform);
+        return outTransform;
     }
 }

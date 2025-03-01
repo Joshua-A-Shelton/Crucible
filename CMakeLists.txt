@@ -130,7 +130,9 @@ if(CrucibleTests)
             test/Main.cpp
             test/tests/NodeTest.cpp
             test/tests/NodeBehaviorTest.cpp
-            test/tests/ScriptingTest.cpp)
+            test/tests/ScriptingTest.cpp
+            test/tests/TransformTest.cpp
+    )
 
     target_link_libraries(CrucibleTests Crucible GTest::gtest)
     target_include_directories(CrucibleTests PRIVATE src)

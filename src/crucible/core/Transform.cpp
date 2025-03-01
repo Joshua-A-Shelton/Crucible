@@ -9,8 +9,6 @@ namespace crucible
             _position = glm::vec3(0,0,0);
             _rotation = glm::quat(1,0,0,0);
             _scale = glm::vec3(1,1,1);
-            _matrix = glm::mat4(1);
-            _needsUpdate=false;
         }
 
         Transform::Transform(const glm::vec3& position, const glm::quat& rotation, float scale)
@@ -18,7 +16,6 @@ namespace crucible
             _position = position;
             _rotation = rotation;
             _scale = glm::vec3(scale,scale,scale);
-            updateMatrix();
         }
 
         Transform::Transform(const glm::vec3& position, const glm::vec3& rotation, float scale)
@@ -26,7 +23,6 @@ namespace crucible
             _position = position;
             _rotation = glm::quat(rotation);
             _scale = glm::vec3(scale,scale,scale);
-            updateMatrix();
         }
 
         Transform::Transform(const glm::vec3& position, const glm::quat& rotation, const glm::vec3& scale)
@@ -34,7 +30,6 @@ namespace crucible
             _position = position;
             _rotation = rotation;
             _scale = scale;
-            updateMatrix();
         }
 
         Transform::Transform(const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale)
@@ -42,7 +37,6 @@ namespace crucible
             _position = position;
             _rotation = glm::quat(rotation);
             _scale = scale;
-            updateMatrix();
         }
 
         Transform::~Transform()
@@ -50,36 +44,31 @@ namespace crucible
 
         }
 
+        Transform::Transform(const Transform& from)
+        {
+            copy(from);
+        }
+
+        Transform& Transform::operator=(const Transform& from)
+        {
+            copy(from);
+            return *this;
+        }
+
         Transform::Transform(Transform&& from)
         {
-            move(from);
+            copy(from);
         }
 
         Transform& Transform::operator=(Transform&& from)
         {
-            move(from);
+            copy(from);
             return *this;
         }
 
-        void Transform::move(const Transform& from)
+        void Transform::copy(const Transform& from)
         {
-            _position = from._position;
-            _rotation = from._rotation;
-            _scale = from._scale;
-            _matrix = from._matrix;
-            _needsUpdate = from._needsUpdate;
-        }
-
-        void Transform::updateMatrix()
-        {
-            if(_needsUpdate)
-            {
-                auto translation = glm::translate(glm::mat4(1),_position);
-                auto rotation = glm::mat4(_rotation);
-                auto scale = glm::scale(glm::mat4(1),_scale);
-                _matrix = translation*rotation*scale;
-                _needsUpdate = false;
-            }
+            memcpy(this,&from,sizeof(Transform));
         }
 
         void Transform::setPosition(float x, float y, float z)
@@ -87,25 +76,21 @@ namespace crucible
             _position.x = x;
             _position.y = y;
             _position.z = x;
-            _needsUpdate = true;
         }
 
         void Transform::setPosition(const glm::vec3& position)
         {
             _position = position;
-            _needsUpdate = true;
         }
 
         void Transform::setRotation(const glm::quat& rotation)
         {
             _rotation = rotation;
-            _needsUpdate = true;
         }
 
         void Transform::setRotation(const glm::vec3& euler)
         {
             _rotation = glm::quat(euler);
-            _needsUpdate = true;
         }
 
         void Transform::setScale(float scale)
@@ -113,7 +98,6 @@ namespace crucible
             _scale.x = scale;
             _scale.y = scale;
             _scale.z = scale;
-            _needsUpdate = true;
         }
 
         void Transform::setScale(float x, float y, float z)
@@ -121,13 +105,11 @@ namespace crucible
             _scale.x = x;
             _scale.y = y;
             _scale.z = z;
-            _needsUpdate = true;
         }
 
         void Transform::setScale(const glm::vec3& scale)
         {
             _scale = scale;
-            _needsUpdate = true;
         }
 
         void Transform::translate(float x, float y, float z)
@@ -135,31 +117,31 @@ namespace crucible
             _position.x+=x;
             _position.y+=y;
             _position.z+=z;
-            _needsUpdate = true;
         }
 
         void Transform::translate(const glm::vec3& by)
         {
             _position+=by;
-            _needsUpdate=true;
         }
 
         void Transform::rotate(const glm::quat& by)
         {
             _rotation*=by;
-            _needsUpdate = true;
         }
 
         void Transform::rotate(float pitch, float yaw, float roll)
         {
             _rotation*=glm::quat(glm::vec3(pitch,yaw,roll));
-            _needsUpdate = true;
         }
 
         void Transform::rotate(const glm::vec3& euler)
         {
             _rotation*=glm::quat(euler);
-            _needsUpdate = true;
+        }
+
+        void Transform::rotate(float angle, const glm::vec3& axis)
+        {
+            _rotation = glm::rotate(_rotation,angle,axis);
         }
 
         void Transform::scale(float by)
@@ -172,7 +154,6 @@ namespace crucible
             _scale.x*=x;
             _scale.y*=y;
             _scale.z*=z;
-            _needsUpdate = true;
         }
 
         void Transform::scale(const glm::vec3& by)
@@ -180,7 +161,6 @@ namespace crucible
             _scale.x*=by.x;
             _scale.y*=by.y;
             _scale.z*=by.z;
-            _needsUpdate = true;
         }
 
         glm::vec3 Transform::position() const
@@ -205,8 +185,25 @@ namespace crucible
 
         glm::mat4 Transform::matrix()
         {
-            updateMatrix();
-            return _matrix;
+            auto translation = glm::translate(glm::mat4(1),_position);
+            auto rotation = glm::mat4(_rotation);
+            auto scale = glm::scale(glm::mat4(1),_scale);
+            return translation*rotation*scale;
+        }
+
+        Transform Transform::operator+(const Transform& with) const
+        {
+            //TODO: I'm not sure this scale is correct
+            glm::quat rotation = with._rotation * _rotation;
+            glm::vec3 position = ((_scale * with._position) * _rotation) + _position;
+            glm::vec scale = _scale * with._scale;
+            return Transform(position,rotation,scale);
+
+            /*
+            glm::vec3 pos = _position + _rotation * (with._position * _scale);
+            glm::quat rot = _rotation * with._rotation;
+            glm::vec3 scale = _scale * (_rotation * with._scale);
+            return Transform(pos,rot,scale);*/
         }
     } // core
 } // crucible

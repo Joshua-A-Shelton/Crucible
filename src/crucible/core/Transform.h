@@ -17,8 +17,8 @@ namespace crucible
             Transform(const glm::vec3& position, const glm::quat& rotation, const glm::vec3& scale);
             Transform(const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale);
             ~Transform();
-            Transform(const Transform& from) = delete;
-            Transform& operator=(const Transform& from) = delete;
+            Transform(const Transform& from);
+            Transform& operator=(const Transform& from);
             Transform(Transform&& from);
             Transform& operator=(Transform&& from);
 
@@ -91,6 +91,12 @@ namespace crucible
              */
             void rotate(const glm::vec3& euler);
             /**
+             * Rotate transform along axis by an angle
+             * @param angle
+             * @param axis
+             */
+            void rotate(float angle, const glm::vec3& axis);
+            /**
              * Locally scale by amount
              * @param by
              */
@@ -132,19 +138,17 @@ namespace crucible
              * @return
              */
             glm::mat4 matrix();
-            ///update the matrix based on components, called automatically when retrieving matrix, but this can be used in the scripting side
-            void updateMatrix();
+
+            Transform operator+(const Transform& with)const;
 
         private:
             inline static glm::mat4 (*getMatrix)(Transform& transform)= nullptr;
 
-            void move(const Transform& from);
+            inline void copy(const Transform& from);
 
             glm::vec3 _position;
             glm::vec3 _scale;
             glm::quat _rotation;
-            glm::mat4 _matrix;
-            bool _needsUpdate = true;
 
         };
 
