@@ -39,4 +39,15 @@ public class BlittableHelper
     {
         public static readonly bool Value = IsBlittable(typeof(T));
     }
+    
+    internal struct AlignmentHelper<T> where T : unmanaged
+    {
+        public byte Padding;
+        public T Target;
+    }
+
+    public static int AlignmentOf<T>() where T : unmanaged
+    {
+        return (int)Marshal.OffsetOf<AlignmentHelper<T>>(nameof(AlignmentHelper<T>.Target));
+    }
 }

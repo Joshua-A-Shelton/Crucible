@@ -4,6 +4,7 @@
 #include <boost/uuid/random_generator.hpp>
 #include <boost/functional/hash.hpp>
 #include <unordered_map>
+#include <crucible/core/scenes/World.h>
 
 namespace crucible
 {
@@ -13,17 +14,20 @@ namespace crucible
         std::unordered_map<boost::uuids::uuid,Node*,boost::hash<boost::uuids::uuid>> NODE_UUID_MAP;
         std::mutex NODE_MAP_LOCK;
 
-        Node::Node():_transform()
+        Node::Node()
         {
             _uuid = NODE_UUID_GENERATOR();
+            _entity = World::ECS.entity();
+
             std::lock_guard<std::mutex> lockMap(NODE_MAP_LOCK);
             NODE_UUID_MAP.insert({_uuid,this});
         }
 
-        Node::Node(Node* parent):_transform()
+        Node::Node(Node* parent)
         {
             std::lock_guard<std::mutex> lockChild(_familyMutex);
             _uuid = NODE_UUID_GENERATOR();
+            _entity = World::ECS.entity();
             {
                 std::lock_guard<std::mutex> lockMap(NODE_MAP_LOCK);
                 NODE_UUID_MAP.insert({_uuid, this});
@@ -48,6 +52,7 @@ namespace crucible
                 std::lock_guard<std::mutex> lockMap(NODE_MAP_LOCK);
                 NODE_UUID_MAP.erase(_uuid);
             }
+            _entity.destruct();
             for(auto & i : _children)
             {
                 delete i;
@@ -145,9 +150,9 @@ namespace crucible
             return _script;
         }
 
-        Transform& Node::transform()
+        flecs::entity Node::entity() const
         {
-            return _transform;
+            return _entity;
         }
 
         void Node::updateNode(double deltaTime)
@@ -164,5 +169,6 @@ namespace crucible
                 kids[i]->updateNode(deltaTime);
             }
         }
+
     } // core
 } // crucible

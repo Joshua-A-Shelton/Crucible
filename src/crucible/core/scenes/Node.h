@@ -6,7 +6,7 @@
 #include <crucible/core/Transform.h>
 #include <crucible/scripting/ManagedInstance.h>
 #include <crucible/scripting/ManagedType.h>
-
+#include <flecs.h>
 
 namespace crucible
 {
@@ -67,7 +67,7 @@ namespace crucible
             boost::uuids::uuid uuid();
             ///gets the instance of the script attached to this node (instance can have null gc handle, indicating no script)
             scripting::ManagedInstance& script();
-            Transform& transform();
+            flecs::entity entity()const;
 
             void updateNode(double deltaTime);
 
@@ -77,10 +77,10 @@ namespace crucible
         private:
             inline static void (*update)(void* scriptHandle,double deltaTime)=nullptr;
             boost::uuids::uuid _uuid;
+            flecs::entity _entity;
             Node* _parent = nullptr;
             std::vector<Node*> _children;
             std::mutex _familyMutex;
-            Transform _transform;
             scripting::ManagedInstance _script;
 
         };

@@ -48,4 +48,62 @@ public static class NodeTest
             return false;
         }
     }
+    
+    struct TestStruct
+    {
+        public int TestValue;
+    }
+
+    class TestClass
+    {
+        public int TestValue=0;
+    }
+
+    private static bool Components(ref UUID rootNode)
+    {
+        try
+        {
+            NodeReference? rootReference = NodeReference.FromUUID(rootNode);
+            if (rootReference == null)
+            {
+                Console.WriteLine("Root node cannot be retrieved from UUID");
+                return false;
+            }
+            var root = rootReference.Value;
+
+            root.AddDataComponent(new TestStruct());
+
+            var componentStruct = root.GetDataComponent<TestStruct>();
+            componentStruct.TestValue = 7;
+            root.GetDataComponent<TestStruct>() = componentStruct;
+            var componentStruct2 = root.GetDataComponent<TestStruct>();
+            if (componentStruct.TestValue != componentStruct2.TestValue)
+            {
+                Console.WriteLine("Data Components not updating properly");
+                return false;
+            }
+            
+            root.AddReferenceComponent(new TestClass());
+            var tClass = root.GetReferenceComponent<TestClass>();
+            tClass.TestValue = 777;
+            var tClass2 = root.GetReferenceComponent<TestClass>();
+            if (tClass != tClass2)
+            {
+                Console.WriteLine("Reference components don't refer to same reference");
+                return false;
+            }
+            if (tClass2.TestValue != 777)
+            {
+                Console.WriteLine("Reference data is not persistent");
+                return false;
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            return false;
+        }
+
+        return true;
+    }
 }

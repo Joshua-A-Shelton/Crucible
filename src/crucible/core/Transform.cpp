@@ -43,7 +43,7 @@ namespace crucible
 
         Transform::~Transform()
         {
-
+            int i=0;
         }
 
         Transform::Transform(const Transform& from)

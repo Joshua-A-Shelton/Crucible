@@ -39,6 +39,17 @@ fetchcontent_declare(
 FetchContent_MakeAvailable(glm)
 find_package(glm)
 
+#flecs
+fetchcontent_declare(
+        flecs
+        GIT_REPOSITORY https://github.com/SanderMertens/flecs
+        GIT_TAG origin/master
+        GIT_SHALLOW TRUE
+        OVERRIDE_FIND_PACKAGE
+)
+FetchContent_MakeAvailable(flecs)
+find_package(flecs)
+
 if(WIN32)
     set(DOT_NET_HOST_LOCATION "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Host.win-x64/9.0.1/runtimes/win-x64/native")
     set(NETHOST_DYNAMIC_LIBRARY "nethost.dll")
@@ -69,13 +80,13 @@ add_library(Crucible
         src/crucible/core/scenes/Node.h
         src/crucible/scripting/ManagedInstance.cpp
         src/crucible/scripting/ManagedInstance.h
+        src/crucible/core/scenes/World.cpp
+        src/crucible/core/scenes/World.h
 )
 
-#include_directories(${Boost_INCLUDE_DIRS})
-
 target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})
-target_link_libraries(Crucible PUBLIC Slag SDL3::SDL3 glm nethost ${Boost_LIBRARIES})
-target_include_directories(Crucible PRIVATE third-party/stb_image PUBLIC ${DOT_NET_HOST_LOCATION} ${Boost_INCLUDE_DIRS})
+target_link_libraries(Crucible PUBLIC Slag SDL3::SDL3 glm nethost ${Boost_LIBRARIES} flecs::flecs_static)
+target_include_directories(Crucible PRIVATE third-party/stb_image PUBLIC ${DOT_NET_HOST_LOCATION} ${Boost_INCLUDE_DIRS} ${flecs_INCLUDE_DIRS})
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(CRUCIBLE_BUILD_TYPE "Debug")

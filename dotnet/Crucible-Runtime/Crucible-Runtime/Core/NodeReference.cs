@@ -113,13 +113,39 @@ public unsafe struct NodeReference
         pointer.RemoveChild(childPointer);
     }
 
-    public ref Transform Transform
+    public void AddDataComponent<T>(T component)where T:unmanaged
     {
-        get
-        {
-            var pointer = PointerFromUUID();
-            Transform* t = (Transform*)pointer.GetTransformPointer();
-            return ref *t;
-        }
+        var pointer = PointerFromUUID();
+        pointer.AddDataComponent(component);
+    }
+    
+    public void RemoveDataComponent<T>()where T:unmanaged
+    {
+        var pointer = PointerFromUUID();
+        pointer.RemoveDataComponent<T>();
+    }
+
+    public ref T GetDataComponent<T>() where T : unmanaged
+    {
+        var pointer = PointerFromUUID();
+        return ref pointer.GetDataComponent<T>();
+    }
+
+    public void AddReferenceComponent<T>(T component) where T : class
+    {
+        var pointer = PointerFromUUID();
+        pointer.AddReferenceComponent(component);
+    }
+
+    public void RemoveReferenceComponent<T>() where T : class
+    {
+        var pointer = PointerFromUUID();
+        pointer.RemoveReferenceComponent<T>();
+    }
+
+    public T? GetReferenceComponent<T>() where T : class
+    {
+        var pointer = PointerFromUUID();
+        return pointer.GetReferenceComponent<T>();
     }
 }
