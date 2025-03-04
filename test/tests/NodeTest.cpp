@@ -1,6 +1,7 @@
 #include "gtest/gtest.h"
 #include <crucible/Crucible.h>
 #include <crucible/scripting/ScriptingEngine.h>
+#include <crucible/scripting/CoreFunctions.h>
 using namespace crucible;
 using namespace crucible::core;
 TEST(Node,Reparent)
@@ -79,4 +80,12 @@ TEST(Node,ScriptingFamily)
     auto nodeTestFamilyFunction = nodeTestType.getFunction<bool (*)(const boost::uuids::uuid&)>("Family");
     Node root(nullptr);
     GTEST_ASSERT_TRUE(nodeTestFamilyFunction(root.uuid()));
+}
+
+TEST(Node,ScriptingComponents)
+{
+    auto nodeTestType = scripting::ScriptingEngine::getManagedType("CrucibleRuntimeTests.NodeTest,Crucible-Runtime-Tests");
+    auto nodeTestScriptingFunction = nodeTestType.getFunction<bool (*)(const boost::uuids::uuid&)>("Components");
+    Node root(nullptr);
+    GTEST_ASSERT_TRUE(nodeTestScriptingFunction(root.uuid()));
 }

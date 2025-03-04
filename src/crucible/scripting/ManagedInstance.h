@@ -13,6 +13,7 @@ namespace crucible
         {
         public:
             ManagedInstance();
+            ManagedInstance(const ManagedType& type, void* gcHandle);
             ~ManagedInstance();
             ManagedInstance(const ManagedInstance&)=delete;
             ManagedInstance& operator=(const ManagedInstance&)=delete;
@@ -30,10 +31,9 @@ namespace crucible
 
             friend class ScriptingEngine;
         private:
-            ManagedInstance(const ManagedType& type, void* gcHandle);
             void move(ManagedInstance& from);
-            ManagedType _type;
             void* _gcHandle= nullptr;
+            ManagedType _type;
         };
 
     } // scripting

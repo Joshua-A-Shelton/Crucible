@@ -1,5 +1,6 @@
 #include <boost/container_hash/hash.hpp>
 #include "CoreFunctions.h"
+#include <crucible/core/scenes/World.h>
 
 namespace crucible
 {
@@ -56,9 +57,46 @@ namespace crucible
             node->killChild(index);
         }
 
-        crucible::core::Transform* cs_nodePointerGetTransform(core::Node* node)
+        void cs_nodePointerAddDataComponent(core::Node* node,const char* typeName, uint64_t size, uint64_t alignment, void* data)
         {
-            return &(node->transform());
+            node->entity().add<core::Transform>();
+
+            auto componentType = core::World::RegisterOrRetrieveType(typeName,size,alignment);
+            ecs_add_id(core::World::ECS.world_,node->entity(),componentType);
+            ecs_set_id(core::World::ECS.world_,node->entity(),componentType,size,data);
+        }
+
+        void cs_nodePointerRemoveDataComponent(core::Node* node,const char* typeName, uint64_t size, uint64_t alignment)
+        {
+            auto componentType = core::World::RegisterOrRetrieveType(typeName,size,alignment);
+            ecs_remove_id(core::World::ECS.world_,node->entity(),componentType);
+        }
+
+        void* cs_nodePointerGetDataComponent(crucible::core::Node* node,const char* typeName, uint64_t size, uint64_t alignment)
+        {
+            auto componentType = core::World::RegisterOrRetrieveType(typeName,size,alignment);
+            return (void*)node->entity().get(componentType);
+        }
+
+        void cs_nodePointerAddReferenceComponent(crucible::core::Node* node,const char* typeName, crucible::scripting::ManagedType managedType, void* gcHandle)
+        {
+            auto componentType = core::World::RegisterOrRetrieveScriptingType(typeName);
+            ecs_add_id(core::World::ECS.world_,node->entity(),componentType);
+            auto inst = (scripting::ManagedInstance*)node->entity().get(componentType);
+            *inst = ManagedInstance(managedType,gcHandle);
+
+        }
+
+        void cs_nodePointerRemoveReferenceComponent(crucible::core::Node* node,const char* typeName)
+        {
+            auto componentType = core::World::RegisterOrRetrieveScriptingType(typeName);
+            ecs_remove_id(core::World::ECS.world_,node->entity(),componentType);
+        }
+
+        void* cs_nodePointerGetReferenceComponent(crucible::core::Node* node,const char* typeName)
+        {
+            auto componentType = core::World::RegisterOrRetrieveScriptingType(typeName);
+            return ((scripting::ManagedInstance*)node->entity().get(componentType))->gcHandle();
         }
 
 //UUID
