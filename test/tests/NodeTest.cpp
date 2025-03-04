@@ -85,7 +85,7 @@ TEST(Node,ScriptingFamily)
 TEST(Node,ScriptingComponents)
 {
     auto nodeTestType = scripting::ScriptingEngine::getManagedType("CrucibleRuntimeTests.NodeTest,Crucible-Runtime-Tests");
-    auto nodeTestFamilyFunction = nodeTestType.getFunction<bool (*)(const boost::uuids::uuid&)>("Components");
+    auto nodeTestScriptingFunction = nodeTestType.getFunction<bool (*)(const boost::uuids::uuid&)>("Components");
     Node root(nullptr);
-    GTEST_ASSERT_TRUE(nodeTestFamilyFunction(root.uuid()));
+    GTEST_ASSERT_TRUE(nodeTestScriptingFunction(root.uuid()));
 }
