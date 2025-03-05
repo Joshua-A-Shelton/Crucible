@@ -153,10 +153,16 @@ namespace crucible
             transform.scale(scale);
         }
 
-        void cs_TransformConcatTransforms(core::Transform& t1,core::Transform& t2, core::Transform& out)
+        void cs_TransformConcatTransforms(core::Transform& transform1,core::Transform& transform2, core::Transform& out)
         {
-            out = t1*t2;
+            out = transform1+transform2;
         }
+
+        void cs_TransformDecatTransforms(crucible::core::Transform& transform1, crucible::core::Transform& transform2, crucible::core::Transform& out)
+        {
+            out = transform1-transform2;
+        }
+
 
     } // scripting
 } // crucible

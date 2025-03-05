@@ -21,7 +21,8 @@ public unsafe struct Transform
     private static delegate* unmanaged<ref Transform, ref Vector3, void> _transformSetScale_ptr;
     private static delegate* unmanaged<ref Transform, ref Vector3, void> _transformScale_ptr;
     private static delegate* unmanaged<ref Transform, ref Transform, ref Transform, void> _transformConcatTransforms_ptr;
-#pragma warning restore 0649
+    private static delegate* unmanaged<ref Transform, ref Transform, ref Transform, void> _transformsDecatTransforms_prt;
+#pragma private static delegate*warning restore 0649
 
     public Vector3 Position
     {
@@ -102,15 +103,28 @@ public unsafe struct Transform
     }
 
     /// <summary>
-    /// Concatenate a transform to another. Transforms *are* not communicative (eg: t1*t2*t3 != t1*(t2*t3))
+    /// Concatenate a transform to another. Transforms *are not* communicative (eg: t1*t2*t3 != t1*(t2*t3))
     /// </summary>
-    /// <param name="t1"></param>
-    /// <param name="t2"></param>
+    /// <param name="t1">Local Transform</param>
+    /// <param name="t2">Parent Transform</param>
     /// <returns></returns>
-    public static Transform operator *(Transform t1, Transform t2)
+    public static Transform operator+(Transform t1, Transform t2)
     {
         Transform outTransform = new Transform();
         _transformConcatTransforms_ptr(ref t1, ref t2, ref outTransform);
+        return outTransform;
+    }
+
+    /// <summary>
+    /// Remove a transform from another. (eg: final = t1+t2 ==> final-t1 == t2)
+    /// </summary>
+    /// <param name="t1">Parent Transform</param>
+    /// <param name="t2">Local Transform</param>
+    /// <returns></returns>
+    public static Transform operator-(Transform t1, Transform t2)
+    {
+        Transform outTransform = new Transform();
+        _transformDecatTransforms_ptr(ref t1, ref t2, ref outTransform);
         return outTransform;
     }
 }

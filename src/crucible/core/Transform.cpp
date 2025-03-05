@@ -1,6 +1,8 @@
 #include "Transform.h"
-
+#include <crucible/core/scenes/Node.h>
+#include <crucible/core/scenes/World.h>
 #include <cstring>
+#include <stack>
 
 namespace crucible
 {
@@ -77,7 +79,7 @@ namespace crucible
         {
             _position.x = x;
             _position.y = y;
-            _position.z = x;
+            _position.z = z;
         }
 
         void Transform::setPosition(const glm::vec3& position)
@@ -193,19 +195,63 @@ namespace crucible
             return translation*rotation*scale;
         }
 
-        Transform Transform::operator*(const Transform& with) const
+        Transform Transform::toGlobal(Node* relativeTo) const
+        {
+            return *this + cumulativeFrom(relativeTo);
+        }
+
+        Transform Transform::cumulativeFrom(Node* node)
+        {
+            std::stack<Transform> hierarchy;
+            Node* currentNode = node;
+            auto type = World::RegisterOrRetrieveType("Crucible.Core.Transform",sizeof(Transform), alignof(Transform));
+            Transform* nodeTransform = nullptr;
+            while(currentNode)
+            {
+                nodeTransform = (Transform*)node->entity().get(type);
+                if(nodeTransform)
+                {
+                    hierarchy.push(*nodeTransform);
+                }
+                currentNode = currentNode->getParent();
+            }
+
+            if(hierarchy.empty())
+            {
+                return Transform();
+            }
+            Transform returnTransform = hierarchy.top();
+            hierarchy.pop();
+            while(!hierarchy.empty())
+            {
+                returnTransform = hierarchy.top() + returnTransform;
+                hierarchy.pop();
+            }
+            return returnTransform;
+        }
+
+        Transform Transform::operator+(const Transform& with) const
         {
             glm::vec scale = _scale * with._scale;
-            glm::quat rotation = with._rotation * _rotation;
-            glm::vec3 position = ((_scale * with._position) * _rotation) + _position;
+            glm::quat rotation =  _rotation * with._rotation;
+            glm::vec3 position = ((with._scale * _position) * with._rotation) + with._position;
             return Transform(position,normalize(rotation),scale);
         }
 
-        Transform Transform::fastMultiply(const Transform& with) const
+        Transform Transform::operator-(const Transform& by) const
+        {
+            auto inv = glm::inverse(by._rotation);
+            glm::vec3 scale = _scale / by._scale;
+            glm::quat rotation = inv*_rotation;
+            glm::vec3 position = _position-((scale*by._position)*rotation);
+            return Transform(position,rotation,scale);
+        }
+
+        Transform Transform::fastConcat(const Transform& with) const
         {
             glm::vec scale = _scale * with._scale;
-            glm::quat rotation = with._rotation * _rotation;
-            glm::vec3 position = ((_scale * with._position) * _rotation) + _position;
+            glm::quat rotation =  _rotation * with._rotation;
+            glm::vec3 position = ((with._scale * _position) * with._rotation) + with._position;
             return Transform(position,rotation,scale);
         }
     } // core
