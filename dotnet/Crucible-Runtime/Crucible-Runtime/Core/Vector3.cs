@@ -1,4 +1,6 @@
-﻿namespace Crucible.Core;
+﻿using Crucible.Core.Utils;
+
+namespace Crucible.Core;
 using System.Runtime.InteropServices;
 [StructLayout(LayoutKind.Sequential)]
 public unsafe struct Vector3
@@ -21,6 +23,21 @@ public unsafe struct Vector3
         Z = z;
     }
 
+    public float Length()
+    {
+        return MathF.Sqrt(X*X+Y*Y+Z*Z);
+    }
+
+    public Vector3 Normalized()
+    {
+        return new Vector3(X/Length(), Y/Length(), Z/Length());
+    }
+
+    public void Normalize()
+    {
+        this = Normalized();
+    }
+
     public static Vector3 operator +(Vector3 v1,Vector3 v2)
     {
         return new Vector3(v1.X + v2.X, v1.Y + v2.Y, v1.Z + v2.Z);
@@ -39,6 +56,11 @@ public unsafe struct Vector3
     public static bool operator !=(Vector3 v1, Vector3 v2)
     {
         return !(v1 == v2);
+    }
+
+    public static bool Approximately(Vector3 v1, Vector3 v2)
+    {
+        return MathUtils.Approximately(v1.X,v2.X) && MathUtils.Approximately(v1.Y,v2.Y) && MathUtils.Approximately(v1.Z,v2.Z);
     }
     
 #pragma warning disable 0649

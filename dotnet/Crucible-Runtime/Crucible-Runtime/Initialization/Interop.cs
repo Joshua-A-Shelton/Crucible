@@ -47,7 +47,10 @@ internal static unsafe class Interop
     static Interop()
     {
         var me = Assembly.GetAssembly(typeof(ManagedType));
-        _loadedAssemblies.Add(me.GetName().FullName,me);
+        if (me != null)
+        {
+            _loadedAssemblies.Add(me.GetName().FullName,me);
+        }
     }
     
     private static HashSet<Delegate> _delegates = new HashSet<Delegate>();

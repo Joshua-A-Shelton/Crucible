@@ -139,8 +139,13 @@ namespace crucible
              */
             glm::mat4 matrix();
 
-            Transform operator*(const Transform& with)const;
-            Transform fastMultiply(const Transform& with)const;
+            Transform toGlobal(Node* relativeTo) const;
+
+            static Transform cumulativeFrom(Node* node);
+
+            Transform operator+(const Transform& with)const;
+            Transform operator-(const Transform& from)const;
+            Transform fastConcat(const Transform& with)const;
 
 
         private:
@@ -149,8 +154,8 @@ namespace crucible
             inline void copy(const Transform& from);
 
             glm::vec3 _position;
-            glm::vec3 _scale;
             glm::quat _rotation;
+            glm::vec3 _scale;
 
         };
 

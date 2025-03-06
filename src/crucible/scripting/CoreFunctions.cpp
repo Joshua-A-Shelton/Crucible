@@ -106,21 +106,17 @@ namespace crucible
             return static_cast<int32_t>(hasher(id));
         }
 
-//Transform
-
-        void cs_TransformSetPosition(core::Transform& transform, glm::vec3& newPosition)
+//Quaternion
+        void cs_quaternionFromAngleAxis(glm::quat& quaternion, float angle,  glm::vec3& axis)
         {
-            transform.setPosition(newPosition);
+            quaternion = glm::angleAxis(angle, axis);
         }
+
+//Transform
 
         void cs_TransformTranslate(core::Transform& transform, glm::vec3& translation)
         {
             transform.translate(translation);
-        }
-
-        void cs_TransformSetRotation(core::Transform& transform, glm::quat& newRotation)
-        {
-            transform.setRotation(newRotation);
         }
 
         void cs_TransformRotate(core::Transform& transform, glm::quat& rotation)
@@ -143,20 +139,26 @@ namespace crucible
             transform.rotate(angle,axis);
         }
 
-        void cs_TransformSetScale(core::Transform& transform, glm::vec3& newScale)
-        {
-            transform.setScale(newScale);
-        }
-
         void cs_TransformScale(core::Transform& transform, glm::vec3& scale)
         {
             transform.scale(scale);
         }
 
-        void cs_TransformConcatTransforms(core::Transform& t1,core::Transform& t2, core::Transform& out)
+        void cs_TransformConcatTransforms(core::Transform& transform1,core::Transform& transform2, core::Transform& out)
         {
-            out = t1*t2;
+            out = transform1+transform2;
         }
+
+        void cs_TransformDecatTransforms(crucible::core::Transform& transform1, crucible::core::Transform& transform2, crucible::core::Transform& out)
+        {
+            out = transform1-transform2;
+        }
+
+        void cs_TransformToGlobal(crucible::core::Transform& transform, core::Node* relativeTo, crucible::core::Transform& out)
+        {
+            out = transform.toGlobal(relativeTo);
+        }
+
 
     } // scripting
 } // crucible

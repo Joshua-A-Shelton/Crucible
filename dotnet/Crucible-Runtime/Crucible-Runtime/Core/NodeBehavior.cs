@@ -9,7 +9,7 @@ public class NodeBehavior
 
     private static void UpdateNode(IntPtr behavior, double deltaTime)
     {
-        NodeBehavior node = (NodeBehavior)GCHandle.FromIntPtr(behavior).Target;
-        node.Update(deltaTime);
+        NodeBehavior? node = (NodeBehavior?)GCHandle.FromIntPtr(behavior).Target;
+        node?.Update(deltaTime);
     }
 }
