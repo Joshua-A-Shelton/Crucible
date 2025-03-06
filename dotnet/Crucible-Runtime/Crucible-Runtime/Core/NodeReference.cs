@@ -50,7 +50,7 @@ public unsafe struct NodeReference
         return null;
     }
 
-    private NodePointer PointerFromUUID()
+    internal NodePointer PointerFromUUID()
     {
         var pointer = _nodeReferenceFromUUID_ptr(ref _uuid);
         if (pointer == IntPtr.Zero)

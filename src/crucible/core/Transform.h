@@ -154,8 +154,8 @@ namespace crucible
             inline void copy(const Transform& from);
 
             glm::vec3 _position;
-            glm::vec3 _scale;
             glm::quat _rotation;
+            glm::vec3 _scale;
 
         };
 

@@ -9,25 +9,37 @@ public unsafe struct Transform
     private Vector3 _position;
     private Quaternion _rotation;
     private Vector3 _scale;
+
+    public Transform()
+    {
+        _position = new Vector3(0,0,0);
+        _rotation = new Quaternion(1,0,0,0);
+        _scale = new Vector3(1,1,1);
+    }
+
+    public Transform(Vector3 position, Quaternion rotation, Vector3 scale)
+    {
+        _position = position;
+        _rotation = rotation;
+        _scale = scale;
+    }
     
 #pragma warning disable 0649
-    private static delegate* unmanaged<ref Transform, ref Vector3, void> _transformSetPosition_ptr;
     private static delegate* unmanaged<ref Transform, ref Vector3, void> _transformTranslate_ptr;
-    private static delegate* unmanaged<ref Transform, ref Quaternion, void> _transformSetRotation_ptr;
     private static delegate* unmanaged<ref Transform, ref Quaternion, void> _transformRotate_ptr;
     private static delegate* unmanaged<ref Transform, ref Vector3, void> _transformSetRotationEuler_ptr;
     private static delegate* unmanaged<ref Transform, ref Vector3, void> _transformRotateEuler_ptr;
     private static delegate* unmanaged<ref Transform, float, ref Vector3, void> _transformRotateAxisAngle_ptr;
-    private static delegate* unmanaged<ref Transform, ref Vector3, void> _transformSetScale_ptr;
     private static delegate* unmanaged<ref Transform, ref Vector3, void> _transformScale_ptr;
     private static delegate* unmanaged<ref Transform, ref Transform, ref Transform, void> _transformConcatTransforms_ptr;
-    private static delegate* unmanaged<ref Transform, ref Transform, ref Transform, void> _transformsDecatTransforms_prt;
-#pragma private static delegate*warning restore 0649
+    private static delegate* unmanaged<ref Transform, ref Transform, ref Transform, void> _transformDecatTransforms_ptr;
+    private static delegate* unmanaged<ref Transform, NodePointer, ref Transform, void> _transformToGlobal_ptr;
+#pragma warning restore 0649
 
     public Vector3 Position
     {
         get { return _position; }
-        set { _transformSetPosition_ptr(ref this, ref value); }
+        set { _position = value; }
     }
 
     public void Translate(float x, float y, float z)
@@ -44,7 +56,7 @@ public unsafe struct Transform
     public Quaternion Rotation
     {
         get { return _rotation; }
-        set { _transformSetRotation_ptr(ref this, ref value); }
+        set { _rotation = value; }
     }
 
     public void Rotate(float angle, Vector3 axis)
@@ -82,7 +94,7 @@ public unsafe struct Transform
     public Vector3 Scale
     {
         get { return _scale; }
-        set { _transformSetScale_ptr(ref this, ref value); }
+        set {_scale = value; }
     }
 
     public void ScaleBy(float amount)
@@ -100,6 +112,25 @@ public unsafe struct Transform
     {
         Vector3 scaleVector = new Vector3(x, y, z);
         _transformScale_ptr(ref this, ref scaleVector);
+    }
+
+    internal Transform ToGlobal(NodePointer relativeTo)
+    {
+        Transform t = new Transform();
+        _transformToGlobal_ptr(ref this, relativeTo, ref t);
+        return t;
+    }
+
+    public Transform ToGlobal(NodeReference relativeTo)
+    {
+        return ToGlobal(relativeTo.PointerFromUUID());
+    }
+
+    public static bool Approximate(Transform a, Transform b)
+    {
+        return Vector3.Approximately(a.Position, b.Position) &&
+               Quaternion.Approximately(a.Rotation, b.Rotation) &&
+               Vector3.Approximately(a.Scale, b.Scale);
     }
 
     /// <summary>
@@ -126,5 +157,10 @@ public unsafe struct Transform
         Transform outTransform = new Transform();
         _transformDecatTransforms_ptr(ref t1, ref t2, ref outTransform);
         return outTransform;
+    }
+
+    public override string ToString()
+    {
+        return "position: "+_position.ToString() + "\nrotation: " + _rotation.ToString() + "\nscale: " + _scale.ToString();
     }
 }

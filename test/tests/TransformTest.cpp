@@ -12,7 +12,6 @@ const char* TRANSFORM_CLASS = "Crucible.Core.Transform";
 TEST(TransformTest,Addition)
 {
 
-
     Transform transform1(glm::vec3(1,0,0),glm::quat(1,0,0,0),glm::vec3(1,1,1));
     Transform transform2(glm::vec3(0,1,0),glm::quat(1,0,0,0),glm::vec3(1,1,1));
 
@@ -142,4 +141,19 @@ TEST(TransformTest, Heirarchy)
     auto epsilonPosition = glm::epsilonEqual(finalTransform.position(),glm::vec3(4,0,8),EPSILON);
 
     GTEST_ASSERT_TRUE(epsilonPosition.x && epsilonPosition.y && epsilonPosition.z);
+}
+
+
+TEST(TransformTest, ScriptingConcat)
+{
+    auto transformTestType = crucible::scripting::ScriptingEngine::getManagedType("CrucibleRuntimeTests.TransformTest,Crucible-Runtime-Tests");
+    auto concat = transformTestType.getFunction<bool (*)()>("Concat");
+    GTEST_ASSERT_TRUE(concat());
+}
+
+TEST(TransformTest, ScriptingDecat)
+{
+    auto transformTestType = crucible::scripting::ScriptingEngine::getManagedType("CrucibleRuntimeTests.TransformTest,Crucible-Runtime-Tests");
+    auto concat = transformTestType.getFunction<bool (*)()>("Decat");
+    GTEST_ASSERT_TRUE(concat());
 }
