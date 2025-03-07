@@ -17,6 +17,9 @@ internal unsafe struct NodePointer
     private static delegate* unmanaged<IntPtr, void> _nodePointerUnlockFamily_ptr;
     
     private static delegate* unmanaged<IntPtr, UUID> _nodePointerUUID_ptr;
+    private static delegate* unmanaged<IntPtr, int> _nodePointerGetNameLength;
+    private static delegate* unmanaged<IntPtr, IntPtr, int,void> _nodePointerGetName;
+    private static delegate* unmanaged<IntPtr, string, void> _nodePointerSetName;
     private static delegate* unmanaged<IntPtr, IntPtr> _nodePointerParent_ptr;
     private static delegate* unmanaged<IntPtr, IntPtr, void> _nodePointerSetParent_ptr;
     private static delegate* unmanaged<IntPtr, int> _nodePointerChildCount_ptr;
@@ -40,6 +43,24 @@ internal unsafe struct NodePointer
     public UUID Uuid()
     {
         return _nodePointerUUID_ptr(_pointer);
+    }
+
+    public string Name
+    {
+        get
+        {
+            var arraySize = _nodePointerGetNameLength(_pointer);
+            byte[] buffer = new byte[arraySize];
+            GCHandle handle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
+            _nodePointerGetName(_pointer, handle.AddrOfPinnedObject(), arraySize);
+            string? name = Marshal.PtrToStringUTF8(handle.AddrOfPinnedObject());
+            handle.Free();
+            return name;
+        }
+        set
+        {
+            _nodePointerSetName(_pointer, value);
+        }
     }
 
     public NodePointer? Parent()
@@ -81,6 +102,13 @@ internal unsafe struct NodePointer
     {
         var child = _nodePointerAddChild_ptr(_pointer);
         return new NodePointer(child);
+    }
+
+    public NodePointer AddChild(string name)
+    {
+        var child = AddChild();
+        _nodePointerSetName(child._pointer, name);
+        return child;
     }
 
     public void RemoveChild(int index)

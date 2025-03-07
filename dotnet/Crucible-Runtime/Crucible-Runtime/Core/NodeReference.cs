@@ -61,6 +61,20 @@ public unsafe struct NodeReference
         return new NodePointer(pointer);
     }
 
+    public string Name
+    {
+        get
+        {
+            var pointer = PointerFromUUID();
+            return pointer.Name;
+        }
+        set
+        {
+            var pointer = PointerFromUUID();
+            pointer.Name = value;
+        }
+    }
+
     public NodeReference? Parent()
     {
         var pointer = PointerFromUUID();
@@ -97,6 +111,13 @@ public unsafe struct NodeReference
     {
         var pointer = PointerFromUUID();
         var child = pointer.AddChild();
+        return new NodeReference(child.Uuid());
+    }
+
+    public NodeReference AddChild(string name)
+    {
+        var pointer = PointerFromUUID();
+        var child = pointer.AddChild(name);
         return new NodeReference(child.Uuid());
     }
 

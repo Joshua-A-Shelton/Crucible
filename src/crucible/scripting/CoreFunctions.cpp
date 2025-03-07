@@ -12,6 +12,25 @@ namespace crucible
             return crucible::core::Node::getNodeByID(id);
         }
 
+        int32_t cs_nodePointerGetNameLength(core::Node* node)
+        {
+            return node->name().length()+1;
+        }
+
+        void cs_nodePointerGetName(core::Node* node, char* out, int32_t outLength)
+        {
+            if (outLength > node->name().length()+1)
+            {
+                outLength = node->name().length()+1;
+            }
+            memcpy(out,node->name().c_str(),outLength);
+        }
+
+        void cs_nodePointerSetName(core::Node* node, const char* name)
+        {
+            node->setName(name);
+        }
+
         void cs_NodePointerLockFamily(core::Node* node)
         {
             node->lockFamily();

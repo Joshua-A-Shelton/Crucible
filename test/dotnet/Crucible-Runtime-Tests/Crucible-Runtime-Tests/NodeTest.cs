@@ -106,4 +106,35 @@ public static class NodeTest
 
         return true;
     }
+
+    private static bool Names(ref UUID rootNode)
+    {
+        NodeReference? rootReference = NodeReference.FromUUID(rootNode);
+        if (rootReference == null)
+        {
+            Console.WriteLine("Root node cannot be retrieved from UUID");
+            return false;
+        }
+        var root = rootReference.Value;
+        
+        root.Name = "I Am Root";
+        if (root.Name != "I Am Root")
+        {
+            Console.WriteLine("Unable to get or set root name");
+            Console.WriteLine("Getting: "+root.Name);
+            return false;
+        }
+        
+        Console.WriteLine(root.Name);
+
+        var child = root.AddChild("I Am Child");
+        if (child.Name != "I Am Child")
+        {
+            Console.WriteLine("Unable to get or set root name");
+            Console.WriteLine("Getting: "+child.Name);
+            return false;
+        }
+
+        return true;
+    }
 }

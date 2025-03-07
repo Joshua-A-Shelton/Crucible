@@ -28,16 +28,6 @@ internal struct ManagedType
     }
 }
 
-[StructLayout(LayoutKind.Sequential)]
-internal struct StringWrapper
-{
-    public IntPtr RawString = IntPtr.Zero;
-
-    public StringWrapper()
-    {
-        RawString = IntPtr.Zero;
-    }
-}
 internal static unsafe class Interop
 {
 

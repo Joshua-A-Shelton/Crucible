@@ -82,6 +82,7 @@ add_library(Crucible
         src/crucible/scripting/ManagedInstance.h
         src/crucible/core/scenes/World.cpp
         src/crucible/core/scenes/World.h
+        src/crucible/scripting/InteropString.h
 )
 
 target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})

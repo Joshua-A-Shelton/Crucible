@@ -5,12 +5,16 @@
 #include <boost/uuid/uuid.hpp>
 #include "crucible/core/Transform.h"
 #include "crucible/core/scenes/Node.h"
+#include "crucible/scripting/InteropString.h"
 //DEFINITION(C# Class, function return type, C# delegate name, C++ function name, C++ parameters)
 #define CRUCIBLE_CORE_DELEGATES \
 DELEGATE(Crucible.Core.NodeReference, crucible::core::Node*, _nodeReferenceFromUUID_ptr, cs_NodeReferenceFromUUID,boost::uuids::uuid& id)\
 DELEGATE(Crucible.Core.NodePointer, void, _nodePointerLockFamily_ptr, cs_NodePointerLockFamily,crucible::core::Node*)\
 DELEGATE(Crucible.Core.NodePointer, void, _nodePointerUnlockFamily_ptr, cs_nodePointerUnlockFamily,crucible::core::Node*)\
 DELEGATE(Crucible.Core.NodePointer, boost::uuids::uuid, _nodePointerUUID_ptr, cs_nodePointerUUID,crucible::core::Node*)\
+DELEGATE(Crucible.Core.NodePointer, int32_t, _nodePointerGetNameLength, cs_nodePointerGetNameLength,crucible::core::Node*)\
+DELEGATE(Crucible.Core.NodePointer, void, _nodePointerGetName, cs_nodePointerGetName,crucible::core::Node*, char*, int32_t)\
+DELEGATE(Crucible.Core.NodePointer, void, _nodePointerSetName, cs_nodePointerSetName,crucible::core::Node*, const char*)\
 DELEGATE(Crucible.Core.NodePointer, crucible::core::Node*, _nodePointerParent_ptr, cs_nodePointerParent,crucible::core::Node*)\
 DELEGATE(Crucible.Core.NodePointer, void, _nodePointerSetParent_ptr, cs_nodePointerSetParent,crucible::core::Node*, crucible::core::Node*)\
 DELEGATE(Crucible.Core.NodePointer, int32_t, _nodePointerChildCount_ptr, cs_nodePointerChildCount,crucible::core::Node*)\
