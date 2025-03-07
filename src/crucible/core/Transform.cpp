@@ -232,7 +232,10 @@ namespace crucible
 
         Transform Transform::operator+(const Transform& with) const
         {
-            glm::vec scale = _scale * with._scale;
+            //this version works for applying the scale in the parents space, but is not reversible, as it creates shear
+            //glm::vec3 scale = glm::inverse(_rotation) * (with._scale * (_scale*_rotation));
+            //this version applies scale along the local space
+            glm::vec3 scale = with._scale*_scale;
             glm::quat rotation =  _rotation * with._rotation;
             glm::vec3 position = ((with._scale * _position) * with._rotation) + with._position;
             return Transform(position,normalize(rotation),scale);
@@ -241,8 +244,11 @@ namespace crucible
         Transform Transform::operator-(const Transform& by) const
         {
             auto inv = glm::inverse(by._rotation);
-            glm::vec3 scale = _scale / by._scale;
             glm::quat rotation = inv*_rotation;
+            //this version does not work with non-uniform scale, as shear is introduced
+            //glm::vec3 scale = inv * (_scale / (by._scale*by._rotation));
+            //this version applies scale along the local space
+            glm::vec3 scale = _scale / by._scale;
             glm::vec3 position = _position-((scale*by._position)*rotation);
             return Transform(position,rotation,scale);
         }

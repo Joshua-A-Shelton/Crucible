@@ -155,6 +155,16 @@ namespace crucible
             return _entity;
         }
 
+        const std::string& Node::name()
+        {
+            return _name;
+        }
+
+        void Node::setName(const std::string& name)
+        {
+            _name = name;
+        }
+
         void Node::updateNode(double deltaTime)
         {
             if (!_script.isNull())

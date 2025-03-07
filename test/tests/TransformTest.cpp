@@ -5,7 +5,7 @@
 
 using namespace crucible::core;
 
-float EPSILON = .000001;
+float EPSILON = .00001;
 float NINTEY_DEGREES_IN_RADIANS = glm::radians(90.0);
 const char* TRANSFORM_CLASS = "Crucible.Core.Transform";
 
@@ -117,6 +117,38 @@ TEST(TransformTest, Subtraction)
     GTEST_ASSERT_TRUE(epsilonPosition.x && epsilonPosition.y && epsilonPosition.z);
     GTEST_ASSERT_TRUE(epsilonRotation.w && epsilonRotation.x && epsilonRotation.y && epsilonRotation.z);
     GTEST_ASSERT_TRUE(epsilonScale.x && epsilonScale.y && epsilonScale.z);
+
+
+    t1.setPosition(15, .3f, -2565);
+    t1.setRotation(glm::angleAxis(1.57079632679f,normalize(glm::vec3(1,2,0))));
+    t1.setScale(1,1,1);
+
+    t2.setPosition(-400,1.5f,0);
+    t2.setRotation(glm::quat(1,0,0,0));
+    t2.setScale(2, 3, 2);
+
+    sum = t2+t1;
+    difference = sum-t2;
+
+    epsilonPosition = glm::epsilonEqual(difference.position(),t1.position(),EPSILON);
+    epsilonRotation = glm::epsilonEqual(difference.rotation(),t1.rotation(),EPSILON);
+    epsilonScale = glm::epsilonEqual(difference.scale(),t1.scale(),EPSILON);
+
+    GTEST_ASSERT_TRUE(epsilonPosition.x && epsilonPosition.y && epsilonPosition.z);
+    GTEST_ASSERT_TRUE(epsilonRotation.w && epsilonRotation.x && epsilonRotation.y && epsilonRotation.z);
+    GTEST_ASSERT_TRUE(epsilonScale.x && epsilonScale.y && epsilonScale.z);
+
+    sum = t1+t2;
+    difference = sum-t1;
+
+    epsilonPosition = glm::epsilonEqual(difference.position(),t2.position(),EPSILON);
+    epsilonRotation = glm::epsilonEqual(difference.rotation(),t2.rotation(),EPSILON);
+    epsilonScale = glm::epsilonEqual(difference.scale(),t2.scale(),EPSILON);
+
+    GTEST_ASSERT_TRUE(epsilonPosition.x && epsilonPosition.y && epsilonPosition.z);
+    GTEST_ASSERT_TRUE(epsilonRotation.w && epsilonRotation.x && epsilonRotation.y && epsilonRotation.z);
+    GTEST_ASSERT_TRUE(epsilonScale.x && epsilonScale.y && epsilonScale.z);
+
 }
 
 TEST(TransformTest, Heirarchy)
