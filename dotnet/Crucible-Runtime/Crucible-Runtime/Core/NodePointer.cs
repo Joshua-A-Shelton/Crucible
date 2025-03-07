@@ -33,6 +33,8 @@ internal unsafe struct NodePointer
     private static delegate* unmanaged<IntPtr, string, void> _nodePointerRemoveReferenceComponent_ptr;
     private static delegate* unmanaged<IntPtr, string, IntPtr> _nodePointerGetReferenceComponent_ptr;
     
+    private static delegate* unmanaged<IntPtr, ref Transform, void> _nodePointerGetCumulativeTransform_ptr;
+    
 #pragma warning restore 0649
 
     public UUID Uuid()
@@ -134,6 +136,13 @@ internal unsafe struct NodePointer
         }
         var handle = GCHandle.FromIntPtr(pointer);
         return (T?)handle.Target;
+    }
+
+    public Transform CumulativeTransform()
+    {
+        Transform t = new Transform();
+        _nodePointerGetCumulativeTransform_ptr(_pointer,ref t);
+        return t;
     }
     
 }

@@ -148,7 +148,7 @@ if(CrucibleTests)
     target_link_libraries(CrucibleTests Crucible GTest::gtest)
     target_include_directories(CrucibleTests PRIVATE src)
     include(GoogleTest)
-    gtest_discover_tests(CrucibleTests)
+    gtest_discover_tests(CrucibleTests PROPERTIES DISCOVERY_TIMEOUT 600)
 
     add_custom_target(Crucible-Runtime-Tests ALL DEPENDS ${CMAKE_BINARY_DIR}/plugins/Crucible-Runtime-Tests.dll)
     add_dependencies(Crucible-Runtime-Tests Crucible-Runtime)
