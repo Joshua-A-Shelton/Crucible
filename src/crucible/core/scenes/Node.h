@@ -65,9 +65,12 @@ namespace crucible
             void unlockFamily();
             ///Gets the UUID that uniquely represents this node
             boost::uuids::uuid uuid();
-            ///gets the instance of the script attached to this node (instance can have null gc handle, indicating no script)
+            ///Gets the instance of the script attached to this node (instance can have null gc handle, indicating no script)
             scripting::ManagedInstance& script();
+            ///Gets the Entity key for the ECS system
             flecs::entity entity()const;
+            const std::string& name();
+            void setName(const std::string& name);
 
             void updateNode(double deltaTime);
 
@@ -78,6 +81,7 @@ namespace crucible
             inline static void (*update)(void* scriptHandle,double deltaTime)=nullptr;
             boost::uuids::uuid _uuid;
             flecs::entity _entity;
+            std::string _name;
             Node* _parent = nullptr;
             std::vector<Node*> _children;
             std::mutex _familyMutex;

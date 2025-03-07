@@ -34,6 +34,7 @@ public unsafe struct Transform
     private static delegate* unmanaged<ref Transform, ref Transform, ref Transform, void> _transformConcatTransforms_ptr;
     private static delegate* unmanaged<ref Transform, ref Transform, ref Transform, void> _transformDecatTransforms_ptr;
     private static delegate* unmanaged<ref Transform, NodePointer, ref Transform, void> _transformToGlobal_ptr;
+    private static delegate* unmanaged<ref Transform, ref Transform, void> _transformInverse_ptr;
 #pragma warning restore 0649
 
     public Vector3 Position
@@ -126,11 +127,24 @@ public unsafe struct Transform
         return ToGlobal(relativeTo.PointerFromUUID());
     }
 
+    public Transform Inverse()
+    {
+        Transform t = new Transform();
+        _transformInverse_ptr(ref this, ref t);
+        return t;
+    }
+
     public static bool Approximate(Transform a, Transform b)
     {
         return Vector3.Approximately(a.Position, b.Position) &&
                Quaternion.Approximately(a.Rotation, b.Rotation) &&
                Vector3.Approximately(a.Scale, b.Scale);
+    }
+
+    public static Transform Cumulative(NodeReference from)
+    {
+        var pointer = from.PointerFromUUID();
+        return pointer.CumulativeTransform();
     }
 
     /// <summary>

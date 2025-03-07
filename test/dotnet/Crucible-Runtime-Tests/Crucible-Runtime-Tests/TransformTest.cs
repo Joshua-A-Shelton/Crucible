@@ -58,4 +58,60 @@ public class TransformTest
 
         return true;
     }
+
+    private static bool Inverse()
+    {
+        Transform t1 = new Transform();
+        t1.Position = new Vector3(-4.265f,8.21f, .0024f);
+        t1.Rotation = new Quaternion(1.57079632679f, new Vector3(1, -1, .5f));
+        t1.Scale = new Vector3(3, .21f, 1);
+
+        var identity = new Transform();
+        var final = t1 + t1.Inverse();
+
+        if (!(Transform.Approximate(identity, final)))
+        {
+            Console.WriteLine("Transforms inverse not inverting correctly");
+            Console.WriteLine("expected:\n"+t1.ToString()+"\nactual:\n"+t1.Inverse().ToString());
+            return false;
+        }
+        return true;
+    }
+
+    private static bool Cumulative(ref UUID nodeID)
+    {
+        var noderef = NodeReference.FromUUID(nodeID);
+        if (noderef != null)
+        {
+            var node = noderef.Value;
+            var child = node.AddChild();
+            var grandchild = child.AddChild();
+            var greatGrandChild = grandchild.AddChild();
+            Transform t = new Transform();
+            t.Position = new Vector3(1000, 250000, -3200.564f);
+            Console.WriteLine(t.Position);
+            node.AddDataComponent(t);
+            t.Position = new Vector3(5, 5, 5);
+            Console.WriteLine(t.Position);
+            grandchild.AddDataComponent(t);
+            t.Position = new Vector3(15, 0, 0);
+            Console.WriteLine(t.Position);
+            greatGrandChild.AddDataComponent(t);
+            var final = Transform.Cumulative(greatGrandChild);
+            var expected = new Vector3(1020, 250005, -3195.564f);
+            if (!Vector3.Approximately(final.Position, expected))
+            {
+                Console.WriteLine("Transforms not accumulating correctly");
+                Console.WriteLine("expected:\n"+expected.ToString()+"\nactual:\n"+final.Position.ToString());
+                return false;
+            }
+
+        }
+        else
+        {
+            Console.WriteLine("Unable to get node reference");
+            return false;
+        }
+        return true;
+    }
 }
