@@ -139,6 +139,8 @@ namespace crucible
              */
             glm::mat4 matrix();
 
+            Transform inverse() const;
+
             Transform toGlobal(Node* relativeTo) const;
 
             static Transform cumulativeFrom(Node* node);

@@ -170,11 +170,43 @@ TEST(TransformTest, Heirarchy)
     auto ggChildTransform = (Transform*)crucible::scripting::cs_nodePointerGetDataComponent(greatGrandChild,TRANSFORM_CLASS,sizeof(Transform), alignof(Transform));
     auto finalTransform = ggChildTransform->toGlobal(grandChild);
 
-    auto epsilonPosition = glm::epsilonEqual(finalTransform.position(),glm::vec3(4,0,8),EPSILON);
+    auto epsilonPosition = glm::epsilonEqual(finalTransform.position(),glm::vec3(3,0,6),EPSILON);
 
     GTEST_ASSERT_TRUE(epsilonPosition.x && epsilonPosition.y && epsilonPosition.z);
 }
 
+TEST(TransformTest, Inverse)
+{
+    Transform identity;
+
+    Transform transform;
+    transform.setPosition(15,23,-1.568);
+    transform.setRotation(glm::angleAxis(1.57079632679f,normalize(glm::vec3(1,2,3))));
+    transform.setScale(1,1,1);
+
+    Transform result = transform + transform.inverse();
+
+    auto epsilonPosition = glm::epsilonEqual(result.position(),identity.position(),EPSILON);
+    auto epsilonRotation = glm::epsilonEqual(result.rotation(),identity.rotation(),EPSILON);
+    auto epsilonScale = glm::epsilonEqual(result.scale(),identity.scale(),EPSILON);
+
+    GTEST_ASSERT_TRUE(epsilonPosition.x && epsilonPosition.y && epsilonPosition.z);
+    GTEST_ASSERT_TRUE(epsilonRotation.w && epsilonRotation.x && epsilonRotation.y && epsilonRotation.z);
+    GTEST_ASSERT_TRUE(epsilonScale.x && epsilonScale.y && epsilonScale.z);
+
+    transform.setScale(1.5,2,-.3);
+
+    result = transform + transform.inverse();
+
+    epsilonPosition = glm::epsilonEqual(result.position(),identity.position(),EPSILON);
+    epsilonRotation = glm::epsilonEqual(result.rotation(),identity.rotation(),EPSILON);
+    epsilonScale = glm::epsilonEqual(result.scale(),identity.scale(),EPSILON);
+
+    GTEST_ASSERT_TRUE(epsilonPosition.x && epsilonPosition.y && epsilonPosition.z);
+    GTEST_ASSERT_TRUE(epsilonRotation.w && epsilonRotation.x && epsilonRotation.y && epsilonRotation.z);
+    GTEST_ASSERT_TRUE(epsilonScale.x && epsilonScale.y && epsilonScale.z);
+
+}
 
 TEST(TransformTest, ScriptingConcat)
 {
@@ -188,4 +220,20 @@ TEST(TransformTest, ScriptingDecat)
     auto transformTestType = crucible::scripting::ScriptingEngine::getManagedType("CrucibleRuntimeTests.TransformTest,Crucible-Runtime-Tests");
     auto concat = transformTestType.getFunction<bool (*)()>("Decat");
     GTEST_ASSERT_TRUE(concat());
+}
+
+TEST(TransformTest, ScriptingInverse)
+{
+    auto transformTestType = crucible::scripting::ScriptingEngine::getManagedType("CrucibleRuntimeTests.TransformTest,Crucible-Runtime-Tests");
+    auto invert = transformTestType.getFunction<bool (*)()>("Inverse");
+    GTEST_ASSERT_TRUE(invert());
+}
+
+TEST(TransformTest, ScriptingCumulative)
+{
+    Node node(nullptr);
+
+    auto transformTestType = crucible::scripting::ScriptingEngine::getManagedType("CrucibleRuntimeTests.TransformTest,Crucible-Runtime-Tests");
+    auto cumulative = transformTestType.getFunction<bool (*)(const boost::uuids::uuid&)>("Cumulative");
+    GTEST_ASSERT_TRUE(cumulative(node.uuid()));
 }

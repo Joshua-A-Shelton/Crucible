@@ -59,8 +59,6 @@ namespace crucible
 
         void cs_nodePointerAddDataComponent(core::Node* node,const char* typeName, uint64_t size, uint64_t alignment, void* data)
         {
-            node->entity().add<core::Transform>();
-
             auto componentType = core::World::RegisterOrRetrieveType(typeName,size,alignment);
             ecs_add_id(core::World::ECS.world_,node->entity(),componentType);
             ecs_set_id(core::World::ECS.world_,node->entity(),componentType,size,data);
@@ -97,6 +95,11 @@ namespace crucible
         {
             auto componentType = core::World::RegisterOrRetrieveScriptingType(typeName);
             return ((scripting::ManagedInstance*)node->entity().get(componentType))->gcHandle();
+        }
+
+        void cs_nodePointerCumulativeTransform(crucible::core::Node* node, crucible::core::Transform& transform)
+        {
+            transform = core::Transform::cumulativeFrom(node);
         }
 
 //UUID
@@ -157,6 +160,11 @@ namespace crucible
         void cs_TransformToGlobal(crucible::core::Transform& transform, core::Node* relativeTo, crucible::core::Transform& out)
         {
             out = transform.toGlobal(relativeTo);
+        }
+
+        void cs_TransformInverse(crucible::core::Transform& transform, crucible::core::Transform& out)
+        {
+            out = transform.inverse();
         }
 
 

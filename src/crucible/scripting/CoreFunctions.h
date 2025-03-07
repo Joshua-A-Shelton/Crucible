@@ -23,6 +23,7 @@ DELEGATE(Crucible.Core.NodePointer, void*, _nodePointerGetDataComponent_ptr, cs_
 DELEGATE(Crucible.Core.NodePointer, void, _nodePointerAddReferenceComponent_ptr, cs_nodePointerAddReferenceComponent,crucible::core::Node*,const char*, crucible::scripting::ManagedType, void*) \
 DELEGATE(Crucible.Core.NodePointer, void, _nodePointerRemoveReferenceComponent_ptr, cs_nodePointerRemoveReferenceComponent,crucible::core::Node*,const char*)  \
 DELEGATE(Crucible.Core.NodePointer, void*, _nodePointerGetReferenceComponent_ptr, cs_nodePointerGetReferenceComponent,crucible::core::Node*,const char*)\
+DELEGATE(Crucible.Core.NodePointer, void, _nodePointerGetCumulativeTransform_ptr, cs_nodePointerCumulativeTransform,crucible::core::Node*, crucible::core::Transform&)\
 \
 DELEGATE(Crucible.Core.UUID, int32_t, _uuidHash_ptr, cs_UUIDHash, boost::uuids::uuid& id)\
 \
@@ -37,6 +38,7 @@ DELEGATE(Crucible.Core.Transform, void, _transformScale_ptr, cs_TransformScale, 
 DELEGATE(Crucible.Core.Transform, void, _transformConcatTransforms_ptr, cs_TransformConcatTransforms, crucible::core::Transform& transform1, crucible::core::Transform& transform2, crucible::core::Transform& out)\
 DELEGATE(Crucible.Core.Transform, void, _transformDecatTransforms_ptr, cs_TransformDecatTransforms, crucible::core::Transform& transform1, crucible::core::Transform& transform2, crucible::core::Transform& out)\
 DELEGATE(Crucible.Core.Transform, void, _transformToGlobal_ptr, cs_TransformToGlobal, crucible::core::Transform& transform1, crucible::core::Node* relativeTo, crucible::core::Transform& out)\
+DELEGATE(Crucible.Core.Transform, void, _transformInverse_ptr, cs_TransformInverse, crucible::core::Transform& transform, crucible::core::Transform& out)\
 
 
 

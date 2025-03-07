@@ -195,6 +195,15 @@ namespace crucible
             return translation*rotation*scale;
         }
 
+        Transform Transform::inverse() const
+        {
+            glm::quat rotation = glm::inverse(_rotation);
+
+            glm::vec3 scale = glm::vec3(1.0f/_scale.x, 1.0f/_scale.y, 1.0f/_scale.z);
+            glm::vec3 position = (-_position*scale) * rotation;
+            return Transform(position,rotation,scale);
+        }
+
         Transform Transform::toGlobal(Node* relativeTo) const
         {
             return *this + cumulativeFrom(relativeTo);
@@ -208,7 +217,7 @@ namespace crucible
             Transform* nodeTransform = nullptr;
             while(currentNode)
             {
-                nodeTransform = (Transform*)node->entity().get(type);
+                nodeTransform = (Transform*)currentNode->entity().get(type);
                 if(nodeTransform)
                 {
                     hierarchy.push(*nodeTransform);
