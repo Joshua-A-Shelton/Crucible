@@ -89,13 +89,10 @@ public class TransformTest
             var greatGrandChild = grandchild.AddChild();
             Transform t = new Transform();
             t.Position = new Vector3(1000, 250000, -3200.564f);
-            Console.WriteLine(t.Position);
             node.AddDataComponent(t);
             t.Position = new Vector3(5, 5, 5);
-            Console.WriteLine(t.Position);
             grandchild.AddDataComponent(t);
             t.Position = new Vector3(15, 0, 0);
-            Console.WriteLine(t.Position);
             greatGrandChild.AddDataComponent(t);
             var final = Transform.Cumulative(greatGrandChild);
             var expected = new Vector3(1020, 250005, -3195.564f);

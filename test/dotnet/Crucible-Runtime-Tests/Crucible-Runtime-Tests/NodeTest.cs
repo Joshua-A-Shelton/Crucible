@@ -124,8 +124,6 @@ public static class NodeTest
             Console.WriteLine("Getting: "+root.Name);
             return false;
         }
-        
-        Console.WriteLine(root.Name);
 
         var child = root.AddChild("I Am Child");
         if (child.Name != "I Am Child")

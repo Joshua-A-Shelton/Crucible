@@ -90,7 +90,7 @@ TEST(Node,ScriptingComponents)
     GTEST_ASSERT_TRUE(nodeTestScriptingFunction(root.uuid()));
 }
 
-TEST(node,ScriptingName)
+TEST(Node,ScriptingName)
 {
     auto nodeTestType = scripting::ScriptingEngine::getManagedType("CrucibleRuntimeTests.NodeTest,Crucible-Runtime-Tests");
     auto nodeTestNamesFunction = nodeTestType.getFunction<bool (*)(const boost::uuids::uuid&)>("Names");
