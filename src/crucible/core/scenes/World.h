@@ -9,7 +9,7 @@ namespace crucible
         class World
         {
         public:
-            inline static flecs::world ECS;
+            inline static flecs::world ECS{};
             static ecs_entity_t RegisterOrRetrieveType(const char* typeName, size_t typeSize, size_t typeAlignment);
             static ecs_entity_t RegisterOrRetrieveScriptingType(const char* typeName);
         };
