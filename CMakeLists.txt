@@ -87,11 +87,13 @@ add_library(Crucible
         src/crucible/core/Camera.h
         src/crucible/core/ShaderManager.cpp
         src/crucible/core/ShaderManager.h
+        third-party/lz4/lz4.c
 )
 
 target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})
 target_link_libraries(Crucible PUBLIC Slag SDL3::SDL3 glm nethost ${Boost_LIBRARIES} flecs::flecs_static)
-target_include_directories(Crucible PRIVATE third-party/stb_image PUBLIC ${DOT_NET_HOST_LOCATION} ${Boost_INCLUDE_DIRS} ${flecs_INCLUDE_DIRS})
+target_include_directories(Crucible PRIVATE third-party/stb_image PUBLIC ${DOT_NET_HOST_LOCATION} ${Boost_INCLUDE_DIRS} ${flecs_INCLUDE_DIRS} third-party/lz4)
+
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(CRUCIBLE_BUILD_TYPE "Debug")
@@ -150,6 +152,7 @@ if(CrucibleTests)
             test/tests/ScriptingTest.cpp
             test/tests/TransformTest.cpp
             test/tests/ShaderManagerTests.cpp
+            test/tests/MeshTest.cpp
     )
 
     target_link_libraries(CrucibleTests Crucible GTest::gtest)

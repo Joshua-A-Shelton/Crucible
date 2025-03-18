@@ -4,6 +4,8 @@
 #include <unordered_set>
 #include <execution>
 #include <ranges>
+#include <lz4.h>
+#include <boost/endian/conversion.hpp>
 
 namespace crucible
 {
@@ -54,6 +56,105 @@ namespace crucible
             });
             _indexBuffer = slag::Buffer::newBuffer(indexes,indexBufferLength,slag::Buffer::GPU,slag::Buffer::VERTEX_BUFFER);
             _indexSize = indexType;
+        }
+
+        Mesh::Mesh(unsigned char* lz4MeshData, const unsigned char* end, uint16_t attributeCount)
+        {
+            uint8_t int32 = *std::bit_cast<uint8_t*>(lz4MeshData);
+            lz4MeshData++;
+            if constexpr (std::endian::native == std::endian::big)
+            {
+                boost::endian::big_to_native(int32);
+            }
+            slag::Buffer::IndexSize indexType = slag::Buffer::UINT16;
+            if (int32)
+            {
+                indexType = slag::Buffer::UINT32;
+            }
+
+            uint32_t compressedSize = *std::bit_cast<uint32_t*>(lz4MeshData);
+            lz4MeshData+=sizeof(uint32_t);
+            uint32_t decompressedSize = *std::bit_cast<uint32_t*>(lz4MeshData);
+            lz4MeshData+=sizeof(uint32_t);
+            if constexpr (std::endian::native == std::endian::big)
+            {
+                boost::endian::big_to_native(compressedSize);
+                boost::endian::big_to_native(decompressedSize);
+            }
+            if (!(lz4MeshData + compressedSize < end))
+            {
+                throw std::runtime_error("Mesh Data is corrupt");
+            }
+            else
+            {
+                std::vector<char> decompressed(decompressedSize);
+                //FIXME: I'm not sure what to do here if the compressed size is greater than int capacity...
+                auto result = LZ4_decompress_safe(reinterpret_cast<const char*>(lz4MeshData), decompressed.data(),compressedSize,decompressedSize);
+                if (result<0)
+                {
+                    throw std::runtime_error("Mesh Data Decompression failure");
+                }
+                lz4MeshData += compressedSize;
+
+                if constexpr (std::endian::native == std::endian::big)
+                {
+                    for (size_t i=0; i < decompressedSize; i+=sizeof(uint32_t))
+                    {
+                        boost::endian::big_to_native(*reinterpret_cast<uint32_t*>(decompressed.data() + i));
+                    }
+                }
+
+                _indexBuffer = slag::Buffer::newBuffer(decompressed.data(),decompressed.size(),slag::Buffer::GPU,slag::Buffer::INDEX_BUFFER);
+            }
+
+
+            std::string attributeName;
+            std::unordered_set<Mesh::VertexAttribute> foundAttributes;
+            uint16_t attributeIndex = 0;
+            _attributeStreams.resize(attributeCount);
+            _definedAttributes.resize(attributeCount);
+            while (lz4MeshData < end && attributeIndex < attributeCount)
+            {
+                uint16_t attribute = *std::bit_cast<uint16_t*>(lz4MeshData);
+                lz4MeshData+=sizeof(uint32_t);
+                Mesh::VertexAttribute currentAttribute = static_cast<Mesh::VertexAttribute>(attribute);
+                if(foundAttributes.contains(currentAttribute))
+                {
+                    throw std::runtime_error("Duplicate attribute provided when creating mesh");
+                }
+                foundAttributes.emplace(currentAttribute);
+                uint32_t compressedStreamSize = *std::bit_cast<uint32_t*>(lz4MeshData);
+                lz4MeshData+=sizeof(uint32_t);
+                uint32_t decompressedStreamSize = *std::bit_cast<uint32_t*>(lz4MeshData);
+                lz4MeshData+=sizeof(uint32_t);
+                if constexpr (std::endian::native == std::endian::big)
+                {
+                    boost::endian::big_to_native(compressedStreamSize);
+                    boost::endian::big_to_native(decompressedStreamSize);
+                }
+                if (!(lz4MeshData + compressedSize <= end))
+                {
+                    throw std::runtime_error("Mesh Data is corrupt");
+                }
+                std::vector<char> decompressedStream(decompressedStreamSize);
+                //FIXME: I'm not sure what to do here if the compressed size is greater than int capacity...
+                LZ4_decompress_safe(reinterpret_cast<const char*>(lz4MeshData),decompressedStream.data(),compressedStreamSize,decompressedStreamSize);
+                lz4MeshData += compressedStreamSize;
+
+                if constexpr (std::endian::native == std::endian::big)
+                {
+                    for (size_t i=0; i < decompressedStreamSize; i+=sizeof(uint32_t))
+                    {
+                        boost::endian::big_to_native(*reinterpret_cast<uint32_t*>(decompressedStream.data() + i));
+                    }
+                }
+
+                _definedAttributes[attributeIndex] = currentAttribute;;
+                _attributeIndexes[currentAttribute] = static_cast<VertexAttribute>(attributeIndex);
+                _attributeStreams[attributeIndex] = VertexAttributeStream(decompressedStream.data(),decompressedStream.size(),slag::Buffer::GPU);
+                attributeIndex++;
+
+            }
         }
 
         size_t Mesh::attributeSize(Mesh::VertexAttribute attribute)
