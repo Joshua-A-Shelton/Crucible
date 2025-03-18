@@ -87,8 +87,6 @@ add_library(Crucible
         src/crucible/core/Camera.h
         src/crucible/core/ShaderManager.cpp
         src/crucible/core/ShaderManager.h
-        src/crucible/serialization/Serializer.cpp
-        src/crucible/serialization/Serializer.h
 )
 
 target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})

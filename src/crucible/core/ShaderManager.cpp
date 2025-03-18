@@ -2,12 +2,10 @@
 
 #include <bitset>
 #include <fstream>
-#include <crucible/serialization/Serializer.h>
+#include <boost/endian/conversion.hpp>
 
 #include "Mesh.h"
 #include "slag/ShaderPipeline.h"
-
-using namespace crucible::serialization;
 
 namespace crucible
 {
@@ -133,12 +131,23 @@ namespace crucible
 
             slag::ShaderPipeline* pipeline = nullptr;
 
-            std::ifstream shaderFile(path);
+            std::ifstream shaderFile(path,std::ios::in | std::ios::binary);
             if (!shaderFile.is_open())
             {
                 throw std::runtime_error("Unable to open "+path.string());
             }
-            auto magicNumber = Serializer::read(shaderFile,5);
+
+            shaderFile.seekg(0,std::ios::end);
+            size_t size = shaderFile.tellg();
+            shaderFile.seekg(0,std::ios::beg);
+            std::vector<unsigned char> data(size);
+            shaderFile.read(std::bit_cast<char*>(data.data()), size);
+            shaderFile.close();
+
+            unsigned char* bytePointer = &data[0];
+
+            auto magicNumber = std::string(reinterpret_cast<char*>(bytePointer),5);
+            bytePointer+=5;
 
             if (magicNumber!="csbf\n")
             {
@@ -147,16 +156,16 @@ namespace crucible
             try
             {
                 //Read output buffer formats
-                auto frameBufferDescription = getFrameBufferDescription(shaderFile);
+                auto frameBufferDescription = getFrameBufferDescription(bytePointer,data.end()._Ptr);
 
                 //Read vertex format
-                auto vertexInfo = getVertexProperties(shaderFile);
+                auto vertexInfo = getVertexProperties(bytePointer,data.end()._Ptr);
 
                 //Read properties
-                auto properties = getShaderProperties(shaderFile);
+                auto properties = getShaderProperties(bytePointer,data.end()._Ptr);
 
                 //Read modules
-                auto shaderModules = getShaderModules(shaderFile);
+                auto shaderModules = getShaderModules(bytePointer,data.end()._Ptr);
 
                 pipeline = slag::ShaderPipeline::newShaderPipeline(shaderModules.data(),shaderModules.size(),nullptr,0,properties,&vertexInfo.description,frameBufferDescription);
                 return ShaderUnit(pipeline,name,vertexInfo.attributes);
@@ -173,13 +182,18 @@ namespace crucible
             _compiledShaders.erase(shader->_name);
         }
 
-        slag::FrameBufferDescription ShaderManager::getFrameBufferDescription(std::ifstream& shaderFile)
+        slag::FrameBufferDescription ShaderManager::getFrameBufferDescription(unsigned char*& pointer, const unsigned char* eof)
         {
             slag::FrameBufferDescription frameBufferDescription;
             std::string line;
-            while (static_cast<char>(shaderFile.peek())=='#')
+            while (*std::bit_cast<char*>(pointer) == '#')
             {
-                std::getline(shaderFile,line);
+                while (pointer < eof && *pointer != '\n')
+                {
+                    line+=*std::bit_cast<char*>(pointer);
+                    pointer++;
+                }
+                pointer++;
                 if (line.length()<9)
                 {
                     throw std::runtime_error("Shader file is corrupt, invalid description of render targets");
@@ -199,6 +213,7 @@ namespace crucible
                 {
                     frameBufferDescription.setDepthTarget(format);
                 }
+                line = "";
             }
             if (frameBufferDescription.colorTargetCount()==0 && frameBufferDescription.depthFormat()==slag::Pixels::UNDEFINED)
             {
@@ -207,9 +222,15 @@ namespace crucible
             return frameBufferDescription;
         }
 
-        ShaderManager::VertexInfo ShaderManager::getVertexProperties(std::ifstream& shaderFile)
+        ShaderManager::VertexInfo ShaderManager::getVertexProperties(unsigned char*& pointer, const unsigned char* eof)
         {
-            auto vertexRequirements = Serializer::readUInt16(shaderFile);
+            if (!(pointer+sizeof(uint16_t)< eof))
+            {
+                throw std::runtime_error("Unexpected end of file");
+            }
+            uint16_t vertexRequirements = *reinterpret_cast<uint16_t*>(pointer);
+            pointer+=sizeof(uint16_t);
+            boost::endian::little_to_native_inplace(vertexRequirements);
             auto channels = std::popcount(vertexRequirements);
             size_t currentChannel = 0;
             slag::VertexDescription vertexDescription(channels);
@@ -248,30 +269,22 @@ namespace crucible
             return ShaderManager::VertexInfo{vertexDescription,attributes};
         }
 
-        slag::ShaderProperties ShaderManager::getShaderProperties(std::ifstream& shaderFile)
+        slag::ShaderProperties ShaderManager::getShaderProperties(unsigned char*& pointer, const unsigned char* eof)
         {
             //TODO: actually set properties
             return slag::ShaderProperties();
         }
 
-        std::vector<slag::ShaderModule> ShaderManager::getShaderModules(std::ifstream& shaderFile)
+        std::vector<slag::ShaderModule> ShaderManager::getShaderModules(unsigned char*& pointer, const unsigned char* eof)
         {
             std::vector<slag::ShaderModule> modules;
 
             std::string moduleType;
             slag::ShaderStages stage = slag::ShaderStageFlags::VERTEX;
-            while (true)
+            while (pointer < eof)
             {
-                char nextChar=0;
-                shaderFile.read(&nextChar,1);
-                if (shaderFile.eof())
-                {
-                    break;
-                }
-                if (iswspace(nextChar))
-                {
-                    continue;
-                }
+                char nextChar=*reinterpret_cast<char*>(pointer);
+                pointer+=sizeof(char);
 
                 if (nextChar!=':')
                 {
@@ -293,8 +306,23 @@ namespace crucible
                         throw std::runtime_error("Unrecognized shader stage: "+moduleType);
                     }
 
-                    auto shaderLength = Serializer::readUInt32(shaderFile);
-                    auto shaderBytes = Serializer::readBytes(shaderFile,shaderLength);
+
+                    if (!(pointer+sizeof(uint32_t)<eof))
+                    {
+                        throw std::runtime_error("Unexpected end of file");
+                    }
+
+                    uint32_t shaderLength = *reinterpret_cast<uint32_t*>(pointer);
+                    pointer+=sizeof(uint32_t);
+                    boost::endian::little_to_native_inplace(shaderLength);
+
+                    if (!(pointer+shaderLength<=eof))
+                    {
+                        throw std::runtime_error("Unexpected end of file");
+                    }
+                    std::vector<char> shaderBytes(shaderLength);
+                    memcpy(shaderBytes.data(), pointer, shaderLength);
+                    pointer+=shaderLength;
                     modules.emplace_back(stage,shaderBytes.data(),shaderBytes.size());
                     moduleType = "";
                 }
