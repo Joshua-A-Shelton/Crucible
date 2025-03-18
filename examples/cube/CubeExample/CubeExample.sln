@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CubeExample", "CubeExample\CubeExample.csproj", "{D0A64370-031C-435A-934A-4CAE614E04F2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Crucible-Runtime", "..\..\..\dotnet\Crucible-Runtime\Crucible-Runtime\Crucible-Runtime.csproj", "{FE98665A-B9B3-4BED-A4C1-B1D12CD01042}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D0A64370-031C-435A-934A-4CAE614E04F2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D0A64370-031C-435A-934A-4CAE614E04F2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D0A64370-031C-435A-934A-4CAE614E04F2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D0A64370-031C-435A-934A-4CAE614E04F2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FE98665A-B9B3-4BED-A4C1-B1D12CD01042}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FE98665A-B9B3-4BED-A4C1-B1D12CD01042}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FE98665A-B9B3-4BED-A4C1-B1D12CD01042}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FE98665A-B9B3-4BED-A4C1-B1D12CD01042}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

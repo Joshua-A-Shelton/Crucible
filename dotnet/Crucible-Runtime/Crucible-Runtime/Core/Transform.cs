@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Runtime.InteropServices;
+using Crucible.Core.Attributes;
 
 namespace Crucible.Core;
-
+[Component]
 [StructLayout(LayoutKind.Sequential)]
 public unsafe struct Transform
 {
@@ -37,12 +38,13 @@ public unsafe struct Transform
     private static delegate* unmanaged<ref Transform, ref Transform, void> _transformInverse_ptr;
 #pragma warning restore 0649
 
+    [Expose("Position")]
     public Vector3 Position
     {
         get { return _position; }
         set { _position = value; }
     }
-
+    
     public void Translate(float x, float y, float z)
     {
         Vector3 by = new Vector3(x, y, z);
@@ -53,7 +55,8 @@ public unsafe struct Transform
     {
         _transformTranslate_ptr(ref this, ref by);
     }
-
+    
+    [Expose("Rotation")]
     public Quaternion Rotation
     {
         get { return _rotation; }
@@ -91,7 +94,8 @@ public unsafe struct Transform
         Vector3 euler = new Vector3(pitch, yaw, roll);
         _transformSetRotationEuler_ptr(ref this, ref euler);
     }
-
+    
+    [Expose("Scale")]
     public Vector3 Scale
     {
         get { return _scale; }

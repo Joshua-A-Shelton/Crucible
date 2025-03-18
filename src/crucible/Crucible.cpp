@@ -2,6 +2,8 @@
 #include <slag/SlagLib.h>
 #include <SDL3/SDL.h>
 #include <iostream>
+
+#include "core/scenes/World.h"
 #include "scripting/ScriptingEngine.h"
 
 using namespace slag;
@@ -56,11 +58,16 @@ namespace crucible
             return false;
         }
         scripting::ScriptingEngine::initialize();
+        crucible::core::World::RootNode = new core::Node(nullptr);
         return true;
     }
 
     void Crucible::cleanup()
     {
+        if(crucible::core::World::RootNode != nullptr)
+        {
+            delete crucible::core::World::RootNode;
+        }
         scripting::ScriptingEngine::cleanup();
         SlagLib::cleanup();
         SDL_Quit();

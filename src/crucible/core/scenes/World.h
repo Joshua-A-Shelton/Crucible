@@ -1,6 +1,9 @@
 #ifndef CRUCIBLE_WORLD_H
 #define CRUCIBLE_WORLD_H
 #include <flecs.h>
+
+#include "Node.h"
+
 namespace crucible
 {
     namespace core
@@ -10,6 +13,7 @@ namespace crucible
         {
         public:
             inline static flecs::world ECS{};
+            inline static Node* RootNode = nullptr;
             static ecs_entity_t RegisterOrRetrieveType(const char* typeName, size_t typeSize, size_t typeAlignment);
             static ecs_entity_t RegisterOrRetrieveScriptingType(const char* typeName);
         };

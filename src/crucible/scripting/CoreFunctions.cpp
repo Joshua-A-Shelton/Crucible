@@ -6,6 +6,11 @@ namespace crucible
 {
     namespace scripting
     {
+//World
+        void cs_gameManagerGetRootNode(crucible::core::Node** node)
+        {
+            *node = crucible::core::World::RootNode;
+        }
 //Node
         crucible::core::Node* cs_NodeReferenceFromUUID(boost::uuids::uuid& id)
         {
@@ -186,6 +191,36 @@ namespace crucible
             out = transform.inverse();
         }
 
+//Camera
+        void cs_cameraSetNearPlane(crucible::core::Camera& camera, float nearPlane)
+        {
+            camera.nearPlane(nearPlane);
+        }
+
+        void cs_cameraSetFarPlane(crucible::core::Camera& camera, float farPlane)
+        {
+            camera.farPlane(farPlane);
+        }
+
+        void cs_cameraSetFOV(crucible::core::Camera& camera, float fov)
+        {
+            camera.fov(fov);
+        }
+
+        void cs_cameraSetWidth(crucible::core::Camera& camera, float width)
+        {
+            camera.width(width);
+        }
+
+        void cs_cameraSetHeight(crucible::core::Camera& camera, float height)
+        {
+            camera.height(height);
+        }
+
+        void cs_cameraSetPerspective(crucible::core::Camera& camera, bool isPerspective)
+        {
+            camera.isPerspective(isPerspective);
+        }
 
     } // scripting
 } // crucible

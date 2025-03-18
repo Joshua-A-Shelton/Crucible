@@ -54,14 +54,21 @@ namespace crucible
         }
 
         SDL_SetWindowTitle(_window,name.c_str());
-        int x,y,channels;
-        auto iconData = stbi_load(icon.string().c_str(),&x,&y,&channels,4);
-        _icon = SDL_CreateSurfaceFrom(x,y,SDL_PIXELFORMAT_RGBA8888,iconData,static_cast<int>(x*sizeof(char)*4));
+        if(!icon.empty())
+        {
+            int x,y,channels;
+            auto iconData = stbi_load(icon.string().c_str(),&x,&y,&channels,4);
+            _icon = SDL_CreateSurfaceFrom(x,y,SDL_PIXELFORMAT_RGBA8888,iconData,static_cast<int>(x*sizeof(char)*4));
 
-        auto success = SDL_SetWindowIcon(_window,_icon);
-        stbi_image_free(iconData);
+            auto success = SDL_SetWindowIcon(_window,_icon);
+            stbi_image_free(iconData);
+        }
 
-        crucible::scripting::ScriptingEngine::loadManagedDll("Game",gameDll.string().c_str(),false);
+        crucible::scripting::ScriptingEngine::loadManagedDll("Game",gameDll.string().c_str(),true);
+        auto gameManagerType = scripting::ScriptingEngine::getManagedType("Crucible.Core.GameManager");
+        auto gameManagerInitialize = gameManagerType.getFunction<void(*)()>("Initialize");
+        gameManagerInitialize();
+        _managedUpdate = gameManagerType.getFunction<void(*)(double)>("RunLoop");
 
         auto properties = SDL_GetWindowProperties(_window);
         slag::PlatformData platformData{};
@@ -126,6 +133,7 @@ namespace crucible
         std::swap(_windowManaged,from._windowManaged);
         std::swap(_icon,from._icon);
         std::swap(_swapChain,from._swapChain);
+        std::swap(_managedUpdate,from._managedUpdate);
         std::swap(_keepOpen,from._keepOpen);
     }
 
@@ -148,13 +156,33 @@ namespace crucible
 
     void Game::update(double deltaTime)
     {
-
+        _managedUpdate(deltaTime);
     }
 
     void Game::draw(slag::CommandBuffer* commandBuffer, slag::Texture* drawBuffer, slag::DescriptorPool* descriptorPool)
     {
         commandBuffer->begin();
-        commandBuffer->clearColorImage(drawBuffer,{.floats{1.0f,.15f,0.1,1.0f}},slag::Texture::UNDEFINED,slag::Texture::PRESENT,slag::PipelineStageFlags::NONE,slag::PipelineStageFlags::ALL_COMMANDS);
+        commandBuffer->clearColorImage(drawBuffer,{.floats{1.0f,.15f,0.1,1.0f}},slag::Texture::UNDEFINED,slag::Texture::RENDER_TARGET,slag::PipelineStageFlags::NONE,slag::PipelineStageFlags::ALL_COMMANDS);
+
+        slag::Attachment attachment(drawBuffer,slag::Texture::RENDER_TARGET,false);
+        commandBuffer->beginRendering(&attachment,1,nullptr,slag::Rectangle{.offset = {0,0},.extent = {drawBuffer->width(),drawBuffer->height()}});
+
+        commandBuffer->endRendering();
+        commandBuffer->insertBarrier(slag::ImageBarrier
+            {
+                .texture = drawBuffer,
+                .baseLayer = 0,
+                .layerCount = 1,
+                .baseMipLevel = 0,
+                .mipCount = 1,
+                .oldLayout = slag::Texture::RENDER_TARGET,
+                .newLayout = slag::Texture::PRESENT,
+                .accessBefore = slag::BarrierAccessFlags::COLOR_ATTACHMENT_WRITE,
+                .accessAfter = slag::BarrierAccessFlags::TRANSFER_READ,
+                .syncBefore = slag::PipelineStageFlags::ALL_GRAPHICS,
+                .syncAfter = slag::PipelineStageFlags::TRANSFER,
+            });
+
         commandBuffer->end();
     }
 

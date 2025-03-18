@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Runtime.InteropServices;
 
 namespace Crucible.Core;
 
@@ -87,8 +88,12 @@ public unsafe struct NodeReference
         return null;
     }
 
-    public void SetParent(NodeReference newParent)
+    public void SetParent([NotNull]NodeReference newParent)
     {
+        if (newParent == null)
+        {
+            throw new ArgumentException("Cannot assign null as a parent to a NodeReference");
+        }
         var pointer = PointerFromUUID();
         var newParentPointer = newParent.PointerFromUUID();
         pointer.SetParent(newParentPointer);

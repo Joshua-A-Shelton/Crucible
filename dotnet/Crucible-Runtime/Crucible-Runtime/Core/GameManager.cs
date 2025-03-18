@@ -3,11 +3,10 @@ using System.Runtime.InteropServices;
 
 namespace Crucible.Core;
 
-public static class GameManager
+public unsafe static class GameManager
 {
     private static GameLoop _loop;
-
-    [UnmanagedCallersOnly]
+    
     private static void Initialize()
     {
         var subclasses =
@@ -32,12 +31,27 @@ public static class GameManager
         }
 
         _loop = (GameLoop)gameLoopInstance;
+        
+        _loop.Initialize();
 
     }
-    [UnmanagedCallersOnly]
+    
     private static void RunLoop(double deltaTime)
     {
         _loop.Update(deltaTime);
     }
     
+#pragma warning disable 0649
+    private static delegate* unmanaged<ref NodePointer, void> _gameManagerGetRootNode_ptr;
+#pragma warning enable 0649
+
+    public static NodeReference RootNode
+    {
+        get
+        {
+            NodePointer nodePointer = new NodePointer(IntPtr.Zero);
+            _gameManagerGetRootNode_ptr(ref nodePointer);
+            return new NodeReference(nodePointer.Uuid());
+        }
+    }
 }

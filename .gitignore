@@ -3,3 +3,5 @@
 /test/dotnet/Crucible-Runtime-Tests/.idea/
 /test/dotnet/Crucible-Runtime-Tests/Crucible-Runtime-Tests/obj/
 /test/dotnet/Crucible-Runtime-Tests/Crucible-Runtime-Tests/bin/
+/examples/cube/CubeExample/CubeExample/obj/
+/examples/cube/CubeExample/CubeExample/bin/

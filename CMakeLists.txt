@@ -83,6 +83,12 @@ add_library(Crucible
         src/crucible/core/scenes/World.cpp
         src/crucible/core/scenes/World.h
         src/crucible/scripting/InteropString.h
+        src/crucible/core/Camera.cpp
+        src/crucible/core/Camera.h
+        src/crucible/core/ShaderManager.cpp
+        src/crucible/core/ShaderManager.h
+        src/crucible/serialization/Serializer.cpp
+        src/crucible/serialization/Serializer.h
 )
 
 target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})
@@ -111,6 +117,7 @@ add_custom_command(
 add_custom_target(Crucible-Runtime ALL DEPENDS ${CMAKE_BINARY_DIR}/Crucible-Runtime.dll)
 add_dependencies(Crucible Crucible-Runtime)
 
+#-------------------------------------------------------TESTS-----------------------------------------------------------
 option(CrucibleTests "Build crucible tests" ON)
 if(CrucibleTests)
     message("building Crucible tests")
@@ -144,6 +151,7 @@ if(CrucibleTests)
             test/tests/NodeBehaviorTest.cpp
             test/tests/ScriptingTest.cpp
             test/tests/TransformTest.cpp
+            test/tests/ShaderManagerTests.cpp
     )
 
     target_link_libraries(CrucibleTests Crucible GTest::gtest)
@@ -151,9 +159,35 @@ if(CrucibleTests)
     include(GoogleTest)
     gtest_discover_tests(CrucibleTests PROPERTIES DISCOVERY_TIMEOUT 600)
 
+    add_custom_command(TARGET CrucibleTests COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/test/resources ${CMAKE_BINARY_DIR}/resources)
+    add_custom_command(TARGET CrucibleTests COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/test/shaders ${CMAKE_BINARY_DIR}/shaders)
+
+
     add_custom_target(Crucible-Runtime-Tests ALL DEPENDS ${CMAKE_BINARY_DIR}/plugins/Crucible-Runtime-Tests.dll)
     add_dependencies(Crucible-Runtime-Tests Crucible-Runtime)
     add_dependencies(CrucibleTests Crucible-Runtime-Tests)
 endif ()
+
+
+#-------------------------------------------------------Examples---------------------------------------------------------
+
+option(CrucibleExamples "Build crucible examples" ON)
+if(CrucibleExamples)
+    add_executable(CubeExample
+            examples/cube/Main.cpp)
+    target_link_libraries(CubeExample Crucible)
+
+    file(GLOB_RECURSE CUBE_TEST_FILES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/examples/cube/CubeExample/*.cs)
+    add_custom_command(
+            OUTPUT ${CMAKE_BINARY_DIR}/plugins/CubeExample.dll
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/examples/cube/CubeExample
+            COMMAND dotnet publish CubeExample /p:Configuration=${CRUCIBLE_BUILD_TYPE} /p:Platform="Any CPU" -o ${CMAKE_BINARY_DIR}/plugins
+            DEPENDS ${CUBE_TEST_FILES}
+            COMMENT "Building Cube Test"
+    )
+    add_custom_target(CubeExampleDotNet ALL DEPENDS ${CMAKE_BINARY_DIR}/plugins/CubeExample.dll)
+    add_dependencies(CubeExampleDotNet Crucible-Runtime)
+    add_dependencies(CubeExample CubeExampleDotNet)
+endif()
 
 target_include_directories(Crucible PUBLIC src)

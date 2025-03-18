@@ -35,6 +35,7 @@ namespace crucible
              * @return
              */
             static size_t attributeSize(VertexAttribute attribute);
+            static uint16_t attributeSerializeIndex(VertexAttribute attribute);
             ///Helper struct for sending vertex data to mesh creation
             struct VertexAttributeInputInfo
             {

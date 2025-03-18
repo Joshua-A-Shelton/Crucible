@@ -76,6 +76,12 @@ namespace crucible
             throw std::runtime_error("Unable to get size of attribute");
         }
 
+        uint16_t Mesh::attributeSerializeIndex(VertexAttribute attribute)
+        {
+            uint16_t index = 1;
+            return index << attribute;
+        }
+
         Mesh::~Mesh()
         {
             if(_indexBuffer)

@@ -28,6 +28,7 @@ namespace crucible
         bool _windowManaged = false;
         SDL_Surface* _icon = nullptr;
         slag::Swapchain* _swapChain = nullptr;
+        void(*_managedUpdate)(double deltaTime)=nullptr;
         void resize();
         void minimize();
     public:

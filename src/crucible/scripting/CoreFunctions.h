@@ -5,9 +5,12 @@
 #include <boost/uuid/uuid.hpp>
 #include "crucible/core/Transform.h"
 #include "crucible/core/scenes/Node.h"
+#include "crucible/core/Camera.h"
 #include "crucible/scripting/InteropString.h"
 //DEFINITION(C# Class, function return type, C# delegate name, C++ function name, C++ parameters)
 #define CRUCIBLE_CORE_DELEGATES \
+DELEGATE(Crucible.Core.GameManager, void, _gameManagerGetRootNode_ptr, cs_gameManagerGetRootNode,crucible::core::Node**)\
+\
 DELEGATE(Crucible.Core.NodeReference, crucible::core::Node*, _nodeReferenceFromUUID_ptr, cs_NodeReferenceFromUUID,boost::uuids::uuid& id)\
 DELEGATE(Crucible.Core.NodePointer, void, _nodePointerLockFamily_ptr, cs_NodePointerLockFamily,crucible::core::Node*)\
 DELEGATE(Crucible.Core.NodePointer, void, _nodePointerUnlockFamily_ptr, cs_nodePointerUnlockFamily,crucible::core::Node*)\
@@ -43,6 +46,14 @@ DELEGATE(Crucible.Core.Transform, void, _transformConcatTransforms_ptr, cs_Trans
 DELEGATE(Crucible.Core.Transform, void, _transformDecatTransforms_ptr, cs_TransformDecatTransforms, crucible::core::Transform& transform1, crucible::core::Transform& transform2, crucible::core::Transform& out)\
 DELEGATE(Crucible.Core.Transform, void, _transformToGlobal_ptr, cs_TransformToGlobal, crucible::core::Transform& transform1, crucible::core::Node* relativeTo, crucible::core::Transform& out)\
 DELEGATE(Crucible.Core.Transform, void, _transformInverse_ptr, cs_TransformInverse, crucible::core::Transform& transform, crucible::core::Transform& out)\
+\
+DELEGATE(Crucible.Core.Camera, void, _cameraSetNearPlane_ptr, cs_cameraSetNearPlane, crucible::core::Camera& camera, float nearPlane)\
+DELEGATE(Crucible.Core.Camera, void, _cameraSetFarPlane_ptr, cs_cameraSetFarPlane, crucible::core::Camera& camera, float farPlane)\
+DELEGATE(Crucible.Core.Camera, void, _cameraSetFOV_ptr, cs_cameraSetFOV, crucible::core::Camera& camera, float fov)\
+DELEGATE(Crucible.Core.Camera, void, _cameraSetWidth_ptr, cs_cameraSetWidth, crucible::core::Camera& camera, float width)\
+DELEGATE(Crucible.Core.Camera, void, _cameraSetHeight_ptr, cs_cameraSetHeight, crucible::core::Camera& camera, float height)\
+DELEGATE(Crucible.Core.Camera, void, _cameraSetPerspective_ptr, cs_cameraSetPerspective, crucible::core::Camera& camera, bool isPerspective)\
+
 
 
 
