@@ -17,11 +17,16 @@ namespace crucible
         public:
             ShaderUnit(slag::ShaderPipeline* pipeline, const std::string& name, const std::vector<Mesh::VertexAttribute>& attributes);
             ~ShaderUnit();
+            ShaderUnit(const ShaderUnit& other)=delete;
+            ShaderUnit& operator=(const ShaderUnit& other)=delete;
+            ShaderUnit(ShaderUnit&& other);
+            ShaderUnit& operator=(ShaderUnit&& other);
 
             size_t _referenceCount = 0;
-            slag::ShaderPipeline* _pipeline;
+            slag::ShaderPipeline* _pipeline=nullptr;
             std::string _name;
             std::vector<Mesh::VertexAttribute> _requiredAttributes;
+            void move(ShaderUnit& other);
         };
 
         class ShaderReference

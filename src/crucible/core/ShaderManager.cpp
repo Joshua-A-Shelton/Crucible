@@ -23,7 +23,29 @@ namespace crucible
 
         ShaderUnit::~ShaderUnit()
         {
-            delete _pipeline;
+            if (_pipeline)
+            {
+                delete _pipeline;
+            }
+        }
+
+        ShaderUnit::ShaderUnit(ShaderUnit&& other)
+        {
+            move(other);
+        }
+
+        ShaderUnit& ShaderUnit::operator=(ShaderUnit&& other)
+        {
+            move(other);
+            return *this;
+        }
+
+        void ShaderUnit::move(ShaderUnit& other)
+        {
+            std::swap(_referenceCount,other._referenceCount);
+            std::swap(_pipeline,other._pipeline);
+            std::swap(_name,other._name);
+            std::swap(_requiredAttributes,other._requiredAttributes);
         }
 
         ShaderReference::ShaderReference(ShaderUnit* unit)
@@ -100,8 +122,7 @@ namespace crucible
             {
                 std::filesystem::path shaderFolder = "shaders";
                 auto shaderFile = shaderFolder/(name + ".csbf");
-                auto unit = buildShader(shaderFile,name);
-                shader = _compiledShaders.insert({name,unit}).first;
+                shader = _compiledShaders.insert({name,buildShader(shaderFile,name)}).first;
             }
 
             return ShaderReference(&shader->second);
@@ -138,8 +159,7 @@ namespace crucible
                 auto shaderModules = getShaderModules(shaderFile);
 
                 pipeline = slag::ShaderPipeline::newShaderPipeline(shaderModules.data(),shaderModules.size(),nullptr,0,properties,&vertexInfo.description,frameBufferDescription);
-                ShaderUnit shaderUnit(pipeline,name,vertexInfo.attributes);
-                return shaderUnit;
+                return ShaderUnit(pipeline,name,vertexInfo.attributes);
             }
             catch (const std::exception& e)
             {
@@ -274,7 +294,6 @@ namespace crucible
                     }
 
                     auto shaderLength = Serializer::readUInt32(shaderFile);
-                    shaderFile.read(&nextChar,1); //\n
                     auto shaderBytes = Serializer::readBytes(shaderFile,shaderLength);
                     modules.emplace_back(stage,shaderBytes.data(),shaderBytes.size());
                     moduleType = "";

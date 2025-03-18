@@ -54,7 +54,7 @@ if(WIN32)
     set(DOT_NET_HOST_LOCATION "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Host.win-x64/9.0.1/runtimes/win-x64/native")
     set(NETHOST_DYNAMIC_LIBRARY "nethost.dll")
 else()
-    set(DOT_NET_HOST_LOCATION "/usr/lib/dotnet/packs/Microsoft.NETCore.App.Host.ubuntu.22.04-x64/9.0.2/runtimes/ubuntu.22.04-x64/native/")
+    set(DOT_NET_HOST_LOCATION "/usr/lib/dotnet/packs/Microsoft.NETCore.App.Host.ubuntu.22.04-x64/9.0.3/runtimes/ubuntu.22.04-x64/native/")
     set(NETHOST_DYNAMIC_LIBRARY "libnethost.so")
 endif()
 
@@ -159,7 +159,6 @@ if(CrucibleTests)
     include(GoogleTest)
     gtest_discover_tests(CrucibleTests PROPERTIES DISCOVERY_TIMEOUT 600)
 
-    add_custom_command(TARGET CrucibleTests COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/test/resources ${CMAKE_BINARY_DIR}/resources)
     add_custom_command(TARGET CrucibleTests COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/test/shaders ${CMAKE_BINARY_DIR}/shaders)
 
 
