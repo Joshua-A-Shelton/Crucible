@@ -26,6 +26,8 @@ namespace crucible
                 UV,
                 ///R, G, B, A values (byte)
                 COLOR,
+                ///bone ID (UINT_32) bone weight (float)
+                BONE_WEIGHT,
                 ///Size of the VertexAttribute enum
                 VERTEX_ATTRIBUTE_ENUM_SIZE
             };
@@ -86,6 +88,7 @@ namespace crucible
                 VERTEX_ATTRIBUTE_ENUM_SIZE,//NORMAL
                 VERTEX_ATTRIBUTE_ENUM_SIZE,//UV
                 VERTEX_ATTRIBUTE_ENUM_SIZE,//COLOR
+                VERTEX_ATTRIBUTE_ENUM_SIZE,//BONE_WEIGHT
             };
             std::vector<VertexAttribute> _definedAttributes;
             slag::Buffer* _indexBuffer= nullptr;

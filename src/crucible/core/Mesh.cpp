@@ -171,6 +171,8 @@ namespace crucible
                     return sizeof(float)*2;
                 case COLOR:
                     return sizeof(char)*4;
+                case BONE_WEIGHT:
+                    return (sizeof(float)*4)+(sizeof(uint32_t)*4);
                 case VERTEX_ATTRIBUTE_ENUM_SIZE:
                     throw std::runtime_error("Invalid attribute provided");
             }
