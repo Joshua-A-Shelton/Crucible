@@ -2,6 +2,7 @@
 
 #include <bitset>
 #include <fstream>
+#include <iostream>
 #include <boost/endian/conversion.hpp>
 
 #include "Mesh.h"
@@ -155,17 +156,18 @@ namespace crucible
             }
             try
             {
+                auto last = &*(data.end()-1);
                 //Read output buffer formats
-                auto frameBufferDescription = getFrameBufferDescription(bytePointer,&*data.end());
+                auto frameBufferDescription = getFrameBufferDescription(bytePointer,last);
 
                 //Read vertex format
-                auto vertexInfo = getVertexProperties(bytePointer,&*data.end());
+                auto vertexInfo = getVertexProperties(bytePointer,last);
 
                 //Read properties
-                auto properties = getShaderProperties(bytePointer,&*data.end());
+                auto properties = getShaderProperties(bytePointer,last);
 
                 //Read modules
-                auto shaderModules = getShaderModules(bytePointer,&*data.end());
+                auto shaderModules = getShaderModules(bytePointer,last);
 
                 pipeline = slag::ShaderPipeline::newShaderPipeline(shaderModules.data(),shaderModules.size(),nullptr,0,properties,&vertexInfo.description,frameBufferDescription);
                 return ShaderUnit(pipeline,name,vertexInfo.attributes);
@@ -182,13 +184,13 @@ namespace crucible
             _compiledShaders.erase(shader->_name);
         }
 
-        slag::FrameBufferDescription ShaderManager::getFrameBufferDescription(unsigned char*& pointer, const unsigned char* eof)
+        slag::FrameBufferDescription ShaderManager::getFrameBufferDescription(unsigned char*& pointer, const unsigned char* lastInFile)
         {
             slag::FrameBufferDescription frameBufferDescription;
             std::string line;
             while (*std::bit_cast<char*>(pointer) == '#')
             {
-                while (pointer < eof && *pointer != '\n')
+                while (pointer <= lastInFile && *pointer != '\n')
                 {
                     line+=*std::bit_cast<char*>(pointer);
                     pointer++;
@@ -222,9 +224,9 @@ namespace crucible
             return frameBufferDescription;
         }
 
-        ShaderManager::VertexInfo ShaderManager::getVertexProperties(unsigned char*& pointer, const unsigned char* eof)
+        ShaderManager::VertexInfo ShaderManager::getVertexProperties(unsigned char*& pointer, const unsigned char* lastInFile)
         {
-            if (!(pointer+sizeof(uint16_t)< eof))
+            if (!(pointer+sizeof(uint16_t)<= lastInFile))
             {
                 throw std::runtime_error("Unexpected end of file");
             }
@@ -269,19 +271,19 @@ namespace crucible
             return ShaderManager::VertexInfo{vertexDescription,attributes};
         }
 
-        slag::ShaderProperties ShaderManager::getShaderProperties(unsigned char*& pointer, const unsigned char* eof)
+        slag::ShaderProperties ShaderManager::getShaderProperties(unsigned char*& pointer, const unsigned char* lastInFile)
         {
             //TODO: actually set properties
             return slag::ShaderProperties();
         }
 
-        std::vector<slag::ShaderModule> ShaderManager::getShaderModules(unsigned char*& pointer, const unsigned char* eof)
+        std::vector<slag::ShaderModule> ShaderManager::getShaderModules(unsigned char*& pointer, const unsigned char* lastInFile)
         {
             std::vector<slag::ShaderModule> modules;
 
             std::string moduleType;
             slag::ShaderStages stage = slag::ShaderStageFlags::VERTEX;
-            while (pointer < eof)
+            while (pointer <= lastInFile)
             {
                 char nextChar=*reinterpret_cast<char*>(pointer);
                 pointer+=sizeof(char);
@@ -307,7 +309,7 @@ namespace crucible
                     }
 
 
-                    if (!(pointer+sizeof(uint32_t)<eof))
+                    if (!(pointer+sizeof(uint32_t)<=lastInFile))
                     {
                         throw std::runtime_error("Unexpected end of file");
                     }
@@ -316,7 +318,7 @@ namespace crucible
                     pointer+=sizeof(uint32_t);
                     boost::endian::little_to_native_inplace(shaderLength);
 
-                    if (!(pointer+shaderLength<=eof))
+                    if (!(pointer+shaderLength<=lastInFile+1))
                     {
                         throw std::runtime_error("Unexpected end of file");
                     }

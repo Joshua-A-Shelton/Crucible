@@ -59,8 +59,9 @@ namespace crucible
             _indexSize = indexType;
         }
 
-        Mesh::Mesh(unsigned char* lz4MeshData, const unsigned char* end, uint16_t attributeCount)
+        Mesh::Mesh(unsigned char* lz4MeshData, size_t meshDataLength, uint16_t attributeCount)
         {
+            const unsigned char* lastByte = lz4MeshData + meshDataLength;
             uint8_t int32 = *std::bit_cast<uint8_t*>(lz4MeshData);
             lz4MeshData++;
             if constexpr (std::endian::native == std::endian::big)
@@ -82,7 +83,7 @@ namespace crucible
                 boost::endian::big_to_native(compressedSize);
                 boost::endian::big_to_native(decompressedSize);
             }
-            if (!(lz4MeshData + compressedSize < end))
+            if (!(lz4MeshData + compressedSize <= lastByte))
             {
                 throw std::runtime_error("Mesh Data is corrupt");
             }
@@ -113,11 +114,11 @@ namespace crucible
             uint16_t attributeIndex = 0;
             _attributeStreams.resize(attributeCount);
             _definedAttributes.resize(attributeCount);
-            while (lz4MeshData < end && attributeIndex < attributeCount)
+            while (lz4MeshData <= lastByte && attributeIndex < attributeCount)
             {
                 uint16_t attribute = *std::bit_cast<uint16_t*>(lz4MeshData);
                 lz4MeshData+=sizeof(uint16_t);
-                Mesh::VertexAttribute currentAttribute = static_cast<Mesh::VertexAttribute>(attribute);
+                Mesh::VertexAttribute currentAttribute = serializeIndexAttribute(attribute);
                 if(foundAttributes.contains(currentAttribute))
                 {
                     throw std::runtime_error("Duplicate attribute provided when creating mesh");
@@ -132,7 +133,7 @@ namespace crucible
                     boost::endian::big_to_native(compressedStreamSize);
                     boost::endian::big_to_native(decompressedStreamSize);
                 }
-                if (!(lz4MeshData + compressedSize <= end))
+                if (!(lz4MeshData + compressedSize <= lastByte))
                 {
                     throw std::runtime_error("Mesh Data is corrupt");
                 }
@@ -149,7 +150,7 @@ namespace crucible
                     }
                 }
 
-                _definedAttributes[attributeIndex] = currentAttribute;;
+                _definedAttributes[attributeIndex] = currentAttribute;
                 _attributeIndexes[currentAttribute] = static_cast<VertexAttribute>(attributeIndex);
                 _attributeStreams[attributeIndex] = VertexAttributeStream(decompressedStream.data(),decompressedStream.size(),slag::Buffer::GPU);
                 attributeIndex++;
@@ -159,7 +160,7 @@ namespace crucible
             size_t vertexCount = 0;
             for (auto vertexAttribute : _definedAttributes)
             {
-                auto index = attributeSerializeIndex(vertexAttribute);
+                auto index = _attributeIndexes[vertexAttribute];
                 auto attributeSize = Mesh::attributeSize(vertexAttribute);
                 auto size = _attributeStreams[index].data()->size()/attributeSize;
                 if (vertexCount == 0)
@@ -200,6 +201,22 @@ namespace crucible
         {
             uint16_t index = 1;
             return index << attribute;
+        }
+
+        Mesh::VertexAttribute Mesh::serializeIndexAttribute(uint16_t index)
+        {
+            if (index == 0)
+            {
+                throw std::runtime_error("Vertex attribute\"0\" does not correspond to known attribute");
+            }
+
+            uint16_t position = 0;
+            while ((index & 1) == 0)
+            {
+                index >>= 1;
+                ++position;
+            }
+            return static_cast<Mesh::VertexAttribute>(position);
         }
 
         Mesh::~Mesh()
@@ -248,6 +265,16 @@ namespace crucible
             return _attributeStreams[index].data();
         }
 
+        slag::Buffer* Mesh::indexBuffer()
+        {
+            return _indexBuffer;
+        }
+
+        slag::Buffer::IndexSize Mesh::indexSize() const
+        {
+            return _indexSize;
+        }
+
         size_t Mesh::vertexCount() const
         {
             return _vertexCount;
@@ -279,18 +306,26 @@ namespace crucible
                 int32_t decompressedSize = static_cast<int32_t>(idxs.size());
                 std::vector<char> compressedData(compressedSize);
                 compressedSize = LZ4_compress_fast(reinterpret_cast<const char*>(idxs.data()),compressedData.data(),static_cast<int32_t>(idxs.size()),compressedSize,1);
+
+                if constexpr (std::endian::native == std::endian::big)
+                {
+                    boost::endian::native_to_little_inplace(compressedSize);
+                    boost::endian::native_to_little_inplace(decompressedSize);
+                }
                 //compressed size
                 bufferInsert(data,compressedSize);
                 //decompressed size
                 bufferInsert(data,decompressedSize);
                 //index data
-                data.insert(data.end(),compressedData.begin(),compressedData.end());
+                data.insert(data.end(),compressedData.begin(),compressedData.begin()+compressedSize);
             }
 
 
             for(size_t i=0; i < attributeCount; i++)
             {
                 auto attribute = attributes[i];
+                uint16_t attributeValue = attributeSerializeIndex(attribute);
+
                 auto index = _attributeIndexes[attribute];
                 auto& stream = _attributeStreams[index];
                 auto streamData = stream.data()->downloadData();
@@ -298,12 +333,19 @@ namespace crucible
                 int32_t decompressedSize = static_cast<int32_t>(streamData.size());
                 std::vector<char> compressedData(compressedSize);
                 compressedSize =LZ4_compress_fast(reinterpret_cast<const char*>(streamData.data()),compressedData.data(),static_cast<int32_t>(streamData.size()),compressedSize,1);
+                if constexpr (std::endian::native == std::endian::big)
+                {
+                    boost::endian::native_to_little_inplace(attributeValue);
+                    boost::endian::native_to_little_inplace(compressedSize);
+                    boost::endian::native_to_little_inplace(decompressedSize);
+                }
+                bufferInsert(data,attributeValue);
                 //compressed size
                 bufferInsert(data,compressedSize);
                 //decompressed size
                 bufferInsert(data,decompressedSize);
                 //index data
-                data.insert(data.end(),compressedData.begin(),compressedData.end());
+                data.insert(data.end(),compressedData.begin(),compressedData.begin()+compressedSize);
             }
             return data;
         }

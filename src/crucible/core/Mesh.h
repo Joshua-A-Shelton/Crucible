@@ -1,6 +1,8 @@
 #ifndef CRUCIBLE_MESH_H
 #define CRUCIBLE_MESH_H
 #include <vector>
+#include <glm/fwd.hpp>
+
 #include "VertexAttributeStream.h"
 
 namespace crucible
@@ -37,7 +39,6 @@ namespace crucible
              * @return
              */
             static size_t attributeSize(VertexAttribute attribute);
-            static uint16_t attributeSerializeIndex(VertexAttribute attribute);
             ///Helper struct for sending vertex data to mesh creation
             struct VertexAttributeInputInfo
             {
@@ -59,12 +60,15 @@ namespace crucible
              * @param indexType whether or not each index is 16 or 32 bytes
              */
             Mesh(const std::vector<VertexAttributeInputInfo>& attributeInfo,void* indexes, size_t indexBufferLength, slag::Buffer::IndexSize indexType);
-            Mesh(unsigned char* lz4MeshData, const unsigned char* end, uint16_t attributeCount);
+            Mesh(unsigned char* lz4MeshData, size_t meshDataLength, uint16_t attributeCount);
             ~Mesh();
             Mesh(const Mesh&)=delete;
             Mesh& operator=(const Mesh&)=delete;
             Mesh(Mesh&& from);
             Mesh& operator=(Mesh&& from);
+
+            static uint16_t attributeSerializeIndex(VertexAttribute attribute);
+            static VertexAttribute serializeIndexAttribute(uint16_t index);
             ///Which vertex attributes are defined for this mesh
             const std::vector<VertexAttribute> definedAttributes()const;
             /**
@@ -73,6 +77,15 @@ namespace crucible
              * @return
              */
             slag::Buffer* getBuffer(VertexAttribute forAttribute);
+
+            /**
+             * Acquire the data buffer to feed to the gpu for the indices
+             * @return
+             */
+            slag::Buffer* indexBuffer();
+
+            slag::Buffer::IndexSize indexSize()const;
+
             ///Total number of vertices in the mesh
             size_t vertexCount()const;
             ///Total number of indices in the mesh
