@@ -26,7 +26,7 @@ namespace crucible
                 UV,
                 ///R, G, B, A values (byte)
                 COLOR,
-                ///bone ID (UINT_32) bone weight (float)
+                ///Bone ID (UINT_32) Bone weight (float)
                 BONE_WEIGHT,
                 ///Size of the VertexAttribute enum
                 VERTEX_ATTRIBUTE_ENUM_SIZE
