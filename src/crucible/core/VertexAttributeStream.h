@@ -23,7 +23,7 @@ namespace crucible
             VertexAttributeStream(VertexAttributeStream&& from);
             VertexAttributeStream& operator=(VertexAttributeStream&& from);
             ///The buffer containing vertex attributes
-            slag::Buffer* data();
+            slag::Buffer* data()const;
         private:
             void move(VertexAttributeStream& from);
             slag::Buffer* _data= nullptr;

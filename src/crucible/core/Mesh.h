@@ -77,6 +77,9 @@ namespace crucible
             size_t vertexCount()const;
             ///Total number of indices in the mesh
             size_t indexCount()const;
+
+            std::vector<unsigned char> toData()const;
+            std::vector<unsigned char> toData(const VertexAttribute* attributes, size_t attributeCount)const;
         private:
             void move(Mesh& from);
             std::vector<VertexAttributeStream> _attributeStreams;

@@ -156,16 +156,16 @@ namespace crucible
             try
             {
                 //Read output buffer formats
-                auto frameBufferDescription = getFrameBufferDescription(bytePointer,data.end()._Ptr);
+                auto frameBufferDescription = getFrameBufferDescription(bytePointer,&*data.end());
 
                 //Read vertex format
-                auto vertexInfo = getVertexProperties(bytePointer,data.end()._Ptr);
+                auto vertexInfo = getVertexProperties(bytePointer,&*data.end());
 
                 //Read properties
-                auto properties = getShaderProperties(bytePointer,data.end()._Ptr);
+                auto properties = getShaderProperties(bytePointer,&*data.end());
 
                 //Read modules
-                auto shaderModules = getShaderModules(bytePointer,data.end()._Ptr);
+                auto shaderModules = getShaderModules(bytePointer,&*data.end());
 
                 pipeline = slag::ShaderPipeline::newShaderPipeline(shaderModules.data(),shaderModules.size(),nullptr,0,properties,&vertexInfo.description,frameBufferDescription);
                 return ShaderUnit(pipeline,name,vertexInfo.attributes);

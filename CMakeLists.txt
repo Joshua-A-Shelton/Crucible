@@ -88,6 +88,7 @@ add_library(Crucible
         src/crucible/core/ShaderManager.cpp
         src/crucible/core/ShaderManager.h
         third-party/lz4/lz4.c
+        src/crucible/core/serialization/Serializer.h
 )
 
 target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})

@@ -25,7 +25,7 @@ namespace crucible
             return *this;
         }
 
-        slag::Buffer* VertexAttributeStream::data()
+        slag::Buffer* VertexAttributeStream::data()const
         {
             return  _data;
         }

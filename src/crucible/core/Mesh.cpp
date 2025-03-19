@@ -6,6 +6,7 @@
 #include <ranges>
 #include <lz4.h>
 #include <boost/endian/conversion.hpp>
+#include <crucible/core/serialization/Serializer.h>
 
 namespace crucible
 {
@@ -72,10 +73,10 @@ namespace crucible
                 indexType = slag::Buffer::UINT32;
             }
 
-            uint32_t compressedSize = *std::bit_cast<uint32_t*>(lz4MeshData);
-            lz4MeshData+=sizeof(uint32_t);
-            uint32_t decompressedSize = *std::bit_cast<uint32_t*>(lz4MeshData);
-            lz4MeshData+=sizeof(uint32_t);
+            int32_t compressedSize = *std::bit_cast<int32_t*>(lz4MeshData);
+            lz4MeshData+=sizeof(int32_t);
+            int32_t decompressedSize = *std::bit_cast<int32_t*>(lz4MeshData);
+            lz4MeshData+=sizeof(int32_t);
             if constexpr (std::endian::native == std::endian::big)
             {
                 boost::endian::big_to_native(compressedSize);
@@ -88,7 +89,6 @@ namespace crucible
             else
             {
                 std::vector<char> decompressed(decompressedSize);
-                //FIXME: I'm not sure what to do here if the compressed size is greater than int capacity...
                 auto result = LZ4_decompress_safe(reinterpret_cast<const char*>(lz4MeshData), decompressed.data(),compressedSize,decompressedSize);
                 if (result<0)
                 {
@@ -116,17 +116,17 @@ namespace crucible
             while (lz4MeshData < end && attributeIndex < attributeCount)
             {
                 uint16_t attribute = *std::bit_cast<uint16_t*>(lz4MeshData);
-                lz4MeshData+=sizeof(uint32_t);
+                lz4MeshData+=sizeof(uint16_t);
                 Mesh::VertexAttribute currentAttribute = static_cast<Mesh::VertexAttribute>(attribute);
                 if(foundAttributes.contains(currentAttribute))
                 {
                     throw std::runtime_error("Duplicate attribute provided when creating mesh");
                 }
                 foundAttributes.emplace(currentAttribute);
-                uint32_t compressedStreamSize = *std::bit_cast<uint32_t*>(lz4MeshData);
-                lz4MeshData+=sizeof(uint32_t);
-                uint32_t decompressedStreamSize = *std::bit_cast<uint32_t*>(lz4MeshData);
-                lz4MeshData+=sizeof(uint32_t);
+                int32_t compressedStreamSize = *std::bit_cast<int32_t*>(lz4MeshData);
+                lz4MeshData+=sizeof(int32_t);
+                int32_t decompressedStreamSize = *std::bit_cast<int32_t*>(lz4MeshData);
+                lz4MeshData+=sizeof(int32_t);
                 if constexpr (std::endian::native == std::endian::big)
                 {
                     boost::endian::big_to_native(compressedStreamSize);
@@ -137,7 +137,7 @@ namespace crucible
                     throw std::runtime_error("Mesh Data is corrupt");
                 }
                 std::vector<char> decompressedStream(decompressedStreamSize);
-                //FIXME: I'm not sure what to do here if the compressed size is greater than int capacity...
+
                 LZ4_decompress_safe(reinterpret_cast<const char*>(lz4MeshData),decompressedStream.data(),compressedStreamSize,decompressedStreamSize);
                 lz4MeshData += compressedStreamSize;
 
@@ -155,6 +155,23 @@ namespace crucible
                 attributeIndex++;
 
             }
+
+            size_t vertexCount = 0;
+            for (auto vertexAttribute : _definedAttributes)
+            {
+                auto index = attributeSerializeIndex(vertexAttribute);
+                auto attributeSize = Mesh::attributeSize(vertexAttribute);
+                auto size = _attributeStreams[index].data()->size()/attributeSize;
+                if (vertexCount == 0)
+                {
+                    vertexCount = size;
+                }
+                else if (vertexCount != size)
+                {
+                    throw std::runtime_error("Number of vertex attributes do not match");
+                }
+            }
+            _vertexCount = vertexCount;
         }
 
         size_t Mesh::attributeSize(Mesh::VertexAttribute attribute)
@@ -241,6 +258,54 @@ namespace crucible
             return _indexBuffer->size()/(_indexSize == slag::Buffer::UINT16? sizeof(uint16_t) : sizeof(uint32_t));
         }
 
+        std::vector<unsigned char> Mesh::toData() const
+        {
+            return toData(definedAttributes().data(),definedAttributes().size());
+        }
 
+        std::vector<unsigned char> Mesh::toData(const VertexAttribute* attributes, size_t attributeCount) const
+        {
+            std::vector<unsigned char> data;
+            {
+                uint8_t int32 = 0;
+                if (_indexSize == slag::Buffer::UINT32)
+                {
+                    int32 = 1;
+                }
+                //indexSize
+                data.push_back(int32);
+                auto idxs = _indexBuffer->downloadData();
+                int32_t compressedSize = LZ4_compressBound(static_cast<int32_t>(idxs.size()));
+                int32_t decompressedSize = static_cast<int32_t>(idxs.size());
+                std::vector<char> compressedData(compressedSize);
+                compressedSize = LZ4_compress_fast(reinterpret_cast<const char*>(idxs.data()),compressedData.data(),static_cast<int32_t>(idxs.size()),compressedSize,1);
+                //compressed size
+                bufferInsert(data,compressedSize);
+                //decompressed size
+                bufferInsert(data,decompressedSize);
+                //index data
+                data.insert(data.end(),compressedData.begin(),compressedData.end());
+            }
+
+
+            for(size_t i=0; i < attributeCount; i++)
+            {
+                auto attribute = attributes[i];
+                auto index = _attributeIndexes[attribute];
+                auto& stream = _attributeStreams[index];
+                auto streamData = stream.data()->downloadData();
+                int32_t compressedSize = LZ4_compressBound(static_cast<int32_t>(streamData.size()));
+                int32_t decompressedSize = static_cast<int32_t>(streamData.size());
+                std::vector<char> compressedData(compressedSize);
+                compressedSize =LZ4_compress_fast(reinterpret_cast<const char*>(streamData.data()),compressedData.data(),static_cast<int32_t>(streamData.size()),compressedSize,1);
+                //compressed size
+                bufferInsert(data,compressedSize);
+                //decompressed size
+                bufferInsert(data,decompressedSize);
+                //index data
+                data.insert(data.end(),compressedData.begin(),compressedData.end());
+            }
+            return data;
+        }
     } // core
 } // crucible
