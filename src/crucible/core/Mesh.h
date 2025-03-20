@@ -60,7 +60,7 @@ namespace crucible
              * @param indexType whether or not each index is 16 or 32 bytes
              */
             Mesh(const std::vector<VertexAttributeInputInfo>& attributeInfo,void* indexes, size_t indexBufferLength, slag::Buffer::IndexSize indexType);
-            Mesh(unsigned char* lz4MeshData, size_t meshDataLength);
+            Mesh(unsigned char* lz4MeshData, uint64_t meshDataLength);
             ~Mesh();
             Mesh(const Mesh&)=delete;
             Mesh& operator=(const Mesh&)=delete;

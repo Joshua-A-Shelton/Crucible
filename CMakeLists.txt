@@ -89,6 +89,8 @@ add_library(Crucible
         src/crucible/core/ShaderManager.h
         third-party/lz4/lz4.c
         src/crucible/core/serialization/Serializer.h
+        src/crucible/core/Model.cpp
+        src/crucible/core/Model.h
 )
 
 target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})
@@ -154,6 +156,7 @@ if(CrucibleTests)
             test/tests/TransformTest.cpp
             test/tests/ShaderManagerTests.cpp
             test/tests/MeshTest.cpp
+            test/tests/ModelTest.cpp
     )
 
     target_link_libraries(CrucibleTests Crucible GTest::gtest)
@@ -162,6 +165,7 @@ if(CrucibleTests)
     gtest_discover_tests(CrucibleTests PROPERTIES DISCOVERY_TIMEOUT 600)
 
     add_custom_command(TARGET CrucibleTests COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/test/shaders ${CMAKE_BINARY_DIR}/shaders)
+    add_custom_command(TARGET CrucibleTests COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/test/resources ${CMAKE_BINARY_DIR}/resources)
 
 
     add_custom_target(Crucible-Runtime-Tests ALL DEPENDS ${CMAKE_BINARY_DIR}/plugins/Crucible-Runtime-Tests.dll)
@@ -189,6 +193,9 @@ if(CrucibleExamples)
     add_custom_target(CubeExampleDotNet ALL DEPENDS ${CMAKE_BINARY_DIR}/plugins/CubeExample.dll)
     add_dependencies(CubeExampleDotNet Crucible-Runtime)
     add_dependencies(CubeExample CubeExampleDotNet)
+
+    add_custom_command(TARGET CubeExample COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/examples/cube/shaders ${CMAKE_BINARY_DIR}/shaders)
+    add_custom_command(TARGET CubeExample COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/examples/cube/resources ${CMAKE_BINARY_DIR}/resources)
 endif()
 
 target_include_directories(Crucible PUBLIC src)

@@ -59,7 +59,7 @@ namespace crucible
             _indexSize = indexType;
         }
 
-        Mesh::Mesh(unsigned char* lz4MeshData, size_t meshDataLength)
+        Mesh::Mesh(unsigned char* lz4MeshData, uint64_t meshDataLength)
         {
             const unsigned char* lastByte = lz4MeshData + meshDataLength;
             uint8_t int32 = *std::bit_cast<uint8_t*>(lz4MeshData);
@@ -135,13 +135,18 @@ namespace crucible
                     boost::endian::big_to_native(compressedStreamSize);
                     boost::endian::big_to_native(decompressedStreamSize);
                 }
-                if (!(lz4MeshData + compressedSize <= lastByte))
+
+                if (!(lz4MeshData + compressedStreamSize <= lastByte))
                 {
                     throw std::runtime_error("Mesh Data is corrupt");
                 }
                 std::vector<char> decompressedStream(decompressedStreamSize);
 
-                LZ4_decompress_safe(reinterpret_cast<const char*>(lz4MeshData),decompressedStream.data(),compressedStreamSize,decompressedStreamSize);
+                auto result = LZ4_decompress_safe(reinterpret_cast<const char*>(lz4MeshData),decompressedStream.data(),compressedStreamSize,decompressedStreamSize);
+                if (result<0)
+                {
+                    throw std::runtime_error("Mesh Data Decompression failure");
+                }
                 lz4MeshData += compressedStreamSize;
 
                 if constexpr (std::endian::native == std::endian::big)
