@@ -11,7 +11,7 @@ TEST(Mesh, LZ4Load)
     streams.emplace_back(Mesh::POSITION_3D,verts.data(),verts.size()*sizeof(glm::vec3),slag::Buffer::GPU);
     Mesh mesh(streams,indexes.data(),indexes.size()*sizeof(uint16_t),slag::Buffer::UINT16);
     auto data = mesh.toData();
-    Mesh mesh2(data.data(),data.size(),1);
+    Mesh mesh2(data.data(),data.size());
     GTEST_ASSERT_EQ(mesh2.vertexCount(),mesh.vertexCount());
     GTEST_ASSERT_EQ(mesh2.indexCount(),mesh.indexCount());
     GTEST_ASSERT_EQ(mesh2.indexSize(),mesh.indexSize());

@@ -59,7 +59,7 @@ namespace crucible
             _indexSize = indexType;
         }
 
-        Mesh::Mesh(unsigned char* lz4MeshData, size_t meshDataLength, uint16_t attributeCount)
+        Mesh::Mesh(unsigned char* lz4MeshData, size_t meshDataLength)
         {
             const unsigned char* lastByte = lz4MeshData + meshDataLength;
             uint8_t int32 = *std::bit_cast<uint8_t*>(lz4MeshData);
@@ -108,6 +108,8 @@ namespace crucible
                 _indexBuffer = slag::Buffer::newBuffer(decompressed.data(),decompressed.size(),slag::Buffer::GPU,slag::Buffer::INDEX_BUFFER);
             }
 
+            uint8_t attributeCount = *std::bit_cast<uint8_t*>(lz4MeshData);
+            lz4MeshData+=sizeof(uint8_t);
 
             std::string attributeName;
             std::unordered_set<Mesh::VertexAttribute> foundAttributes;
@@ -290,7 +292,7 @@ namespace crucible
             return toData(definedAttributes().data(),definedAttributes().size());
         }
 
-        std::vector<unsigned char> Mesh::toData(const VertexAttribute* attributes, size_t attributeCount) const
+        std::vector<unsigned char> Mesh::toData(const VertexAttribute* attributes, uint8_t attributeCount) const
         {
             std::vector<unsigned char> data;
             {
@@ -320,6 +322,7 @@ namespace crucible
                 data.insert(data.end(),compressedData.begin(),compressedData.begin()+compressedSize);
             }
 
+            bufferInsert(data,attributeCount);
 
             for(size_t i=0; i < attributeCount; i++)
             {
