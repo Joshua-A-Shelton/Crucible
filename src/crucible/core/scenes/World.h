@@ -3,12 +3,12 @@
 #include <flecs.h>
 
 #include "Node.h"
+#include "slag/CommandBuffer.h"
 
 namespace crucible
 {
     namespace core
     {
-
         class World
         {
         public:

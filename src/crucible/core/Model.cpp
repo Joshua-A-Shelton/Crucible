@@ -52,10 +52,13 @@ namespace crucible
 
         Model::Model(Model&& from)
         {
+            move(from);
         }
 
         Model& Model::operator=(Model&& from)
         {
+            move(from);
+            return *this;
         }
 
         size_t Model::meshCount()
@@ -66,6 +69,11 @@ namespace crucible
         Mesh& Model::mesh(size_t i)
         {
             return _meshes[i];
+        }
+
+        void Model::move(Model& from)
+        {
+            _meshes.swap(from._meshes);
         }
     } // core
 } // crucible

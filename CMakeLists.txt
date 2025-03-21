@@ -91,6 +91,18 @@ add_library(Crucible
         src/crucible/core/serialization/Serializer.h
         src/crucible/core/Model.cpp
         src/crucible/core/Model.h
+        src/crucible/core/rendering/RenderGraph.cpp
+        src/crucible/core/rendering/RenderGraph.h
+        src/crucible/core/rendering/RenderStage.cpp
+        src/crucible/core/rendering/RenderStage.h
+        src/crucible/core/rendering/RenderPriority.cpp
+        src/crucible/core/rendering/RenderPriority.h
+        src/crucible/core/rendering/RenderData.cpp
+        src/crucible/core/rendering/RenderData.h
+        src/crucible/core/rendering/RenderGraphResourceData.cpp
+        src/crucible/core/rendering/RenderGraphResourceData.h
+        src/crucible/core/rendering/RenderGraphResourceDictionary.cpp
+        src/crucible/core/rendering/RenderGraphResourceDictionary.h
 )
 
 target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})

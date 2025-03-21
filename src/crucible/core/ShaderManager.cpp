@@ -98,19 +98,34 @@ namespace crucible
             }
         }
 
-        slag::ShaderPipeline* ShaderReference::pipeline()
+        bool ShaderReference::operator==(const ShaderReference& other) const
+        {
+            return _unit->_pipeline == other._unit->_pipeline;
+        }
+
+        slag::ShaderPipeline* ShaderReference::pipeline()const
         {
             return _unit->_pipeline;
         }
 
-        size_t ShaderReference::requiredAttributesCount()
+        size_t ShaderReference::requiredAttributesCount()const
         {
             return _unit->_requiredAttributes.size();
         }
 
-        Mesh::VertexAttribute ShaderReference::attribute(const size_t attributeIndex)
+        Mesh::VertexAttribute ShaderReference::attribute(const size_t attributeIndex)const
         {
             return _unit->_requiredAttributes[attributeIndex];
+        }
+
+        const std::vector<Mesh::VertexAttribute>& ShaderReference::requiredAttributes() const
+        {
+            return _unit->_requiredAttributes;
+        }
+
+        size_t ShaderReference::hashFunction::operator()(const ShaderReference& ref) const
+        {
+            return std::hash<std::string>()(ref._unit->_name);
         }
 
         ShaderReference ShaderManager::getShaderReference(const std::string& name)

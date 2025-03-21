@@ -44,10 +44,17 @@ namespace crucible
             ShaderReference& operator=(ShaderReference&& ref);
             ~ShaderReference();
 
-            slag::ShaderPipeline* pipeline();
-            size_t requiredAttributesCount();
-            Mesh::VertexAttribute attribute(size_t attributeIndex);
+            bool operator==(const ShaderReference&) const;
+
+            slag::ShaderPipeline* pipeline()const;
+            size_t requiredAttributesCount()const;
+            Mesh::VertexAttribute attribute(size_t attributeIndex)const;
+            const std::vector<Mesh::VertexAttribute>& requiredAttributes() const;
             friend class ShaderManager;
+            struct hashFunction
+            {
+                size_t operator()(const ShaderReference& ref)const;
+            };
         };
 
 
