@@ -1,9 +1,17 @@
 #include "Game.h"
 #include <stb_image.h>
+
+#include "core/Mesh.h"
+#include "core/MeshRenderer.h"
+#include "core/scenes/World.h"
 #include "scripting/ScriptingEngine.h"
 
 namespace crucible
 {
+    namespace core
+    {
+        class World;
+    }
 
     class CrucibleFrameResources: public slag::FrameResources
     {
@@ -168,6 +176,16 @@ namespace crucible
         commandBuffer->beginRendering(&attachment,1,nullptr,slag::Rectangle{.offset = {0,0},.extent = {drawBuffer->width(),drawBuffer->height()}});
 
         commandBuffer->endRendering();
+
+        auto root = core::World::RootNode;
+        if (root)
+        {
+            core::Transform rootTransform;
+            auto transformType = core::World::RegisterOrRetrieveType("Crucible.Core.Transform",sizeof(core::Transform),alignof(core::Transform));
+            auto meshRendererType = core::World::RegisterOrRetrieveType("Crucible.Core.MeshRenderer",sizeof(core::MeshRenderer),alignof(core::MeshRenderer));
+            root->draw(commandBuffer,descriptorPool,&rootTransform,transformType,meshRendererType);
+        }
+
         commandBuffer->insertBarrier(slag::ImageBarrier
             {
                 .texture = drawBuffer,

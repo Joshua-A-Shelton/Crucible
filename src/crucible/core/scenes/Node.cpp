@@ -6,6 +6,8 @@
 #include <unordered_map>
 #include <crucible/core/scenes/World.h>
 
+#include "crucible/core/MeshRenderer.h"
+
 namespace crucible
 {
     namespace core
@@ -180,5 +182,34 @@ namespace crucible
             }
         }
 
+        void Node::draw(slag::CommandBuffer* commandBuffer, slag::DescriptorPool* descriptorPool, Transform* parentTransform, ecs_entity_t& transformType,ecs_entity_t& meshRendererType)
+        {
+            auto nodeTransform = *parentTransform;
+            if (_entity.has(transformType))
+            {
+                Transform* local = (Transform*)_entity.get(transformType);
+                nodeTransform = (*local)+(*parentTransform);
+            }
+
+            if (_entity.has(meshRendererType))
+            {
+                MeshRenderer* renderer = (MeshRenderer*)_entity.get(meshRendererType);
+                auto matr = nodeTransform.matrix();
+                //set position data
+                renderer->setData(0,&matr,sizeof(matr));
+                auto& shader = renderer->shader();
+                slag::DescriptorBundle bundle = descriptorPool->makeBundle(shader.pipeline()->descriptorGroup(2));
+                auto uniformData = renderer->getDrawDescriptorDataAndFlipBufferSides();
+                bundle.setUniformBuffer(0,0,uniformData.buffer,uniformData.offset,uniformData.length);
+                World::MeshDrawPass.registerMeshData(renderer->priority(),renderer->shader(),renderer->mesh(),std::move(bundle));
+
+            }
+
+            for(auto& child : _children)
+            {
+                child->draw(commandBuffer,descriptorPool, &nodeTransform, transformType, meshRendererType);
+            }
+
+        }
     } // core
 } // crucible

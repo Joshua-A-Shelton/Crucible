@@ -8,6 +8,8 @@
 #include <crucible/scripting/ManagedType.h>
 #include <flecs.h>
 
+#include <slag/CommandBuffer.h>
+
 namespace crucible
 {
     namespace scripting
@@ -73,6 +75,8 @@ namespace crucible
             void setName(const std::string& name);
 
             void updateNode(double deltaTime);
+
+            void draw(slag::CommandBuffer* commandBuffer, slag::DescriptorPool* descriptorPool, Transform* parentTransform, ecs_entity_t& transformType,ecs_entity_t& meshRendererType);
 
             static Node* getNodeByID(const boost::uuids::uuid& id);
             friend class crucible::scripting::ScriptingEngine;

@@ -37,7 +37,7 @@ namespace crucible
             void copy(const ShaderReference& other);
             void move(ShaderReference& other);
         public:
-            ShaderReference()=delete;
+            ShaderReference()=default;
             ShaderReference(const ShaderReference& ref);
             ShaderReference& operator=(const ShaderReference& ref);
             ShaderReference(ShaderReference&& ref);

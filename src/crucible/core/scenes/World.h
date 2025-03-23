@@ -3,6 +3,7 @@
 #include <flecs.h>
 
 #include "Node.h"
+#include "crucible/core/rendering/MeshPass.h"
 #include "slag/CommandBuffer.h"
 
 namespace crucible
@@ -16,6 +17,7 @@ namespace crucible
             inline static Node* RootNode = nullptr;
             static ecs_entity_t RegisterOrRetrieveType(const char* typeName, size_t typeSize, size_t typeAlignment);
             static ecs_entity_t RegisterOrRetrieveScriptingType(const char* typeName);
+            inline static MeshPass MeshDrawPass;
         };
 
     } // core
