@@ -89,14 +89,14 @@ add_library(Crucible
         src/crucible/core/ShaderManager.h
         third-party/lz4/lz4.c
         src/crucible/core/serialization/Serializer.h
-        src/crucible/core/Model.cpp
-        src/crucible/core/Model.h
         src/crucible/core/rendering/MeshPass.cpp
         src/crucible/core/rendering/MeshPass.h
         src/crucible/core/rendering/MeshShaderBlock.cpp
         src/crucible/core/rendering/MeshShaderBlock.h
-        src/crucible/core/MeshRenderer.cpp
-        src/crucible/core/MeshRenderer.h
+        src/crucible/core/ModelLoader.cpp
+        src/crucible/core/ModelLoader.h
+        src/crucible/core/Material.cpp
+        src/crucible/core/Material.h
 )
 
 target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})

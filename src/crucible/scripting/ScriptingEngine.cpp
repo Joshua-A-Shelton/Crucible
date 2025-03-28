@@ -226,6 +226,11 @@ namespace crucible
             Interop::managedFunctionPointers.freeUnmanagedGCHandle(handle);
         }
 
+        void ScriptingEngine::getMeshRenderData(ManagedInstance& managedMeshRendererInstance, core::Mesh** mesh, core::Material** material, unsigned char* priority)
+        {
+            Interop::managedFunctionPointers.getMeshRenderData(managedMeshRendererInstance.gcHandle(),mesh,material,priority);
+        }
+
         void ScriptingEngine::registerManagedFunctions()
         {
             ManagedType nodeBehaviorType = getManagedType("Crucible.Core.NodeBehavior");

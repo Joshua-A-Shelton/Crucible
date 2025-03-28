@@ -37,7 +37,6 @@ namespace crucible
     private:
         bool _keepOpen = true;
 
-
     };
 
 } // crucible

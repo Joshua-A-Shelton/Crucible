@@ -6,6 +6,12 @@
 #include "ManagedType.h"
 #include <vector>
 
+namespace crucible::core
+{
+    class Mesh;
+    class Material;
+}
+
 namespace crucible
 {
     namespace scripting
@@ -28,6 +34,7 @@ namespace crucible
             void (*invokeInstanceMethodReturnReference)(void* instanceType,void* instanceHandle, const char* methodName, int32_t parameterCount, void** parameterTypes, void** parameters,void** returnObjectHandle,ManagedType& returnType);
             void (*invokeInstanceMethodReturnValue)(void* instanceType,void* instanceHandle, const char* methodName, int32_t parameterCount, void** parameterTypes, void** parameters,void* valuePtr);
             void* (*getType)(const char* assemblyQualifiedName, ManagedType& type)= nullptr;
+            void (*getMeshRenderData)(void* instanceHandle, core::Mesh** mesh, core::Material** material, unsigned char* priority)=nullptr;
             void* (*loadLibrary)(const char* contextName,const char* path,bool collectible)=nullptr;
             void* (*unloadLibrary)(const char* path)= nullptr;
             void* (*unloadAllContexts)()= nullptr;
@@ -55,6 +62,7 @@ namespace crucible
             static void unloadManagedDllContext(const char* contextName);
             static ManagedInstance newInstance(const ManagedType& type);
             static void freeGCHandle(void* handle);
+            static void getMeshRenderData(ManagedInstance& managedMeshRendererInstance,core::Mesh** mesh, core::Material** material, unsigned char* priority);
         private:
             static bool loadHostFXR();
             static load_assembly_and_get_function_pointer_fn get_dotnet_load_assembly(const char_t *config_path);

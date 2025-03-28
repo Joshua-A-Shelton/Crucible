@@ -1,8 +1,8 @@
 #include "Game.h"
 #include <stb_image.h>
 
+#include "core/Camera.h"
 #include "core/Mesh.h"
-#include "core/MeshRenderer.h"
 #include "core/scenes/World.h"
 #include "scripting/ScriptingEngine.h"
 
@@ -169,22 +169,54 @@ namespace crucible
 
     void Game::draw(slag::CommandBuffer* commandBuffer, slag::Texture* drawBuffer, slag::DescriptorPool* descriptorPool)
     {
+        auto depth = slag::Texture::newTexture(slag::Pixels::D32_FLOAT,slag::Texture::TEXTURE_2D,drawBuffer->width(),drawBuffer->height(),1,1,1,slag::TextureUsageFlags::DEPTH_STENCIL_ATTACHMENT);
         commandBuffer->begin();
+        commandBuffer->bindDescriptorPool(descriptorPool);
+        commandBuffer->setScissors(slag::Rectangle{.offset = {0,0}, .extent = {drawBuffer->width(),drawBuffer->height()}});
+        commandBuffer->setViewPort(0,0,drawBuffer->width(),drawBuffer->height(),0,1);
         commandBuffer->clearColorImage(drawBuffer,{.floats{1.0f,.15f,0.1,1.0f}},slag::Texture::UNDEFINED,slag::Texture::RENDER_TARGET,slag::PipelineStageFlags::NONE,slag::PipelineStageFlags::ALL_COMMANDS);
 
-        slag::Attachment attachment(drawBuffer,slag::Texture::RENDER_TARGET,false);
-        commandBuffer->beginRendering(&attachment,1,nullptr,slag::Rectangle{.offset = {0,0},.extent = {drawBuffer->width(),drawBuffer->height()}});
+        commandBuffer->insertBarrier(slag::ImageBarrier{depth,0,1,0,1,slag::Texture::UNDEFINED,slag::Texture::DEPTH_TARGET,slag::BarrierAccessFlags::NONE,slag::BarrierAccessFlags::DEPTH_STENCIL_READ|slag::BarrierAccessFlags::DEPTH_STENCIL_WRITE,slag::PipelineStageFlags::NONE,slag::PipelineStageFlags::ALL_GRAPHICS});
 
-        commandBuffer->endRendering();
+        slag::Attachment attachment(drawBuffer,slag::Texture::RENDER_TARGET,false);
+        slag::Attachment depthAttachment{depth, slag::Texture::DEPTH_TARGET, true,{0}};
+        commandBuffer->beginRendering(&attachment,1,&depthAttachment,slag::Rectangle{.offset = {0,0},.extent = {drawBuffer->width(),drawBuffer->height()}});
+
+
 
         auto root = core::World::RootNode;
         if (root)
         {
+            auto basicShader = core::ShaderManager::getShaderReference("flat-test");
+            //bind globals
+            glm::vec4 wind(0,0,0,0);
+            slag::Buffer* globals = slag::Buffer::newBuffer(&wind,sizeof(wind),slag::Buffer::CPU_AND_GPU,slag::Buffer::UNIFORM_BUFFER);
+            auto globalBundle = descriptorPool->makeBundle(basicShader.pipeline()->descriptorGroup(0));
+            globalBundle.setUniformBuffer(0,0,globals,0,globals->size());
+            commandBuffer->bindGraphicsDescriptorBundle(basicShader.pipeline(),0,globalBundle);
+            delete globals;
+
+            //bind view
+            slag::Buffer* projectionView = slag::Buffer::newBuffer(sizeof(glm::mat4)*2,slag::Buffer::CPU_AND_GPU,slag::Buffer::UNIFORM_BUFFER);
+            glm::mat4 projectionMatrix = glm::perspective(90.0f,1920.0f/1080.0f,.001f,1000.0f);
+            glm::mat4 viewMatrix = glm::mat4(1.0f);
+            viewMatrix = glm::translate(viewMatrix,glm::vec3(0.0f,0.0f,-5.0f));
+            projectionView->update(0,&projectionMatrix,sizeof(glm::mat4));
+            projectionView->update(sizeof(glm::mat4),&viewMatrix,sizeof(glm::mat4));
+            auto viewBundle = descriptorPool->makeBundle(basicShader.pipeline()->descriptorGroup(1));
+            viewBundle.setUniformBuffer(0,0,projectionView,0,projectionView->size());
+            commandBuffer->bindGraphicsDescriptorBundle(basicShader.pipeline(),1,viewBundle);
+            delete projectionView;
+
+
             core::Transform rootTransform;
             auto transformType = core::World::RegisterOrRetrieveType("Crucible.Core.Transform",sizeof(core::Transform),alignof(core::Transform));
-            auto meshRendererType = core::World::RegisterOrRetrieveType("Crucible.Core.MeshRenderer",sizeof(core::MeshRenderer),alignof(core::MeshRenderer));
-            root->draw(commandBuffer,descriptorPool,&rootTransform,transformType,meshRendererType);
+            auto meshRendererType = core::World::RegisterOrRetrieveScriptingType("Crucible.Core.MeshRenderer");
+            root->registerDraw(descriptorPool,&rootTransform,transformType,meshRendererType);
+            core::World::MeshDrawPass.drawMeshes(commandBuffer);
         }
+
+        commandBuffer->endRendering();
 
         commandBuffer->insertBarrier(slag::ImageBarrier
             {
@@ -202,6 +234,7 @@ namespace crucible
             });
 
         commandBuffer->end();
+        delete depth;
     }
 
     void Game::close()

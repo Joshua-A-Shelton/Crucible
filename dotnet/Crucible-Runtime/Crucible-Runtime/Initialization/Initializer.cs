@@ -17,6 +17,7 @@ public static class Initializer
         public IntPtr InvokeInstanceMethodReturnReference_ptr;
         public IntPtr InvokeInstanceMethodReturnValue_ptr;
         public IntPtr GetType_ptr;
+        public IntPtr GetMeshRenderData_ptr;
         public IntPtr LoadManagedDll_ptr;
         public IntPtr UnloadContext_ptr;
         public IntPtr UnloadAllContexts_ptr;
@@ -42,6 +43,7 @@ public static class Initializer
             args->InvokeInstanceMethodReturnReference_ptr = Marshal.GetFunctionPointerForDelegate(Interop.InvokeInstanceMethodWithReturnValueByReferenceDelegate_ptr);
             args->InvokeInstanceMethodReturnValue_ptr = Marshal.GetFunctionPointerForDelegate(Interop.InvokeInstanceMethodWithReturnValueByValueDelegate_ptr);
             args->GetType_ptr = Marshal.GetFunctionPointerForDelegate(Interop.GetTypeHandle_ptr);
+            args->GetMeshRenderData_ptr = Marshal.GetFunctionPointerForDelegate(Interop.GetMeshRenderData_ptr);
             args->LoadManagedDll_ptr = Marshal.GetFunctionPointerForDelegate(Interop.LoadLibrary_ptr);
             args->UnloadContext_ptr = Marshal.GetFunctionPointerForDelegate(Interop.UnloadLibrary_ptr);
             args->UnloadAllContexts_ptr = Marshal.GetFunctionPointerForDelegate(Interop.UnloadAllContexts_ptr);

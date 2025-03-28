@@ -76,7 +76,7 @@ namespace crucible
 
             void updateNode(double deltaTime);
 
-            void draw(slag::CommandBuffer* commandBuffer, slag::DescriptorPool* descriptorPool, Transform* parentTransform, ecs_entity_t& transformType,ecs_entity_t& meshRendererType);
+            void registerDraw(slag::DescriptorPool* descriptorPool, Transform* parentTransform, ecs_entity_t& transformType,ecs_entity_t& meshRendererType);
 
             static Node* getNodeByID(const boost::uuids::uuid& id);
             friend class crucible::scripting::ScriptingEngine;

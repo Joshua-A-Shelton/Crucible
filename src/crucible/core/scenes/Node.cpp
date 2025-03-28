@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <crucible/core/scenes/World.h>
 
-#include "crucible/core/MeshRenderer.h"
+#include "crucible/core/Material.h"
 
 namespace crucible
 {
@@ -182,7 +182,7 @@ namespace crucible
             }
         }
 
-        void Node::draw(slag::CommandBuffer* commandBuffer, slag::DescriptorPool* descriptorPool, Transform* parentTransform, ecs_entity_t& transformType,ecs_entity_t& meshRendererType)
+        void Node::registerDraw(slag::DescriptorPool* descriptorPool, Transform* parentTransform, ecs_entity_t& transformType,ecs_entity_t& meshRendererType)
         {
             auto nodeTransform = *parentTransform;
             if (_entity.has(transformType))
@@ -193,21 +193,23 @@ namespace crucible
 
             if (_entity.has(meshRendererType))
             {
-                MeshRenderer* renderer = (MeshRenderer*)_entity.get(meshRendererType);
+                scripting::ManagedInstance* rendererManaged = (scripting::ManagedInstance*)_entity.get(meshRendererType);
+                Mesh* mesh = nullptr;
+                Material* material = nullptr;
+                uint8_t priority = 0;
+                scripting::ScriptingEngine::getMeshRenderData(*rendererManaged,&mesh,&material,&priority);
                 auto matr = nodeTransform.matrix();
                 //set position data
-                renderer->setData(0,&matr,sizeof(matr));
-                auto& shader = renderer->shader();
-                slag::DescriptorBundle bundle = descriptorPool->makeBundle(shader.pipeline()->descriptorGroup(2));
-                auto uniformData = renderer->getDrawDescriptorDataAndFlipBufferSides();
-                bundle.setUniformBuffer(0,0,uniformData.buffer,uniformData.offset,uniformData.length);
-                World::MeshDrawPass.registerMeshData(renderer->priority(),renderer->shader(),renderer->mesh(),std::move(bundle));
+                material->setData(0,&matr,sizeof(matr));
+                auto& shader = material->shaderReference();
+                auto bundle = material->makeBundle(descriptorPool);
+                World::MeshDrawPass.registerMeshData(priority,material->shaderReference(),mesh,std::move(bundle));
 
             }
 
             for(auto& child : _children)
             {
-                child->draw(commandBuffer,descriptorPool, &nodeTransform, transformType, meshRendererType);
+                child->registerDraw(descriptorPool, &nodeTransform, transformType, meshRendererType);
             }
 
         }

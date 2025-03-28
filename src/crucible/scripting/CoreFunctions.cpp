@@ -2,6 +2,9 @@
 #include "CoreFunctions.h"
 #include <crucible/core/scenes/World.h>
 
+#include "crucible/core/ModelLoader.h"
+#include <stb_image.h>
+
 namespace crucible
 {
     namespace scripting
@@ -220,6 +223,227 @@ namespace crucible
         void cs_cameraSetPerspective(crucible::core::Camera& camera, bool isPerspective)
         {
             camera.isPerspective(isPerspective);
+        }
+//Mesh
+        void cs_meshInstanceInitializeSerialized(crucible::core::Mesh** mesh, unsigned char* data, uint64_t length)
+        {
+            *mesh = new core::Mesh(data, length);
+        }
+
+        void cs_meshInstanceFromFile(core::Mesh** mesh, const char* file)
+        {
+            core::ModelLoader loader(file);
+            if (loader.meshCount()!=1)
+            {
+                return;
+            }
+            *mesh = loader.nextMesh();
+        }
+
+        void cs_meshInstanceCleanup(crucible::core::Mesh* mesh)
+        {
+            delete mesh;
+        }
+
+//Texture
+        void cs_textureInitFromPath(slag::Texture** texture, const char* file, slag::Pixels::Format format, uint32_t mipLevels)
+        {
+            int x,y,channels;
+            auto data = stbi_load(file, &x, &y, &channels, 4);
+
+            auto commandBuffer = slag::CommandBuffer::newCommandBuffer(slag::GpuQueue::GRAPHICS);
+            *texture = slag::Texture::newTexture(format,slag::Texture::TEXTURE_2D,x,y,mipLevels,1,1,slag::TextureUsageFlags::SAMPLED_IMAGE);
+            slag::Buffer* tempBuffer = slag::Buffer::newBuffer(data,x*y*4*sizeof(char),slag::Buffer::CPU_AND_GPU,slag::Buffer::DATA_BUFFER);
+
+            commandBuffer->begin();
+            commandBuffer->insertBarrier(slag::ImageBarrier
+                {
+                    .texture = *texture,
+                    .baseLayer = 0,
+                    .layerCount = 1,
+                    .baseMipLevel = 0,
+                    .mipCount = mipLevels,
+                    .oldLayout = slag::Texture::Layout::UNDEFINED,
+                    .newLayout = slag::Texture::TRANSFER_DESTINATION,
+                    .accessBefore = slag::BarrierAccessFlags::NONE,
+                    .accessAfter = slag::BarrierAccessFlags::TRANSFER_WRITE,
+                    .syncBefore = slag::PipelineStageFlags::NONE,
+                    .syncAfter = slag::PipelineStageFlags::TRANSFER,
+                });
+            commandBuffer->copyBufferToImage(tempBuffer,0,*texture,slag::Texture::TRANSFER_DESTINATION,0,0);
+            if (mipLevels > 1)
+            {
+                commandBuffer->updateMipChain
+                (
+                    *texture,
+                    0,
+                    slag::Texture::Layout::TRANSFER_DESTINATION,
+                    slag::Texture::SHADER_RESOURCE,
+                    slag::Texture::TRANSFER_DESTINATION,
+                    slag::Texture::SHADER_RESOURCE,
+                    slag::PipelineStageFlags::TRANSFER,
+                    slag::PipelineStageFlags::ALL_COMMANDS
+                );
+            }
+            else
+            {
+                commandBuffer->insertBarrier(slag::ImageBarrier
+                {
+                    .texture = *texture,
+                    .baseLayer = 0,
+                    .layerCount = 1,
+                    .baseMipLevel = 0,
+                    .mipCount = mipLevels,
+                    .oldLayout = slag::Texture::Layout::TRANSFER_DESTINATION,
+                    .newLayout = slag::Texture::SHADER_RESOURCE,
+                    .accessBefore = slag::BarrierAccessFlags::TRANSFER_WRITE,
+                    .accessAfter = slag::BarrierAccessFlags::TRANSFER_READ,
+                    .syncBefore = slag::PipelineStageFlags::TRANSFER,
+                    .syncAfter = slag::PipelineStageFlags::TRANSFER,
+                });
+            }
+
+            commandBuffer->end();
+            slag::SlagLib::graphicsCard()->graphicsQueue()->submit(commandBuffer);
+
+            stbi_image_free(data);
+            commandBuffer->waitUntilFinished();
+            delete commandBuffer;
+        }
+
+        void cs_textureInitFromRaw(slag::Texture** texture, unsigned char* data, slag::Pixels::Format format, uint32_t width,uint32_t height,uint32_t mipLevels)
+        {
+            auto pixelSize = slag::Pixels::pixelBytes(format);
+            auto commandBuffer = slag::CommandBuffer::newCommandBuffer(slag::GpuQueue::GRAPHICS);
+            *texture = slag::Texture::newTexture(format,slag::Texture::TEXTURE_2D,width,height,mipLevels,1,1,slag::TextureUsageFlags::SAMPLED_IMAGE);
+            slag::Buffer* tempBuffer = slag::Buffer::newBuffer(data,width*height*pixelSize,slag::Buffer::CPU_AND_GPU,slag::Buffer::DATA_BUFFER);
+
+            commandBuffer->begin();
+            commandBuffer->insertBarrier(slag::ImageBarrier
+                {
+                    .texture = *texture,
+                    .oldLayout = slag::Texture::Layout::UNDEFINED,
+                    .newLayout = slag::Texture::TRANSFER_DESTINATION,
+                    .accessBefore = slag::BarrierAccessFlags::NONE,
+                    .accessAfter = slag::BarrierAccessFlags::TRANSFER_WRITE,
+                    .syncBefore = slag::PipelineStageFlags::NONE,
+                    .syncAfter = slag::PipelineStageFlags::TRANSFER,
+                });
+            commandBuffer->copyBufferToImage(tempBuffer,0,*texture,slag::Texture::TRANSFER_DESTINATION,0,0);
+            commandBuffer->updateMipChain
+            (
+                *texture,
+                0,
+                slag::Texture::Layout::TRANSFER_DESTINATION,
+                slag::Texture::SHADER_RESOURCE,
+                slag::Texture::TRANSFER_DESTINATION,
+                slag::Texture::SHADER_RESOURCE,
+                slag::PipelineStageFlags::TRANSFER,
+                slag::PipelineStageFlags::ALL_COMMANDS
+            );
+            commandBuffer->end();
+            slag::SlagLib::graphicsCard()->graphicsQueue()->submit(commandBuffer);
+
+            stbi_image_free(data);
+            commandBuffer->waitUntilFinished();
+            delete commandBuffer;
+        }
+
+        void cs_textureCleanResources(slag::Texture* texture)
+        {
+            delete texture;
+        }
+
+        slag::Pixels::Format cs_texturePixelFormat(slag::Texture* texture)
+        {
+            return  texture->format();
+        }
+
+        slag::Texture::Type cs_textureType(slag::Texture* texture)
+        {
+            return  texture->type();
+        }
+
+        uint32_t cs_textureWidth(slag::Texture* texture)
+        {
+            return texture->width();
+        }
+
+        uint32_t cs_textureHeight(slag::Texture* texture)
+        {
+            return texture->height();
+        }
+
+        uint32_t cs_textureDepth(slag::Texture* texture)
+        {
+            return texture->layers();
+        }
+
+        uint32_t cs_textureMipMapLevels(slag::Texture* texture)
+        {
+            return texture->mipLevels();
+        }
+//Materials
+        void cs_materialInitialize(core::Material** material, const char* shaderName)
+        {
+            *material = new core::Material(shaderName);
+        }
+
+        void cs_materialCleanup(core::Material* material)
+        {
+            delete material;
+        }
+
+        bool cs_materialHasUniform(core::Material* material, const char* uniformName)
+        {
+            return material->hasUniform(uniformName);
+        }
+
+        bool cs_materialHasTexture(core::Material* material, const char* textureName)
+        {
+            return material->hasTexture(textureName);
+        }
+
+        void cs_materialSetUniform(core::Material* material, const char* uniformName, unsigned char* data, uint32_t length)
+        {
+            material->setData(material->offsetOfBuffer(uniformName), data, length);
+        }
+
+        void cs_materialSetTexture(core::Material* material, const char* textureName, slag::Texture* texture)
+        {
+            material->setTexture(textureName, texture);
+        }
+
+        uint32_t cs_materialGetUniformCount(core::Material* material)
+        {
+            return material->uniformCount();
+        }
+
+        uint32_t cs_materialGetTextureCount(core::Material* material)
+        {
+            return material->textureCount();
+        }
+
+        int32_t cs_materialGetUniformNameSize(core::Material* material, uint32_t index)
+        {
+            return material->uniformBufferName(index).size();
+        }
+
+        int32_t cs_materialGetTextureNameSize(core::Material* material, uint32_t index)
+        {
+            return material->textureName(index).size();
+        }
+
+        void cs_materialGetUniformNamePtr(core::Material* material, uint32_t index,char* name, int32_t length)
+        {
+            auto cppName = material->uniformBufferName(index);
+            memcpy(name, cppName.c_str(), length);
+        }
+
+        void cs_materialGetTextureNamePtr(core::Material* material, uint32_t index, char* name, int32_t length)
+        {
+            auto cppName = material->textureName(index);
+            memcpy(name, cppName.c_str(), length);
         }
 
     } // scripting

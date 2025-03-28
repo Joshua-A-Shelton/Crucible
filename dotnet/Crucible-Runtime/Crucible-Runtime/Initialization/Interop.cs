@@ -7,6 +7,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
+using Crucible.Core;
 
 namespace Crucible.Initialization;
 
@@ -263,6 +264,20 @@ internal static unsafe class Interop
         }
 
     }
+    
+    public delegate void GetMeshRenderDataDelegate(IntPtr meshRendererManagedReference, ref IntPtr mesh, ref IntPtr material, ref byte priority);
+
+    public static GetMeshRenderDataDelegate GetMeshRenderData_ptr = GetMeshRenderData;
+
+    public static void GetMeshRenderData(IntPtr meshRendererManagedReference, ref IntPtr mesh, ref IntPtr material, ref byte priority)
+    {
+        var inst = GCHandle.FromIntPtr(meshRendererManagedReference);
+        MeshRenderer meshRenderer = (MeshRenderer)inst.Target;
+        mesh = meshRenderer.Mesh._pointer;
+        material = meshRenderer.Material._materialPointer;
+        priority = meshRenderer.Priority;
+    }
+    
     
     internal static Assembly? ResolveAssembly(AssemblyLoadContext? context, AssemblyName assemblyName)
     {

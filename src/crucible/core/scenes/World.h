@@ -18,6 +18,7 @@ namespace crucible
             static ecs_entity_t RegisterOrRetrieveType(const char* typeName, size_t typeSize, size_t typeAlignment);
             static ecs_entity_t RegisterOrRetrieveScriptingType(const char* typeName);
             inline static MeshPass MeshDrawPass;
+
         };
 
     } // core

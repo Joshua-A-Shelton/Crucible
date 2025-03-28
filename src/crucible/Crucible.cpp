@@ -3,6 +3,7 @@
 #include <SDL3/SDL.h>
 #include <iostream>
 
+#include "core/Material.h"
 #include "core/scenes/World.h"
 #include "scripting/ScriptingEngine.h"
 
@@ -58,6 +59,7 @@ namespace crucible
             return false;
         }
         scripting::ScriptingEngine::initialize();
+        core::Material::initialize();
         crucible::core::World::RootNode = new core::Node(nullptr);
         return true;
     }
@@ -69,6 +71,7 @@ namespace crucible
             delete crucible::core::World::RootNode;
         }
         scripting::ScriptingEngine::cleanup();
+        core::Material::cleanup();
         SlagLib::cleanup();
         SDL_Quit();
     }
