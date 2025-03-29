@@ -226,7 +226,7 @@ namespace crucible
                 {
                     frameBufferDescription.addColorTarget(format);
                 }
-                else if (line.substr(0,8)=="#depth ")
+                else if (substr=="#depth ")
                 {
                     frameBufferDescription.setDepthTarget(format);
                 }
@@ -289,7 +289,10 @@ namespace crucible
         slag::ShaderProperties ShaderManager::getShaderProperties(unsigned char*& pointer, const unsigned char* lastInFile)
         {
             //TODO: actually set properties
-            return slag::ShaderProperties();
+            slag::ShaderProperties shaderProperties;
+            shaderProperties.rasterizationState.culling = slag::RasterizationState::BACK_FACING;
+            shaderProperties.rasterizationState.frontFacing = slag::RasterizationState::COUNTER_CLOCKWISE;
+            return shaderProperties;
         }
 
         std::vector<slag::ShaderModule> ShaderManager::getShaderModules(unsigned char*& pointer, const unsigned char* lastInFile)

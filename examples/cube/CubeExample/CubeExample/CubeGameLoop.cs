@@ -36,6 +36,6 @@ public class CubeGameLoop: GameLoop
 
     private void spinModel(ref Transform modelTransform, double deltaTime)
     {
-        modelTransform.Rotate((float)(2*3.14159f*deltaTime), new Vector3(0,1,0));
+        modelTransform.Rotate((float)(3.14159f*deltaTime), new Vector3(0,1,0));
     }
 }

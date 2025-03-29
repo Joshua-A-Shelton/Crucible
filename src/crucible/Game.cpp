@@ -179,7 +179,7 @@ namespace crucible
         commandBuffer->insertBarrier(slag::ImageBarrier{depth,0,1,0,1,slag::Texture::UNDEFINED,slag::Texture::DEPTH_TARGET,slag::BarrierAccessFlags::NONE,slag::BarrierAccessFlags::DEPTH_STENCIL_READ|slag::BarrierAccessFlags::DEPTH_STENCIL_WRITE,slag::PipelineStageFlags::NONE,slag::PipelineStageFlags::ALL_GRAPHICS});
 
         slag::Attachment attachment(drawBuffer,slag::Texture::RENDER_TARGET,false);
-        slag::Attachment depthAttachment{depth, slag::Texture::DEPTH_TARGET, true,{0}};
+        slag::Attachment depthAttachment{depth, slag::Texture::DEPTH_TARGET, true,{1}};
         commandBuffer->beginRendering(&attachment,1,&depthAttachment,slag::Rectangle{.offset = {0,0},.extent = {drawBuffer->width(),drawBuffer->height()}});
 
 
