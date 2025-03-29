@@ -309,6 +309,7 @@ namespace crucible
             stbi_image_free(data);
             commandBuffer->waitUntilFinished();
             delete commandBuffer;
+            delete tempBuffer;
         }
 
         void cs_textureInitFromRaw(slag::Texture** texture, unsigned char* data, slag::Pixels::Format format, uint32_t width,uint32_t height,uint32_t mipLevels)
@@ -347,6 +348,7 @@ namespace crucible
             stbi_image_free(data);
             commandBuffer->waitUntilFinished();
             delete commandBuffer;
+            delete tempBuffer;
         }
 
         void cs_textureCleanResources(slag::Texture* texture)

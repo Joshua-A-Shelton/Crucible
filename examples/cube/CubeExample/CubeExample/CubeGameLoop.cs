@@ -4,7 +4,6 @@ namespace CubeExample;
 
 public class CubeGameLoop: GameLoop
 {
-    private Texture cubeTexture = null;
     public override void Initialize()
     {
         Console.WriteLine("Initializing Cube Example");
@@ -15,7 +14,7 @@ public class CubeGameLoop: GameLoop
         Transform modelTransform = new Transform();
         model.AddDataComponent(modelTransform);
         
-        MeshRenderer meshRenderer = new MeshRenderer("resources\\cube.cmodel","flat-test",0);
+        MeshRenderer meshRenderer = new MeshRenderer("resources/cube.cmodel","flat-test",0);
         model.AddReferenceComponent(meshRenderer);
         
         var camera = root.AddChild("Camera");
@@ -25,7 +24,7 @@ public class CubeGameLoop: GameLoop
         cameraTransform.Translate(0,0,-10f);
         camera.AddDataComponent(cameraTransform);
         
-        cubeTexture = new Texture("resources\\cube.png",Texture.Format.R8G8B8A8_UNORM,1);
+        var cubeTexture = new Texture("resources/cube.png",Texture.Format.R8G8B8A8_UNORM,1);
         meshRenderer.Material.SetTexture(meshRenderer.Material.GetTextureName(0), cubeTexture);
     }
 

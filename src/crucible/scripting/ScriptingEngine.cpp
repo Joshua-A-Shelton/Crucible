@@ -35,6 +35,7 @@ namespace crucible
         hostfxr_initialize_for_runtime_config_fn init_for_config_fptr = nullptr;
         hostfxr_get_runtime_delegate_fn get_delegate_fptr = nullptr;
         hostfxr_close_fn close_fptr = nullptr;
+        hostfxr_handle host_handle = nullptr;
         // Forward declarations
         void *load_library(const char_t *);
         void *get_export(void *, const char *);
@@ -157,7 +158,8 @@ namespace crucible
                 throw std::runtime_error("Get delegate failed:");
             }
 
-            close_fptr(cxt);
+            //close_fptr(cxt);
+            host_handle = cxt;
             return (load_assembly_and_get_function_pointer_fn)load_assembly_and_get_function_pointer;
         }
 
@@ -241,7 +243,15 @@ namespace crucible
 
         void ScriptingEngine::cleanup()
         {
+            auto gameManagerType = scripting::ScriptingEngine::getManagedType("Crucible.Core.GameManager");
+            auto cleanup = gameManagerType.getFunction<void(*)()>("CleanUp");
+            cleanup();
+
             Interop::managedFunctionPointers.unloadAllContexts();
+            if (host_handle)
+            {
+                close_fptr(host_handle);
+            }
         }
 
 

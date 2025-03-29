@@ -40,6 +40,13 @@ public unsafe static class GameManager
     {
         _loop.Update(deltaTime);
     }
+
+    private static void CleanUp()
+    {
+        _loop = null;
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+    }
     
 #pragma warning disable 0649
     private static delegate* unmanaged<ref NodePointer, void> _gameManagerGetRootNode_ptr;

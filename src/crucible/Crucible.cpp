@@ -61,6 +61,7 @@ namespace crucible
         scripting::ScriptingEngine::initialize();
         core::Material::initialize();
         crucible::core::World::RootNode = new core::Node(nullptr);
+        crucible::core::World::MeshDrawPass = new core::MeshPass();
         return true;
     }
 
@@ -70,8 +71,10 @@ namespace crucible
         {
             delete crucible::core::World::RootNode;
         }
-        scripting::ScriptingEngine::cleanup();
+        delete core::World::MeshDrawPass;
+        core::World::MeshDrawPass = nullptr;
         core::Material::cleanup();
+        scripting::ScriptingEngine::cleanup();
         SlagLib::cleanup();
         SDL_Quit();
     }

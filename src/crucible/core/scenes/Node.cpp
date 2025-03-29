@@ -203,7 +203,7 @@ namespace crucible
                 material->setData(0,&matr,sizeof(matr));
                 auto& shader = material->shaderReference();
                 auto bundle = material->makeBundle(descriptorPool);
-                World::MeshDrawPass.registerMeshData(priority,material->shaderReference(),mesh,std::move(bundle));
+                World::MeshDrawPass->registerMeshData(priority,material->shaderReference(),mesh,std::move(bundle));
 
             }
 

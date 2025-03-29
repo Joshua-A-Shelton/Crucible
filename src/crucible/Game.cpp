@@ -200,7 +200,7 @@ namespace crucible
             slag::Buffer* projectionView = slag::Buffer::newBuffer(sizeof(glm::mat4)*2,slag::Buffer::CPU_AND_GPU,slag::Buffer::UNIFORM_BUFFER);
             glm::mat4 projectionMatrix = glm::perspective(90.0f,1920.0f/1080.0f,.001f,1000.0f);
             glm::mat4 viewMatrix = glm::mat4(1.0f);
-            viewMatrix = glm::translate(viewMatrix,glm::vec3(0.0f,0.0f,-5.0f));
+            viewMatrix = glm::translate(viewMatrix,glm::vec3(1.0f,0.0f,-5.0f));
             projectionView->update(0,&projectionMatrix,sizeof(glm::mat4));
             projectionView->update(sizeof(glm::mat4),&viewMatrix,sizeof(glm::mat4));
             auto viewBundle = descriptorPool->makeBundle(basicShader.pipeline()->descriptorGroup(1));
@@ -213,7 +213,7 @@ namespace crucible
             auto transformType = core::World::RegisterOrRetrieveType("Crucible.Core.Transform",sizeof(core::Transform),alignof(core::Transform));
             auto meshRendererType = core::World::RegisterOrRetrieveScriptingType("Crucible.Core.MeshRenderer");
             root->registerDraw(descriptorPool,&rootTransform,transformType,meshRendererType);
-            core::World::MeshDrawPass.drawMeshes(commandBuffer);
+            core::World::MeshDrawPass->drawMeshes(commandBuffer);
         }
 
         commandBuffer->endRendering();
