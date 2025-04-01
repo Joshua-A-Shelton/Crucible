@@ -55,7 +55,7 @@ namespace crucible
                 auto& info = attributeInfo[i];
                 _attributeStreams[i] = VertexAttributeStream(info.data,info.dataLength,info.accessibility);
             });
-            _indexBuffer = slag::Buffer::newBuffer(indexes,indexBufferLength,slag::Buffer::GPU,slag::Buffer::VERTEX_BUFFER);
+            _indexBuffer = slag::Buffer::newBuffer(indexes,indexBufferLength,slag::Buffer::GPU,slag::Buffer::INDEX_BUFFER);
             _indexSize = indexType;
         }
 

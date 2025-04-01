@@ -277,6 +277,17 @@ internal static unsafe class Interop
         material = meshRenderer.Material._materialPointer;
         priority = meshRenderer.Priority;
     }
+
+    public delegate void GetCameraDelegate(IntPtr cameraManagedReference, ref IntPtr camera);
+
+    public static GetCameraDelegate GetCamera_ptr = GetCamera;
+
+    public static void GetCamera(IntPtr cameraManagedReference, ref IntPtr camera)
+    {
+        var inst = GCHandle.FromIntPtr(cameraManagedReference);
+        Camera managedCamera = (Camera)inst.Target;
+        camera = managedCamera._cameraPtr;
+    }
     
     
     internal static Assembly? ResolveAssembly(AssemblyLoadContext? context, AssemblyName assemblyName)

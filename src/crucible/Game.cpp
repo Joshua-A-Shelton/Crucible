@@ -105,6 +105,8 @@ namespace crucible
         int w,h;
         SDL_GetWindowSize(_window,&w,&h);
         _swapChain = slag::Swapchain::newSwapchain(platformData, w, h, 3, slag::Swapchain::MAILBOX, slag::Pixels::B8G8R8A8_UNORM_SRGB, CRUCIBLE_GAME_RESOURCE_CREATE);
+        ecs_query_desc_t queryDesc{.terms = {{core::NodeECSReference::NodeEcsReferenceID()}, {core::World::RegisterOrRetrieveScriptingType("Crucible.Core.Camera")}}};
+        _cameraQuery= ecs_query_init(core::World::ECS.world_, &queryDesc);
 
     }
 
@@ -122,6 +124,8 @@ namespace crucible
         {
             delete _swapChain;
         }
+
+        ecs_query_fini(_cameraQuery);
     }
 
     Game::Game(Game&& from)
@@ -169,20 +173,9 @@ namespace crucible
 
     void Game::draw(slag::CommandBuffer* commandBuffer, slag::Texture* drawBuffer, slag::DescriptorPool* descriptorPool)
     {
-        auto depth = slag::Texture::newTexture(slag::Pixels::D32_FLOAT,slag::Texture::TEXTURE_2D,drawBuffer->width(),drawBuffer->height(),1,1,1,slag::TextureUsageFlags::DEPTH_STENCIL_ATTACHMENT);
         commandBuffer->begin();
         commandBuffer->bindDescriptorPool(descriptorPool);
-        commandBuffer->setScissors(slag::Rectangle{.offset = {0,0}, .extent = {drawBuffer->width(),drawBuffer->height()}});
-        commandBuffer->setViewPort(0,0,drawBuffer->width(),drawBuffer->height(),0,1);
-        commandBuffer->clearColorImage(drawBuffer,{.floats{1.0f,.15f,0.1,1.0f}},slag::Texture::UNDEFINED,slag::Texture::RENDER_TARGET,slag::PipelineStageFlags::NONE,slag::PipelineStageFlags::ALL_COMMANDS);
-
-        commandBuffer->insertBarrier(slag::ImageBarrier{depth,0,1,0,1,slag::Texture::UNDEFINED,slag::Texture::DEPTH_TARGET,slag::BarrierAccessFlags::NONE,slag::BarrierAccessFlags::DEPTH_STENCIL_READ|slag::BarrierAccessFlags::DEPTH_STENCIL_WRITE,slag::PipelineStageFlags::NONE,slag::PipelineStageFlags::ALL_GRAPHICS});
-
-        slag::Attachment attachment(drawBuffer,slag::Texture::RENDER_TARGET,false);
-        slag::Attachment depthAttachment{depth, slag::Texture::DEPTH_TARGET, true,{1}};
-        commandBuffer->beginRendering(&attachment,1,&depthAttachment,slag::Rectangle{.offset = {0,0},.extent = {drawBuffer->width(),drawBuffer->height()}});
-
-
+        slag::Texture* mainTexture = nullptr;
 
         auto root = core::World::RootNode;
         if (root)
@@ -196,27 +189,143 @@ namespace crucible
             commandBuffer->bindGraphicsDescriptorBundle(basicShader.pipeline(),0,globalBundle);
             delete globals;
 
-            //bind view
-            slag::Buffer* projectionView = slag::Buffer::newBuffer(sizeof(glm::mat4)*2,slag::Buffer::CPU_AND_GPU,slag::Buffer::UNIFORM_BUFFER);
-            glm::mat4 projectionMatrix = glm::perspective(90.0f,1920.0f/1080.0f,.001f,1000.0f);
-            glm::mat4 viewMatrix = glm::mat4(1.0f);
-            viewMatrix = glm::translate(viewMatrix,glm::vec3(1.0f,0.0f,-5.0f));
-            projectionView->update(0,&projectionMatrix,sizeof(glm::mat4));
-            projectionView->update(sizeof(glm::mat4),&viewMatrix,sizeof(glm::mat4));
-            auto viewBundle = descriptorPool->makeBundle(basicShader.pipeline()->descriptorGroup(1));
-            viewBundle.setUniformBuffer(0,0,projectionView,0,projectionView->size());
-            commandBuffer->bindGraphicsDescriptorBundle(basicShader.pipeline(),1,viewBundle);
-            delete projectionView;
+            struct RenderCameraReference
+            {
+                core::Node* node;
+                core::Camera* camera;
+                static bool compare(RenderCameraReference& a, RenderCameraReference& b)
+                {
+                    return core::Camera::compare(a.camera,b.camera);
+                }
+            };
+            std::vector<RenderCameraReference> cameras;
+            ecs_iter_t iter = ecs_query_iter(core::World::ECS.world_,_cameraQuery);
+            while (ecs_query_next(&iter))
+            {
+                auto nodes = ((static_cast<core::NodeECSReference*>(ecs_field_w_size(&iter, sizeof(core::NodeECSReference), 0))));
 
+                auto cameraInstances = ((static_cast<scripting::ManagedInstance*>(ecs_field_w_size(&iter, sizeof(scripting::ManagedInstance), 1))));
+                for (int i=0; i< iter.count; i++)
+                {
+                    auto& node = nodes[i];
+                    auto& cameraInstance = cameraInstances[i];
+                    auto camera = scripting::ScriptingEngine::getCamera(cameraInstance);
+                    cameras.push_back({.node= node.node,.camera = camera});
+                }
+            }
 
-            core::Transform rootTransform;
+            std::sort(cameras.begin(),cameras.end(),RenderCameraReference::compare);
             auto transformType = core::World::RegisterOrRetrieveType("Crucible.Core.Transform",sizeof(core::Transform),alignof(core::Transform));
             auto meshRendererType = core::World::RegisterOrRetrieveScriptingType("Crucible.Core.MeshRenderer");
-            root->registerDraw(descriptorPool,&rootTransform,transformType,meshRendererType);
-            core::World::MeshDrawPass->drawMeshes(commandBuffer);
+            for (auto camera: cameras)
+            {
+                auto color = camera.camera->colorTarget();
+                auto depth = camera.camera->depthTarget();
+                auto node = camera.node;
+
+                commandBuffer->setScissors(slag::Rectangle{.offset = {0,0}, .extent = {color->width(),color->height()}});
+                commandBuffer->setViewPort(0,0,color->width(),color->height(),0,1);
+                slag::ImageBarrier imageBarriers[2];
+                imageBarriers[0] = slag::ImageBarrier
+                    {
+                        .texture = color,
+                        .baseLayer = 0,
+                        .layerCount = 1,
+                        .baseMipLevel = 0,
+                        .mipCount = 1,
+                        .oldLayout = slag::Texture::UNDEFINED,
+                        .newLayout = slag::Texture::RENDER_TARGET,
+                        .accessBefore = slag::BarrierAccessFlags::NONE,
+                        .accessAfter = slag::BarrierAccessFlags::SHADER_WRITE,
+                        .syncBefore = slag::PipelineStageFlags::NONE,
+                        .syncAfter = slag::PipelineStageFlags::ALL_GRAPHICS
+                    };
+                imageBarriers[1] = slag::ImageBarrier
+                    {
+                        .texture = depth,
+                        .baseLayer = 0,
+                        .layerCount = 1,
+                        .baseMipLevel = 0,
+                        .mipCount = 1,
+                        .oldLayout = slag::Texture::UNDEFINED,
+                        .newLayout = slag::Texture::DEPTH_TARGET,
+                        .accessBefore = slag::BarrierAccessFlags::NONE,
+                        .accessAfter = slag::BarrierAccessFlags::SHADER_WRITE,
+                        .syncBefore = slag::PipelineStageFlags::NONE,
+                        .syncAfter = slag::PipelineStageFlags::ALL_GRAPHICS
+                    };
+
+                commandBuffer->insertBarriers(imageBarriers,2,nullptr,0,nullptr,0);
+
+                slag::Attachment attachment(color,slag::Texture::RENDER_TARGET,true,{1.0f,.15f,.1f,1.0f});
+                slag::Attachment depthAttachment{depth, slag::Texture::DEPTH_TARGET, true,{1}};
+                commandBuffer->beginRendering(&attachment,1,&depthAttachment,slag::Rectangle{.offset = {0,0},.extent = {color->width(),color->height()}});
+
+                //bind view
+                slag::Buffer* projectionView = slag::Buffer::newBuffer(sizeof(glm::mat4)*2,slag::Buffer::CPU_AND_GPU,slag::Buffer::UNIFORM_BUFFER);
+                glm::mat4 projectionMatrix = glm::perspective(90.0f,1920.0f/1080.0f,.001f,1000.0f);
+                auto cameraTransform = core::Transform::cumulativeFrom(node);
+                glm::mat4 viewMatrix = glm::inverse(cameraTransform.matrix());
+                projectionView->update(0,&projectionMatrix,sizeof(glm::mat4));
+                projectionView->update(sizeof(glm::mat4),&viewMatrix,sizeof(glm::mat4));
+                auto viewBundle = descriptorPool->makeBundle(basicShader.pipeline()->descriptorGroup(1));
+                viewBundle.setUniformBuffer(0,0,projectionView,0,projectionView->size());
+                commandBuffer->bindGraphicsDescriptorBundle(basicShader.pipeline(),1,viewBundle);
+                delete projectionView;
+
+
+                core::Transform rootTransform;
+
+                root->registerDraw(descriptorPool,&rootTransform,transformType,meshRendererType);
+                core::World::MeshDrawPass->drawMeshes(commandBuffer);
+                commandBuffer->endRendering();
+
+                //TODO: there's got to be a better way to flag the camera as the main one, but for now, if it's the last one, it'll be set here
+                mainTexture = color;
+
+            }
         }
 
-        commandBuffer->endRendering();
+        slag::Texture::Layout finalImageLayout = slag::Texture::UNDEFINED;
+
+        if (mainTexture)
+        {
+            slag::ImageBarrier imageBarriers[2];
+            imageBarriers[0] = slag::ImageBarrier
+            {
+                .texture = drawBuffer,
+                .baseLayer = 0,
+                .layerCount = 1,
+                .baseMipLevel = 0,
+                .mipCount = 1,
+                .oldLayout = slag::Texture::UNDEFINED,
+                .newLayout = slag::Texture::TRANSFER_DESTINATION,
+                .accessBefore = slag::BarrierAccessFlags::NONE,
+                .accessAfter = slag::BarrierAccessFlags::TRANSFER_WRITE,
+                .syncBefore = slag::PipelineStageFlags::NONE,
+                .syncAfter = slag::PipelineStageFlags::TRANSFER,
+            };
+            imageBarriers[1] = slag::ImageBarrier
+            {
+                .texture = mainTexture,
+                .baseLayer = 0,
+                .layerCount = 1,
+                .baseMipLevel = 0,
+                .mipCount = 1,
+                .oldLayout = slag::Texture::RENDER_TARGET,
+                .newLayout = slag::Texture::TRANSFER_SOURCE,
+                .accessBefore = slag::BarrierAccessFlags::SHADER_WRITE,
+                .accessAfter = slag::BarrierAccessFlags::TRANSFER_READ,
+                .syncBefore = slag::PipelineStageFlags::ALL_GRAPHICS,
+                .syncAfter = slag::PipelineStageFlags::TRANSFER,
+            };
+            commandBuffer->insertBarriers(imageBarriers,2,nullptr,0,nullptr,0);
+            commandBuffer->blit(mainTexture,slag::Texture::TRANSFER_SOURCE,0,0,slag::Rectangle{.extent = {mainTexture->width(),mainTexture->height()}},drawBuffer,slag::Texture::TRANSFER_DESTINATION,0,0,slag::Rectangle{.extent = {drawBuffer->width(),drawBuffer->height()}},slag::Sampler::NEAREST);
+
+            finalImageLayout = slag::Texture::TRANSFER_DESTINATION;
+        }
+
+
 
         commandBuffer->insertBarrier(slag::ImageBarrier
             {
@@ -225,16 +334,15 @@ namespace crucible
                 .layerCount = 1,
                 .baseMipLevel = 0,
                 .mipCount = 1,
-                .oldLayout = slag::Texture::RENDER_TARGET,
+                .oldLayout = finalImageLayout,
                 .newLayout = slag::Texture::PRESENT,
-                .accessBefore = slag::BarrierAccessFlags::COLOR_ATTACHMENT_WRITE,
+                .accessBefore = slag::BarrierAccessFlags::TRANSFER_WRITE,
                 .accessAfter = slag::BarrierAccessFlags::TRANSFER_READ,
                 .syncBefore = slag::PipelineStageFlags::ALL_GRAPHICS,
                 .syncAfter = slag::PipelineStageFlags::TRANSFER,
             });
 
         commandBuffer->end();
-        delete depth;
     }
 
     void Game::close()

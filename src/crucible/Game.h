@@ -5,6 +5,8 @@
 #include <slag/SlagLib.h>
 #include <filesystem>
 
+#include "flecs.h"
+
 namespace crucible
 {
 
@@ -36,6 +38,7 @@ namespace crucible
         void close();
     private:
         bool _keepOpen = true;
+        ecs_query_t* _cameraQuery = nullptr;
 
     };
 

@@ -5,10 +5,16 @@ namespace Crucible.Core;
 public unsafe class Material
 {
     internal IntPtr _materialPointer = IntPtr.Zero;
+    private Dictionary<string,Texture?> _textures = new Dictionary<string, Texture?>();
 
     public Material(string shaderName)
     {
         _materialInitialize_ptr(ref _materialPointer, shaderName);
+        var textureNamesCount = TextureCount;
+        for (UInt32 i = 0; i < textureNamesCount; i++)
+        {
+            _textures[GetTextureName(i)] = null;
+        }
     }
 
     ~Material()
@@ -51,6 +57,7 @@ public unsafe class Material
             throw new KeyNotFoundException("No texture named " + textureName + " was found for this material");
         }
         _materialSetTexture_ptr(_materialPointer, textureName, texture.LowLevelHandle);
+        _textures[textureName] = texture;
     }
     
     public UInt32 UniformCount{get{return _materialGetUniformCount_ptr(_materialPointer);}}

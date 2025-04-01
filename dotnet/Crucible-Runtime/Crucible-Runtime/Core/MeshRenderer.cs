@@ -2,9 +2,9 @@ namespace Crucible.Core;
 
 public class MeshRenderer
 {
-    public MeshInstance Mesh { get; private set; }
-    public Material Material { get; private set; }
-    public byte Priority { get; private set; }
+    public MeshInstance Mesh { get; set; }
+    public Material Material { get; set; }
+    public byte Priority { get; set; }
     
     public MeshRenderer(MeshInstance mesh, string shader, byte priority)
     {

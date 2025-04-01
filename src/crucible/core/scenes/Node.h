@@ -93,6 +93,13 @@ namespace crucible
 
         };
 
+        class NodeECSReference
+        {
+        public:
+            Node* node=nullptr;
+            static ecs_entity_t NodeEcsReferenceID();
+        };
+
     } // core
 } // crucible
 

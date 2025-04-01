@@ -1,12 +1,13 @@
 #include "Camera.h"
 
 #include <glm/ext/matrix_clip_space.hpp>
+#include "scenes/World.h"
 
 namespace crucible
 {
     namespace core
     {
-        Camera::Camera(float near, float far, float fov, float width, float height, bool isPerspective)
+        Camera::Camera(float near, float far, float fov, float width, float height, bool isPerspective, uint8_t renderOrder, uint32_t textureWidth, uint32_t textureHeight, slag::Pixels::Format colorFormat, uint8_t multiSamplePixels)
         {
             _nearPlane = near;
             _farPlane = far;
@@ -14,33 +15,34 @@ namespace crucible
             _width = width;
             _height = height;
             _isPerspective = isPerspective;
+            _renderOrder = renderOrder;
             recalcMatrix();
+            _colorTarget = slag::Texture::newTexture(colorFormat,slag::Texture::TEXTURE_2D,textureWidth,textureHeight,1,1,multiSamplePixels,slag::TextureUsageFlags::RENDER_TARGET_ATTACHMENT | slag::TextureUsageFlags::SAMPLED_IMAGE);
+            _depthTarget = slag::Texture::newTexture(slag::Pixels::D32_FLOAT,slag::Texture::TEXTURE_2D,textureWidth,textureHeight,1,1,multiSamplePixels,slag::TextureUsageFlags::DEPTH_STENCIL_ATTACHMENT);
+            _allCameras.emplace_back(this);
 
         }
 
-        Camera::Camera(const Camera& camera)
+        Camera::~Camera()
         {
-            copy(camera);
+            delete _colorTarget;
+            delete _depthTarget;
+            _allCameras.erase(std::find(_allCameras.begin(), _allCameras.end(), this));
         }
 
-        Camera& Camera::operator=(const Camera& camera)
-        {
-            copy(camera);
-            return *this;
-        }
 
         Camera::Camera(Camera&& camera)
         {
-            copy(camera);
+            move(camera);
         }
 
         Camera& Camera::operator=(Camera&& camera)
         {
-            copy(camera);
+            move(camera);
             return *this;
         }
 
-        void Camera::copy(const Camera& camera)
+        void Camera::move(Camera& camera)
         {
             _nearPlane = camera._nearPlane;
             _farPlane = camera._farPlane;
@@ -49,6 +51,11 @@ namespace crucible
             _height = camera._height;
             _isPerspective = camera._isPerspective;
             _projectionMatrix = camera._projectionMatrix;
+            _renderOrder = camera._renderOrder;
+            std::swap(_colorTarget,camera._colorTarget);
+            std::swap(_depthTarget,camera._depthTarget);
+            _allCameras.erase(std::find(_allCameras.begin(), _allCameras.end(), &camera));
+            _allCameras.emplace_back(this);
         }
 
         float Camera::nearPlane() const
@@ -115,6 +122,36 @@ namespace crucible
         {
             _isPerspective = value;
             recalcMatrix();
+        }
+
+        uint8_t Camera::renderOrder() const
+        {
+            return _renderOrder;
+        }
+
+        void Camera::renderOrder(uint8_t value)
+        {
+            _renderOrder = value;
+        }
+
+        slag::Texture* Camera::colorTarget() const
+        {
+            return _colorTarget;
+        }
+
+        slag::Texture* Camera::depthTarget() const
+        {
+            return _depthTarget;
+        }
+
+        const std::vector<core::Camera*>& Camera::cameras()
+        {
+            return _allCameras;
+        }
+
+        bool Camera::compare(core::Camera* a, core::Camera* b)
+        {
+            return a->_renderOrder < b->_renderOrder;
         }
 
 

@@ -48,17 +48,12 @@ DELEGATE(Crucible.Core.Transform, void, _transformDecatTransforms_ptr, cs_Transf
 DELEGATE(Crucible.Core.Transform, void, _transformToGlobal_ptr, cs_TransformToGlobal, crucible::core::Transform& transform1, crucible::core::Node* relativeTo, crucible::core::Transform& out)\
 DELEGATE(Crucible.Core.Transform, void, _transformInverse_ptr, cs_TransformInverse, crucible::core::Transform& transform, crucible::core::Transform& out)\
 \
-DELEGATE(Crucible.Core.Camera, void, _cameraSetNearPlane_ptr, cs_cameraSetNearPlane, crucible::core::Camera& camera, float nearPlane)\
-DELEGATE(Crucible.Core.Camera, void, _cameraSetFarPlane_ptr, cs_cameraSetFarPlane, crucible::core::Camera& camera, float farPlane)\
-DELEGATE(Crucible.Core.Camera, void, _cameraSetFOV_ptr, cs_cameraSetFOV, crucible::core::Camera& camera, float fov)\
-DELEGATE(Crucible.Core.Camera, void, _cameraSetWidth_ptr, cs_cameraSetWidth, crucible::core::Camera& camera, float width)\
-DELEGATE(Crucible.Core.Camera, void, _cameraSetHeight_ptr, cs_cameraSetHeight, crucible::core::Camera& camera, float height)\
-DELEGATE(Crucible.Core.Camera, void, _cameraSetPerspective_ptr, cs_cameraSetPerspective, crucible::core::Camera& camera, bool isPerspective)\
-\
 DELEGATE(Crucible.Core.MeshInstance, void, _meshInstanceInitializeSerialized_ptr, cs_meshInstanceInitializeSerialized, core::Mesh**, unsigned char*, uint64_t)\
 DELEGATE(Crucible.Core.MeshInstance, void, _meshInstanceFromFile_ptr, cs_meshInstanceFromFile, core::Mesh**, const char*)\
+DELEGATE(Crucible.Core.MeshInstance, void, _meshInstanceFromMemory_ptr, cs_meshInstanceFromMemory, core::Mesh**, unsigned char*, uint32_t, slag::Buffer::IndexSize, unsigned char*, uint32_t, unsigned char*, uint32_t, unsigned char*, uint32_t, unsigned char*, uint32_t, unsigned char*, uint32_t)\
 DELEGATE(Crucible.Core.MeshInstance, void, _meshInstanceCleanup_ptr, cs_meshInstanceCleanup, core::Mesh*)\
 \
+DELEGATE(Crucible.Core.Texture, void, _textureInitBlank_ptr, cs_textureInitBlank, slag::Texture**, slag::Texture::Type, slag::Pixels::Format, uint32_t, uint32_t, uint32_t, uint32_t, uint8_t, bool, bool, bool)\
 DELEGATE(Crucible.Core.Texture, void, _textureInitFromPath_ptr, cs_textureInitFromPath, slag::Texture**, const char*, slag::Pixels::Format, uint32_t)\
 DELEGATE(Crucible.Core.Texture, void, _textureInitFromRaw_ptr, cs_textureInitFromRaw, slag::Texture**, unsigned char*, slag::Pixels::Format, uint32_t,uint32_t,uint32_t)\
 DELEGATE(Crucible.Core.Texture, void, _textureCleanResources_ptr, cs_textureCleanResources, slag::Texture*)\
@@ -81,7 +76,23 @@ DELEGATE(Crucible.Core.Material, int32_t, _materialGetUniformNameSize_ptr, cs_ma
 DELEGATE(Crucible.Core.Material, int32_t, _materialGetTextureNameSize_ptr, cs_materialGetTextureNameSize, core::Material*, uint32_t)\
 DELEGATE(Crucible.Core.Material, void, _materialGetUniformNamePtr_ptr, cs_materialGetUniformNamePtr, core::Material*, uint32_t,char*, int32_t)\
 DELEGATE(Crucible.Core.Material, void, _materialGetTextureNamePtr_ptr, cs_materialGetTextureNamePtr, core::Material*, uint32_t,char*, int32_t)\
-
+\
+DELEGATE(Crucible.Core.Camera, void, _cameraInitialize_ptr, cs_cameraInitialize,core::Camera**, float, float, float, float, float, bool, unsigned char,uint32_t,uint32_t,slag::Pixels::Format,uint8_t)\
+DELEGATE(Crucible.Core.Camera, void, _cameraCleanUp_ptr, cs_cameraCleanUp,core::Camera*)\
+DELEGATE(Crucible.Core.Camera, float, _cameraGetNear_ptr, cs_cameraGetNear,core::Camera*)\
+DELEGATE(Crucible.Core.Camera, void, _cameraSetNear_ptr, cs_cameraSetNear,core::Camera*, float)\
+DELEGATE(Crucible.Core.Camera, float, _cameraGetFar_ptr, cs_cameraGetFar,core::Camera*)\
+DELEGATE(Crucible.Core.Camera, void, _cameraSetFar_ptr, cs_cameraSetFar,core::Camera*, float)\
+DELEGATE(Crucible.Core.Camera, float, _cameraGetFOV_ptr, cs_cameraGetFOV,core::Camera*)\
+DELEGATE(Crucible.Core.Camera, void, _cameraSetFOV_ptr, cs_cameraSetFOV,core::Camera*, float)\
+DELEGATE(Crucible.Core.Camera, float, _cameraGetHeight_ptr, cs_cameraGetHeight,core::Camera*)\
+DELEGATE(Crucible.Core.Camera, void, _cameraSetHeight_ptr, cs_cameraSetHeight,core::Camera*, float)\
+DELEGATE(Crucible.Core.Camera, float, _cameraGetWidth_ptr, cs_cameraGetWidth,core::Camera*)\
+DELEGATE(Crucible.Core.Camera, void, _cameraSetWidth_ptr, cs_cameraSetWidth,core::Camera*, float)\
+DELEGATE(Crucible.Core.Camera, bool, _cameraGetIsPerspective_ptr, cs_cameraGetIsPerspective,core::Camera*)\
+DELEGATE(Crucible.Core.Camera, void, _cameraSetIsPerspective_ptr, cs_cameraSetIsPerspective,core::Camera*, bool)\
+DELEGATE(Crucible.Core.Camera, uint8_t, _cameraGetRenderOrder_ptr, cs_cameraGetRenderOrder,core::Camera*)\
+DELEGATE(Crucible.Core.Camera, void, _cameraSetRenderOrder_ptr, cs_cameraSetRenderOrder,core::Camera*, uint8_t)\
 
 
 namespace crucible

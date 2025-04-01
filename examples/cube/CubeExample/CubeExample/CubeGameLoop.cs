@@ -18,10 +18,10 @@ public class CubeGameLoop: GameLoop
         model.AddReferenceComponent(meshRenderer);
         
         var camera = root.AddChild("Camera");
-        Camera newCamera = new Camera(.01f,100,90,1920,1080,true);
-        camera.AddDataComponent(newCamera);
+        Camera newCamera = new Camera(.01f,100,90,1920,1080,true,Texture.Format.B8G8R8A8_UNORM_SRGB,1920,1080,Texture.MultiSamplePixels.ONE,0);
+        camera.AddReferenceComponent(newCamera);
         Transform cameraTransform = new Transform();
-        cameraTransform.Translate(0,0,-10f);
+        cameraTransform.Translate(0,0,10f);
         camera.AddDataComponent(cameraTransform);
         
         var cubeTexture = new Texture("resources/cube.png",Texture.Format.R8G8B8A8_UNORM,1);
@@ -32,6 +32,7 @@ public class CubeGameLoop: GameLoop
     {
         var model = GameManager.RootNode.GetChild(0);
         spinModel(ref model.GetDataComponent<Transform>(),deltaTime);
+
     }
 
     private void spinModel(ref Transform modelTransform, double deltaTime)

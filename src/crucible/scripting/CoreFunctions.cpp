@@ -194,36 +194,6 @@ namespace crucible
             out = transform.inverse();
         }
 
-//Camera
-        void cs_cameraSetNearPlane(crucible::core::Camera& camera, float nearPlane)
-        {
-            camera.nearPlane(nearPlane);
-        }
-
-        void cs_cameraSetFarPlane(crucible::core::Camera& camera, float farPlane)
-        {
-            camera.farPlane(farPlane);
-        }
-
-        void cs_cameraSetFOV(crucible::core::Camera& camera, float fov)
-        {
-            camera.fov(fov);
-        }
-
-        void cs_cameraSetWidth(crucible::core::Camera& camera, float width)
-        {
-            camera.width(width);
-        }
-
-        void cs_cameraSetHeight(crucible::core::Camera& camera, float height)
-        {
-            camera.height(height);
-        }
-
-        void cs_cameraSetPerspective(crucible::core::Camera& camera, bool isPerspective)
-        {
-            camera.isPerspective(isPerspective);
-        }
 //Mesh
         void cs_meshInstanceInitializeSerialized(crucible::core::Mesh** mesh, unsigned char* data, uint64_t length)
         {
@@ -240,12 +210,58 @@ namespace crucible
             *mesh = loader.nextMesh();
         }
 
+        void cs_meshInstanceFromMemory(core::Mesh** mesh, unsigned char* indexData, uint32_t indexLength, slag::Buffer::IndexSize indexType, unsigned char* vertexData, uint32_t vertexLength, unsigned char* normalData, uint32_t normalLength, unsigned char* uvData, uint32_t uvLength, unsigned char* colorData, uint32_t colorLength, unsigned char* boneData, uint32_t boneLength)
+        {
+            std::vector<core::Mesh::VertexAttributeInputInfo> inputInfo;
+            if (vertexData && vertexLength)
+            {
+                inputInfo.emplace_back(core::Mesh::VertexAttributeInputInfo(core::Mesh::POSITION_3D,vertexData,vertexLength,slag::Buffer::GPU));
+            }
+            if (normalData &&  normalLength)
+            {
+                inputInfo.emplace_back(core::Mesh::VertexAttributeInputInfo(core::Mesh::NORMAL,normalData,normalLength,slag::Buffer::GPU));
+            }
+            if (uvData &&  uvLength)
+            {
+                inputInfo.emplace_back(core::Mesh::VertexAttributeInputInfo(core::Mesh::UV,uvData,uvLength,slag::Buffer::GPU));
+            }
+            if (colorData &&  colorLength)
+            {
+                inputInfo.emplace_back(core::Mesh::VertexAttributeInputInfo(core::Mesh::COLOR,colorData,colorLength,slag::Buffer::GPU));
+            }
+            if (boneData &&  boneLength)
+            {
+                inputInfo.emplace_back(core::Mesh::VertexAttributeInputInfo(core::Mesh::BONE_WEIGHT,boneData,boneLength,slag::Buffer::GPU));
+            }
+            *mesh = new core::Mesh(inputInfo,indexData,indexLength,indexType);
+        }
+
         void cs_meshInstanceCleanup(crucible::core::Mesh* mesh)
         {
             delete mesh;
         }
 
 //Texture
+
+        void cs_textureInitBlank(slag::Texture** texture,slag::Texture::Type type, slag::Pixels::Format format,uint32_t width,uint32_t height,uint32_t mipLevels,uint32_t layers,uint8_t multiSamplePixels,bool shaderResource,bool renderTarget,bool depthTarget)
+        {
+            slag::TextureUsage usage=std::bit_cast<slag::TextureUsage>(0);
+            if (shaderResource)
+            {
+                usage |= slag::TextureUsageFlags::SAMPLED_IMAGE;
+            }
+            if (renderTarget)
+            {
+                usage |= slag::TextureUsageFlags::RENDER_TARGET_ATTACHMENT;
+            }
+            if (depthTarget)
+            {
+                usage |= slag::TextureUsageFlags::DEPTH_STENCIL_ATTACHMENT;
+            }
+
+            *texture = slag::Texture::newTexture(format,type,width,height,mipLevels,layers,multiSamplePixels,usage);
+        }
+
         void cs_textureInitFromPath(slag::Texture** texture, const char* file, slag::Pixels::Format format, uint32_t mipLevels)
         {
             int x,y,channels;
@@ -446,6 +462,87 @@ namespace crucible
         {
             auto cppName = material->textureName(index);
             memcpy(name, cppName.c_str(), length);
+        }
+
+//Camera
+        void cs_cameraInitialize(core::Camera** camera, float near, float far, float fov, float width, float height, bool isPerspective, unsigned char order,uint32_t textureWidth,uint32_t textureHeight,slag::Pixels::Format format,uint8_t multisamplePixels)
+        {
+            *camera = new core::Camera(near, far, fov, width, height, isPerspective, order,textureWidth,textureHeight,format,multisamplePixels);
+        }
+
+        void cs_cameraCleanUp(core::Camera* camera)
+        {
+            delete camera;
+        }
+
+        float cs_cameraGetNear(core::Camera* camera)
+        {
+            return  camera->nearPlane();
+        }
+
+        void cs_cameraSetNear(core::Camera* camera, float near)
+        {
+            camera->nearPlane(near);
+        }
+
+        float cs_cameraGetFar(core::Camera* camera)
+        {
+            return  camera->farPlane();
+        }
+
+        void cs_cameraSetFar(core::Camera* camera, float far)
+        {
+            camera->farPlane(far);
+        }
+
+        float cs_cameraGetFOV(core::Camera* camera)
+        {
+            return  camera->fov();
+        }
+
+        void cs_cameraSetFOV(core::Camera* camera, float fov)
+        {
+            camera->fov(fov);
+        }
+
+        float cs_cameraGetWidth(core::Camera* camera)
+        {
+            return  camera->width();
+        }
+
+        void cs_cameraSetWidth(core::Camera* camera, float width)
+        {
+            camera->width(width);
+        }
+
+        float cs_cameraGetHeight(core::Camera* camera)
+        {
+            return  camera->height();
+        }
+
+        void cs_cameraSetHeight(core::Camera* camera, float height)
+        {
+            camera->height(height);
+        }
+
+        bool cs_cameraGetIsPerspective(core::Camera* camera)
+        {
+            return camera->isPerspective();
+        }
+
+        void cs_cameraSetIsPerspective(core::Camera* camera, bool isPerspective)
+        {
+            camera->isPerspective(isPerspective);
+        }
+
+        uint8_t cs_cameraGetRenderOrder(core::Camera* camera)
+        {
+            return camera->renderOrder();
+        }
+
+        void cs_cameraSetRenderOrder(core::Camera* camera, uint8_t order)
+        {
+            camera->renderOrder(order);
         }
 
     } // scripting

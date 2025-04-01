@@ -20,9 +20,14 @@ namespace crucible
         {
             _uuid = NODE_UUID_GENERATOR();
             _entity = World::ECS.entity();
+            auto crucibleNodeRefType = NodeECSReference::NodeEcsReferenceID();
+            NodeECSReference reference{.node = this};
+            ecs_add_id(core::World::ECS.world_,entity(),crucibleNodeRefType);
+            ecs_set_id(core::World::ECS.world_,entity(),crucibleNodeRefType,sizeof(NodeECSReference),&reference);
 
             std::lock_guard<std::mutex> lockMap(NODE_MAP_LOCK);
             NODE_UUID_MAP.insert({_uuid,this});
+
         }
 
         Node::Node(Node* parent)
@@ -30,6 +35,10 @@ namespace crucible
             std::lock_guard<std::mutex> lockChild(_familyMutex);
             _uuid = NODE_UUID_GENERATOR();
             _entity = World::ECS.entity();
+            auto crucibleNodeRefType = NodeECSReference::NodeEcsReferenceID();
+            NodeECSReference reference{.node = this};
+            ecs_add_id(core::World::ECS.world_,entity(),crucibleNodeRefType);
+            ecs_set_id(core::World::ECS.world_,entity(),crucibleNodeRefType,sizeof(NodeECSReference),&reference);
             {
                 std::lock_guard<std::mutex> lockMap(NODE_MAP_LOCK);
                 NODE_UUID_MAP.insert({_uuid, this});
@@ -130,6 +139,12 @@ namespace crucible
                 return node->second;
             }
             return nullptr;
+        }
+
+        ecs_entity_t NodeECSReference::NodeEcsReferenceID()
+        {
+            return World::RegisterOrRetrieveType("Crucible Node",sizeof(NodeECSReference),alignof(NodeECSReference));
+
         }
 
         void Node::lockFamily()

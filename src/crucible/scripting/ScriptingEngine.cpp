@@ -233,6 +233,13 @@ namespace crucible
             Interop::managedFunctionPointers.getMeshRenderData(managedMeshRendererInstance.gcHandle(),mesh,material,priority);
         }
 
+        core::Camera* ScriptingEngine::getCamera(ManagedInstance& managedInstance)
+        {
+            core::Camera* camera;
+            Interop::managedFunctionPointers.getCamera(managedInstance.gcHandle(),&camera);
+            return camera;
+        }
+
         void ScriptingEngine::registerManagedFunctions()
         {
             ManagedType nodeBehaviorType = getManagedType("Crucible.Core.NodeBehavior");

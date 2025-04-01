@@ -90,10 +90,19 @@ public unsafe class Texture
         TEXTURE_3D,
         CUBE_MAP
     }
+
+    public enum MultiSamplePixels
+    {
+        ONE = 1,
+        TWO = 2,
+        FOUR = 4,
+        EIGHT = 8,
+    }
     private IntPtr _texturePointer = IntPtr.Zero;
     private bool _ownsMemory = false;
     
 #pragma warning disable 0649
+    private static delegate* unmanaged<ref IntPtr, TextureType, Format, UInt32, UInt32, UInt32, UInt32, byte, bool,bool,bool, void> _textureInitBlank_ptr;
     private static delegate* unmanaged<ref IntPtr, string, Format, UInt32, void> _textureInitFromPath_ptr;
     private static delegate* unmanaged<ref IntPtr, byte*, Format, UInt32, UInt32, UInt32, void> _textureInitFromRaw_ptr;
     private static delegate* unmanaged<IntPtr, void> _textureCleanResources_ptr;
@@ -115,6 +124,16 @@ public unsafe class Texture
     public UInt32 Height{get{return _textureHeight_ptr(_texturePointer);}}
     public UInt32 Depth{get{return _textureDepth_ptr(_texturePointer);}}
     public UInt32 MipMapLevels{get{return _textureMipMapLevels_ptr(_texturePointer);}}
+
+    internal Texture(TextureType textureType, Format format, UInt32 width, UInt32 height, UInt32 mipLevels, UInt32 layers, MultiSamplePixels multiSamplePixels, bool shaderResource, bool renderTarget, bool depthTarget)
+    {
+        if (!(shaderResource || renderTarget || depthTarget))
+        {
+            throw new ArgumentException("Must have at least one usage");
+        }
+        _textureInitBlank_ptr(ref _texturePointer,textureType, format, width, height, mipLevels,layers, (byte)multiSamplePixels,shaderResource,renderTarget,depthTarget);
+        _ownsMemory = true;
+    }
 
     public Texture(string path, Format format, UInt32 mipLevels)
     {
