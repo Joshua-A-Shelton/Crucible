@@ -257,7 +257,8 @@ namespace crucible
 
                 commandBuffer->insertBarriers(imageBarriers,2,nullptr,0,nullptr,0);
 
-                slag::Attachment attachment(color,slag::Texture::RENDER_TARGET,true,{1.0f,.15f,.1f,1.0f});
+                slag::ClearValue clearColor{1.0f,.15f,.1f,1.0f};
+                slag::Attachment attachment(color,slag::Texture::RENDER_TARGET,true,clearColor);
                 slag::Attachment depthAttachment{depth, slag::Texture::DEPTH_TARGET, true,{1}};
                 commandBuffer->beginRendering(&attachment,1,&depthAttachment,slag::Rectangle{.offset = {0,0},.extent = {color->width(),color->height()}});
 
