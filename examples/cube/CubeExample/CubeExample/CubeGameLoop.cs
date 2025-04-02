@@ -21,7 +21,8 @@ public class CubeGameLoop: GameLoop
         Camera newCamera = new Camera(.01f,100,90,1920,1080,true,Texture.Format.B8G8R8A8_UNORM_SRGB,1920,1080,Texture.MultiSamplePixels.ONE,0);
         camera.AddReferenceComponent(newCamera);
         Transform cameraTransform = new Transform();
-        cameraTransform.Translate(0,0,10f);
+        cameraTransform.Translate(0,3,5f);
+        cameraTransform.Rotate(-0.7853982f,new Vector3(1,0,0));
         camera.AddDataComponent(cameraTransform);
         
         var cubeTexture = new Texture("resources/cube.png",Texture.Format.R8G8B8A8_UNORM,1);
