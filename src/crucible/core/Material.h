@@ -1,6 +1,7 @@
 #ifndef CRUCIBLE_MATERIAL_H
 #define CRUCIBLE_MATERIAL_H
 #include "ShaderManager.h"
+#include "VirtualUniformBuffer.h"
 
 namespace crucible
 {
@@ -31,13 +32,13 @@ namespace crucible
             bool hasUniform(const std::string& name);
             bool hasTexture(const std::string& name);
             ShaderReference& shaderReference();
-            slag::DescriptorBundle makeBundle(slag::DescriptorPool* pool);
+            slag::DescriptorBundle makeBundle(slag::DescriptorPool* pool, VirtualUniformBuffer* virtualUniformBuffer);
             static void initialize();
             static void cleanup();
         private:
             void move(Material& from);
             ShaderReference _shader;
-            slag::Buffer* _data=nullptr;
+            std::vector<unsigned char> _data;
             std::unordered_map<std::string,slag::UniformBufferDescriptorLayout*> _uniformBuffers;
             std::vector<std::string> _uniformBufferNames;
             std::unordered_map<std::string, TextureMaterialIndex> _textures;

@@ -197,7 +197,7 @@ namespace crucible
             }
         }
 
-        void Node::registerDraw(slag::DescriptorPool* descriptorPool, Transform* parentTransform, ecs_entity_t& transformType,ecs_entity_t& meshRendererType)
+        void Node::registerDraw(slag::DescriptorPool* descriptorPool, VirtualUniformBuffer* virtualUniformBuffer, Transform* parentTransform, ecs_entity_t& transformType,ecs_entity_t& meshRendererType)
         {
             auto nodeTransform = *parentTransform;
             if (_entity.has(transformType))
@@ -217,14 +217,14 @@ namespace crucible
                 //set position data
                 material->setData(0,&matr,sizeof(matr));
                 auto& shader = material->shaderReference();
-                auto bundle = material->makeBundle(descriptorPool);
+                auto bundle = material->makeBundle(descriptorPool, virtualUniformBuffer);
                 World::MeshDrawPass->registerMeshData(priority,material->shaderReference(),mesh,std::move(bundle));
 
             }
 
             for(auto& child : _children)
             {
-                child->registerDraw(descriptorPool, &nodeTransform, transformType, meshRendererType);
+                child->registerDraw(descriptorPool, virtualUniformBuffer, &nodeTransform, transformType, meshRendererType);
             }
 
         }

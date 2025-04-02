@@ -13,7 +13,7 @@ namespace crucible
             {
                 throw std::runtime_error("Shader is not a material shader");
             }
-            _data = slag::Buffer::newBuffer(layout->size(),slag::Buffer::CPU_AND_GPU,slag::Buffer::UNIFORM_BUFFER);
+            _data.resize(layout->size());
             _uniformBufferNames.resize(layout->childrenCount());
             for (uint32_t i = 0; i < layout->childrenCount(); i++)
             {
@@ -35,10 +35,6 @@ namespace crucible
 
         Material::~Material()
         {
-            if (_data != nullptr)
-            {
-                delete _data;
-            }
         }
 
         Material::Material(Material&& from)
@@ -54,11 +50,11 @@ namespace crucible
 
         void Material::setData(size_t offset, void* data, uint32_t length)
         {
-            if (offset + length > _data->size())
+            if (offset + length > _data.size())
             {
                 throw std::runtime_error("Tried to write data out of range");
             }
-            _data->update(offset,data,length);
+            memcpy(_data.data()+offset,data,length);
         }
 
         void Material::setTexture(const std::string& name, slag::Texture* texture)
@@ -116,10 +112,11 @@ namespace crucible
             return _shader;
         }
 
-        slag::DescriptorBundle Material::makeBundle(slag::DescriptorPool* pool)
+        slag::DescriptorBundle Material::makeBundle(slag::DescriptorPool* pool, VirtualUniformBuffer* virtualUniformBuffer)
         {
             auto bundle = pool->makeBundle(_shader.pipeline()->descriptorGroup(2));
-            bundle.setUniformBuffer(0,0,_data,0,_data->size());
+            auto location = virtualUniformBuffer->write(_data.data(),_data.size());
+            bundle.setUniformBuffer(0,0,location.buffer,location.offset,location.length);
             for (auto& textureData: _textures)
             {
                 bundle.setSamplerAndTexture(textureData.second.index,0,textureData.second.texture,slag::Texture::SHADER_RESOURCE,_defaultSampler);

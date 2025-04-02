@@ -3,6 +3,7 @@
 
 #include "core/Camera.h"
 #include "core/Mesh.h"
+#include "core/VirtualUniformBuffer.h"
 #include "core/scenes/World.h"
 #include "scripting/ScriptingEngine.h"
 
@@ -18,15 +19,18 @@ namespace crucible
     public:
         slag::CommandBuffer* commandBuffer = nullptr;
         slag::DescriptorPool* descriptorPool = nullptr;
+        core::VirtualUniformBuffer* uniformBuffer = nullptr;
         CrucibleFrameResources()
         {
             commandBuffer = slag::CommandBuffer::newCommandBuffer(slag::GpuQueue::GRAPHICS);
             descriptorPool = slag::DescriptorPool::newDescriptorPool();
+            uniformBuffer = new core::VirtualUniformBuffer(640000);
         }
         ~CrucibleFrameResources()override
         {
             delete commandBuffer;
             delete descriptorPool;
+            delete uniformBuffer;
         }
         void waitForResourcesToFinish()override
         {
@@ -171,9 +175,10 @@ namespace crucible
         _managedUpdate(deltaTime);
     }
 
-    void Game::draw(slag::CommandBuffer* commandBuffer, slag::Texture* drawBuffer, slag::DescriptorPool* descriptorPool)
+    void Game::draw(slag::CommandBuffer* commandBuffer, slag::Texture* drawBuffer, slag::DescriptorPool* descriptorPool, core::VirtualUniformBuffer* uniformBuffer)
     {
         descriptorPool->reset();
+        uniformBuffer->reset();
         commandBuffer->begin();
         commandBuffer->bindDescriptorPool(descriptorPool);
         slag::Texture* mainTexture = nullptr;
@@ -184,11 +189,11 @@ namespace crucible
             auto basicShader = core::ShaderManager::getShaderReference("flat-test");
             //bind globals
             glm::vec4 wind(0,0,0,0);
-            slag::Buffer* globals = slag::Buffer::newBuffer(&wind,sizeof(wind),slag::Buffer::CPU_AND_GPU,slag::Buffer::UNIFORM_BUFFER);
+            auto location = uniformBuffer->write(&wind, sizeof(glm::vec4));
             auto globalBundle = descriptorPool->makeBundle(basicShader.pipeline()->descriptorGroup(0));
-            globalBundle.setUniformBuffer(0,0,globals,0,globals->size());
+            globalBundle.setUniformBuffer(0,0,location.buffer,location.offset,location.length);
             commandBuffer->bindGraphicsDescriptorBundle(basicShader.pipeline(),0,globalBundle);
-            delete globals;
+
 
             struct RenderCameraReference
             {
@@ -278,7 +283,7 @@ namespace crucible
 
                 core::Transform rootTransform;
 
-                root->registerDraw(descriptorPool,&rootTransform,transformType,meshRendererType);
+                root->registerDraw(descriptorPool,uniformBuffer,&rootTransform,transformType,meshRendererType);
                 core::World::MeshDrawPass->drawMeshes(commandBuffer);
                 commandBuffer->endRendering();
 
@@ -385,7 +390,7 @@ namespace crucible
             if(auto frame = _swapChain->next())
             {
                 auto resources = static_cast<CrucibleFrameResources*>(frame->resources);
-                draw(resources->commandBuffer,frame->backBuffer(),resources->descriptorPool);
+                draw(resources->commandBuffer,frame->backBuffer(),resources->descriptorPool, resources->uniformBuffer);
                 slag::SlagLib::graphicsCard()->graphicsQueue()->submit(&resources->commandBuffer,1, nullptr,0, nullptr,0,frame);
             }
         }
