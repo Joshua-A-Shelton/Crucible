@@ -16,6 +16,7 @@ namespace crucible
         class VirtualUniformBuffer
         {
         public:
+            VirtualUniformBuffer()=delete;
             VirtualUniformBuffer(size_t initialSize);
             ~VirtualUniformBuffer();
             VirtualUniformBuffer(const VirtualUniformBuffer&) = delete;
@@ -24,6 +25,8 @@ namespace crucible
             VirtualUniformBuffer& operator=(VirtualUniformBuffer&& from);
             void reset();
             UniformWriteLocation write(void* data, size_t size);
+            size_t capacity() const;
+            size_t usage() const;
         private:
             void move(VirtualUniformBuffer& from);
             std::vector<slag::Buffer*> _uniformBuffers;

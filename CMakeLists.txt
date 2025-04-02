@@ -165,6 +165,7 @@ if(CrucibleTests)
             test/tests/ShaderManagerTests.cpp
             test/tests/MeshTest.cpp
             test/tests/ModelTest.cpp
+            test/tests/VirtualUniformBufferTest.cpp
     )
 
     target_link_libraries(CrucibleTests Crucible GTest::gtest)

@@ -12,7 +12,7 @@ namespace crucible
             }
             _uniformBuffers.push_back(slag::Buffer::newBuffer(initialSize,slag::Buffer::CPU_AND_GPU,slag::Buffer::UNIFORM_BUFFER));
             _currentCapacity = initialSize;
-            _minSize = initialSize;
+            _minSize = 64;
         }
 
         VirtualUniformBuffer::~VirtualUniformBuffer()
@@ -56,7 +56,7 @@ namespace crucible
                     delete buffer;
                 }
                 _uniformBuffers.clear();
-                _currentCapacity = std::max((size_t)(_currentCapacity/1.5),_minSize);
+                _currentCapacity = std::max((size_t)(_currentUsage*1.5),_minSize);
                 _uniformBuffers.push_back(slag::Buffer::newBuffer(_currentCapacity,slag::Buffer::CPU_AND_GPU,slag::Buffer::UNIFORM_BUFFER));
             }
             _currentUsage = 0;
@@ -66,11 +66,12 @@ namespace crucible
 
         UniformWriteLocation VirtualUniformBuffer::write(void* data, size_t size)
         {
-            if (_currentOffset + size > _currentCapacity)
+            if (_currentOffset + size > _uniformBuffers[_currentBuffer]->size())
             {
                 size_t newBufferSize = std::max(_currentCapacity/2,size);
                 _uniformBuffers.push_back(slag::Buffer::newBuffer(newBufferSize,slag::Buffer::CPU_AND_GPU,slag::Buffer::UNIFORM_BUFFER));
                 _currentBuffer++;
+                _currentCapacity+=newBufferSize;
                 _currentOffset = 0;
                 //just set to zero and recalculate it
                 _currentUsage = 0;
@@ -95,6 +96,17 @@ namespace crucible
             UniformWriteLocation writeLocation{.buffer = buffer,.offset = _currentOffset,.length = size};
             _currentOffset += updateSize;
             return writeLocation;
+        }
+
+        size_t VirtualUniformBuffer::capacity() const
+        {
+            return _currentCapacity;
+        }
+
+        size_t VirtualUniformBuffer::usage() const
+        {
+            //we can overflow the usage because we increase usage by multiples of 64, not just the last write size
+            return std::min(_currentUsage,_currentCapacity);
         }
 
         void VirtualUniformBuffer::move(VirtualUniformBuffer& from)
