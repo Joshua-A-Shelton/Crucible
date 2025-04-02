@@ -6,6 +6,10 @@ namespace crucible
     {
         VirtualUniformBuffer::VirtualUniformBuffer(size_t initialSize)
         {
+            if (initialSize < 64)
+            {
+                initialSize = 64;
+            }
             _uniformBuffers.push_back(slag::Buffer::newBuffer(initialSize,slag::Buffer::CPU_AND_GPU,slag::Buffer::UNIFORM_BUFFER));
             _currentCapacity = initialSize;
             _minSize = initialSize;
