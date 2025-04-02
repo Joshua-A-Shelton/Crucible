@@ -173,6 +173,7 @@ namespace crucible
 
     void Game::draw(slag::CommandBuffer* commandBuffer, slag::Texture* drawBuffer, slag::DescriptorPool* descriptorPool)
     {
+        descriptorPool->reset();
         commandBuffer->begin();
         commandBuffer->bindDescriptorPool(descriptorPool);
         slag::Texture* mainTexture = nullptr;
