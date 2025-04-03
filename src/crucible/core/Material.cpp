@@ -1,5 +1,7 @@
 #include "Material.h"
 
+#include <cstring>
+
 namespace crucible
 {
     namespace core
