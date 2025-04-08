@@ -57,6 +57,6 @@ Attribute streams do not have to be in any specific order in respect to their ty
 *5 Bone weights are layed out as follows
 
     Bone ID                         (Little endian 16 bit unsigned integer)
-    Bone Influence                  (little endian 16 bit float)
+    Bone Influence                  (little endian 32 bit float)
 
 The total of all 4 bone influences in the bone weight should add up to 1.0
