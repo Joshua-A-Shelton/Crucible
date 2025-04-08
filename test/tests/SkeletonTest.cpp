@@ -1,5 +1,5 @@
 #include "gtest/gtest.h"
-#include <crucible/core/skeleton.h>
+#include <crucible/core/animation/skeleton.h>
 
 using namespace crucible::core;
 TEST(SkeletonTest, Serialize)

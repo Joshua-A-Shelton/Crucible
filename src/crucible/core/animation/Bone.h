@@ -2,7 +2,7 @@
 #define CRUCIBLE_BONE_H
 #include <vector>
 
-#include "Transform.h"
+#include <crucible/core/Transform.h>
 
 namespace crucible
 {
@@ -28,6 +28,7 @@ namespace crucible
             Bone* parent(Skeleton& skeleton)const;
             Transform localTransform()const;
             Transform skeletalTransform(Skeleton& skeleton)const;
+            friend class Skeleton;
 
         private:
             void copy(const Bone& from);

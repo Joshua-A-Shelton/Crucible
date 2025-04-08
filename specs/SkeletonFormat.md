@@ -17,3 +17,5 @@ The bones in the data stream are layed out thusly (when uncompressed)
 
     *1: first 3 floats are positional data- X,Y,Z positions in that order. Next 4 floats are quaternion rotational data- W,X,Y,Z in that order. The last 3 floats are scale data- X,Y,Z in that order
     *2: if child count is 0, there are no child indexes and the next data is the start of the next bone
+
+Each skeleton must have one, and exactly one root bone defined, but the root bone may be at any point in the bone array

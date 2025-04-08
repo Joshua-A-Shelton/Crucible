@@ -99,10 +99,10 @@ add_library(Crucible
         src/crucible/core/Material.h
         src/crucible/core/VirtualUniformBuffer.cpp
         src/crucible/core/VirtualUniformBuffer.h
-        src/crucible/core/Bone.cpp
-        src/crucible/core/Bone.h
-        src/crucible/core/Skeleton.cpp
-        src/crucible/core/Skeleton.h
+        src/crucible/core/animation/Bone.cpp
+        src/crucible/core/animation/Bone.h
+        src/crucible/core/animation/Skeleton.cpp
+        src/crucible/core/animation/Skeleton.h
 )
 
 target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})

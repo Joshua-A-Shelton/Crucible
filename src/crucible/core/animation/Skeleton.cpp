@@ -1,11 +1,12 @@
 #include "Skeleton.h"
 
 #include <lz4.h>
+#include <queue>
 #include <stdexcept>
 #include <unordered_set>
 #include <boost/endian/conversion.hpp>
 
-#include "serialization/Serializer.h"
+#include <crucible/core/serialization/Serializer.h>
 
 namespace crucible
 {
@@ -63,6 +64,17 @@ namespace crucible
                     decompressedDataPtr+=sizeof(uint16_t);
                 }
                 bone = Bone(index,boneTransform,parentIndex,children);
+                if (bone._parentIndex == UINT16_MAX)
+                {
+                    if (_rootBone==nullptr)
+                    {
+                        _rootBone = &bone;
+                    }
+                    else
+                    {
+                        throw std::runtime_error("Skeleton has more than one root bone defined");
+                    }
+                }
             }
             assert(dataPtr + compressedSize == lz4SkeletalData+skeletalLength && "Skeleton Data not expected length");
             assert(isValid() && "Skeleton Data is not arranged in tree structure or has too many bones");
@@ -71,35 +83,55 @@ namespace crucible
         Skeleton::Skeleton(const std::vector<Bone>& bones)
         {
             _bones = bones;
+            _currentTransforms.resize(bones.size());
+            for (auto i=0; i < _bones.size(); ++i)
+            {
+                if (_bones[i].parent(*this)==nullptr)
+                {
+                    _rootBone = &_bones[i];
+                    break;
+                }
+            }
             assert(isValid() && "Skeleton Data is not arranged in tree structure or has too many bones");
+            updateCurrentTransforms();
         }
 
         Skeleton::Skeleton(std::vector<Bone>&& bones)
         {
             _bones = std::move(bones);
+            _currentTransforms.resize(bones.size());
+            for (auto i=0; i < _bones.size(); ++i)
+            {
+                if (_bones[i].parent(*this)==nullptr)
+                {
+                    _rootBone = &_bones[i];
+                    break;
+                }
+            }
             assert(isValid() && "Skeleton Data is not arranged in tree structure or has too many bones");
+            updateCurrentTransforms();
         }
 
         Skeleton::Skeleton(const Skeleton& skeleton)
         {
-            _bones = skeleton._bones;
+           copy(skeleton);
         }
 
         Skeleton& Skeleton::operator=(const Skeleton& skeleton)
         {
-            _bones = skeleton._bones;
+            copy(skeleton);
             return *this;
         }
 
         Skeleton& Skeleton::operator=(Skeleton&& skeleton)
         {
-            _bones = std::move(skeleton._bones);
+            move(skeleton);
             return *this;
         }
 
         Skeleton::Skeleton(Skeleton&& skeleton)
         {
-            _bones = std::move(skeleton._bones);
+            move(skeleton);
         }
 
         Bone* Skeleton::getBone(uint16_t boneIndex)
@@ -179,6 +211,25 @@ namespace crucible
             return data;
         }
 
+        std::vector<glm::mat4>& Skeleton::shaderTransforms()
+        {
+            return _currentTransforms;
+        }
+
+        void Skeleton::copy(const Skeleton& skeleton)
+        {
+            _bones = skeleton._bones;
+            _rootBone = &_bones[skeleton._rootBone->skeletalIndex()];
+            _currentTransforms = skeleton._currentTransforms;
+        }
+
+        void Skeleton::move(Skeleton& skeleton)
+        {
+            _bones.swap(skeleton._bones);
+            _rootBone = skeleton._rootBone;
+            _currentTransforms.swap(skeleton._currentTransforms);
+        }
+
         bool Skeleton::isValid()
         {
             if (_bones.size() >= UINT16_MAX)
@@ -186,6 +237,7 @@ namespace crucible
                 return false;
             }
             std::unordered_set<int32_t> boneIndexSet;
+            uint16_t rootBoneIndex = UINT16_MAX;
             for (auto& bone: _bones)
             {
                 if (boneIndexSet.find(bone.skeletalIndex())!=boneIndexSet.end())
@@ -206,6 +258,20 @@ namespace crucible
                         }
                     }
                     if (!foundChild)
+                    {
+                        return false;
+                    }
+                }
+                //we found a root bone
+                else
+                {
+                    //check to see if it's the first time we've found it
+                    if (rootBoneIndex == UINT16_MAX)
+                    {
+                        rootBoneIndex = bone.skeletalIndex();
+                    }
+                    //see if it's not the same root bone, we can only have one root
+                    else if (rootBoneIndex!=bone.skeletalIndex())
                     {
                         return false;
                     }
@@ -231,7 +297,27 @@ namespace crucible
                     parent = parent->parent(*this);
                 }
             }
+            if (_rootBone == nullptr)
+            {
+                return false;
+            }
             return true;
+        }
+
+        void Skeleton::updateCurrentTransforms()
+        {
+            updateBoneTransform(_rootBone, Transform());
+        }
+
+        void Skeleton::updateBoneTransform(Bone* bone, const Transform& parentTransform)
+        {
+            auto cumulativeTransform = bone->localTransform() + parentTransform;
+            _currentTransforms[bone->skeletalIndex()] = cumulativeTransform.matrix();
+            for (auto i=0; i<bone->childrenCount(); ++i)
+            {
+                auto child = bone->child(*this,i);
+                updateBoneTransform(child, cumulativeTransform);
+            }
         }
     } // core
 } // crucible
