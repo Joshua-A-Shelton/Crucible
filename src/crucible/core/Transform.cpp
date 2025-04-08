@@ -3,6 +3,7 @@
 #include <crucible/core/scenes/World.h>
 #include <cstring>
 #include <stack>
+#include <boost/endian/conversion.hpp>
 
 namespace crucible
 {
@@ -13,6 +14,29 @@ namespace crucible
             _position = glm::vec3(0,0,0);
             _rotation = glm::quat(1,0,0,0);
             _scale = glm::vec3(1,1,1);
+        }
+
+        Transform::Transform(const unsigned char* uncompressedBytes)
+        {
+            _position = *((glm::vec3*)uncompressedBytes);
+            uncompressedBytes+=sizeof(glm::vec3);
+            _rotation = *((glm::quat*)uncompressedBytes);
+            uncompressedBytes+=sizeof(glm::quat);
+            _scale = *((glm::vec3*)uncompressedBytes);
+            uncompressedBytes+=sizeof(glm::vec3);
+            if constexpr (std::endian::native == std::endian::big)
+            {
+                boost::endian::big_to_native_inplace(_position.x);
+                boost::endian::big_to_native_inplace(_position.y);
+                boost::endian::big_to_native_inplace(_position.z);
+                boost::endian::big_to_native_inplace(_rotation.w);
+                boost::endian::big_to_native_inplace(_rotation.x);
+                boost::endian::big_to_native_inplace(_rotation.y);
+                boost::endian::big_to_native_inplace(_rotation.z);
+                boost::endian::big_to_native_inplace(_scale.x);
+                boost::endian::big_to_native_inplace(_scale.y);
+                boost::endian::big_to_native_inplace(_scale.z);
+            }
         }
 
         Transform::Transform(const glm::vec3& position, const glm::quat& rotation, float scale)
@@ -268,6 +292,57 @@ namespace crucible
             glm::quat rotation =  _rotation * with._rotation;
             glm::vec3 position = ((with._scale * _position) * with._rotation) + with._position;
             return Transform(position,rotation,scale);
+        }
+
+        bool Transform::operator==(const Transform& other) const
+        {
+            return scale() == other.scale() && rotation() == other.rotation() && position() == other.position();
+        }
+
+        bool Transform::approximateEquals(const Transform& other,float epsilon) const
+        {
+            auto pos = glm::epsilonEqual(_position,other._position,epsilon);
+            auto rot = glm::epsilonEqual(_rotation,other._rotation,epsilon);
+            auto scle = glm::epsilonEqual(_scale,other._scale,epsilon);
+            return (pos.x && pos.y && pos.z && rot.w && rot.x && rot.y && rot.z && scle.x && scle.y && scle.z);
+        }
+
+        Transform Transform::littleEndian()
+        {
+            Transform returnTransform = *this;
+            if constexpr (std::endian::native == std::endian::big)
+            {
+                boost::endian::endian_reverse_inplace(returnTransform._position.x);
+                boost::endian::endian_reverse_inplace(returnTransform._position.y);
+                boost::endian::endian_reverse_inplace(returnTransform._position.z);
+                boost::endian::endian_reverse_inplace(returnTransform._rotation.w);
+                boost::endian::endian_reverse_inplace(returnTransform._rotation.x);
+                boost::endian::endian_reverse_inplace(returnTransform._rotation.y);
+                boost::endian::endian_reverse_inplace(returnTransform._rotation.z);
+                boost::endian::endian_reverse_inplace(returnTransform._scale.x);
+                boost::endian::endian_reverse_inplace(returnTransform._scale.y);
+                boost::endian::endian_reverse_inplace(returnTransform._scale.z);
+            }
+            return returnTransform;
+        }
+
+        Transform Transform::bigEndian()
+        {
+            Transform returnTransform = *this;
+            if constexpr (std::endian::native == std::endian::little)
+            {
+                boost::endian::endian_reverse_inplace(returnTransform._position.x);
+                boost::endian::endian_reverse_inplace(returnTransform._position.y);
+                boost::endian::endian_reverse_inplace(returnTransform._position.z);
+                boost::endian::endian_reverse_inplace(returnTransform._rotation.w);
+                boost::endian::endian_reverse_inplace(returnTransform._rotation.x);
+                boost::endian::endian_reverse_inplace(returnTransform._rotation.y);
+                boost::endian::endian_reverse_inplace(returnTransform._rotation.z);
+                boost::endian::endian_reverse_inplace(returnTransform._scale.x);
+                boost::endian::endian_reverse_inplace(returnTransform._scale.y);
+                boost::endian::endian_reverse_inplace(returnTransform._scale.z);
+            }
+            return returnTransform;
         }
     } // core
 } // crucible

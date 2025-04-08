@@ -12,6 +12,7 @@ namespace crucible
         {
         public:
             Transform();
+            explicit Transform(const unsigned char* uncompressedBytes);
             Transform(const glm::vec3& position, const glm::quat& rotation, float scale);
             Transform(const glm::vec3& position, const glm::vec3& rotation, float scale);
             Transform(const glm::vec3& position, const glm::quat& rotation, const glm::vec3& scale);
@@ -148,6 +149,12 @@ namespace crucible
             Transform operator+(const Transform& with)const;
             Transform operator-(const Transform& from)const;
             Transform fastConcat(const Transform& with)const;
+
+            bool operator==(const Transform& other)const;
+            bool approximateEquals(const Transform& other, float epsilon=.001)const;
+
+            Transform littleEndian();
+            Transform bigEndian();
 
 
         private:

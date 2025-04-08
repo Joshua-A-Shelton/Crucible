@@ -99,6 +99,10 @@ add_library(Crucible
         src/crucible/core/Material.h
         src/crucible/core/VirtualUniformBuffer.cpp
         src/crucible/core/VirtualUniformBuffer.h
+        src/crucible/core/Bone.cpp
+        src/crucible/core/Bone.h
+        src/crucible/core/Skeleton.cpp
+        src/crucible/core/Skeleton.h
 )
 
 target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})
@@ -166,6 +170,7 @@ if(CrucibleTests)
             test/tests/MeshTest.cpp
             test/tests/ModelTest.cpp
             test/tests/VirtualUniformBufferTest.cpp
+            test/tests/SkeletonTest.cpp
     )
 
     target_link_libraries(CrucibleTests Crucible GTest::gtest)

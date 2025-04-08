@@ -66,7 +66,7 @@ namespace crucible
             lz4MeshData++;
             if constexpr (std::endian::native == std::endian::big)
             {
-                boost::endian::big_to_native(int32);
+                boost::endian::big_to_native_inplace(int32);
             }
             slag::Buffer::IndexSize indexType = slag::Buffer::UINT16;
             if (int32)
@@ -80,8 +80,8 @@ namespace crucible
             lz4MeshData+=sizeof(int32_t);
             if constexpr (std::endian::native == std::endian::big)
             {
-                boost::endian::big_to_native(compressedSize);
-                boost::endian::big_to_native(decompressedSize);
+                boost::endian::big_to_native_inplace(compressedSize);
+                boost::endian::big_to_native_inplace(decompressedSize);
             }
             if (!(lz4MeshData + compressedSize <= lastByte))
             {
@@ -101,7 +101,7 @@ namespace crucible
                 {
                     for (size_t i=0; i < decompressedSize; i+=sizeof(uint32_t))
                     {
-                        boost::endian::big_to_native(*reinterpret_cast<uint32_t*>(decompressed.data() + i));
+                        boost::endian::big_to_native_inplace(*reinterpret_cast<uint32_t*>(decompressed.data() + i));
                     }
                 }
 
@@ -132,8 +132,8 @@ namespace crucible
                 lz4MeshData+=sizeof(int32_t);
                 if constexpr (std::endian::native == std::endian::big)
                 {
-                    boost::endian::big_to_native(compressedStreamSize);
-                    boost::endian::big_to_native(decompressedStreamSize);
+                    boost::endian::big_to_native_inplace(compressedStreamSize);
+                    boost::endian::big_to_native_inplace(decompressedStreamSize);
                 }
 
                 if (!(lz4MeshData + compressedStreamSize <= lastByte))
@@ -153,7 +153,7 @@ namespace crucible
                 {
                     for (size_t i=0; i < decompressedStreamSize; i+=sizeof(uint32_t))
                     {
-                        boost::endian::big_to_native(*reinterpret_cast<uint32_t*>(decompressedStream.data() + i));
+                        boost::endian::big_to_native_inplace(*reinterpret_cast<uint32_t*>(decompressedStream.data() + i));
                     }
                 }
 
