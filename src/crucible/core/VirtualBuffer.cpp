@@ -12,12 +12,29 @@ namespace crucible
             }
             else
             {
-                _alignment = 0;
+                _alignment = 1;
             }
-            _uniformBuffers.push_back(slag::Buffer::newBuffer(initialSize,slag::Buffer::CPU_AND_GPU,usage));
-            _currentCapacity = initialSize;
+
             _minSize = 64;
+            auto offAlign = _minSize%_alignment;
+            _minSize+=offAlign;
+
+            if (initialSize < _minSize)
+            {
+                _currentCapacity = _minSize;
+            }
+            else
+            {
+                auto offAlign = (initialSize%_alignment);
+                if (offAlign)
+                {
+                    offAlign = _alignment-offAlign;
+                }
+                _currentCapacity = initialSize + offAlign;
+            }
             _usage = usage;
+            _uniformBuffers.push_back(slag::Buffer::newBuffer(_currentCapacity,slag::Buffer::CPU_AND_GPU,usage));
+
         }
 
         VirtualBuffer::~VirtualBuffer()
@@ -52,7 +69,7 @@ namespace crucible
                     delete buffer;
                 }
                 _uniformBuffers.clear();
-                _uniformBuffers.push_back(slag::Buffer::newBuffer(_currentCapacity,slag::Buffer::CPU_AND_GPU,_usage));
+                _uniformBuffers.push_back(slag::Buffer::newBuffer(_currentCapacity+(_currentCapacity%_alignment),slag::Buffer::CPU_AND_GPU,_usage));
             }
             else if (_currentUsage < _currentCapacity/2 && _currentCapacity > _minSize)
             {
@@ -62,6 +79,7 @@ namespace crucible
                 }
                 _uniformBuffers.clear();
                 _currentCapacity = std::max((size_t)(_currentUsage*1.5),_minSize);
+                _currentCapacity = _currentCapacity + (_currentCapacity%_alignment);
                 _uniformBuffers.push_back(slag::Buffer::newBuffer(_currentCapacity,slag::Buffer::CPU_AND_GPU,_usage));
             }
             _currentUsage = 0;
@@ -74,6 +92,7 @@ namespace crucible
             if (_currentOffset + size > _uniformBuffers[_currentBuffer]->size())
             {
                 size_t newBufferSize = std::max(_currentCapacity/2,size);
+                newBufferSize = newBufferSize + (newBufferSize % _alignment);
                 _uniformBuffers.push_back(slag::Buffer::newBuffer(newBufferSize,slag::Buffer::CPU_AND_GPU,_usage));
                 _currentBuffer++;
                 _currentCapacity+=newBufferSize;
