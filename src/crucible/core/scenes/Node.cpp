@@ -197,7 +197,7 @@ namespace crucible
             }
         }
 
-        void Node::registerDraw(slag::DescriptorPool* descriptorPool, VirtualUniformBuffer* virtualUniformBuffer, Transform* parentTransform, ecs_entity_t& transformType,ecs_entity_t& meshRendererType)
+        void Node::registerDraw(slag::DescriptorPool* descriptorPool, VirtualBuffer* virtualUniformBuffer, Transform* parentTransform, ecs_entity_t& transformType,ecs_entity_t& meshRendererType)
         {
             auto nodeTransform = *parentTransform;
             if (_entity.has(transformType))

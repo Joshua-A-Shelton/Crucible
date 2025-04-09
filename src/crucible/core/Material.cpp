@@ -114,7 +114,7 @@ namespace crucible
             return _shader;
         }
 
-        slag::DescriptorBundle Material::makeBundle(slag::DescriptorPool* pool, VirtualUniformBuffer* virtualUniformBuffer)
+        slag::DescriptorBundle Material::makeBundle(slag::DescriptorPool* pool, VirtualBuffer* virtualUniformBuffer)
         {
             auto bundle = pool->makeBundle(_shader.pipeline()->descriptorGroup(2));
             auto location = virtualUniformBuffer->write(_data.data(),_data.size());

@@ -3,7 +3,7 @@
 
 #include "core/Camera.h"
 #include "core/Mesh.h"
-#include "core/VirtualUniformBuffer.h"
+#include "core/VirtualBuffer.h"
 #include "core/scenes/World.h"
 #include "scripting/ScriptingEngine.h"
 
@@ -19,18 +19,21 @@ namespace crucible
     public:
         slag::CommandBuffer* commandBuffer = nullptr;
         slag::DescriptorPool* descriptorPool = nullptr;
-        core::VirtualUniformBuffer* uniformBuffer = nullptr;
+        core::VirtualBuffer* uniformBuffer = nullptr;
+        core::VirtualBuffer* storageBuffer = nullptr;
         CrucibleFrameResources()
         {
             commandBuffer = slag::CommandBuffer::newCommandBuffer(slag::GpuQueue::GRAPHICS);
             descriptorPool = slag::DescriptorPool::newDescriptorPool();
-            uniformBuffer = new core::VirtualUniformBuffer(640000);
+            uniformBuffer = new core::VirtualBuffer(640000,slag::Buffer::UNIFORM_BUFFER);
+            storageBuffer = new core::VirtualBuffer(640000,slag::Buffer::STORAGE_BUFFER);
         }
         ~CrucibleFrameResources()override
         {
             delete commandBuffer;
             delete descriptorPool;
             delete uniformBuffer;
+            delete storageBuffer;
         }
         void waitForResourcesToFinish()override
         {
@@ -175,7 +178,7 @@ namespace crucible
         _managedUpdate(deltaTime);
     }
 
-    void Game::draw(slag::CommandBuffer* commandBuffer, slag::Texture* drawBuffer, slag::DescriptorPool* descriptorPool, core::VirtualUniformBuffer* uniformBuffer)
+    void Game::draw(slag::CommandBuffer* commandBuffer, slag::Texture* drawBuffer, slag::DescriptorPool* descriptorPool, core::VirtualBuffer* uniformBuffer, core::VirtualBuffer* storageBuffer)
     {
         descriptorPool->reset();
         uniformBuffer->reset();
@@ -390,7 +393,7 @@ namespace crucible
             if(auto frame = _swapChain->next())
             {
                 auto resources = static_cast<CrucibleFrameResources*>(frame->resources);
-                draw(resources->commandBuffer,frame->backBuffer(),resources->descriptorPool, resources->uniformBuffer);
+                draw(resources->commandBuffer,frame->backBuffer(),resources->descriptorPool, resources->uniformBuffer, resources->storageBuffer);
                 slag::SlagLib::graphicsCard()->graphicsQueue()->submit(&resources->commandBuffer,1, nullptr,0, nullptr,0,frame);
             }
         }

@@ -6,7 +6,7 @@
 #include <filesystem>
 
 #include "flecs.h"
-#include "core/VirtualUniformBuffer.h"
+#include "core/VirtualBuffer.h"
 
 namespace crucible
 {
@@ -25,7 +25,7 @@ namespace crucible
         void move(Game& from);
         virtual void handleEvent(SDL_Event& event);
         virtual void update(double deltaTime);
-        virtual void draw(slag::CommandBuffer* commandBuffer, slag::Texture* drawBuffer, slag::DescriptorPool* descriptorPool, core::VirtualUniformBuffer* uniformBuffer);
+        virtual void draw(slag::CommandBuffer* commandBuffer, slag::Texture* drawBuffer, slag::DescriptorPool* descriptorPool, core::VirtualBuffer* uniformBuffer, core::VirtualBuffer* storageBuffer);
 
         SDL_Window* _window = nullptr;
         bool _windowManaged = false;

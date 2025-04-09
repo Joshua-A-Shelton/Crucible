@@ -97,8 +97,8 @@ add_library(Crucible
         src/crucible/core/ModelLoader.h
         src/crucible/core/Material.cpp
         src/crucible/core/Material.h
-        src/crucible/core/VirtualUniformBuffer.cpp
-        src/crucible/core/VirtualUniformBuffer.h
+        src/crucible/core/VirtualBuffer.cpp
+        src/crucible/core/VirtualBuffer.h
         src/crucible/core/animation/Bone.cpp
         src/crucible/core/animation/Bone.h
         src/crucible/core/animation/Skeleton.cpp

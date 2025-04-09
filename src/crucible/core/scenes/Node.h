@@ -10,7 +10,7 @@
 
 #include <slag/CommandBuffer.h>
 
-#include "crucible/core/VirtualUniformBuffer.h"
+#include "crucible/core/VirtualBuffer.h"
 
 namespace crucible
 {
@@ -78,7 +78,7 @@ namespace crucible
 
             void updateNode(double deltaTime);
 
-            void registerDraw(slag::DescriptorPool* descriptorPool, VirtualUniformBuffer* virtualUniformBuffer, Transform* parentTransform, ecs_entity_t& transformType,ecs_entity_t& meshRendererType);
+            void registerDraw(slag::DescriptorPool* descriptorPool, VirtualBuffer* virtualUniformBuffer, Transform* parentTransform, ecs_entity_t& transformType,ecs_entity_t& meshRendererType);
 
             static Node* getNodeByID(const boost::uuids::uuid& id);
             friend class crucible::scripting::ScriptingEngine;

@@ -7,34 +7,36 @@ namespace crucible
 {
     namespace core
     {
-        struct UniformWriteLocation
+        struct BufferWriteLocation
         {
             slag::Buffer* buffer = nullptr;
             size_t offset = 0;
             size_t length = 0;
         };
-        class VirtualUniformBuffer
+        class VirtualBuffer
         {
         public:
-            VirtualUniformBuffer()=delete;
-            VirtualUniformBuffer(size_t initialSize);
-            ~VirtualUniformBuffer();
-            VirtualUniformBuffer(const VirtualUniformBuffer&) = delete;
-            VirtualUniformBuffer& operator=(const VirtualUniformBuffer&) = delete;
-            VirtualUniformBuffer(VirtualUniformBuffer&& from);
-            VirtualUniformBuffer& operator=(VirtualUniformBuffer&& from);
+            VirtualBuffer()=delete;
+            VirtualBuffer(size_t initialSize, slag::Buffer::Usage usage);
+            ~VirtualBuffer();
+            VirtualBuffer(const VirtualBuffer&) = delete;
+            VirtualBuffer& operator=(const VirtualBuffer&) = delete;
+            VirtualBuffer(VirtualBuffer&& from);
+            VirtualBuffer& operator=(VirtualBuffer&& from);
             void reset();
-            UniformWriteLocation write(void* data, size_t size);
+            BufferWriteLocation write(void* data, size_t size);
             size_t capacity() const;
             size_t usage() const;
         private:
-            void move(VirtualUniformBuffer& from);
+            void move(VirtualBuffer& from);
             std::vector<slag::Buffer*> _uniformBuffers;
             size_t _minSize = 0;
             size_t _currentBuffer=0;
             size_t _currentOffset=0;
             size_t _currentCapacity=0;
             size_t _currentUsage=0;
+            size_t _alignment=0;
+            slag::Buffer::Usage _usage;
         };
     } // core
 } // crucible

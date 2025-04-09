@@ -1,16 +1,16 @@
 #include "gtest/gtest.h"
-#include <crucible/core/VirtualUniformBuffer.h>
+#include <crucible/core/VirtualBuffer.h>
 using namespace crucible::core;
 TEST(VirtualUniformBufferTest, Creation)
 {
-    VirtualUniformBuffer virtualUniformBuffer(10);
+    VirtualBuffer virtualUniformBuffer(10);
     GTEST_ASSERT_EQ(virtualUniformBuffer.capacity(), 64);
     GTEST_ASSERT_EQ(virtualUniformBuffer.usage(), 0);
 }
 
 TEST(VirtualUniformBufferTest, Extend)
 {
-    VirtualUniformBuffer virtualUniformBuffer(64);
+    VirtualBuffer virtualUniformBuffer(64);
     GTEST_ASSERT_EQ(virtualUniformBuffer.capacity(), 64);
     std::vector<unsigned char> data(64, 255);
     virtualUniformBuffer.write(data.data(), data.size());
@@ -24,7 +24,7 @@ TEST(VirtualUniformBufferTest, Extend)
 
 TEST(VirtualUniformBufferTest, Reset)
 {
-    VirtualUniformBuffer virtualUniformBuffer(64);
+    VirtualBuffer virtualUniformBuffer(64);
     std::vector<unsigned char> data(200, 255);
     virtualUniformBuffer.write(data.data(), data.size());
     virtualUniformBuffer.write(data.data(), data.size());
@@ -38,7 +38,7 @@ TEST(VirtualUniformBufferTest, Reset)
 
 TEST(VirtualUniformBufferTest, Downsize)
 {
-    VirtualUniformBuffer virtualUniformBuffer(1000);
+    VirtualBuffer virtualUniformBuffer(1000);
     std::vector<unsigned char> data(200, 255);
     virtualUniformBuffer.write(data.data(), data.size());
     auto oldUsage = virtualUniformBuffer.usage();

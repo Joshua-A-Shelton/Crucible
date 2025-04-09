@@ -1,21 +1,26 @@
-#include "VirtualUniformBuffer.h"
+#include "VirtualBuffer.h"
 
 namespace crucible
 {
     namespace core
     {
-        VirtualUniformBuffer::VirtualUniformBuffer(size_t initialSize)
+        VirtualBuffer::VirtualBuffer(size_t initialSize, slag::Buffer::Usage usage)
         {
-            if (initialSize < 64)
+            if (usage & slag::Buffer::UNIFORM_BUFFER)
             {
-                initialSize = 64;
+                _alignment = 64;
             }
-            _uniformBuffers.push_back(slag::Buffer::newBuffer(initialSize,slag::Buffer::CPU_AND_GPU,slag::Buffer::UNIFORM_BUFFER));
+            else
+            {
+                _alignment = 0;
+            }
+            _uniformBuffers.push_back(slag::Buffer::newBuffer(initialSize,slag::Buffer::CPU_AND_GPU,usage));
             _currentCapacity = initialSize;
             _minSize = 64;
+            _usage = usage;
         }
 
-        VirtualUniformBuffer::~VirtualUniformBuffer()
+        VirtualBuffer::~VirtualBuffer()
         {
             for (auto buffer : _uniformBuffers)
             {
@@ -23,18 +28,18 @@ namespace crucible
             }
         }
 
-        VirtualUniformBuffer::VirtualUniformBuffer(VirtualUniformBuffer&& from)
+        VirtualBuffer::VirtualBuffer(VirtualBuffer&& from)
         {
             move(from);
         }
 
-        VirtualUniformBuffer& VirtualUniformBuffer::operator=(VirtualUniformBuffer&& from)
+        VirtualBuffer& VirtualBuffer::operator=(VirtualBuffer&& from)
         {
             move(from);
             return *this;
         }
 
-        void VirtualUniformBuffer::reset()
+        void VirtualBuffer::reset()
         {
             if (_currentUsage == 0)
             {
@@ -47,7 +52,7 @@ namespace crucible
                     delete buffer;
                 }
                 _uniformBuffers.clear();
-                _uniformBuffers.push_back(slag::Buffer::newBuffer(_currentCapacity,slag::Buffer::CPU_AND_GPU,slag::Buffer::UNIFORM_BUFFER));
+                _uniformBuffers.push_back(slag::Buffer::newBuffer(_currentCapacity,slag::Buffer::CPU_AND_GPU,_usage));
             }
             else if (_currentUsage < _currentCapacity/2 && _currentCapacity > _minSize)
             {
@@ -57,19 +62,19 @@ namespace crucible
                 }
                 _uniformBuffers.clear();
                 _currentCapacity = std::max((size_t)(_currentUsage*1.5),_minSize);
-                _uniformBuffers.push_back(slag::Buffer::newBuffer(_currentCapacity,slag::Buffer::CPU_AND_GPU,slag::Buffer::UNIFORM_BUFFER));
+                _uniformBuffers.push_back(slag::Buffer::newBuffer(_currentCapacity,slag::Buffer::CPU_AND_GPU,_usage));
             }
             _currentUsage = 0;
             _currentBuffer = 0;
             _currentOffset = 0;
         }
 
-        UniformWriteLocation VirtualUniformBuffer::write(void* data, size_t size)
+        BufferWriteLocation VirtualBuffer::write(void* data, size_t size)
         {
             if (_currentOffset + size > _uniformBuffers[_currentBuffer]->size())
             {
                 size_t newBufferSize = std::max(_currentCapacity/2,size);
-                _uniformBuffers.push_back(slag::Buffer::newBuffer(newBufferSize,slag::Buffer::CPU_AND_GPU,slag::Buffer::UNIFORM_BUFFER));
+                _uniformBuffers.push_back(slag::Buffer::newBuffer(newBufferSize,slag::Buffer::CPU_AND_GPU,_usage));
                 _currentBuffer++;
                 _currentCapacity+=newBufferSize;
                 _currentOffset = 0;
@@ -84,38 +89,44 @@ namespace crucible
             buffer->update(_currentOffset,data,size);
 
             size_t updateSize = 0;
-            if (size < 64)
+            if (size < _alignment)
             {
-                updateSize = 64;
+                updateSize = _alignment;
+            }
+            else if (_alignment!=0)
+            {
+                updateSize = size + (size%_alignment);
             }
             else
             {
-                updateSize = size + (size%64);
+                updateSize = size;
             }
             _currentUsage += updateSize;
-            UniformWriteLocation writeLocation{.buffer = buffer,.offset = _currentOffset,.length = size};
+            BufferWriteLocation writeLocation{.buffer = buffer,.offset = _currentOffset,.length = size};
             _currentOffset += updateSize;
             return writeLocation;
         }
 
-        size_t VirtualUniformBuffer::capacity() const
+        size_t VirtualBuffer::capacity() const
         {
             return _currentCapacity;
         }
 
-        size_t VirtualUniformBuffer::usage() const
+        size_t VirtualBuffer::usage() const
         {
-            //we can overflow the usage because we increase usage by multiples of 64, not just the last write size
+            //we can overflow the usage because we increase usage by multiples of alignment, not just the last write size
             return std::min(_currentUsage,_currentCapacity);
         }
 
-        void VirtualUniformBuffer::move(VirtualUniformBuffer& from)
+        void VirtualBuffer::move(VirtualBuffer& from)
         {
             _uniformBuffers.swap(from._uniformBuffers);
             _currentBuffer= from._currentBuffer;
             _currentOffset = from._currentOffset;
             _currentCapacity = from._currentCapacity;
             _currentUsage = from._currentUsage;
+            _alignment = from._alignment;
+            _usage = from._usage;
         }
     } // core
 } // crucible
