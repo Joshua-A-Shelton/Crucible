@@ -99,7 +99,7 @@ namespace crucible
         Skeleton::Skeleton(std::vector<Bone>&& bones)
         {
             _bones = std::move(bones);
-            _currentTransforms.resize(bones.size());
+            _currentTransforms.resize(_bones.size());
             for (auto i=0; i < _bones.size(); ++i)
             {
                 if (_bones[i].parent(*this)==nullptr)
@@ -214,6 +214,11 @@ namespace crucible
         std::vector<glm::mat4>& Skeleton::shaderTransforms()
         {
             return _currentTransforms;
+        }
+
+        Bone* Skeleton::rootBone() const
+        {
+            return _rootBone;
         }
 
         void Skeleton::copy(const Skeleton& skeleton)

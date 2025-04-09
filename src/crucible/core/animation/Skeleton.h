@@ -23,6 +23,7 @@ namespace crucible
             uint16_t boneCount() const;
             std::vector<unsigned char> toLZ4();
             std::vector<glm::mat4>& shaderTransforms();
+            Bone* rootBone()const;
         private:
             void copy(const Skeleton& skeleton);
             void move(Skeleton& skeleton);
