@@ -39,13 +39,14 @@ public class BlittableHelper
     {
         public static readonly bool Value = IsBlittable(typeof(T));
     }
-    
+    //disable warning, alignment helper isn't used for anything other than calculating sizes, so it doesn't matter if it's never assigned
+#pragma warning disable 0649
     internal struct AlignmentHelper<T> where T : unmanaged
     {
         public byte Padding;
         public T Target;
     }
-
+#pragma warning restore 0649
     public static int AlignmentOf<T>() where T : unmanaged
     {
         return (int)Marshal.OffsetOf<AlignmentHelper<T>>(nameof(AlignmentHelper<T>.Target));

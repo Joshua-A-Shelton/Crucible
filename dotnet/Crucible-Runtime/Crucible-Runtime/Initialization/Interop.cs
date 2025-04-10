@@ -152,7 +152,7 @@ internal static unsafe class Interop
         {
             var inst = GCHandle.FromIntPtr(instance).Target;
             List<Type> paramTypes = new List<Type>();
-            List<object> parametersInstances = new List<object>();
+            List<object?> parametersInstances = new List<object?>();
             for (int i = 0; i < parameterCount; i++)
             {
                 var runtimeType = RuntimeTypeHandle.FromIntPtr(types[i]);
@@ -164,7 +164,7 @@ internal static unsafe class Interop
                 paramTypes.Add(paramType);
                 if (paramType.IsValueType)
                 {
-                    object valInst = Marshal.PtrToStructure(parameters[i],paramType);
+                    object? valInst = Marshal.PtrToStructure(parameters[i],paramType);
                     parametersInstances.Add(valInst);
                 }
                 else
@@ -272,10 +272,20 @@ internal static unsafe class Interop
     public static void GetMeshRenderData(IntPtr meshRendererManagedReference, ref IntPtr mesh, ref IntPtr material, ref byte priority)
     {
         var inst = GCHandle.FromIntPtr(meshRendererManagedReference);
-        MeshRenderer meshRenderer = (MeshRenderer)inst.Target;
-        mesh = meshRenderer.Mesh._pointer;
-        material = meshRenderer.Material._materialPointer;
-        priority = meshRenderer.Priority;
+        MeshRenderer? meshRenderer = (MeshRenderer?)inst.Target;
+        if (meshRenderer != null)
+        {
+            mesh = meshRenderer.Mesh._pointer;
+            material = meshRenderer.Material._materialPointer;
+            priority = meshRenderer.Priority;
+        }
+        else
+        {
+            mesh = IntPtr.Zero;
+            material = IntPtr.Zero;
+            priority = 0;
+        }
+        
     }
 
     public delegate void GetCameraDelegate(IntPtr cameraManagedReference, ref IntPtr camera);
@@ -285,8 +295,16 @@ internal static unsafe class Interop
     public static void GetCamera(IntPtr cameraManagedReference, ref IntPtr camera)
     {
         var inst = GCHandle.FromIntPtr(cameraManagedReference);
-        Camera managedCamera = (Camera)inst.Target;
-        camera = managedCamera._cameraPtr;
+        Camera? managedCamera = (Camera?)inst.Target;
+        if (managedCamera != null)
+        {
+            camera = managedCamera._cameraPtr;
+        }
+        else
+        {
+            camera = IntPtr.Zero;
+        }
+        
     }
     
     
@@ -311,7 +329,7 @@ internal static unsafe class Interop
         try
         {
             var full = Path.GetFullPath(path);
-            AssemblyLoadContext context = null;
+            AssemblyLoadContext? context = null;
             if (string.IsNullOrEmpty(contextName))
             {
                 context = AssemblyLoadContext.Default;

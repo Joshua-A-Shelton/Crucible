@@ -5,7 +5,7 @@ namespace Crucible.Core;
 
 public unsafe static class GameManager
 {
-    private static GameLoop _loop;
+    private static GameLoop? _loop;
     
     private static void Initialize()
     {
@@ -38,7 +38,7 @@ public unsafe static class GameManager
     
     private static void RunLoop(double deltaTime)
     {
-        _loop.Update(deltaTime);
+        _loop?.Update(deltaTime);
     }
 
     private static void CleanUp()
@@ -50,7 +50,7 @@ public unsafe static class GameManager
     
 #pragma warning disable 0649
     private static delegate* unmanaged<ref NodePointer, void> _gameManagerGetRootNode_ptr;
-#pragma warning enable 0649
+#pragma warning restore 0649
 
     public static NodeReference RootNode
     {

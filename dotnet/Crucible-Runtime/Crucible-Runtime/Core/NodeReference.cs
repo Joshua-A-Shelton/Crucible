@@ -90,10 +90,6 @@ public unsafe struct NodeReference
 
     public void SetParent([NotNull]NodeReference newParent)
     {
-        if (newParent == null)
-        {
-            throw new ArgumentException("Cannot assign null as a parent to a NodeReference");
-        }
         var pointer = PointerFromUUID();
         var newParentPointer = newParent.PointerFromUUID();
         pointer.SetParent(newParentPointer);

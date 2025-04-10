@@ -46,7 +46,7 @@ public unsafe struct Quaternion
     
 #pragma warning disable 0649
     private static delegate* unmanaged<ref Quaternion, float, ref Vector3, void> _quaternionFromAngleAxis_ptr;
-#pragma warning enable 0649
+#pragma warning restore 0649
 
     public Quaternion(float angle, Vector3 axis)
     {

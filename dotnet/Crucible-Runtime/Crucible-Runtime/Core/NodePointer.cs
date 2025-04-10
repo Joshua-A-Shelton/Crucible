@@ -1,4 +1,5 @@
 ﻿using System.Runtime.InteropServices;
+using Crucible.Core.Exceptions;
 using Crucible.Initialization;
 
 namespace Crucible.Core;
@@ -55,7 +56,12 @@ internal unsafe struct NodePointer
             _nodePointerGetName(_pointer, handle.AddrOfPinnedObject(), arraySize);
             string? name = Marshal.PtrToStringUTF8(handle.AddrOfPinnedObject());
             handle.Free();
-            return name;
+            if (name != null)
+            {
+                return name;
+            }
+
+            return "";
         }
         set
         {
@@ -123,47 +129,86 @@ internal unsafe struct NodePointer
 
     public void AddDataComponent<T>(T component)where T:unmanaged
     {
-        var handle = GCHandle.Alloc(component, GCHandleType.Pinned);
-        _nodePointerAddDataComponent_ptr(_pointer, typeof(T).FullName, (UInt64)sizeof(T), (UInt64)BlittableHelper.AlignmentOf<T>(),handle.AddrOfPinnedObject());
-        handle.Free();
+        string? name = typeof(T).FullName;
+        if (name != null)
+        {
+            var handle = GCHandle.Alloc(component, GCHandleType.Pinned);
+            _nodePointerAddDataComponent_ptr(_pointer, name, (UInt64)sizeof(T), (UInt64)BlittableHelper.AlignmentOf<T>(),handle.AddrOfPinnedObject());
+            handle.Free();
+        }
+        else
+        {
+            throw new TypeAccessException("Type \""+typeof(T)+"\" cannot be made into component");
+        }
+        
     }
 
     public void RemoveDataComponent<T>()where T:unmanaged
     {
-        _nodePointerRemoveDataComponent_ptr(_pointer, typeof(T).FullName, (UInt64) sizeof(T), (UInt64) BlittableHelper.AlignmentOf<T>());
+        string? name = typeof(T).FullName;
+        if (name != null)
+        {
+            _nodePointerRemoveDataComponent_ptr(_pointer, name, (UInt64) sizeof(T), (UInt64) BlittableHelper.AlignmentOf<T>());
+        }
     }
 
     public ref T GetDataComponent<T>()where T:unmanaged
     {
-        var componentPointer = _nodePointerGetDataComponent_ptr(_pointer, typeof(T).FullName, (UInt64) sizeof(T),
-            (UInt64) BlittableHelper.AlignmentOf<T>());
-        if (componentPointer == null)
+        string? name = typeof(T).FullName;
+        if (name != null)
         {
-            throw new ArgumentException("Node does not have given component registered");
+            var componentPointer = _nodePointerGetDataComponent_ptr(_pointer, name, (UInt64) sizeof(T), (UInt64) BlittableHelper.AlignmentOf<T>());
+            if (componentPointer == null)
+            {
+                throw new ComponentNotFoundException("No component \""+typeof(T)+"\" is registered to this object");
+            }
+            return ref System.Runtime.CompilerServices.Unsafe.AsRef<T>(componentPointer);
         }
-        return ref System.Runtime.CompilerServices.Unsafe.AsRef<T>(componentPointer);
+        throw new TypeAccessException("Type \""+typeof(T)+"\" cannot be made into component");
     }
 
     public void AddReferenceComponent<T>(T component) where T : class
     {
-        var handle = GCHandle.Alloc(component, GCHandleType.Normal);
-        _nodePointerAddReferenceComponent_ptr(_pointer, typeof(T).FullName, typeof(T).TypeHandle.Value, GCHandle.ToIntPtr(handle));
+        string? name = typeof(T).FullName;
+        if (name != null)
+        {
+            var handle = GCHandle.Alloc(component, GCHandleType.Normal);
+            _nodePointerAddReferenceComponent_ptr(_pointer, name, typeof(T).TypeHandle.Value, GCHandle.ToIntPtr(handle));
+        }
+        else
+        {
+            throw new TypeAccessException("Type \""+typeof(T)+"\" cannot be made into component"); 
+        }
+        
     }
 
     public void RemoveReferenceComponent<T>() where T : class
     {
-        _nodePointerRemoveReferenceComponent_ptr(_pointer, typeof(T).FullName);
+        string? name = typeof(T).FullName;
+        if (name != null)
+        {
+            _nodePointerRemoveReferenceComponent_ptr(_pointer, name);
+
+        }
     }
 
     public T? GetReferenceComponent<T>() where T : class
     {
-        var pointer = _nodePointerGetReferenceComponent_ptr(_pointer, typeof(T).FullName);
-        if (pointer == IntPtr.Zero)
+        string? name = typeof(T).FullName;
+        if (name != null)
         {
-            return null;
+            var pointer = _nodePointerGetReferenceComponent_ptr(_pointer, name);
+            if (pointer == IntPtr.Zero)
+            {
+                return null;
+            }
+            var handle = GCHandle.FromIntPtr(pointer);
+            return (T?)handle.Target;
         }
-        var handle = GCHandle.FromIntPtr(pointer);
-        return (T?)handle.Target;
+        else
+        {
+            throw new TypeAccessException("Type \""+typeof(T)+"\" cannot be made into component");
+        }
     }
 
     public Transform CumulativeTransform()

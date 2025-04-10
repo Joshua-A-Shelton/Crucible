@@ -84,4 +84,19 @@ public unsafe struct Vector3
     {
         return "{"+X+", "+Y+", "+Z+"}";
     }
+
+    public override bool Equals(object? obj)
+    {
+        if (obj is Vector3 vector)
+        {
+            return this == vector;
+        }
+
+        return false;
+    }
+
+    public override int GetHashCode()
+    {
+        return (int)(X*13+Y*27+Z*31);
+    }
 }
