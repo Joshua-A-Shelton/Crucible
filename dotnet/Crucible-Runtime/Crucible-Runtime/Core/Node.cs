@@ -4,13 +4,18 @@ using Crucible.Initialization;
 
 namespace Crucible.Core;
 
-internal unsafe struct NodePointer
+public unsafe ref struct Node
 {
     private IntPtr _pointer;
 
-    public NodePointer(IntPtr pointer)
+    internal Node(IntPtr pointer)
     {
         _pointer = pointer;
+    }
+
+    internal IntPtr Pointer
+    {
+        get { return _pointer; }
     }
     
 #pragma warning disable 0649
@@ -69,18 +74,28 @@ internal unsafe struct NodePointer
         }
     }
 
-    public NodePointer? Parent()
+    public Node Parent()
     {
         var parentPointer = _nodePointerParent_ptr(_pointer);
         if (parentPointer == IntPtr.Zero)
         {
-            return null;
+            throw new NullReferenceException();
         }
 
-        return new NodePointer(parentPointer);
+        return new Node(parentPointer);
     }
 
-    public void SetParent(NodePointer parent)
+    public bool HasParent()
+    {
+        var parentPointer = _nodePointerParent_ptr(_pointer);
+        if (parentPointer == IntPtr.Zero)
+        {
+            return false;
+        }
+        return true;
+    }
+
+    public void SetParent(Node parent)
     {
         _nodePointerSetParent_ptr(_pointer,parent._pointer);
     }
@@ -90,7 +105,7 @@ internal unsafe struct NodePointer
         return _nodePointerChildCount_ptr(_pointer);
     }
 
-    public NodePointer GetChild(int index)
+    public Node GetChild(int index)
     {
         _nodePointerLockFamily_ptr(_pointer);
         if (index < 0 && index >= ChildCount())
@@ -100,17 +115,17 @@ internal unsafe struct NodePointer
         }
         var child = _nodePointerGetChild_ptr(_pointer, index);
         _nodePointerUnlockFamily_ptr(_pointer);
-        return new NodePointer(child);
+        return new Node(child);
 
     }
 
-    public NodePointer AddChild()
+    public Node AddChild()
     {
         var child = _nodePointerAddChild_ptr(_pointer);
-        return new NodePointer(child);
+        return new Node(child);
     }
 
-    public NodePointer AddChild(string name)
+    public Node AddChild(string name)
     {
         var child = AddChild();
         _nodePointerSetName(child._pointer, name);
@@ -122,7 +137,7 @@ internal unsafe struct NodePointer
         _nodePointerRemoveChildByIndex_ptr(_pointer, index);
     }
 
-    public void RemoveChild(NodePointer child)
+    public void RemoveChild(Node child)
     {
         _nodePointerRemoveChildByValue_ptr(_pointer, child._pointer);
     }
@@ -216,6 +231,26 @@ internal unsafe struct NodePointer
         Transform t = new Transform();
         _nodePointerGetCumulativeTransform_ptr(_pointer,ref t);
         return t;
+    }
+
+    public static bool operator ==(Node n1, Node n2)
+    {
+        return n1.Pointer == n2.Pointer;
+    }
+
+    public static bool operator !=(Node n1, Node n2)
+    {
+        return n1.Pointer != n2.Pointer;
+    }
+
+    public override bool Equals(object? obj)
+    {
+        throw new NotSupportedException("Node does not support Equals");
+    }
+
+    public override int GetHashCode()
+    {
+        throw new NotSupportedException("Node does not support GetHashCode");
     }
     
 }

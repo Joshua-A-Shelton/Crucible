@@ -15,7 +15,7 @@ public static class NodeTest
                 Console.WriteLine("Root node cannot be retrieved from UUID");
                 return false;
             }
-            var root = rootReference.Value;
+            var root = rootReference.Value.Acquire();
             if (root.ChildCount() != 0)
             {
                 Console.WriteLine("Root node has children before adding them");
@@ -69,7 +69,7 @@ public static class NodeTest
                 Console.WriteLine("Root node cannot be retrieved from UUID");
                 return false;
             }
-            var root = rootReference.Value;
+            var root = rootReference.Value.Acquire();
 
             root.AddDataComponent(new TestStruct());
 
@@ -115,7 +115,7 @@ public static class NodeTest
             Console.WriteLine("Root node cannot be retrieved from UUID");
             return false;
         }
-        var root = rootReference.Value;
+        var root = rootReference.Value.Acquire();
         
         root.Name = "I Am Root";
         if (root.Name != "I Am Root")

@@ -34,7 +34,7 @@ public unsafe struct Transform
     private static delegate* unmanaged<ref Transform, ref Vector3, void> _transformScale_ptr;
     private static delegate* unmanaged<ref Transform, ref Transform, ref Transform, void> _transformConcatTransforms_ptr;
     private static delegate* unmanaged<ref Transform, ref Transform, ref Transform, void> _transformDecatTransforms_ptr;
-    private static delegate* unmanaged<ref Transform, NodePointer, ref Transform, void> _transformToGlobal_ptr;
+    private static delegate* unmanaged<ref Transform, Node, ref Transform, void> _transformToGlobal_ptr;
     private static delegate* unmanaged<ref Transform, ref Transform, void> _transformInverse_ptr;
 #pragma warning restore 0649
 
@@ -119,16 +119,11 @@ public unsafe struct Transform
         _transformScale_ptr(ref this, ref scaleVector);
     }
 
-    internal Transform ToGlobal(NodePointer relativeTo)
+    public Transform ToGlobal(Node relativeTo)
     {
         Transform t = new Transform();
         _transformToGlobal_ptr(ref this, relativeTo, ref t);
         return t;
-    }
-
-    public Transform ToGlobal(NodeReference relativeTo)
-    {
-        return ToGlobal(relativeTo.PointerFromUUID());
     }
 
     public Transform Inverse()
@@ -145,10 +140,9 @@ public unsafe struct Transform
                Vector3.Approximately(a.Scale, b.Scale);
     }
 
-    public static Transform Cumulative(NodeReference from)
+    public static Transform Cumulative(Node from)
     {
-        var pointer = from.PointerFromUUID();
-        return pointer.CumulativeTransform();
+        return from.CumulativeTransform();
     }
 
     /// <summary>

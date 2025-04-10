@@ -83,7 +83,7 @@ public class TransformTest
         var noderef = NodeReference.FromUUID(nodeID);
         if (noderef != null)
         {
-            var node = noderef.Value;
+            var node = noderef.Value.Acquire();
             var child = node.AddChild();
             var grandchild = child.AddChild();
             var greatGrandChild = grandchild.AddChild();

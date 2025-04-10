@@ -7,7 +7,7 @@ public class CubeGameLoop: GameLoop
     public override void Initialize()
     {
         Console.WriteLine("Initializing Cube Example");
-        var root = GameManager.RootNode;
+        var root = GameManager.RootNode.Acquire();
         
         
         var model = root.AddChild("Model");
@@ -31,7 +31,7 @@ public class CubeGameLoop: GameLoop
 
     public override void Update(double deltaTime)
     {
-        var model = GameManager.RootNode.GetChild(0);
+        var model = GameManager.RootNode.Acquire().GetChild(0);
         spinModel(ref model.GetDataComponent<Transform>(),deltaTime);
 
     }

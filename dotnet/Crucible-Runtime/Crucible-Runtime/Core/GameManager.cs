@@ -49,16 +49,16 @@ public unsafe static class GameManager
     }
     
 #pragma warning disable 0649
-    private static delegate* unmanaged<ref NodePointer, void> _gameManagerGetRootNode_ptr;
+    private static delegate* unmanaged<ref Node, void> _gameManagerGetRootNode_ptr;
 #pragma warning restore 0649
 
     public static NodeReference RootNode
     {
         get
         {
-            NodePointer nodePointer = new NodePointer(IntPtr.Zero);
-            _gameManagerGetRootNode_ptr(ref nodePointer);
-            return new NodeReference(nodePointer.Uuid());
+            Node node = new Node(IntPtr.Zero);
+            _gameManagerGetRootNode_ptr(ref node);
+            return new NodeReference(node.Uuid());
         }
     }
 }
