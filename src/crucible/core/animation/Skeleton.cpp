@@ -1,5 +1,6 @@
 #include "Skeleton.h"
 
+#include <bit>
 #include <lz4.h>
 #include <queue>
 #include <stdexcept>
