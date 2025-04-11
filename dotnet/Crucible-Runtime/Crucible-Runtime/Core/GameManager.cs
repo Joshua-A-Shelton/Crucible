@@ -2,8 +2,10 @@
 using System.Runtime.InteropServices;
 
 namespace Crucible.Core;
-
-public unsafe static class GameManager
+/// <summary>
+/// Static class that governs global game variables
+/// </summary>
+public static unsafe class GameManager
 {
     private static GameLoop? _loop;
     
@@ -52,13 +54,16 @@ public unsafe static class GameManager
     private static delegate* unmanaged<ref Node, void> _gameManagerGetRootNode_ptr;
 #pragma warning restore 0649
 
-    public static NodeReference RootNode
+    /// <summary>
+    /// Retrieves the root node of the entire game world
+    /// </summary>
+    public static Node RootNode
     {
         get
         {
             Node node = new Node(IntPtr.Zero);
             _gameManagerGetRootNode_ptr(ref node);
-            return new NodeReference(node.Uuid());
+            return node;
         }
     }
 }

@@ -1,7 +1,9 @@
 ﻿using System.Text;
 
 namespace Crucible.Core;
-
+/// <summary>
+/// Universally Unique Identifier
+/// </summary>
 public unsafe struct UUID: IEquatable<UUID>
 {
     private fixed byte _bytes[16];

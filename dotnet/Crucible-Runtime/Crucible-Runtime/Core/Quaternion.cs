@@ -3,6 +3,9 @@ using System.Runtime.InteropServices;
 using Crucible.Core.Utils;
 
 namespace Crucible.Core;
+/// <summary>
+/// Struct used for representing 3d rotations
+/// </summary>
 [StructLayout(LayoutKind.Sequential)]
 public unsafe struct Quaternion
 {
@@ -48,6 +51,11 @@ public unsafe struct Quaternion
     private static delegate* unmanaged<ref Quaternion, float, ref Vector3, void> _quaternionFromAngleAxis_ptr;
 #pragma warning restore 0649
 
+    /// <summary>
+    /// Create a quaternion from angle axis representation
+    /// </summary>
+    /// <param name="angle">Rotation around the axis in radians</param>
+    /// <param name="axis">Axis to rotate around</param>
     public Quaternion(float angle, Vector3 axis)
     {
         axis.Normalize();

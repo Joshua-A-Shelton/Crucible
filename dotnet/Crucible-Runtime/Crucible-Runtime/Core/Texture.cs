@@ -1,7 +1,12 @@
 ﻿namespace Crucible.Core;
-
+/// <summary>
+/// Collection of texels
+/// </summary>
 public unsafe class Texture
 {
+    /// <summary>
+    /// Underlying texel size and layout
+    /// </summary>
     public enum Format
     {
         UNDEFINED,
@@ -82,7 +87,9 @@ public unsafe class Texture
         YUY2,
         B4G4R4A4_UNORM
     }
-
+    /// <summary>
+    /// Dimensionality of the texture
+    /// </summary>
     public enum TextureType
     {
         TEXTURE_1D,
@@ -90,7 +97,9 @@ public unsafe class Texture
         TEXTURE_3D,
         CUBE_MAP
     }
-
+    /// <summary>
+    /// How many pixels to use when multisampling
+    /// </summary>
     public enum MultiSamplePixels
     {
         ONE = 1,
@@ -113,18 +122,38 @@ public unsafe class Texture
     private static delegate* unmanaged<IntPtr, UInt32> _textureDepth_ptr;
     private static delegate* unmanaged<IntPtr, UInt32> _textureMipMapLevels_ptr;
 #pragma warning restore 0649
-    
+    /// <summary>
+    /// Handle to the texture at the low level
+    /// </summary>
     public IntPtr LowLevelHandle{get{return _texturePointer;}}
+    /// <summary>
+    /// The format the texels in this texture are layed out as
+    /// </summary>
     public Format PixelFormat{get{return _texturePixelFormat_ptr(_texturePointer);}}
+    /// <summary>
+    /// The dimensionality of this texture
+    /// </summary>
     public TextureType Type
     {
         get { return _textureType_ptr(_texturePointer); }
     }
+    /// <summary>
+    /// Number of texels wide this texture is 
+    /// </summary>
     public UInt32 Width{get{return _textureWidth_ptr(_texturePointer);}}
+    /// <summary>
+    /// Number of texels tall this texture is, (1 for 1D textures)
+    /// </summary>
     public UInt32 Height{get{return _textureHeight_ptr(_texturePointer);}}
+    /// <summary>
+    /// Number of texels deep this texture is (in the case of 3D textures, or number of array slices in 1D or 2D textures, or just 6 in case of cubemap, 1 otherwise)
+    /// </summary>
     public UInt32 Depth{get{return _textureDepth_ptr(_texturePointer);}}
+    /// <summary>
+    /// Number of downsized copies this texture has to use in sampling
+    /// </summary>
     public UInt32 MipMapLevels{get{return _textureMipMapLevels_ptr(_texturePointer);}}
-
+    
     internal Texture(TextureType textureType, Format format, UInt32 width, UInt32 height, UInt32 mipLevels, UInt32 layers, MultiSamplePixels multiSamplePixels, bool shaderResource, bool renderTarget, bool depthTarget)
     {
         if (!(shaderResource || renderTarget || depthTarget))
@@ -134,7 +163,15 @@ public unsafe class Texture
         _textureInitBlank_ptr(ref _texturePointer,textureType, format, width, height, mipLevels,layers, (byte)multiSamplePixels,shaderResource,renderTarget,depthTarget);
         _ownsMemory = true;
     }
-
+    /// <summary>
+    /// Load a texture from a file
+    /// </summary>
+    /// <param name="path">Path to the file</param>
+    /// <param name="format">R8G8B8A8_UNORM or R8G8B8A8_UINT representation of the pixels</param>
+    /// <param name="mipLevels">Number of downsized copies of the image to have for sampling purposes</param>
+    /// <exception cref="FileNotFoundException"></exception>
+    /// <exception cref="ArgumentException"></exception>
+    /// <exception cref="InvalidDataException"></exception>
     public Texture(string path, Format format, UInt32 mipLevels)
     {
         if (!Path.Exists(path))
@@ -154,7 +191,14 @@ public unsafe class Texture
         }
         _ownsMemory = true;
     }
-
+    /// <summary>
+    /// Create a texure from raw texel data
+    /// </summary>
+    /// <param name="texelData">Raw texel data</param>
+    /// <param name="format">Format of the texels in <paramref name="texelData"/></param>
+    /// <param name="width">Width of the texture</param>
+    /// <param name="height">Height of the texture</param>
+    /// <param name="mipLevels">Number of downsized copies of the image to have for sampling purposes</param>
     public Texture(Span<byte> texelData, Format format, UInt32 width, UInt32 height, UInt32 mipLevels)
     {
         fixed (byte* texelDataPtr = texelData)

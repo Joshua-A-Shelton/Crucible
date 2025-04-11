@@ -2,7 +2,9 @@
 using System.Runtime.InteropServices;
 
 namespace Crucible.Core;
-
+/// <summary>
+/// Represents a weak link to a node, used to prevent having Node from referencing a deleted node in unmanaged code
+/// </summary>
 public unsafe struct NodeReference
 {
     private UUID _uuid;

@@ -2,6 +2,9 @@
 
 namespace Crucible.Core;
 using System.Runtime.InteropServices;
+/// <summary>
+/// Direction and magnitude, or point in 3d space
+/// </summary>
 [StructLayout(LayoutKind.Sequential)]
 public unsafe struct Vector3
 {
@@ -22,17 +25,18 @@ public unsafe struct Vector3
         Y = y;
         Z = z;
     }
-
-    public float Length()
+    //Magnitude of this vector
+    public float Magnitude()
     {
         return MathF.Sqrt(X*X+Y*Y+Z*Z);
     }
-
+    //Equivalent vector with magnitude of 1
     public Vector3 Normalized()
     {
-        return new Vector3(X/Length(), Y/Length(), Z/Length());
+        var mag = Magnitude();
+        return new Vector3(X/mag, Y/mag, Z/mag);
     }
-
+    //Keep direction, but set magnitude to 1
     public void Normalize()
     {
         this = Normalized();
@@ -67,12 +71,22 @@ public unsafe struct Vector3
     private static delegate* unmanaged<ref Vector3, ref Vector3, float> _vector3Dot_ptr;
     private static delegate* unmanaged<ref Vector3, ref Vector3, ref Vector3, void> _vector3Cross_ptr;
 #pragma warning restore 0649
-
+    /// <summary>
+    /// Dot product of two vectors
+    /// </summary>
+    /// <param name="v1"></param>
+    /// <param name="v2"></param>
+    /// <returns></returns>
     public static float DotProduct(ref Vector3 v1, ref Vector3 v2)
     {
         return _vector3Dot_ptr(ref v1, ref v2);
     }
-
+    /// <summary>
+    /// Cross product of two vectors
+    /// </summary>
+    /// <param name="v1"></param>
+    /// <param name="v2"></param>
+    /// <returns></returns>
     public static Vector3 CrossProduct(ref Vector3 v1, ref Vector3 v2)
     {
         Vector3 v3 = new Vector3();

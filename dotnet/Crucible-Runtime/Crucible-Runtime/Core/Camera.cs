@@ -2,7 +2,7 @@
 using Crucible.Core.Attributes;
 
 namespace Crucible.Core;
-[Component]
+
 public unsafe class Camera
 {
     internal IntPtr _cameraPtr = IntPtr.Zero;

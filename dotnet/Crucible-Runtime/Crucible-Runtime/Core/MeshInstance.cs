@@ -1,7 +1,12 @@
 ﻿namespace Crucible.Core;
-
+/// <summary>
+/// Instance of drawable data
+/// </summary>
 public unsafe class MeshInstance
 {
+    /// <summary>
+    /// What kind of data is represented by a series of bytes in a buffer inside the graphics card
+    /// </summary>
     public enum VertexAttribute
     {
         ///X, Y, and Z position (floats)
@@ -19,7 +24,9 @@ public unsafe class MeshInstance
         ///Size of the VertexAttribute enum
         VERTEX_ATTRIBUTE_ENUM_SIZE
     }
-
+    /// <summary>
+    /// The size of a single entry in the index buffer
+    /// </summary>
     public enum IndexSize
     {
         UINT_16,
@@ -33,7 +40,11 @@ public unsafe class MeshInstance
     private static delegate* unmanaged<ref IntPtr, byte*, UInt32, IndexSize, byte*, UInt32, byte*, UInt32, byte*, UInt32, byte*, UInt32, byte*, UInt32, void> _meshInstanceFromMemory_ptr;
     private static delegate* unmanaged<IntPtr, void> _meshInstanceCleanup_ptr;
 #pragma warning restore 0649
-    
+    /// <summary>
+    /// Load a mesh instance from data, formatted according to the crucible mesh chunk specification
+    /// </summary>
+    /// <param name="meshData"></param>
+    /// <exception cref="InvalidDataException"></exception>
     public MeshInstance(Span<byte> meshData)
     {
         fixed (byte* ptr = meshData)
@@ -46,7 +57,11 @@ public unsafe class MeshInstance
             throw new InvalidDataException("Unable to create mesh from data");
         }
     }
-
+    /// <summary>
+    /// Load a mesh instance from a crucible mesh file
+    /// </summary>
+    /// <param name="modelFile"></param>
+    /// <exception cref="InvalidDataException"></exception>
     public MeshInstance(string modelFile)
     {
         _meshInstanceFromFile_ptr(ref _pointer, modelFile);
@@ -55,7 +70,24 @@ public unsafe class MeshInstance
             throw new InvalidDataException("Unable to create mesh from data");
         }
     }
-    
+    /// <summary>
+    /// Load a mesh instance by directly supplying the raw data that will be uploaded to the GPU
+    /// </summary>
+    /// <param name="indexData">Raw bytes that represent the indices of a draw</param>
+    /// <param name="indexBufferSize">Size of the <paramref name="indexData"/> byte span</param>
+    /// <param name="indexSize">If the entries in <paramref name="indexData"/> are 16 bit or 32 bit width indices</param>
+    /// <param name="vertexData">Raw bytes that represent the 3d positions of the vertices</param>
+    /// <param name="vertexDataSize">Size of the <paramref name="vertexData"/> span</param>
+    /// <param name="normals">Raw bytes that represent the normals of the vertices</param>
+    /// <param name="normalDataSize">Size of the <paramref name="normals"/> span, can be zero if not supplying normals</param>
+    /// <param name="uvs">Raw bytes that represent the UV coordinates of the vertices</param>
+    /// <param name="uvDataSize">Size of the <paramref name="uvs"/> span, can be zero if not supplying uv coordinates</param>
+    /// <param name="colors">Raw bytes that represent vertex colors</param>
+    /// <param name="colorDataSize">Size of the <paramref name="colors"/> span, can be zero if not supplying vertex colors</param>
+    /// <param name="boneWeights">Raw bytes that represent bone weights</param>
+    /// <param name="boneWeightDataSize">Size of the <paramref name="boneWeights"/> span, can be zero if not supplying bone weights</param>
+    /// <exception cref="ArgumentException"></exception>
+    /// <exception cref="InvalidDataException"></exception>
     public MeshInstance(Span<byte> indexData, UInt32 indexBufferSize, IndexSize indexSize, Span<byte> vertexData, UInt32 vertexDataSize, Span<byte> normals, UInt32 normalDataSize, Span<byte> uvs, UInt32 uvDataSize, Span<byte> colors, UInt32 colorDataSize, Span<byte> boneWeights, UInt32 boneWeightDataSize)
     {
         var indexCount = indexData.Length / (indexSize == IndexSize.UINT_16 ? sizeof(UInt16) : sizeof(UInt32));
@@ -83,7 +115,7 @@ public unsafe class MeshInstance
         {
             throw new ArgumentException("Number of Mesh vertex colors must match number of vertices, or be zero");
         }
-        var boneWeightCount = boneWeightDataSize / (sizeof(UInt32) + sizeof(float) * 4);
+        var boneWeightCount = boneWeightDataSize / ((sizeof(UInt16) + sizeof(float)) * 4);
         if (boneWeightCount != 0 && boneWeightCount != vertexCount)
         {
             throw new ArgumentException("Number of Mesh bone weights must match number of vertices, or be zero");
