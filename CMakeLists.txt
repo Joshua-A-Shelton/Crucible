@@ -103,6 +103,8 @@ add_library(Crucible
         src/crucible/core/animation/Bone.h
         src/crucible/core/animation/Skeleton.cpp
         src/crucible/core/animation/Skeleton.h
+        src/crucible/core/TextureLoader.cpp
+        src/crucible/core/TextureLoader.h
 )
 
 target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})
@@ -171,6 +173,7 @@ if(CrucibleTests)
             test/tests/ModelTest.cpp
             test/tests/VirtualUniformBufferTest.cpp
             test/tests/SkeletonTest.cpp
+            test/tests/TextureLoaderTest.cpp
     )
 
     target_link_libraries(CrucibleTests Crucible GTest::gtest)
