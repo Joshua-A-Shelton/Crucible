@@ -194,6 +194,8 @@ namespace crucible
                     return sizeof(float)*3;
                 case UV:
                     return sizeof(float)*2;
+                case TANGENT:
+                    return sizeof(float)*3;
                 case COLOR:
                     return sizeof(char)*4;
                 case BONE_WEIGHT:

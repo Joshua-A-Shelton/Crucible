@@ -26,6 +26,8 @@ namespace crucible
                 NORMAL,
                 ///UV texture coordinates
                 UV,
+                ///Tangent vector of vertex (X,Y, and X floats)
+                TANGENT,
                 ///R, G, B, A values (byte)
                 COLOR,
                 ///Bone ID (UINT_16) Bone weight (float) (x4)
@@ -103,6 +105,7 @@ namespace crucible
                 VERTEX_ATTRIBUTE_ENUM_SIZE,//POSITION_2D
                 VERTEX_ATTRIBUTE_ENUM_SIZE,//NORMAL
                 VERTEX_ATTRIBUTE_ENUM_SIZE,//UV
+                VERTEX_ATTRIBUTE_ENUM_SIZE,//TANGENT
                 VERTEX_ATTRIBUTE_ENUM_SIZE,//COLOR
                 VERTEX_ATTRIBUTE_ENUM_SIZE,//BONE_WEIGHT
             };
