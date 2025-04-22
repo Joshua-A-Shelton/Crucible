@@ -1,4 +1,4 @@
-module mesh;
+module Mesh;
 //Vertex Position 3D attribute
 public struct Vertex3D
 {

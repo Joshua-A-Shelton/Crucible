@@ -359,5 +359,28 @@ namespace crucible
             }
             return data;
         }
+
+        slag::VertexAttribute Mesh::underlyingAttribute(VertexAttribute attribute)
+        {
+            switch (attribute)
+            {
+            case POSITION_3D:
+                return slag::VertexAttribute{slag::GraphicsTypes::VECTOR3,0};
+            case POSITION_2D:
+                return slag::VertexAttribute{slag::GraphicsTypes::VECTOR2,0};
+            case NORMAL:
+                return slag::VertexAttribute{slag::GraphicsTypes::VECTOR3,0};
+            case UV:
+                return slag::VertexAttribute{slag::GraphicsTypes::VECTOR2,0};
+            case TANGENT:
+                return slag::VertexAttribute{slag::GraphicsTypes::VECTOR3,0};
+            case COLOR:
+                return slag::VertexAttribute{slag::GraphicsTypes::BOOLEAN_VECTOR4,0};
+            case BONE_WEIGHT:
+                return slag::VertexAttribute{slag::GraphicsTypes::VECTOR3,0};
+            default:
+                throw std::invalid_argument("Invalid vertex attribute");
+            }
+        }
     } // core
 } // crucible

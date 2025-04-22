@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <boost/endian/conversion.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include "Mesh.h"
 #include "slag/ShaderPipeline.h"
@@ -135,7 +136,7 @@ namespace crucible
             if (shader==_compiledShaders.end())
             {
                 std::filesystem::path shaderFolder = "shaders";
-                auto shaderFile = shaderFolder/(name + ".csbf");
+                auto shaderFile = shaderFolder/(name + ".cshdr");
                 shader = _compiledShaders.insert({name,buildShader(shaderFile,name)}).first;
             }
 
@@ -162,27 +163,21 @@ namespace crucible
 
             unsigned char* bytePointer = &data[0];
 
-            auto magicNumber = std::string(reinterpret_cast<char*>(bytePointer),5);
-            bytePointer+=5;
+            auto magicNumber = std::string(reinterpret_cast<char*>(bytePointer),6);
+            bytePointer+=6;
 
-            if (magicNumber!="csbf\n")
+            if (magicNumber!="cshdr\n")
             {
-                throw std::runtime_error(path.string()+" is not a valid shader bundle file");
+                throw std::runtime_error(path.string()+" is not a valid crucible shader file");
             }
             try
             {
                 auto last = &*(data.end()-1);
-                //Read output buffer formats
-                auto frameBufferDescription = getFrameBufferDescription(bytePointer,last);
-
-                //Read vertex format
-                auto vertexInfo = getVertexProperties(bytePointer,last);
-
-                //Read properties
-                auto properties = getShaderProperties(bytePointer,last);
-
-                //Read modules
-                auto shaderModules = getShaderModules(bytePointer,last);
+                slag::ShaderProperties properties{};
+                VertexInfo vertexInfo(slag::VertexDescription(0),std::vector<Mesh::VertexAttribute>({}));
+                slag::FrameBufferDescription frameBufferDescription;
+                std::vector<slag::ShaderModule> shaderModules;
+                getShaderModules(bytePointer,last,shaderModules,properties,vertexInfo,frameBufferDescription);
 
                 pipeline = slag::ShaderPipeline::newShaderPipeline(shaderModules.data(),shaderModules.size(),nullptr,0,properties,&vertexInfo.description,frameBufferDescription);
                 return ShaderUnit(pipeline,name,vertexInfo.attributes);
@@ -199,155 +194,116 @@ namespace crucible
             _compiledShaders.erase(shader->_name);
         }
 
-        slag::FrameBufferDescription ShaderManager::getFrameBufferDescription(unsigned char*& pointer, const unsigned char* lastInFile)
+        void ShaderManager::getShaderModules(unsigned char* startingByte, const unsigned char *endByte, std::vector<slag::ShaderModule>& shaderModules,slag::ShaderProperties& properties,VertexInfo& vertexDesc, slag::FrameBufferDescription& frameBufferDesc)
         {
-            slag::FrameBufferDescription frameBufferDescription;
-            std::string line;
-            while (*std::bit_cast<char*>(pointer) == '#')
+            unsigned char* currentByte = startingByte;
+            while (currentByte<endByte)
             {
-                while (pointer <= lastInFile && *pointer != '\n')
+                nextModule(currentByte,endByte,shaderModules,properties,vertexDesc,frameBufferDesc);
+
+                uintptr_t cb = (uintptr_t)currentByte;
+                uintptr_t eb = (uintptr_t)endByte;
+                if (currentByte>endByte)
                 {
-                    line+=*std::bit_cast<char*>(pointer);
-                    pointer++;
+                    throw std::runtime_error("Exceeded end of shader data");
                 }
-                pointer++;
-                if (line.length()<9)
-                {
-                    throw std::runtime_error("Shader file is corrupt, invalid description of render targets");
-                }
-                auto substr = line.substr(0,7);
-                auto value = line.substr(7,line.length()-7);
-                auto format = getFormat(value);
-                if (format == slag::Pixels::UNDEFINED)
-                {
-                    throw std::runtime_error("Undefined format is not valid for render target");
-                }
-                if (substr=="#color ")
-                {
-                    frameBufferDescription.addColorTarget(format);
-                }
-                else if (substr=="#depth ")
-                {
-                    frameBufferDescription.setDepthTarget(format);
-                }
-                line = "";
+                currentByte++;
             }
-            if (frameBufferDescription.colorTargetCount()==0 && frameBufferDescription.depthFormat()==slag::Pixels::UNDEFINED)
-            {
-                throw std::runtime_error("Frame buffer description must be defined");
-            }
-            return frameBufferDescription;
         }
 
-        ShaderManager::VertexInfo ShaderManager::getVertexProperties(unsigned char*& pointer, const unsigned char* lastInFile)
+        void ShaderManager::nextModule(unsigned char*& currentByte, const unsigned char* endByte,std::vector<slag::ShaderModule>& shaderModules,slag::ShaderProperties& properties,VertexInfo& vertexDesc, slag::FrameBufferDescription& frameBufferDesc)
         {
-            if (!(pointer+sizeof(uint16_t)<= lastInFile))
+            auto startByte = currentByte;
+            size_t length = 0;
+            while (*currentByte!=':')
             {
-                throw std::runtime_error("Unexpected end of file");
-            }
-            uint16_t vertexRequirements = *reinterpret_cast<uint16_t*>(pointer);
-            pointer+=sizeof(uint16_t);
-            boost::endian::little_to_native_inplace(vertexRequirements);
-            auto channels = std::popcount(vertexRequirements);
-            size_t currentChannel = 0;
-            slag::VertexDescription vertexDescription(channels);
-            std::vector<Mesh::VertexAttribute> attributes;
-
-            if (vertexRequirements & Mesh::attributeSerializeIndex(Mesh::POSITION_3D))
-            {
-                vertexDescription.add(slag::VertexAttribute(slag::GraphicsTypes::VECTOR3,0),currentChannel);
-                attributes.push_back(Mesh::POSITION_3D);
-                currentChannel++;
-            }
-            if (vertexRequirements & Mesh::attributeSerializeIndex(Mesh::POSITION_2D))
-            {
-                vertexDescription.add(slag::VertexAttribute(slag::GraphicsTypes::VECTOR2,0),currentChannel);
-                attributes.push_back(Mesh::POSITION_2D);
-                currentChannel++;
-            }
-            if (vertexRequirements & Mesh::attributeSerializeIndex(Mesh::NORMAL))
-            {
-                vertexDescription.add(slag::VertexAttribute(slag::GraphicsTypes::VECTOR3,0),currentChannel);
-                attributes.push_back(Mesh::NORMAL);
-                currentChannel++;
-            }
-            if (vertexRequirements & Mesh::attributeSerializeIndex(Mesh::UV))
-            {
-                vertexDescription.add(slag::VertexAttribute(slag::GraphicsTypes::VECTOR2,0),currentChannel);
-                attributes.push_back(Mesh::UV);
-                currentChannel++;
-            }
-            if (vertexRequirements & Mesh::attributeSerializeIndex(Mesh::COLOR))
-            {
-                vertexDescription.add(slag::VertexAttribute(slag::GraphicsTypes::GraphicsType::BOOLEAN_VECTOR4,0),currentChannel);
-                attributes.push_back(Mesh::COLOR);
-                currentChannel++;
-            }
-            return ShaderManager::VertexInfo{vertexDescription,attributes};
-        }
-
-        slag::ShaderProperties ShaderManager::getShaderProperties(unsigned char*& pointer, const unsigned char* lastInFile)
-        {
-            //TODO: actually set properties
-            slag::ShaderProperties shaderProperties;
-            shaderProperties.rasterizationState.culling = slag::RasterizationState::BACK_FACING;
-            shaderProperties.rasterizationState.frontFacing = slag::RasterizationState::COUNTER_CLOCKWISE;
-            return shaderProperties;
-        }
-
-        std::vector<slag::ShaderModule> ShaderManager::getShaderModules(unsigned char*& pointer, const unsigned char* lastInFile)
-        {
-            std::vector<slag::ShaderModule> modules;
-
-            std::string moduleType;
-            slag::ShaderStages stage = slag::ShaderStageFlags::VERTEX;
-            while (pointer <= lastInFile)
-            {
-                char nextChar=*reinterpret_cast<char*>(pointer);
-                pointer+=sizeof(char);
-
-                if (nextChar!=':')
+                currentByte++;
+                length++;
+                if (currentByte>=endByte)
                 {
-                    moduleType+=nextChar;
+                    throw std::runtime_error("Exceeded end of shader data");
                 }
-                else
+            }
+            std::string stageName((char*)startByte,length);
+            auto stage = getStage(stageName);
+            currentByte++;
+            while (isspace(*currentByte))
+            {
+                currentByte++;
+            }
+            if (*currentByte!='<')
+            {
+                throw std::runtime_error("Shader stage parameters malformed");
+            }
+            currentByte++;
+            startByte = currentByte;
+            length = 0;
+            while (*currentByte!='>')
+            {
+                currentByte++;
+                length++;
+                if (currentByte>=endByte)
                 {
-
-                    if (moduleType == "vertex")
+                    throw std::runtime_error("Exceeded end of shader data");
+                }
+            }
+            currentByte++;
+            std::string paramString((char*)startByte,length);
+            const char* delimiter = ",";
+            char* token = strtok(paramString.data(),delimiter);
+            std::vector<std::string> parameters;
+            while (token!=nullptr)
+            {
+                std::string param(token);
+                boost::trim(param);
+                parameters.push_back(param);
+                token = strtok(nullptr,delimiter);
+            }
+            uint32_t shaderSize = *((uint32_t*)currentByte);
+            if constexpr (std::endian::native==std::endian::big)
+            {
+                boost::endian::little_to_native_inplace(shaderSize);
+            }
+            currentByte+=sizeof(uint32_t);
+            slag::ShaderModule module(stage,currentByte,shaderSize);
+            currentByte+=shaderSize-1;
+            shaderModules.push_back(std::move(module));
+            if (stage == slag::ShaderStageFlags::VERTEX)
+            {
+                slag::VertexDescription description(parameters.size());
+                std::vector<Mesh::VertexAttribute> attributes(parameters.size());
+                for (auto i=0; i< parameters.size(); i++)
+                {
+                    auto attribute = getVertexAttribute(parameters[i]);
+                    attributes[i]= attribute;
+                    description.add(Mesh::underlyingAttribute(attribute),i);
+                }
+                vertexDesc.attributes = std::move(attributes);
+                vertexDesc.description = std::move(description);
+            }
+            else if (stage == slag::ShaderStageFlags::FRAGMENT)
+            {
+                if (parameters.size()==0)
+                {
+                    throw std::runtime_error("Shader fragment stage has no targets");
+                }
+                for (auto i=0; i< parameters.size(); i++)
+                {
+                    auto format = getFormat(parameters[i]);
+                    if (slag::Pixels::isColorFormat(format))
                     {
-                        stage = slag::ShaderStageFlags::VERTEX;
+                        frameBufferDesc.addColorTarget(format);
                     }
-                    else if (moduleType == "fragment")
+                    else if (slag::Pixels::isDepthFormat(format))
                     {
-                        stage = slag::ShaderStageFlags::FRAGMENT;
+                        frameBufferDesc.setDepthTarget(format);
                     }
                     else
                     {
-                        throw std::runtime_error("Unrecognized shader stage: "+moduleType);
+                        throw std::runtime_error("Shader fragment format not supported");
                     }
-
-
-                    if (!(pointer+sizeof(uint32_t)<=lastInFile))
-                    {
-                        throw std::runtime_error("Unexpected end of file");
-                    }
-
-                    uint32_t shaderLength = *reinterpret_cast<uint32_t*>(pointer);
-                    pointer+=sizeof(uint32_t);
-                    boost::endian::little_to_native_inplace(shaderLength);
-
-                    if (!(pointer+shaderLength<=lastInFile+1))
-                    {
-                        throw std::runtime_error("Unexpected end of file");
-                    }
-                    std::vector<char> shaderBytes(shaderLength);
-                    memcpy(shaderBytes.data(), pointer, shaderLength);
-                    pointer+=shaderLength;
-                    modules.emplace_back(stage,shaderBytes.data(),shaderBytes.size());
-                    moduleType = "";
                 }
             }
-            return modules;
         }
 
         slag::Pixels::Format ShaderManager::getFormat(const std::string& fromText)
@@ -356,6 +312,101 @@ namespace crucible
             TEXTURE_FORMAT_DEFINTITIONS(DEFINITION)
 #undef DEFINITION
             throw std::runtime_error("Unrecognized format: "+fromText);
+        }
+
+        slag::ShaderStages ShaderManager::getStage(const std::string& fromText)
+        {
+            if (fromText == "vertex")
+            {
+                return slag::ShaderStageFlags::VERTEX;
+            }
+            if (fromText == "hull")
+            {
+                throw std::runtime_error("Hull Shaders not currently supported");
+            }
+            if (fromText == "domain")
+            {
+                throw std::runtime_error("Domain Shaders not currently supported");
+            }
+            if (fromText == "geometry")
+            {
+                return slag::ShaderStageFlags::GEOMETRY;
+            }
+            if (fromText == "fragment")
+            {
+                return slag::ShaderStageFlags::FRAGMENT;
+            }
+            if (fromText == "compute")
+            {
+                return slag::ShaderStageFlags::COMPUTE;
+            }
+            if (fromText == "rayGeneration")
+            {
+                return slag::ShaderStageFlags::RAY_GENERATION;
+            }
+            if (fromText == "intersection")
+            {
+                return slag::ShaderStageFlags::INTERSECTION;
+            }
+            if (fromText == "anyHit")
+            {
+                return slag::ShaderStageFlags::ANY_HIT;
+            }
+            if (fromText == "closestHit")
+            {
+                return slag::ShaderStageFlags::CLOSEST_HIT;
+            }
+            if (fromText == "miss")
+            {
+                return slag::ShaderStageFlags::MISS;
+            }
+            if (fromText == "callable")
+            {
+                return slag::ShaderStageFlags::CALLABLE;
+            }
+            if (fromText == "mesh")
+            {
+                return slag::ShaderStageFlags::MESH;
+            }
+            if (fromText == "task")
+            {
+                return slag::ShaderStageFlags::TASK;
+            }
+            throw std::runtime_error("Unrecognized shader type: "+fromText);
+
+        }
+
+        Mesh::VertexAttribute ShaderManager::getVertexAttribute(const std::string& fromText)
+        {
+            if (fromText == "Vertex3D")
+            {
+                return Mesh::POSITION_3D;
+            }
+            else if (fromText == "Vertex2D")
+            {
+                return Mesh::POSITION_2D;
+            }
+            else if (fromText == "Normal")
+            {
+                return Mesh::NORMAL;
+            }
+            else if (fromText == "Tangent")
+            {
+                return Mesh::TANGENT;
+            }
+            else if (fromText == "UVCoordinates")
+            {
+                return Mesh::UV;
+            }
+            else if (fromText == "VertexColor")
+            {
+                return Mesh::COLOR;
+            }
+            else if (fromText == "BoneWeights")
+            {
+                return Mesh::BONE_WEIGHT;
+            }
+            throw std::runtime_error("Unrecognized vertex attribute: "+fromText);
         }
     } // core
 } // crucible

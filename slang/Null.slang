@@ -1,4 +1,4 @@
-import mesh;
+import Mesh;
 
 [shader("vertex")]
 float4 vertexMain(Vertex3D vertex3d) : SV_Position

@@ -1,5 +1,5 @@
 #include "gtest/gtest.h"
-#include <crucible/core/animation/skeleton.h>
+#include <crucible/core/animation/Skeleton.h>
 
 using namespace crucible::core;
 

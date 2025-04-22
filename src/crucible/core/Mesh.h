@@ -95,6 +95,8 @@ namespace crucible
 
             std::vector<unsigned char> toData()const;
             std::vector<unsigned char> toData(const VertexAttribute* attributes, uint8_t attributeCount)const;
+
+            static slag::VertexAttribute underlyingAttribute(VertexAttribute attribute);
         private:
             void move(Mesh& from);
             std::vector<VertexAttributeStream> _attributeStreams;
