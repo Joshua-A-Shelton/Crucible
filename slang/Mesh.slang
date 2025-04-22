@@ -14,6 +14,10 @@ public struct Normal
 {
     public float3 direction;
 }
+public struct Tangent
+{
+    public float3 direction;
+}
 //Vertex UV coordinate attribute
 public struct UVCoordinates
 {
@@ -38,7 +42,7 @@ public struct BoneWeights
 //Data that is set once per scene per frame
 public struct SceneData
 {
-    public float time;
+    public float4 wind;
 }
 //Data that is set once per view (usually camera) per frame
 public struct ViewData
