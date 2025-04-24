@@ -174,6 +174,7 @@ namespace crucible
             {
                 auto last = &*(data.end()-1);
                 slag::ShaderProperties properties{};
+                properties.rasterizationState.culling = slag::RasterizationState::CullOptions::NONE;
                 VertexInfo vertexInfo(slag::VertexDescription(0),std::vector<Mesh::VertexAttribute>({}));
                 slag::FrameBufferDescription frameBufferDescription;
                 std::vector<slag::ShaderModule> shaderModules;

@@ -7,7 +7,7 @@ TEST(ShaderManagerTests, NullShader)
     GTEST_ASSERT_TRUE(shaderRef.requiredAttributesCount()==1);
     GTEST_ASSERT_TRUE(shaderRef.attribute(0) == Mesh::VertexAttribute::POSITION_3D);
 
-    GTEST_ASSERT_EQ(shaderRef.pipeline()->descriptorGroupCount(),2);
+    GTEST_ASSERT_EQ(shaderRef.pipeline()->descriptorGroupCount(),3);
     slag::Descriptor::Shape globalsShape(slag::Descriptor::UNIFORM_BUFFER,1,0,slag::ShaderStageFlags::VERTEX);
     slag::Descriptor::Shape passShape(slag::Descriptor::UNIFORM_BUFFER,1,0,slag::ShaderStageFlags::VERTEX);
 

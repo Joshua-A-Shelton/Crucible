@@ -14,7 +14,7 @@ public class CubeGameLoop: GameLoop
         Transform modelTransform = new Transform();
         model.AddDataComponent(modelTransform);
         
-        MeshRenderer meshRenderer = new MeshRenderer("resources/cube.cmodel","flat-test",0);
+        MeshRenderer meshRenderer = new MeshRenderer("resources/cube.cmodel","Flat-Textured",0);
         model.AddReferenceComponent(meshRenderer);
         
         var camera = root.AddChild("Camera");

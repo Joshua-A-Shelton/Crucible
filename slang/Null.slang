@@ -1,10 +1,17 @@
-import Mesh;
+//import Mesh;
+#include "Mesh.slang"
+struct NullObject
+{
+    matrix<float,4,4> transform;
+}
+
+ParameterBlock<NullObject> NullObjectInstance;
 
 [shader("vertex")]
 float4 vertexMain(Vertex3D vertex3d) : SV_Position
 {
     float4 finalPosition = float4(vertex3d.position,1.0);
-    finalPosition = mul(mul(View.perspective,View.view),finalPosition);
+    finalPosition = mul(mul(mul(View.perspective,View.view),NullObjectInstance.transform),finalPosition);
 
     return finalPosition;
 }

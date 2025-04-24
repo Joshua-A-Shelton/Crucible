@@ -189,7 +189,7 @@ namespace crucible
         auto root = core::World::RootNode;
         if (root)
         {
-            auto basicShader = core::ShaderManager::getShaderReference("flat-test");
+            auto basicShader = core::ShaderManager::getShaderReference("Null");
             //bind globals
             glm::vec4 wind(0,0,0,0);
             auto location = uniformBuffer->write(&wind, sizeof(glm::vec4));

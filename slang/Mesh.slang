@@ -43,13 +43,15 @@ public struct BoneWeights
 public struct SceneData
 {
     public float4 wind;
+    public float time;
 }
 //Data that is set once per view (usually camera) per frame
 public struct ViewData
 {
-    public float4x4 perspective;
-    public float4x4 view;
+    public matrix<float,4,4> perspective;
+    public matrix<float,4,4> view;
 }
 
 public ParameterBlock<SceneData> Scene;
+
 public ParameterBlock<ViewData> View;
