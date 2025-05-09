@@ -1,15 +1,32 @@
-import Mesh;
+#include "CrucibleCore.slang"
+#include "Mesh.slang"
+
+
+struct VertexStageOutput
+{
+    float4 sv_position: SV_Position;
+}
+
+struct NullObject
+{
+    matrix<float,4,4> transform;
+}
+
+ParameterBlock<NullObject> NullObjectInstance;
 
 [shader("vertex")]
-float4 vertexMain(Vertex3D vertex3d) : SV_Position
+VertexStageOutput vertexMain(Vertex3D vertex3d)
 {
-    float4 finalPosition = float4(vertex3d.position,1.0);
-    finalPosition = mul(mul(View.perspective,View.view),finalPosition);
+    float3 worldPosition = mul(NullObjectInstance.transform,float4(vertex3d.position,1)).xyz;
 
-    return finalPosition;
+    VertexStageOutput output;
+    output.sv_position = mul(Camera.projectionView, float4(worldPosition,1));
+    return output;
 }
 
 [shader("fragment")]
+[OutputColorTarget(0,TexelFormatReflection.B8G8R8A8_UNORM_SRGB)]
+[OutputDepthTarget(TexelFormatReflection.D32_FLOAT)]
 float4 fragmentMain() : SV_Target
 {
     return float4(1,0,1,1);

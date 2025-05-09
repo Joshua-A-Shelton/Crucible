@@ -4,7 +4,6 @@
 #include <fstream>
 #include <iostream>
 #include <boost/endian/conversion.hpp>
-#include <boost/algorithm/string.hpp>
 
 #include "Mesh.h"
 #include "slag/ShaderPipeline.h"
@@ -173,13 +172,24 @@ namespace crucible
             try
             {
                 auto last = &*(data.end()-1);
+
+                std::vector<slag::DescriptorGroup*> descriptorGroups;
+                getDescriptorGroups(bytePointer,last,descriptorGroups);
+
                 slag::ShaderProperties properties{};
                 VertexInfo vertexInfo(slag::VertexDescription(0),std::vector<Mesh::VertexAttribute>({}));
                 slag::FrameBufferDescription frameBufferDescription;
                 std::vector<slag::ShaderModule> shaderModules;
                 getShaderModules(bytePointer,last,shaderModules,properties,vertexInfo,frameBufferDescription);
 
-                pipeline = slag::ShaderPipeline::newShaderPipeline(shaderModules.data(),shaderModules.size(),nullptr,0,properties,&vertexInfo.description,frameBufferDescription);
+                properties.rasterizationState.culling = slag::RasterizationState::NONE;
+
+                //only pass in maximum of 2 descriptor groups (global/view), we can get the others from reflection, and it will have more specific information than what we can read from the file defined groups
+                pipeline = slag::ShaderPipeline::newShaderPipeline(shaderModules.data(),std::min(shaderModules.size(),(size_t)2),descriptorGroups.data(),descriptorGroups.size(),properties,&vertexInfo.description,frameBufferDescription);
+                for (auto i=0; i<descriptorGroups.size(); i++)
+                {
+                    delete descriptorGroups[i];
+                }
                 return ShaderUnit(pipeline,name,vertexInfo.attributes);
             }
             catch (const std::exception& e)
@@ -193,6 +203,48 @@ namespace crucible
             std::lock_guard<std::mutex> lock(_compiledShadersMutex);
             _compiledShaders.erase(shader->_name);
         }
+
+        void ShaderManager::getDescriptorGroups(unsigned char*& currentByte, const unsigned char* endByte, std::vector<slag::DescriptorGroup*>& descriptorGroups)
+        {
+            uint8_t descriptorGroupCount = *currentByte;
+            currentByte++;
+            for(size_t i=0; i<descriptorGroupCount; i++)
+            {
+                uint8_t descriptorCount = *currentByte;
+                currentByte++;
+                std::vector<slag::Descriptor> descriptors(descriptorCount);
+                for (auto i=0; i< descriptorCount; i++)
+                {
+                    std::string name = (char*)currentByte;
+                    currentByte+=name.size()+1;
+                    if (currentByte>=endByte)
+                    {
+                        throw std::runtime_error("Descriptor name is malformed");
+                    }
+                    uint32_t index = *((uint32_t*)currentByte);
+                    currentByte+=sizeof(uint32_t);
+                    if constexpr (std::endian::native==std::endian::big)
+                    {
+                        boost::endian::little_to_native_inplace(index);
+                    }
+                    uint8_t typeValue = *currentByte;
+                    currentByte++;
+                    slag::Descriptor::DescriptorType type = static_cast<slag::Descriptor::DescriptorType>(typeValue);
+                    uint32_t count = *((uint32_t*)currentByte);
+                    currentByte+=sizeof(uint32_t);
+                    if constexpr (std::endian::native==std::endian::big)
+                    {
+                        boost::endian::little_to_native_inplace(count);
+                    }
+                    slag::Descriptor descriptor(name,type,count,index,slag::ShaderStageFlags::VERTEX|slag::ShaderStageFlags::FRAGMENT);
+                    descriptors[i] = descriptor;
+
+                }
+
+                descriptorGroups.push_back(slag::DescriptorGroup::newDescriptorGroup(descriptors.data(),descriptors.size()));
+            }
+        }
+
 
         void ShaderManager::getShaderModules(unsigned char* startingByte, const unsigned char *endByte, std::vector<slag::ShaderModule>& shaderModules,slag::ShaderProperties& properties,VertexInfo& vertexDesc, slag::FrameBufferDescription& frameBufferDesc)
         {
@@ -255,7 +307,6 @@ namespace crucible
             while (token!=nullptr)
             {
                 std::string param(token);
-                boost::trim(param);
                 parameters.push_back(param);
                 token = strtok(nullptr,delimiter);
             }

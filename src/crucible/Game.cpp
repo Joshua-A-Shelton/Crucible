@@ -189,13 +189,13 @@ namespace crucible
         auto root = core::World::RootNode;
         if (root)
         {
-            auto basicShader = core::ShaderManager::getShaderReference("flat-test");
+            auto nullShader = core::ShaderManager::getShaderReference("Null");
             //bind globals
             glm::vec4 wind(0,0,0,0);
             auto location = uniformBuffer->write(&wind, sizeof(glm::vec4));
-            auto globalBundle = descriptorPool->makeBundle(basicShader.pipeline()->descriptorGroup(0));
+            auto globalBundle = descriptorPool->makeBundle(nullShader.pipeline()->descriptorGroup(0));
             globalBundle.setUniformBuffer(0,0,location.buffer,location.offset,location.length);
-            commandBuffer->bindGraphicsDescriptorBundle(basicShader.pipeline(),0,globalBundle);
+            commandBuffer->bindGraphicsDescriptorBundle(nullShader.pipeline(),0,globalBundle);
 
 
             struct RenderCameraReference
@@ -272,15 +272,18 @@ namespace crucible
                 commandBuffer->beginRendering(&attachment,1,&depthAttachment,slag::Rectangle{.offset = {0,0},.extent = {color->width(),color->height()}});
 
                 //bind view
-                slag::Buffer* projectionView = slag::Buffer::newBuffer(sizeof(glm::mat4)*2,slag::Buffer::CPU_AND_GPU,slag::Buffer::UNIFORM_BUFFER);
+                slag::Buffer* projectionView = slag::Buffer::newBuffer(sizeof(glm::mat4)*3,slag::Buffer::CPU_AND_GPU,slag::Buffer::UNIFORM_BUFFER);
                 glm::mat4 projectionMatrix = glm::perspective(90.0f,1920.0f/1080.0f,.001f,1000.0f);
                 auto cameraTransform = core::Transform::cumulativeFrom(node);
                 glm::mat4 viewMatrix = glm::inverse(cameraTransform.matrix());
                 projectionView->update(0,&projectionMatrix,sizeof(glm::mat4));
                 projectionView->update(sizeof(glm::mat4),&viewMatrix,sizeof(glm::mat4));
-                auto viewBundle = descriptorPool->makeBundle(basicShader.pipeline()->descriptorGroup(1));
+                glm::mat4 projectionViewMatrix = projectionMatrix * viewMatrix;
+                projectionView->update(sizeof(glm::mat4)*2,&projectionViewMatrix,sizeof(glm::mat4));
+
+                auto viewBundle = descriptorPool->makeBundle(nullShader.pipeline()->descriptorGroup(1));
                 viewBundle.setUniformBuffer(0,0,projectionView,0,projectionView->size());
-                commandBuffer->bindGraphicsDescriptorBundle(basicShader.pipeline(),1,viewBundle);
+                commandBuffer->bindGraphicsDescriptorBundle(nullShader.pipeline(),1,viewBundle);
                 delete projectionView;
 
 
@@ -377,6 +380,9 @@ namespace crucible
         Uint64 previousCounter = 0;
         Uint64 currentCounter = 0;
         double deltaTime = 0.0;
+
+        //load null shader, and keep it alive for the duration of the run
+        auto nullShader = core::ShaderManager::getShaderReference("Null");
 
         while(_keepOpen)
         {

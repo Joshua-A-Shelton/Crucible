@@ -74,6 +74,7 @@ namespace crucible
             static ShaderUnit buildShader(std::filesystem::path path, const std::string& name);
             static void destroyShader(ShaderUnit* shader);
 
+            static void getDescriptorGroups(unsigned char*& currentByte, const unsigned char* endByte,std::vector<slag::DescriptorGroup*>& descriptorGroups);
             static void getShaderModules(unsigned char* startingByte, const unsigned char *endByte, std::vector<slag::ShaderModule>& shaderModules,slag::ShaderProperties& properties,VertexInfo& vertexDesc, slag::FrameBufferDescription& frameBufferDesc);
             static void nextModule(unsigned char*& currentByte, const unsigned char* endByte, std::vector<slag::ShaderModule>& shaderModules,slag::ShaderProperties& properties,VertexInfo& vertexDesc, slag::FrameBufferDescription& frameBufferDesc);
             static slag::Pixels::Format getFormat(const std::string& fromText);
