@@ -67,38 +67,6 @@ namespace crucible
             _scale = scale;
         }
 
-        Transform::~Transform()
-        {
-            int i=0;
-        }
-
-        Transform::Transform(const Transform& from)
-        {
-            copy(from);
-        }
-
-        Transform& Transform::operator=(const Transform& from)
-        {
-            copy(from);
-            return *this;
-        }
-
-        Transform::Transform(Transform&& from)
-        {
-            copy(from);
-        }
-
-        Transform& Transform::operator=(Transform&& from)
-        {
-            copy(from);
-            return *this;
-        }
-
-        void Transform::copy(const Transform& from)
-        {
-            memcpy(this,&from,sizeof(Transform));
-        }
-
         void Transform::setPosition(float x, float y, float z)
         {
             _position.x = x;

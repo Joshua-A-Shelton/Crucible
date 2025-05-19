@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "Bone.h"
+#include "Keyframe.h"
 
 namespace crucible
 {
@@ -24,6 +25,9 @@ namespace crucible
             std::vector<unsigned char> toLZ4();
             std::vector<glm::mat4>& shaderTransforms();
             Bone* rootBone()const;
+            void snapToKeyframe(const Keyframe& keyframe);
+            Keyframe currentPoseToKeyframe() const;
+            void interpolate(const Keyframe& keyframe1, const Keyframe& keyframe2, float amount);
         private:
             void copy(const Skeleton& skeleton);
             void move(Skeleton& skeleton);

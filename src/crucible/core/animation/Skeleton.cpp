@@ -1,8 +1,10 @@
 #include "Skeleton.h"
 
 #include <bit>
+#include <execution>
 #include <lz4.h>
 #include <queue>
+#include <ranges>
 #include <stdexcept>
 #include <unordered_set>
 #include <boost/endian/conversion.hpp>
@@ -214,12 +216,55 @@ namespace crucible
 
         std::vector<glm::mat4>& Skeleton::shaderTransforms()
         {
+            updateCurrentTransforms();
             return _currentTransforms;
         }
 
         Bone* Skeleton::rootBone() const
         {
             return _rootBone;
+        }
+
+        void Skeleton::snapToKeyframe(const Keyframe& keyframe)
+        {
+            assert(keyframe.boneCount() == _bones.size() && "Keyframe must have same number of transforms as bones in skeleton");
+            std::for_each(std::execution::par,_bones.begin(),_bones.end(),[&](auto& bone)
+            {
+                auto i = bone.skeletalIndex();
+                auto transform = keyframe.localBoneTransform(i);
+                bone._transform = transform;
+            });
+
+        }
+
+        Keyframe Skeleton::currentPoseToKeyframe() const
+        {
+            std::vector<Transform> boneTransforms(_bones.size());
+            std::for_each(std::execution::par,_bones.begin(),_bones.end(),[&](auto& bone)
+            {
+                auto i = bone.skeletalIndex();
+                boneTransforms[i] = bone.localTransform();
+            });
+
+            return  Keyframe(std::move(boneTransforms));
+        }
+
+        void Skeleton::interpolate(const Keyframe& keyframe1, const Keyframe& keyframe2, float amount)
+        {
+            assert(keyframe1.boneCount() == _bones.size() && keyframe2.boneCount() == _bones.size() && "Keyframes must have same number of transforms as bones in skeleton");
+            assert(amount >= 0 && amount <=1 && "amount must be between 0 and 1");
+            std::for_each(std::execution::par,_bones.begin(),_bones.end(),[&](auto& bone)
+            {
+                auto i = bone.skeletalIndex();
+                auto t1 = keyframe1.localBoneTransform(i);
+                auto t2 = keyframe2.localBoneTransform(i);
+                auto position = glm::mix(t1.position(),t2.position(),amount);
+                auto scale = glm::mix(t1.scale(),t2.scale(),amount);
+                auto rotation = glm::slerp(t1.rotation(),t2.rotation(),amount);
+                bone._transform.setPosition(position);
+                bone._transform.setScale(scale);
+                bone._transform.setRotation(rotation);
+            });
         }
 
         void Skeleton::copy(const Skeleton& skeleton)

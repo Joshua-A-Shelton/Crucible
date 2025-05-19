@@ -118,6 +118,8 @@ add_library(Crucible
         src/crucible/core/animation/Skeleton.h
         src/crucible/core/TextureLoader.cpp
         src/crucible/core/TextureLoader.h
+        src/crucible/core/animation/Keyframe.cpp
+        src/crucible/core/animation/Keyframe.h
 )
 
 target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})
