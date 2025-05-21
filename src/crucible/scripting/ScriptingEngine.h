@@ -12,6 +12,7 @@ namespace crucible::core
 {
     class Mesh;
     class Material;
+    class Skeleton;
 }
 
 namespace crucible
@@ -37,6 +38,7 @@ namespace crucible
             void (*invokeInstanceMethodReturnValue)(void* instanceType,void* instanceHandle, const char* methodName, int32_t parameterCount, void** parameterTypes, void** parameters,void* valuePtr);
             void* (*getType)(const char* assemblyQualifiedName, ManagedType& type)= nullptr;
             void (*getMeshRenderData)(void* instanceHandle, core::Mesh** mesh, core::Material** material, unsigned char* priority)=nullptr;
+            void (*getSkeleton)(void* instanceHandle, core::Skeleton** skeleton)= nullptr;
             void (*getCamera)(void* instanceHandle, core::Camera**)= nullptr;
             void* (*loadLibrary)(const char* contextName,const char* path,bool collectible)=nullptr;
             void* (*unloadLibrary)(const char* path)= nullptr;
@@ -66,6 +68,7 @@ namespace crucible
             static ManagedInstance newInstance(const ManagedType& type);
             static void freeGCHandle(void* handle);
             static void getMeshRenderData(ManagedInstance& managedMeshRendererInstance,core::Mesh** mesh, core::Material** material, unsigned char* priority);
+            static core::Skeleton* getSkeleton(ManagedInstance& managedSkeletonInstance);
             static core::Camera* getCamera(ManagedInstance& managedInstance);
         private:
             static bool loadHostFXR();

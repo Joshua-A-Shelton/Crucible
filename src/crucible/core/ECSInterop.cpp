@@ -10,11 +10,11 @@ namespace crucible
         {
             _types.MeshRenderer = World::RegisterOrRetrieveScriptingType("Crucible.Core.MeshRenderer");
             _types.Node = World::RegisterOrRetrieveType("Crucible Node",sizeof(NodeECSReference),alignof(NodeECSReference));
-            _types.Skeleton = CLEARLYTHISNEEDSTOBESET;
+            _types.Skeleton = World::RegisterOrRetrieveScriptingType("Crucible.Core.Animation.Skeleton");
             _types.Transform = World::RegisterOrRetrieveType("Crucible.Core.Transform",sizeof(core::Transform),alignof(core::Transform));
         }
 
-        const InteropTypes& ECSInterop::types() const
+        const InteropTypes& ECSInterop::types()
         {
             return _types;
         }

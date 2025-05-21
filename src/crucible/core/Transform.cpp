@@ -207,7 +207,7 @@ namespace crucible
         {
             std::stack<Transform> hierarchy;
             Node* currentNode = node;
-            auto type = ECSInterop::transform();
+            auto type = ECSInterop::types().Transform;
             Transform* nodeTransform = nullptr;
             while(currentNode)
             {

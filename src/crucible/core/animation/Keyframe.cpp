@@ -1,5 +1,7 @@
 #include "Keyframe.h"
 
+#include <cstring>
+
 namespace crucible
 {
     namespace core

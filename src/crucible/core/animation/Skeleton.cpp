@@ -243,7 +243,8 @@ namespace crucible
             std::for_each(std::execution::par,_bones.begin(),_bones.end(),[&](auto& bone)
             {
                 auto i = bone.skeletalIndex();
-                boneTransforms[i] = bone.localTransform();
+                auto transform = boneTransforms[i];
+                boneTransforms[i] = transform;
             });
 
             return  Keyframe(std::move(boneTransforms));

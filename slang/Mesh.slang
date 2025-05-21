@@ -53,6 +53,14 @@ public struct ViewData
     public matrix<float,4,4> projectionView;
 }
 
-public ParameterBlock<SceneData> Scene;
+public struct ObjectInstanceData
+{
+    public matrix<float,4,4> transform;
+    public StructuredBuffer<matrix<float,4,4>> bones;
+}
 
-public ParameterBlock<ViewData> Camera;
+layout(set=0) public ParameterBlock<SceneData> Scene;
+
+layout(set=1) public ParameterBlock<ViewData> Camera;
+
+layout(set=3) public ParameterBlock<ObjectInstanceData> ObjectInstance;

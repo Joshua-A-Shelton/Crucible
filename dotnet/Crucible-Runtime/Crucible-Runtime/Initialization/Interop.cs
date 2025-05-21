@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 using Crucible.Core;
+using Crucible.Core.Animation;
 
 namespace Crucible.Initialization;
 
@@ -286,6 +287,24 @@ internal static unsafe class Interop
             priority = 0;
         }
         
+    }
+    
+    public delegate void GetSkeletonDelegate(IntPtr skeletonManagedReference, ref IntPtr skeleton);
+
+    public static GetSkeletonDelegate GetSkeleton_ptr = GetSkeleton;
+
+    public static void GetSkeleton(IntPtr skeletonManagedReference, ref IntPtr skeleton)
+    {
+        var inst = GCHandle.FromIntPtr(skeletonManagedReference);
+        Skeleton? skel = (Skeleton?)inst.Target;
+        if (skel != null)
+        {
+            skeleton = skel._pointer;
+        }
+        else
+        {
+            skeleton = IntPtr.Zero;
+        }
     }
 
     public delegate void GetCameraDelegate(IntPtr cameraManagedReference, ref IntPtr camera);

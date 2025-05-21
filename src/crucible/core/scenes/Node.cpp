@@ -8,6 +8,7 @@
 
 #include "crucible/core/ECSInterop.h"
 #include "crucible/core/Material.h"
+#include "crucible/core/animation/Skeleton.h"
 
 namespace crucible
 {
@@ -144,7 +145,7 @@ namespace crucible
 
         ecs_entity_t NodeECSReference::NodeEcsReferenceID()
         {
-            return ECSInterop::node();
+            return ECSInterop::types().Node;
         }
 
         void Node::lockFamily()
@@ -214,14 +215,14 @@ namespace crucible
                 Material* material = nullptr;
                 uint8_t priority = 0;
                 scripting::ScriptingEngine::getMeshRenderData(*rendererManaged,&mesh,&material,&priority);
-                auto matr = nodeTransform.matrix();
+
                 //set position data
-                material->setData(0,&matr,sizeof(matr));
                 auto& shader = material->shaderReference();
                 auto materialBundle = material->makeBundle(descriptorPool, virtualUniformBuffer);
 
                 auto instanceBundle = descriptorPool->makeBundle(shader.pipeline()->descriptorGroup(3));
                 //set position data, always at position 0
+                auto matr = nodeTransform.matrix();
                 auto writeLocation = virtualUniformBuffer->write(&matr,sizeof(matr));
                 instanceBundle.setUniformBuffer(0,0,writeLocation.buffer,writeLocation.offset,writeLocation.length);
                 //set bone data if it's required, at position 1
@@ -230,8 +231,12 @@ namespace crucible
                     auto skeletonType = ECSInterop::types().Skeleton;
                     if (_entity.has(skeletonType))
                     {
-                        virtualStorageBuffer->write()
-                        instanceBundle.setStorageBuffer(1,0,);
+                        scripting::ManagedInstance* skeletonManaged = (scripting::ManagedInstance*)_entity.get(skeletonType);
+                        auto skeleton = scripting::ScriptingEngine::getSkeleton(*skeletonManaged);
+                        auto& boneMatrixes = skeleton->shaderTransforms();
+
+                        auto skeletalWriteLocation = virtualStorageBuffer->write(boneMatrixes.data(),boneMatrixes.size()*sizeof(glm::mat4));
+                        instanceBundle.setStorageBuffer(1,0,skeletalWriteLocation.buffer,skeletalWriteLocation.offset,skeletalWriteLocation.length);
                     }
                     else
                     {

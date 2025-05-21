@@ -18,6 +18,7 @@ public static class Initializer
         public IntPtr InvokeInstanceMethodReturnValue_ptr;
         public IntPtr GetType_ptr;
         public IntPtr GetMeshRenderData_ptr;
+        public IntPtr GetSkeleton_ptr;
         public IntPtr GetCamera_ptr;
         public IntPtr LoadManagedDll_ptr;
         public IntPtr UnloadContext_ptr;
@@ -45,6 +46,7 @@ public static class Initializer
             args->InvokeInstanceMethodReturnValue_ptr = Marshal.GetFunctionPointerForDelegate(Interop.InvokeInstanceMethodWithReturnValueByValueDelegate_ptr);
             args->GetType_ptr = Marshal.GetFunctionPointerForDelegate(Interop.GetTypeHandle_ptr);
             args->GetMeshRenderData_ptr = Marshal.GetFunctionPointerForDelegate(Interop.GetMeshRenderData_ptr);
+            args->GetSkeleton_ptr = Marshal.GetFunctionPointerForDelegate(Interop.GetSkeleton_ptr);
             args->GetCamera_ptr = Marshal.GetFunctionPointerForDelegate(Interop.GetCamera_ptr);
             args->LoadManagedDll_ptr = Marshal.GetFunctionPointerForDelegate(Interop.LoadLibrary_ptr);
             args->UnloadContext_ptr = Marshal.GetFunctionPointerForDelegate(Interop.UnloadLibrary_ptr);

@@ -225,8 +225,8 @@ namespace crucible
             }
 
             std::sort(cameras.begin(),cameras.end(),RenderCameraReference::compare);
-            auto transformType = core::ECSInterop::transform();
-            auto meshRendererType = core::ECSInterop::meshRenderer();
+            auto transformType = core::ECSInterop::types().Transform;
+            auto meshRendererType = core::ECSInterop::types().MeshRenderer;
             for (auto camera: cameras)
             {
                 auto color = camera.camera->colorTarget();
@@ -290,7 +290,7 @@ namespace crucible
 
                 core::Transform rootTransform;
 
-                root->registerDraw(descriptorPool,uniformBuffer,&rootTransform);
+                root->registerDraw(descriptorPool,uniformBuffer,storageBuffer,&rootTransform);
                 core::World::MeshDrawPass->drawMeshes(commandBuffer);
                 commandBuffer->endRendering();
 

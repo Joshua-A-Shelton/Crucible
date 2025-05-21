@@ -233,6 +233,13 @@ namespace crucible
             Interop::managedFunctionPointers.getMeshRenderData(managedMeshRendererInstance.gcHandle(),mesh,material,priority);
         }
 
+        core::Skeleton* ScriptingEngine::getSkeleton(ManagedInstance& managedSkeletonInstance)
+        {
+            core::Skeleton* skeleton = nullptr;
+            Interop::managedFunctionPointers.getSkeleton(managedSkeletonInstance.gcHandle(),&skeleton);
+            return skeleton;
+        }
+
         core::Camera* ScriptingEngine::getCamera(ManagedInstance& managedInstance)
         {
             core::Camera* camera;

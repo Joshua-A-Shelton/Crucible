@@ -17,7 +17,7 @@ namespace crucible
         {
         public:
             static void mapInteropTypes();
-            static const InteropTypes& types() const;
+            static const InteropTypes& types();
         private:
             static InteropTypes _types;
 

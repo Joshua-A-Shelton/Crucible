@@ -104,7 +104,7 @@ DELEGATE(Crucible.Core.Animation.Bone, uint16_t, _boneSkeletalIndex_ptr, cs_bone
 DELEGATE(Crucible.Core.Animation.Bone, core::Transform, _boneGetTransform_ptr, cs_boneGetTransform, core::Bone*)\
 DELEGATE(Crucible.Core.Animation.Bone, void, _boneSetTransform_ptr, cs_boneSetTransform, core::Bone*, core::Transform&)\
 DELEGATE(Crucible.Core.Animation.Bone, uint16_t, _boneGetChildCount_ptr, cs_boneGetChildCount, core::Bone*)\
-DELEGATE(Crucible.Core.Animation.Bone, Bone*, _boneGetChild_ptr, cs_boneGetChild, core::Bone*, core::Skeleton*, uint16_t)\
+DELEGATE(Crucible.Core.Animation.Bone, core::Bone*, _boneGetChild_ptr, cs_boneGetChild, core::Bone*, core::Skeleton*, uint16_t)\
 
 
 
