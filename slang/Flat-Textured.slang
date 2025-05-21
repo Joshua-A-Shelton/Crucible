@@ -11,18 +11,18 @@ struct VertexStageOutput
     float4 sv_position: SV_Position;
 }
 
-struct FlatTextureObject
+public struct FlatTextureMaterial
 {
-    matrix<float,4,4> transform;
     Sampler2D sampledTexture;
 }
 
-ParameterBlock<FlatTextureObject> FlatObjectInstance;
+public ParameterBlock<FlatTextureMaterial> FlatMaterialInstance;
+public ParameterBlock<ObjectInstanceData> ObjectInstance;
 
 [shader("vertex")]
 VertexStageOutput vertexMain(Vertex3D vertex3d, UVCoordinates uvCoordinates)
 {
-    float3 worldPosition = mul(FlatObjectInstance.transform,float4(vertex3d.position,1)).xyz;
+    float3 worldPosition = mul(ObjectInstance.transform,float4(vertex3d.position,1)).xyz;
 
     VertexStageOutput output;
     output.fragmentParameters.uv = uvCoordinates.position;
@@ -35,5 +35,5 @@ VertexStageOutput vertexMain(Vertex3D vertex3d, UVCoordinates uvCoordinates)
 [OutputDepthTarget(TexelFormatReflection.D32_FLOAT)]
 float4 fragmentMain(FragmentParameters fragmentParameters : FragmentParameters) : SV_Target
 {
-    return FlatObjectInstance.sampledTexture.Sample(fragmentParameters.uv);
+    return FlatMaterialInstance.sampledTexture.Sample(fragmentParameters.uv);
 }

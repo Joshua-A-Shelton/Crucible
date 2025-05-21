@@ -11,18 +11,18 @@ namespace crucible
             _shader = ShaderManager::getShaderReference(shaderName);
             auto layout = _shader.pipeline()->uniformBufferLayout(2,0);
 
-            if (layout == nullptr)
+            if (layout != nullptr)
             {
-                throw std::runtime_error("Shader is not a material shader");
+                _data.resize(layout->size());
+                _uniformBufferNames.resize(layout->childrenCount());
+                for (uint32_t i = 0; i < layout->childrenCount(); i++)
+                {
+                    auto& child = layout[i];
+                    _uniformBuffers.insert({child.name(),&child});
+                    _uniformBufferNames[i] = child.name();
+                }
             }
-            _data.resize(layout->size());
-            _uniformBufferNames.resize(layout->childrenCount());
-            for (uint32_t i = 0; i < layout->childrenCount(); i++)
-            {
-                auto& child = layout[i];
-                _uniformBuffers.insert({child.name(),&child});
-                _uniformBufferNames[i] = child.name();
-            }
+
             auto group = _shader.pipeline()->descriptorGroup(2);
             for (uint32_t i=0; i< group->descriptorCount(); i++)
             {
@@ -119,7 +119,10 @@ namespace crucible
             auto bundle = pool->makeBundle(_shader.pipeline()->descriptorGroup(2));
             auto location = virtualUniformBuffer->write(_data.data(),_data.size());
             //set uniform buffer data
-            bundle.setUniformBuffer(0,0,location.buffer,location.offset,location.length);
+            if (_data.size()!=0)
+            {
+                bundle.setUniformBuffer(0,0,location.buffer,location.offset,location.length);
+            }
             //set textures
             for (auto& textureData: _textures)
             {

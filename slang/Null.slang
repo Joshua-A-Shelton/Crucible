@@ -7,17 +7,18 @@ struct VertexStageOutput
     float4 sv_position: SV_Position;
 }
 
-struct NullObject
+struct NullMaterial
 {
     matrix<float,4,4> transform;
 }
 
-ParameterBlock<NullObject> NullObjectInstance;
+ParameterBlock<NullMaterial> NullMaterialInstance;
+public ParameterBlock<ObjectInstanceData> ObjectInstance;
 
 [shader("vertex")]
 VertexStageOutput vertexMain(Vertex3D vertex3d)
 {
-    float3 worldPosition = mul(NullObjectInstance.transform,float4(vertex3d.position,1)).xyz;
+    float3 worldPosition = mul(ObjectInstance.transform,float4(vertex3d.position,1)).xyz;
 
     VertexStageOutput output;
     output.sv_position = mul(Camera.projectionView, float4(worldPosition,1));

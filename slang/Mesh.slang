@@ -59,8 +59,6 @@ public struct ObjectInstanceData
     public StructuredBuffer<matrix<float,4,4>> bones;
 }
 
-layout(set=0) public ParameterBlock<SceneData> Scene;
+public ParameterBlock<SceneData> Scene;
 
-layout(set=1) public ParameterBlock<ViewData> Camera;
-
-layout(set=3) public ParameterBlock<ObjectInstanceData> ObjectInstance;
+public ParameterBlock<ViewData> Camera;

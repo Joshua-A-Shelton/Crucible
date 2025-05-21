@@ -3,6 +3,7 @@
 #include <SDL3/SDL.h>
 #include <iostream>
 
+#include "core/ECSInterop.h"
 #include "core/Material.h"
 #include "core/scenes/World.h"
 #include "scripting/ScriptingEngine.h"
@@ -59,6 +60,7 @@ namespace crucible
             return false;
         }
         scripting::ScriptingEngine::initialize();
+        core::ECSInterop::mapInteropTypes();
         core::Material::initialize();
         crucible::core::World::RootNode = new core::Node(nullptr);
         crucible::core::World::MeshDrawPass = new core::MeshPass();

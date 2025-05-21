@@ -1,3 +1,5 @@
+module CrucibleCore;
+
 public enum TexelFormatReflection
 {
     UNDEFINED,

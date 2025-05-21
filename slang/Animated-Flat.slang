@@ -11,14 +11,14 @@ struct VertexStageOutput
     float4 sv_position: SV_Position;
 }
 
-struct AnimatedObject
+struct AnimatedFlatMaterial
 {
-    matrix<float,4,4> transform;
     Sampler2D sampledTexture;
     StructuredBuffer<matrix<float,4,4>> boneTransforms;
 }
 
-ParameterBlock<AnimatedObject> AnimatedObjectInstance;
+ParameterBlock<AnimatedFlatMaterial> AnimatedFlatMaterialInstance;
+public ParameterBlock<ObjectInstanceData> ObjectInstance;
 
 [shader("vertex")]
 VertexStageOutput vertexMain(Vertex3D vertex3d, UVCoordinates uvCoordinates, BoneWeights boneWeight, uint vertexIndex : SV_VertexID)
@@ -26,13 +26,13 @@ VertexStageOutput vertexMain(Vertex3D vertex3d, UVCoordinates uvCoordinates, Bon
     float4 temp = float4(0,0,0,0);
     float4 v = float4(vertex3d.position,1);
 
-    temp += mul((AnimatedObjectInstance.boneTransforms[boneWeight.weights[0].boneId]) , boneWeight.weights[0].weight);
-    temp += mul((AnimatedObjectInstance.boneTransforms[boneWeight.weights[1].boneId]) , boneWeight.weights[1].weight);
-    temp += mul((AnimatedObjectInstance.boneTransforms[boneWeight.weights[2].boneId]) , boneWeight.weights[2].weight);
-    temp += mul((AnimatedObjectInstance.boneTransforms[boneWeight.weights[3].boneId]) , boneWeight.weights[3].weight);
+    temp += mul((ObjectInstance.bones[boneWeight.weights[0].boneId]) , boneWeight.weights[0].weight);
+    temp += mul((ObjectInstance.bones[boneWeight.weights[1].boneId]) , boneWeight.weights[1].weight);
+    temp += mul((ObjectInstance.bones[boneWeight.weights[2].boneId]) , boneWeight.weights[2].weight);
+    temp += mul((ObjectInstance.bones[boneWeight.weights[3].boneId]) , boneWeight.weights[3].weight);
 
 
-    float3 worldPosition = mul(AnimatedObjectInstance.transform,temp).xyz;
+    float3 worldPosition = mul(ObjectInstance.transform,temp).xyz;
 
     VertexStageOutput output;
     output.fragmentParameters.uv = uvCoordinates.position;
@@ -45,5 +45,5 @@ VertexStageOutput vertexMain(Vertex3D vertex3d, UVCoordinates uvCoordinates, Bon
 [OutputDepthTarget(TexelFormatReflection.D32_FLOAT)]
 float4 fragmentMain(FragmentParameters fragmentParameters : FragmentParameters) : SV_Target
 {
-    return AnimatedObjectInstance.sampledTexture.Sample(fragmentParameters.uv);
+    return AnimatedFlatMaterialInstance.sampledTexture.Sample(fragmentParameters.uv);
 }
