@@ -94,7 +94,7 @@ namespace crucible
             return skeleton.getBone(_parentIndex);
         }
 
-        Transform Bone::localTransform() const
+        Transform& Bone::localTransform()
         {
             return _transform;
         }

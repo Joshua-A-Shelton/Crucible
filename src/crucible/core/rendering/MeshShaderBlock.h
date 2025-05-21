@@ -9,17 +9,19 @@ namespace crucible
         class MeshData
         {
         public:
-            MeshData(Mesh* mesh, slag::DescriptorBundle&& bundle);
+            MeshData(Mesh* mesh, slag::DescriptorBundle&& materialBundle, slag::DescriptorBundle&& instanceBundle);
             ~MeshData()=default;
             MeshData(const MeshData&)=delete;
             MeshData& operator=(const MeshData&)=delete;
             MeshData(MeshData&& other);
             MeshData& operator=(MeshData&& from);
             Mesh* mesh()const;
-            slag::DescriptorBundle& descriptorBundle();
+            slag::DescriptorBundle& materialBundle();
+            slag::DescriptorBundle& instanceBundle();
         private:
             Mesh* _mesh=nullptr;
-            slag::DescriptorBundle _bundle;
+            slag::DescriptorBundle _materialBundle;
+            slag::DescriptorBundle _instanceBundle;
         };
 
         class MeshShaderBlock
@@ -31,7 +33,7 @@ namespace crucible
             MeshShaderBlock& operator=(const MeshShaderBlock&)=delete;
             MeshShaderBlock(MeshShaderBlock&& from);
             MeshShaderBlock& operator=(MeshShaderBlock&& from);
-            void registerMeshData(Mesh* mesh,slag::DescriptorBundle&& descriptorData);
+            void registerMeshData(Mesh* mesh,slag::DescriptorBundle&& materialBundle, slag::DescriptorBundle&& instanceBundle);
             void draw(slag::CommandBuffer* commandBuffer);
         private:
             void move(MeshShaderBlock& from);

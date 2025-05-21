@@ -123,6 +123,11 @@ namespace crucible
             return _unit->_requiredAttributes;
         }
 
+        bool ShaderReference::hasAttribute(Mesh::VertexAttribute attribute) const
+        {
+            return std::find(_unit->_requiredAttributes.begin(),_unit->_requiredAttributes.end(),attribute)!=_unit->_requiredAttributes.end();
+        }
+
         size_t ShaderReference::hashFunction::operator()(const ShaderReference& ref) const
         {
             return std::hash<std::string>()(ref._unit->_name);

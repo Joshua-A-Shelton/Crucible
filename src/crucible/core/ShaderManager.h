@@ -50,6 +50,7 @@ namespace crucible
             size_t requiredAttributesCount()const;
             Mesh::VertexAttribute attribute(size_t attributeIndex)const;
             const std::vector<Mesh::VertexAttribute>& requiredAttributes() const;
+            bool hasAttribute(Mesh::VertexAttribute attribute)const;
             friend class ShaderManager;
             struct hashFunction
             {

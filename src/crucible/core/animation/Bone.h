@@ -26,7 +26,7 @@ namespace crucible
             uint16_t childrenCount()const;
             Bone* child(Skeleton& skeleton, uint16_t index)const;
             Bone* parent(Skeleton& skeleton)const;
-            Transform localTransform()const;
+            Transform& localTransform();
             Transform skeletalTransform(Skeleton& skeleton)const;
             friend class Skeleton;
 

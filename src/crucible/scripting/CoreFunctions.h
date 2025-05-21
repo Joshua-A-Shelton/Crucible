@@ -7,6 +7,8 @@
 #include "crucible/core/scenes/Node.h"
 #include "crucible/core/Camera.h"
 #include "crucible/core/Material.h"
+#include "crucible/core/animation/Skeleton.h"
+#include "crucible/core/animation/Bone.h"
 #include <slag/SlagLib.h>
 //DEFINITION(C# Class, function return type, C# delegate name, C++ function name, C++ parameters)
 #define CRUCIBLE_CORE_DELEGATES \
@@ -93,6 +95,18 @@ DELEGATE(Crucible.Core.Camera, bool, _cameraGetIsPerspective_ptr, cs_cameraGetIs
 DELEGATE(Crucible.Core.Camera, void, _cameraSetIsPerspective_ptr, cs_cameraSetIsPerspective,core::Camera*, bool)\
 DELEGATE(Crucible.Core.Camera, uint8_t, _cameraGetRenderOrder_ptr, cs_cameraGetRenderOrder,core::Camera*)\
 DELEGATE(Crucible.Core.Camera, void, _cameraSetRenderOrder_ptr, cs_cameraSetRenderOrder,core::Camera*, uint8_t)\
+\
+DELEGATE(Crucible.Core.Animation.Skeleton, void, _skeletonInitialize_ptr, cs_skeletonInitialize, core::Skeleton*&, unsigned char*, uint64_t)\
+DELEGATE(Crucible.Core.Animation.Skeleton, void, _skeletonCleanup_ptr, cs_skeletonCleanup, core::Skeleton*)\
+DELEGATE(Crucible.Core.Animation.Skeleton, core::Bone*, _skeletonGetBone_ptr, cs_skeletonGetBone, core::Skeleton*, uint16_t)\
+\
+DELEGATE(Crucible.Core.Animation.Bone, uint16_t, _boneSkeletalIndex_ptr, cs_boneSkeletalIndex, core::Bone*)\
+DELEGATE(Crucible.Core.Animation.Bone, core::Transform, _boneGetTransform_ptr, cs_boneGetTransform, core::Bone*)\
+DELEGATE(Crucible.Core.Animation.Bone, void, _boneSetTransform_ptr, cs_boneSetTransform, core::Bone*, core::Transform&)\
+DELEGATE(Crucible.Core.Animation.Bone, uint16_t, _boneGetChildCount_ptr, cs_boneGetChildCount, core::Bone*)\
+DELEGATE(Crucible.Core.Animation.Bone, Bone*, _boneGetChild_ptr, cs_boneGetChild, core::Bone*, core::Skeleton*, uint16_t)\
+
+
 
 
 namespace crucible

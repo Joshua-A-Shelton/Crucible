@@ -19,14 +19,14 @@ namespace crucible
             return *this;
         }
 
-        void MeshShaderPriorityGroup::registerRenderable(const ShaderReference& shader, Mesh* mesh, slag::DescriptorBundle&& descriptorBundle)
+        void MeshShaderPriorityGroup::registerRenderable(const ShaderReference& shader, Mesh* mesh, slag::DescriptorBundle&& materialBundle, slag::DescriptorBundle&& instanceBundle)
         {
             auto it = _shaderBlocks.find(shader.pipeline());
             if (it==_shaderBlocks.end())
             {
                 it = _shaderBlocks.emplace(shader.pipeline(),std::move(MeshShaderBlock(shader))).first;
             }
-            it->second.registerMeshData(mesh,std::move(descriptorBundle));
+            it->second.registerMeshData(mesh,std::move(materialBundle),std::move(instanceBundle));
         }
 
         void MeshShaderPriorityGroup::drawMeshes(slag::CommandBuffer* commandBuffer)
@@ -57,7 +57,7 @@ namespace crucible
             return *this;
         }
 
-        void MeshPass::registerMeshData(uint8_t priority, const ShaderReference& shader, Mesh* mesh, slag::DescriptorBundle&& descriptorBundle)
+        void MeshPass::registerMeshData(uint8_t priority, const ShaderReference& shader, Mesh* mesh, slag::DescriptorBundle&& materialBundle, slag::DescriptorBundle&& instanceBundle)
         {
             auto it = _shaderPriorityGroups.find(priority);
             if (it==_shaderPriorityGroups.end())
@@ -65,7 +65,7 @@ namespace crucible
                 it = _shaderPriorityGroups.emplace(priority,MeshShaderPriorityGroup()).first;
             }
 
-            it->second.registerRenderable(shader,mesh,std::move(descriptorBundle));
+            it->second.registerRenderable(shader,mesh,std::move(materialBundle),std::move(instanceBundle));
         }
 
         void MeshPass::drawMeshes(slag::CommandBuffer* commandBuffer)

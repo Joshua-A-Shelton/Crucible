@@ -118,7 +118,9 @@ namespace crucible
         {
             auto bundle = pool->makeBundle(_shader.pipeline()->descriptorGroup(2));
             auto location = virtualUniformBuffer->write(_data.data(),_data.size());
+            //set uniform buffer data
             bundle.setUniformBuffer(0,0,location.buffer,location.offset,location.length);
+            //set textures
             for (auto& textureData: _textures)
             {
                 bundle.setSamplerAndTexture(textureData.second.index,0,textureData.second.texture,slag::Texture::SHADER_RESOURCE,_defaultSampler);

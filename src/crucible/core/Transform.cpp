@@ -5,6 +5,8 @@
 #include <stack>
 #include <boost/endian/conversion.hpp>
 
+#include "ECSInterop.h"
+
 namespace crucible
 {
     namespace core
@@ -205,7 +207,7 @@ namespace crucible
         {
             std::stack<Transform> hierarchy;
             Node* currentNode = node;
-            auto type = World::RegisterOrRetrieveType("Crucible.Core.Transform",sizeof(Transform), alignof(Transform));
+            auto type = ECSInterop::transform();
             Transform* nodeTransform = nullptr;
             while(currentNode)
             {

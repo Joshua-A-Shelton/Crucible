@@ -120,6 +120,8 @@ add_library(Crucible
         src/crucible/core/TextureLoader.h
         src/crucible/core/animation/Keyframe.cpp
         src/crucible/core/animation/Keyframe.h
+        src/crucible/core/ECSInterop.cpp
+        src/crucible/core/ECSInterop.h
 )
 
 target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})

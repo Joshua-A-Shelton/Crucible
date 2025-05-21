@@ -2,6 +2,7 @@
 #include <stb_image.h>
 
 #include "core/Camera.h"
+#include "core/ECSInterop.h"
 #include "core/Mesh.h"
 #include "core/VirtualBuffer.h"
 #include "core/scenes/World.h"
@@ -224,8 +225,8 @@ namespace crucible
             }
 
             std::sort(cameras.begin(),cameras.end(),RenderCameraReference::compare);
-            auto transformType = core::World::RegisterOrRetrieveType("Crucible.Core.Transform",sizeof(core::Transform),alignof(core::Transform));
-            auto meshRendererType = core::World::RegisterOrRetrieveScriptingType("Crucible.Core.MeshRenderer");
+            auto transformType = core::ECSInterop::transform();
+            auto meshRendererType = core::ECSInterop::meshRenderer();
             for (auto camera: cameras)
             {
                 auto color = camera.camera->colorTarget();
@@ -289,7 +290,7 @@ namespace crucible
 
                 core::Transform rootTransform;
 
-                root->registerDraw(descriptorPool,uniformBuffer,&rootTransform,transformType,meshRendererType);
+                root->registerDraw(descriptorPool,uniformBuffer,&rootTransform);
                 core::World::MeshDrawPass->drawMeshes(commandBuffer);
                 commandBuffer->endRendering();
 

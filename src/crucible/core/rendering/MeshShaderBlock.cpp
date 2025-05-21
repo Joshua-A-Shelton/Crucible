@@ -4,12 +4,12 @@ namespace crucible
 {
     namespace core
     {
-        MeshData::MeshData(Mesh* mesh, slag::DescriptorBundle&& bundle): _bundle(std::move(bundle))
+        MeshData::MeshData(Mesh* mesh, slag::DescriptorBundle&& materialBundle, slag::DescriptorBundle&& instanceBundle): _materialBundle(std::move(materialBundle)), _instanceBundle(std::move(instanceBundle))
         {
             _mesh=mesh;
         }
 
-        MeshData::MeshData(MeshData&& other): _bundle(std::move(other._bundle))
+        MeshData::MeshData(MeshData&& other): _materialBundle(std::move(other._materialBundle)), _instanceBundle(std::move(other._instanceBundle))
         {
             std::swap(_mesh,other._mesh);
         }
@@ -17,7 +17,8 @@ namespace crucible
         MeshData& MeshData::operator=(MeshData&& from)
         {
             std::swap(_mesh,from._mesh);
-            _bundle = std::move(from._bundle);
+            _instanceBundle = std::move(from._instanceBundle);
+            _materialBundle = std::move(from._materialBundle);
             return *this;
         }
 
@@ -26,9 +27,14 @@ namespace crucible
             return _mesh;
         }
 
-        slag::DescriptorBundle& MeshData::descriptorBundle()
+        slag::DescriptorBundle& MeshData::materialBundle()
         {
-            return _bundle;
+            return _materialBundle;
+        }
+
+        slag::DescriptorBundle& MeshData::instanceBundle()
+        {
+            return _instanceBundle;
         }
 
         MeshShaderBlock::MeshShaderBlock(const ShaderReference& shader)
@@ -47,9 +53,9 @@ namespace crucible
             return *this;
         }
 
-        void MeshShaderBlock::registerMeshData(Mesh* mesh, slag::DescriptorBundle&& descriptorData)
+        void MeshShaderBlock::registerMeshData(Mesh* mesh,slag::DescriptorBundle&& materialBundle, slag::DescriptorBundle&& instanceBundle)
         {
-            _drawData.emplace_back(mesh, std::move(descriptorData));
+            _drawData.emplace_back(mesh, std::move(materialBundle), std::move(instanceBundle));
         }
 
         void MeshShaderBlock::draw(slag::CommandBuffer* commandBuffer)
@@ -77,7 +83,8 @@ namespace crucible
                     }
                     commandBuffer->bindVertexBuffers(0,vertexBuffers.data(),offsets.data(),sizes.data(),strides.data(),_shader.requiredAttributesCount());
                     commandBuffer->bindIndexBuffer(mesh->indexBuffer(),mesh->indexSize(),0);
-                    commandBuffer->bindGraphicsDescriptorBundle(_shader.pipeline(),2,meshData.descriptorBundle());
+                    commandBuffer->bindGraphicsDescriptorBundle(_shader.pipeline(),2,meshData.materialBundle());
+                    commandBuffer->bindGraphicsDescriptorBundle(_shader.pipeline(),3,meshData.instanceBundle());
                     commandBuffer->drawIndexed(mesh->indexCount(),1,0,0,0);
                 }
                 _drawData.clear();

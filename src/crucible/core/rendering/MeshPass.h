@@ -16,7 +16,7 @@ namespace crucible
             MeshShaderPriorityGroup& operator=(const MeshShaderPriorityGroup&)=delete;
             MeshShaderPriorityGroup(MeshShaderPriorityGroup&&from);
             MeshShaderPriorityGroup& operator=(MeshShaderPriorityGroup&&from);
-            void registerRenderable(const ShaderReference& shader, Mesh* mesh, slag::DescriptorBundle&& descriptorBundle);
+            void registerRenderable(const ShaderReference& shader, Mesh* mesh, slag::DescriptorBundle&& materialBundle, slag::DescriptorBundle&& instanceBundle);
             void drawMeshes(slag::CommandBuffer* commandBuffer);
         private:
             void move(MeshShaderPriorityGroup& from);
@@ -32,7 +32,7 @@ namespace crucible
             MeshPass& operator=(const MeshPass&)=delete;
             MeshPass(MeshPass&& from);
             MeshPass& operator=(MeshPass&& from);
-            void registerMeshData(uint8_t priority, const ShaderReference& shader, Mesh* mesh, slag::DescriptorBundle&& descriptorBundle);
+            void registerMeshData(uint8_t priority, const ShaderReference& shader, Mesh* mesh, slag::DescriptorBundle&& materialBundle, slag::DescriptorBundle&& instanceBundle);
             void drawMeshes(slag::CommandBuffer* commandBuffer);
         private:
             void move(MeshPass& from);

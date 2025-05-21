@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <crucible/core/scenes/World.h>
 
+#include "crucible/core/ECSInterop.h"
 #include "crucible/core/Material.h"
 
 namespace crucible
@@ -143,8 +144,7 @@ namespace crucible
 
         ecs_entity_t NodeECSReference::NodeEcsReferenceID()
         {
-            return World::RegisterOrRetrieveType("Crucible Node",sizeof(NodeECSReference),alignof(NodeECSReference));
-
+            return ECSInterop::node();
         }
 
         void Node::lockFamily()
@@ -197,15 +197,16 @@ namespace crucible
             }
         }
 
-        void Node::registerDraw(slag::DescriptorPool* descriptorPool, VirtualBuffer* virtualUniformBuffer, Transform* parentTransform, ecs_entity_t& transformType,ecs_entity_t& meshRendererType)
+        void Node::registerDraw(slag::DescriptorPool* descriptorPool, VirtualBuffer* virtualUniformBuffer, VirtualBuffer* virtualStorageBuffer, Transform* parentTransform)
         {
             auto nodeTransform = *parentTransform;
+            auto transformType = ECSInterop::types().Transform;
             if (_entity.has(transformType))
             {
                 Transform* local = (Transform*)_entity.get(transformType);
                 nodeTransform = (*local)+(*parentTransform);
             }
-
+            auto meshRendererType = ECSInterop::types().MeshRenderer;
             if (_entity.has(meshRendererType))
             {
                 scripting::ManagedInstance* rendererManaged = (scripting::ManagedInstance*)_entity.get(meshRendererType);
@@ -217,14 +218,34 @@ namespace crucible
                 //set position data
                 material->setData(0,&matr,sizeof(matr));
                 auto& shader = material->shaderReference();
-                auto bundle = material->makeBundle(descriptorPool, virtualUniformBuffer);
-                World::MeshDrawPass->registerMeshData(priority,material->shaderReference(),mesh,std::move(bundle));
+                auto materialBundle = material->makeBundle(descriptorPool, virtualUniformBuffer);
+
+                auto instanceBundle = descriptorPool->makeBundle(shader.pipeline()->descriptorGroup(3));
+                //set position data, always at position 0
+                auto writeLocation = virtualUniformBuffer->write(&matr,sizeof(matr));
+                instanceBundle.setUniformBuffer(0,0,writeLocation.buffer,writeLocation.offset,writeLocation.length);
+                //set bone data if it's required, at position 1
+                if(shader.hasAttribute(Mesh::VertexAttribute::BONE_WEIGHT))
+                {
+                    auto skeletonType = ECSInterop::types().Skeleton;
+                    if (_entity.has(skeletonType))
+                    {
+                        virtualStorageBuffer->write()
+                        instanceBundle.setStorageBuffer(1,0,);
+                    }
+                    else
+                    {
+                        throw std::runtime_error("Skeleton required for drawing, none present");
+                    }
+                }
+
+                World::MeshDrawPass->registerMeshData(priority,shader,mesh,std::move(materialBundle),std::move(instanceBundle));
 
             }
 
             for(auto& child : _children)
             {
-                child->registerDraw(descriptorPool, virtualUniformBuffer, &nodeTransform, transformType, meshRendererType);
+                child->registerDraw(descriptorPool, virtualUniformBuffer, virtualStorageBuffer, &nodeTransform);
             }
 
         }

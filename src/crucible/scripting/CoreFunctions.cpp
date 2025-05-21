@@ -545,5 +545,49 @@ namespace crucible
             camera->renderOrder(order);
         }
 
+//Skeleton
+
+        void cs_skeletonInitialize(core::Skeleton*& skeletonPtr, unsigned char* lz4Data, uint64_t dataLength)
+        {
+            skeletonPtr = new core::Skeleton(lz4Data,dataLength);
+        }
+
+        void cs_skeletonCleanup(core::Skeleton* skeleton)
+        {
+            delete skeleton;
+        }
+
+        core::Bone* cs_skeletonGetBone(core::Skeleton* skeleton, uint16_t index)
+        {
+            return skeleton->getBone(index);
+        }
+
+//Bone
+
+        uint16_t cs_boneSkeletalIndex(core::Bone* bone)
+        {
+            return bone->skeletalIndex();
+        }
+
+        core::Transform cs_boneGetTransform(core::Bone* bone)
+        {
+            return bone->localTransform();
+        }
+
+        void cs_boneSetTransform(core::Bone* bone, core::Transform& transform)
+        {
+            bone->localTransform() = transform;
+        }
+
+        uint16_t cs_boneGetChildCount(core::Bone* bone)
+        {
+            return bone->childrenCount();
+        }
+
+        core::Bone* cs_boneGetChild(core::Bone* bone, core::Skeleton* skeleton, uint16_t childIndex)
+        {
+            return bone->child(*skeleton,childIndex);
+        }
+
     } // scripting
 } // crucible
