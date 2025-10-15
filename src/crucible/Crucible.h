@@ -3,7 +3,7 @@
 #include "CrucibleCore.h"
 namespace crucible
 {
-    CRUCIBLE_API void initialize();
+    CRUCIBLE_API bool initialize();
     CRUCIBLE_API void cleanup();
 } // crucible
 
