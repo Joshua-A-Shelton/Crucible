@@ -4,10 +4,19 @@ namespace Crucible.Initialization;
 
 public class Initializer
 {
+    /// <summary>
+    /// This must match the ManagedFunctionPointers struct in ManagedFunctionPointers.h
+    /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     internal unsafe struct ManagedFunctionPointers
     {
-        public IntPtr RegisterUnmanagedFunction_ptr;
+        public IntPtr LoadAssembly_ptr;
+        public IntPtr UnloadContext_ptr;
+        public IntPtr UnloadAllContextsPtr;
+        public IntPtr GetManagedType_ptr;
+        public IntPtr GetManagedFunction_ptr;
+        public IntPtr NewInstance_ptr;
+        public IntPtr FreeInstance_ptr;
     }
     
     private static unsafe int RuntimeEntry(IntPtr entryArgs, int argLength)
@@ -20,7 +29,13 @@ public class Initializer
         try
         {
             var args = (ManagedFunctionPointers*) entryArgs;
-            args->RegisterUnmanagedFunction_ptr = Marshal.GetFunctionPointerForDelegate(Interop.RegisterUnmanagedFunction_ptr);
+            args->LoadAssembly_ptr = Marshal.GetFunctionPointerForDelegate(Interop.LoadAssemblyPtr);
+            args->UnloadContext_ptr = Marshal.GetFunctionPointerForDelegate(Interop.UnloadContextPtr);
+            args->UnloadAllContextsPtr = Marshal.GetFunctionPointerForDelegate(Interop.UnloadAllContextsPtr);
+            args->GetManagedType_ptr = Marshal.GetFunctionPointerForDelegate(Interop.GetManagedTypePtr);
+            args->GetManagedFunction_ptr = Marshal.GetFunctionPointerForDelegate(Interop.GetManagedFunctionPtr);
+            args->NewInstance_ptr = Marshal.GetFunctionPointerForDelegate(Interop.NewInstancePtr);
+            args->FreeInstance_ptr = Marshal.GetFunctionPointerForDelegate(Interop.FreeInstancePtr);
         }
         catch (Exception e)
         {

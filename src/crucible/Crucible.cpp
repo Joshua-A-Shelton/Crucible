@@ -32,7 +32,7 @@ namespace crucible
             std::cout << "Unable to initialize Slag Graphics Library\n";
             return false;
         }
-        if (!scripting::initialize())
+        if (!scripting::ScriptingEngine::initialize())
         {
             std::cout << "Unable to initialize C# Scripting Engine\n";
         }
@@ -41,7 +41,7 @@ namespace crucible
 
     void cleanup()
     {
-        scripting::cleanup();
+        scripting::ScriptingEngine::cleanup();
         slag::cleanup();
         SDL_Quit();
     }

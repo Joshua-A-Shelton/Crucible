@@ -20,10 +20,16 @@ fetchcontent_declare(
         OVERRIDE_FIND_PACKAGE
 )
 fetchcontent_makeavailable(Slag)
+
+if(NOT WIN32)
 target_compile_options(vk-bootstrap PUBLIC -fPIC)
+endif ()
 
 find_package(Slag REQUIRED)
 
+set(BUILD_SHARED_LIBS OFF)
+set(SDL_SHARED OFF)
+set(SDL_STATIC ON)
 fetchcontent_declare(
         SDL3
         GIT_REPOSITORY https://github.com/libsdl-org/SDL
@@ -32,7 +38,6 @@ fetchcontent_declare(
         OVERRIDE_FIND_PACKAGE
 )
 fetchcontent_makeavailable(SDL3)
-set(SDL_SHARED_DEFAULT OFF)
 find_package(SDL3 REQUIRED)
 
 MACRO(SUBDIRLIST result curdir)
@@ -64,10 +69,15 @@ add_library(Crucible SHARED
         src/crucible/CrucibleCore.h
         src/crucible/scripting/ScriptingEngine.cpp
         src/crucible/scripting/ScriptingEngine.h
-        src/crucible/scripting/ManagedFunctionPointers.h)
+        src/crucible/scripting/ManagedFunctionPointers.h
+        src/crucible/scripting/ManagedType.cpp
+        src/crucible/scripting/ManagedType.h
+        src/crucible/scripting/BindingFlags.h
+        src/crucible/scripting/ManagedFunction.cpp
+        src/crucible/scripting/ManagedFunction.h)
 
 target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})
-target_link_libraries(Crucible PRIVATE Slag SDL3::SDL3 nethost)
+target_link_libraries(Crucible PRIVATE SDL3::SDL3-static Slag nethost)
 target_include_directories(Crucible PRIVATE ${DOT_NET_HOST_LOCATION})
 
 #copy over c# config file (configure_file() is the copy operation, not related to the "configure file" that we're copying)
@@ -106,7 +116,7 @@ if(RUN_CRUCIBLE_TESTS)
 
     target_link_libraries(CrucibleTests Crucible GTest::gtest)
     include(GoogleTest)
-    gtest_discover_tests(CrucibleTests)
+    gtest_discover_tests(CrucibleTests PROPERTIES DISCOVERY_TIMEOUT 600 DISCOVERY_MODE PRE_TEST)
 endif ()
 
 target_include_directories(Crucible PUBLIC src)

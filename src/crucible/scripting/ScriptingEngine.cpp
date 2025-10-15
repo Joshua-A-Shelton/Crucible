@@ -35,7 +35,6 @@ namespace crucible
 {
     namespace scripting
     {
-        ManagedFunctionPointers CRUBIBLE_MANAGED_POINTERS{};
         hostfxr_initialize_for_runtime_config_fn init_for_config_fptr = nullptr;
         hostfxr_get_runtime_delegate_fn get_delegate_fptr = nullptr;
         hostfxr_close_fn close_fptr = nullptr;
@@ -138,7 +137,7 @@ namespace crucible
         }
 
 
-        bool initialize()
+        bool ScriptingEngine::initialize()
         {
             // This sample assumes the managed assembly to load and its runtime configuration file are next to the host
             auto executableDirectory = std::filesystem::current_path();
@@ -167,7 +166,7 @@ namespace crucible
                 return false;
             }
 
-            initFunc(&CRUBIBLE_MANAGED_POINTERS,sizeof(ManagedFunctionPointers));
+            initFunc(&_functionPointers,sizeof(ManagedFunctionPointers));
             int i=0;
 
             //register unmanaged functions
@@ -177,7 +176,7 @@ namespace crucible
             return true;
         }
 
-        void cleanup()
+        void ScriptingEngine::cleanup()
         {
             //TODO: clean up in managed side
 
@@ -185,6 +184,18 @@ namespace crucible
             {
                 close_fptr(host_handle);
             }
+        }
+
+        ManagedType ScriptingEngine::getManagedType(const char* typeName)
+        {
+            ManagedType type{};
+            _functionPointers.getManagedType(typeName, type);
+            return type;
+        }
+
+        void ScriptingEngine::freeInstance(void* instance)
+        {
+            _functionPointers.freeInstance(instance);
         }
     } // scripting
 } // crucible

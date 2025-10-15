@@ -1,58 +1,33 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Runtime.Loader;
+using Crucible.Initialization.Implementation;
 
 namespace Crucible.Initialization;
 
-[StructLayout(LayoutKind.Sequential)]
-internal struct FunctionMap
-{
-    public IntPtr ClassName;
-    public IntPtr DelegateName;
-    public IntPtr FunctionPointer;
-}
 
-[StructLayout(LayoutKind.Sequential)]
-internal struct ManagedType
-{
-    public IntPtr TypePointer = IntPtr.Zero;
-    public ManagedType()
-    {
-        TypePointer = IntPtr.Zero;
-    }
-}
+
+
 internal static unsafe class Interop
 {
-    public delegate void RegisterUnmanagedFunctionDelegate(ref FunctionMap map);
+    public delegate void VoidDelegate();
+    public delegate void IntPtrDelegate(IntPtr pointer);
+    public delegate void StringDelegate(string str);
+    public delegate void StringStringBoolDelegate(string str1, string str2, bool boolean);
+    public delegate void StringManagedTypeDelegate(string str, ref ManagedType managedType);
+    public delegate void GetManagedFunctionDelegate(ref ManagedType onType, string functionName, BindingFlags flags, ManagedType* parameterTypeArray, Int32 parameterTypeCount, ref ManagedFunctionInternals managedFunctionInternals);
+    public delegate void ManagedTypeIntPtrDelegate(ref ManagedType managedType, ref IntPtr pointer);
+    
+    
+    public static StringStringBoolDelegate LoadAssemblyPtr = Assemblies.LoadAssembly;
+    public static StringDelegate UnloadContextPtr = Assemblies.UnloadContext;
+    public static VoidDelegate UnloadAllContextsPtr = Assemblies.UnloadAllContexts;
+    
+    public static StringManagedTypeDelegate GetManagedTypePtr = Managed.GetManagedType;
+    public static GetManagedFunctionDelegate GetManagedFunctionPtr = Managed.GetManagedFunction;
+    public static ManagedTypeIntPtrDelegate NewInstancePtr = Managed.NewInstance;
+    public static IntPtrDelegate FreeInstancePtr = Managed.FreeInstance;
 
-    public static RegisterUnmanagedFunctionDelegate RegisterUnmanagedFunction_ptr = RegisterUnmanagedFunction;
 
-    public static void RegisterUnmanagedFunction(ref FunctionMap mapping)
-    {
-        string? mapTo = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? Marshal.PtrToStringUni(mapping.DelegateName) : Marshal.PtrToStringUTF8(mapping.DelegateName);
-        if (mapTo != null)
-        {
-            Type source = typeof(Interop);
-            string? className = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? Marshal.PtrToStringUni(mapping.ClassName) : Marshal.PtrToStringUTF8(mapping.ClassName);
-            if (!string.IsNullOrEmpty(className))
-            {
-                var t = Type.GetType(className, (name) =>
-                {
-                    return AppDomain.CurrentDomain.GetAssemblies().Where(z => z.FullName == name.FullName || z.GetName().Name == name.Name).FirstOrDefault();
-                },null,true);
-                if (t == null)
-                {
-                    throw new ArgumentException("No such type \"" + className + "\" exists");
-                }
-                source = t;
-            }
-            var fieldInfo = source.GetField(mapTo,
-                BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public);
-            if (fieldInfo == null)
-            {
-                throw new KeyNotFoundException("No static field \"" + mapTo + "\" exists in "+source+" to map to");
-            }
 
-            fieldInfo.SetValue(null, mapping.FunctionPointer);
-        }
-    }
 }
