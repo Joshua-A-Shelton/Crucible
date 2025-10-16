@@ -8,7 +8,7 @@ namespace crucible
 {
     namespace scripting
     {
-        CRUCIBLE_API class ManagedType
+        class CRUCIBLE_API ManagedType
         {
         private:
             void* _handle = nullptr;

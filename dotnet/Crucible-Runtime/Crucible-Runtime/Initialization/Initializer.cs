@@ -14,9 +14,12 @@ public class Initializer
         public IntPtr UnloadContext_ptr;
         public IntPtr UnloadAllContextsPtr;
         public IntPtr GetManagedType_ptr;
-        public IntPtr GetManagedFunction_ptr;
+        public IntPtr GetManagedFunctionDelegate_ptr;
         public IntPtr NewInstance_ptr;
         public IntPtr FreeInstance_ptr;
+        public IntPtr InvokeInstanceMethod_ptr;
+        public IntPtr InvokeInstanceMethodReferenceReturn;
+        public IntPtr InvokeInstanceMethodValueReturn;
         public IntPtr ManagedInitialize_ptr;
         public IntPtr ManagedCleanUp_ptr;
     }
@@ -35,9 +38,12 @@ public class Initializer
             args->UnloadContext_ptr = Marshal.GetFunctionPointerForDelegate(Interop.UnloadContextPtr);
             args->UnloadAllContextsPtr = Marshal.GetFunctionPointerForDelegate(Interop.UnloadAllContextsPtr);
             args->GetManagedType_ptr = Marshal.GetFunctionPointerForDelegate(Interop.GetManagedTypePtr);
-            args->GetManagedFunction_ptr = Marshal.GetFunctionPointerForDelegate(Interop.GetManagedFunctionPtr);
+            args->GetManagedFunctionDelegate_ptr = Marshal.GetFunctionPointerForDelegate(Interop.GetManagedFunctionDelegatePtr);
             args->NewInstance_ptr = Marshal.GetFunctionPointerForDelegate(Interop.NewInstancePtr);
             args->FreeInstance_ptr = Marshal.GetFunctionPointerForDelegate(Interop.FreeInstancePtr);
+            args->InvokeInstanceMethod_ptr = Marshal.GetFunctionPointerForDelegate(Interop.InvokeInstanceMethodPtr);
+            args->InvokeInstanceMethodReferenceReturn = Marshal.GetFunctionPointerForDelegate(Interop.InvokeInstanceMethodReferenceReturnPtr);
+            args->InvokeInstanceMethodValueReturn = Marshal.GetFunctionPointerForDelegate(Interop.InvokeInstanceMethodValueReturnPtr);
             args->ManagedInitialize_ptr = Marshal.GetFunctionPointerForDelegate(Interop.ManagedInitializePtr);
             args->ManagedCleanUp_ptr = Marshal.GetFunctionPointerForDelegate(Interop.ManagedCleanUpPtr);
         }

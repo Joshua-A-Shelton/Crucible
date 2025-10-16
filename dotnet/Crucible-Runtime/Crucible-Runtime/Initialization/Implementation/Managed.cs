@@ -62,7 +62,39 @@ internal unsafe static class Managed
         Type[] args = new Type[parameters.Length+1];
         parameters.CopyTo(args, 0);
         args[args.Length-1] = ret;
+
+        for (var i = 0; i < args.Length; i++)
+        {
+            Console.WriteLine(args[i]);
+        }
+        
         return MakeNewCustomDelegate(args);
+    }
+
+    private class ParameterData
+    {
+        public List<Type> paramTypes = new List<Type>();
+        public List<object?> parametersInstances = new List<object?>();
+    }
+    private static ParameterData ExtractParameterData(Int32 count, ManagedType* types, IntPtr* parameters)
+    {
+        ParameterData pd = new ParameterData();
+        for (int i = 0; i < count; i++)
+        {
+            var paramType = types[i].Value();
+            pd.paramTypes.Add(paramType);
+            if (paramType.IsValueType)
+            {
+                object? valInst = Marshal.PtrToStructure(parameters[i],paramType);
+                pd.parametersInstances.Add(valInst);
+            }
+            else
+            {
+                var refInst =  GCHandle.FromIntPtr(parameters[i]).Target;
+                pd.parametersInstances.Add(refInst);
+            }
+        }
+        return pd;
     }
 
 #endregion
@@ -86,8 +118,21 @@ internal unsafe static class Managed
             throw new TypeNotFoundException(typeName);
         }
     }
+    
+    private static object? InvokeInstanceMethodShared(ref ManagedType type, IntPtr instance, string methodName, int parameterCount, ManagedType* parameterTypes, IntPtr* parameters)
+    {
+        var realType = type.Value();
+        var inst = GCHandle.FromIntPtr(instance).Target;
+        ParameterData pc = ExtractParameterData(parameterCount, parameterTypes, parameters);
+        var methodInfo = realType.GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,pc.paramTypes.ToArray());
+        if (methodInfo == null)
+        {
+            throw new ArgumentException("No method '" + methodName + "' exists for on type " + realType);
+        }
+        return methodInfo.Invoke(inst,pc.parametersInstances.ToArray());
+    }
 
-    public static void GetManagedFunction(ref ManagedType onType, string functionName, BindingFlags flags, ManagedType* parameterTypeArray, Int32 parameterTypeCount, ref ManagedFunctionInternals managedFunctionInternals)
+    public static void GetManagedFunctionDelegate(ref ManagedType onType, string functionName, BindingFlags flags, ManagedType* parameterTypeArray, Int32 parameterTypeCount, ref ManagedFunctionInternals managedFunctionInternals)
     {
         var type = onType.Value();
         Type[] parameterTypes = new Type[parameterTypeCount];
@@ -100,22 +145,26 @@ internal unsafe static class Managed
         {
             throw new FunctionNotFoundException(type,functionName,parameterTypes,flags);
         }
-
-        if (methodData.ReturnType != typeof(void) && !IsUnmanaged(methodData.ReturnType))
+        if (!methodData.IsStatic)
         {
-            throw new NonBlittableReturnTypeException(methodData.ReturnType);
+            throw new UnsuitableForUnmanagedCallerException(methodData,"function is not static");
+        }
+
+        if (methodData.ReturnType != typeof(void) && methodData.ReturnType != typeof(string) && !IsUnmanaged(methodData.ReturnType))
+        {
+            throw new UnsuitableForUnmanagedCallerException(methodData,"function does not have blittable return type");
         }
         
         List<Type> paramTypes = new List<Type>();
-        if (!methodData.IsStatic)
-        {
-            paramTypes.Add(type);
-        }
+        
         foreach(ParameterInfo pinfo in methodData.GetParameters())
         {
+            if (pinfo.ParameterType != typeof(void) && pinfo.ParameterType != typeof(string) && !IsUnmanaged(pinfo.ParameterType))
+            {
+                throw new UnsuitableForUnmanagedCallerException(methodData,"function has non blittable parameter types");
+            }
             paramTypes.Add(pinfo.ParameterType);
         }
-        
         var del = NewDelegateType(methodData.ReturnType, paramTypes.ToArray());
         var func = Delegate.CreateDelegate(del,null, methodData);
         var handle = GCHandle.Alloc(func, GCHandleType.Normal);
@@ -123,10 +172,11 @@ internal unsafe static class Managed
         managedFunctionInternals.DelegateInstance = GCHandle.ToIntPtr(handle);
     }
 
-    public static void NewInstance(ref ManagedType type, ref IntPtr instance)
+    public static void NewInstance(ref ManagedType type, Int32 parameterCount, ManagedType* parameterTypes, IntPtr* parameters, ref IntPtr instance)
     {
         var realType = type.Value();
-        var inst = Activator.CreateInstance(realType);
+        ParameterData pc = ExtractParameterData(parameterCount, parameterTypes, parameters);
+        var inst = Activator.CreateInstance(realType,pc.parametersInstances.ToArray());
         var gcHandle = GCHandle.Alloc(inst,GCHandleType.Normal);
         instance = GCHandle.ToIntPtr(gcHandle);
     }
@@ -134,5 +184,45 @@ internal unsafe static class Managed
     public static void FreeInstance(IntPtr handle)
     {
         GCHandle.FromIntPtr(handle).Free();
+    }
+    
+    public static void InvokeInstanceMethod(ref ManagedType type, IntPtr instance, string methodName, int parameterCount, ManagedType* types, IntPtr* parameters)
+    {
+        InvokeInstanceMethodShared(ref type,instance, methodName, parameterCount, types, parameters);
+    }
+    
+    public static void InvokeInstanceMethodWithReturnValueByReference(ref ManagedType type, IntPtr instance, string methodName, int parameterCount, ManagedType* types, IntPtr* parameters,ref IntPtr returnValue, ref ManagedType returnType)
+    {
+        var reference = InvokeInstanceMethodShared(ref type, instance, methodName, parameterCount, types, parameters);
+        if (reference == null)
+        {
+            returnValue = IntPtr.Zero;
+            returnType.TypePointer = IntPtr.Zero;
+            return;
+        }
+
+        if (reference.GetType().IsValueType)
+        {
+            throw new InvalidOperationException("Cannot return reference types by value");
+        }
+        var handle = GCHandle.Alloc(reference, GCHandleType.Normal);
+        returnValue = GCHandle.ToIntPtr(handle);
+        returnType.TypePointer = reference.GetType().TypeHandle.Value;
+    }
+    
+    public static void InvokeInstanceMethodWithReturnValueByValue(ref ManagedType type, IntPtr instance, string methodName, int parameterCount, ManagedType* types, IntPtr* parameters, IntPtr returnValue)
+    {
+        var reference = InvokeInstanceMethodShared(ref type, instance, methodName, parameterCount, types, parameters);
+        if (reference == null)
+        {
+            throw new InvalidDataException("Cannot have null return value when returning value types!");
+        }
+
+        if (!reference.GetType().IsValueType)
+        {
+            throw new InvalidOperationException("Cannot return value types by reference");
+        }
+        
+        Marshal.StructureToPtr(reference, returnValue, false);
     }
 }

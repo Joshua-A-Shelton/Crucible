@@ -6,7 +6,7 @@
 
 namespace crucible::scripting
 {
-    CRUCIBLE_API enum class BindingFlags: int32_t
+    enum class CRUCIBLE_API BindingFlags: int32_t
     {
         DEFAULT = 0,
         IGNORE_CASE = 1,

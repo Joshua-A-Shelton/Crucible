@@ -73,14 +73,16 @@ add_library(Crucible SHARED
         src/crucible/CrucibleCore.h
         src/crucible/scripting/ScriptingEngine.cpp
         src/crucible/scripting/ScriptingEngine.h
-        src/crucible/scripting/ManagedFunctionPointers.h
+        src/crucible/scripting/CSharpFunctionPointers.h
         src/crucible/scripting/ManagedType.cpp
         src/crucible/scripting/ManagedType.h
         src/crucible/scripting/BindingFlags.h
-        src/crucible/scripting/ManagedFunction.cpp
-        src/crucible/scripting/ManagedFunction.h
+        src/crucible/scripting/ManagedFunctionDelegate.cpp
+        src/crucible/scripting/ManagedFunctionDelegate.h
         src/crucible/Game.cpp
-        src/crucible/Game.h)
+        src/crucible/Game.h
+        src/crucible/scripting/ManagedInstance.cpp
+        src/crucible/scripting/ManagedInstance.h)
 
 target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})
 target_link_libraries(Crucible PRIVATE SDL3::SDL3-static Slag nethost)

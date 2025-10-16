@@ -17,7 +17,10 @@ internal static unsafe class Interop
     public delegate void StringStringBoolDelegate(string str1, string str2, bool boolean);
     public delegate void StringManagedTypeDelegate(string str, ref ManagedType managedType);
     public delegate void GetManagedFunctionDelegate(ref ManagedType onType, string functionName, BindingFlags flags, ManagedType* parameterTypeArray, Int32 parameterTypeCount, ref ManagedFunctionInternals managedFunctionInternals);
-    public delegate void ManagedTypeIntPtrDelegate(ref ManagedType managedType, ref IntPtr pointer);
+    public delegate void NewInstanceDelegate(ref ManagedType type, Int32 parameterCount, ManagedType* parameterTypes, IntPtr* parameters, ref IntPtr instance);
+    public delegate void InvokeInstanceMethodDelegate(ref ManagedType type, IntPtr instance, string methodName, int parameterCount, ManagedType* types, IntPtr* parameters);
+    public delegate void InvokeInstanceMethodReferenceReturnDelegate(ref ManagedType type, IntPtr instance, string methodName, int parameterCount, ManagedType* types, IntPtr* parameters,ref IntPtr returnValue, ref ManagedType returnType);
+    public delegate void InvokeInstanceMethodValueReturnDelegate(ref ManagedType type, IntPtr instance, string methodName, int parameterCount, ManagedType* types, IntPtr* parameters, IntPtr returnValue);
     
     
     public static StringStringBoolDelegate LoadAssemblyPtr = Assemblies.LoadAssembly;
@@ -25,9 +28,12 @@ internal static unsafe class Interop
     public static VoidDelegate UnloadAllContextsPtr = Assemblies.UnloadAllContexts;
     
     public static StringManagedTypeDelegate GetManagedTypePtr = Managed.GetManagedType;
-    public static GetManagedFunctionDelegate GetManagedFunctionPtr = Managed.GetManagedFunction;
-    public static ManagedTypeIntPtrDelegate NewInstancePtr = Managed.NewInstance;
+    public static GetManagedFunctionDelegate GetManagedFunctionDelegatePtr = Managed.GetManagedFunctionDelegate;
+    public static NewInstanceDelegate NewInstancePtr = Managed.NewInstance;
     public static IntPtrDelegate FreeInstancePtr = Managed.FreeInstance;
+    public static InvokeInstanceMethodDelegate InvokeInstanceMethodPtr = Managed.InvokeInstanceMethod;
+    public static InvokeInstanceMethodReferenceReturnDelegate InvokeInstanceMethodReferenceReturnPtr = Managed.InvokeInstanceMethodWithReturnValueByReference;
+    public static InvokeInstanceMethodValueReturnDelegate InvokeInstanceMethodValueReturnPtr = Managed.InvokeInstanceMethodWithReturnValueByValue;
 
     public static VoidDelegate ManagedInitializePtr = GameManager.Initialize;
     public static VoidDelegate ManagedCleanUpPtr = GameManager.CleanUp;

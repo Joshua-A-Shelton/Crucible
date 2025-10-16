@@ -24,6 +24,22 @@ public unsafe struct Vector3
         Y = y;
         Z = z;
     }
+
+    public static Vector3 Up()
+    {
+        return new Vector3(0, 1, 0);
+    }
+
+    public static Vector3 Right()
+    {
+        return new Vector3(1, 0, 0);
+    }
+
+    public static Vector3 Forward()
+    {
+        return new Vector3(0, 0, 1);
+    }
+    
     //Magnitude of this vector
     public float Magnitude()
     {

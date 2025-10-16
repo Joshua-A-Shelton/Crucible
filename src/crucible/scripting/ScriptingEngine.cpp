@@ -6,9 +6,6 @@
 #include <coreclr_delegates.h>
 #include <iostream>
 #include <nethost.h>
-#include <crucible/scripting/ManagedFunctionPointers.h>
-
-#include "BindingFlags.h"
 
 
 #ifdef WIN32
@@ -139,6 +136,11 @@ namespace crucible
         }
 
 
+        CSharpFunctionPointers& ScriptingEngine::funcPointers()
+        {
+            return _functionPointers;
+        }
+
         bool ScriptingEngine::initialize()
         {
             // This sample assumes the managed assembly to load and its runtime configuration file are next to the host
@@ -168,12 +170,13 @@ namespace crucible
                 return false;
             }
 
-            auto init = initFunc(&_functionPointers,sizeof(ManagedFunctionPointers));
+            auto init = initFunc(&_functionPointers,sizeof(CSharpFunctionPointers));
             if (init!=0)
             {
                 std::cout << "Unable to load function pointers from Crucible-Runtime.dll" << std::endl;
                 return false;
             }
+
             return true;
         }
 
@@ -191,6 +194,13 @@ namespace crucible
             ManagedType type{};
             _functionPointers.getManagedType(typeName, type);
             return type;
+        }
+
+        ManagedInstance ScriptingEngine::createManagedInstance(ManagedType& type, int32_t parameterCount,ManagedType* parameterTypes, void** parameters)
+        {
+            void* instance = nullptr;
+            _functionPointers.newInstance(type,parameterCount,parameterTypes,parameters,&instance);
+            return ManagedInstance(instance);
         }
 
         void ScriptingEngine::freeInstance(void* instance)

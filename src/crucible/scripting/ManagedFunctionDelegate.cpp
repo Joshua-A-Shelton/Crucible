@@ -1,11 +1,11 @@
-#include "ManagedFunction.h"
+#include "ManagedFunctionDelegate.h"
 #include "ScriptingEngine.h"
 
 namespace crucible
 {
     namespace scripting
     {
-        ManagedFunctionInternals::~ManagedFunctionInternals()
+        ManagedFunctionDelegateInternals::~ManagedFunctionDelegateInternals()
         {
             if (_functionPointer)
             {
@@ -13,18 +13,18 @@ namespace crucible
             }
         }
 
-        ManagedFunctionInternals::ManagedFunctionInternals(ManagedFunctionInternals&& from)
+        ManagedFunctionDelegateInternals::ManagedFunctionDelegateInternals(ManagedFunctionDelegateInternals&& from)
         {
             move(from);
         }
 
-        ManagedFunctionInternals& ManagedFunctionInternals::operator=(ManagedFunctionInternals&& from)
+        ManagedFunctionDelegateInternals& ManagedFunctionDelegateInternals::operator=(ManagedFunctionDelegateInternals&& from)
         {
             move(from);
             return *this;
         }
 
-        void ManagedFunctionInternals::move(ManagedFunctionInternals& from)
+        void ManagedFunctionDelegateInternals::move(ManagedFunctionDelegateInternals& from)
         {
             std::swap(_functionPointer, from._functionPointer);
             std::swap(_functionGCHandle, from._functionGCHandle);

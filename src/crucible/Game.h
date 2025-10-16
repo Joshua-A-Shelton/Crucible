@@ -8,7 +8,7 @@
 
 namespace crucible
 {
-    CRUCIBLE_API class Game
+    class CRUCIBLE_API Game
     {
     private:
         static inline bool _gameInitialized = false;
