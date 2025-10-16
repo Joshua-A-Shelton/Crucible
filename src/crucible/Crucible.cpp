@@ -35,6 +35,7 @@ namespace crucible
         if (!scripting::ScriptingEngine::initialize())
         {
             std::cout << "Unable to initialize C# Scripting Engine\n";
+            return false;
         }
         return true;
     }

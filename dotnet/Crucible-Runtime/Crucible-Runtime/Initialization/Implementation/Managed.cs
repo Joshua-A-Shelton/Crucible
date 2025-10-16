@@ -76,7 +76,7 @@ internal unsafe static class Managed
         var type = Type.GetType(typeName, (name) =>
         {
             return AppDomain.CurrentDomain.GetAssemblies().Where(z => z.FullName == name.FullName || z.GetName().Name == name.Name).FirstOrDefault();
-        },null,true);
+        },null,false);
         if (type != null)
         {
             managedType.TypePointer = type.TypeHandle.Value;

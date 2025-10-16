@@ -8,6 +8,8 @@
 #include <nethost.h>
 #include <crucible/scripting/ManagedFunctionPointers.h>
 
+#include "BindingFlags.h"
+
 
 #ifdef WIN32
 #include <Windows.h>
@@ -166,20 +168,18 @@ namespace crucible
                 return false;
             }
 
-            initFunc(&_functionPointers,sizeof(ManagedFunctionPointers));
-            int i=0;
-
-            //register unmanaged functions
-            //CoreFunctionsInitializer initialize;
-            //register managed functions
-            //registerManagedFunctions();
+            auto init = initFunc(&_functionPointers,sizeof(ManagedFunctionPointers));
+            if (init!=0)
+            {
+                std::cout << "Unable to load function pointers from Crucible-Runtime.dll" << std::endl;
+                return false;
+            }
             return true;
         }
 
         void ScriptingEngine::cleanup()
         {
-            //TODO: clean up in managed side
-
+            _functionPointers.unloadAllContexts();
             if (host_handle)
             {
                 close_fptr(host_handle);
@@ -196,6 +196,16 @@ namespace crucible
         void ScriptingEngine::freeInstance(void* instance)
         {
             _functionPointers.freeInstance(instance);
+        }
+
+        void ScriptingEngine::gameManagerInitialize()
+        {
+            _functionPointers.gameManagerInitialize();
+        }
+
+        void ScriptingEngine::gameManagerCleanUp()
+        {
+            _functionPointers.gameManagerCleanUp();
         }
     } // scripting
 } // crucible

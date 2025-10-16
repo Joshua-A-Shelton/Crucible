@@ -17,6 +17,8 @@ public class Initializer
         public IntPtr GetManagedFunction_ptr;
         public IntPtr NewInstance_ptr;
         public IntPtr FreeInstance_ptr;
+        public IntPtr ManagedInitialize_ptr;
+        public IntPtr ManagedCleanUp_ptr;
     }
     
     private static unsafe int RuntimeEntry(IntPtr entryArgs, int argLength)
@@ -36,6 +38,8 @@ public class Initializer
             args->GetManagedFunction_ptr = Marshal.GetFunctionPointerForDelegate(Interop.GetManagedFunctionPtr);
             args->NewInstance_ptr = Marshal.GetFunctionPointerForDelegate(Interop.NewInstancePtr);
             args->FreeInstance_ptr = Marshal.GetFunctionPointerForDelegate(Interop.FreeInstancePtr);
+            args->ManagedInitialize_ptr = Marshal.GetFunctionPointerForDelegate(Interop.ManagedInitializePtr);
+            args->ManagedCleanUp_ptr = Marshal.GetFunctionPointerForDelegate(Interop.ManagedCleanUpPtr);
         }
         catch (Exception e)
         {

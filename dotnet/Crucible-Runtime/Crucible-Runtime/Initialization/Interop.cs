@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
+using Crucible.Core;
 using Crucible.Initialization.Implementation;
 
 namespace Crucible.Initialization;
@@ -27,6 +28,9 @@ internal static unsafe class Interop
     public static GetManagedFunctionDelegate GetManagedFunctionPtr = Managed.GetManagedFunction;
     public static ManagedTypeIntPtrDelegate NewInstancePtr = Managed.NewInstance;
     public static IntPtrDelegate FreeInstancePtr = Managed.FreeInstance;
+
+    public static VoidDelegate ManagedInitializePtr = GameManager.Initialize;
+    public static VoidDelegate ManagedCleanUpPtr = GameManager.CleanUp;
 
 
 

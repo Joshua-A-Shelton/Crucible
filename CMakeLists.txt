@@ -4,7 +4,8 @@ project(Crucible)
 set(CMAKE_CXX_STANDARD 20)
 include(FetchContent)
 
-OPTION(SLAG_LIBRARY_VERSION "v0.9.11-rc2")
+SET(SLAG_LIBRARY_VERSION "dev")
+SET(SDL3_LIBRARY_VERSION "release-3.2.24")
 
 OPTION(RUN_CRUCIBLE_TESTS "Run Crucible Tests" ON)
 OPTION(SLAG_VULKAN_BACKEND "Include Vulkan Renderer backend" ON)
@@ -33,11 +34,14 @@ set(SDL_STATIC ON)
 fetchcontent_declare(
         SDL3
         GIT_REPOSITORY https://github.com/libsdl-org/SDL
-        GIT_TAG release-3.2.24
+        GIT_TAG ${SDL3_LIBRARY_VERSION}
         GIT_SHALLOW TRUE
         OVERRIDE_FIND_PACKAGE
 )
 fetchcontent_makeavailable(SDL3)
+if(NOT WIN32)
+    target_compile_options(SDL3-static PUBLIC -fPIC)
+endif ()
 find_package(SDL3 REQUIRED)
 
 MACRO(SUBDIRLIST result curdir)
@@ -74,7 +78,9 @@ add_library(Crucible SHARED
         src/crucible/scripting/ManagedType.h
         src/crucible/scripting/BindingFlags.h
         src/crucible/scripting/ManagedFunction.cpp
-        src/crucible/scripting/ManagedFunction.h)
+        src/crucible/scripting/ManagedFunction.h
+        src/crucible/Game.cpp
+        src/crucible/Game.h)
 
 target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})
 target_link_libraries(Crucible PRIVATE SDL3::SDL3-static Slag nethost)
@@ -112,7 +118,8 @@ if(RUN_CRUCIBLE_TESTS)
 
     add_executable(CrucibleTests
             tests/CrucibleTestsMain.cpp
-            tests/tests/Textures.cpp)
+            tests/tests/Textures.cpp
+            tests/tests/ScriptingEngine.cpp)
 
     target_link_libraries(CrucibleTests Crucible GTest::gtest)
     include(GoogleTest)

@@ -47,7 +47,7 @@ namespace crucible
 
             ReturnType operator()(Args... args) const
             {
-                return ((ReturnType (*)(Args))_internals._functionPointer)(args);
+                return ((ReturnType (*)(Args...))_internals._functionPointer)(args...);
             }
             friend class ScriptingEngine;
         };

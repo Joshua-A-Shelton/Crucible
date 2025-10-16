@@ -1,6 +1,5 @@
 #include "ManagedFunction.h"
 #include "ScriptingEngine.h"
-#include "slag/backends/vulkan/core/VulkanSwapChain.h"
 
 namespace crucible
 {

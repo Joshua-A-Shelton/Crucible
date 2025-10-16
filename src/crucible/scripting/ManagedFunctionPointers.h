@@ -15,6 +15,8 @@ namespace crucible::scripting
         void (*getManagedFunction)(ManagedType& onType, const char* functionName, BindingFlags flags, ManagedType* parameterArray, int32_t parameterTypeCount, ManagedFunctionInternals& outFunctionInternals) = nullptr;
         void (*newInstance)(ManagedType& type, void** outInstance) = nullptr;
         void (*freeInstance)(void* instance) = nullptr;
+        void (*gameManagerInitialize)() = nullptr;
+        void (*gameManagerCleanUp)() = nullptr;
     };
 }
 #endif //CRUCIBLE_MANAGEDFUNCTIONPOINTERS_H
