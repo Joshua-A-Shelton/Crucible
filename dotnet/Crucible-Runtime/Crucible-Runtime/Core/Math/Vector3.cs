@@ -65,33 +65,6 @@ public unsafe struct Vector3
     {
         return Math.Common.Approximately(v1.X,v2.X) && Math.Common.Approximately(v1.Y,v2.Y) && Math.Common.Approximately(v1.Z,v2.Z);
     }
-    
-#pragma warning disable 0649
-    private static delegate* unmanaged<ref Vector3, ref Vector3, float> _vector3Dot_ptr;
-    private static delegate* unmanaged<ref Vector3, ref Vector3, ref Vector3, void> _vector3Cross_ptr;
-#pragma warning restore 0649
-    /// <summary>
-    /// Dot product of two vectors
-    /// </summary>
-    /// <param name="v1"></param>
-    /// <param name="v2"></param>
-    /// <returns></returns>
-    public static float DotProduct(ref Vector3 v1, ref Vector3 v2)
-    {
-        return _vector3Dot_ptr(ref v1, ref v2);
-    }
-    /// <summary>
-    /// Cross product of two vectors
-    /// </summary>
-    /// <param name="v1"></param>
-    /// <param name="v2"></param>
-    /// <returns></returns>
-    public static Vector3 CrossProduct(ref Vector3 v1, ref Vector3 v2)
-    {
-        Vector3 v3 = new Vector3();
-        _vector3Cross_ptr(ref v1, ref v2, ref v3);
-        return v3;
-    }
 
     public override string ToString()
     {

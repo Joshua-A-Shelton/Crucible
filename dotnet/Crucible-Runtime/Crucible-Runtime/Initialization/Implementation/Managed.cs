@@ -117,7 +117,7 @@ internal unsafe static class Managed
         }
         
         var del = NewDelegateType(methodData.ReturnType, paramTypes.ToArray());
-        var func = Delegate.CreateDelegate(del, null, methodData);
+        var func = Delegate.CreateDelegate(del,null, methodData);
         var handle = GCHandle.Alloc(func, GCHandleType.Normal);
         managedFunctionInternals.DelegateHandle = Marshal.GetFunctionPointerForDelegate(func);
         managedFunctionInternals.DelegateInstance = GCHandle.ToIntPtr(handle);
