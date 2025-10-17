@@ -18,9 +18,9 @@ internal static unsafe class Interop
     public delegate void StringManagedTypeDelegate(string str, ref ManagedType managedType);
     public delegate void GetManagedFunctionDelegate(ref ManagedType onType, string functionName, BindingFlags flags, ManagedType* parameterTypeArray, Int32 parameterTypeCount, ref ManagedFunctionInternals managedFunctionInternals);
     public delegate void NewInstanceDelegate(ref ManagedType type, Int32 parameterCount, ManagedType* parameterTypes, IntPtr* parameters, ref IntPtr instance);
-    public delegate void InvokeInstanceMethodDelegate(ref ManagedType type, IntPtr instance, string methodName, int parameterCount, ManagedType* types, IntPtr* parameters);
-    public delegate void InvokeInstanceMethodReferenceReturnDelegate(ref ManagedType type, IntPtr instance, string methodName, int parameterCount, ManagedType* types, IntPtr* parameters,ref IntPtr returnValue, ref ManagedType returnType);
-    public delegate void InvokeInstanceMethodValueReturnDelegate(ref ManagedType type, IntPtr instance, string methodName, int parameterCount, ManagedType* types, IntPtr* parameters, IntPtr returnValue);
+    public delegate void InvokeInstanceMethodDelegate(IntPtr instance, string methodName, int parameterCount, ManagedType* types, IntPtr* parameters);
+    public delegate void InvokeInstanceMethodReferenceReturnDelegate(IntPtr instance, string methodName, int parameterCount, ManagedType* types, IntPtr* parameters,ref IntPtr returnValue);
+    public delegate void InvokeInstanceMethodValueReturnDelegate(IntPtr instance, string methodName, int parameterCount, ManagedType* types, IntPtr* parameters, IntPtr returnValue);
     
     
     public static StringStringBoolDelegate LoadAssemblyPtr = Assemblies.LoadAssembly;

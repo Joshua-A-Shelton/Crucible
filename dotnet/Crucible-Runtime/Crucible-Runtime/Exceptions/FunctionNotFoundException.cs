@@ -9,7 +9,7 @@ public class FunctionNotFoundException: Exception
     public List<Type> ParameterTypes { get; private set; }
     public BindingFlags BindingFlags { get; private set; }
     
-    public FunctionNotFoundException(Type type, string functionName, IEnumerable<Type> parameterTypes, BindingFlags flags) : base($" Function '{functionName}' not found on Type '{type.FullName}' in loaded assemblies")
+    public FunctionNotFoundException(Type type, string functionName, IEnumerable<Type> parameterTypes, BindingFlags flags) : base($" Function '{functionName}' not found on Type '{type.FullName}' in loaded assemblies with given binding flags and parameter types")
     {
         AttemptedType = type;
         FunctionName = functionName;

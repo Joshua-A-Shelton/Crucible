@@ -24,7 +24,7 @@ internal static class Assemblies
         AssemblyCount? assemblyCount = null;
         if (!_loadedAssemblies.TryGetValue(assembly.GetName().FullName, out assemblyCount))
         {
-            _loadedAssemblies.Add(assembly.GetName().Name, new AssemblyCount(assembly));
+            _loadedAssemblies.Add(assembly.GetName().FullName, new AssemblyCount(assembly));
         }
         else
         {
@@ -52,6 +52,11 @@ internal static class Assemblies
     
     private static Assembly? ResolveAssembly(AssemblyLoadContext? context, AssemblyName assemblyName)
     {
+        //Of course I know him. He's me!
+        if (assemblyName.FullName == typeof(Assemblies).Assembly.FullName)
+        {
+            return typeof(Assemblies).Assembly;
+        }
         //if we've already loaded an assembly with the given name, re-use it instead of loading it again
         if (_loadedAssemblies.TryGetValue(assemblyName.FullName, out var loadedAssembly))
         {

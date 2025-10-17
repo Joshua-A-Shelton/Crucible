@@ -203,9 +203,41 @@ namespace crucible
             return ManagedInstance(instance);
         }
 
+        void ScriptingEngine::loadCSharpDLL(const char* contextName, const char* dllPath)
+        {
+            _functionPointers.loadAssembly(contextName,dllPath,true);
+        }
+
+        void ScriptingEngine::unloadContext(const char* contextName)
+        {
+            _functionPointers.unloadContext(contextName);
+        }
+
+        void ScriptingEngine::unloadAllContexts()
+        {
+            _functionPointers.unloadAllContexts();
+        }
+
         void ScriptingEngine::freeInstance(void* instance)
         {
             _functionPointers.freeInstance(instance);
+        }
+
+        void ScriptingEngine::invokeInstanceMethod(ManagedInstance& instance, const char* methodName,int32_t parameterCount, ManagedType* parameterTypes, void** parameters)
+        {
+            _functionPointers.invokeInstanceMethod(instance._gcHandle,methodName,parameterCount,parameterTypes,parameters);
+        }
+
+        ManagedInstance ScriptingEngine::invokeInstanceMethodWithReturnObject(ManagedInstance& instance,const char* methodName, int32_t parameterCount, ManagedType* parameterTypes, void** parameters)
+        {
+            void* objectInstance = nullptr;
+            _functionPointers.invokeInstanceMethodReturnReference(instance._gcHandle,methodName,parameterCount,parameterTypes,parameters,&objectInstance);
+            return {objectInstance};
+        }
+
+        void ScriptingEngine::invokeInstanceMethodWithReturnValue(ManagedInstance& instance, const char* methodName,int32_t parameterCount, ManagedType* parameterTypes, void** parameters, void* valuePtr)
+        {
+            _functionPointers.invokeInstanceMethodReturnValue(instance._gcHandle,methodName,parameterCount,parameterTypes,parameters,valuePtr);
         }
 
         void ScriptingEngine::gameManagerInitialize()

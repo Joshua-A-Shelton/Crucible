@@ -57,6 +57,14 @@ public unsafe struct Vector3
         this = Normalized();
     }
 
+    [DllImport("Crucible", SetLastError = true)]
+    private static extern float NATIVE_Vector3Dot(ref Vector3 vector1, ref Vector3 vector2);
+
+    public static float DotProduct(Vector3 vector1, Vector3 vector2)
+    {
+        return NATIVE_Vector3Dot(ref vector1, ref vector2);
+    }
+
     public static Vector3 operator +(Vector3 v1,Vector3 v2)
     {
         return new Vector3(v1.X + v2.X, v1.Y + v2.Y, v1.Z + v2.Z);

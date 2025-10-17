@@ -62,11 +62,6 @@ internal unsafe static class Managed
         Type[] args = new Type[parameters.Length+1];
         parameters.CopyTo(args, 0);
         args[args.Length-1] = ret;
-
-        for (var i = 0; i < args.Length; i++)
-        {
-            Console.WriteLine(args[i]);
-        }
         
         return MakeNewCustomDelegate(args);
     }
@@ -119,10 +114,10 @@ internal unsafe static class Managed
         }
     }
     
-    private static object? InvokeInstanceMethodShared(ref ManagedType type, IntPtr instance, string methodName, int parameterCount, ManagedType* parameterTypes, IntPtr* parameters)
+    private static object? InvokeInstanceMethodShared(IntPtr instance, string methodName, int parameterCount, ManagedType* parameterTypes, IntPtr* parameters)
     {
-        var realType = type.Value();
         var inst = GCHandle.FromIntPtr(instance).Target;
+        var realType = inst.GetType();
         ParameterData pc = ExtractParameterData(parameterCount, parameterTypes, parameters);
         var methodInfo = realType.GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,pc.paramTypes.ToArray());
         if (methodInfo == null)
@@ -186,18 +181,17 @@ internal unsafe static class Managed
         GCHandle.FromIntPtr(handle).Free();
     }
     
-    public static void InvokeInstanceMethod(ref ManagedType type, IntPtr instance, string methodName, int parameterCount, ManagedType* types, IntPtr* parameters)
+    public static void InvokeInstanceMethod(IntPtr instance, string methodName, int parameterCount, ManagedType* types, IntPtr* parameters)
     {
-        InvokeInstanceMethodShared(ref type,instance, methodName, parameterCount, types, parameters);
+        InvokeInstanceMethodShared(instance, methodName, parameterCount, types, parameters);
     }
     
-    public static void InvokeInstanceMethodWithReturnValueByReference(ref ManagedType type, IntPtr instance, string methodName, int parameterCount, ManagedType* types, IntPtr* parameters,ref IntPtr returnValue, ref ManagedType returnType)
+    public static void InvokeInstanceMethodWithReturnValueByReference(IntPtr instance, string methodName, int parameterCount, ManagedType* types, IntPtr* parameters,ref IntPtr returnValue)
     {
-        var reference = InvokeInstanceMethodShared(ref type, instance, methodName, parameterCount, types, parameters);
+        var reference = InvokeInstanceMethodShared(instance, methodName, parameterCount, types, parameters);
         if (reference == null)
         {
             returnValue = IntPtr.Zero;
-            returnType.TypePointer = IntPtr.Zero;
             return;
         }
 
@@ -207,12 +201,11 @@ internal unsafe static class Managed
         }
         var handle = GCHandle.Alloc(reference, GCHandleType.Normal);
         returnValue = GCHandle.ToIntPtr(handle);
-        returnType.TypePointer = reference.GetType().TypeHandle.Value;
     }
     
-    public static void InvokeInstanceMethodWithReturnValueByValue(ref ManagedType type, IntPtr instance, string methodName, int parameterCount, ManagedType* types, IntPtr* parameters, IntPtr returnValue)
+    public static void InvokeInstanceMethodWithReturnValueByValue(IntPtr instance, string methodName, int parameterCount, ManagedType* types, IntPtr* parameters, IntPtr returnValue)
     {
-        var reference = InvokeInstanceMethodShared(ref type, instance, methodName, parameterCount, types, parameters);
+        var reference = InvokeInstanceMethodShared(instance, methodName, parameterCount, types, parameters);
         if (reference == null)
         {
             throw new InvalidDataException("Cannot have null return value when returning value types!");

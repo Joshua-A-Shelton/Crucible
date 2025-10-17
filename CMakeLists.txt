@@ -6,6 +6,7 @@ include(FetchContent)
 
 SET(SLAG_LIBRARY_VERSION "dev")
 SET(SDL3_LIBRARY_VERSION "release-3.2.24")
+SET(GLM_LIBRARY_VERSION "1.0.2")
 
 OPTION(RUN_CRUCIBLE_TESTS "Run Crucible Tests" ON)
 OPTION(SLAG_VULKAN_BACKEND "Include Vulkan Renderer backend" ON)
@@ -43,6 +44,16 @@ if(NOT WIN32)
     target_compile_options(SDL3-static PUBLIC -fPIC)
 endif ()
 find_package(SDL3 REQUIRED)
+
+fetchcontent_declare(
+        glm
+        GIT_REPOSITORY https://github.com/g-truc/glm
+        GIT_TAG ${GLM_LIBRARY_VERSION}
+        GIT_SHALLOW TRUE
+        OVERRIDE_FIND_PACKAGE
+)
+fetchcontent_makeavailable(glm)
+find_package(glm)
 
 MACRO(SUBDIRLIST result curdir)
     FILE(GLOB children RELATIVE ${curdir} ${curdir}/*)
@@ -82,10 +93,12 @@ add_library(Crucible SHARED
         src/crucible/Game.cpp
         src/crucible/Game.h
         src/crucible/scripting/ManagedInstance.cpp
-        src/crucible/scripting/ManagedInstance.h)
+        src/crucible/scripting/ManagedInstance.h
+        src/crucible/scripting/API.cpp
+        src/crucible/scripting/API.h)
 
 target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})
-target_link_libraries(Crucible PRIVATE SDL3::SDL3-static Slag nethost)
+target_link_libraries(Crucible PRIVATE glm SDL3::SDL3-static Slag nethost)
 target_include_directories(Crucible PRIVATE ${DOT_NET_HOST_LOCATION})
 
 #copy over c# config file (configure_file() is the copy operation, not related to the "configure file" that we're copying)
@@ -93,7 +106,7 @@ configure_file(config/CSharpConfig.json "${CMAKE_BINARY_DIR}/config/CSharpConfig
 #copy over library that allows us to enter c# code
 configure_file("${DOT_NET_HOST_LOCATION}/${NETHOST_DYNAMIC_LIBRARY}" "${CMAKE_BINARY_DIR}/${NETHOST_DYNAMIC_LIBRARY}" COPYONLY)
 #build c# dll
-file(GLOB_RECURSE CRUCIBLE_CSHARP_FILES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/dotnet/*.cs)
+file(GLOB_RECURSE CRUCIBLE_CSHARP_FILES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/dotnet/Crucible-Runtime/Crucible-Runtime/*.cs)
 add_custom_command(
         OUTPUT ${CMAKE_BINARY_DIR}/Crucible-Runtime.dll
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/dotnet/Crucible-Runtime
@@ -120,12 +133,25 @@ if(RUN_CRUCIBLE_TESTS)
 
     add_executable(CrucibleTests
             tests/CrucibleTestsMain.cpp
-            tests/tests/Textures.cpp
-            tests/tests/ScriptingEngine.cpp)
+            tests/tests/ScriptingEngine.cpp
+            tests/tests/ManagedInstance.cpp
+            tests/tests/API.cpp)
 
     target_link_libraries(CrucibleTests Crucible GTest::gtest)
     include(GoogleTest)
     gtest_discover_tests(CrucibleTests PROPERTIES DISCOVERY_TIMEOUT 600 DISCOVERY_MODE PRE_TEST)
+
+    file(GLOB_RECURSE CRUCIBLE_TESTS_CHARP_FILES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/dotnet/Crucible-Runtime/Crucible-Runtime-Tests/*.cs)
+    add_custom_command(
+            OUTPUT ${CMAKE_BINARY_DIR}/Crucible-Runtime-Tests.dll
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/dotnet/Crucible-Runtime
+            COMMAND dotnet publish Crucible-Runtime-Tests /p:Configuration=${CRUCIBLE_BUILD_TYPE} /p:Platform="Any CPU" /p:AllowUnsafeBlocks=true -o ${CMAKE_BINARY_DIR}
+            DEPENDS ${CRUCIBLE_TESTS_CHARP_FILES}
+            COMMENT "Building Crucible .net runtime tests"
+    )
+    add_custom_target(Crucible-Runtime-Tests DEPENDS ${CMAKE_BINARY_DIR}/Crucible-Runtime-Tests.dll)
+    add_dependencies(CrucibleTests Crucible-Runtime-Tests)
+    add_dependencies(Crucible-Runtime-Tests Crucible-Runtime)
 endif ()
 
 target_include_directories(Crucible PUBLIC src)

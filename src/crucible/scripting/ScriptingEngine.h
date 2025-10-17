@@ -26,7 +26,7 @@ namespace crucible
             static void cleanup();
             /**
              * Get a handle to C# type
-             * @param typeName Fully qualified name of the type (or just the type name if in default context)
+             * @param typeName Assembly qualified name of the type (or just the type name if in default context)
              * @return
              */
             static ManagedType getManagedType(const char* typeName);
@@ -59,11 +59,22 @@ namespace crucible
              * @return
              */
             static ManagedInstance createManagedInstance(ManagedType& type, int32_t parameterCount,ManagedType* parameterTypes, void** parameters);
+            /**
+             * Load a C# DLL into memory to enable it for use
+             * @param contextName Name of group the related DLL's are put into that are unloaded all at the same time
+             * @param dllPath Path of the library to load
+             */
+            static void loadCSharpDLL(const char* contextName, const char* dllPath);
+            static void unloadContext(const char* contextName);
+            static void unloadAllContexts();
             friend class ManagedFunctionDelegateInternals;
             friend class ManagedInstance;
             friend class crucible::Game;
         private:
             static void freeInstance(void* instance);
+            static void invokeInstanceMethod(ManagedInstance& instance, const char* methodName, int32_t parameterCount, ManagedType* parameterTypes, void** parameters);
+            static ManagedInstance invokeInstanceMethodWithReturnObject(ManagedInstance& instance,const char* methodName, int32_t parameterCount, ManagedType* parameterTypes, void** parameters);
+            static void invokeInstanceMethodWithReturnValue(ManagedInstance& instance,const char* methodName, int32_t parameterCount, ManagedType* parameterTypes, void** parameters,void* valuePtr);
             static void gameManagerInitialize();
             static void gameManagerCleanUp();
             inline static CSharpFunctionPointers _functionPointers;

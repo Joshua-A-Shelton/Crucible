@@ -13,10 +13,16 @@ TEST(ScriptingEngine, GetManagedTypeEmptyFail)
     GTEST_FLAG_SET(death_test_style, "threadsafe");
     EXPECT_DEATH([this]{auto nonExistentType = ScriptingEngine::getManagedType("typeName is null or empty");}(),"");
 }
-TEST(ScriptingEngine, GetManagedTypeFail)
+TEST(ScriptingEngine, GetManagedTypeNonExistentFail)
 {
     GTEST_FLAG_SET(death_test_style, "threadsafe");
     EXPECT_DEATH([this]{auto nonExistentType = ScriptingEngine::getManagedType("Crucible.NonExistentType");}(),"not found in loaded assemblies");
+}
+
+TEST(ScriptingEngine, GetManagedTypeNonAssemblyQualifiedFail)
+{
+    GTEST_FLAG_SET(death_test_style, "threadsafe");
+    EXPECT_DEATH([this]{auto nonExistentType = ScriptingEngine::getManagedType("Crucible.Tests.Utilities.DummyReferenceType");}(),"not found in loaded assemblies");
 }
 
 TEST(ScriptingEngine, GetManagedFunctionDelegate)
@@ -41,41 +47,57 @@ TEST(ScriptingEngine, GetManagedFunctionDelegateBlitReturnType)
 TEST(ScriptingEngine, GetManagedFunctionFailNonBlitReturnTypes)
 {
     GTEST_FLAG_SET(death_test_style, "threadsafe");
-    GTEST_FAIL();
+    auto dummiesType = ScriptingEngine::getManagedType("Crucible.Tests.Utilities.Dummies, Crucible-Runtime-Tests");
+    auto intType = ScriptingEngine::getManagedType("System.Int32");
+    ManagedType paramTypes[]={intType,intType};
+
+    EXPECT_DEATH((ScriptingEngine::getManagedFunctionDelegate<ManagedInstance,int,int>(dummiesType,"GetDummyReference",BindingFlags::PUBLIC | BindingFlags::STATIC, paramTypes,2)),"function does not have blittable return type");
 }
 
-TEST(ScriptingEngine, GetManagedFunctionDelegateNonBlitParameters)
+TEST(ScriptingEngine, GetManagedFunctionFailNonBlitParameters)
 {
     GTEST_FLAG_SET(death_test_style, "threadsafe");
-    GTEST_FAIL();
+    auto dummiesType = ScriptingEngine::getManagedType("Crucible.Tests.Utilities.Dummies, Crucible-Runtime-Tests");
+    auto dummiesReferenceType = ScriptingEngine::getManagedType("Crucible.Tests.Utilities.DummyReferenceType, Crucible-Runtime-Tests");
+
+    EXPECT_DEATH((ScriptingEngine::getManagedFunctionDelegate<int,ManagedInstance>(dummiesType,"GetDummyReferenceThing1",BindingFlags::PUBLIC | BindingFlags::STATIC, &dummiesReferenceType,1)),"function has non blittable parameter types");
 }
+
+TEST(ScriptingEngine, GetManagedFunctionFailNonStatic)
+{
+    GTEST_FLAG_SET(death_test_style, "threadsafe");
+    auto dummiesReferenceType = ScriptingEngine::getManagedType("Crucible.Tests.Utilities.DummyReferenceType, Crucible-Runtime-Tests");
+
+    EXPECT_DEATH((ScriptingEngine::getManagedFunctionDelegate<int>(dummiesReferenceType,"Sum",BindingFlags::PUBLIC | BindingFlags::INSTANCE, nullptr,0)),"function is not static");
+}
+
 
 TEST(ScriptingEngine, GetManagedTypeLoadedAssembly)
 {
-    GTEST_FAIL();
+    auto dummiesType = ScriptingEngine::getManagedType("Crucible.Tests.Utilities.Dummies, Crucible-Runtime-Tests");
 }
 
 TEST(ScriptingEngine, GetManagedFunctionLoadedAssembly)
 {
-    GTEST_FAIL();
+    auto dummiesType = ScriptingEngine::getManagedType("Crucible.Tests.Utilities.Dummies, Crucible-Runtime-Tests");
+    auto intType = ScriptingEngine::getManagedType("System.Int32");
+    ManagedType parameterTypes[]={intType,intType};
+    auto loadedDLLStaticFunction = ScriptingEngine::getManagedFunctionDelegate<int,int,int>(dummiesType,"LoadedDLLStaticFunction",BindingFlags::PUBLIC | BindingFlags::STATIC,parameterTypes,2);
+    auto sum = loadedDLLStaticFunction(4,7);
+    GTEST_ASSERT_EQ(sum,11);
 }
 
 TEST(ScriptingEngine, GetInstance)
 {
-    GTEST_FAIL();
-}
-
-TEST(ScriptingEngine, InvokeMethodNoReturn)
-{
-    GTEST_FAIL();
-}
-
-TEST(ScriptingEngine, InvokeMethodReferenceReturn)
-{
-    GTEST_FAIL();
-}
-
-TEST(ScriptingEngine, InvokeMethodInstanceReturn)
-{
-    GTEST_FAIL();
+    auto dummiesReferenceType = ScriptingEngine::getManagedType("Crucible.Tests.Utilities.DummyReferenceType, Crucible-Runtime-Tests");
+    auto intType = ScriptingEngine::getManagedType("System.Int32");
+    ManagedType parameterTypes[]={intType,intType};
+    int param1 = 3;
+    int param2 = 9;
+    void* parameterValues[]
+    {
+        &param1,
+        &param2,
+    };
+    auto instance = ScriptingEngine::createManagedInstance(dummiesReferenceType, 2,parameterTypes,parameterValues);
 }
