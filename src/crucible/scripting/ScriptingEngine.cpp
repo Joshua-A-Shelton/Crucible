@@ -7,7 +7,6 @@
 #include <iostream>
 #include <nethost.h>
 
-
 #ifdef WIN32
 #include <Windows.h>
 

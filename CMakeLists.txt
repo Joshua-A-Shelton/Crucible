@@ -95,7 +95,8 @@ add_library(Crucible SHARED
         src/crucible/scripting/ManagedInstance.cpp
         src/crucible/scripting/ManagedInstance.h
         src/crucible/scripting/API.cpp
-        src/crucible/scripting/API.h)
+        src/crucible/scripting/API.h
+)
 
 target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})
 target_link_libraries(Crucible PRIVATE glm SDL3::SDL3-static Slag nethost)

@@ -22,7 +22,6 @@ internal static unsafe class Interop
     public delegate void InvokeInstanceMethodReferenceReturnDelegate(IntPtr instance, string methodName, int parameterCount, ManagedType* types, IntPtr* parameters,ref IntPtr returnValue);
     public delegate void InvokeInstanceMethodValueReturnDelegate(IntPtr instance, string methodName, int parameterCount, ManagedType* types, IntPtr* parameters, IntPtr returnValue);
     
-    
     public static StringStringBoolDelegate LoadAssemblyPtr = Assemblies.LoadAssembly;
     public static StringDelegate UnloadContextPtr = Assemblies.UnloadContext;
     public static VoidDelegate UnloadAllContextsPtr = Assemblies.UnloadAllContexts;

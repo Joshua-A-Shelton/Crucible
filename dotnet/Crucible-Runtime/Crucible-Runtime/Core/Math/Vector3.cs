@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Crucible.Initialization;
 
 namespace Crucible.Core.Math;
 /// <summary>
@@ -57,9 +58,7 @@ public unsafe struct Vector3
         this = Normalized();
     }
 
-    [DllImport("Crucible", SetLastError = true)]
-    private static extern float NATIVE_Vector3Dot(ref Vector3 vector1, ref Vector3 vector2);
-
+    private static delegate* unmanaged<ref Vector3, ref Vector3, float> NATIVE_Vector3Dot = (delegate* unmanaged<ref Vector3, ref Vector3, float>)Native.GetExportedSymbol("Crucible",nameof(NATIVE_Vector3Dot));
     public static float DotProduct(Vector3 vector1, Vector3 vector2)
     {
         return NATIVE_Vector3Dot(ref vector1, ref vector2);

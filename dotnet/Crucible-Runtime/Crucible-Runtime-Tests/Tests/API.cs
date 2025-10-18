@@ -50,7 +50,7 @@ public static class API
     }
     public static void RunAllTests()
     {
-        
+        Vector3Tests.DotTest();
     }
     
 }
