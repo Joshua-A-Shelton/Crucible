@@ -9,6 +9,7 @@ namespace slag
         extern "C"
         {
             CRUCIBLE_API float NATIVE_Vector3Dot(glm::vec3& a, glm::vec3& b);
+            CRUCIBLE_API void NATIVE_Vector3Cross(glm::vec3& a, glm::vec3& b, glm::vec3& out);
         }
     } // scripting
 } // slag

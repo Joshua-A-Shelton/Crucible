@@ -1,10 +1,11 @@
 ﻿using System.Reflection;
+using Crucible.Tests.Utilities;
 
 namespace Crucible.Tests;
 
 public static class API
 {
-    private static void outputTestData(MethodInfo methodInfo)
+    private static bool outputTestData(MethodInfo methodInfo)
     {
         long startMilliseconds = DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
         try
@@ -15,42 +16,69 @@ public static class API
             {
                 if (successStatus)
                 {
-                    Console.WriteLine($"[ OK ] API.{methodInfo.Name} ({endMilliseconds-startMilliseconds} ms)");
+                    Console.WriteLine($"<OK> API {methodInfo.DeclaringType.FullName}.{methodInfo.Name} ({endMilliseconds-startMilliseconds} ms)");
+                    return true;
                 }
                 else
                 {
-                    Console.WriteLine($"[ FAILED ] API.{methodInfo.Name} ({endMilliseconds-startMilliseconds} ms)");
+                    Console.WriteLine($"<FAILED> API {methodInfo.DeclaringType.FullName}.{methodInfo.Name} ({endMilliseconds-startMilliseconds} ms)");
                     // [  FAILED  ] TestCaseName.TestName (time_in_ms ms)
                     // path/to/source_file.cpp:lineNumber: Failure
                     // Expected: condition_expected_to_be_true
                     // Actual: condition_found_to_be_false
+                    return false;
                 }
             }
             else
             {
-                Console.WriteLine($"[ FAILED ] API.{methodInfo.Name} ({endMilliseconds-startMilliseconds} ms)");
+                Console.WriteLine($"<FAILED> API {methodInfo.DeclaringType.FullName}.{methodInfo.Name} ({endMilliseconds-startMilliseconds} ms)");
                 // [  FAILED  ] TestCaseName.TestName (time_in_ms ms)
                 // path/to/source_file.cpp:lineNumber: Failure
                 // Expected: condition_expected_to_be_true
                 // Actual: condition_found_to_be_false
+                return false;
             }
         }
         catch (Exception e)
         {
             long endMilliseconds = DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
-            Console.WriteLine($"[ FAILED ] API.{methodInfo.Name} ({endMilliseconds-startMilliseconds} ms)");
+            Console.WriteLine($"<FAILED> API {methodInfo.DeclaringType.FullName}.{methodInfo.Name} ({endMilliseconds-startMilliseconds} ms)");
             // [  FAILED  ] TestCaseName.TestName (time_in_ms ms)
             // path/to/source_file.cpp:lineNumber: Failure
             // Expected: condition_expected_to_be_true
             // Actual: condition_found_to_be_false
-            Console.WriteLine(e);
-            throw;
+            return false;
         }
         
     }
-    public static void RunAllTests()
+    public static Int32 RunAllTests()
     {
-        Vector3Tests.DotTest();
+        Assembly assembly = Assembly.GetCallingAssembly();
+        
+        IEnumerable<Type> classesWithTest = assembly.GetTypes()
+            .Where(type => type.GetCustomAttribute<TestAttribute>() != null);
+        bool allTestsPassed = true;
+        foreach (Type testType in classesWithTest)
+        {
+            var testMethods = testType.GetMethods(BindingFlags.Static | BindingFlags.Public);
+            foreach (MethodInfo methodInfo in testMethods)
+            {
+                if (methodInfo.ReturnType == typeof(bool) && methodInfo.GetParameters().Length == 0)
+                {
+                    if (!outputTestData(methodInfo))
+                    {
+                        allTestsPassed = false;
+                    }
+                }
+            }
+        }
+
+        if (allTestsPassed)
+        {
+            return 1;
+        }
+
+        return 0;
     }
     
 }

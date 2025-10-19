@@ -63,6 +63,15 @@ public unsafe struct Vector3
     {
         return NATIVE_Vector3Dot(ref vector1, ref vector2);
     }
+    
+    private static delegate* unmanaged<ref Vector3, ref Vector3, ref Vector3, void> NATIVE_Vector3Cross = (delegate* unmanaged<ref Vector3, ref Vector3, ref Vector3, void>)Native.GetExportedSymbol("Crucible",nameof(NATIVE_Vector3Cross));
+
+    public static Vector3 CrossProduct(Vector3 vector1, Vector3 vector2)
+    {
+        Vector3 result = default;
+        NATIVE_Vector3Cross(ref vector1, ref vector2, ref result);
+        return result;
+    }
 
     public static Vector3 operator +(Vector3 v1,Vector3 v2)
     {
