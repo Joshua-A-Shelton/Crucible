@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using Crucible.Core.Math;
 using Crucible.Tests.Utilities;
 
 namespace Crucible.Tests;

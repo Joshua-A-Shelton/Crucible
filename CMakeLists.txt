@@ -99,7 +99,7 @@ add_library(Crucible SHARED
 )
 
 target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})
-target_link_libraries(Crucible PRIVATE glm SDL3::SDL3-static Slag nethost)
+target_link_libraries(Crucible PUBLIC glm PRIVATE SDL3::SDL3-static Slag nethost)
 target_include_directories(Crucible PRIVATE ${DOT_NET_HOST_LOCATION})
 
 #copy over c# config file (configure_file() is the copy operation, not related to the "configure file" that we're copying)

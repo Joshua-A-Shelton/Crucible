@@ -57,20 +57,17 @@ public unsafe struct Vector3
     {
         this = Normalized();
     }
-
-    private static delegate* unmanaged<ref Vector3, ref Vector3, float> NATIVE_Vector3Dot = (delegate* unmanaged<ref Vector3, ref Vector3, float>)Native.GetExportedSymbol("Crucible",nameof(NATIVE_Vector3Dot));
-    public static float DotProduct(Vector3 vector1, Vector3 vector2)
+    
+    public static float DotProduct(Vector3 a, Vector3 b)
     {
-        return NATIVE_Vector3Dot(ref vector1, ref vector2);
+        return a.X*b.X + a.Y*b.Y + a.Z*b.Z;
     }
     
-    private static delegate* unmanaged<ref Vector3, ref Vector3, ref Vector3, void> NATIVE_Vector3Cross = (delegate* unmanaged<ref Vector3, ref Vector3, ref Vector3, void>)Native.GetExportedSymbol("Crucible",nameof(NATIVE_Vector3Cross));
-
-    public static Vector3 CrossProduct(Vector3 vector1, Vector3 vector2)
+    public static Vector3 CrossProduct(Vector3 a, Vector3 b)
     {
-        Vector3 result = default;
-        NATIVE_Vector3Cross(ref vector1, ref vector2, ref result);
-        return result;
+        return new Vector3(a.Y * b.Z - b.Y * a.Z,
+            a.Z * b.X - b.Z * a.X,
+            a.X * b.Y - b.X * a.Y);
     }
 
     public static Vector3 operator +(Vector3 v1,Vector3 v2)
@@ -81,6 +78,21 @@ public unsafe struct Vector3
     public static Vector3 operator -(Vector3 v1,Vector3 v2)
     {
         return new Vector3(v1.X - v2.X, v1.Y - v2.Y, v1.Z - v2.Z);
+    }
+
+    public static Vector3 operator *(Vector3 v1, float multiplier)
+    {
+        return new Vector3(v1.X*multiplier, v1.Y*multiplier, v1.Z*multiplier);
+    }
+
+    public static Vector3 operator *(Vector3 vector, Matrix4x4 by)
+    {
+        throw new NotImplementedException();
+    }
+
+    public static Vector3 operator /(Vector3 v1, float divisor)
+    {
+        return new Vector3(v1.X/divisor, v1.Y/divisor, v1.Z/divisor);
     }
 
     public static bool operator ==(Vector3 v1, Vector3 v2)

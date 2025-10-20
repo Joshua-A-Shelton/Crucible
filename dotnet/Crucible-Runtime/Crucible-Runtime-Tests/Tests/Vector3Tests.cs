@@ -25,4 +25,19 @@ public static class Vector3Tests
         Vector3 expected = new Vector3(5.415f, -22.7f, -22.762402f);
         return Vector3.Approximately(cross, expected);
     }
+    
+    public static bool MagnitudeTest()
+    {
+        return false;
+    }
+
+    public static bool NormalizeTest()
+    {
+        return false;
+    }
+    
+    public static bool MatrixMultiplyTest()
+    {
+        return false;
+    }
 }
