@@ -47,7 +47,7 @@ namespace slag
         void CRUCIBLE_NATIVE_Vector3MatrixMultipy(glm::vec3& vector, glm::mat4& matrix, glm::vec3& out)
         {
             glm::vec4 vec(vector,1);
-            out = matrix*vec;
+            out = vec * matrix;
         }
 
         float CRUCIBLE_NATIVE_Vector3DotProduct(glm::vec3& a, glm::vec3& b)
