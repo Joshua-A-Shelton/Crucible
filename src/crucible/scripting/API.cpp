@@ -8,56 +8,109 @@ namespace slag
     namespace scripting
     {
 
-        void CRUCIBLE_NATIVE_Matrix4X4Multiply(glm::mat4& a, glm::mat4& b, glm::mat4& out)
+        void CRUCIBLE_NATIVE_Matrix4X4Multiply(const glm::mat4& a, const glm::mat4& b, glm::mat4& out)
         {
             out = a*b;
         }
 
-        void CRUCIBLE_NATIVE_QuaternionFromAngleAxis(float angle, glm::vec3& axis, glm::quat& out)
+        void CRUCIBLE_NATIVE_Matrix4X4FromPositionRotationScale(const glm::vec3& position, const glm::quat& rotation, const glm::vec3& scale, glm::mat4& out)
+        {
+            auto translationMatrix = glm::translate(glm::mat4(1.0f), position);
+            auto rotationMatrix = glm::mat4(rotation);
+            auto scaleMatrix = glm::scale(glm::mat4(1.0f), scale);
+            out = translationMatrix*rotationMatrix*scaleMatrix;
+        }
+
+        void CRUCIBLE_NATIVE_QuaternionFromAngleAxis(float angle, const glm::vec3& axis, glm::quat& out)
         {
             out = glm::quat(angle,axis);
         }
 
-        void CRUCIBLE_NATIVE_QuaternionFromEulerAngles(glm::vec3& eulerAngles, glm::quat& out)
+        void CRUCIBLE_NATIVE_QuaternionFromEulerAngles(const glm::vec3& eulerAngles, glm::quat& out)
         {
             out = glm::quat(eulerAngles);
         }
 
-        void CRUCIBLE_NATIVE_QuaternionMultiply(glm::quat& a, glm::quat& b, glm::quat& out)
+        void CRUCIBLE_NATIVE_QuaternionMultiply(const glm::quat& a, const glm::quat& b, glm::quat& out)
         {
             out = a*b;
         }
 
-        void CRUCIBLE_NATIVE_QuaternionInverse(glm::quat& of, glm::quat& out)
+        void CRUCIBLE_NATIVE_QuaternionInverse(const glm::quat& of, glm::quat& out)
         {
             out = glm::inverse(of);
         }
 
+        float CRUCIBLE_NATIVE_QuaternionMagnitude(const glm::quat& quat)
+        {
+            return glm::length(quat);
+        }
 
-        void CRUCIBLE_NATIVE_Vector4MatrixMultipy(glm::vec4& vector, glm::mat4& matrix, glm::vec4& out)
+        void CRUCIBLE_NATIVE_QuaternionNormalized(const glm::quat& quat, glm::quat& out)
+        {
+            out = glm::normalize(quat);
+        }
+
+
+        void CRUCIBLE_NATIVE_Vector4MatrixMultipy(const glm::vec4& vector, const glm::mat4& matrix, glm::vec4& out)
         {
             out = vector*matrix;
         }
 
-        float CRUCIBLE_NATIVE_Vector4DotProduct(glm::vec4& a, glm::vec4& b)
+        float CRUCIBLE_NATIVE_Vector4DotProduct(const glm::vec4& a, const glm::vec4& b)
         {
             return glm::dot(a,b);
         }
 
-        void CRUCIBLE_NATIVE_Vector3MatrixMultipy(glm::vec3& vector, glm::mat4& matrix, glm::vec3& out)
+        float CRUCIBLE_NATIVE_Vector4Magnitude(const glm::vec4& vector)
+        {
+            return glm::length(vector);
+        }
+
+        void CRUCIBLE_NATIVE_Vector4Normalized(const glm::vec4& vector, glm::vec4& out)
+        {
+            out = glm::normalize(vector);
+        }
+
+        void CRUCIBLE_NATIVE_Vector3MatrixMultipy(const glm::vec3& vector, const glm::mat4& matrix, glm::vec3& out)
         {
             glm::vec4 vec(vector,1);
             out = vec * matrix;
         }
 
-        float CRUCIBLE_NATIVE_Vector3DotProduct(glm::vec3& a, glm::vec3& b)
+        float CRUCIBLE_NATIVE_Vector3DotProduct(const glm::vec3& a, const glm::vec3& b)
         {
             return glm::dot(a,b);
         }
 
-        void CRUCIBLE_NATIVE_Vector3CrossProduct(glm::vec3& a,glm::vec3&b, glm::vec3& out)
+        void CRUCIBLE_NATIVE_Vector3CrossProduct(const glm::vec3& a,const glm::vec3&b, glm::vec3& out)
         {
             out = glm::cross(a,b);
+        }
+
+        float CRUCIBLE_NATIVE_Vector3Magnitude(const glm::vec3& vector)
+        {
+            return glm::length(vector);
+        }
+
+        void CRUCIBLE_NATIVE_Vector3Normalized(const glm::vec3& vector, glm::vec3& out)
+        {
+            out = glm::normalize(vector);
+        }
+
+        float CRUCIBLE_NATIVE_Vector2DotProduct(const glm::vec2& a, const glm::vec2& b)
+        {
+            return glm::dot(a,b);
+        }
+
+        float CRUCIBLE_NATIVE_Vector2Magnitude(const glm::vec2& vector)
+        {
+            return glm::length(vector);
+        }
+
+        void CRUCIBLE_NATIVE_Vector2Normalized(const glm::vec2& vector, glm::vec2& out)
+        {
+            out = glm::normalize(vector);
         }
     } // scripting
 } // slag

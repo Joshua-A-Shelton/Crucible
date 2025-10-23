@@ -45,9 +45,16 @@ public unsafe struct Matrix4x4
         }
         
     }
+
+    public Matrix4x4(Vector3 position, Quaternion rotation, Vector3 scale)
+    {
+        CRUCIBLE_NATIVE_Matrix4X4FromPositionRotationScale(ref position, ref rotation, ref scale, ref this);
+    }
     
     [DllImport("Crucible")]
     private static extern void CRUCIBLE_NATIVE_Matrix4X4Multiply(ref Matrix4x4 a, ref Matrix4x4 b, ref Matrix4x4 outMatrix);
+    [DllImport("Crucible")]
+    private static extern void CRUCIBLE_NATIVE_Matrix4X4FromPositionRotationScale(ref Vector3 position, ref Quaternion rotation, ref Vector3 scale, ref Matrix4x4 outMatrix);
 
     public static Matrix4x4 operator *(Matrix4x4 a, Matrix4x4 b)
     {

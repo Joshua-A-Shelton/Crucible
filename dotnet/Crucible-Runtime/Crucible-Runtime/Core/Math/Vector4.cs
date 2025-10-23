@@ -64,10 +64,13 @@ public unsafe struct Vector4
     {
         return new Vector4(v1.X*multiplier, v1.Y*multiplier, v1.Z*multiplier, v1.W*multiplier);
     }
-
+    [DllImport("Crucible")]
+    private static extern void CRUCIBLE_NATIVE_Vector4MatrixMultipy(ref Vector4 vector, ref Matrix4x4 matrix, ref Vector4 outValue);
     public static Vector4 operator *(Vector4 vector, Matrix4x4 by)
     {
-        throw new NotImplementedException();
+        Vector4 result = new Vector4();
+        CRUCIBLE_NATIVE_Vector4MatrixMultipy(ref vector, ref by, ref result);
+        return result;
     }
 
     public static Vector4 operator /(Vector4 v1, float divisor)

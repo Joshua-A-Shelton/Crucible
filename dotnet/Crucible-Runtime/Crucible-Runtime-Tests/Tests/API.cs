@@ -44,6 +44,8 @@ public static class API
         {
             long endMilliseconds = DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
             Console.WriteLine($"<FAILED> API {methodInfo.DeclaringType.FullName}.{methodInfo.Name} ({endMilliseconds-startMilliseconds} ms)");
+            Console.WriteLine(e.Message);
+            Console.WriteLine(e.StackTrace);
             // [  FAILED  ] TestCaseName.TestName (time_in_ms ms)
             // path/to/source_file.cpp:lineNumber: Failure
             // Expected: condition_expected_to_be_true

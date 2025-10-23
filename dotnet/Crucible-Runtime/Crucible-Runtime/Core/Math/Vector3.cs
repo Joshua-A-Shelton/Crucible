@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Crucible.Initialization;
 
@@ -85,9 +86,13 @@ public unsafe struct Vector3
         return new Vector3(v1.X*multiplier, v1.Y*multiplier, v1.Z*multiplier);
     }
 
+    [DllImport("Crucible")]
+    private static extern void CRUCIBLE_NATIVE_Vector3MatrixMultipy(ref Vector3 vector, ref Matrix4x4 matrix, ref Vector3 outValue);
     public static Vector3 operator *(Vector3 vector, Matrix4x4 by)
     {
-        throw new NotImplementedException();
+        Vector3 result = new Vector3();
+        CRUCIBLE_NATIVE_Vector3MatrixMultipy(ref vector, ref by, ref result);
+        return result;
     }
 
     public static Vector3 operator /(Vector3 v1, float divisor)
