@@ -26,6 +26,16 @@ public unsafe struct Vector3
         Y = y;
         Z = z;
     }
+    
+    [DllImport("Crucible")]
+    private static extern void CRUCIBLE_NATIVE_Vector3MatrixMultipy(ref Vector3 vector, ref Matrix4x4 matrix, out Vector3 outValue);
+    [DllImport("Crucible")]
+    private static extern float CRUCIBLE_NATIVE_Vector3DotProduct(ref Vector3 v1, ref Vector3 v2);
+    [DllImport("Crucible")]
+    private static extern float CRUCIBLE_NATIVE_Vector3CrossProduct(ref Vector3 v1, ref Vector3 v2, out Vector3 outValue);
+    [DllImport("Crucible")]
+    private static extern float CRUCIBLE_NATIVE_Vector3Normalized(ref Vector3 vector, out Vector3 outValue);
+    
 
     public static Vector3 Up()
     {
@@ -50,8 +60,8 @@ public unsafe struct Vector3
     //Equivalent vector with magnitude of 1
     public Vector3 Normalized()
     {
-        var mag = Magnitude();
-        return new Vector3(X/mag, Y/mag, Z/mag);
+        CRUCIBLE_NATIVE_Vector3Normalized(ref this, out Vector3 outResult);
+        return outResult;
     }
     //Keep direction, but set magnitude to 1
     public void Normalize()
@@ -61,14 +71,13 @@ public unsafe struct Vector3
     
     public static float DotProduct(Vector3 a, Vector3 b)
     {
-        return a.X*b.X + a.Y*b.Y + a.Z*b.Z;
+        return CRUCIBLE_NATIVE_Vector3DotProduct(ref a, ref b);
     }
     
     public static Vector3 CrossProduct(Vector3 a, Vector3 b)
     {
-        return new Vector3(a.Y * b.Z - b.Y * a.Z,
-            a.Z * b.X - b.Z * a.X,
-            a.X * b.Y - b.X * a.Y);
+        CRUCIBLE_NATIVE_Vector3CrossProduct(ref a, ref b, out Vector3 outResult);
+        return outResult;
     }
 
     public static Vector3 operator +(Vector3 v1,Vector3 v2)
@@ -85,13 +94,10 @@ public unsafe struct Vector3
     {
         return new Vector3(v1.X*multiplier, v1.Y*multiplier, v1.Z*multiplier);
     }
-
-    [DllImport("Crucible")]
-    private static extern void CRUCIBLE_NATIVE_Vector3MatrixMultipy(ref Vector3 vector, ref Matrix4x4 matrix, ref Vector3 outValue);
+    
     public static Vector3 operator *(Vector3 vector, Matrix4x4 by)
     {
-        Vector3 result = new Vector3();
-        CRUCIBLE_NATIVE_Vector3MatrixMultipy(ref vector, ref by, ref result);
+        CRUCIBLE_NATIVE_Vector3MatrixMultipy(ref vector, ref by, out Vector3 result);
         return result;
     }
 

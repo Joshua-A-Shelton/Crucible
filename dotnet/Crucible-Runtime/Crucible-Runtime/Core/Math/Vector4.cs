@@ -26,6 +26,13 @@ public unsafe struct Vector4
         W = w;
     }
     
+    [DllImport("Crucible")]
+    private static extern void CRUCIBLE_NATIVE_Vector4MatrixMultipy(ref Vector4 vector, ref Matrix4x4 matrix, out Vector4 outValue);
+    [DllImport("Crucible")]
+    private static extern float CRUCIBLE_NATIVE_Vector4DotProduct(ref Vector4 v1, ref Vector4 v2);
+    [DllImport("Crucible")]
+    private static extern void CRUCIBLE_NATIVE_Vector4Normalized(ref Vector4 vector, out Vector4 outResult);
+    
     //Magnitude of this vector
     public float Magnitude()
     {
@@ -35,8 +42,8 @@ public unsafe struct Vector4
     //Equivalent vector with magnitude of 1
     public Vector4 Normalized()
     {
-        var mag = Magnitude();
-        return new Vector4(X/mag, Y/mag, Z/mag, W/mag);
+        CRUCIBLE_NATIVE_Vector4Normalized(ref this, out Vector4 result);
+        return result;
     }
     
     //Keep direction, but set magnitude to 1
@@ -47,7 +54,7 @@ public unsafe struct Vector4
     
     public static float DotProduct(Vector4 a, Vector4 b)
     {
-        return a.X*b.X + a.Y*b.Y + a.Z*b.Z + a.W*b.W;
+        return CRUCIBLE_NATIVE_Vector4DotProduct(ref a, ref b);
     }
     
     public static Vector4 operator +(Vector4 v1,Vector4 v2)
@@ -64,12 +71,10 @@ public unsafe struct Vector4
     {
         return new Vector4(v1.X*multiplier, v1.Y*multiplier, v1.Z*multiplier, v1.W*multiplier);
     }
-    [DllImport("Crucible")]
-    private static extern void CRUCIBLE_NATIVE_Vector4MatrixMultipy(ref Vector4 vector, ref Matrix4x4 matrix, ref Vector4 outValue);
+    
     public static Vector4 operator *(Vector4 vector, Matrix4x4 by)
     {
-        Vector4 result = new Vector4();
-        CRUCIBLE_NATIVE_Vector4MatrixMultipy(ref vector, ref by, ref result);
+        CRUCIBLE_NATIVE_Vector4MatrixMultipy(ref vector, ref by, out Vector4 result);
         return result;
     }
 

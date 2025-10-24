@@ -6,13 +6,16 @@ namespace Crucible.Tests;
 [Test]
 public static class QuaternionTests
 {
+    [DllImport("Crucible")]
+    private static extern void CRUCIBLE_NATIVE_QuaternionMultiply(ref Quaternion q1, ref Quaternion q2, ref Quaternion q3);
     public static bool MultiplyTest()
     {
         Quaternion q1 = new Quaternion(0.785398f,Vector3.Up());
         Quaternion q2 = new Quaternion(new Vector3(0.785398f,0.785398f,0));
-        Quaternion result = q1 * q2;
-        Quaternion compare = new Quaternion(0.131233543f, 1.13123357f, -0.468572199f, 0.316825867f);
-        var same =  Quaternion.Approximately(result, compare);
+        Quaternion actual = q1 * q2;
+        Quaternion expected = new Quaternion();
+        CRUCIBLE_NATIVE_QuaternionMultiply(ref q1, ref q2, ref expected);
+        var same =  Quaternion.Approximately(actual, expected);
         return same;
     }
 
@@ -57,5 +60,4 @@ public static class QuaternionTests
         var actual = q1.Inverse();
         return Quaternion.Approximately(expected, actual);
     }
-    
 }

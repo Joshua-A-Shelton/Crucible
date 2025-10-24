@@ -18,37 +18,38 @@ public unsafe struct Quaternion
         W = w;
     }
     [DllImport("Crucible")]
-    private static extern void CRUCIBLE_NATIVE_QuaternionFromAngleAxis(float angle, ref Vector3 axis, ref Quaternion outResult);
+    private static extern void CRUCIBLE_NATIVE_QuaternionFromAngleAxis(float angle, ref Vector3 axis, out Quaternion outResult);
     [DllImport("Crucible")]
-    private static extern void CRUCIBLE_NATIVE_QuaternionFromEulerAngles(ref Vector3 pitchYawRoll, ref Quaternion outResult);
+    private static extern void CRUCIBLE_NATIVE_QuaternionFromEulerAngles(ref Vector3 pitchYawRoll, out Quaternion outResult);
     [DllImport("Crucible")]
-    private static extern void CRUCIBLE_NATIVE_QuaternionInverse(ref Quaternion of, ref Quaternion outResult);
+    private static extern void CRUCIBLE_NATIVE_QuaternionInverse(ref Quaternion of, out Quaternion outResult);
+    [DllImport("Crucible")]
+    private static extern void CRUCIBLE_NATIVE_QuaternionMultiply(ref Quaternion q1, ref Quaternion q2, out Quaternion outResult);
+    [DllImport("Crucible")]
+    private static extern void CRUCIBLE_NATIVE_QuaternionNormalized(ref Quaternion of, out Quaternion outResult);
     
     
     public Quaternion(float angle, Vector3 axis)
     {
         axis.Normalize();
-        CRUCIBLE_NATIVE_QuaternionFromAngleAxis(angle, ref axis, ref this);
+        CRUCIBLE_NATIVE_QuaternionFromAngleAxis(angle, ref axis, out this);
     }
     
     public Quaternion(float pitch, float yaw, float roll)
     {
         Vector3 pitchYawRoll = new Vector3(pitch, yaw, roll);
-        CRUCIBLE_NATIVE_QuaternionFromEulerAngles(ref pitchYawRoll, ref this);
+        CRUCIBLE_NATIVE_QuaternionFromEulerAngles(ref pitchYawRoll, out this);
     }
 
     public Quaternion(Vector3 pitchYawRoll)
     {
-        CRUCIBLE_NATIVE_QuaternionFromEulerAngles(ref pitchYawRoll, ref this);
+        CRUCIBLE_NATIVE_QuaternionFromEulerAngles(ref pitchYawRoll, out this);
     }
 
     public static Quaternion operator *(Quaternion a, Quaternion b)
     {
-        float w = a.W * b.W - a.X * b.X - a.Y * b.Y - a.Z * b.Z;
-        float x = a.W * b.X + a.X * b.W + a.Y * b.Z - a.Z * b.Y;
-        float y = a.W * b.Y + a.Y * b.W + a.Z * b.X - a.X * b.Z;
-        float z = a.W * b.Z + a.Z * b.Z + a.X * b.Y - a.Y * b.X;
-        return new Quaternion(x, y, z, w);
+        CRUCIBLE_NATIVE_QuaternionMultiply(ref a, ref b, out Quaternion outResult);
+        return outResult;
     }
 
     public override string ToString()
@@ -74,14 +75,15 @@ public unsafe struct Quaternion
     //Magnitude of this Quaternion
     public float Magnitude()
     {
+        //this is actually faster than calling c++
         return MathF.Sqrt(X*X+Y*Y+Z*Z+W*W);
     }
     
     //Equivalent Quaternion with magnitude of 1
     public Quaternion Normalized()
     {
-        var mag = Magnitude();
-        return new Quaternion(X/mag, Y/mag, Z/mag, W/mag);
+        CRUCIBLE_NATIVE_QuaternionNormalized(ref this, out Quaternion outResult);
+        return outResult;
     }
     
     //Keep rotation, but set magnitude to 1
@@ -92,8 +94,7 @@ public unsafe struct Quaternion
 
     public Quaternion Inverse()
     {
-        Quaternion q = new Quaternion();
-        CRUCIBLE_NATIVE_QuaternionInverse(ref this, ref q);
+        CRUCIBLE_NATIVE_QuaternionInverse(ref this, out Quaternion q);
         return q;
     }
     

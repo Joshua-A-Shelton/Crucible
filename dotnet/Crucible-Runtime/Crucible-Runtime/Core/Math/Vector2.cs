@@ -19,18 +19,23 @@ public struct Vector2
         X = x;
         Y = y;
     }
+    [DllImport("Crucible")]
+    private static extern float CRUCIBLE_NATIVE_Vector2DotProduct(ref Vector2 v1, ref Vector2 v2);
+    [DllImport("Crucible")]
+    private static extern float CRUCIBLE_NATIVE_Vector2Normalized(ref Vector2 v1, out Vector2 outResult);
     
     //Magnitude of this vector
     public float Magnitude()
     {
+        //this is faster than calling c++
         return MathF.Sqrt(X*X+Y*Y);
     }
     
     //Equivalent vector with magnitude of 1
     public Vector2 Normalized()
     {
-        var mag = Magnitude();
-        return new Vector2(X/mag, Y/mag);
+        CRUCIBLE_NATIVE_Vector2Normalized(ref this, out Vector2 outResult);
+        return outResult;
     }
     
     //Keep direction, but set magnitude to 1
@@ -41,7 +46,7 @@ public struct Vector2
     
     public static float DotProduct(Vector2 a, Vector2 b)
     {
-        return a.X*b.X + a.Y*b.Y;
+        return CRUCIBLE_NATIVE_Vector2DotProduct(ref a, ref b);
     }
     
     public static Vector2 operator +(Vector2 v1,Vector2 v2)
