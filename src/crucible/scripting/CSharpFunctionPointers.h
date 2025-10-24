@@ -20,6 +20,7 @@ namespace crucible::scripting
         void (*invokeInstanceMethodReturnValue)(void* instanceHandle, const char* methodName, int32_t parameterCount, ManagedType* parameterTypes, void** parameters,void* valuePtr);
         void (*gameManagerInitialize)() = nullptr;
         void (*gameManagerCleanUp)() = nullptr;
+        void (*managedSystemCleanup)() = nullptr;
     };
 }
 #endif //CRUCIBLE_MANAGEDFUNCTIONPOINTERS_H

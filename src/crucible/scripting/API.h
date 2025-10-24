@@ -2,7 +2,10 @@
 #define CRUCIBLE_API_H
 #include "crucible/CrucibleCore.h"
 #include <glm/glm.hpp>
-namespace slag
+
+#include <slag/core/Texture.h>
+
+namespace crucible
 {
     namespace scripting
     {
@@ -32,6 +35,16 @@ namespace slag
             CRUCIBLE_API float CRUCIBLE_NATIVE_Vector2DotProduct(const glm::vec2& a, const glm::vec2& b);
             CRUCIBLE_API float CRUCIBLE_NATIVE_Vector2Magnitude(const glm::vec2& vector);
             CRUCIBLE_API void CRUCIBLE_NATIVE_Vector2Normalized(const glm::vec2& vector, glm::vec2& out);
+
+            CRUCIBLE_API void CRUCIBLE_NATIVE_TextureCreate2D(slag::Pixels::Format format, uint32_t width, uint32_t height, uint32_t mips, slag::Texture::SampleCount sampleCount, slag::Texture** outTexture);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_TextureDestroy(slag::Texture* texture);
+            CRUCIBLE_API uint32_t CRUCIBLE_NATIVE_TextureGetWidth(slag::Texture* texture);
+            CRUCIBLE_API uint32_t CRUCIBLE_NATIVE_TextureGetHeight(slag::Texture* texture);
+            CRUCIBLE_API uint32_t CRUCIBLE_NATIVE_TextureGetDepth(slag::Texture* texture);
+            CRUCIBLE_API uint32_t CRUCIBLE_NATIVE_TextureGetArraySize(slag::Texture* texture);
+            CRUCIBLE_API uint32_t CRUCIBLE_NATIVE_TextureGetMipCount(slag::Texture* texture);
+            CRUCIBLE_API slag::Pixels::Format CRUCIBLE_NATIVE_TextureGetFormat(slag::Texture* texture);
+            CRUCIBLE_API slag::Texture::SampleCount CRUCIBLE_NATIVE_TextureGetSampleCount(slag::Texture* texture);
         }
     } // scripting
 } // slag

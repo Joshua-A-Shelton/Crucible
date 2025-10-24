@@ -4,23 +4,39 @@
 #include <string>
 
 #include "CrucibleCore.h"
+#include <slag/Slag.h>
 #include <SDL3/SDL.h>
-
 namespace crucible
 {
     class CRUCIBLE_API Game
     {
     private:
-        static inline bool _gameInitialized = false;
+        static inline Game* _instance = nullptr;
     public:
-        Game();
+        Game(const char* gameName);
         ~Game();
         Game(const Game&) = delete;
         Game& operator=(const Game&) = delete;
-        Game(Game&& from);
-        Game& operator=(Game&& from);
+        Game(Game&& from)=delete;
+        Game& operator=(Game&& from)=delete;
+        static Game* instance();
+
+        void run();
+
+        void queueForDeletion(slag::Texture* texture);
+        void queueForDeletion(slag::Buffer* buffer);
+
+        void signalQuit();
     private:
-        void move(Game& from);
+        slag::SwapChain* _swapChain = nullptr;
+        SDL_Window* _window = nullptr;
+        bool _isRunning = true;
+        void handleEvent(SDL_Event& e);
+        void update(double deltaTime);
+        void draw(slag::CommandBuffer* commandBuffer, slag::DescriptorPool* descriptorPool);
+        void close();
+        void resize();
+        void minimize();
 
     };
 } // crucible

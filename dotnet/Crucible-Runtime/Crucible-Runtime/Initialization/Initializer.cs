@@ -20,8 +20,9 @@ public class Initializer
         public IntPtr InvokeInstanceMethod_ptr;
         public IntPtr InvokeInstanceMethodReferenceReturn;
         public IntPtr InvokeInstanceMethodValueReturn;
-        public IntPtr ManagedInitialize_ptr;
-        public IntPtr ManagedCleanUp_ptr;
+        public IntPtr GameManagerInitialize_ptr;
+        public IntPtr GameManagerCleanUp_ptr;
+        public IntPtr ManagedEnvoirnmentCleanup_ptr;
     }
     
     private static unsafe int RuntimeEntry(IntPtr entryArgs, int argLength)
@@ -44,8 +45,9 @@ public class Initializer
             args->InvokeInstanceMethod_ptr = Marshal.GetFunctionPointerForDelegate(Interop.InvokeInstanceMethodPtr);
             args->InvokeInstanceMethodReferenceReturn = Marshal.GetFunctionPointerForDelegate(Interop.InvokeInstanceMethodReferenceReturnPtr);
             args->InvokeInstanceMethodValueReturn = Marshal.GetFunctionPointerForDelegate(Interop.InvokeInstanceMethodValueReturnPtr);
-            args->ManagedInitialize_ptr = Marshal.GetFunctionPointerForDelegate(Interop.ManagedInitializePtr);
-            args->ManagedCleanUp_ptr = Marshal.GetFunctionPointerForDelegate(Interop.ManagedCleanUpPtr);
+            args->GameManagerInitialize_ptr = Marshal.GetFunctionPointerForDelegate(Interop.GameManagerInitializePtr);
+            args->GameManagerCleanUp_ptr = Marshal.GetFunctionPointerForDelegate(Interop.GameManagerCleanUpPtr);
+            args->ManagedEnvoirnmentCleanup_ptr = Marshal.GetFunctionPointerForDelegate(Interop.ManagedEnvoirnmentCleanup);
         }
         catch (Exception e)
         {
@@ -53,5 +55,11 @@ public class Initializer
             throw;
         }
         return 0;
+    }
+
+    public static void ManagedCleanup()
+    {
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
     }
 }

@@ -34,8 +34,9 @@ internal static unsafe class Interop
     public static InvokeInstanceMethodReferenceReturnDelegate InvokeInstanceMethodReferenceReturnPtr = Managed.InvokeInstanceMethodWithReturnValueByReference;
     public static InvokeInstanceMethodValueReturnDelegate InvokeInstanceMethodValueReturnPtr = Managed.InvokeInstanceMethodWithReturnValueByValue;
 
-    public static VoidDelegate ManagedInitializePtr = GameManager.Initialize;
-    public static VoidDelegate ManagedCleanUpPtr = GameManager.CleanUp;
+    public static VoidDelegate GameManagerInitializePtr = GameManager.Initialize;
+    public static VoidDelegate GameManagerCleanUpPtr = GameManager.CleanUp;
+    public static VoidDelegate ManagedEnvoirnmentCleanup = Initializer.ManagedCleanup;
 
 
 

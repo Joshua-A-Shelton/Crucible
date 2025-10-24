@@ -3,7 +3,9 @@
 #include <vector>
 #include <glm/gtc/quaternion.hpp>
 
-namespace slag
+#include "crucible/Game.h"
+
+namespace crucible
 {
     namespace scripting
     {
@@ -111,6 +113,62 @@ namespace slag
         void CRUCIBLE_NATIVE_Vector2Normalized(const glm::vec2& vector, glm::vec2& out)
         {
             out = glm::normalize(vector);
+        }
+
+        void CRUCIBLE_NATIVE_TextureCreate2D(slag::Pixels::Format format, uint32_t width, uint32_t height,uint32_t mips, slag::Texture::SampleCount sampleCount, slag::Texture** outTexture)
+        {
+            auto aspects = slag::Pixels::aspectFlags(format);
+            auto formatProperties = slag::Pixels::formatProperties(format);
+            slag::Texture::UsageFlags usage = formatProperties.validUsageFlags;
+            *outTexture = slag::Texture::newTexture(format,slag::Texture::Type::TEXTURE_2D,usage,width,height,1,mips,1,sampleCount);
+        }
+
+        void CRUCIBLE_NATIVE_TextureDestroy(slag::Texture* texture)
+        {
+            auto instance = Game::instance();
+            if (instance)
+            {
+                instance->queueForDeletion(texture);
+            }
+            else
+            {
+                delete texture;
+            }
+        }
+
+        uint32_t CRUCIBLE_NATIVE_TextureGetWidth(slag::Texture* texture)
+        {
+            return texture->width();
+        }
+
+        uint32_t CRUCIBLE_NATIVE_TextureGetHeight(slag::Texture* texture)
+        {
+            return texture->height();
+        }
+
+        uint32_t CRUCIBLE_NATIVE_TextureGetDepth(slag::Texture* texture)
+        {
+            return texture->depth();
+        }
+
+        uint32_t CRUCIBLE_NATIVE_TextureGetArraySize(slag::Texture* texture)
+        {
+            return texture->layers();
+        }
+
+        uint32_t CRUCIBLE_NATIVE_TextureGetMipCount(slag::Texture* texture)
+        {
+            return texture->mipLevels();
+        }
+
+        slag::Pixels::Format CRUCIBLE_NATIVE_TextureGetFormat(slag::Texture* texture)
+        {
+            return texture->format();
+        }
+
+        slag::Texture::SampleCount CRUCIBLE_NATIVE_TextureGetSampleCount(slag::Texture* texture)
+        {
+            return texture->sampleCount();
         }
     } // scripting
 } // slag

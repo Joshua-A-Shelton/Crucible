@@ -37,7 +37,5 @@ internal static unsafe class GameManager
     internal static void CleanUp()
     {
         _loop = null;
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
     }
 }

@@ -182,6 +182,7 @@ namespace crucible
         void ScriptingEngine::cleanup()
         {
             _functionPointers.unloadAllContexts();
+            _functionPointers.managedSystemCleanup();
             if (host_handle)
             {
                 close_fptr(host_handle);

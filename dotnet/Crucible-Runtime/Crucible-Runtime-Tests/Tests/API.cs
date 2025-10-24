@@ -74,6 +74,11 @@ public static class API
                     }
                 }
             }
+
+            if (testMethods.Count() > 0)
+            {
+                Console.WriteLine();
+            }
         }
 
         if (allTestsPassed)

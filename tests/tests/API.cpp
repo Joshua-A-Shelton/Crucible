@@ -26,7 +26,7 @@ TEST(API,Matrix4x4Multiply)
 
     glm::mat4 expected = transform * projection;
     glm::mat4 actual = glm::mat4(1.0f);
-    slag::scripting::CRUCIBLE_NATIVE_Matrix4X4Multiply(transform,projection,actual);
+    crucible::scripting::CRUCIBLE_NATIVE_Matrix4X4Multiply(transform,projection,actual);
     GTEST_ASSERT_EQ(actual,expected);
 }
 
@@ -43,7 +43,7 @@ TEST(API,Matrix4x4FromPositionRotationScale)
     auto expected = translationMatrix*rotationMatrix*scaleMatrix;
     glm::mat4 actual = glm::mat4(1.0f);
 
-    slag::scripting::CRUCIBLE_NATIVE_Matrix4X4FromPositionRotationScale(position, rotation, scale, actual);
+    crucible::scripting::CRUCIBLE_NATIVE_Matrix4X4FromPositionRotationScale(position, rotation, scale, actual);
     GTEST_ASSERT_EQ(expected,actual);
 
 }
@@ -54,7 +54,7 @@ TEST(API,QuaternionFromAngleAxis)
     glm::vec3 axis = glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f));
     glm::quat expected = glm::quat(angle, axis);
     glm::quat actual;
-    slag::scripting::CRUCIBLE_NATIVE_QuaternionFromAngleAxis(angle, axis, actual);
+    crucible::scripting::CRUCIBLE_NATIVE_QuaternionFromAngleAxis(angle, axis, actual);
     GTEST_ASSERT_EQ(actual,expected);
 }
 TEST(API,QuaternionFromEulerAngles)
@@ -62,7 +62,7 @@ TEST(API,QuaternionFromEulerAngles)
     glm::vec3 angles = glm::vec3(glm::radians(35.0f), glm::radians(21.0f), glm::radians(5.0f));
     glm::quat expected = glm::quat(angles);
     glm::quat actual;
-    slag::scripting::CRUCIBLE_NATIVE_QuaternionFromEulerAngles(angles,actual);
+    crucible::scripting::CRUCIBLE_NATIVE_QuaternionFromEulerAngles(angles,actual);
     GTEST_ASSERT_EQ(actual,expected);
 }
 TEST(API,QuaternionMultiply)
@@ -71,7 +71,7 @@ TEST(API,QuaternionMultiply)
     glm::quat q2(glm::radians(35.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     auto expected = q1*q2;
     glm::quat actual;
-    slag::scripting::CRUCIBLE_NATIVE_QuaternionMultiply(q1,q2,actual);
+    crucible::scripting::CRUCIBLE_NATIVE_QuaternionMultiply(q1,q2,actual);
     GTEST_ASSERT_EQ(expected,actual);
 }
 TEST(API,QuaternionInverse)
@@ -79,7 +79,7 @@ TEST(API,QuaternionInverse)
     glm::quat q1(glm::radians(45.0f), glm::vec3(1.0f, 0.0f, 0.0f));
     auto expected = glm::inverse(q1);
     glm::quat actual;
-    slag::scripting::CRUCIBLE_NATIVE_QuaternionInverse(q1,actual);
+    crucible::scripting::CRUCIBLE_NATIVE_QuaternionInverse(q1,actual);
     GTEST_ASSERT_EQ(expected,actual);
 }
 
@@ -89,7 +89,7 @@ TEST(API,QuaternionMagnitude)
     glm::quat quat2(glm::radians(32.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     glm::quat quat3 = quat1*quat2*quat1*quat2*quat1*quat1*quat2;
     float expected = length(quat3);
-    float actual = slag::scripting::CRUCIBLE_NATIVE_QuaternionMagnitude(quat3);
+    float actual = crucible::scripting::CRUCIBLE_NATIVE_QuaternionMagnitude(quat3);
     GTEST_ASSERT_EQ(expected,actual);
 }
 
@@ -100,7 +100,7 @@ TEST(API,QuaternionNormalized)
     glm::quat q3 = q1*q2*q1*q2*q2*q1;
     glm::quat expected = glm::normalize(q3);
     glm::quat actual;
-    slag::scripting::CRUCIBLE_NATIVE_QuaternionNormalized(q3,actual);
+    crucible::scripting::CRUCIBLE_NATIVE_QuaternionNormalized(q3,actual);
     GTEST_ASSERT_EQ(expected,actual);
 }
 
@@ -113,7 +113,7 @@ TEST(API,Vector4MatrixMultiply)
     transform = glm::scale(transform, glm::vec3(0.5f, 0.5f, 0.5f));
     auto expected = vector * transform;
     glm::vec4 actual;
-    slag::scripting::CRUCIBLE_NATIVE_Vector4MatrixMultipy(vector, transform, actual);
+    crucible::scripting::CRUCIBLE_NATIVE_Vector4MatrixMultipy(vector, transform, actual);
     GTEST_ASSERT_EQ(actual,expected);
 }
 TEST(API,Vector4DotProduct)
@@ -121,14 +121,14 @@ TEST(API,Vector4DotProduct)
     glm::vec4 vector1 = glm::vec4(5.6f, 2.3f, 33.025f, 1.0f);
     glm::vec4 vector2 = glm::vec4(12.0f, 0.0f, -13.5, 18.0f);
     auto expected = glm::dot(vector1, vector2);
-    auto actual = slag::scripting::CRUCIBLE_NATIVE_Vector4DotProduct(vector1, vector2);
+    auto actual = crucible::scripting::CRUCIBLE_NATIVE_Vector4DotProduct(vector1, vector2);
     GTEST_ASSERT_EQ(actual,expected);
 }
 TEST(API, Vector4Magnitude)
 {
     glm::vec4 vector = glm::vec4(5.6f, 2.3f, 33.025f, 1.0f);
     float expected = length(vector);
-    float actual = slag::scripting::CRUCIBLE_NATIVE_Vector4Magnitude(vector);
+    float actual = crucible::scripting::CRUCIBLE_NATIVE_Vector4Magnitude(vector);
     GTEST_ASSERT_EQ(expected,actual);
 }
 TEST(API,Vector4Normalized)
@@ -136,7 +136,7 @@ TEST(API,Vector4Normalized)
     glm::vec4 vector = glm::vec4(5.6f, 2.3f, 33.025f, 1.0f);
     glm::vec4 expected = glm::normalize(vector);
     glm::vec4 actual;
-    slag::scripting::CRUCIBLE_NATIVE_Vector4Normalized(vector, actual);
+    crucible::scripting::CRUCIBLE_NATIVE_Vector4Normalized(vector, actual);
     GTEST_ASSERT_EQ(actual,expected);
 }
 TEST(API, Vector3MatrixMultiply)
@@ -150,7 +150,7 @@ TEST(API, Vector3MatrixMultiply)
     auto expected4 = vector2 * transform;
     glm::vec3 expected(expected4.x,expected4.y,expected4.z);
     glm::vec3 actual;
-    slag::scripting::CRUCIBLE_NATIVE_Vector3MatrixMultipy(vector1, transform, actual);
+    crucible::scripting::CRUCIBLE_NATIVE_Vector3MatrixMultipy(vector1, transform, actual);
     GTEST_ASSERT_EQ(expected,actual);
 }
 TEST(API,Vector3DotProduct)
@@ -158,7 +158,7 @@ TEST(API,Vector3DotProduct)
     glm::vec3 vector1 = glm::vec3(5.6f, 2.3f, 33.025f);
     glm::vec3 vector2 = glm::vec3(12.0f, 0.0f, -13.5);
     auto expected = glm::dot(vector1, vector2);
-    auto actual = slag::scripting::CRUCIBLE_NATIVE_Vector3DotProduct(vector1, vector2);
+    auto actual = crucible::scripting::CRUCIBLE_NATIVE_Vector3DotProduct(vector1, vector2);
     GTEST_ASSERT_EQ(actual,expected);
 }
 TEST(API,Vector3CrossProduct)
@@ -167,14 +167,14 @@ TEST(API,Vector3CrossProduct)
     glm::vec3 vector2 = glm::vec3(12.0f, 0.0f, -13.5);
     auto expected = glm::cross(vector1, vector2);
     glm::vec3 actual;
-    slag::scripting::CRUCIBLE_NATIVE_Vector3CrossProduct(vector1, vector2, actual);
+    crucible::scripting::CRUCIBLE_NATIVE_Vector3CrossProduct(vector1, vector2, actual);
     GTEST_ASSERT_EQ(actual,expected);
 }
 TEST(API,Vector3Magnitude)
 {
     glm::vec3 vector = glm::vec3(5.6f, 2.3f, 33.025f);
     float expected = length(vector);
-    float actual = slag::scripting::CRUCIBLE_NATIVE_Vector3Magnitude(vector);
+    float actual = crucible::scripting::CRUCIBLE_NATIVE_Vector3Magnitude(vector);
     GTEST_ASSERT_EQ(actual,expected);
 }
 TEST(API,Vector3Normalized)
@@ -182,7 +182,7 @@ TEST(API,Vector3Normalized)
     glm::vec3 vector1 = glm::vec3(5.6f, 2.3f, 33.025f);
     auto expected = glm::normalize(vector1);
     glm::vec3 actual;
-    slag::scripting::CRUCIBLE_NATIVE_Vector3Normalized(vector1, actual);
+    crucible::scripting::CRUCIBLE_NATIVE_Vector3Normalized(vector1, actual);
     GTEST_ASSERT_EQ(actual,expected);
 }
 
@@ -191,14 +191,14 @@ TEST(API, Vector2DotProduct)
     glm::vec2 vector1 = glm::vec2(5.6f, 2.3f);
     glm::vec2 vector2 = glm::vec2(12.0f, -6.5f);
     auto expected = glm::dot(vector1, vector2);
-    auto actual = slag::scripting::CRUCIBLE_NATIVE_Vector2DotProduct(vector1, vector2);
+    auto actual = crucible::scripting::CRUCIBLE_NATIVE_Vector2DotProduct(vector1, vector2);
     GTEST_ASSERT_EQ(actual,expected);
 }
 TEST(API, Vector2Magnitude)
 {
     glm::vec2 vector1 = glm::vec2(5.6f, 2.3f);
     auto expected = glm::length(vector1);
-    auto actual = slag::scripting::CRUCIBLE_NATIVE_Vector2Magnitude(vector1);
+    auto actual = crucible::scripting::CRUCIBLE_NATIVE_Vector2Magnitude(vector1);
     GTEST_ASSERT_EQ(actual,expected);
 }
 TEST(API, Vector2Normalized)
@@ -206,6 +206,6 @@ TEST(API, Vector2Normalized)
     glm::vec2 vector1 = glm::vec2(5.6f, 2.3f);
     auto expected = glm::normalize(vector1);
     glm::vec2 actual;
-    slag::scripting::CRUCIBLE_NATIVE_Vector2Normalized(vector1, actual);
+    crucible::scripting::CRUCIBLE_NATIVE_Vector2Normalized(vector1, actual);
     GTEST_ASSERT_EQ(actual,expected);
 }
