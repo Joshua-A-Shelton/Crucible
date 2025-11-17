@@ -16,7 +16,7 @@ internal struct ManagedType
 
     public Type Value()
     {
-        return Type.GetTypeFromHandle(RuntimeTypeHandle.FromIntPtr(TypePointer));
+        return Type.GetTypeFromHandle(RuntimeTypeHandle.FromIntPtr(TypePointer))!;
     }
 }
 
@@ -117,6 +117,10 @@ internal unsafe static class Managed
     private static object? InvokeInstanceMethodShared(IntPtr instance, string methodName, int parameterCount, ManagedType* parameterTypes, IntPtr* parameters)
     {
         var inst = GCHandle.FromIntPtr(instance).Target;
+        if (inst == null)
+        {
+            return null;
+        }
         var realType = inst.GetType();
         ParameterData pc = ExtractParameterData(parameterCount, parameterTypes, parameters);
         var methodInfo = realType.GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,pc.paramTypes.ToArray());

@@ -3,10 +3,14 @@ project(Crucible)
 
 set(CMAKE_CXX_STANDARD 20)
 include(FetchContent)
+cmake_policy(SET CMP0167 NEW)
 
 SET(SLAG_LIBRARY_VERSION "dev")
 SET(SDL3_LIBRARY_VERSION "release-3.2.24")
 SET(GLM_LIBRARY_VERSION "1.0.2")
+SET(LZ4_LIBRARY_VERSION "v1.10.0")
+SET(BOOST_LIBRARY_VERSION "boost-1.84.0")
+SET(FLECS_LIBRARY_VERSION "v4.1.2")
 
 OPTION(RUN_CRUCIBLE_TESTS "Run Crucible Tests" ON)
 OPTION(SLAG_VULKAN_BACKEND "Include Vulkan Renderer backend" ON)
@@ -55,6 +59,50 @@ fetchcontent_declare(
 fetchcontent_makeavailable(glm)
 find_package(glm)
 
+fetchcontent_declare(
+        STB_IMAGE
+        GIT_REPOSITORY https://github.com/nothings/stb
+        GIT_TAG origin/master
+        GIT_SHALLOW TRUE
+        OVERRIDE_FIND_PACKAGE
+)
+FetchContent_MakeAvailable(STB_IMAGE)
+find_package(STB_IMAGE)
+
+set(LZ4_BUNDLED_MODE ON)
+fetchcontent_declare(
+        lz4
+        GIT_REPOSITORY https://github.com/lz4/lz4
+        GIT_TAG ${LZ4_LIBRARY_VERSION}
+        GIT_SHALLOW TRUE
+        OVERRIDE_FIND_PACKAGE
+)
+FetchContent_MakeAvailable(lz4)
+find_package(lz4)
+add_subdirectory(${lz4_SOURCE_DIR}/build/cmake)
+
+fetchcontent_declare(
+        Boost
+        URL https://github.com/boostorg/boost/releases/download/${BOOST_LIBRARY_VERSION}/${BOOST_LIBRARY_VERSION}.7z
+        USES_TERMINAL_DOWNLOAD TRUE
+        GIT_PROGRESS TRUE
+        DOWNLOAD_NO_EXTRACT FALSE
+        OVERRIDE_FIND_PACKAGE
+)
+FetchContent_MakeAvailable(Boost)
+find_package(Boost REQUIRED COMPONENTS uuid)
+
+
+fetchcontent_declare(
+        flecs
+        GIT_REPOSITORY https://github.com/SanderMertens/flecs
+        GIT_TAG ${FLECS_LIBRARY_VERSION}
+        GIT_SHALLOW TRUE
+        OVERRIDE_FIND_PACKAGE
+)
+FetchContent_MakeAvailable(flecs)
+find_package(flecs)
+
 MACRO(SUBDIRLIST result curdir)
     FILE(GLOB children RELATIVE ${curdir} ${curdir}/*)
     SET(dirlist "")
@@ -96,11 +144,20 @@ add_library(Crucible SHARED
         src/crucible/scripting/ManagedInstance.h
         src/crucible/scripting/API.cpp
         src/crucible/scripting/API.h
+        src/crucible/serialization/TextureSerializer.cpp
+        src/crucible/serialization/TextureSerializer.h
+        src/crucible/serialization/BufferUtils.h
+        src/crucible/Node.cpp
+        src/crucible/Node.h
+        src/crucible/ecs/World.cpp
+        src/crucible/ecs/World.h
+        src/crucible/Transform.cpp
+        src/crucible/Transform.h
 )
 
 target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})
-target_link_libraries(Crucible PUBLIC glm Slag SDL3::SDL3-static PRIVATE nethost)
-target_include_directories(Crucible PRIVATE ${DOT_NET_HOST_LOCATION})
+target_link_libraries(Crucible PUBLIC glm Slag SDL3::SDL3-static flecs::flecs_static lz4 Boost::endian Boost::uuid PRIVATE nethost)
+target_include_directories(Crucible PRIVATE ${DOT_NET_HOST_LOCATION} ${stb_image_SOURCE_DIR} ${lz4_SOURCE_DIR}/lib ${flecs_INCLUDE_DIRS})
 
 #copy over c# config file (configure_file() is the copy operation, not related to the "configure file" that we're copying)
 configure_file(config/CSharpConfig.json "${CMAKE_BINARY_DIR}/config/CSharpConfig.json" COPYONLY)
@@ -134,9 +191,11 @@ if(RUN_CRUCIBLE_TESTS)
 
     add_executable(CrucibleTests
             tests/CrucibleTestsMain.cpp
-            tests/tests/ScriptingEngine.cpp
-            tests/tests/ManagedInstance.cpp
-            tests/tests/API.cpp)
+            tests/tests/ScriptingEngineTest.cpp
+            tests/tests/ManagedInstanceTest.cpp
+            tests/tests/API_Test.cpp
+            tests/tests/ECSTest.cpp
+            tests/tests/NodeTest.cpp)
 
     target_link_libraries(CrucibleTests Crucible GTest::gtest)
     include(GoogleTest)
@@ -153,6 +212,8 @@ if(RUN_CRUCIBLE_TESTS)
     add_custom_target(Crucible-Runtime-Tests DEPENDS ${CMAKE_BINARY_DIR}/Crucible-Runtime-Tests.dll)
     add_dependencies(CrucibleTests Crucible-Runtime-Tests)
     add_dependencies(Crucible-Runtime-Tests Crucible-Runtime)
+
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Crucible.png ${CMAKE_BINARY_DIR}/Crucible.png COPYONLY)
 endif ()
 
 target_include_directories(Crucible PUBLIC src)

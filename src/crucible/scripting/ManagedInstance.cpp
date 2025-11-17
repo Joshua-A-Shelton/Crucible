@@ -45,6 +45,16 @@ namespace crucible
             return _gcHandle == nullptr;
         }
 
+        void* ManagedInstance::gcHandle()
+        {
+            return _gcHandle;
+        }
+
+        ManagedInstance::ManagedInstance()
+        {
+            _gcHandle = nullptr;
+        }
+
         ManagedInstance::ManagedInstance(void* gcHandle)
         {
             _gcHandle = gcHandle;

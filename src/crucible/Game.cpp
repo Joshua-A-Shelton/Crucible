@@ -4,6 +4,7 @@
 
 #include "Game.h"
 
+#include "Node.h"
 #include "scripting/ScriptingEngine.h"
 
 namespace crucible
@@ -81,20 +82,25 @@ namespace crucible
         }
 #endif
 
-        _swapChain = slag::SwapChain::newSwapChain(pd,
-            windowWidth,
-            windowHeight,
-            slag::SwapChain::PresentMode::BUFFER,
-            2,
-            slag::Pixels::Format::B8G8R8A8_UNORM_SRGB,
-            slag::SwapChain::AlphaCompositing::PRE_MULTIPLY,
-            createCrucibleFrameResources);
+        slag::SwapChainDetails swapchainDetails{};
+        swapchainDetails.presentMode = slag::SwapChain::PresentMode::BUFFER;
+        swapchainDetails.frameCount = 2;
+        swapchainDetails.alphaCompositing = slag::SwapChain::AlphaCompositing::PRE_MULTIPLY;
+        swapchainDetails.createResourceFunction = createCrucibleFrameResources;
+
+        _swapChain = slag::SwapChain::newSwapChain(pd,windowWidth,windowHeight,swapchainDetails);
         scripting::ScriptingEngine::gameManagerInitialize();
     }
 
     Game::~Game()
     {
         scripting::ScriptingEngine::gameManagerCleanUp();
+        while (_nodeDeletionQueue.size() > 0)
+        {
+            auto node = _nodeDeletionQueue.front();
+            _nodeDeletionQueue.pop();
+            delete node;
+        }
         delete _swapChain;
         SDL_DestroyWindow(_window);
         _instance = nullptr;
@@ -112,12 +118,23 @@ namespace crucible
         double deltaTime = 0.0;
         while (_isRunning)
         {
+            currentCounter = SDL_GetPerformanceCounter();
+            deltaTime = (currentCounter - previousCounter) / (double)SDL_GetPerformanceFrequency();
+            previousCounter = currentCounter;
+
             SDL_Event event;
             while(SDL_PollEvent(&event))
             {
                 handleEvent(event);
             }
             update(deltaTime);
+            //TODO: perhaps place some sort of limit on this, but for the time being, let's test it out to see
+            while (_nodeDeletionQueue.size() > 0)
+            {
+                auto node = _nodeDeletionQueue.front();
+                _nodeDeletionQueue.pop();
+                delete node;
+            }
             if(auto frame = _swapChain->next())
             {
                 auto resources = frame->frameResources<CrucibleGameFrameResources>();
@@ -145,6 +162,11 @@ namespace crucible
     void Game::queueForDeletion(slag::Buffer* buffer)
     {
         _swapChain->currentFrame()->frameResources<CrucibleGameFrameResources>()->buffersDeleteQueue.push_back(buffer);
+    }
+
+    void Game::queueForDeletion(crucible::Node* node)
+    {
+        _nodeDeletionQueue.push(node);
     }
 
     void Game::signalQuit()

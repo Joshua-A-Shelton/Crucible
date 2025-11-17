@@ -8,49 +8,66 @@ public static class API
 {
     private static bool outputTestData(MethodInfo methodInfo)
     {
+        var originalConsole =  Console.Out;
+        StringWriter outWriter = new StringWriter();
+        Console.SetOut(outWriter);
         long startMilliseconds = DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
         try
         {
             var success = methodInfo.Invoke(null, null);
             long endMilliseconds = DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
+
+            var consoleText = outWriter.ToString();
+            Console.SetOut(originalConsole);
+
             if (success is bool successStatus)
             {
                 if (successStatus)
                 {
-                    Console.WriteLine($"<OK> API {methodInfo.DeclaringType.FullName}.{methodInfo.Name} ({endMilliseconds-startMilliseconds} ms)");
+                    Console.WriteLine(
+                        $"<OK> API {methodInfo.DeclaringType?.FullName}.{methodInfo.Name} ({endMilliseconds - startMilliseconds} ms)");
+                    if (!string.IsNullOrEmpty(consoleText))
+                    {
+                        Console.WriteLine(consoleText);
+                    }
                     return true;
                 }
                 else
                 {
-                    Console.WriteLine($"<FAILED> API {methodInfo.DeclaringType.FullName}.{methodInfo.Name} ({endMilliseconds-startMilliseconds} ms)");
-                    // [  FAILED  ] TestCaseName.TestName (time_in_ms ms)
-                    // path/to/source_file.cpp:lineNumber: Failure
-                    // Expected: condition_expected_to_be_true
-                    // Actual: condition_found_to_be_false
+                    Console.WriteLine(
+                        $"<FAILED> API {methodInfo.DeclaringType?.FullName}.{methodInfo.Name} ({endMilliseconds - startMilliseconds} ms)");
+                    if (!string.IsNullOrEmpty(consoleText))
+                    {
+                        Console.WriteLine(consoleText);
+                    }
                     return false;
                 }
             }
             else
             {
-                Console.WriteLine($"<FAILED> API {methodInfo.DeclaringType.FullName}.{methodInfo.Name} ({endMilliseconds-startMilliseconds} ms)");
-                // [  FAILED  ] TestCaseName.TestName (time_in_ms ms)
-                // path/to/source_file.cpp:lineNumber: Failure
-                // Expected: condition_expected_to_be_true
-                // Actual: condition_found_to_be_false
+                Console.WriteLine(
+                    $"<FAILED> API {methodInfo.DeclaringType?.FullName}.{methodInfo.Name} ({endMilliseconds - startMilliseconds} ms)");
                 return false;
             }
         }
         catch (Exception e)
         {
             long endMilliseconds = DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
-            Console.WriteLine($"<FAILED> API {methodInfo.DeclaringType.FullName}.{methodInfo.Name} ({endMilliseconds-startMilliseconds} ms)");
             Console.WriteLine(e.Message);
             Console.WriteLine(e.StackTrace);
-            // [  FAILED  ] TestCaseName.TestName (time_in_ms ms)
-            // path/to/source_file.cpp:lineNumber: Failure
-            // Expected: condition_expected_to_be_true
-            // Actual: condition_found_to_be_false
+            var consoleText = outWriter.ToString();
+            Console.SetOut(originalConsole);
+            Console.WriteLine(
+                $"<FAILED> API {methodInfo.DeclaringType?.FullName}.{methodInfo.Name} ({endMilliseconds - startMilliseconds} ms)");
+            if (!string.IsNullOrEmpty(consoleText))
+            {
+                Console.WriteLine(consoleText);
+            }
             return false;
+        }
+        finally
+        {
+            Console.SetOut(originalConsole);
         }
         
     }
@@ -61,6 +78,9 @@ public static class API
         IEnumerable<Type> classesWithTest = assembly.GetTypes()
             .Where(type => type.GetCustomAttribute<TestAttribute>() != null);
         bool allTestsPassed = true;
+        int totalTests = 0;
+        int passingTests = 0;
+        int failingTests = 0;
         foreach (Type testType in classesWithTest)
         {
             var testMethods = testType.GetMethods(BindingFlags.Static | BindingFlags.Public);
@@ -71,16 +91,21 @@ public static class API
                     if (!outputTestData(methodInfo))
                     {
                         allTestsPassed = false;
+                        failingTests++;
                     }
+                    else
+                    {
+                        passingTests++;
+                    }
+                    totalTests++;
                 }
             }
-
             if (testMethods.Count() > 0)
             {
                 Console.WriteLine();
             }
         }
-
+        Console.WriteLine($"Tests Passed: {passingTests}, Tests: {totalTests}, Failing: {failingTests}");
         if (allTestsPassed)
         {
             return 1;

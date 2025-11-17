@@ -2,7 +2,7 @@
 
 namespace Crucible.Core;
 
-public abstract class Texture
+public abstract partial class Texture
 {
     /// <summary>
     /// Underlying texel size and layout
@@ -86,28 +86,25 @@ public abstract class Texture
         Two = 2,
         Four = 4,
         Eight = 8,
-        Sixteen = 16,
-        ThirtyTwo = 32,
-        SixtyFour = 64,
     }
     protected IntPtr _handle =  IntPtr.Zero;
     
-    [DllImport("Crucible")]
-    protected static extern void CRUCIBLE_NATIVE_TextureDestroy(IntPtr textureHandle);
-    [DllImport("Crucible")]
-    protected static extern uint CRUCIBLE_NATIVE_TextureGetWidth(IntPtr textureHandle);
-    [DllImport("Crucible")]
-    protected static extern uint CRUCIBLE_NATIVE_TextureGetHeight(IntPtr textureHandle);
-    [DllImport("Crucible")]
-    protected static extern uint CRUCIBLE_NATIVE_TextureGetDepth(IntPtr textureHandle);
-    [DllImport("Crucible")]
-    protected static extern uint CRUCIBLE_NATIVE_TextureGetArraySize(IntPtr textureHandle);
-    [DllImport("Crucible")]
-    protected static extern uint CRUCIBLE_NATIVE_TextureGetMipCount(IntPtr textureHandle);
-    [DllImport("Crucible")]
-    protected static extern PixelFormat CRUCIBLE_NATIVE_TextureGetFormat(IntPtr textureHandle);
-    [DllImport("Crucible")]
-    protected static extern MultiSampleCount CRUCIBLE_NATIVE_TextureGetSampleCount(IntPtr textureHandle);
+    [LibraryImport("Crucible")]
+    protected static partial void CRUCIBLE_NATIVE_TextureDestroy(IntPtr textureHandle);
+    [LibraryImport("Crucible")]
+    protected static partial uint CRUCIBLE_NATIVE_TextureGetWidth(IntPtr textureHandle);
+    [LibraryImport("Crucible")]
+    protected static partial uint CRUCIBLE_NATIVE_TextureGetHeight(IntPtr textureHandle);
+    [LibraryImport("Crucible")]
+    protected static partial uint CRUCIBLE_NATIVE_TextureGetDepth(IntPtr textureHandle);
+    [LibraryImport("Crucible")]
+    protected static partial uint CRUCIBLE_NATIVE_TextureGetArraySize(IntPtr textureHandle);
+    [LibraryImport("Crucible")]
+    protected static partial uint CRUCIBLE_NATIVE_TextureGetMipCount(IntPtr textureHandle);
+    [LibraryImport("Crucible")]
+    protected static partial PixelFormat CRUCIBLE_NATIVE_TextureGetFormat(IntPtr textureHandle);
+    [LibraryImport("Crucible")]
+    protected static partial MultiSampleCount CRUCIBLE_NATIVE_TextureGetSampleCount(IntPtr textureHandle);
 
 
     ~Texture()
@@ -129,5 +126,7 @@ public abstract class Texture
     {
         get { return CRUCIBLE_NATIVE_TextureGetMipCount(_handle); }
     }
+    
+    public abstract void Save(string path);
     
 }

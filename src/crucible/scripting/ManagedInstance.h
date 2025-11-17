@@ -11,6 +11,8 @@ namespace crucible
         class CRUCIBLE_API ManagedInstance
         {
         public:
+            ManagedInstance();
+            ManagedInstance(void* gcHandle);
             ~ManagedInstance();
             ManagedInstance(const ManagedInstance&) = delete;
             ManagedInstance& operator=(const ManagedInstance& from)=delete;
@@ -20,9 +22,8 @@ namespace crucible
             ManagedInstance invokeMethodReturn(const char* method, int32_t parameterCount, ManagedType* parameterTypes, void** parameterValues);
             void invokeMethodReturn(const char* method, int32_t parameterCount, ManagedType* parameterTypes, void** parameterValues, void* outValue);
             bool isNull() const;
-            friend class ScriptingEngine;
+            void* gcHandle();
         private:
-            ManagedInstance(void* gcHandle);
             void move(ManagedInstance& from);
             void* _gcHandle = nullptr;
         };

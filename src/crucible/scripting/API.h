@@ -1,9 +1,15 @@
 #ifndef CRUCIBLE_API_H
 #define CRUCIBLE_API_H
+#include <algorithm>
+#include <__msvc_ranges_to.hpp>
+
 #include "crucible/CrucibleCore.h"
+#include "crucible/Node.h"
+#include "crucible/Transform.h"
 #include <glm/glm.hpp>
 
 #include <slag/core/Texture.h>
+#include <boost/uuid/uuid.hpp>
 
 namespace crucible
 {
@@ -45,6 +51,58 @@ namespace crucible
             CRUCIBLE_API uint32_t CRUCIBLE_NATIVE_TextureGetMipCount(slag::Texture* texture);
             CRUCIBLE_API slag::Pixels::Format CRUCIBLE_NATIVE_TextureGetFormat(slag::Texture* texture);
             CRUCIBLE_API slag::Texture::SampleCount CRUCIBLE_NATIVE_TextureGetSampleCount(slag::Texture* texture);
+
+            CRUCIBLE_API void CRUCIBLE_NATIVE_Texture2DFromExchange(const char* filePath, uint32_t mipLevels, slag::Texture** out)noexcept(false);
+            CRUCIBLE_API uint64_t CRUCIBLE_NATIVE_Texture2DFromEngineFormat(const unsigned char* data, slag::Texture** out);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_Texture2DToEngineFormat(const char* filepath, slag::Texture* texture);
+
+            CRUCIBLE_API void CRUCIBLE_NATIVE_TransformToGlobal(crucible::Transform& transform, Node* node, Transform& out);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_TransformInverse(crucible::Transform& transform, Transform& out);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_TransformConcat(crucible::Transform& a, Transform& b, Transform& out);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_TransformDecat(crucible::Transform& a, Transform& b, Transform& out);
+
+
+            CRUCIBLE_API int32_t CRUCIBLE_NATIVE_UUIDHash(boost::uuids::uuid& id);
+
+            CRUCIBLE_API ecs_entity_t CRUCIBLE_NATIVE_EcsGetDataTypeID(const char* typeName, uint64_t size, uint64_t alignment);
+            CRUCIBLE_API ecs_entity_t CRUCIBLE_NATIVE_EcsGetReferenceTypeID(const char* typeName);
+
+            CRUCIBLE_API Node* CRUCIBLE_NATIVE_NodeNew();
+            CRUCIBLE_API void CRUCIBLE_NATIVE_NodeDelete(Node* node);
+            CRUCIBLE_API Node* CRUCIBLE_NATIVE_NodeReferenceFromUUID(boost::uuids::uuid& id);
+            CRUCIBLE_API boost::uuids::uuid CRUCIBLE_NATIVE_NodeGetUUID(crucible::Node* node);
+            CRUCIBLE_API int32_t CRUCIBLE_NATIVE_NodeGetNameLength(Node* node);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_NodeGetName(crucible::Node* node, char* nameArray);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_NodeSetName(crucible::Node* node, const char* name);
+            CRUCIBLE_API Node* CRUCIBLE_NATIVE_NodeGetParent(crucible::Node* node);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_NodeSetParent(crucible::Node* node, crucible::Node* parent);
+            CRUCIBLE_API uint32_t CRUCIBLE_NATIVE_NodeGetChildCount(crucible::Node* node);
+            CRUCIBLE_API Node* CRUCIBLE_NATIVE_NodeGetChild(crucible::Node* node, uint32_t index);
+            CRUCIBLE_API Node* CRUCIBLE_NATIVE_NodeAddChild(crucible::Node* node);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_NodeRemoveChildByIndex(crucible::Node* node, uint32_t index);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_NodeRemoveChildByValue(crucible::Node* node, crucible::Node* child);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_NodeAddDataComponent(crucible::Node* node,const char* typeName, uint64_t size, uint64_t alignment, void* data);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_NodeAddDataComponentFast(crucible::Node* node, ecs_entity_t typeId, void* data, uint64_t dataSize);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_NodeRemoveDataComponent(crucible::Node* node, const char* typeName, uint64_t size, uint64_t alignment);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_NodeRemoveDataComponentFast(crucible::Node*, ecs_entity_t typeId);
+            CRUCIBLE_API bool CRUCIBLE_NATIVE_NodeHasDataComponent(crucible::Node* node, const char* typeName, uint64_t size, uint64_t alignment);
+            CRUCIBLE_API bool CRUCIBLE_NATIVE_NodeHasDataComponentFast(crucible::Node* node, ecs_entity_t typeId);
+            CRUCIBLE_API void* CRUCIBLE_NATIVE_NodeGetDataComponent(crucible::Node* node, const char* typeName, uint64_t size, uint64_t alignment);
+            CRUCIBLE_API void* CRUCIBLE_NATIVE_NodeGetDataComponentFast(crucible::Node* node, ecs_entity_t typeId);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_NodeAddReferenceComponent(crucible::Node* node, const char* typeName, void* gcHandle);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_NodeAddReferenceComponentFast(crucible::Node* node, ecs_entity_t typeId, void* gcHandle);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_NodeRemoveReferenceComponent(crucible::Node* node, const char* typeName);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_NodeRemoveReferenceComponentFast(crucible::Node* node, ecs_entity_t typeId);
+            CRUCIBLE_API bool CRUCIBLE_NATIVE_NodeHasReferenceComponent(crucible::Node* node, const char* typeName);
+            CRUCIBLE_API bool CRUCIBLE_NATIVE_NodeHasReferenceComponentFast(crucible::Node* node, ecs_entity_t typeId);
+            CRUCIBLE_API void* CRUCIBLE_NATIVE_NodeGetReferenceComponent(crucible::Node* node, const char* typeName);
+            CRUCIBLE_API void* CRUCIBLE_NATIVE_NodeGetReferenceComponentFast(crucible::Node* node, ecs_entity_t typeId);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_NodeGetCumulativeTransform(crucible::Node* node, Transform& out);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_NodeLockFamily(crucible::Node* node);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_NodeUnlockFamily(crucible::Node* node);
+            CRUCIBLE_API bool CRUCIBLE_NATIVE_NodeIsEnabled(crucible::Node* node);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_NodeEnable(crucible::Node* node, bool propagate);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_NodeDisable(crucible::Node* node, bool propagate);
         }
     } // scripting
 } // slag

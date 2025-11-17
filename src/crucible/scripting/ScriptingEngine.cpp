@@ -225,19 +225,19 @@ namespace crucible
 
         void ScriptingEngine::invokeInstanceMethod(ManagedInstance& instance, const char* methodName,int32_t parameterCount, ManagedType* parameterTypes, void** parameters)
         {
-            _functionPointers.invokeInstanceMethod(instance._gcHandle,methodName,parameterCount,parameterTypes,parameters);
+            _functionPointers.invokeInstanceMethod(instance.gcHandle(),methodName,parameterCount,parameterTypes,parameters);
         }
 
         ManagedInstance ScriptingEngine::invokeInstanceMethodWithReturnObject(ManagedInstance& instance,const char* methodName, int32_t parameterCount, ManagedType* parameterTypes, void** parameters)
         {
             void* objectInstance = nullptr;
-            _functionPointers.invokeInstanceMethodReturnReference(instance._gcHandle,methodName,parameterCount,parameterTypes,parameters,&objectInstance);
+            _functionPointers.invokeInstanceMethodReturnReference(instance.gcHandle(),methodName,parameterCount,parameterTypes,parameters,&objectInstance);
             return {objectInstance};
         }
 
         void ScriptingEngine::invokeInstanceMethodWithReturnValue(ManagedInstance& instance, const char* methodName,int32_t parameterCount, ManagedType* parameterTypes, void** parameters, void* valuePtr)
         {
-            _functionPointers.invokeInstanceMethodReturnValue(instance._gcHandle,methodName,parameterCount,parameterTypes,parameters,valuePtr);
+            _functionPointers.invokeInstanceMethodReturnValue(instance.gcHandle(),methodName,parameterCount,parameterTypes,parameters,valuePtr);
         }
 
         void ScriptingEngine::gameManagerInitialize()
