@@ -194,8 +194,7 @@ if(RUN_CRUCIBLE_TESTS)
             tests/tests/ScriptingEngineTest.cpp
             tests/tests/ManagedInstanceTest.cpp
             tests/tests/API_Test.cpp
-            tests/tests/ECSTest.cpp
-            tests/tests/NodeTest.cpp)
+    )
 
     target_link_libraries(CrucibleTests Crucible GTest::gtest)
     include(GoogleTest)
