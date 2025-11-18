@@ -6,6 +6,7 @@ namespace Crucible.Core;
 /// </summary>
 public partial class NodeKeeper
 {
+    private static HashSet<UUID> _keptNodes = new HashSet<UUID>();
     /// <summary>
     /// Reference to kept node
     /// </summary>
@@ -16,6 +17,21 @@ public partial class NodeKeeper
         var node = new Node(CRUCIBLE_NATIVE_NodeNew());
         KeptNode = new NodeReference(node.Uuid());
         _relinquished = false;
+        _keptNodes.Add(node.Uuid());
+    }
+
+    internal NodeKeeper(Node node)
+    {
+        if (_keptNodes.Contains(node.Uuid()))
+        {
+            throw new InvalidOperationException("Node is already kept");
+        }
+        else
+        {
+            _keptNodes.Add(node.Uuid());
+        }
+        KeptNode = new NodeReference(node.Uuid());
+        _relinquished = false;
     }
 
     ~NodeKeeper()
@@ -24,6 +40,7 @@ public partial class NodeKeeper
         {
             if (!ReferenceEquals(KeptNode, null))
             {
+                _keptNodes.Remove(KeptNode.nodeID());
                 var node = KeptNode.Acquire();
                 if (!node.IsNull)
                 {
@@ -47,6 +64,7 @@ public partial class NodeKeeper
     {
         if (!ReferenceEquals(KeptNode, null))
         {
+            _keptNodes.Remove(KeptNode.nodeID());
             var node = KeptNode.Acquire();
             node.SetParent(newParent);
             _relinquished = true;

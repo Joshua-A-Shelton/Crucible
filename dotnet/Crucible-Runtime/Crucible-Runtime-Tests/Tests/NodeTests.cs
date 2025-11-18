@@ -278,6 +278,90 @@ public static class NodeTests
         return true;
     }
 
+    public static bool Detach()
+    {
+        NodeKeeper keeper = new NodeKeeper();
+        var node = keeper.KeptNode.Acquire();
+        node.Enabled = true;
+
+        var child = node.AddChild();
+        var grandChild = child.AddChild();
+        if (child.Enabled == false)
+        {
+            return false;
+        }
+        var childKeeper = child.Detach();
+        if (node.ChildCount() != 0)
+        {
+            return false;
+        }
+
+        if (child.ChildCount() != 1)
+        {
+            return false;
+        }
+
+        if (child.HasParent())
+        {
+            return false;
+        }
+
+        if (child.Enabled)
+        {
+            return false;
+        }
+
+        if (grandChild.Parent() != child)
+        {
+            return false;
+        }
+
+        child.Enabled = true;
+        var grandchildKeeper = grandChild.Detach(false);
+        if (!grandChild.Enabled)
+        {
+            return false;
+        }
+        
+        return true;
+
+    }
+
+    public static bool DetachFailIfRoot()
+    {
+        NodeKeeper keeper = new NodeKeeper();
+        var node = keeper.KeptNode.Acquire();
+        try
+        {
+            node.Detach();
+        }
+        catch (InvalidOperationException e)
+        {
+            return true;
+        }
+        return false;
+    }
+
+    public static bool DetachFailIfAlreadyKept()
+    {
+        
+        NodeKeeper keeper = new NodeKeeper();
+        var node = keeper.KeptNode.Acquire();
+        NodeKeeper keeper2 = new NodeKeeper();
+        var node2 = keeper2.KeptNode.Acquire();
+        //can't detach root nodes
+        node2.SetParent(node);
+        try
+        {
+            node2.Detach();
+        }
+        catch (InvalidOperationException e)
+        {
+            return true;
+        }
+        return false;
+    }
+
     public static bool AddDataComponentTest()
     {
         NodeKeeper keeper = new NodeKeeper();

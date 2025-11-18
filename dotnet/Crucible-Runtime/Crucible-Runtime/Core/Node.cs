@@ -257,6 +257,21 @@ public unsafe ref partial struct Node
         ErrorIfNull();
         CRUCIBLE_NATIVE_NodeRemoveChildByValue(_pointer, child._pointer);
     }
+
+    public NodeKeeper Detach(bool autoDisable = true)
+    {
+        ErrorIfNull();
+        if (!HasParent())
+        {
+            throw new InvalidOperationException("Root Nodes cannot be detached");
+        }
+        CRUCIBLE_NATIVE_NodeSetParent(_pointer, IntPtr.Zero);
+        if (autoDisable)
+        {
+            Enabled = false;
+        }
+        return new NodeKeeper(this);
+    }
     /// <summary>
     /// Add value component to this node
     /// </summary>
@@ -513,7 +528,9 @@ public unsafe ref partial struct Node
         CRUCIBLE_NATIVE_NodeGetCumulativeTransform(_pointer, out Transform transform);
         return transform;
     }
-
+    /// <summary>
+    /// IF this node will be included in systems and tree walks (Disabling/enabling nodes propagates to their children)
+    /// </summary>
     public bool Enabled
     {
         get

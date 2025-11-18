@@ -12,6 +12,11 @@ public partial class NodeReference
     {
         _uuid = uuid;
     }
+
+    internal UUID nodeID()
+    {
+        return _uuid;
+    }
     
     public static bool operator ==(NodeReference n1, NodeReference n2)
     {
