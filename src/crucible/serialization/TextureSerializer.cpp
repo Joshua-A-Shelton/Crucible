@@ -40,80 +40,97 @@ namespace crucible
 
         uint64_t queueTexture2D(const unsigned char* dataStream, slag::CommandBuffer* commandBuffer, slag::Texture** outTexture,slag::Buffer** outResourceBuffer)
         {
-            const unsigned char* currentByte = dataStream;
-            auto magicNumber = std::string(reinterpret_cast<const char*>(currentByte),5);
-            currentByte+=5;
-            if (magicNumber != "ctxr\n")
+            try
             {
-                return 0;
-            }
-            auto iterations = 0;
-            while ((char)currentByte[iterations]!='\n' && iterations <= 11)
-            {
-                iterations++;
-            }
-            if (iterations == 11)
-            {
-                return 0;
-            }
-            auto versionNumber = std::string(reinterpret_cast<const char*>(currentByte),iterations);
-            currentByte+=iterations+1;
-            if (versionNumber == "v1.0.0")
-            {
-                uint32_t textureFormat = currentByte[0];
-                currentByte+=sizeof(uint32_t);
-                uint32_t width = *(uint32_t*)currentByte;
-                currentByte+=sizeof(uint32_t);
-                uint32_t height = *(uint32_t*)currentByte;
-                currentByte+=sizeof(uint32_t);
-                uint32_t mipLevels = *(uint32_t*)currentByte;
-                currentByte+=sizeof(uint32_t);
-                int32_t compressedLength = *(int32_t*)currentByte;
-                currentByte+=sizeof(int32_t);
-                int32_t uncompressedLength = *(int32_t*)currentByte;
-                currentByte+=sizeof(int32_t);
-                if constexpr (std::endian::native == std::endian::big)
+                const unsigned char* currentByte = dataStream;
+                auto magicNumber = std::string(reinterpret_cast<const char*>(currentByte),5);
+                currentByte+=5;
+                if (magicNumber != "ctxr\n")
                 {
-                    boost::endian::big_to_native_inplace(textureFormat);
-                    boost::endian::big_to_native_inplace(width);
-                    boost::endian::big_to_native_inplace(height);
-                    boost::endian::big_to_native_inplace(mipLevels);
-                    boost::endian::big_to_native_inplace(compressedLength);
-                    boost::endian::big_to_native_inplace(uncompressedLength);
+                    return 0;
                 }
-                slag::Pixels::Format format = static_cast<slag::Pixels::Format>(textureFormat);
-                *outResourceBuffer = slag::Buffer::newBuffer(uncompressedLength,slag::Buffer::Accessibility::CPU_AND_GPU);
-                LZ4_decompress_safe(reinterpret_cast<const char*>(currentByte),(char*)(*outResourceBuffer)->cpuHandle(),compressedLength,uncompressedLength);
-                *outTexture = slag::Texture::newTexture(format,slag::Texture::Type::TEXTURE_2D,slag::Texture::UsageFlags::SAMPLED_IMAGE,width,height,1,mipLevels,1);
-
-                std::vector<slag::TextureBufferMapping> mappings(mipLevels);
-                uint64_t bufferOffset = 0;
-                auto aspects = slag::Pixels::aspectFlags(format);
-                aspects = aspects & (slag::Pixels::AspectFlags::COLOR | slag::Pixels::AspectFlags::DEPTH);
-                for (uint32_t i = 0; i < mipLevels; i++)
+                auto iterations = 0;
+                while ((char)currentByte[iterations]!='\n' && iterations <= 11)
                 {
-                    auto& mapping = mappings[i];
-                    mapping.bufferOffset = bufferOffset;
-                    mapping.textureSubresource =
+                    iterations++;
+                }
+                if (iterations == 11)
+                {
+                    return 0;
+                }
+                auto versionNumber = std::string(reinterpret_cast<const char*>(currentByte),iterations);
+                currentByte+=iterations+1;
+                if (versionNumber == "v1.0.0")
+                {
+                    uint32_t textureFormat = currentByte[0];
+                    currentByte+=sizeof(uint32_t);
+                    uint32_t width = *(uint32_t*)currentByte;
+                    currentByte+=sizeof(uint32_t);
+                    uint32_t height = *(uint32_t*)currentByte;
+                    currentByte+=sizeof(uint32_t);
+                    uint32_t mipLevels = *(uint32_t*)currentByte;
+                    currentByte+=sizeof(uint32_t);
+                    int32_t compressedLength = *(int32_t*)currentByte;
+                    currentByte+=sizeof(int32_t);
+                    int32_t uncompressedLength = *(int32_t*)currentByte;
+                    currentByte+=sizeof(int32_t);
+                    if constexpr (std::endian::native == std::endian::big)
                     {
-                        .aspectFlags = aspects,
-                        .mipLevel = i,
-                        .baseArrayLayer = 0,
-                        .layerCount = 1
-                    };
-                    mapping.textureExtent = {.width = (*outTexture)->width(i),.height=(*outTexture)->height(i),.depth=1};
-                    mapping.textureOffset = {0,0,0};
+                        boost::endian::big_to_native_inplace(textureFormat);
+                        boost::endian::big_to_native_inplace(width);
+                        boost::endian::big_to_native_inplace(height);
+                        boost::endian::big_to_native_inplace(mipLevels);
+                        boost::endian::big_to_native_inplace(compressedLength);
+                        boost::endian::big_to_native_inplace(uncompressedLength);
+                    }
+                    slag::Pixels::Format format = static_cast<slag::Pixels::Format>(textureFormat);
+                    *outResourceBuffer = slag::Buffer::newBuffer(uncompressedLength,slag::Buffer::Accessibility::CPU_AND_GPU);
+                    LZ4_decompress_safe(reinterpret_cast<const char*>(currentByte),(char*)(*outResourceBuffer)->cpuHandle(),compressedLength,uncompressedLength);
+                    *outTexture = slag::Texture::newTexture(format,slag::Texture::Type::TEXTURE_2D,slag::Texture::UsageFlags::SAMPLED_IMAGE,width,height,1,mipLevels,1);
 
-                    bufferOffset+=(*outTexture)->byteSize(i);
+                    std::vector<slag::TextureBufferMapping> mappings(mipLevels);
+                    uint64_t bufferOffset = 0;
+                    auto aspects = slag::Pixels::aspectFlags(format);
+                    aspects = aspects & (slag::Pixels::AspectFlags::COLOR | slag::Pixels::AspectFlags::DEPTH);
+                    for (uint32_t i = 0; i < mipLevels; i++)
+                    {
+                        auto& mapping = mappings[i];
+                        mapping.bufferOffset = bufferOffset;
+                        mapping.textureSubresource =
+                        {
+                            .aspectFlags = aspects,
+                            .mipLevel = i,
+                            .baseArrayLayer = 0,
+                            .layerCount = 1
+                        };
+                        mapping.textureExtent = {.width = (*outTexture)->width(i),.height=(*outTexture)->height(i),.depth=1};
+                        mapping.textureOffset = {0,0,0};
+
+                        bufferOffset+=(*outTexture)->byteSize(i);
+                    }
+
+                    commandBuffer->copyBufferToTexture(*outResourceBuffer,*outTexture,mappings.data(),mappings.size());
+
+                    currentByte+=compressedLength;
+                    return currentByte - dataStream;
+
                 }
-
-                commandBuffer->copyBufferToTexture(*outResourceBuffer,*outTexture,mappings.data(),mappings.size());
-
-                currentByte+=compressedLength;
-                return currentByte - dataStream;
-
+                return 0;
             }
-            return 0;
+            catch (...)
+            {
+                if (*outTexture!=nullptr)
+                {
+                    delete (*outTexture);
+                    *outTexture = nullptr;
+                }
+                if (*outResourceBuffer!=nullptr)
+                {
+                    delete (*outResourceBuffer);
+                    *outResourceBuffer = nullptr;
+                }
+                throw;
+            }
 
         }
 

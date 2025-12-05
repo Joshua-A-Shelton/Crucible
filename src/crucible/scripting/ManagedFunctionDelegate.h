@@ -49,6 +49,10 @@ namespace crucible
             {
                 return ((ReturnType (*)(Args...))_internals._functionPointer)(args...);
             }
+            void* rawFunctionPointer() const
+            {
+                return _internals._functionPointer;
+            }
             friend class ScriptingEngine;
         };
     } // scripting

@@ -30,6 +30,11 @@ public static class Texture2DTests
             
         return true;
     }
+    
+    public static bool LoadExchangeFormatFailGracefully()
+    {
+        return false;
+    }
 
     public static bool SaveLoadEngineFormat()
     {
@@ -51,7 +56,12 @@ public static class Texture2DTests
         return false;
     }
 
-    /*public static bool Formats()
+    public static bool LoadEngineFormatDeferred()
+    {
+        return false;
+    }
+
+    public static bool Formats()
     {
         
         foreach (Texture.PixelFormat format in Enum.GetValues(typeof(Texture.PixelFormat)))
@@ -76,5 +86,5 @@ public static class Texture2DTests
             }
         }
         return true;
-    }*/
+    }
 }

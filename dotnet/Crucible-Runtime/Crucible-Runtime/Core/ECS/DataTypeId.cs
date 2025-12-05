@@ -2,7 +2,7 @@
 
 namespace Crucible.Core.ECS;
 
-public unsafe struct DataTypeId
+public unsafe struct DataTypeId : IEquatable<DataTypeId>
 {
     private UInt64 _id=0;
 
@@ -33,5 +33,24 @@ public unsafe struct DataTypeId
     public static bool operator !=(DataTypeId a, DataTypeId b)
     {
         return a._id != b._id;
+    }
+
+    public override bool Equals(object obj)
+    {
+        if (obj is DataTypeId id)
+        {
+            return _id == id._id;
+        }
+        return false;
+    }
+
+    public bool Equals(DataTypeId other)
+    {
+        return _id == other._id;
+    }
+
+    public override int GetHashCode()
+    {
+        return _id.GetHashCode();
     }
 }

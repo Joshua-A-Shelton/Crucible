@@ -22,7 +22,7 @@ public class Initializer
         public IntPtr InvokeInstanceMethodValueReturn;
         public IntPtr GameManagerInitialize_ptr;
         public IntPtr GameManagerCleanUp_ptr;
-        public IntPtr ManagedEnvoirnmentCleanup_ptr;
+        public IntPtr ManagedEnvironmentCleanup_ptr;
     }
     
     private static unsafe int RuntimeEntry(IntPtr entryArgs, int argLength)
@@ -47,7 +47,7 @@ public class Initializer
             args->InvokeInstanceMethodValueReturn = Marshal.GetFunctionPointerForDelegate(Interop.InvokeInstanceMethodValueReturnPtr);
             args->GameManagerInitialize_ptr = Marshal.GetFunctionPointerForDelegate(Interop.GameManagerInitializePtr);
             args->GameManagerCleanUp_ptr = Marshal.GetFunctionPointerForDelegate(Interop.GameManagerCleanUpPtr);
-            args->ManagedEnvoirnmentCleanup_ptr = Marshal.GetFunctionPointerForDelegate(Interop.ManagedEnvoirnmentCleanup);
+            args->ManagedEnvironmentCleanup_ptr = Marshal.GetFunctionPointerForDelegate(Interop.ManagedEnvoirnmentCleanup);
         }
         catch (Exception e)
         {

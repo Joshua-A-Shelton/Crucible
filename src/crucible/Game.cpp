@@ -4,6 +4,7 @@
 
 #include "Game.h"
 
+#include "DeferredJobQueue.h"
 #include "Node.h"
 #include "scripting/ScriptingEngine.h"
 

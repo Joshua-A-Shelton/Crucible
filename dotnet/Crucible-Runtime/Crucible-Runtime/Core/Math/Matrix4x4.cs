@@ -20,7 +20,7 @@ public unsafe struct Matrix4x4
         {
             fixed (float* dest = _data)
             {
-                Buffer.MemoryCopy(source,dest,16,16);
+                System.Buffer.MemoryCopy(source,dest,16,16);
             }
         }
     }
@@ -40,7 +40,7 @@ public unsafe struct Matrix4x4
         {
             fixed (float* dest = _data)
             {
-                Buffer.MemoryCopy(source,dest,16,16);
+                System.Buffer.MemoryCopy(source,dest,16,16);
             }
         }
         

@@ -6,10 +6,14 @@
 #include "crucible/CrucibleCore.h"
 #include "crucible/Node.h"
 #include "crucible/Transform.h"
+#include "crucible/Mesh.h"
+#include "crucible/BoneWeights.h"
 #include <glm/glm.hpp>
 
-#include <slag/core/Texture.h>
+#include <slag/Slag.h>
 #include <boost/uuid/uuid.hpp>
+
+
 
 namespace crucible
 {
@@ -41,6 +45,14 @@ namespace crucible
             CRUCIBLE_API float CRUCIBLE_NATIVE_Vector2DotProduct(const glm::vec2& a, const glm::vec2& b);
             CRUCIBLE_API float CRUCIBLE_NATIVE_Vector2Magnitude(const glm::vec2& vector);
             CRUCIBLE_API void CRUCIBLE_NATIVE_Vector2Normalized(const glm::vec2& vector, glm::vec2& out);
+
+            CRUCIBLE_API int32_t CRUCIBLE_NATIVE_LZ4MaxCompressedSize(int32_t uncompressedSize);
+            CRUCIBLE_API int32_t CRUCIBLE_NATIVE_LZ4Compress(void* uncompressedData, int32_t uncompressedLength, void* compressedBuffer, int32_t compressedCapacity);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_LZ4Decompress(void* compressedData, int32_t compressedLength, void* uncompressedBuffer, int32_t uncompressedLength);
+
+            CRUCIBLE_API DeferredJobQueue* CRUCIBLE_NATIVE_DeferredJobQueueNew();
+            CRUCIBLE_API void CRUCIBLE_NATIVE_DeferredJobQueueDelete(DeferredJobQueue* deferredJobQueue);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_DeferredJobQueueProcess(DeferredJobQueue* deferredJobQueue);
 
             CRUCIBLE_API void CRUCIBLE_NATIVE_TextureCreate2D(slag::Pixels::Format format, uint32_t width, uint32_t height, uint32_t mips, slag::Texture::SampleCount sampleCount, slag::Texture** outTexture);
             CRUCIBLE_API void CRUCIBLE_NATIVE_TextureDestroy(slag::Texture* texture);
@@ -103,6 +115,36 @@ namespace crucible
             CRUCIBLE_API bool CRUCIBLE_NATIVE_NodeIsEnabled(crucible::Node* node);
             CRUCIBLE_API void CRUCIBLE_NATIVE_NodeEnable(crucible::Node* node, bool propagate);
             CRUCIBLE_API void CRUCIBLE_NATIVE_NodeDisable(crucible::Node* node, bool propagate);
+
+            CRUCIBLE_API Mesh* CRUCIBLE_NATIVE_MeshNew(Mesh::MeshAttributeData* data, uint32_t vertexCount, void* indexData, slag::Buffer::IndexSize indexType, uint32_t indexCount, const Mesh::MeshBufferAccessibility& bufferAccessibility);
+            CRUCIBLE_API Mesh* CRUCIBLE_NATIVE_MeshNewBatchedInit(Mesh::MeshAttributeData* data, uint32_t vertexCount, void* indexData, slag::Buffer::IndexSize indexType, uint32_t indexCount, const Mesh::MeshBufferAccessibility& bufferAccessibility, DeferredJobQueue* deferredQueue, void* IDeferredInitHandle);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_MeshDelete(Mesh* mesh);
+            CRUCIBLE_API Mesh::VertexAttributeFlags CRUCIBLE_NATIVE_MeshDefinedVertexAttributeFlags(const Mesh* mesh);
+            CRUCIBLE_API uint32_t CRUCIBLE_NATIVE_MeshVertexCount(const Mesh* mesh);
+            CRUCIBLE_API uint32_t CRUCIBLE_NATIVE_MeshIndexCount(const Mesh* mesh);
+            CRUCIBLE_API slag::Buffer::IndexSize CRUCIBLE_NATIVE_MeshIndexSize(const Mesh* mesh);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_MeshCopyPositionData(const Mesh* mesh, void* destination);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_MeshCopyNormalData(const Mesh* mesh, void* destination);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_MeshCopyTangentData(const Mesh* mesh, void* destination);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_MeshCopyColorData(const Mesh* mesh, void* destination);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_MeshCopyBoneWeightData(const Mesh* mesh, void* destination);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_MeshCopyUVData(const Mesh* mesh, void* destination);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_MeshCopyUV2Data(const Mesh* mesh, void* destination);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_MeshCopyUV3Data(const Mesh* mesh, void* destination);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_MeshCopyUV4Data(const Mesh* mesh, void* destination);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_MeshCopyIndexData(const Mesh* mesh, void* destination);
+            CRUCIBLE_API slag::Buffer::Accessibility CRUCIBLE_NATIVE_MeshVertexAttributeBufferAccess(Mesh* mesh, Mesh::VertexAttribute attribute);
+            CRUCIBLE_API slag::Buffer::Accessibility CRUCIBLE_NATIVE_MeshIndexAttributeBufferAccess(Mesh* mesh);
+            CRUCIBLE_API void* CRUCIBLE_NATIVE_MeshPositionBufferCpuHandle(Mesh* mesh);
+            CRUCIBLE_API void* CRUCIBLE_NATIVE_MeshNormalBufferCpuHandle(Mesh* mesh);
+            CRUCIBLE_API void* CRUCIBLE_NATIVE_MeshTangentBufferCpuHandle(Mesh* mesh);
+            CRUCIBLE_API void* CRUCIBLE_NATIVE_MeshColorBufferCpuHandle(Mesh* mesh);
+            CRUCIBLE_API void* CRUCIBLE_NATIVE_MeshBoneWeightBufferCpuHandle(Mesh* mesh);
+            CRUCIBLE_API void* CRUCIBLE_NATIVE_MeshUVBufferCpuHandle(Mesh* mesh);
+            CRUCIBLE_API void* CRUCIBLE_NATIVE_MeshUV2BufferCpuHandle(Mesh* mesh);
+            CRUCIBLE_API void* CRUCIBLE_NATIVE_MeshUV3BufferCpuHandle(Mesh* mesh);
+            CRUCIBLE_API void* CRUCIBLE_NATIVE_MeshUV4BufferCpuHandle(Mesh* mesh);
+            CRUCIBLE_API void* CRUCIBLE_NATIVE_MeshIndexBufferCpuHandle(Mesh* mesh);
         }
     } // scripting
 } // slag

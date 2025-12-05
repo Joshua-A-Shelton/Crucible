@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 include(FetchContent)
 cmake_policy(SET CMP0167 NEW)
 
-SET(SLAG_LIBRARY_VERSION "dev")
+SET(SLAG_LIBRARY_VERSION "d6f32c4")
 SET(SDL3_LIBRARY_VERSION "release-3.2.24")
 SET(GLM_LIBRARY_VERSION "1.0.2")
 SET(LZ4_LIBRARY_VERSION "v1.10.0")
@@ -153,6 +153,13 @@ add_library(Crucible SHARED
         src/crucible/ecs/World.h
         src/crucible/Transform.cpp
         src/crucible/Transform.h
+        src/crucible/Mesh.cpp
+        src/crucible/Mesh.h
+        src/crucible/BoneWeights.h
+        src/crucible/DeferredJobQueue.cpp
+        src/crucible/DeferredJobQueue.h
+        src/crucible/utils/GPUUtils.cpp
+        src/crucible/utils/GPUUtils.h
 )
 
 target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})
@@ -194,6 +201,8 @@ if(RUN_CRUCIBLE_TESTS)
             tests/tests/ScriptingEngineTest.cpp
             tests/tests/ManagedInstanceTest.cpp
             tests/tests/API_Test.cpp
+            tests/tests/MeshTest.cpp
+            tests/tests/TextureTest.cpp
     )
 
     target_link_libraries(CrucibleTests Crucible GTest::gtest)

@@ -3,7 +3,7 @@
 namespace Crucible.Core.ECS;
 
 
-public unsafe struct ReferenceTypeId
+public unsafe struct ReferenceTypeId : IEquatable<ReferenceTypeId>
 {
     private UInt64 _id=0;
 
@@ -33,5 +33,24 @@ public unsafe struct ReferenceTypeId
     public static bool operator !=(ReferenceTypeId a, ReferenceTypeId b)
     {
         return a._id != b._id;
+    }
+
+    public override bool Equals(object obj)
+    {
+        if (obj is ReferenceTypeId id)
+        {
+            return _id == id._id;
+        }
+        return false;
+    }
+
+    public bool Equals(ReferenceTypeId other)
+    {
+        return _id == other._id;
+    }
+
+    public override int GetHashCode()
+    {
+        return _id.GetHashCode();
     }
 }

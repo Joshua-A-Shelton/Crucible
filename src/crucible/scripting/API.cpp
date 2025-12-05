@@ -8,12 +8,15 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #include <slag/Slag.h>
+#include <lz4.h>
 #include <crucible/serialization/TextureSerializer.h>
+#include <crucible/utils/GPUUtils.h>
 
 #include <boost/container_hash/hash.hpp>
 
 #include "ManagedInstance.h"
 #include "boost/fusion/sequence/intrinsic/size.hpp"
+#include "crucible/DeferredJobQueue.h"
 
 namespace crucible
 {
@@ -123,6 +126,36 @@ namespace crucible
         void CRUCIBLE_NATIVE_Vector2Normalized(const glm::vec2& vector, glm::vec2& out)
         {
             out = glm::normalize(vector);
+        }
+
+        int32_t CRUCIBLE_NATIVE_LZ4MaxCompressedSize(int32_t uncompressedSize)
+        {
+            return LZ4_compressBound(uncompressedSize);
+        }
+
+        int32_t CRUCIBLE_NATIVE_LZ4Compress(void* uncompressedData, int32_t uncompressedLength, void* compressedBuffer, int32_t compressedCapacity)
+        {
+            return LZ4_decompress_safe((char*)uncompressedData, (char*)compressedBuffer, uncompressedLength, compressedCapacity);
+        }
+
+        void CRUCIBLE_NATIVE_LZ4Decompress(void* compressedData, int32_t compressedLength, void* uncompressedBuffer, int32_t uncompressedLength)
+        {
+            LZ4_decompress_safe((char*)compressedData,(char*)uncompressedBuffer,compressedLength,uncompressedLength);
+        }
+
+        DeferredJobQueue* CRUCIBLE_NATIVE_DeferredJobQueueNew()
+        {
+            return new DeferredJobQueue();
+        }
+
+        void CRUCIBLE_NATIVE_DeferredJobQueueDelete(DeferredJobQueue* deferredJobQueue)
+        {
+            delete deferredJobQueue;
+        }
+
+        void CRUCIBLE_NATIVE_DeferredJobQueueProcess(DeferredJobQueue* deferredJobQueue)
+        {
+            deferredJobQueue->process();
         }
 
         void CRUCIBLE_NATIVE_TextureCreate2D(slag::Pixels::Format format, uint32_t width, uint32_t height,uint32_t mips, slag::Texture::SampleCount sampleCount, slag::Texture** outTexture)
@@ -494,6 +527,246 @@ namespace crucible
         void CRUCIBLE_NATIVE_NodeDisable(crucible::Node* node, bool propagate)
         {
             node->disable(propagate);
+        }
+
+        Mesh* CRUCIBLE_NATIVE_MeshNew(Mesh::MeshAttributeData* data, uint32_t vertexCount, void* indexData,slag::Buffer::IndexSize indexType, uint32_t indexCount,const Mesh::MeshBufferAccessibility& bufferAccessibility)
+        {
+            return new Mesh(*data,indexData,(indexType==slag::Buffer::IndexSize::UINT16? sizeof(uint16_t) : sizeof(uint32_t))*indexCount,indexType,bufferAccessibility);
+        }
+
+        Mesh* CRUCIBLE_NATIVE_MeshNewBatchedInit(Mesh::MeshAttributeData* data, uint32_t vertexCount, void* indexData,slag::Buffer::IndexSize indexType, uint32_t indexCount,const Mesh::MeshBufferAccessibility& bufferAccessibility, DeferredJobQueue* deferredQueue, void* IDeferredInitHandle)
+        {
+            auto mesh = new Mesh(data->definedAttributes(),vertexCount,indexType,indexCount,bufferAccessibility);
+            auto commandBuffer = deferredQueue->commandBuffer();
+            auto bufferData = data->toBuffers();
+            auto& attributes = std::get<std::vector<Mesh::VertexAttribute>>(bufferData);
+            auto& buffers = std::get<std::vector<slag::Buffer*>>(bufferData);
+            for (auto i = 0u; i < attributes.size(); i++)
+            {
+                auto attribute =attributes[i];
+                auto source = buffers[i];
+                auto destination = mesh->attributeBuffer(attribute);
+                commandBuffer->copyBufferToBuffer(source,0,destination->size(),destination,0);
+            }
+            slag::Buffer* indexBuffer = slag::Buffer::newBuffer(indexData,mesh->indexBuffer()->size(),slag::Buffer::Accessibility::CPU_AND_GPU);
+            buffers.emplace_back(indexBuffer);
+            commandBuffer->copyBufferToBuffer(mesh->indexBuffer(),0,indexBuffer->size(),indexBuffer,0);
+            if (IDeferredInitHandle)
+            {
+                deferredQueue->enqueue(DeferredJob(std::move(buffers),ManagedInstance(IDeferredInitHandle)));
+            }
+            else
+            {
+                deferredQueue->enqueue(DeferredJob(std::move(buffers)));
+            }
+            return mesh;
+
+        }
+
+        void CRUCIBLE_NATIVE_MeshDelete(Mesh* mesh)
+        {
+            delete mesh;
+        }
+
+        Mesh::VertexAttributeFlags CRUCIBLE_NATIVE_MeshDefinedVertexAttributeFlags(const Mesh* mesh)
+        {
+            return mesh->definedAttributes();
+        }
+
+        uint32_t CRUCIBLE_NATIVE_MeshVertexCount(const Mesh* mesh)
+        {
+            return mesh->vertexCount();
+        }
+
+        uint32_t CRUCIBLE_NATIVE_MeshIndexCount(const Mesh* mesh)
+        {
+            return mesh->indexCount();
+        }
+
+        slag::Buffer::IndexSize CRUCIBLE_NATIVE_MeshIndexSize(const Mesh* mesh)
+        {
+            return mesh->indexSize();
+        }
+
+        void CRUCIBLE_NATIVE_MeshCopyPositionData(const Mesh* mesh, void* destination)
+        {
+            auto buffer = mesh->positionBuffer();
+            if (buffer)
+            {
+                utils::copyBufferToArray(buffer,destination);
+            }
+        }
+
+        void CRUCIBLE_NATIVE_MeshCopyNormalData(const Mesh* mesh, void* destination)
+        {
+            auto buffer = mesh->normalBuffer();
+            if (buffer)
+            {
+                utils::copyBufferToArray(buffer,destination);
+            }
+        }
+
+        void CRUCIBLE_NATIVE_MeshCopyTangentData(const Mesh* mesh, void* destination)
+        {
+            auto buffer = mesh->tangentBuffer();
+            if (buffer)
+            {
+                utils::copyBufferToArray(buffer,destination);
+            }
+        }
+
+        void CRUCIBLE_NATIVE_MeshCopyColorData(const Mesh* mesh, void* destination)
+        {
+            auto buffer = mesh->colorBuffer();
+            if (buffer)
+            {
+                utils::copyBufferToArray(buffer,destination);
+            }
+        }
+
+        void CRUCIBLE_NATIVE_MeshCopyBoneWeightData(const Mesh* mesh, void* destination)
+        {
+            auto buffer = mesh->boneWeightBuffer();
+            if (buffer)
+            {
+                utils::copyBufferToArray(buffer,destination);
+            }
+        }
+
+        void CRUCIBLE_NATIVE_MeshCopyUVData(const Mesh* mesh, void* destination)
+        {
+            auto buffer = mesh->uvBuffer();
+            if (buffer)
+            {
+                utils::copyBufferToArray(buffer,destination);
+            }
+        }
+
+        void CRUCIBLE_NATIVE_MeshCopyUV2Data(const Mesh* mesh, void* destination)
+        {
+            auto buffer = mesh->uvBuffer2();
+            if (buffer)
+            {
+                utils::copyBufferToArray(buffer,destination);
+            }
+        }
+
+        void CRUCIBLE_NATIVE_MeshCopyUV3Data(const Mesh* mesh, void* destination)
+        {
+            auto buffer = mesh->uvBuffer3();
+            if (buffer)
+            {
+                utils::copyBufferToArray(buffer,destination);
+            }
+        }
+
+        void CRUCIBLE_NATIVE_MeshCopyUV4Data(const Mesh* mesh, void* destination)
+        {
+            auto buffer = mesh->uvBuffer4();
+            if (buffer)
+            {
+                utils::copyBufferToArray(buffer,destination);
+            }
+        }
+
+
+        void CRUCIBLE_NATIVE_MeshCopyIndexData(const Mesh* mesh, void* destination)
+        {
+            auto buffer = mesh->indexBuffer();
+            if (buffer)
+            {
+                utils::copyBufferToArray(buffer,destination);
+            }
+        }
+
+        void* CRUCIBLE_NATIVE_MeshPositionBufferCpuHandle(Mesh* mesh)
+        {
+            if (mesh->positionBuffer()->accessibility() == slag::Buffer::Accessibility::CPU_AND_GPU)
+            {
+                return mesh->positionBuffer()->cpuHandle();
+            }
+            return nullptr;
+        }
+
+        void* CRUCIBLE_NATIVE_MeshNormalBufferCpuHandle(Mesh* mesh)
+        {
+            if (mesh->normalBuffer()->accessibility() == slag::Buffer::Accessibility::CPU_AND_GPU)
+            {
+                return mesh->normalBuffer()->cpuHandle();
+            }
+            return nullptr;
+        }
+
+        void* CRUCIBLE_NATIVE_MeshTangentBufferCpuHandle(Mesh* mesh)
+        {
+            if (mesh->tangentBuffer()->accessibility() == slag::Buffer::Accessibility::CPU_AND_GPU)
+            {
+                return mesh->tangentBuffer()->cpuHandle();
+            }
+            return nullptr;
+        }
+
+        void* CRUCIBLE_NATIVE_MeshColorBufferCpuHandle(Mesh* mesh)
+        {
+            if (mesh->colorBuffer()->accessibility() == slag::Buffer::Accessibility::CPU_AND_GPU)
+            {
+                return mesh->colorBuffer()->cpuHandle();
+            }
+            return nullptr;
+        }
+
+        void* CRUCIBLE_NATIVE_MeshBoneWeightBufferCpuHandle(Mesh* mesh)
+        {
+            if (mesh->boneWeightBuffer()->accessibility() == slag::Buffer::Accessibility::CPU_AND_GPU)
+            {
+                return mesh->boneWeightBuffer()->cpuHandle();
+            }
+            return nullptr;
+        }
+
+        void* CRUCIBLE_NATIVE_MeshUVBufferCpuHandle(Mesh* mesh)
+        {
+            if (mesh->uvBuffer()->accessibility() == slag::Buffer::Accessibility::CPU_AND_GPU)
+            {
+                return mesh->uvBuffer()->cpuHandle();
+            }
+            return nullptr;
+        }
+
+        void* CRUCIBLE_NATIVE_MeshUV2BufferCpuHandle(Mesh* mesh)
+        {
+            if (mesh->uvBuffer2()->accessibility() == slag::Buffer::Accessibility::CPU_AND_GPU)
+            {
+                return mesh->uvBuffer2()->cpuHandle();
+            }
+            return nullptr;
+        }
+
+        void* CRUCIBLE_NATIVE_MeshUV3BufferCpuHandle(Mesh* mesh)
+        {
+            if (mesh->uvBuffer3()->accessibility() == slag::Buffer::Accessibility::CPU_AND_GPU)
+            {
+                return mesh->uvBuffer3()->cpuHandle();
+            }
+            return nullptr;
+        }
+
+        void* CRUCIBLE_NATIVE_MeshUV4BufferCpuHandle(Mesh* mesh)
+        {
+            if (mesh->uvBuffer4()->accessibility() == slag::Buffer::Accessibility::CPU_AND_GPU)
+            {
+                return mesh->uvBuffer4()->cpuHandle();
+            }
+            return nullptr;
+        }
+
+        void* CRUCIBLE_NATIVE_MeshIndexBufferCpuHandle(Mesh* mesh)
+        {
+            if (mesh->indexBuffer()->accessibility() == slag::Buffer::Accessibility::CPU_AND_GPU)
+            {
+                return mesh->indexBuffer()->cpuHandle();
+            }
+            return nullptr;
         }
     } // scripting
 } // slag
