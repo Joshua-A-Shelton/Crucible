@@ -20,9 +20,9 @@ public static class API
             var consoleText = outWriter.ToString();
             Console.SetOut(originalConsole);
 
-            if (success is bool successStatus)
+            if (success is TestResult successStatus)
             {
-                if (successStatus)
+                if (successStatus.Result == TestResult.ResultCode.Pass)
                 {
                     Console.WriteLine(
                         $"<OK> API {methodInfo.DeclaringType?.FullName}.{methodInfo.Name} ({endMilliseconds - startMilliseconds} ms)");
@@ -36,10 +36,12 @@ public static class API
                 {
                     Console.WriteLine(
                         $"<FAILED> API {methodInfo.DeclaringType?.FullName}.{methodInfo.Name} ({endMilliseconds - startMilliseconds} ms)");
+                    
                     if (!string.IsNullOrEmpty(consoleText))
                     {
                         Console.WriteLine(consoleText);
                     }
+                    Console.WriteLine($"[[{successStatus.Message}: On Line ({successStatus.Line}) {successStatus.File}]]");
                     return false;
                 }
             }
@@ -53,6 +55,11 @@ public static class API
         catch (Exception e)
         {
             long endMilliseconds = DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
+            if (e.InnerException != null)
+            {
+                Console.WriteLine(e.InnerException.Message);
+                Console.WriteLine(e.InnerException.StackTrace);
+            }
             Console.WriteLine(e.Message);
             Console.WriteLine(e.StackTrace);
             var consoleText = outWriter.ToString();
@@ -86,7 +93,7 @@ public static class API
             var testMethods = testType.GetMethods(BindingFlags.Static | BindingFlags.Public);
             foreach (MethodInfo methodInfo in testMethods)
             {
-                if (methodInfo.ReturnType == typeof(bool) && methodInfo.GetParameters().Length == 0)
+                if (methodInfo.ReturnType == typeof(TestResult) && methodInfo.GetParameters().Length == 0)
                 {
                     if (!outputTestData(methodInfo))
                     {

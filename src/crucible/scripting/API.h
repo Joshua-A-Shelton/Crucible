@@ -116,8 +116,8 @@ namespace crucible
             CRUCIBLE_API void CRUCIBLE_NATIVE_NodeEnable(crucible::Node* node, bool propagate);
             CRUCIBLE_API void CRUCIBLE_NATIVE_NodeDisable(crucible::Node* node, bool propagate);
 
-            CRUCIBLE_API Mesh* CRUCIBLE_NATIVE_MeshNew(Mesh::MeshAttributeData* data, uint32_t vertexCount, void* indexData, slag::Buffer::IndexSize indexType, uint32_t indexCount, const Mesh::MeshBufferAccessibility& bufferAccessibility);
-            CRUCIBLE_API Mesh* CRUCIBLE_NATIVE_MeshNewBatchedInit(Mesh::MeshAttributeData* data, uint32_t vertexCount, void* indexData, slag::Buffer::IndexSize indexType, uint32_t indexCount, const Mesh::MeshBufferAccessibility& bufferAccessibility, DeferredJobQueue* deferredQueue, void* IDeferredInitHandle);
+            CRUCIBLE_API Mesh* CRUCIBLE_NATIVE_MeshNew(Mesh::MeshAttributeData* data, void* indexData, slag::Buffer::IndexSize indexType, uint32_t indexCount, const Mesh::MeshBufferAccessibility& bufferAccessibility);
+            CRUCIBLE_API Mesh* CRUCIBLE_NATIVE_MeshNewBatchedInit(Mesh::MeshAttributeData* data, void* indexData, slag::Buffer::IndexSize indexType, uint32_t indexCount, const Mesh::MeshBufferAccessibility& bufferAccessibility, DeferredJobQueue* deferredQueue, void* IDeferredInitHandle);
             CRUCIBLE_API void CRUCIBLE_NATIVE_MeshDelete(Mesh* mesh);
             CRUCIBLE_API Mesh::VertexAttributeFlags CRUCIBLE_NATIVE_MeshDefinedVertexAttributeFlags(const Mesh* mesh);
             CRUCIBLE_API uint32_t CRUCIBLE_NATIVE_MeshVertexCount(const Mesh* mesh);

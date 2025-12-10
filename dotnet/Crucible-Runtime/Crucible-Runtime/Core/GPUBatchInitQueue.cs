@@ -8,7 +8,7 @@ public partial class GPUBatchInitQueue
     private IntPtr _deferredJobQueueHandle =  IntPtr.Zero;
     internal IntPtr DeferredJobQueueHandle{get{return _deferredJobQueueHandle;}}
 
-    GPUBatchInitQueue()
+    public GPUBatchInitQueue()
     {
         _deferredJobQueueHandle = CRUCIBLE_NATIVE_DeferredJobQueueNew();
     }

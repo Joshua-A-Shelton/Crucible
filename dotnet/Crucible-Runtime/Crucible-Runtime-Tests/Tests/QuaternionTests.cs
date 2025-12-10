@@ -8,7 +8,7 @@ public static class QuaternionTests
 {
     [DllImport("Crucible")]
     private static extern void CRUCIBLE_NATIVE_QuaternionMultiply(ref Quaternion q1, ref Quaternion q2, ref Quaternion q3);
-    public static bool MultiplyTest()
+    public static TestResult MultiplyTest()
     {
         Quaternion q1 = new Quaternion(0.785398f,Vector3.Up());
         Quaternion q2 = new Quaternion(new Vector3(0.785398f,0.785398f,0));
@@ -16,26 +16,35 @@ public static class QuaternionTests
         Quaternion expected = new Quaternion();
         CRUCIBLE_NATIVE_QuaternionMultiply(ref q1, ref q2, ref expected);
         var same =  Quaternion.Approximately(actual, expected);
-        return same;
+        if (same)
+        {
+            return TestResult.Pass();
+        }
+        return TestResult.Fail("Quaternion multiplication gave incorrect result");
     }
 
     [DllImport("Crucible")]
     private static extern float CRUCIBLE_NATIVE_QuaternionMagnitude(ref Quaternion of);
 
-    public static bool MagnitudeTest()
+    public static TestResult MagnitudeTest()
     {
         Quaternion q1 = new Quaternion(0.785398f,Vector3.Up());
         Quaternion q2 = new Quaternion(new Vector3(0.785398f,0.785398f,0));
         Quaternion result = q1 * q2 * q1 * q2 * q2 * q1;
         float expected = result.Magnitude();
         float actual = CRUCIBLE_NATIVE_QuaternionMagnitude(ref result);
-        return Core.Math.Common.Approximately(actual, expected);
+        var same = Core.Math.Common.Approximately(actual, expected);
+        if (same)
+        {
+            return TestResult.Pass();
+        }
+        return TestResult.Fail("Quaternion magnitude gave incorrect result");
     }
 
     [DllImport("Crucible")]
     private static extern void CRUCIBLE_NATIVE_QuaternionNormalized(ref Quaternion of, ref Quaternion outResult);
     
-    public static bool NormalizeTest()
+    public static TestResult NormalizeTest()
     {
         Quaternion q1 = new Quaternion(0.785398f,Vector3.Up());
         Quaternion q2 = new Quaternion(new Vector3(0.785398f,0.785398f,0));
@@ -45,19 +54,29 @@ public static class QuaternionTests
         var actual = result.Normalized();
         if (!Core.Math.Common.Approximately(actual.Magnitude(), 1.0f))
         {
-            return false;
+            return TestResult.Fail("Magnitude not 1 after normalizing");
         }
-        return Quaternion.Approximately(expected, actual);
+        var same = Quaternion.Approximately(expected, actual);
+        if (same)
+        {
+            return TestResult.Pass();
+        }
+        return TestResult.Fail("Quaternion normalization gave incorrect result");
     }
     [DllImport("Crucible")]
     private static extern float CRUCIBLE_NATIVE_QuaternionInverse(ref Quaternion of, ref Quaternion outResult);
 
-    public static bool InverseTest()
+    public static TestResult InverseTest()
     {
         Quaternion q1 = new Quaternion(0.785398f,Vector3.Up());
         Quaternion expected = new Quaternion();
         CRUCIBLE_NATIVE_QuaternionInverse(ref q1, ref expected);
         var actual = q1.Inverse();
-        return Quaternion.Approximately(expected, actual);
+        var same = Quaternion.Approximately(expected, actual);
+        if (!same)
+        {
+            return TestResult.Fail("Quaternion inverse gave incorrect result");
+        }
+        return TestResult.Pass();
     }
 }

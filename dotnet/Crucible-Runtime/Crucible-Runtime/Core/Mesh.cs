@@ -42,6 +42,149 @@ public unsafe partial class Mesh
         UInt32=1,
     }
 
+    public Mesh(
+        Math.Vector3[] positions,
+        UInt16[] indexes,
+        Math.Vector3[]? normals = null,
+        Math.Vector3[]? tangents = null,
+        Crucible.Core.Color[]? colors = null,
+        BoneWeights[]? boneWeights = null,
+        Math.Vector2[]? uvs = null,
+        Math.Vector2[]? uvs2 = null,
+        Math.Vector2[]? uvs3 = null,
+        Math.Vector2[]? uvs4 = null,
+        MeshBufferAccessibility? bufferAccessibility = null)
+    {
+        constructFromData<UInt16>(positions, indexes, normals, tangents, colors, boneWeights, uvs, uvs2, uvs3, uvs4, bufferAccessibility);
+    }
+    
+    public Mesh(
+        Math.Vector3[] positions,
+        UInt32[] indexes,
+        Math.Vector3[]? normals = null,
+        Math.Vector3[]? tangents = null,
+        Crucible.Core.Color[]? colors = null,
+        BoneWeights[]? boneWeights = null,
+        Math.Vector2[]? uvs = null,
+        Math.Vector2[]? uvs2 = null,
+        Math.Vector2[]? uvs3 = null,
+        Math.Vector2[]? uvs4 = null,
+        MeshBufferAccessibility? bufferAccessibility = null)
+    {
+        constructFromData<UInt32>(positions, indexes, normals, tangents, colors, boneWeights, uvs, uvs2, uvs3, uvs4, bufferAccessibility);
+    }
+
+    private void constructFromData<T>(Math.Vector3[] positions,
+        T[] indexes,
+        Math.Vector3[]? normals = null,
+        Math.Vector3[]? tangents = null,
+        Crucible.Core.Color[]? colors = null,
+        BoneWeights[]? boneWeights = null,
+        Math.Vector2[]? uvs = null,
+        Math.Vector2[]? uvs2 = null,
+        Math.Vector2[]? uvs3 = null,
+        Math.Vector2[]? uvs4 = null,
+        MeshBufferAccessibility? bufferAccessibility = null)
+    {
+        if (positions.Length < 3)
+        {
+            throw new ArgumentException("Mesh must have at least 3 vertices");
+        }
+
+        if (indexes.Length % 3 != 0 || indexes.Length == 0)
+        {
+            throw new ArgumentException("Mesh must have multiple of 3 indices");
+        }
+        var vertexCount = positions.Length;
+        if (normals != null)
+        {
+            if (normals.Length != vertexCount)
+            {
+                throw new ArgumentException("Mesh have same number of normals as positions");
+            }
+        }
+        
+        if (tangents != null)
+        {
+            if (tangents.Length != vertexCount)
+            {
+                throw new ArgumentException("Mesh have same number of tangents as positions");
+            }
+        }
+        
+        if (colors != null)
+        {
+            if (colors.Length != vertexCount)
+            {
+                throw new ArgumentException("Mesh have same number of colors as positions");
+            }
+        }
+        
+        if (boneWeights != null)
+        {
+            if (boneWeights.Length != vertexCount)
+            {
+                throw new ArgumentException("Mesh have same number of bone weights as positions");
+            }
+        }
+        
+        if (uvs != null)
+        {
+            if (uvs.Length != vertexCount)
+            {
+                throw new ArgumentException("Mesh have same number of uvs as positions");
+            }
+        }
+        
+        if (uvs2 != null)
+        {
+            if (uvs2.Length != vertexCount)
+            {
+                throw new ArgumentException("Mesh have same number of secondary uvs as positions");
+            }
+        }
+        
+        if (uvs3 != null)
+        {
+            if (uvs3.Length != vertexCount)
+            {
+                throw new ArgumentException("Mesh have same number of tertiary uvs as positions");
+            }
+        }
+        
+        if (uvs4 != null)
+        {
+            if (uvs4.Length != vertexCount)
+            {
+                throw new ArgumentException("Mesh have same number of quadriary uvs as positions");
+            }
+        }
+        
+        MeshBufferAccessibility access = bufferAccessibility == null? new MeshBufferAccessibility(): bufferAccessibility.Value;
+        IndexSize indexSize = IndexSize.UInt16;
+        if (typeof(T) == typeof(UInt32))
+        {
+            indexSize = IndexSize.UInt32;
+        }
+
+        fixed (void* positionsPtr = positions, normalsPtr = normals, tangentsPtr = tangents, colorsPtr =
+                   colors, boneWeightsPtr = boneWeights, uvsPtr = uvs, uvs2Ptr = uvs2, uvs3Ptr = uvs3, uvs4Ptr = uvs4, indexPtr = indexes)
+        {
+            MeshAttributeData attributeData =  new MeshAttributeData();
+            attributeData.positionBuffer = (byte*)positionsPtr;
+            attributeData.normalBuffer = (byte*)normalsPtr;
+            attributeData.tangentBuffer = (byte*)tangentsPtr;
+            attributeData.colorBuffer = (byte*)colorsPtr;
+            attributeData.boneWeightBuffer = (byte*)boneWeightsPtr;
+            attributeData.uvBuffer = (byte*)uvsPtr;
+            attributeData.uv2Buffer = (byte*)uvs2Ptr;
+            attributeData.uv3Buffer = (byte*)uvs3Ptr;
+            attributeData.uv4Buffer = (byte*)uvs4Ptr;
+            attributeData.vertexCount = (uint)vertexCount;
+            _handle = CRUCIBLE_NATIVE_MeshNew(ref attributeData,indexPtr,indexSize,(uint)indexes.Length,ref access);
+        }
+    }
+
     private Mesh(IntPtr handle)
     {
         _handle = handle;
@@ -95,9 +238,9 @@ public unsafe partial class Mesh
 
 
     [LibraryImport("Crucible")]
-    private static partial IntPtr CRUCIBLE_NATIVE_MeshNew(ref MeshAttributeData attributeData, UInt32 vertexCount, void* indexData, IndexSize indexSize, UInt32 indexCount, ref MeshBufferAccessibility bufferAccessibility);
+    private static partial IntPtr CRUCIBLE_NATIVE_MeshNew(ref MeshAttributeData attributeData, void* indexData, IndexSize indexSize, UInt32 indexCount, ref MeshBufferAccessibility bufferAccessibility);
     [LibraryImport("Crucible")]
-    private static partial IntPtr CRUCIBLE_NATIVE_MeshNewBatchedInit(ref MeshAttributeData attributeData, UInt32 vertexCount, void* indexData, IndexSize indexSize, UInt32 indexCount, ref MeshBufferAccessibility bufferAccessibility, IntPtr deferredQueueHandle, IntPtr IDeferredInitHandle);
+    private static partial IntPtr CRUCIBLE_NATIVE_MeshNewBatchedInit(ref MeshAttributeData attributeData, void* indexData, IndexSize indexSize, UInt32 indexCount, ref MeshBufferAccessibility bufferAccessibility, IntPtr deferredQueueHandle, IntPtr IDeferredInitHandle);
     [LibraryImport("Crucible")]
     private static partial void CRUCIBLE_NATIVE_MeshDelete(IntPtr handle);
     [LibraryImport("Crucible")]
@@ -159,7 +302,7 @@ public unsafe partial class Mesh
     /// <param name="reader">Binary reader of mesh data</param>
     /// <param name="accessibility">Accessibility of mesh data buffers</param>
     /// <returns></returns>
-    internal static Mesh ReadFromStream(BinaryReader reader, MeshBufferAccessibility accessibility)
+    public static Mesh ReadFromStream(BinaryReader reader, MeshBufferAccessibility accessibility)
     {
         return new Mesh(MeshConstruct(reader, accessibility,null,null));
     }
@@ -170,7 +313,7 @@ public unsafe partial class Mesh
     /// <param name="accessibility">Accessibility of mesh data buffers</param>
     /// <param name="initQueue">Queue that batches a series of GPU operations</param>
     /// <param name="onFinish">Action to perform when initialization is finished</param>
-    internal static void ReadFromStreamBatchedInit(BinaryReader reader, MeshBufferAccessibility accessibility, GPUBatchInitQueue initQueue, Action<Mesh> onFinish)
+    public static void ReadFromStreamBatchedInit(BinaryReader reader, MeshBufferAccessibility accessibility, GPUBatchInitQueue initQueue, Action<Mesh> onFinish)
     {
         MeshConstruct(reader, accessibility, initQueue, onFinish);
     }
@@ -209,7 +352,7 @@ public unsafe partial class Mesh
         {
             throw new FormatException("Mesh must have multiple of 3 indices");
         }
-
+        
         int requiredAttributeCount = BitOperations.PopCount(attributeFlags);
         int foundAttributes = 0;
         byte[]? positionBuffer = null;
@@ -323,9 +466,11 @@ public unsafe partial class Mesh
         {
             throw new FormatException("Mesh Index data is corrupt");
         }
-
+        
         var indexData = reader.ReadBytes(indexCompressedLength);
+        
         var indexBuffer = LZ4.Decompress(indexData,indexUncompressedLength);
+        
         fixed (byte* positionPtr = positionBuffer, normalPtr = normalBuffer, tangentPtr = tangentBuffer, colorPtr =
                    colorBuffer, boneWeightPtr = boneWeightBuffer, uvPtr = uvBuffer, uv2Ptr = uv2Buffer, uv3Ptr =
                    uv3Buffer, uv4Ptr = uv4Buffer, indexPtr = indexBuffer)
@@ -346,7 +491,7 @@ public unsafe partial class Mesh
             {
                 MeshDeferredInit deferredInit = new MeshDeferredInit();
                 GCHandle handle = GCHandle.Alloc(deferredInit);
-                var meshHandle = CRUCIBLE_NATIVE_MeshNewBatchedInit(ref attributeData, vertexCount, indexPtr, vertexSize, indexCount, ref accessibility,initQueue.DeferredJobQueueHandle,GCHandle.ToIntPtr(handle));
+                var meshHandle = CRUCIBLE_NATIVE_MeshNewBatchedInit(ref attributeData, indexPtr, vertexSize, indexCount, ref accessibility,initQueue.DeferredJobQueueHandle,GCHandle.ToIntPtr(handle));
                 Mesh mesh = new Mesh(meshHandle);
                 deferredInit.Mesh = mesh;
                 deferredInit.Callback = onFinish;
@@ -355,7 +500,7 @@ public unsafe partial class Mesh
             }
             else
             {
-                return CRUCIBLE_NATIVE_MeshNew(ref attributeData, vertexCount, indexPtr, vertexSize, indexCount, ref accessibility);
+                return CRUCIBLE_NATIVE_MeshNew(ref attributeData, indexPtr, vertexSize, indexCount, ref accessibility);
             }
         }
     }
@@ -364,12 +509,10 @@ public unsafe partial class Mesh
     /// </summary>
     /// <param name="mesh"></param>
     /// <returns></returns>
-    internal static byte[] Serialize(Mesh mesh)
+    public static byte[] Serialize(Mesh mesh)
     {
-        
         SortedDictionary<VertexAttributes, LZ4CompressionData> attributeData = new SortedDictionary<VertexAttributes, LZ4CompressionData>();
         var definedAttributes = mesh.DefinedAttributes;
-        
         if ((definedAttributes & VertexAttributes.Position) == VertexAttributes.Position)
         {
             byte[] positionData = new byte[mesh.VertexCount*sizeof(Vector3)];
@@ -380,7 +523,7 @@ public unsafe partial class Mesh
             
             attributeData.Add(VertexAttributes.Position, new LZ4CompressionData(positionData));
         }
-        
+
         if ((definedAttributes & VertexAttributes.Normal) == VertexAttributes.Normal)
         {
             byte[] normalData = new byte[mesh.VertexCount*sizeof(Vector3)];
@@ -390,7 +533,7 @@ public unsafe partial class Mesh
             }
             attributeData.Add(VertexAttributes.Normal, new LZ4CompressionData(normalData));
         }
-        
+
         if ((definedAttributes & VertexAttributes.Tangent) == VertexAttributes.Tangent)
         {
             byte[] tangentData = new byte[mesh.VertexCount*sizeof(Vector3)];
@@ -400,7 +543,7 @@ public unsafe partial class Mesh
             }
             attributeData.Add(VertexAttributes.Tangent, new LZ4CompressionData(tangentData));
         }
-        
+
         if ((definedAttributes & VertexAttributes.Color) == VertexAttributes.Color)
         {
             byte[] colorData = new byte[mesh.VertexCount*sizeof(byte)*4];
@@ -410,7 +553,7 @@ public unsafe partial class Mesh
             }
             attributeData.Add(VertexAttributes.Color, new LZ4CompressionData(colorData));
         }
-        
+
         if ((definedAttributes & VertexAttributes.BoneWeight) == VertexAttributes.BoneWeight)
         {
             byte[] boneWeightData = new byte[mesh.VertexCount*sizeof(BoneWeights)];
@@ -420,7 +563,7 @@ public unsafe partial class Mesh
             }
             attributeData.Add(VertexAttributes.BoneWeight, new LZ4CompressionData(boneWeightData));
         }
-        
+
         if ((definedAttributes & VertexAttributes.UV) == VertexAttributes.UV)
         {
             byte[] uvData = new byte[mesh.VertexCount*sizeof(Vector2)];
@@ -430,7 +573,7 @@ public unsafe partial class Mesh
             }
             attributeData.Add(VertexAttributes.UV, new LZ4CompressionData(uvData));
         }
-        
+
         if ((definedAttributes & VertexAttributes.UV2) == VertexAttributes.UV2)
         {
             byte[] uv2Data = new byte[mesh.VertexCount*sizeof(Vector2)];
@@ -440,7 +583,7 @@ public unsafe partial class Mesh
             }
             attributeData.Add(VertexAttributes.UV2, new LZ4CompressionData(uv2Data));
         }
-        
+
         if ((definedAttributes & VertexAttributes.UV3) == VertexAttributes.UV3)
         {
             byte[] uv3Data = new byte[mesh.VertexCount*sizeof(Vector2)];
@@ -450,7 +593,7 @@ public unsafe partial class Mesh
             }
             attributeData.Add(VertexAttributes.UV3, new LZ4CompressionData(uv3Data));
         }
-        
+
         if ((definedAttributes & VertexAttributes.UV4) == VertexAttributes.UV4)
         {
             byte[] uv4Data = new byte[mesh.VertexCount*sizeof(Vector2)];
@@ -460,13 +603,14 @@ public unsafe partial class Mesh
             }
             attributeData.Add(VertexAttributes.UV4, new LZ4CompressionData(uv4Data));
         }
-        
+
         byte[] indexData = new byte[(mesh.VertexIndexSize == IndexSize.UInt16? sizeof(UInt16) : sizeof(UInt32)) * mesh.IndexCount];
         fixed (byte* indexPtr = indexData)
         {
             CRUCIBLE_NATIVE_MeshCopyIndexData(mesh._handle,indexPtr);
         }
 
+        
         var compressedIndexData = new LZ4CompressionData(indexData);
 
         Int32 totalSize = 5 + //magic number
@@ -474,6 +618,7 @@ public unsafe partial class Mesh
                           sizeof(UInt32) + //vertex count
                           sizeof(Int32) + //index type
                           sizeof(UInt32); //index count
+
         foreach (var lz4CompressionData in attributeData)
         {
             totalSize += sizeof(VertexAttributes) + //vertex attribute flag
@@ -481,7 +626,7 @@ public unsafe partial class Mesh
                          sizeof(Int32) + // uncompressed size
                          lz4CompressionData.Value.CompressedDataSize; //compressed data
         }
-        
+
         totalSize += sizeof(Int32); //compressed index size
         totalSize += sizeof(Int32); //uncompressed index size
         totalSize += compressedIndexData.CompressedDataSize; // compressed index data
@@ -492,24 +637,24 @@ public unsafe partial class Mesh
         serializedData[2] = (byte)'s';
         serializedData[3] = (byte)'h';
         serializedData[4] = (byte)'\n';
+
         int currentIndex = 5;
         currentIndex += serializedData.Insert(definedAttributes,currentIndex);
         currentIndex += serializedData.Insert(mesh.VertexCount,currentIndex);
         currentIndex += serializedData.Insert(mesh.VertexIndexSize,currentIndex);
-        currentIndex += serializedData.Insert(mesh.VertexCount,currentIndex);
+        currentIndex += serializedData.Insert(mesh.IndexCount,currentIndex);
+
         foreach (var lz4CompressionData in attributeData)
         {
             currentIndex += serializedData.Insert(lz4CompressionData.Key,currentIndex);
             currentIndex += serializedData.Insert(lz4CompressionData.Value.CompressedDataSize,currentIndex);
             currentIndex += serializedData.Insert(lz4CompressionData.Value.UncompressedDataSize,currentIndex);
-            System.Buffer.BlockCopy(serializedData,currentIndex,lz4CompressionData.Value.CompressedData,0,lz4CompressionData.Value.CompressedDataSize);
+            System.Buffer.BlockCopy(lz4CompressionData.Value.CompressedData,0,serializedData,currentIndex,lz4CompressionData.Value.CompressedDataSize);
             currentIndex += lz4CompressionData.Value.CompressedDataSize;
         }
-        
         currentIndex += serializedData.Insert(compressedIndexData.CompressedDataSize,currentIndex);
         currentIndex += serializedData.Insert(compressedIndexData.UncompressedDataSize,currentIndex);
-        System.Buffer.BlockCopy(serializedData,currentIndex,compressedIndexData.CompressedData,0,compressedIndexData.CompressedDataSize);
-
+        System.Buffer.BlockCopy(compressedIndexData.CompressedData,0,serializedData,currentIndex,compressedIndexData.CompressedDataSize);
         return serializedData;
     }
     /// <summary>
@@ -743,6 +888,241 @@ public unsafe partial class Mesh
         }
 
         return new Span<Math.Vector2>(CRUCIBLE_NATIVE_MeshUV4BufferCpuHandle(_handle), (int)VertexCount);
+    }
+    /// <summary>
+    /// Gets the buffer of the index data if it's CPU accessible
+    /// </summary>
+    /// <returns></returns>
+    /// <exception cref="BufferNotLocalException">The buffer is not CPU accessible</exception>
+    public Span<Byte> LocalIndexData()
+    {
+        if (CRUCIBLE_NATIVE_MeshIndexAttributeBufferAccess(_handle) == Buffer.Accessibility.Gpu)
+        {
+            throw new BufferNotLocalException("Index buffer is not CPU accessible");
+        }
+
+        var length = IndexCount * (VertexIndexSize == IndexSize.UInt16 ? sizeof(UInt16) : sizeof(UInt32));
+        return new Span<byte>(CRUCIBLE_NATIVE_MeshIndexBufferCpuHandle(_handle), (int)length);
+    }
+
+    /// <summary>
+    /// Gets the buffer of the index data if it's CPU accessible
+    /// </summary>
+    /// <returns></returns>
+    /// <exception cref="InvalidOperationException">The buffer doesn't store UInt16 indexes</exception>
+    /// <exception cref="BufferNotLocalException">The buffer is not CPU accessible</exception>
+    public Span<UInt16> LocalIndex16Data()
+    {
+        if (VertexIndexSize != IndexSize.UInt16)
+        {
+            throw new InvalidOperationException("Index data is not stored as UInt16");
+        }
+        if (CRUCIBLE_NATIVE_MeshIndexAttributeBufferAccess(_handle) == Buffer.Accessibility.Gpu)
+        {
+            throw new BufferNotLocalException("Index buffer is not CPU accessible");
+        }
+
+        var length = IndexCount;
+        return new Span<UInt16>(CRUCIBLE_NATIVE_MeshIndexBufferCpuHandle(_handle), (int)length);
+    }
+
+    /// <summary>
+    /// Gets the buffer of the index data if it's CPU accessible
+    /// </summary>
+    /// <returns></returns>
+    /// <exception cref="InvalidOperationException">The buffer doesn't store UInt32 indexes</exception>
+    /// <exception cref="BufferNotLocalException">The buffer is not CPU accessible</exception>
+    public Span<UInt32> LocalIndex32Data()
+    {
+        if (VertexIndexSize != IndexSize.UInt32)
+        {
+            throw new InvalidOperationException("Index data is not stored as UInt32");
+        }
+        if (CRUCIBLE_NATIVE_MeshIndexAttributeBufferAccess(_handle) == Buffer.Accessibility.Gpu)
+        {
+            throw new BufferNotLocalException("Index buffer is not CPU accessible");
+        }
+
+        var length = IndexCount;
+        return new Span<UInt32>(CRUCIBLE_NATIVE_MeshIndexBufferCpuHandle(_handle), (int)length);
+    }
+
+    /// <summary>
+    /// Get a copy of mesh position data
+    /// </summary>
+    /// <returns></returns>
+    public Vector3[] GetPositionData()
+    {
+        Vector3[] positionData = new Vector3[VertexCount];
+        fixed (Vector3* positionPtr = positionData)
+        {
+            CRUCIBLE_NATIVE_MeshCopyPositionData(_handle,positionPtr);
+        }
+        return positionData;
+    }
+    /// <summary>
+    /// Get a copy of mesh normal data if it exists
+    /// </summary>
+    /// <returns></returns>
+    public Vector3[]? GetNormalData()
+    {
+        if (!DefinedAttributes.HasFlag(VertexAttributes.Normal))
+        {
+            return null;
+        }
+        Vector3[] normalData = new Vector3[VertexCount];
+        fixed (Vector3* normalPtr = normalData)
+        {
+            CRUCIBLE_NATIVE_MeshCopyNormalData(_handle,normalPtr);
+        }
+        return normalData;
+    }
+    /// <summary>
+    /// Get a copy of mesh tangent data if it exists
+    /// </summary>
+    /// <returns></returns>
+    public Vector3[]? GetTangentData()
+    {
+        if (!DefinedAttributes.HasFlag(VertexAttributes.Tangent))
+        {
+            return null;
+        }
+        Vector3[] tangentData = new Vector3[VertexCount];
+        fixed (Vector3* tangentPtr = tangentData)
+        {
+            CRUCIBLE_NATIVE_MeshCopyTangentData(_handle,tangentPtr);
+        }
+        return tangentData;
+    }
+    /// <summary>
+    /// Get a copy of mesh color data if it exists
+    /// </summary>
+    /// <returns></returns>
+    public Crucible.Core.Color[]? GetColorData()
+    {
+        if (!DefinedAttributes.HasFlag(VertexAttributes.Color))
+        {
+            return null;
+        }
+        Crucible.Core.Color[] colorData = new Crucible.Core.Color[VertexCount];
+        fixed (Crucible.Core.Color* colorPtr = colorData)
+        {
+            CRUCIBLE_NATIVE_MeshCopyColorData(_handle,colorPtr);
+        }
+        return colorData;
+    }
+    /// <summary>
+    /// Get a copy of mesh bone weights data if it exists
+    /// </summary>
+    /// <returns></returns>
+    public BoneWeights[]? GetBoneWeightsData()
+    {
+        if (!DefinedAttributes.HasFlag(VertexAttributes.BoneWeight))
+        {
+            return null;
+        }
+        BoneWeights[] boneWeightData = new BoneWeights[VertexCount];
+        fixed (BoneWeights* boneWeightPtr = boneWeightData)
+        {
+            CRUCIBLE_NATIVE_MeshCopyBoneWeightData(_handle,boneWeightPtr);
+        }
+        return boneWeightData;
+    }
+    /// <summary>
+    /// Get a copy of mesh uv data if it exists
+    /// </summary>
+    /// <returns></returns>
+    public Vector2[]? GetUVData()
+    {
+        if (!DefinedAttributes.HasFlag(VertexAttributes.UV))
+        {
+            return null;
+        }
+        Vector2[] uvData = new Vector2[VertexCount];
+        fixed (Vector2* uvPtr = uvData)
+        {
+            CRUCIBLE_NATIVE_MeshCopyUVData(_handle,uvPtr);
+        }
+        return uvData;
+    }
+    /// <summary>
+    /// Get a copy of mesh uv 2 data if it exists
+    /// </summary>
+    /// <returns></returns>
+    public Vector2[]? GetUV2Data()
+    {
+        if (!DefinedAttributes.HasFlag(VertexAttributes.UV2))
+        {
+            return null;
+        }
+        Vector2[] uvData = new Vector2[VertexCount];
+        fixed (Vector2* uvPtr = uvData)
+        {
+            CRUCIBLE_NATIVE_MeshCopyUV2Data(_handle,uvPtr);
+        }
+        return uvData;
+    }
+    /// <summary>
+    /// Get a copy of mesh uv 3 data if it exists
+    /// </summary>
+    /// <returns></returns>
+    public Vector2[]? GetUV3Data()
+    {
+        if (!DefinedAttributes.HasFlag(VertexAttributes.UV3))
+        {
+            return null;
+        }
+        Vector2[] uvData = new Vector2[VertexCount];
+        fixed (Vector2* uvPtr = uvData)
+        {
+            CRUCIBLE_NATIVE_MeshCopyUV3Data(_handle,uvPtr);
+        }
+        return uvData;
+    }
+    /// <summary>
+    /// Get a copy of mesh uv 4 data if it exists
+    /// </summary>
+    /// <returns></returns>
+    public Vector2[]? GetUV4Data()
+    {
+        if (!DefinedAttributes.HasFlag(VertexAttributes.UV4))
+        {
+            return null;
+        }
+        Vector2[] uvData = new Vector2[VertexCount];
+        fixed (Vector2* uvPtr = uvData)
+        {
+            CRUCIBLE_NATIVE_MeshCopyUV4Data(_handle,uvPtr);
+        }
+        return uvData;
+    }
+
+    public UInt16[]? GetIndex16Data()
+    {
+        if (VertexIndexSize != IndexSize.UInt16)
+        {
+            return null;
+        }
+        UInt16[] indexData = new UInt16[IndexCount];
+        fixed (UInt16* indexPtr = indexData)
+        {
+            CRUCIBLE_NATIVE_MeshCopyIndexData(_handle,indexPtr);
+        }
+        return indexData;
+    }
+
+    public UInt32[]? GetIndex32Data()
+    {
+        if (VertexIndexSize != IndexSize.UInt32)
+        {
+            return null;
+        }
+        UInt32[] indexData = new UInt32[IndexCount];
+        fixed (UInt32* indexPtr = indexData)
+        {
+            CRUCIBLE_NATIVE_MeshCopyIndexData(_handle,indexPtr);
+        }
+        return indexData;
     }
     
 }

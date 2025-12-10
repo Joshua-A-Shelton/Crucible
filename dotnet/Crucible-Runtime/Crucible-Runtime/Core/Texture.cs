@@ -127,6 +127,6 @@ public abstract partial class Texture
         get { return CRUCIBLE_NATIVE_TextureGetMipCount(_handle); }
     }
     
-    public abstract void Save(string path);
+    public abstract byte[] Serialize();
     
 }

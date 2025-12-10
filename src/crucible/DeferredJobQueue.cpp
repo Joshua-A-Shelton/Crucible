@@ -65,6 +65,11 @@ namespace crucible
         return *this;
     }
 
+    void DeferredJob::execute()
+    {
+        (*DEFERRED_JOB_QUEUE_callDeferredInitialize)(_IDeferredInitInstance.gcHandle());
+    }
+
     void DeferredJob::move(DeferredJob& from)
     {
         _buffers.swap(from._buffers);
@@ -123,6 +128,12 @@ namespace crucible
         _finished = slag::Semaphore::newSemaphore(0);
         _commandBuffer->begin();
 
+        while (!_deferredJobs.empty())
+        {
+            auto& job = _deferredJobs.front();
+            job.execute();
+            _deferredJobs.pop();
+        }
     }
 
     bool DeferredJobQueue::systemInitialize()

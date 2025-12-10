@@ -23,66 +23,67 @@ namespace crucible
         return *(&(position) + std::countr_zero((uint16_t)attribute));
     }
 
+
     Mesh::VertexAttributeFlags Mesh::MeshAttributeData::definedAttributes() const
     {
-        Mesh::VertexAttributeFlags defined = {static_cast<Mesh::VertexAttributeFlags>(0)};
-        if (positionData==nullptr){defined|=Mesh::VertexAttribute::POSITION;}
-        if (normalData==nullptr){defined|=Mesh::VertexAttribute::NORMAL;}
-        if (tangentData==nullptr){defined|=Mesh::VertexAttribute::TANGENT;}
-        if (colorData==nullptr){defined|=Mesh::VertexAttribute::COLOR;}
-        if (boneWeightData==nullptr){defined|=Mesh::VertexAttribute::BONE_WEIGHT;}
-        if (uvData==nullptr){defined|=Mesh::VertexAttribute::UV;}
-        if (uv2Data==nullptr){defined|=Mesh::VertexAttribute::UV2;}
-        if (uv3Data==nullptr){defined|=Mesh::VertexAttribute::UV3;}
-        if (uv4Data==nullptr){defined|=Mesh::VertexAttribute::UV4;}
-        return defined;
+        Mesh::VertexAttributeFlags flags = static_cast<Mesh::VertexAttributeFlags>(0);
+        if (positionData){flags |= Mesh::VertexAttribute::POSITION;}
+        if (normalData){flags |= Mesh::VertexAttribute::NORMAL;}
+        if (tangentData){flags |= Mesh::VertexAttribute::TANGENT;}
+        if (colorData){flags |= Mesh::VertexAttribute::COLOR;}
+        if (boneWeightData){flags |= Mesh::VertexAttribute::BONE_WEIGHT;}
+        if (uvData){flags |= Mesh::VertexAttribute::UV;}
+        if (uv2Data){flags |= Mesh::VertexAttribute::UV2;}
+        if (uv3Data){flags |= Mesh::VertexAttribute::UV3;}
+        if (uv4Data){flags |= Mesh::VertexAttribute::UV4;}
+        return flags;
     }
 
     std::tuple<std::vector<Mesh::VertexAttribute>, std::vector<slag::Buffer*>> Mesh::MeshAttributeData::toBuffers() const
     {
         std::vector<Mesh::VertexAttribute> attributes;
         std::vector<slag::Buffer*> buffers;
-        if (positionData==nullptr)
+        if (positionData!=nullptr)
         {
             attributes.emplace_back(Mesh::VertexAttribute::POSITION);
             buffers.emplace_back(slag::Buffer::newBuffer(positionData,Mesh::attributeSize(Mesh::VertexAttribute::POSITION)*vertexCount,slag::Buffer::Accessibility::CPU_AND_GPU));
         }
-        if (normalData==nullptr)
+        if (normalData!=nullptr)
         {
             attributes.emplace_back(Mesh::VertexAttribute::NORMAL);
             buffers.emplace_back(slag::Buffer::newBuffer(normalData,Mesh::attributeSize(Mesh::VertexAttribute::NORMAL)*vertexCount,slag::Buffer::Accessibility::CPU_AND_GPU));
         }
-        if (tangentData==nullptr)
+        if (tangentData!=nullptr)
         {
             attributes.emplace_back(Mesh::VertexAttribute::TANGENT);
             buffers.emplace_back(slag::Buffer::newBuffer(tangentData,Mesh::attributeSize(Mesh::VertexAttribute::TANGENT)*vertexCount,slag::Buffer::Accessibility::CPU_AND_GPU));
         }
-        if (colorData==nullptr)
+        if (colorData!=nullptr)
         {
             attributes.emplace_back(Mesh::VertexAttribute::COLOR);
             buffers.emplace_back(slag::Buffer::newBuffer(colorData,Mesh::attributeSize(Mesh::VertexAttribute::COLOR)*vertexCount,slag::Buffer::Accessibility::CPU_AND_GPU));
         }
-        if (boneWeightData==nullptr)
+        if (boneWeightData!=nullptr)
         {
             attributes.emplace_back(Mesh::VertexAttribute::BONE_WEIGHT);
             buffers.emplace_back(slag::Buffer::newBuffer(boneWeightData,Mesh::attributeSize(Mesh::VertexAttribute::BONE_WEIGHT)*vertexCount,slag::Buffer::Accessibility::CPU_AND_GPU));
         }
-        if (uvData==nullptr)
+        if (uvData!=nullptr)
         {
             attributes.emplace_back(Mesh::VertexAttribute::UV);
             buffers.emplace_back(slag::Buffer::newBuffer(uvData,Mesh::attributeSize(Mesh::VertexAttribute::UV)*vertexCount,slag::Buffer::Accessibility::CPU_AND_GPU));
         }
-        if (uv2Data==nullptr)
+        if (uv2Data!=nullptr)
         {
             attributes.emplace_back(Mesh::VertexAttribute::UV2);
             buffers.emplace_back(slag::Buffer::newBuffer(uv2Data,Mesh::attributeSize(Mesh::VertexAttribute::UV2)*vertexCount,slag::Buffer::Accessibility::CPU_AND_GPU));
         }
-        if (uv3Data==nullptr)
+        if (uv3Data!=nullptr)
         {
             attributes.emplace_back(Mesh::VertexAttribute::UV3);
             buffers.emplace_back(slag::Buffer::newBuffer(uv3Data,Mesh::attributeSize(Mesh::VertexAttribute::UV3)*vertexCount,slag::Buffer::Accessibility::CPU_AND_GPU));
         }
-        if (uv4Data==nullptr)
+        if (uv4Data!=nullptr)
         {
             attributes.emplace_back(Mesh::VertexAttribute::UV4);
             buffers.emplace_back(slag::Buffer::newBuffer(uv4Data,Mesh::attributeSize(Mesh::VertexAttribute::UV4)*vertexCount,slag::Buffer::Accessibility::CPU_AND_GPU));
@@ -166,6 +167,7 @@ namespace crucible
         std::vector<slag::Buffer*> buffers(ATTRIBUTE_COUNT+1);
         _vertexCount = attributeBuffers.vertexCount;
         _indexSize = indexType;
+        _attributeFlags = attributeBuffers.definedAttributes();
         try
         {
             //Position Buffer

@@ -21,6 +21,7 @@ namespace crucible
         DeferredJob& operator=(const DeferredJob&) = delete;
         DeferredJob(DeferredJob&& from);
         DeferredJob& operator=(DeferredJob&& from);
+        void execute();
 
     private:
         void move(DeferredJob& from);

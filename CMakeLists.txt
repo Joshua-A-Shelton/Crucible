@@ -59,16 +59,6 @@ fetchcontent_declare(
 fetchcontent_makeavailable(glm)
 find_package(glm)
 
-fetchcontent_declare(
-        STB_IMAGE
-        GIT_REPOSITORY https://github.com/nothings/stb
-        GIT_TAG origin/master
-        GIT_SHALLOW TRUE
-        OVERRIDE_FIND_PACKAGE
-)
-FetchContent_MakeAvailable(STB_IMAGE)
-find_package(STB_IMAGE)
-
 set(LZ4_BUNDLED_MODE ON)
 fetchcontent_declare(
         lz4
@@ -144,8 +134,6 @@ add_library(Crucible SHARED
         src/crucible/scripting/ManagedInstance.h
         src/crucible/scripting/API.cpp
         src/crucible/scripting/API.h
-        src/crucible/serialization/TextureSerializer.cpp
-        src/crucible/serialization/TextureSerializer.h
         src/crucible/serialization/BufferUtils.h
         src/crucible/Node.cpp
         src/crucible/Node.h
@@ -164,7 +152,7 @@ add_library(Crucible SHARED
 
 target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})
 target_link_libraries(Crucible PUBLIC glm Slag SDL3::SDL3-static flecs::flecs_static lz4 Boost::endian Boost::uuid PRIVATE nethost)
-target_include_directories(Crucible PRIVATE ${DOT_NET_HOST_LOCATION} ${stb_image_SOURCE_DIR} ${lz4_SOURCE_DIR}/lib ${flecs_INCLUDE_DIRS})
+target_include_directories(Crucible PRIVATE ${DOT_NET_HOST_LOCATION} ${lz4_SOURCE_DIR}/lib ${flecs_INCLUDE_DIRS})
 
 #copy over c# config file (configure_file() is the copy operation, not related to the "configure file" that we're copying)
 configure_file(config/CSharpConfig.json "${CMAKE_BINARY_DIR}/config/CSharpConfig.json" COPYONLY)
@@ -222,6 +210,7 @@ if(RUN_CRUCIBLE_TESTS)
     add_dependencies(Crucible-Runtime-Tests Crucible-Runtime)
 
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Crucible.png ${CMAKE_BINARY_DIR}/Crucible.png COPYONLY)
+    add_custom_command(TARGET CrucibleTests POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/tests/resources ${CMAKE_BINARY_DIR}/resources)
 endif ()
 
 target_include_directories(Crucible PUBLIC src)

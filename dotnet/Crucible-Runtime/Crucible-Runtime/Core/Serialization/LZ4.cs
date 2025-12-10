@@ -73,7 +73,15 @@ public class LZ4CompressionData
 
     public LZ4CompressionData(Span<byte> uncompressedData)
     {
+        if (uncompressedData.Length == 0)
+        {
+            throw new ArgumentException("Must have data to compress");
+        }
         CompressedData = LZ4.Compress(uncompressedData);
+        if (CompressedData.Length == 0)
+        {
+            throw new InvalidDataException("Unable to compress data");
+        }
         UncompressedDataSize = uncompressedData.Length;
     }
     

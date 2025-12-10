@@ -2,7 +2,7 @@
 
 namespace Crucible.Core.Serialization;
 
-public static class ByteArrayExtensions
+public static unsafe class ByteArrayExtensions
 {
     /// <summary>
     /// Insert data objects into a byte array
@@ -14,21 +14,17 @@ public static class ByteArrayExtensions
     /// <returns>number of bytes inserted</returns>
     public static int Insert<T>(this byte[] byteArray, T data, int index) where T : unmanaged
     {
-        int size = Marshal.SizeOf<T>(data);
-        byte[] objectArray = new byte[size];
-        GCHandle handle = GCHandle.Alloc(objectArray, GCHandleType.Pinned);
+        int size = sizeof(T);
+        
+        GCHandle handle = GCHandle.Alloc(data, GCHandleType.Pinned);
+        
         try
         {
-            Marshal.StructureToPtr(data, handle.AddrOfPinnedObject(), false);
+            Marshal.Copy(handle.AddrOfPinnedObject(),byteArray,index,size);
         }
         finally
         {
             handle.Free();
-        }
-
-        for (var i = 0; i < size; i++)
-        {
-            byteArray[index + i] = byteArray[i];
         }
 
         return size;

@@ -5,17 +5,11 @@
 #include <crucible/Game.h>
 #include <fstream>
 #include <crucible/ecs/World.h>
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
 #include <slag/Slag.h>
 #include <lz4.h>
-#include <crucible/serialization/TextureSerializer.h>
 #include <crucible/utils/GPUUtils.h>
-
 #include <boost/container_hash/hash.hpp>
-
 #include "ManagedInstance.h"
-#include "boost/fusion/sequence/intrinsic/size.hpp"
 #include "crucible/DeferredJobQueue.h"
 
 namespace crucible
@@ -135,12 +129,25 @@ namespace crucible
 
         int32_t CRUCIBLE_NATIVE_LZ4Compress(void* uncompressedData, int32_t uncompressedLength, void* compressedBuffer, int32_t compressedCapacity)
         {
-            return LZ4_decompress_safe((char*)uncompressedData, (char*)compressedBuffer, uncompressedLength, compressedCapacity);
+            auto compressed = LZ4_compress_default((char*)uncompressedData, (char*)compressedBuffer, uncompressedLength, compressedCapacity);
+            if (compressed == 0)
+            {
+                memcpy(compressedBuffer, uncompressedData, uncompressedLength);
+                return uncompressedLength;
+            }
+            return compressed;
         }
 
         void CRUCIBLE_NATIVE_LZ4Decompress(void* compressedData, int32_t compressedLength, void* uncompressedBuffer, int32_t uncompressedLength)
         {
-            LZ4_decompress_safe((char*)compressedData,(char*)uncompressedBuffer,compressedLength,uncompressedLength);
+            if (compressedLength == uncompressedLength)
+            {
+                memcpy(uncompressedBuffer, compressedData, compressedLength);
+            }
+            else
+            {
+                LZ4_decompress_safe((char*)compressedData,(char*)uncompressedBuffer,compressedLength,uncompressedLength);
+            }
         }
 
         DeferredJobQueue* CRUCIBLE_NATIVE_DeferredJobQueueNew()
@@ -212,83 +219,6 @@ namespace crucible
         slag::Texture::SampleCount CRUCIBLE_NATIVE_TextureGetSampleCount(slag::Texture* texture)
         {
             return texture->sampleCount();
-        }
-
-
-        void CRUCIBLE_NATIVE_Texture2DFromExchange(const char* filePath, uint32_t mipLevels, slag::Texture** out)
-        {
-            int width, height, channels;
-            auto data = stbi_load(filePath, &width, &height,&channels,4);
-            if (data)
-            {
-                slag::TextureBufferMapping mapping
-                 {
-                     .bufferOffset = 0,
-                     .textureSubresource =
-                  {
-                         .aspectFlags = slag::Pixels::AspectFlags::COLOR,
-                         .mipLevel = 0,
-                         .baseArrayLayer = 0,
-                         .layerCount = 1,
-                     },
-                     .textureOffset = {0,0,0},
-                     .textureExtent = {(uint32_t)width,(uint32_t)height,1}
-                 };
-                try
-                {
-                    *out = slag::Texture::newTexture(slag::Pixels::Format::R8G8B8A8_UNORM,slag::Texture::Type::TEXTURE_2D,slag::Texture::UsageFlags::SAMPLED_IMAGE,width,height,1,mipLevels,1,slag::Texture::SampleCount::ONE,data,width*height*(sizeof(unsigned char)*4),&mapping,1);
-                    stbi_image_free(data);
-                }
-                catch(...)
-                {
-                    stbi_image_free(data);
-                    *out = nullptr;
-                    throw;
-                }
-                if (mipLevels > 1)
-                {
-                    slag::CommandBuffer* commandBuffer = slag::CommandBuffer::newCommandBuffer(slag::GPUQueue::QueueType::GRAPHICS);
-                    slag::Semaphore* commandsFinished = slag::Semaphore::newSemaphore(0);
-                    commandBuffer->begin();
-                    for (uint32_t i = 1; i < mipLevels; i++)
-                    {
-                        commandBuffer->updateMip(*out,0,0,i);
-                    }
-                    commandBuffer->end();
-
-                    slag::SemaphoreValue signal{.semaphore = commandsFinished,.value = 1};
-                    slag::QueueSubmissionBatch batch
-                    {
-                        .waitSemaphores = nullptr,
-                        .waitSemaphoreCount = 0,
-                        .commandBuffers = &commandBuffer,
-                        .commandBufferCount = 1,
-                        .signalSemaphores = &signal,
-                        .signalSemaphoreCount = 1,
-                    };
-                    slag::slagGraphicsCard()->graphicsQueue()->submit(&batch,1);
-                    commandsFinished->waitForValue(1);
-                    delete commandBuffer;
-                    delete commandsFinished;
-                }
-            }
-            else
-            {
-                throw std::runtime_error("Failed to load texture from file");
-            }
-        }
-
-        uint64_t CRUCIBLE_NATIVE_Texture2DFromEngineFormat(const unsigned char* data, slag::Texture** out)
-        {
-            return serialization::readTexture2D(data,out);
-        }
-
-        void CRUCIBLE_NATIVE_Texture2DToEngineFormat(const char* filepath, slag::Texture* texture)
-        {
-            auto saveData = serialization::encodeTexture2D(texture);
-            std::ofstream outFile(filepath, std::ios::out | std::ios::binary);
-            outFile.write(reinterpret_cast<const char*>(saveData.data()), saveData.size());
-            outFile.close();
         }
 
         void CRUCIBLE_NATIVE_TransformToGlobal(crucible::Transform& transform, Node* node, Transform& out)
@@ -529,14 +459,15 @@ namespace crucible
             node->disable(propagate);
         }
 
-        Mesh* CRUCIBLE_NATIVE_MeshNew(Mesh::MeshAttributeData* data, uint32_t vertexCount, void* indexData,slag::Buffer::IndexSize indexType, uint32_t indexCount,const Mesh::MeshBufferAccessibility& bufferAccessibility)
+        Mesh* CRUCIBLE_NATIVE_MeshNew(Mesh::MeshAttributeData* data, void* indexData,slag::Buffer::IndexSize indexType, uint32_t indexCount,const Mesh::MeshBufferAccessibility& bufferAccessibility)
         {
-            return new Mesh(*data,indexData,(indexType==slag::Buffer::IndexSize::UINT16? sizeof(uint16_t) : sizeof(uint32_t))*indexCount,indexType,bufferAccessibility);
+            auto m = new Mesh(*data,indexData,(indexType==slag::Buffer::IndexSize::UINT16? sizeof(uint16_t) : sizeof(uint32_t))*indexCount,indexType,bufferAccessibility);
+            return  m;
         }
 
-        Mesh* CRUCIBLE_NATIVE_MeshNewBatchedInit(Mesh::MeshAttributeData* data, uint32_t vertexCount, void* indexData,slag::Buffer::IndexSize indexType, uint32_t indexCount,const Mesh::MeshBufferAccessibility& bufferAccessibility, DeferredJobQueue* deferredQueue, void* IDeferredInitHandle)
+        Mesh* CRUCIBLE_NATIVE_MeshNewBatchedInit(Mesh::MeshAttributeData* data, void* indexData,slag::Buffer::IndexSize indexType, uint32_t indexCount,const Mesh::MeshBufferAccessibility& bufferAccessibility, DeferredJobQueue* deferredQueue, void* IDeferredInitHandle)
         {
-            auto mesh = new Mesh(data->definedAttributes(),vertexCount,indexType,indexCount,bufferAccessibility);
+            auto mesh = new Mesh(data->definedAttributes(),data->vertexCount,indexType,indexCount,bufferAccessibility);
             auto commandBuffer = deferredQueue->commandBuffer();
             auto bufferData = data->toBuffers();
             auto& attributes = std::get<std::vector<Mesh::VertexAttribute>>(bufferData);
@@ -550,7 +481,7 @@ namespace crucible
             }
             slag::Buffer* indexBuffer = slag::Buffer::newBuffer(indexData,mesh->indexBuffer()->size(),slag::Buffer::Accessibility::CPU_AND_GPU);
             buffers.emplace_back(indexBuffer);
-            commandBuffer->copyBufferToBuffer(mesh->indexBuffer(),0,indexBuffer->size(),indexBuffer,0);
+            commandBuffer->copyBufferToBuffer(indexBuffer,0,indexBuffer->size(),mesh->indexBuffer(),0);
             if (IDeferredInitHandle)
             {
                 deferredQueue->enqueue(DeferredJob(std::move(buffers),ManagedInstance(IDeferredInitHandle)));
@@ -679,6 +610,21 @@ namespace crucible
             }
         }
 
+        slag::Buffer::Accessibility CRUCIBLE_NATIVE_MeshVertexAttributeBufferAccess(Mesh* mesh,Mesh::VertexAttribute attribute)
+        {
+            auto buffer =  mesh->attributeBuffer(attribute);
+            if (buffer)
+            {
+                return buffer->accessibility();
+            }
+            return slag::Buffer::Accessibility::GPU;
+        }
+
+        slag::Buffer::Accessibility CRUCIBLE_NATIVE_MeshIndexAttributeBufferAccess(Mesh* mesh)
+        {
+            return mesh->indexBuffer()->accessibility();
+        }
+
         void* CRUCIBLE_NATIVE_MeshPositionBufferCpuHandle(Mesh* mesh)
         {
             if (mesh->positionBuffer()->accessibility() == slag::Buffer::Accessibility::CPU_AND_GPU)
@@ -768,5 +714,6 @@ namespace crucible
             }
             return nullptr;
         }
+
     } // scripting
 } // slag

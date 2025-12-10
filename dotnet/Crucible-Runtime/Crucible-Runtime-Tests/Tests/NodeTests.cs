@@ -7,7 +7,7 @@ namespace Crucible.Tests;
 [Test]
 public static class NodeTests
 {
-    public static bool UUIDTest()
+    public static TestResult UUIDTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         NodeKeeper keeper2 = new NodeKeeper();
@@ -17,37 +17,37 @@ public static class NodeTests
         var node3 = keeper3.KeptNode.Acquire();
         if (node1.Uuid() != node1.Uuid() || node2.Uuid() != node2.Uuid() || node3.Uuid() != node3.Uuid())
         {
-            return false;
+            return TestResult.Fail("Node UUID is not consistent");
         }
         if (node1.Uuid() == node2.Uuid() || node2.Uuid() == node3.Uuid() || node1.Uuid() == node3.Uuid())
         {
-            return false;
+            return TestResult.Fail("Node UUID is not unique");
         }
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool NameTest()
+    public static TestResult NameTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
         if (!string.IsNullOrEmpty(node.Name))
         {
-            return false;
+            return TestResult.Fail("Node name is not empty");
         }
         node.Name = "Test";
         if (node.Name != "Test")
         {
-            return false;
+            return TestResult.Fail("Node name is not equal to assigned name");
         }
         node.Name = "◡̈ツ";
         if (node.Name != "◡̈ツ")
         {
-            return false;
+            return TestResult.Fail("Node name is unable to handle non ascii characters");
         }
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool ParentTest()
+    public static TestResult ParentTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -57,67 +57,67 @@ public static class NodeTests
         var greatGrandChild = grandchild2.AddChild();
         if (greatGrandChild.Parent() != grandchild2)
         {
-            return false;
+            return TestResult.Fail("Node assigned parent is not expected");
         }
         if (grandchild2.Parent() != child || grandchild1.Parent() != child)
         {
-            return false;
+            return TestResult.Fail("Node assigned hierarchy is not expected");
         }
 
         if (child.Parent() != node)
         {
-            return false;
+            return TestResult.Fail("Node assigned hierarchy is not expected");
         }
 
         if (!node.Parent().IsNull)
         {
-            return false;
+            return TestResult.Fail("Root node parent IsNull is not true");
         }
         grandchild2.SetParent(node);
         if (greatGrandChild.Parent() != grandchild2)
         {
-            return false;
+            return TestResult.Fail("Node assigned hierarchy is not expected");
         }
 
         if (grandchild2.Parent() != node)
         {
-            return false;
+            return TestResult.Fail("Node assigned hierarchy is not expected");
         }
 
         if (node.ChildCount() != 2)
         {
-            return false;
+            return TestResult.Fail("Node child count is not expected");
         }
 
         if (child.ChildCount() != 1)
         {
-            return false;
+            return TestResult.Fail("Node child count is not expected");
         }
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool TryGetParentTest()
+    public static TestResult TryGetParentTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
         var child = node.AddChild();
         if (!child.TryGetParent(out Node parent))
         {
-            return false;
+            return TestResult.Fail("Child unable to get parent");
         }
 
         if (parent != node)
         {
-            return false;
+            return TestResult.Fail("Child got node which is not parent");
         }
         if (node.TryGetParent(out Node grandParent))
         {
-            return false;
+            return TestResult.Fail("Root node acquired parent node");
         }
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool SetParentTest()
+    public static TestResult SetParentTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -127,46 +127,46 @@ public static class NodeTests
         var greatGrandChild = grandchild2.AddChild();
         if (greatGrandChild.Parent() != grandchild2)
         {
-            return false;
+            return TestResult.Fail("Node's parent is not assigned parent");
         }
         if (grandchild2.Parent() != child || grandchild1.Parent() != child)
         {
-            return false;
+            return TestResult.Fail("Nodes' parent is not assigned parent");
         }
 
         if (child.Parent() != node)
         {
-            return false;
+            return TestResult.Fail("Node's parent is not assigned parent");
         }
 
         if (!node.Parent().IsNull)
         {
-            return false;
+            return TestResult.Fail("Root node's parent is not null");
         }
         grandchild2.SetParent(node);
         if (greatGrandChild.Parent() != grandchild2)
         {
-            return false;
+            return TestResult.Fail("Node's parent is not assigned parent");
         }
 
         if (grandchild2.Parent() != node)
         {
-            return false;
+            return TestResult.Fail("Node's parent is not re-assigned parent");
         }
 
         if (node.ChildCount() != 2)
         {
-            return false;
+            return TestResult.Fail("Node's child count is unexpected");
         }
 
         if (child.ChildCount() != 1)
         {
-            return false;
+            return TestResult.Fail("Node's child count is unexpected");
         }
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool SetParentToSelfTest()
+    public static TestResult SetParentToSelfTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -176,12 +176,12 @@ public static class NodeTests
         }
         catch (Exception e)
         {
-            return true;
+            return TestResult.Pass();
         }
-        return false;
+        return TestResult.Fail("Setting node to own parent was expected to throw an exception");
     }
 
-    public static bool SetParentToNullTest()
+    public static TestResult SetParentToNullTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -192,12 +192,12 @@ public static class NodeTests
         }
         catch (NullReferenceException e)
         {
-            return true;
+            return TestResult.Pass();
         }
-        return false;
+        return TestResult.Fail("Setting node to null was expected to throw an exception");
     }
 
-    public static bool AddChildTest()
+    public static TestResult AddChildTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -205,17 +205,17 @@ public static class NodeTests
         node.AddChild("child");
         if (node.ChildCount() != 2)
         {
-            return false;
+            return TestResult.Fail("Node's child count doesn't reflected added child");
         }
 
         if (node.GetChild(1).Name != "child")
         {
-            return false;
+            return TestResult.Fail("Node's new child isn't the same as the one added to it");
         }
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool GetChildTest()
+    public static TestResult GetChildTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -224,17 +224,17 @@ public static class NodeTests
 
         if (child.Name != "child")
         {
-            return false;
+            return TestResult.Fail("Node's new child had different name than the one added to it");
         }
 
         if (child.HasParent() == false)
         {
-            return false;
+            return TestResult.Fail("Child node isn't correctly assigned to parent");
         }
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool RemoveChildByIndexTest()
+    public static TestResult RemoveChildByIndexTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -244,22 +244,22 @@ public static class NodeTests
         node.RemoveChild(1);
         if (node.ChildCount() != 2)
         {
-            return false;
+            return TestResult.Fail("Node's child count is unexpected");
         }
 
         if (node.GetChild(0).Name != "keep1")
         {
-            return false;
+            return TestResult.Fail("Node's first child isn't the expected node after removing a later sibling");
         }
 
         if (node.GetChild(1).Name != "keep2")
         {
-            return false;
+            return TestResult.Fail("Node's second child isn't the expected node after removing a previous sibling");
         }
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool RemoveChildByReferenceTest()
+    public static TestResult RemoveChildByReferenceTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -268,17 +268,17 @@ public static class NodeTests
         node.RemoveChild(remove);
         if (node.ChildCount() != 1)
         {
-            return false;
+            return TestResult.Fail("Node's child count is unexpected");
         }
 
         if (node.GetChild(0).Name != "keep1")
         {
-            return false;
+            return TestResult.Fail("Detached node is incorrect");
         }
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool Detach()
+    public static TestResult Detach()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -288,46 +288,46 @@ public static class NodeTests
         var grandChild = child.AddChild();
         if (child.Enabled == false)
         {
-            return false;
+            return TestResult.Fail("Node already disabled before removal");
         }
         var childKeeper = child.Detach();
         if (node.ChildCount() != 0)
         {
-            return false;
+            return TestResult.Fail("Root node did not removed detached node");
         }
 
         if (child.ChildCount() != 1)
         {
-            return false;
+            return TestResult.Fail("Detached node altered children as a result of disattachment");
         }
 
         if (child.HasParent())
         {
-            return false;
+            return TestResult.Fail("Detached node has parent");
         }
 
         if (child.Enabled)
         {
-            return false;
+            return TestResult.Fail("Detached node is enabled after removing");
         }
 
         if (grandChild.Parent() != child)
         {
-            return false;
+            return TestResult.Fail("Detached node altered children as a result of disattachment");
         }
 
         child.Enabled = true;
         var grandchildKeeper = grandChild.Detach(false);
         if (!grandChild.Enabled)
         {
-            return false;
+            return TestResult.Fail("Detached node is diabled after removing but not requesting auto disable");
         }
         
-        return true;
+        return TestResult.Pass();
 
     }
 
-    public static bool DetachFailIfRoot()
+    public static TestResult DetachFailIfRoot()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -337,12 +337,12 @@ public static class NodeTests
         }
         catch (InvalidOperationException e)
         {
-            return true;
+            return TestResult.Pass();
         }
-        return false;
+        return TestResult.Fail("Root node detached, but didn't throw exception");
     }
 
-    public static bool DetachFailIfAlreadyKept()
+    public static TestResult DetachFailIfAlreadyKept()
     {
         
         NodeKeeper keeper = new NodeKeeper();
@@ -357,12 +357,12 @@ public static class NodeTests
         }
         catch (InvalidOperationException e)
         {
-            return true;
+            return TestResult.Pass();
         }
-        return false;
+        return TestResult.Fail("Detached node detached again, but didn't throw exception");
     }
 
-    public static bool AddDataComponentTest()
+    public static TestResult AddDataComponentTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -372,12 +372,12 @@ public static class NodeTests
         var nTransform = node.GetDataComponent<Transform>();
         if (!Vector3.Approximately(nTransform.Position, new Vector3(10, 20, 30)))
         {
-            return false;
+            return TestResult.Fail("Node data component not the same value as assigned component");
         }
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool AddDataComponentUnsafeTest()
+    public static TestResult AddDataComponentUnsafeTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -387,12 +387,12 @@ public static class NodeTests
         var nVector3 = node.GetDataComponent<Vector3>();
         if (!Vector3.Approximately(nVector3, new Vector3(5, 10, 15)))
         {
-            return false;
+            return TestResult.Fail("Node data component not the same value as assigned component");
         }
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool RemoveDataComponentTest()
+    public static TestResult RemoveDataComponentTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -401,12 +401,12 @@ public static class NodeTests
         node.RemoveDataComponent<Vector3>();
         if (node.HasDataComponent<Vector3>())
         {
-            return false;
+            return TestResult.Fail("Node still retains data component after removing");
         }
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool RemoveDataComponentByIdTest()
+    public static TestResult RemoveDataComponentByIdTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -416,12 +416,12 @@ public static class NodeTests
         node.RemoveDataComponent(id);
         if (node.HasDataComponent<Vector3>())
         {
-            return false;
+            return TestResult.Fail("Node still retains data component after removing");;
         }
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool HasDataComponentTest()
+    public static TestResult HasDataComponentTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -429,17 +429,17 @@ public static class NodeTests
         node.AddDataComponent(nvec4);
         if (!node.HasDataComponent<Vector4>())
         {
-            return false;
+            return TestResult.Fail("Node unable to retrieve assigned data component");
         }
 
         if (node.HasDataComponent<Vector3>())
         {
-            return false;
+            return TestResult.Fail("Node has data component that was never assigned");
         }
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool HasDataComponentByIdTest()
+    public static TestResult HasDataComponentByIdTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -448,17 +448,17 @@ public static class NodeTests
         node.AddDataComponent(nvec4);
         if (!node.HasDataComponent(id))
         {
-            return false;
+            return TestResult.Fail("Node unable to retrieve assigned data component");
         }
         id = DataTypeId.For<Vector3>();
         if (node.HasDataComponent(id))
         {
-            return false;
+            return TestResult.Fail("Node has data component that was never assigned");
         }
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool GetDataComponentTest()
+    public static TestResult GetDataComponentTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -468,12 +468,12 @@ public static class NodeTests
         var nTransform = node.GetDataComponent<Transform>();
         if (!Vector3.Approximately(nTransform.Position, new Vector3(10, 20, 30)))
         {
-            return false;
+            return TestResult.Fail("Unable to get assigned data component");
         }
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool GetDataComponentUnsafeTest()
+    public static TestResult GetDataComponentUnsafeTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -483,12 +483,12 @@ public static class NodeTests
         var nVector3 = node.GetDataComponentUnsafe<Vector3>(type);
         if (!Vector3.Approximately(nVector3, new Vector3(5, 10, 15)))
         {
-            return false;
+            return TestResult.Fail("Node unable to retrieve assigned data component");
         }
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool AddReferenceComponentTest()
+    public static TestResult AddReferenceComponentTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -498,18 +498,18 @@ public static class NodeTests
         var rc = node.GetReferenceComponent<DummyReferenceType>();
         if (rc.thing1 != 50 && rc.thing2 != 2)
         {
-            return false;
+            return TestResult.Fail("Nodes assigned identical reference component have different objects");
         }
 
         if (!ReferenceEquals(rc, component))
         {
-            return false;
+            return TestResult.Fail("Nodes assigned identical reference component have different objects");
         }
         
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool AddReferenceComponentUnsafeTest()
+    public static TestResult AddReferenceComponentUnsafeTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -520,18 +520,18 @@ public static class NodeTests
         var rc = node.GetReferenceComponent<DummyReferenceType>();
         if (rc.thing1 != 50 && rc.thing2 != 2)
         {
-            return false;
+            return TestResult.Fail("Nodes assigned identical reference component have different objects");
         }
 
         if (!ReferenceEquals(rc, component))
         {
-            return false;
+            return TestResult.Fail("Nodes assigned identical reference component have different objects");
         }
         
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool GetReferenceComponentTest()
+    public static TestResult GetReferenceComponentTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -541,18 +541,18 @@ public static class NodeTests
         var rc = node.GetReferenceComponent<DummyReferenceType>();
         if (rc.thing1 != 50 && rc.thing2 != 2)
         {
-            return false;
+            return TestResult.Fail("Nodes assigned reference component have different objects");
         }
 
         if (!ReferenceEquals(rc, component))
         {
-            return false;
+            return TestResult.Fail("Nodes assigned reference component have different objects");
         }
         
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool GetReferenceComponentUnsafeTest()
+    public static TestResult GetReferenceComponentUnsafeTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -563,18 +563,18 @@ public static class NodeTests
         var rc = node.GetReferenceComponentUnsafe<DummyReferenceType>(componentId);
         if (rc.thing1 != 50 && rc.thing2 != 2)
         {
-            return false;
+            return TestResult.Fail("Nodes assigned reference component have different objects");
         }
 
         if (!ReferenceEquals(rc, component))
         {
-            return false;
+            return TestResult.Fail("Nodes assigned reference component have different objects");
         }
         
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool HasReferenceComponentTest()
+    public static TestResult HasReferenceComponentTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -582,17 +582,17 @@ public static class NodeTests
         node.AddReferenceComponent(component);
         if (!node.HasReferenceComponent<DummyReferenceType>())
         {
-            return false;
+            return TestResult.Fail("Node does not have assigned reference component");
         }
 
         if (node.HasReferenceComponent<Texture2D>())
         {
-            return false;
+            return TestResult.Fail("Node has unassigned reference component");
         }
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool HasReferenceComponentByIdTest()
+    public static TestResult HasReferenceComponentByIdTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -602,39 +602,39 @@ public static class NodeTests
         node.AddReferenceComponent(component);
         if (!node.HasReferenceComponent(componentId))
         {
-            return false;
+            return TestResult.Fail("Node does not have assigned reference component");
         }
 
         if (node.HasReferenceComponent(textureId))
         {
-            return false;
+            return TestResult.Fail("Node has unassigned reference component");
         }
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool RemoveReferenceComponentTest()
+    public static TestResult RemoveReferenceComponentTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
         DummyReferenceType component = new DummyReferenceType(1, 2);
         if (node.HasReferenceComponent<DummyReferenceType>())
         {
-            return false;
+            return TestResult.Fail("Node has unassigned reference component");
         }
         node.AddReferenceComponent(component);
         if (!node.HasReferenceComponent<DummyReferenceType>())
         {
-            return false;
+            return TestResult.Fail("Node does not have assigned reference component");
         }
         node.RemoveReferenceComponent<DummyReferenceType>();
         if (node.HasReferenceComponent<DummyReferenceType>())
         {
-            return false;
+            return TestResult.Fail("Node has removed reference component");
         }
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool RemoveReferenceComponentByIdTest()
+    public static TestResult RemoveReferenceComponentByIdTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -642,53 +642,53 @@ public static class NodeTests
         var componentId = ReferenceTypeId.For<DummyReferenceType>();
         if (node.HasReferenceComponent<DummyReferenceType>())
         {
-            return false;
+            return TestResult.Fail("Node has unassigned reference component");
         }
         node.AddReferenceComponent(component);
         if (!node.HasReferenceComponent<DummyReferenceType>())
         {
-            return false;
+            return TestResult.Fail("Node does not have assigned reference component");
         }
         node.RemoveReferenceComponent(componentId);
         if (node.HasReferenceComponent<DummyReferenceType>())
         {
-            return false;
+            return TestResult.Fail("Node has removed reference component");
         }
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool CumulativeTransformNoTransformTest()
+    public static TestResult CumulativeTransformNoTransformTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
         if (node.HasDataComponent<Transform>())
         {
-            return false;
+            return TestResult.Fail("Node has unassigned transform component");
         }
         var transform = node.CumulativeTransform();
         if (node.HasDataComponent<Transform>())
         {
-            return false;
+            return TestResult.Fail("Node has unassigned transform component");
         }
 
         if (!Vector3.Approximately(transform.Position, new Vector3(0, 0, 0)))
         {
-            return false;
+            return TestResult.Fail("Transform position not default position");
         }
 
         if (!Vector3.Approximately(transform.Scale, new Vector3(1, 1, 1)))
         {
-            return false;
+            return TestResult.Fail("Transform scale not default scale");
         }
 
         if (!Quaternion.Approximately(transform.Rotation, new Quaternion(0, 0, 0, 1)))
         {
-            return false;
+            return TestResult.Fail("Transform orientation not default orientation");
         }
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool CumulativeTransformWithTransformTest()
+    public static TestResult CumulativeTransformWithTransformTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -698,12 +698,12 @@ public static class NodeTests
         var nodeTransform = node.CumulativeTransform();
         if (!Transform.Approximately(transform, nodeTransform))
         {
-            return false;
+            return TestResult.Fail("Transform not the same as transform component");
         }
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool CumulativeTransformNoTransformInChainTest()
+    public static TestResult CumulativeTransformNoTransformInChainTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -716,12 +716,12 @@ public static class NodeTests
         var nodeTransform = grandchild.CumulativeTransform();
         if (!Transform.Approximately(transform, nodeTransform))
         {
-            return false;
+            return TestResult.Fail("Transform chain not calculating correctly");
         }
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool CumulativeTransformOnlyInChainTest()
+    public static TestResult CumulativeTransformOnlyInChainTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -734,12 +734,12 @@ public static class NodeTests
         var nodeTransform = grandchild.CumulativeTransform();
         if (!Transform.Approximately(transform, nodeTransform))
         {
-            return false;
+            return TestResult.Fail("Transform chain not calculating correctly");
         }
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool CumulativeTransformWithTransformInChainTest()
+    public static TestResult CumulativeTransformWithTransformInChainTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -754,12 +754,12 @@ public static class NodeTests
         var combined = transform + transform;
         if (!Transform.Approximately(nodeTransform, combined))
         {
-            return false;
+            return TestResult.Fail("Transform chain not calculating correctly");
         }
-        return true;
+        return TestResult.Pass();
     }
 
-    public static bool EnabledDisabledTest()
+    public static TestResult EnabledDisabledTest()
     {
         NodeKeeper keeper = new NodeKeeper();
         var node = keeper.KeptNode.Acquire();
@@ -768,30 +768,30 @@ public static class NodeTests
         var grandchild2 = child.AddChild();
         if (node.Enabled ||  child.Enabled ||  grandchild1.Enabled || grandchild2.Enabled)
         {
-            return false;
+            return TestResult.Fail("Nodes added to disabled node are enabled");
         }
         node.Enabled = true;
         if (!node.Enabled)
         {
-            return false;
+            return TestResult.Fail("Node was not enabled when set to enabled");
         }
         if (!child.Enabled)
         {
-            return false;
+            return TestResult.Fail("child node was not enabled when set to enabled");
         }
         if (!grandchild1.Enabled)
         {
-            return false;
+            return TestResult.Fail("child node was not enabled when set to enabled");
         }
         if (!grandchild2.Enabled)
         {
-            return false;
+            return TestResult.Fail("child node was not enabled when set to enabled");
         }
         node.Enabled = false;
         if (node.Enabled ||  child.Enabled ||  grandchild1.Enabled || grandchild2.Enabled)
         {
-            return false;
+            return TestResult.Fail("Children nodes were not disabled with parent");
         }
-        return true;
+        return TestResult.Pass();
     }
 }
