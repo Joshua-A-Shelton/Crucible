@@ -64,10 +64,6 @@ namespace crucible
             CRUCIBLE_API slag::Pixels::Format CRUCIBLE_NATIVE_TextureGetFormat(slag::Texture* texture);
             CRUCIBLE_API slag::Texture::SampleCount CRUCIBLE_NATIVE_TextureGetSampleCount(slag::Texture* texture);
 
-            CRUCIBLE_API void CRUCIBLE_NATIVE_Texture2DFromExchange(const char* filePath, uint32_t mipLevels, slag::Texture** out)noexcept(false);
-            CRUCIBLE_API uint64_t CRUCIBLE_NATIVE_Texture2DFromEngineFormat(const unsigned char* data, slag::Texture** out);
-            CRUCIBLE_API void CRUCIBLE_NATIVE_Texture2DToEngineFormat(const char* filepath, slag::Texture* texture);
-
             CRUCIBLE_API void CRUCIBLE_NATIVE_TransformToGlobal(crucible::Transform& transform, Node* node, Transform& out);
             CRUCIBLE_API void CRUCIBLE_NATIVE_TransformInverse(crucible::Transform& transform, Transform& out);
             CRUCIBLE_API void CRUCIBLE_NATIVE_TransformConcat(crucible::Transform& a, Transform& b, Transform& out);
