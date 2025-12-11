@@ -182,12 +182,18 @@ public unsafe ref partial struct Node
     /// </summary>
     /// <param name="parent">The new parent</param>
     /// <exception cref="NullReferenceException">Parent node must not be null</exception>
+    /// <exception cref="InvalidOperationException">Parent node must not be self</exception>
     public void SetParent(Node parent)
     {
         ErrorIfNull();
         if (parent._pointer == IntPtr.Zero)
         {
             throw new NullReferenceException("Cannot set node parent to null.");
+        }
+
+        if (parent._pointer == _pointer)
+        {
+            throw new InvalidOperationException("Cannot set self to parent");
         }
         CRUCIBLE_NATIVE_NodeSetParent(_pointer, parent._pointer);
     }
