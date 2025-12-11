@@ -1,5 +1,6 @@
 #include "GPUUtils.h"
 
+#include <cstring>
 #include <slag/Slag.h>
 
 namespace crucible

@@ -1,13 +1,11 @@
 #ifndef CRUCIBLE_API_H
 #define CRUCIBLE_API_H
-#include <algorithm>
-#include <__msvc_ranges_to.hpp>
 
 #include "crucible/CrucibleCore.h"
 #include "crucible/Node.h"
 #include "crucible/Transform.h"
 #include "crucible/Mesh.h"
-#include "crucible/BoneWeights.h"
+
 #include <glm/glm.hpp>
 
 #include <slag/Slag.h>

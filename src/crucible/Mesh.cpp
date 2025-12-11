@@ -1,7 +1,5 @@
 #include "Mesh.h"
 
-#include <bitset>
-#include <execution>
 #include <lz4.h>
 
 #include "BoneWeights.h"

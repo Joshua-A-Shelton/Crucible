@@ -71,13 +71,13 @@ namespace crucible
         const char* driverName = SDL_GetCurrentVideoDriver();
         if (strcmp(driverName, "wayland") == 0)
         {
-            platformData.platform = slag::PlatformData::WAYLAND;
+            pd.platform = slag::Platform::WAYLAND;
             pd.details.wayland.surface = SDL_GetPointerProperty(properties,SDL_PROP_WINDOW_WAYLAND_SURFACE_POINTER, nullptr);
-            pd.details.display = SDL_GetPointerProperty(properties,SDL_PROP_WINDOW_WAYLAND_DISPLAY_POINTER, nullptr);
+            pd.details.wayland.display = SDL_GetPointerProperty(properties,SDL_PROP_WINDOW_WAYLAND_DISPLAY_POINTER, nullptr);
         }
         else
         {
-            platformData.platform = slag::PlatformData::X11;
+            pd.platform = slag::Platform::X11;
             pd.details.x11.display = SDL_GetPointerProperty(properties,SDL_PROP_WINDOW_X11_DISPLAY_POINTER, nullptr);
             pd.details.x11.window = reinterpret_cast<void*>(SDL_GetNumberProperty(properties,SDL_PROP_WINDOW_X11_WINDOW_NUMBER, 0));
         }

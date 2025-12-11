@@ -5,6 +5,7 @@
 
 #include <boost/uuid/uuid.hpp>
 #include <flecs.h>
+#include <string>
 #include <crucible/CrucibleCore.h>
 
 namespace crucible

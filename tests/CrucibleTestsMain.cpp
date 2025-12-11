@@ -12,4 +12,5 @@ int main(int argc, char** argv)
     crucible::scripting::ScriptingEngine::unloadAllContexts();
     crucible::cleanup();
     return run;
+    return 1;
 }
