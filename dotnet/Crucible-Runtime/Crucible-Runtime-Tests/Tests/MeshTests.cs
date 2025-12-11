@@ -647,8 +647,8 @@ public static class MeshTests
         Mesh.MeshBufferAccessibility accessibility = new Mesh.MeshBufferAccessibility();
         accessibility.Position = Buffer.Accessibility.CpuAndGpu;
         Mesh mesh = new Mesh(vertices, indices,bufferAccessibility:accessibility);
-        var positionData = mesh.LocalPositionData();
-        if (positionData.Length != vertices.Length)
+        var positionData = mesh.PositionBuffer();
+        if (positionData.Count != (UInt64)vertices.Length)
         {
             return TestResult.Fail("Mesh local position data has different count than expected");
         }
@@ -672,8 +672,8 @@ public static class MeshTests
         Mesh.MeshBufferAccessibility accessibility = new Mesh.MeshBufferAccessibility();
         accessibility.Normal = Buffer.Accessibility.CpuAndGpu;
         Mesh mesh = new Mesh(vertices, indices,normals:normals,bufferAccessibility:accessibility);
-        var normalData = mesh.LocalNormalData();
-        if (normalData.Length != normals.Length)
+        var normalData = mesh.NormalBuffer();
+        if (normalData.Count != (UInt64)normals.Length)
         {
             return TestResult.Fail("Mesh local normal data has different count than expected");
         }
@@ -697,8 +697,8 @@ public static class MeshTests
         Mesh.MeshBufferAccessibility accessibility = new Mesh.MeshBufferAccessibility();
         accessibility.Tangent = Buffer.Accessibility.CpuAndGpu;
         Mesh mesh = new Mesh(vertices, indices,tangents:normals,bufferAccessibility:accessibility);
-        var tangentData = mesh.LocalTangentData();
-        if (tangentData.Length != normals.Length)
+        var tangentData = mesh.TangentBuffer();
+        if (tangentData.Count != (UInt64)normals.Length)
         {
             return TestResult.Fail("Mesh local tangent data has different count than expected");
         }
@@ -722,8 +722,8 @@ public static class MeshTests
         Mesh.MeshBufferAccessibility accessibility = new Mesh.MeshBufferAccessibility();
         accessibility.Color = Buffer.Accessibility.CpuAndGpu;
         Mesh mesh = new Mesh(vertices, indices,colors:colors,bufferAccessibility:accessibility);
-        var colorData = mesh.LocalColorData();
-        if (colorData.Length != colors.Length)
+        var colorData = mesh.ColorBuffer();
+        if (colorData.Count != (UInt64)colors.Length)
         {
             return TestResult.Fail("Mesh local color data has different count than expected");
         }
@@ -747,8 +747,8 @@ public static class MeshTests
         Mesh.MeshBufferAccessibility accessibility = new Mesh.MeshBufferAccessibility();
         accessibility.BoneWeight = Buffer.Accessibility.CpuAndGpu;
         Mesh mesh = new Mesh(vertices, indices,boneWeights:boneWeights,bufferAccessibility:accessibility);
-        var boneWeightsData = mesh.LocalBoneWeightsData();
-        if (boneWeightsData.Length != boneWeights.Length)
+        var boneWeightsData = mesh.BoneWeightsBuffer();
+        if (boneWeightsData.Count != (UInt64)boneWeights.Length)
         {
             return TestResult.Fail("Mesh local bone weights data has different count than expected");
         }
@@ -772,8 +772,8 @@ public static class MeshTests
         Mesh.MeshBufferAccessibility accessibility = new Mesh.MeshBufferAccessibility();
         accessibility.Uv = Buffer.Accessibility.CpuAndGpu;
         Mesh mesh = new Mesh(vertices, indices,uvs:uvs,bufferAccessibility:accessibility);
-        var uvData = mesh.LocalUVData();
-        if (uvData.Length != uvs.Length)
+        var uvData = mesh.UVBuffer();
+        if (uvData.Count != (UInt64)uvs.Length)
         {
             return TestResult.Fail("Mesh local uv data has different count than expected");
         }
@@ -797,8 +797,8 @@ public static class MeshTests
         Mesh.MeshBufferAccessibility accessibility = new Mesh.MeshBufferAccessibility();
         accessibility.Uv2 = Buffer.Accessibility.CpuAndGpu;
         Mesh mesh = new Mesh(vertices, indices,uvs2:uvs,bufferAccessibility:accessibility);
-        var uvData = mesh.LocalUV2Data();
-        if (uvData.Length != uvs.Length)
+        var uvData = mesh.UV2Buffer();
+        if (uvData.Count != (UInt64)uvs.Length)
         {
             return TestResult.Fail("Mesh local uv2 data has different count than expected");
         }
@@ -822,8 +822,8 @@ public static class MeshTests
         Mesh.MeshBufferAccessibility accessibility = new Mesh.MeshBufferAccessibility();
         accessibility.Uv3 = Buffer.Accessibility.CpuAndGpu;
         Mesh mesh = new Mesh(vertices, indices,uvs3:uvs,bufferAccessibility:accessibility);
-        var uvData = mesh.LocalUV3Data();
-        if (uvData.Length != uvs.Length)
+        var uvData = mesh.UV3Buffer();
+        if (uvData.Count != (UInt64)uvs.Length)
         {
             return TestResult.Fail("Mesh local uv3 data has different count than expected");
         }
@@ -847,8 +847,8 @@ public static class MeshTests
         Mesh.MeshBufferAccessibility accessibility = new Mesh.MeshBufferAccessibility();
         accessibility.Uv4 = Buffer.Accessibility.CpuAndGpu;
         Mesh mesh = new Mesh(vertices, indices,uvs4:uvs,bufferAccessibility:accessibility);
-        var uvData = mesh.LocalUV4Data();
-        if (uvData.Length != uvs.Length)
+        var uvData = mesh.UV4Buffer();
+        if (uvData.Count != (UInt64)uvs.Length)
         {
             return TestResult.Fail("Mesh local uv4 data has different count than expected");
         }
@@ -867,38 +867,13 @@ public static class MeshTests
         return TestResult.Pass();
     }
 
-    public static TestResult EditIndexesRaw()
-    {
-        Mesh.MeshBufferAccessibility accessibility = new Mesh.MeshBufferAccessibility();
-        accessibility.Index = Buffer.Accessibility.CpuAndGpu;
-        Mesh mesh = new Mesh(vertices, indices,bufferAccessibility:accessibility);
-        var indexData = MemoryMarshal.Cast<byte,UInt16>(mesh.LocalIndexData());
-        if (indexData.Length != indices.Length)
-        {
-            return TestResult.Fail("Mesh local index data has different count than expected");
-        }
-        indexData[0] = 4;
-        indexData[1] = 5;
-        var indexI = indexData[1];
-        if (indexI != 5)
-        {
-            return TestResult.Fail("Assignment of index data did not take");
-        }
-        var downloaded = mesh.GetIndex16Data();
-        if (downloaded[0] != 4 && downloaded[1] != 5)
-        {
-            return TestResult.Fail("Assignment of index data did not take");
-        }
-        return TestResult.Pass();
-    }
-
     public static TestResult EditIndexes16()
     {
         Mesh.MeshBufferAccessibility accessibility = new Mesh.MeshBufferAccessibility();
         accessibility.Index = Buffer.Accessibility.CpuAndGpu;
         Mesh mesh = new Mesh(vertices, indices,bufferAccessibility:accessibility);
-        var indexData = mesh.LocalIndex16Data();
-        if (indexData.Length != indices.Length)
+        var indexData = mesh.Index16Buffer();
+        if (indexData.Count != (UInt64)indices.Length)
         {
             return TestResult.Fail("Mesh local index data has different count than expected");
         }
@@ -922,8 +897,8 @@ public static class MeshTests
         Mesh.MeshBufferAccessibility accessibility = new Mesh.MeshBufferAccessibility();
         accessibility.Index = Buffer.Accessibility.CpuAndGpu;
         Mesh mesh = new Mesh(vertices, indices32,bufferAccessibility:accessibility);
-        var indexData = mesh.LocalIndex32Data();
-        if (indexData.Length != indices32.Length)
+        var indexData = mesh.Index32Buffer();
+        if (indexData.Count != (UInt64)indices32.Length)
         {
             return TestResult.Fail("Mesh local index data has different count than expected");
         }
@@ -947,7 +922,7 @@ public static class MeshTests
         Mesh mesh = new Mesh(vertices, indices);
         try
         {
-            var buffer = mesh.LocalNormalData();
+            var buffer = mesh.NormalBuffer();
         }
         catch (NullReferenceException e)
         {
@@ -961,7 +936,7 @@ public static class MeshTests
         Mesh mesh = new Mesh(vertices, indices);
         try
         {
-            var buffer = mesh.LocalTangentData();
+            var buffer = mesh.TangentBuffer();
         }
         catch (NullReferenceException e)
         {
@@ -975,7 +950,7 @@ public static class MeshTests
         Mesh mesh = new Mesh(vertices, indices);
         try
         {
-            var buffer = mesh.LocalColorData();
+            var buffer = mesh.ColorBuffer();
         }
         catch (NullReferenceException e)
         {
@@ -989,7 +964,7 @@ public static class MeshTests
         Mesh mesh = new Mesh(vertices, indices);
         try
         {
-            var buffer = mesh.LocalBoneWeightsData();
+            var buffer = mesh.BoneWeightsBuffer();
         }
         catch (NullReferenceException e)
         {
@@ -1003,7 +978,7 @@ public static class MeshTests
         Mesh mesh = new Mesh(vertices, indices);
         try
         {
-            var buffer = mesh.LocalUVData();
+            var buffer = mesh.UVBuffer();
         }
         catch (NullReferenceException e)
         {
@@ -1017,7 +992,7 @@ public static class MeshTests
         Mesh mesh = new Mesh(vertices, indices);
         try
         {
-            var buffer = mesh.LocalUV2Data();
+            var buffer = mesh.UV2Buffer();
         }
         catch (NullReferenceException e)
         {
@@ -1031,7 +1006,7 @@ public static class MeshTests
         Mesh mesh = new Mesh(vertices, indices);
         try
         {
-            var buffer = mesh.LocalUV3Data();
+            var buffer = mesh.UV3Buffer();
         }
         catch (NullReferenceException e)
         {
@@ -1045,7 +1020,7 @@ public static class MeshTests
         Mesh mesh = new Mesh(vertices, indices);
         try
         {
-            var buffer = mesh.LocalUV4Data();
+            var buffer = mesh.UV4Buffer();
         }
         catch (NullReferenceException e)
         {
@@ -1060,7 +1035,7 @@ public static class MeshTests
         Mesh mesh = new Mesh(vertices,indices);
         try
         {
-            var buffer = mesh.LocalPositionData();
+            var buffer = mesh.PositionBuffer();
         }
         catch (BufferNotLocalException e)
         {
@@ -1074,7 +1049,7 @@ public static class MeshTests
         Mesh mesh = new Mesh(vertices,indices, normals:normals);
         try
         {
-            var buffer = mesh.LocalNormalData();
+            var buffer = mesh.NormalBuffer();
         }
         catch (BufferNotLocalException e)
         {
@@ -1088,7 +1063,7 @@ public static class MeshTests
         Mesh mesh = new Mesh(vertices,indices, tangents:normals);
         try
         {
-            var buffer = mesh.LocalTangentData();
+            var buffer = mesh.TangentBuffer();
         }
         catch (BufferNotLocalException e)
         {
@@ -1102,7 +1077,7 @@ public static class MeshTests
         Mesh mesh = new Mesh(vertices,indices, colors:colors);
         try
         {
-            var buffer = mesh.LocalColorData();
+            var buffer = mesh.ColorBuffer();
         }
         catch (BufferNotLocalException e)
         {
@@ -1116,7 +1091,7 @@ public static class MeshTests
         Mesh mesh = new Mesh(vertices,indices, boneWeights:boneWeights);
         try
         {
-            var buffer = mesh.LocalBoneWeightsData();
+            var buffer = mesh.BoneWeightsBuffer();
         }
         catch (BufferNotLocalException e)
         {
@@ -1130,7 +1105,7 @@ public static class MeshTests
         Mesh mesh = new Mesh(vertices,indices, uvs:uvs);
         try
         {
-            var buffer = mesh.LocalUVData();
+            var buffer = mesh.UVBuffer();
         }
         catch (BufferNotLocalException e)
         {
@@ -1144,7 +1119,7 @@ public static class MeshTests
         Mesh mesh = new Mesh(vertices,indices, uvs2:uvs);
         try
         {
-            var buffer = mesh.LocalUV2Data();
+            var buffer = mesh.UV2Buffer();
         }
         catch (BufferNotLocalException e)
         {
@@ -1158,7 +1133,7 @@ public static class MeshTests
         Mesh mesh = new Mesh(vertices,indices, uvs3:uvs);
         try
         {
-            var buffer = mesh.LocalUV3Data();
+            var buffer = mesh.UV3Buffer();
         }
         catch (BufferNotLocalException e)
         {
@@ -1172,21 +1147,7 @@ public static class MeshTests
         Mesh mesh = new Mesh(vertices,indices, uvs4:uvs);
         try
         {
-            var buffer = mesh.LocalUV4Data();
-        }
-        catch (BufferNotLocalException e)
-        {
-            return TestResult.Pass();
-        }
-        return TestResult.Fail("Expected to throw an exception");
-    }
-    
-    public static TestResult EditIndexesInaccessibleBuffer()
-    {
-        Mesh mesh = new Mesh(vertices,indices);
-        try
-        {
-            var buffer = mesh.LocalIndexData();
+            var buffer = mesh.UV4Buffer();
         }
         catch (BufferNotLocalException e)
         {
@@ -1200,7 +1161,7 @@ public static class MeshTests
         Mesh mesh = new Mesh(vertices,indices);
         try
         {
-            var buffer = mesh.LocalIndex16Data();
+            var buffer = mesh.Index16Buffer();
         }
         catch (BufferNotLocalException e)
         {
@@ -1214,7 +1175,7 @@ public static class MeshTests
         Mesh mesh = new Mesh(vertices,indices32);
         try
         {
-            var buffer = mesh.LocalIndex32Data();
+            var buffer = mesh.Index32Buffer();
         }
         catch (BufferNotLocalException e)
         {

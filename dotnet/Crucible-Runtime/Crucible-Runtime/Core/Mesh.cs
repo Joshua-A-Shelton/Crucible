@@ -718,7 +718,7 @@ public unsafe partial class Mesh
     /// </summary>
     /// <returns></returns>
     /// <exception cref="BufferNotLocalException">The buffer is not CPU accessible</exception>
-    public Span<Math.Vector3> LocalPositionData()
+    public StructuredBufferView<Math.Vector3> PositionBuffer()
     {
         if (CRUCIBLE_NATIVE_MeshVertexAttributeBufferAccess(_handle, VertexAttributes.Position) ==
             Buffer.Accessibility.Gpu)
@@ -726,7 +726,7 @@ public unsafe partial class Mesh
             throw new BufferNotLocalException("Position buffer is not CPU accessible");
         }
 
-        return new Span<Math.Vector3>(CRUCIBLE_NATIVE_MeshPositionBufferCpuHandle(_handle), (int)VertexCount);
+        return new StructuredBufferView<Math.Vector3>(CRUCIBLE_NATIVE_MeshPositionBufferCpuHandle(_handle), VertexCount);
     }
     /// <summary>
     /// Gets the buffer of the normal data if it's CPU accessible
@@ -734,7 +734,7 @@ public unsafe partial class Mesh
     /// <returns></returns>
     /// <exception cref="NullReferenceException">The mesh doesn't have a normal vertex buffer</exception>
     /// <exception cref="BufferNotLocalException">The buffer is not CPU accessible</exception>
-    public Span<Math.Vector3> LocalNormalData()
+    public StructuredBufferView<Math.Vector3> NormalBuffer()
     {
         if ((DefinedAttributes & VertexAttributes.Normal) != VertexAttributes.Normal)
         {
@@ -746,7 +746,7 @@ public unsafe partial class Mesh
             throw new BufferNotLocalException("Normal buffer is not CPU accessible");
         }
 
-        return new Span<Math.Vector3>(CRUCIBLE_NATIVE_MeshNormalBufferCpuHandle(_handle), (int)VertexCount);
+        return new StructuredBufferView<Math.Vector3>(CRUCIBLE_NATIVE_MeshNormalBufferCpuHandle(_handle), VertexCount);
     }
     /// <summary>
     /// Gets the buffer of the tangent data if it's CPU accessible
@@ -754,7 +754,7 @@ public unsafe partial class Mesh
     /// <returns></returns>
     /// <exception cref="NullReferenceException">The mesh doesn't have a tangent vertex buffer</exception>
     /// <exception cref="BufferNotLocalException">The buffer is not CPU accessible</exception>
-    public Span<Math.Vector3> LocalTangentData()
+    public StructuredBufferView<Math.Vector3> TangentBuffer()
     {
         if ((DefinedAttributes & VertexAttributes.Tangent) != VertexAttributes.Tangent)
         {
@@ -766,7 +766,7 @@ public unsafe partial class Mesh
             throw new BufferNotLocalException("Tangent buffer is not CPU accessible");
         }
 
-        return new Span<Math.Vector3>(CRUCIBLE_NATIVE_MeshTangentBufferCpuHandle(_handle), (int)VertexCount);
+        return new StructuredBufferView<Math.Vector3>(CRUCIBLE_NATIVE_MeshTangentBufferCpuHandle(_handle), VertexCount);
     }
     /// <summary>
     /// Gets the buffer of the color data if it's CPU accessible
@@ -774,7 +774,7 @@ public unsafe partial class Mesh
     /// <returns></returns>
     /// <exception cref="NullReferenceException">The mesh doesn't have a color vertex buffer</exception>
     /// <exception cref="BufferNotLocalException">The buffer is not CPU accessible</exception>
-    public Span<Core.Color> LocalColorData()
+    public StructuredBufferView<Core.Color> ColorBuffer()
     {
         if ((DefinedAttributes & VertexAttributes.Color) != VertexAttributes.Color)
         {
@@ -786,7 +786,7 @@ public unsafe partial class Mesh
             throw new BufferNotLocalException("Color buffer is not CPU accessible");
         }
 
-        return new Span<Core.Color>(CRUCIBLE_NATIVE_MeshColorBufferCpuHandle(_handle), (int)VertexCount);
+        return new StructuredBufferView<Core.Color>(CRUCIBLE_NATIVE_MeshColorBufferCpuHandle(_handle), VertexCount);
     }
     /// <summary>
     /// Gets the buffer of the bone weight data if it's CPU accessible
@@ -794,7 +794,7 @@ public unsafe partial class Mesh
     /// <returns></returns>
     /// <exception cref="NullReferenceException">The mesh doesn't have a bone weight vertex buffer</exception>
     /// <exception cref="BufferNotLocalException">The buffer is not CPU accessible</exception>
-    public Span<Core.BoneWeights> LocalBoneWeightsData()
+    public StructuredBufferView<Core.BoneWeights> BoneWeightsBuffer()
     {
         if ((DefinedAttributes & VertexAttributes.BoneWeight) != VertexAttributes.BoneWeight)
         {
@@ -806,7 +806,7 @@ public unsafe partial class Mesh
             throw new BufferNotLocalException("Bone Weights buffer is not CPU accessible");
         }
 
-        return new Span<Core.BoneWeights>(CRUCIBLE_NATIVE_MeshBoneWeightBufferCpuHandle(_handle), (int)VertexCount);
+        return new StructuredBufferView<Core.BoneWeights>(CRUCIBLE_NATIVE_MeshBoneWeightBufferCpuHandle(_handle), VertexCount);
     }
     /// <summary>
     /// Gets the buffer of the uv data if it's CPU accessible
@@ -814,7 +814,7 @@ public unsafe partial class Mesh
     /// <returns></returns>
     /// <exception cref="NullReferenceException">The mesh doesn't have an uv vertex buffer</exception>
     /// <exception cref="BufferNotLocalException">The buffer is not CPU accessible</exception>
-    public Span<Math.Vector2> LocalUVData()
+    public StructuredBufferView<Math.Vector2> UVBuffer()
     {
         if ((DefinedAttributes & VertexAttributes.UV) != VertexAttributes.UV)
         {
@@ -826,7 +826,7 @@ public unsafe partial class Mesh
             throw new BufferNotLocalException("UV buffer is not CPU accessible");
         }
 
-        return new Span<Math.Vector2>(CRUCIBLE_NATIVE_MeshUVBufferCpuHandle(_handle), (int)VertexCount);
+        return new StructuredBufferView<Math.Vector2>(CRUCIBLE_NATIVE_MeshUVBufferCpuHandle(_handle), VertexCount);
     }
     
     /// <summary>
@@ -835,7 +835,7 @@ public unsafe partial class Mesh
     /// <returns></returns>
     /// <exception cref="NullReferenceException">The mesh doesn't have an uv2 vertex buffer</exception>
     /// <exception cref="BufferNotLocalException">The buffer is not CPU accessible</exception>
-    public Span<Math.Vector2> LocalUV2Data()
+    public StructuredBufferView<Math.Vector2> UV2Buffer()
     {
         if ((DefinedAttributes & VertexAttributes.UV2) != VertexAttributes.UV2)
         {
@@ -847,7 +847,7 @@ public unsafe partial class Mesh
             throw new BufferNotLocalException("UV2 buffer is not CPU accessible");
         }
 
-        return new Span<Math.Vector2>(CRUCIBLE_NATIVE_MeshUV2BufferCpuHandle(_handle), (int)VertexCount);
+        return new StructuredBufferView<Math.Vector2>(CRUCIBLE_NATIVE_MeshUV2BufferCpuHandle(_handle), VertexCount);
     }
     /// <summary>
     /// Gets the buffer of the uv3 data if it's CPU accessible
@@ -855,7 +855,7 @@ public unsafe partial class Mesh
     /// <returns></returns>
     /// <exception cref="NullReferenceException">The mesh doesn't have an uv3 vertex buffer</exception>
     /// <exception cref="BufferNotLocalException">The buffer is not CPU accessible</exception>
-    public Span<Math.Vector2> LocalUV3Data()
+    public StructuredBufferView<Math.Vector2> UV3Buffer()
     {
         if ((DefinedAttributes & VertexAttributes.UV3) != VertexAttributes.UV3)
         {
@@ -867,7 +867,7 @@ public unsafe partial class Mesh
             throw new BufferNotLocalException("UV3 buffer is not CPU accessible");
         }
 
-        return new Span<Math.Vector2>(CRUCIBLE_NATIVE_MeshUV3BufferCpuHandle(_handle), (int)VertexCount);
+        return new StructuredBufferView<Math.Vector2>(CRUCIBLE_NATIVE_MeshUV3BufferCpuHandle(_handle), VertexCount);
     }
     /// <summary>
     /// Gets the buffer of the uv4 data if it's CPU accessible
@@ -875,7 +875,7 @@ public unsafe partial class Mesh
     /// <returns></returns>
     /// <exception cref="NullReferenceException">The mesh doesn't have an uv4 vertex buffer</exception>
     /// <exception cref="BufferNotLocalException">The buffer is not CPU accessible</exception>
-    public Span<Math.Vector2> LocalUV4Data()
+    public StructuredBufferView<Math.Vector2> UV4Buffer()
     {
         if ((DefinedAttributes & VertexAttributes.UV4) != VertexAttributes.UV4)
         {
@@ -887,22 +887,7 @@ public unsafe partial class Mesh
             throw new BufferNotLocalException("UV4 buffer is not CPU accessible");
         }
 
-        return new Span<Math.Vector2>(CRUCIBLE_NATIVE_MeshUV4BufferCpuHandle(_handle), (int)VertexCount);
-    }
-    /// <summary>
-    /// Gets the buffer of the index data if it's CPU accessible
-    /// </summary>
-    /// <returns></returns>
-    /// <exception cref="BufferNotLocalException">The buffer is not CPU accessible</exception>
-    public Span<Byte> LocalIndexData()
-    {
-        if (CRUCIBLE_NATIVE_MeshIndexAttributeBufferAccess(_handle) == Buffer.Accessibility.Gpu)
-        {
-            throw new BufferNotLocalException("Index buffer is not CPU accessible");
-        }
-
-        var length = IndexCount * (VertexIndexSize == IndexSize.UInt16 ? sizeof(UInt16) : sizeof(UInt32));
-        return new Span<byte>(CRUCIBLE_NATIVE_MeshIndexBufferCpuHandle(_handle), (int)length);
+        return new StructuredBufferView<Math.Vector2>(CRUCIBLE_NATIVE_MeshUV4BufferCpuHandle(_handle), VertexCount);
     }
 
     /// <summary>
@@ -911,7 +896,7 @@ public unsafe partial class Mesh
     /// <returns></returns>
     /// <exception cref="InvalidOperationException">The buffer doesn't store UInt16 indexes</exception>
     /// <exception cref="BufferNotLocalException">The buffer is not CPU accessible</exception>
-    public Span<UInt16> LocalIndex16Data()
+    public StructuredBufferView<UInt16> Index16Buffer()
     {
         if (VertexIndexSize != IndexSize.UInt16)
         {
@@ -923,7 +908,7 @@ public unsafe partial class Mesh
         }
 
         var length = IndexCount;
-        return new Span<UInt16>(CRUCIBLE_NATIVE_MeshIndexBufferCpuHandle(_handle), (int)length);
+        return new StructuredBufferView<UInt16>(CRUCIBLE_NATIVE_MeshIndexBufferCpuHandle(_handle), length);
     }
 
     /// <summary>
@@ -932,7 +917,7 @@ public unsafe partial class Mesh
     /// <returns></returns>
     /// <exception cref="InvalidOperationException">The buffer doesn't store UInt32 indexes</exception>
     /// <exception cref="BufferNotLocalException">The buffer is not CPU accessible</exception>
-    public Span<UInt32> LocalIndex32Data()
+    public StructuredBufferView<UInt32> Index32Buffer()
     {
         if (VertexIndexSize != IndexSize.UInt32)
         {
@@ -944,7 +929,7 @@ public unsafe partial class Mesh
         }
 
         var length = IndexCount;
-        return new Span<UInt32>(CRUCIBLE_NATIVE_MeshIndexBufferCpuHandle(_handle), (int)length);
+        return new StructuredBufferView<UInt32>(CRUCIBLE_NATIVE_MeshIndexBufferCpuHandle(_handle), length);
     }
 
     /// <summary>
@@ -1096,7 +1081,10 @@ public unsafe partial class Mesh
         }
         return uvData;
     }
-
+    /// <summary>
+    /// Get a copy of mesh index data (UInt16) if it exists
+    /// </summary>
+    /// <returns></returns>
     public UInt16[]? GetIndex16Data()
     {
         if (VertexIndexSize != IndexSize.UInt16)
@@ -1110,7 +1098,10 @@ public unsafe partial class Mesh
         }
         return indexData;
     }
-
+    /// <summary>
+    /// Get a copy of mesh index data (UInt16) if it exists
+    /// </summary>
+    /// <returns></returns>
     public UInt32[]? GetIndex32Data()
     {
         if (VertexIndexSize != IndexSize.UInt32)
@@ -1124,5 +1115,6 @@ public unsafe partial class Mesh
         }
         return indexData;
     }
+    
     
 }
