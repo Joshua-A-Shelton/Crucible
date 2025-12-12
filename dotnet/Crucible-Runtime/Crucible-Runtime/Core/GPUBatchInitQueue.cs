@@ -24,9 +24,17 @@ public partial class GPUBatchInitQueue
     private static partial void CRUCIBLE_NATIVE_DeferredJobQueueDelete(IntPtr deferredJobQueueHandle);
     [LibraryImport("Crucible")]
     private static partial void CRUCIBLE_NATIVE_DeferredJobQueueProcess(IntPtr deferredJobQueueHandle);
+    [LibraryImport("Crucible")]
+    private static partial void CRUCIBLE_NATIVE_DeferredJobQueueAddDeferredInit(IntPtr deferredJobQueueHandle, IntPtr deferredInitHandle);
 
     public void Process()
     {
         CRUCIBLE_NATIVE_DeferredJobQueueProcess(_deferredJobQueueHandle);
+    }
+
+    private void AddDeferredInit(IDeferredInit init)
+    {
+        GCHandle handle = GCHandle.Alloc(init);
+        CRUCIBLE_NATIVE_DeferredJobQueueAddDeferredInit(_deferredJobQueueHandle, GCHandle.ToIntPtr(handle));
     }
 }

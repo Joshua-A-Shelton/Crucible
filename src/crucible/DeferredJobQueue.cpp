@@ -42,6 +42,11 @@ namespace crucible
         _IDeferredInitInstance = std::move(instance);
     }
 
+    DeferredJob::DeferredJob(scripting::ManagedInstance&& instance)
+    {
+        _IDeferredInitInstance = std::move(instance);
+    }
+
     DeferredJob::~DeferredJob()
     {
         for (auto buffer : _buffers)
@@ -67,7 +72,10 @@ namespace crucible
 
     void DeferredJob::execute()
     {
-        (*DEFERRED_JOB_QUEUE_callDeferredInitialize)(_IDeferredInitInstance.gcHandle());
+        if (!_IDeferredInitInstance.isNull())
+        {
+            (*DEFERRED_JOB_QUEUE_callDeferredInitialize)(_IDeferredInitInstance.gcHandle());
+        }
     }
 
     void DeferredJob::move(DeferredJob& from)

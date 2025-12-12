@@ -2,7 +2,7 @@
 
 namespace Crucible.Core;
 
-public abstract partial class Texture
+public abstract unsafe partial class Texture
 {
     /// <summary>
     /// Underlying texel size and layout
@@ -87,6 +87,15 @@ public abstract partial class Texture
         Four = 4,
         Eight = 8,
     }
+
+    [Flags]
+    public enum PixelAspects:byte
+    {
+        None = 0,
+        Color = 1,
+        Depth = 2,
+        Stencil = 4,
+    }
     protected IntPtr _handle =  IntPtr.Zero;
     
     [LibraryImport("Crucible")]
@@ -94,17 +103,35 @@ public abstract partial class Texture
     [LibraryImport("Crucible")]
     protected static partial uint CRUCIBLE_NATIVE_TextureGetWidth(IntPtr textureHandle);
     [LibraryImport("Crucible")]
+    protected static partial uint CRUCIBLE_NATIVE_TextureGetMipWidth(IntPtr textureHandle, UInt32 mipLevel);
+    [LibraryImport("Crucible")]
     protected static partial uint CRUCIBLE_NATIVE_TextureGetHeight(IntPtr textureHandle);
     [LibraryImport("Crucible")]
+    protected static partial uint CRUCIBLE_NATIVE_TextureGetMipHeight(IntPtr textureHandle, UInt32 mipLevel);
+    [LibraryImport("Crucible")]
     protected static partial uint CRUCIBLE_NATIVE_TextureGetDepth(IntPtr textureHandle);
+    [LibraryImport("Crucible")]
+    protected static partial uint CRUCIBLE_NATIVE_TextureGetMipDepth(IntPtr textureHandle, UInt32 mipLevel);
     [LibraryImport("Crucible")]
     protected static partial uint CRUCIBLE_NATIVE_TextureGetArraySize(IntPtr textureHandle);
     [LibraryImport("Crucible")]
     protected static partial uint CRUCIBLE_NATIVE_TextureGetMipCount(IntPtr textureHandle);
     [LibraryImport("Crucible")]
+    protected static partial UInt64 CRUCIBLE_NATIVE_TextureGetByteSize(IntPtr textureHandle);
+    [LibraryImport("Crucible")]
+    protected static partial UInt64 CRUCIBLE_NATIVE_TextureGetMipByteSize(IntPtr textureHandle, UInt32 mip);
+    [LibraryImport("Crucible")]
+    protected static partial UInt32 CRUCIBLE_NATIVE_TextureGetPixelSize(PixelFormat format, PixelAspects aspects);
+    [LibraryImport("Crucible")]
     protected static partial PixelFormat CRUCIBLE_NATIVE_TextureGetFormat(IntPtr textureHandle);
     [LibraryImport("Crucible")]
+    protected static partial PixelAspects CRUCIBLE_NATIVE_TextureGetAspectFlags(PixelFormat format);
+    [LibraryImport("Crucible")]
     protected static partial MultiSampleCount CRUCIBLE_NATIVE_TextureGetSampleCount(IntPtr textureHandle);
+    [LibraryImport("Crucible")]
+    internal static partial void CRUCIBLE_NATIVE_TextureSetPixelsDeferred(IntPtr textureHandle, void* data, UInt64 dataLength,TextureBufferMapping* mappings, UInt32 mappingCount, IntPtr deferredJobQueue, IntPtr IDerferredInitHandle);
+    [LibraryImport("Crucible")]
+    internal static partial void CRUCIBLE_NATIVE_TextureGetPixels(IntPtr textureHandle, void* outBuffer, UInt64 outBufferLength,TextureBufferMapping* mappings, UInt32 mappingCount);
 
 
     ~Texture()
@@ -128,5 +155,54 @@ public abstract partial class Texture
     }
     
     public abstract byte[] Serialize();
+
+    public static UInt32 PixelSize(PixelFormat format, PixelAspects aspects)
+    {
+        if (System.Numerics.BitOperations.PopCount((byte)aspects) != 1)
+        {
+            throw new ArgumentException("One and only one aspect may be set per pixel update operation");
+        }
+
+        return CRUCIBLE_NATIVE_TextureGetPixelSize(format, aspects);
+    }
+
+    public static PixelAspects AspectsOf(PixelFormat format)
+    {
+        return CRUCIBLE_NATIVE_TextureGetAspectFlags(format);
+    }
+    
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct Offset3D
+{
+    public Int32 X;
+    public Int32 Y;
+    public Int32 Z;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct Extent3D
+{
+    public UInt32 Width;
+    public UInt32 Height;
+    public UInt32 Depth;
+}
+[StructLayout(LayoutKind.Sequential)]
+internal struct TextureSubresource
+{
+    public Texture.PixelAspects AspectFlags;
+    public UInt32 MipLevel;
+    public UInt32 BaseArrayLayer;
+    public UInt32 LayerCount;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct TextureBufferMapping
+{
+    public UInt64 BufferOffset;
+    public TextureSubresource Subresource;
+    public Offset3D TextureOffset;
+    public Extent3D TextureExtent;
     
 }

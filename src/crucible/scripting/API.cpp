@@ -165,12 +165,11 @@ namespace crucible
             deferredJobQueue->process();
         }
 
-        void CRUCIBLE_NATIVE_TextureCreate2D(slag::Pixels::Format format, uint32_t width, uint32_t height,uint32_t mips, slag::Texture::SampleCount sampleCount, slag::Texture** outTexture)
+        slag::Texture* CRUCIBLE_NATIVE_TextureCreate2D(slag::Pixels::Format format, uint32_t width, uint32_t height,uint32_t mips, slag::Texture::SampleCount sampleCount)
         {
-            auto aspects = slag::Pixels::aspectFlags(format);
             auto formatProperties = slag::Pixels::formatProperties(format);
             slag::Texture::UsageFlags usage = formatProperties.validUsageFlags;
-            *outTexture = slag::Texture::newTexture(format,slag::Texture::Type::TEXTURE_2D,usage,width,height,1,mips,1,sampleCount);
+            return slag::Texture::newTexture(format,slag::Texture::Type::TEXTURE_2D,usage,width,height,1,mips,1,sampleCount);
         }
 
         void CRUCIBLE_NATIVE_TextureDestroy(slag::Texture* texture)
@@ -191,14 +190,29 @@ namespace crucible
             return texture->width();
         }
 
+        uint32_t CRUCIBLE_NATIVE_TextureGetMipWidth(slag::Texture* texture, uint32_t mip)
+        {
+            return texture->width(mip);
+        }
+
         uint32_t CRUCIBLE_NATIVE_TextureGetHeight(slag::Texture* texture)
         {
             return texture->height();
         }
 
+        uint32_t CRUCIBLE_NATIVE_TextureGetMipHeight(slag::Texture* texture, uint32_t mip)
+        {
+            return texture->height(mip);
+        }
+
         uint32_t CRUCIBLE_NATIVE_TextureGetDepth(slag::Texture* texture)
         {
             return texture->depth();
+        }
+
+        uint32_t CRUCIBLE_NATIVE_TextureGetMipDepth(slag::Texture* texture, uint32_t mip)
+        {
+            return texture->depth(mip);
         }
 
         uint32_t CRUCIBLE_NATIVE_TextureGetArraySize(slag::Texture* texture)
@@ -211,15 +225,79 @@ namespace crucible
             return texture->mipLevels();
         }
 
+        uint64_t CRUCIBLE_NATIVE_TextureGetByteSize(slag::Texture* texture)
+        {
+            return texture->byteSize();
+        }
+
+        uint32_t CRUCIBLE_NATIVE_TextureGetPixelSize(slag::Pixels::Format format, slag::Pixels::AspectFlags aspectFlags)
+        {
+            return slag::Pixels::size(format,aspectFlags);
+        }
+
+
+        uint64_t CRUCIBLE_NATIVE_TextureGetMipByteSize(slag::Texture* texture, uint32_t mip)
+        {
+            return texture->byteSize(mip);
+        }
+
         slag::Pixels::Format CRUCIBLE_NATIVE_TextureGetFormat(slag::Texture* texture)
         {
             return texture->format();
+        }
+
+        slag::Pixels::AspectFlags CRUCIBLE_NATIVE_TextureGetAspectFlags(slag::Pixels::Format format)
+        {
+            return slag::Pixels::aspectFlags(format);
         }
 
         slag::Texture::SampleCount CRUCIBLE_NATIVE_TextureGetSampleCount(slag::Texture* texture)
         {
             return texture->sampleCount();
         }
+
+        void CRUCIBLE_NATIVE_TextureSetPixelsDeferred(slag::Texture* texture, void* data, uint64_t dataLength, slag::TextureBufferMapping* mappings, uint32_t mappingCount, DeferredJobQueue* deferredQueue, void* IDeferredInitHandle)
+        {
+            auto dataBuffer = slag::Buffer::newBuffer(data,dataLength,slag::Buffer::Accessibility::CPU_AND_GPU);
+            auto commandBuffer = deferredQueue->commandBuffer();
+            commandBuffer->copyBufferToTexture(dataBuffer,texture,mappings,mappingCount);
+            if (IDeferredInitHandle)
+            {
+                deferredQueue->enqueue(DeferredJob(std::vector<slag::Buffer*>{dataBuffer},ManagedInstance(IDeferredInitHandle)));
+            }
+            else
+            {
+                deferredQueue->enqueue(DeferredJob(std::vector<slag::Buffer*>{dataBuffer}));
+            }
+
+        }
+
+        void CRUCIBLE_NATIVE_TextureGetPixels(slag::Texture* texture, void* outBuffer, uint64_t outBufferLength, slag::TextureBufferMapping* mappings, uint32_t mappingCount)
+        {
+            auto commandBuffer = slag::CommandBuffer::newCommandBuffer(slag::GPUQueue::QueueType::TRANSFER);
+            auto finished = slag::Semaphore::newSemaphore(0);
+            auto dataBuffer = slag::Buffer::newBuffer(outBuffer,outBufferLength,slag::Buffer::Accessibility::CPU_AND_GPU);
+            commandBuffer->begin();
+            commandBuffer->copyTextureToBuffer(texture,dataBuffer,mappings,mappingCount);
+            commandBuffer->end();
+            slag::SemaphoreValue signal{.semaphore = finished,.value = 1};
+            slag::QueueSubmissionBatch batch
+            {
+                .waitSemaphores = nullptr,
+                .waitSemaphoreCount = 0,
+                .commandBuffers = &commandBuffer,
+                .commandBufferCount = 1,
+                .signalSemaphores = &signal,
+                .signalSemaphoreCount = 1,
+            };
+            slag::slagGraphicsCard()->transferQueue()->submit(&batch,1);
+            finished->waitForValue(1);
+            memcpy(outBuffer,dataBuffer->cpuHandle(),outBufferLength);
+            delete commandBuffer;
+            delete finished;
+            delete dataBuffer;
+        }
+
 
         void CRUCIBLE_NATIVE_TransformToGlobal(crucible::Transform& transform, Node* node, Transform& out)
         {
@@ -715,5 +793,9 @@ namespace crucible
             return nullptr;
         }
 
+        void CRUCIBLE_NATIVE_DeferredJobQueueAddDeferredInit(DeferredJobQueue* deferredJobQueue, void* IDeferredInitHandle)
+        {
+            deferredJobQueue->enqueue(DeferredJob(ManagedInstance(IDeferredInitHandle)));
+        }
     } // scripting
 } // slag

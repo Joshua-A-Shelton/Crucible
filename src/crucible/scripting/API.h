@@ -51,16 +51,26 @@ namespace crucible
             CRUCIBLE_API DeferredJobQueue* CRUCIBLE_NATIVE_DeferredJobQueueNew();
             CRUCIBLE_API void CRUCIBLE_NATIVE_DeferredJobQueueDelete(DeferredJobQueue* deferredJobQueue);
             CRUCIBLE_API void CRUCIBLE_NATIVE_DeferredJobQueueProcess(DeferredJobQueue* deferredJobQueue);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_DeferredJobQueueAddDeferredInit(DeferredJobQueue* deferredJobQueue, void* IDeferredInitHandle);
 
-            CRUCIBLE_API void CRUCIBLE_NATIVE_TextureCreate2D(slag::Pixels::Format format, uint32_t width, uint32_t height, uint32_t mips, slag::Texture::SampleCount sampleCount, slag::Texture** outTexture);
+            CRUCIBLE_API slag::Texture* CRUCIBLE_NATIVE_TextureCreate2D(slag::Pixels::Format format, uint32_t width, uint32_t height, uint32_t mips, slag::Texture::SampleCount sampleCount);
             CRUCIBLE_API void CRUCIBLE_NATIVE_TextureDestroy(slag::Texture* texture);
             CRUCIBLE_API uint32_t CRUCIBLE_NATIVE_TextureGetWidth(slag::Texture* texture);
+            CRUCIBLE_API uint32_t CRUCIBLE_NATIVE_TextureGetMipWidth(slag::Texture* texture, uint32_t mip);
             CRUCIBLE_API uint32_t CRUCIBLE_NATIVE_TextureGetHeight(slag::Texture* texture);
+            CRUCIBLE_API uint32_t CRUCIBLE_NATIVE_TextureGetMipHeight(slag::Texture* texture, uint32_t mip);
             CRUCIBLE_API uint32_t CRUCIBLE_NATIVE_TextureGetDepth(slag::Texture* texture);
+            CRUCIBLE_API uint32_t CRUCIBLE_NATIVE_TextureGetMipDepth(slag::Texture* texture, uint32_t mip);
             CRUCIBLE_API uint32_t CRUCIBLE_NATIVE_TextureGetArraySize(slag::Texture* texture);
             CRUCIBLE_API uint32_t CRUCIBLE_NATIVE_TextureGetMipCount(slag::Texture* texture);
+            CRUCIBLE_API uint64_t CRUCIBLE_NATIVE_TextureGetByteSize(slag::Texture* texture);
+            CRUCIBLE_API uint32_t CRUCIBLE_NATIVE_TextureGetPixelSize(slag::Pixels::Format format, slag::Pixels::AspectFlags aspectFlags);
+            CRUCIBLE_API uint64_t CRUCIBLE_NATIVE_TextureGetMipByteSize(slag::Texture* texture, uint32_t mip);
             CRUCIBLE_API slag::Pixels::Format CRUCIBLE_NATIVE_TextureGetFormat(slag::Texture* texture);
+            CRUCIBLE_API slag::Pixels::AspectFlags CRUCIBLE_NATIVE_TextureGetAspectFlags(slag::Pixels::Format format);
             CRUCIBLE_API slag::Texture::SampleCount CRUCIBLE_NATIVE_TextureGetSampleCount(slag::Texture* texture);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_TextureSetPixelsDeferred(slag::Texture* texture, void* data, uint64_t dataLength, slag::TextureBufferMapping* mappings, uint32_t mappingCount, DeferredJobQueue* deferredQueue, void* IDeferredInitHandle);
+            CRUCIBLE_API void CRUCIBLE_NATIVE_TextureGetPixels(slag::Texture* texture, void* outBuffer, uint64_t outBufferLength, slag::TextureBufferMapping* mappings, uint32_t mappingCount);
 
             CRUCIBLE_API void CRUCIBLE_NATIVE_TransformToGlobal(crucible::Transform& transform, Node* node, Transform& out);
             CRUCIBLE_API void CRUCIBLE_NATIVE_TransformInverse(crucible::Transform& transform, Transform& out);

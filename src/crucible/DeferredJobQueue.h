@@ -16,6 +16,7 @@ namespace crucible
         DeferredJob(std::vector<slag::Buffer*>&& buffers, scripting::ManagedInstance&& instance);
         DeferredJob(std::vector<slag::Texture*>&& textures, scripting::ManagedInstance&& instance);
         DeferredJob(std::vector<slag::Buffer*>&& buffers,std::vector<slag::Texture*>&& textures, scripting::ManagedInstance&& instance);
+        DeferredJob(scripting::ManagedInstance&& instance);
         ~DeferredJob();
         DeferredJob(const DeferredJob&) = delete;
         DeferredJob& operator=(const DeferredJob&) = delete;
