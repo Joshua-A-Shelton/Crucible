@@ -17,22 +17,84 @@ public static class Texture2DTests
 
     public static TestResult LoadExchangeFormat()
     {
-        return TestResult.Fail("Not implemented");
+        var texture = Texture2D.LoadExchange("Crucible.png");
+        if (texture.Width != 600 || texture.Height != 600 || texture.MipCount != 1 || texture.Format != Texture.PixelFormat.R8G8B8A8_UNorm)
+        {
+            return TestResult.Fail("Texture loaded different than given parameters");
+        }
+        var texture2 = Texture2D.LoadExchange("Crucible.png",3);
+        if (texture2.Width != 600 || texture2.Height != 600 || texture2.MipCount != 3 || texture2.Format != Texture.PixelFormat.R8G8B8A8_UNorm)
+        {
+            return TestResult.Fail("Texture loaded different than given parameters");
+        }
+        return TestResult.Pass();
     }
 
     public static TestResult SaveLoadEngineFormat()
     {
-        return TestResult.Fail("Not implemented");
+        var groundTexture =  Texture2D.LoadExchange("Crucible.png",4);
+        var serialized = groundTexture.Serialize();
+        var texture = Texture2D.ReadFromStream(new BinaryReader(new MemoryStream(serialized)));
+        if (texture.Width != 600 || texture.Height != 600 || texture.MipCount != 4 || texture.Format != Texture.PixelFormat.R8G8B8A8_UNorm)
+        {
+            return TestResult.Fail("Texture loaded different than given parameters");
+        }
+        List<Texture2D.Region>  regions = new List<Texture2D.Region>(4);
+        regions.Add(new Texture2D.Region(new Texture2D.Offset(0,0),new Texture2D.Extent(groundTexture.MipWidth(0),groundTexture.MipHeight(0)),0));
+        regions.Add(new Texture2D.Region(new Texture2D.Offset(0,0),new Texture2D.Extent(groundTexture.MipWidth(1),groundTexture.MipHeight(1)),1));
+        regions.Add(new Texture2D.Region(new Texture2D.Offset(0,0),new Texture2D.Extent(groundTexture.MipWidth(2),groundTexture.MipHeight(2)),2));
+        regions.Add(new Texture2D.Region(new Texture2D.Offset(0,0),new Texture2D.Extent(groundTexture.MipWidth(3),groundTexture.MipHeight(3)),3));
+        var rawGroundBytes = groundTexture.GetPixels(regions, Texture.PixelAspects.Color);
+        var rawLoadedBytes = texture.GetPixels(regions,Texture.PixelAspects.Color);
+        if (rawLoadedBytes.Length != rawGroundBytes.Length)
+        {
+            return TestResult.Fail("loaded texture pixels do not match the original texture");
+        }
+
+        for (var i = 0; i < rawGroundBytes.Length; i++)
+        {
+            if (rawGroundBytes[i] != rawLoadedBytes[i])
+            {
+                return TestResult.Fail("loaded texture pixels do not match the original texture");
+            }
+        }
+        var serialized2 = texture.Serialize();
+        if (serialized2.Length != serialized.Length)
+        {
+            return TestResult.Fail("Texture serialized data differently between two textures that should be identical");
+        }
+
+        for (int i = 0; i < serialized.Length; i++)
+        {
+            if (serialized[i] != serialized2[i])
+            {
+                return TestResult.Fail("Texture serialized data differently between two textures that should be identical");
+            }
+        }
+        return TestResult.Pass();
     }
 
     public static TestResult LoadEngineFormatDeferred()
     {
-        return TestResult.Fail("Not Implemented");
+        var groundTexture =  Texture2D.LoadExchange("Crucible.png",4);
+        var serialized = groundTexture.Serialize();
+        GPUBatchInitQueue queue = new GPUBatchInitQueue();
+        Texture2D? mytexture = null;
+        Texture2D.ReadFromStream(new BinaryReader(new MemoryStream(serialized)),queue,(texture)=>{mytexture = texture;});
+        if (mytexture != null)
+        {
+            return TestResult.Fail("Texture assigned before queue execution");
+        }
+        queue.Process();
+        if (mytexture == null)
+        {
+            return TestResult.Fail("Texture not assigned before queue execution");
+        }
+        return TestResult.Pass();
     }
 
     public static TestResult Formats()
     {
-        
         foreach (Texture.PixelFormat format in Enum.GetValues(typeof(Texture.PixelFormat)))
         {
             Texture2D texture = new Texture2D(format,32,32,1);

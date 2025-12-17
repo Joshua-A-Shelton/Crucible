@@ -54,6 +54,7 @@ namespace crucible
             CRUCIBLE_API void CRUCIBLE_NATIVE_DeferredJobQueueAddDeferredInit(DeferredJobQueue* deferredJobQueue, void* IDeferredInitHandle);
 
             CRUCIBLE_API slag::Texture* CRUCIBLE_NATIVE_TextureCreate2D(slag::Pixels::Format format, uint32_t width, uint32_t height, uint32_t mips, slag::Texture::SampleCount sampleCount);
+            CRUCIBLE_API slag::Texture* CRUCIBLE_NATIVE_TextureLoadExchange(const unsigned char* fileBytesBuffer,int32_t bufferLength, uint32_t mipLevels, int autoFillMips);
             CRUCIBLE_API void CRUCIBLE_NATIVE_TextureDestroy(slag::Texture* texture);
             CRUCIBLE_API uint32_t CRUCIBLE_NATIVE_TextureGetWidth(slag::Texture* texture);
             CRUCIBLE_API uint32_t CRUCIBLE_NATIVE_TextureGetMipWidth(slag::Texture* texture, uint32_t mip);

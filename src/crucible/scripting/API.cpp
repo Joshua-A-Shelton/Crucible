@@ -12,6 +12,9 @@
 #include "ManagedInstance.h"
 #include "crucible/DeferredJobQueue.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
 namespace crucible
 {
     namespace scripting
@@ -170,6 +173,58 @@ namespace crucible
             auto formatProperties = slag::Pixels::formatProperties(format);
             slag::Texture::UsageFlags usage = formatProperties.validUsageFlags;
             return slag::Texture::newTexture(format,slag::Texture::Type::TEXTURE_2D,usage,width,height,1,mips,1,sampleCount);
+        }
+
+        slag::Texture* CRUCIBLE_NATIVE_TextureLoadExchange(const unsigned char* fileBytesBuffer,int32_t bufferLength, uint32_t mipLevels, int autoFillMips)
+        {
+            int width,height,channels;
+            auto pixels = stbi_load_from_memory(fileBytesBuffer,bufferLength,&width,&height,&channels,4);
+            if (pixels == nullptr)
+            {
+                return nullptr;
+            }
+            slag::TextureBufferMapping mapping
+            {
+                .bufferOffset = 0,
+                .textureSubresource =
+                {
+                    .aspectFlags = slag::Pixels::AspectFlags::COLOR,
+                    .mipLevel = 0,
+                    .baseArrayLayer = 0,
+                    .layerCount = 1,
+                },
+                .textureOffset = {0,0,0},
+                .textureExtent = {(uint32_t)width,(uint32_t)height,1}
+
+            };
+            auto texture = slag::Texture::newTexture(slag::Pixels::Format::R8G8B8A8_UNORM,slag::Texture::Type::TEXTURE_2D,slag::Texture::UsageFlags::SAMPLED_IMAGE,width,height,1,mipLevels,1,slag::Texture::SampleCount::ONE,pixels,sizeof(uint8_t)*width*height*4,&mapping,1);
+            stbi_image_free(pixels);
+            if (autoFillMips && mipLevels > 1)
+            {
+                auto commandBuffer = slag::CommandBuffer::newCommandBuffer(slag::GPUQueue::QueueType::GRAPHICS);
+                auto finished = slag::Semaphore::newSemaphore(0);
+                commandBuffer->begin();
+                for (auto i=1; i<mipLevels; i++)
+                {
+                    commandBuffer->updateMip(texture,0,0,i);
+                }
+                commandBuffer->end();
+                slag::SemaphoreValue signal{.semaphore = finished,.value = 1};
+                slag::QueueSubmissionBatch batch
+                {
+                    .waitSemaphores = nullptr,
+                    .waitSemaphoreCount = 0,
+                    .commandBuffers = &commandBuffer,
+                    .commandBufferCount = 1,
+                    .signalSemaphores = &signal,
+                    .signalSemaphoreCount = 1,
+                };
+                slag::slagGraphicsCard()->graphicsQueue()->submit(&batch,1);
+                finished->waitForValue(1);
+                delete finished;
+                delete commandBuffer;
+            }
+            return texture;
         }
 
         void CRUCIBLE_NATIVE_TextureDestroy(slag::Texture* texture)

@@ -32,7 +32,7 @@ public partial class GPUBatchInitQueue
         CRUCIBLE_NATIVE_DeferredJobQueueProcess(_deferredJobQueueHandle);
     }
 
-    private void AddDeferredInit(IDeferredInit init)
+    internal void AddDeferredInit(IDeferredInit init)
     {
         GCHandle handle = GCHandle.Alloc(init);
         CRUCIBLE_NATIVE_DeferredJobQueueAddDeferredInit(_deferredJobQueueHandle, GCHandle.ToIntPtr(handle));

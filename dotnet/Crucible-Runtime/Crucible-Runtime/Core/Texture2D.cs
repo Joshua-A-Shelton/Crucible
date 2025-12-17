@@ -95,6 +95,9 @@ public unsafe partial class Texture2D: Texture
     [LibraryImport("Crucible")]
     private static partial IntPtr CRUCIBLE_NATIVE_TextureCreate2D(PixelFormat format, UInt32 width, UInt32 height, UInt32 mips, MultiSampleCount multiSampleCount);
 
+    [LibraryImport("Crucible")]
+    private static partial IntPtr CRUCIBLE_NATIVE_TextureLoadExchange(byte* fileByteBuffer, Int32 bufferLength,UInt32 mipLevels, Int32 autoFillMips);
+
     public override byte[] Serialize()
     {
         var aspects = Texture.AspectsOf(Format);
@@ -312,10 +315,49 @@ public unsafe partial class Texture2D: Texture
 
     public static Texture2D LoadExchange(string filePath, uint mips = 1, bool autofill = true)
     {
-        throw new NotImplementedException();
+        var bytes = File.ReadAllBytes(filePath);
+        IntPtr textureHandle = IntPtr.Zero;
+
+        fixed (byte* bytePtr = bytes)
+        {
+            if (autofill)
+            {
+                textureHandle = CRUCIBLE_NATIVE_TextureLoadExchange(bytePtr, bytes.Length, mips, 1);
+            }
+            else
+            {
+                textureHandle = CRUCIBLE_NATIVE_TextureLoadExchange(bytePtr, bytes.Length, mips, 0);
+            }
+        }
+
+        if (textureHandle == IntPtr.Zero)
+        {
+            throw new FileLoadException($"Failed to load texture from file path: {filePath}");
+        }
+
+        return new Texture2D(textureHandle);
+
     }
 
     public static Texture2D ReadFromStream(BinaryReader reader)
+    {
+        var readData = ReadStreamData(reader);
+        GPUBatchInitQueue initQueue = new GPUBatchInitQueue();
+        readData.Item1.SetPixels(readData.Item2,readData.Item3,initQueue,null);
+        initQueue.Process();
+        return readData.Item1;
+    }
+
+    public static void ReadFromStream(BinaryReader reader, GPUBatchInitQueue queue, Action<Texture2D> callback)
+    {
+        var readData = ReadStreamData(reader);
+
+        readData.Item1.SetPixels(readData.Item2,readData.Item3,queue,null);
+        queue.AddDeferredInit(new DeferredInit<Texture2D>(readData.Item1,callback));
+        
+    }
+
+    private static Tuple<Texture2D, List<UpdateRegion>, PixelAspects> ReadStreamData(BinaryReader reader)
     {
         var magicNumber = reader.ReadChars(6);
         if (magicNumber[0] != 'c' && magicNumber[1] != 't' && magicNumber[2] != 'x' && magicNumber[3] != 't' && magicNumber[4] != 'r' && magicNumber[5] != '\n')
@@ -343,10 +385,7 @@ public unsafe partial class Texture2D: Texture
             var decompressedData = LZ4.Decompress(compressedData, uncompressedSize);
             regions.Add(new UpdateRegion(decompressedData,new Region(new Offset(0,0),new Extent(texture2D.MipWidth((uint)mipIndex),texture2D.MipHeight((uint)mipIndex)),(uint)mipIndex)));
         }
-        GPUBatchInitQueue initQueue = new GPUBatchInitQueue();
-        texture2D.SetPixels(regions,aspects,initQueue,null);
-        initQueue.Process();
-        return texture2D;
+        return Tuple.Create(texture2D, regions,aspects);
     }
     
 }

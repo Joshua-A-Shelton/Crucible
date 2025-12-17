@@ -72,6 +72,16 @@ find_package(lz4)
 add_subdirectory(${lz4_SOURCE_DIR}/build/cmake)
 
 fetchcontent_declare(
+        STB_IMAGE
+        GIT_REPOSITORY https://github.com/nothings/stb
+        GIT_TAG origin/master
+        GIT_SHALLOW TRUE
+        OVERRIDE_FIND_PACKAGE
+)
+FetchContent_MakeAvailable(STB_IMAGE)
+find_package(STB_IMAGE)
+
+fetchcontent_declare(
         Boost
         URL https://github.com/boostorg/boost/releases/download/${BOOST_LIBRARY_VERSION}/${BOOST_LIBRARY_VERSION}.7z
         USES_TERMINAL_DOWNLOAD TRUE
@@ -152,7 +162,7 @@ add_library(Crucible SHARED
 
 target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})
 target_link_libraries(Crucible PUBLIC glm Slag SDL3::SDL3-static flecs::flecs_static lz4 Boost::endian Boost::uuid PRIVATE nethost)
-target_include_directories(Crucible PRIVATE ${DOT_NET_HOST_LOCATION} ${lz4_SOURCE_DIR}/lib ${flecs_INCLUDE_DIRS})
+target_include_directories(Crucible PRIVATE ${DOT_NET_HOST_LOCATION} ${stb_image_SOURCE_DIR} ${lz4_SOURCE_DIR}/lib ${flecs_INCLUDE_DIRS})
 
 #copy over c# config file (configure_file() is the copy operation, not related to the "configure file" that we're copying)
 configure_file(config/CSharpConfig.json "${CMAKE_BINARY_DIR}/config/CSharpConfig.json" COPYONLY)
