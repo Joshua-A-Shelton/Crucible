@@ -178,7 +178,7 @@ public static class Texture2DTests
             new Texture2D.UpdateRegion(secondLevel,new Texture2D.Region(new Texture2D.Offset(0,0),new Texture2D.Extent(16,16),1)),
             new Texture2D.UpdateRegion(thirdLevel,new Texture2D.Region(new Texture2D.Offset(0,0),new Texture2D.Extent(8,8),2))
         };
-        texture.SetPixels(updates,Texture.PixelAspects.Color,batchInitQueue);
+        batchInitQueue.QueueUpdateTexture2D(texture,updates,Texture.PixelAspects.Color);
         batchInitQueue.Process();
         
         bytes = texture.GetPixels(regions,Texture.PixelAspects.Color);

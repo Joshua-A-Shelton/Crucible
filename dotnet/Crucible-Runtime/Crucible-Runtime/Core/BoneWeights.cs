@@ -3,21 +3,30 @@ using System.Runtime.InteropServices;
 
 namespace Crucible.Core;
 
+/// <summary>
+/// The weight a bone at a given index influences a vertex
+/// </summary>
 [StructLayout(LayoutKind.Sequential)]
 public unsafe struct BoneWeight
 {
-    public UInt32 index;
-    public float weight;
+    /// <summary>
+    /// Index of the bone in the skeleton
+    /// </summary>
+    public UInt32 Index;
+    /// <summary>
+    /// Amount the bone contributes to moving the vertex (sum of all weights should be one)
+    /// </summary>
+    public float Weight;
 
     public BoneWeight(UInt32 index, float weight)
     {
-        this.index = index;
-        this.weight = weight;
+        this.Index = index;
+        this.Weight = weight;
     }
 
     public static bool operator ==(BoneWeight bw1, BoneWeight bw2)
     {
-        return bw1.index == bw2.index &&  bw1.weight == bw2.weight;
+        return bw1.Index == bw2.Index &&  bw1.Weight == bw2.Weight;
     }
 
     public static bool operator !=(BoneWeight bw1, BoneWeight bw2)
@@ -34,6 +43,9 @@ public struct BoneWeightArray
 [StructLayout(LayoutKind.Sequential)]
 public unsafe struct BoneWeights
 {
+    /// <summary>
+    /// Array of 4 bone weights
+    /// </summary>
     public BoneWeightArray weights;
     
     public BoneWeights(BoneWeight weight)

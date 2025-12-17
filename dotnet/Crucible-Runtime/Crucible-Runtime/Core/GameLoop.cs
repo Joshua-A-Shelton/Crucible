@@ -1,5 +1,7 @@
 namespace Crucible.Core;
-
+/// <summary>
+/// Allows customization of the game updates
+/// </summary>
 public abstract class GameLoop
 {
     /// <summary>

@@ -79,7 +79,9 @@ public abstract unsafe partial class Texture
         Opaque_420 = 74,
         B4G4R4A4_UNorm = 76
     }
-    
+    /// <summary>
+    /// How many samples are at each texel
+    /// </summary>
     public enum MultiSampleCount
     {
         One = 1,
@@ -88,6 +90,9 @@ public abstract unsafe partial class Texture
         Eight = 8,
     }
 
+    /// <summary>
+    /// Pixel attribute flags
+    /// </summary>
     [Flags]
     public enum PixelAspects:byte
     {
@@ -138,24 +143,39 @@ public abstract unsafe partial class Texture
     {
         CRUCIBLE_NATIVE_TextureDestroy(_handle);
     }
-    
+    /// <summary>
+    /// The format of the pixels of the texture
+    /// </summary>
     public PixelFormat Format
     {
         get { return CRUCIBLE_NATIVE_TextureGetFormat(_handle); }
     }
-    
+    /// <summary>
+    /// How many samples are at each pixel
+    /// </summary>
     public MultiSampleCount MultiSample
     {
         get { return CRUCIBLE_NATIVE_TextureGetSampleCount(_handle); }
     }
-
+    /// <summary>
+    /// Number of mip layers this texture has
+    /// </summary>
     public uint MipCount
     {
         get { return CRUCIBLE_NATIVE_TextureGetMipCount(_handle); }
     }
-    
+    /// <summary>
+    /// Get texture data in engine load/save format
+    /// </summary>
+    /// <returns></returns>
     public abstract byte[] Serialize();
-
+    /// <summary>
+    /// Get the size of a pixel
+    /// </summary>
+    /// <param name="format"></param>
+    /// <param name="aspects"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentException"></exception>
     public static UInt32 PixelSize(PixelFormat format, PixelAspects aspects)
     {
         if (System.Numerics.BitOperations.PopCount((byte)aspects) != 1)

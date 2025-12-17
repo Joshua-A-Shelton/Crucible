@@ -7,9 +7,21 @@ namespace Crucible.Core;
 [StructLayout(LayoutKind.Sequential)]
 public struct Color
 {
+    /// <summary>
+    /// Total red in the color (0-255)
+    /// </summary>
     public byte R;
+    /// <summary>
+    /// Total green in the color (0-255)
+    /// </summary>
     public byte G;
+    /// <summary>
+    /// Total blue in the color (0-255)
+    /// </summary>
     public byte B;
+    /// <summary>
+    /// Total alpha (transparency) in the color (0-255), 0 fully transparent, 255 fully opaque
+    /// </summary>
     public byte A;
 
     public Color(byte r, byte g, byte b, byte a)

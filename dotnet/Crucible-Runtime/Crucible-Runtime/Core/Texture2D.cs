@@ -156,6 +156,13 @@ public unsafe partial class Texture2D: Texture
 
         return data;
     }
+
+    public void SetPixels(IEnumerable<UpdateRegion> pixelUpdates, Texture.PixelAspects aspects)
+    {
+        GPUBatchInitQueue queue = new GPUBatchInitQueue();
+        SetPixels(pixelUpdates, aspects, queue);
+        queue.Process();
+    }
     /// <summary>
     /// Queue a job to set pixels in this texture
     /// </summary>
@@ -163,7 +170,7 @@ public unsafe partial class Texture2D: Texture
     /// <param name="aspect">Pixel aspect to update (only one can be done at a time)</param>
     /// <param name="batchInitQueue">Queue to assign the update to</param>
     /// <exception cref="ArgumentException"></exception>
-    public void SetPixels(IEnumerable<UpdateRegion> pixelUpdates, Texture.PixelAspects aspect,GPUBatchInitQueue batchInitQueue,Action<Region>? callback = null)
+    internal void SetPixels(IEnumerable<UpdateRegion> pixelUpdates, Texture.PixelAspects aspect,GPUBatchInitQueue batchInitQueue,Action<Region>? callback = null)
     {
         if (System.Numerics.BitOperations.PopCount(((byte)aspect)) != 1)
         {

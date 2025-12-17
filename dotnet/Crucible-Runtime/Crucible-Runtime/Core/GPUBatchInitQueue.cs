@@ -37,6 +37,11 @@ public partial class GPUBatchInitQueue
         Texture2D.ReadFromStreamBatchInit(reader,this,callback);
     }
 
+    public void QueueUpdateTexture2D(Texture2D texture,IEnumerable<Texture2D.UpdateRegion> pixelUpdates, Texture.PixelAspects aspect, Action<Texture2D.Region>? callback = null)
+    {
+        texture.SetPixels(pixelUpdates,aspect,this,callback);
+    }
+
     public void Process()
     {
         CRUCIBLE_NATIVE_DeferredJobQueueProcess(_deferredJobQueueHandle);
