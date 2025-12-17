@@ -383,7 +383,6 @@ namespace crucible
 
         ecs_entity_t CRUCIBLE_NATIVE_EcsGetDataTypeID(const char* typeName, uint64_t size, uint64_t alignment)
         {
-            auto a = alignof(glm::vec3);
             return ecs::registerOrRetrieveDataType(typeName,size,alignment);
         }
 
