@@ -80,7 +80,7 @@ public static class Texture2DTests
         var serialized = groundTexture.Serialize();
         GPUBatchInitQueue queue = new GPUBatchInitQueue();
         Texture2D? mytexture = null;
-        Texture2D.ReadFromStream(new BinaryReader(new MemoryStream(serialized)),queue,(texture)=>{mytexture = texture;});
+        queue.QueueTexture2D(new BinaryReader(new MemoryStream(serialized)),(texture)=>{mytexture = texture;});
         if (mytexture != null)
         {
             return TestResult.Fail("Texture assigned before queue execution");

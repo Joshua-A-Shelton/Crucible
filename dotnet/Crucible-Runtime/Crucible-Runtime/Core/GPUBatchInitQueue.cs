@@ -27,6 +27,16 @@ public partial class GPUBatchInitQueue
     [LibraryImport("Crucible")]
     private static partial void CRUCIBLE_NATIVE_DeferredJobQueueAddDeferredInit(IntPtr deferredJobQueueHandle, IntPtr deferredInitHandle);
 
+    public void QueueMesh(BinaryReader reader, Mesh.MeshBufferAccessibility accessibility, Action<Mesh> onFinish)
+    {
+        Mesh.ReadFromStreamBatchedInit(reader,accessibility,this,onFinish);
+    }
+
+    public void QueueTexture2D(BinaryReader reader, Action<Texture2D> callback)
+    {
+        Texture2D.ReadFromStreamBatchInit(reader,this,callback);
+    }
+
     public void Process()
     {
         CRUCIBLE_NATIVE_DeferredJobQueueProcess(_deferredJobQueueHandle);

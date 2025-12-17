@@ -312,8 +312,7 @@ public static class MeshTests
         GPUBatchInitQueue initQueue = new GPUBatchInitQueue();
         using (var meshFile = File.Open("resources/cube.cmsh", FileMode.Open))
         {
-            Mesh.ReadFromStreamBatchedInit(new BinaryReader(meshFile),new Mesh.MeshBufferAccessibility(),initQueue,
-                (Mesh mesh) => { deferredMesh = mesh; });
+            initQueue.QueueMesh(new BinaryReader(meshFile),new Mesh.MeshBufferAccessibility(),(Mesh mesh) => { deferredMesh = mesh; });
         }
 
         if (deferredMesh != null)

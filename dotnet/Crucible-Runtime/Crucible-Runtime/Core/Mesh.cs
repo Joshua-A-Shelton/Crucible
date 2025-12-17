@@ -313,7 +313,7 @@ public unsafe partial class Mesh
     /// <param name="accessibility">Accessibility of mesh data buffers</param>
     /// <param name="initQueue">Queue that batches a series of GPU operations</param>
     /// <param name="onFinish">Action to perform when initialization is finished</param>
-    public static void ReadFromStreamBatchedInit(BinaryReader reader, MeshBufferAccessibility accessibility, GPUBatchInitQueue initQueue, Action<Mesh> onFinish)
+    internal static void ReadFromStreamBatchedInit(BinaryReader reader, MeshBufferAccessibility accessibility, GPUBatchInitQueue initQueue, Action<Mesh> onFinish)
     {
         MeshConstruct(reader, accessibility, initQueue, onFinish);
     }

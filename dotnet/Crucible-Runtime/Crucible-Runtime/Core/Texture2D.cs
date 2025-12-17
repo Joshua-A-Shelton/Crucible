@@ -348,7 +348,7 @@ public unsafe partial class Texture2D: Texture
         return readData.Item1;
     }
 
-    public static void ReadFromStream(BinaryReader reader, GPUBatchInitQueue queue, Action<Texture2D> callback)
+    internal static void ReadFromStreamBatchInit(BinaryReader reader, GPUBatchInitQueue queue, Action<Texture2D> callback)
     {
         var readData = ReadStreamData(reader);
 
