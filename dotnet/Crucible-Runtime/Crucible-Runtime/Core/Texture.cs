@@ -9,6 +9,7 @@ public abstract unsafe partial class Texture
     /// </summary>
     public enum PixelFormat
     {
+        None = 0,
         R32G32B32A32_Float = 1,
         R32G32B32A32_Uint = 2,
         R32G32B32A32_SInt = 3,

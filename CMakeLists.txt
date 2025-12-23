@@ -158,6 +158,10 @@ add_library(Crucible SHARED
         src/crucible/DeferredJobQueue.h
         src/crucible/utils/GPUUtils.cpp
         src/crucible/utils/GPUUtils.h
+        src/crucible/Material.cpp
+        src/crucible/Material.h
+        src/crucible/ShaderManager.cpp
+        src/crucible/ShaderManager.h
 )
 
 target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})

@@ -11,6 +11,7 @@
 #include <slag/Slag.h>
 #include <boost/uuid/uuid.hpp>
 
+#include "crucible/ShaderManager.h"
 
 
 namespace crucible
@@ -150,6 +151,9 @@ namespace crucible
             CRUCIBLE_API void* CRUCIBLE_NATIVE_MeshUV3BufferCpuHandle(Mesh* mesh);
             CRUCIBLE_API void* CRUCIBLE_NATIVE_MeshUV4BufferCpuHandle(Mesh* mesh);
             CRUCIBLE_API void* CRUCIBLE_NATIVE_MeshIndexBufferCpuHandle(Mesh* mesh);
+
+            CRUCIBLE_API void CRUCIBLE_NATIVE_ShaderReferenceDelete(ShaderReference* shaderReference);
+            CRUCIBLE_API ShaderReference* CRUCIBLE_NATIVE_ShaderPipelineGraphicsGetOrLoad(const char* name, void(*createShader)(const char* shaderPath,const char* shaderName,ShaderManager::ShaderCreateResult(*nativeAddShader)(const char* name,Mesh::VertexAttributeFlags attributes, unsigned char** shaderCodeArray,uint32_t* shaderCodeLengthsArray,slag::ShaderStageFlags* stages, uint32_t shaderCount, slag::ShaderProperties* properties, slag::FrameBufferDescription* framebufferDescription)));
         }
     } // scripting
 } // slag

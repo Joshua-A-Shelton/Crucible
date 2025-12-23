@@ -97,6 +97,10 @@ public static class Texture2DTests
     {
         foreach (Texture.PixelFormat format in Enum.GetValues(typeof(Texture.PixelFormat)))
         {
+            if (format == Texture.PixelFormat.None)
+            {
+                continue;
+            }
             Texture2D texture = new Texture2D(format,32,32,1);
             if (texture.Format != format)
             {

@@ -11,6 +11,7 @@
 #include <boost/container_hash/hash.hpp>
 #include "ManagedInstance.h"
 #include "crucible/DeferredJobQueue.h"
+#include <crucible/ShaderManager.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -166,6 +167,11 @@ namespace crucible
         void CRUCIBLE_NATIVE_DeferredJobQueueProcess(DeferredJobQueue* deferredJobQueue)
         {
             deferredJobQueue->process();
+        }
+
+        void CRUCIBLE_NATIVE_DeferredJobQueueAddDeferredInit(DeferredJobQueue* deferredJobQueue, void* IDeferredInitHandle)
+        {
+            deferredJobQueue->enqueue(DeferredJob(ManagedInstance(IDeferredInitHandle)));
         }
 
         slag::Texture* CRUCIBLE_NATIVE_TextureCreate2D(slag::Pixels::Format format, uint32_t width, uint32_t height,uint32_t mips, slag::Texture::SampleCount sampleCount)
@@ -847,9 +853,18 @@ namespace crucible
             return nullptr;
         }
 
-        void CRUCIBLE_NATIVE_DeferredJobQueueAddDeferredInit(DeferredJobQueue* deferredJobQueue, void* IDeferredInitHandle)
+        void CRUCIBLE_NATIVE_ShaderReferenceDelete(ShaderReference* shaderReference)
         {
-            deferredJobQueue->enqueue(DeferredJob(ManagedInstance(IDeferredInitHandle)));
+            delete shaderReference;
+        }
+
+
+        ShaderReference* CRUCIBLE_NATIVE_ShaderPipelineGraphicsGetOrLoad(const char* name,
+            void(* createShader)(const char* shaderPath, const char* shaderName, ShaderManager::ShaderCreateResult(*
+            nativeAddShader)(const char* name, Mesh::VertexAttributeFlags attributes, unsigned char** shaderCodeArray,
+            uint32_t* shaderCodeLengthsArray, slag::ShaderStageFlags* stages, uint32_t shaderCount,slag::ShaderProperties* properties, slag::FrameBufferDescription* framebufferDescription)))
+        {
+            return new ShaderReference(ShaderManager::getShader(name,createShader));
         }
     } // scripting
 } // slag

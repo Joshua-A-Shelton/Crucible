@@ -144,6 +144,8 @@ namespace crucible
         uint32_t indexCount()const;
         ///Vertex attributes this mesh contains
         Mesh::VertexAttributeFlags definedAttributes()const;
+        static std::vector<Mesh::VertexAttribute> toList(VertexAttributeFlags definedAttributes);
+        static slag::VertexDescription createVertexDescription(VertexAttributeFlags attributes);
 
     private:
         void move(Mesh& from);

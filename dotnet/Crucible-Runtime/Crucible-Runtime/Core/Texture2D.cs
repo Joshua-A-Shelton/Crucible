@@ -83,6 +83,10 @@ public unsafe partial class Texture2D: Texture
     }
     public Texture2D(PixelFormat format,uint width, uint height, uint mips, MultiSampleCount multiSampleCount = MultiSampleCount.One)
     {
+        if (format == PixelFormat.None)
+        {
+            throw new ArgumentException("PixelFormat.None is not supported");
+        }
         _handle = CRUCIBLE_NATIVE_TextureCreate2D(format, width, height, mips, multiSampleCount);
     }
 

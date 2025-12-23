@@ -366,6 +366,108 @@ namespace crucible
         return  _attributeFlags;
     }
 
+    std::vector<Mesh::VertexAttribute> Mesh::toList(VertexAttributeFlags definedAttributes)
+    {
+        std::vector<Mesh::VertexAttribute> result(std::popcount((uint16_t)definedAttributes));
+        if ((definedAttributes & Mesh::VertexAttribute::POSITION) == static_cast<Mesh::VertexAttributeFlags>(Mesh::VertexAttribute::POSITION))
+        {
+            result.push_back(Mesh::VertexAttribute::POSITION);
+        }
+        if ((definedAttributes & Mesh::VertexAttribute::NORMAL) == static_cast<Mesh::VertexAttributeFlags>(Mesh::VertexAttribute::NORMAL))
+        {
+            result.push_back(Mesh::VertexAttribute::NORMAL);
+        }
+        if ((definedAttributes & Mesh::VertexAttribute::TANGENT) == static_cast<Mesh::VertexAttributeFlags>(Mesh::VertexAttribute::TANGENT))
+        {
+            result.push_back(Mesh::VertexAttribute::TANGENT);
+        }
+        if ((definedAttributes & Mesh::VertexAttribute::COLOR) == static_cast<Mesh::VertexAttributeFlags>(Mesh::VertexAttribute::COLOR))
+        {
+            result.push_back(Mesh::VertexAttribute::COLOR);
+        }
+        if ((definedAttributes & Mesh::VertexAttribute::BONE_WEIGHT) == static_cast<Mesh::VertexAttributeFlags>(Mesh::VertexAttribute::BONE_WEIGHT))
+        {
+            result.push_back(Mesh::VertexAttribute::BONE_WEIGHT);
+        }
+        if ((definedAttributes & Mesh::VertexAttribute::UV) == static_cast<Mesh::VertexAttributeFlags>(Mesh::VertexAttribute::UV))
+        {
+            result.push_back(Mesh::VertexAttribute::UV);
+        }
+        if ((definedAttributes & Mesh::VertexAttribute::UV2) == static_cast<Mesh::VertexAttributeFlags>(Mesh::VertexAttribute::UV2))
+        {
+            result.push_back(Mesh::VertexAttribute::UV2);
+        }
+        if ((definedAttributes & Mesh::VertexAttribute::UV3) == static_cast<Mesh::VertexAttributeFlags>(Mesh::VertexAttribute::UV3))
+        {
+            result.push_back(Mesh::VertexAttribute::UV3);
+        }
+        if ((definedAttributes & Mesh::VertexAttribute::UV4) == static_cast<Mesh::VertexAttributeFlags>(Mesh::VertexAttribute::UV4))
+        {
+            result.push_back(Mesh::VertexAttribute::UV4);
+        }
+        return result;
+    }
+
+    slag::VertexDescription Mesh::createVertexDescription(VertexAttributeFlags attributes)
+    {
+        slag::VertexDescription vertexDescription(std::popcount((uint16_t)attributes));
+        auto channel = 0;
+        if ((attributes & Mesh::VertexAttribute::POSITION) == (Mesh::VertexAttributeFlags)Mesh::VertexAttribute::POSITION)
+        {
+            vertexDescription.add(slag::VertexAttribute(slag::GraphicsType::VECTOR3,0),channel);
+            channel++;
+        }
+        if ((attributes & Mesh::VertexAttribute::NORMAL) == (Mesh::VertexAttributeFlags)Mesh::VertexAttribute::NORMAL)
+        {
+            vertexDescription.add(slag::VertexAttribute(slag::GraphicsType::VECTOR3,0),channel);
+            channel++;
+        }
+        if ((attributes & Mesh::VertexAttribute::TANGENT) == (Mesh::VertexAttributeFlags)Mesh::VertexAttribute::TANGENT)
+        {
+            vertexDescription.add(slag::VertexAttribute(slag::GraphicsType::VECTOR3,0),channel);
+            channel++;
+        }
+        if ((attributes & Mesh::VertexAttribute::COLOR) == (Mesh::VertexAttributeFlags)Mesh::VertexAttribute::COLOR)
+        {
+            vertexDescription.add(slag::VertexAttribute(slag::GraphicsType::BOOLEAN_VECTOR4,0),channel);
+            channel++;
+        }
+        if ((attributes & Mesh::VertexAttribute::BONE_WEIGHT) == (Mesh::VertexAttributeFlags)Mesh::VertexAttribute::BONE_WEIGHT)
+        {
+            auto offset = 0;
+            for (auto i=0; i< 4; i++)
+            {
+                vertexDescription.add(slag::VertexAttribute(slag::GraphicsType::UNSIGNED_INTEGER,offset),channel);
+                offset+=sizeof(uint32_t);
+                vertexDescription.add(slag::VertexAttribute(slag::GraphicsType::FLOAT,offset),channel);
+                offset+=sizeof(float);
+            }
+
+            channel++;
+        }
+        if ((attributes & Mesh::VertexAttribute::UV) == (Mesh::VertexAttributeFlags)Mesh::VertexAttribute::UV)
+        {
+            vertexDescription.add(slag::VertexAttribute(slag::GraphicsType::VECTOR2,0),channel);
+            channel++;
+        }
+        if ((attributes & Mesh::VertexAttribute::UV2) == (Mesh::VertexAttributeFlags)Mesh::VertexAttribute::UV2)
+        {
+            vertexDescription.add(slag::VertexAttribute(slag::GraphicsType::VECTOR2,0),channel);
+            channel++;
+        }
+        if ((attributes & Mesh::VertexAttribute::UV3) == (Mesh::VertexAttributeFlags)Mesh::VertexAttribute::UV3)
+        {
+            vertexDescription.add(slag::VertexAttribute(slag::GraphicsType::VECTOR2,0),channel);
+            channel++;
+        }
+        if ((attributes & Mesh::VertexAttribute::UV4) == (Mesh::VertexAttributeFlags)Mesh::VertexAttribute::UV4)
+        {
+            vertexDescription.add(slag::VertexAttribute(slag::GraphicsType::VECTOR2,0),channel);
+            channel++;
+        }
+        return vertexDescription;
+    }
+
     void Mesh::move(Mesh& from)
     {
         std::swap(_positionBuffer,from._positionBuffer);

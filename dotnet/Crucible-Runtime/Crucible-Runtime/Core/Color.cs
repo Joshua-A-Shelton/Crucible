@@ -45,4 +45,13 @@ public struct Color
     {
         return !(c1 == c2);
     }
+
+    [Flags]
+    internal enum ComponentFlags
+    {
+        RED_COMPONENT = 0b00000001,
+        GREEN_COMPONENT = 0b00000010,
+        BLUE_COMPONENT = 0b00000100,
+        ALPHA_COMPONENT = 0b00001000
+    }
 }
