@@ -286,9 +286,9 @@ namespace crucible
             return texture->mipLevels();
         }
 
-        uint64_t CRUCIBLE_NATIVE_TextureGetByteSize(slag::Texture* texture)
+        uint64_t CRUCIBLE_NATIVE_TextureGetByteSize(slag::Texture* texture, slag::Pixels::AspectFlags aspectFlags)
         {
-            return texture->byteSize();
+            return texture->byteSize(aspectFlags);
         }
 
         uint32_t CRUCIBLE_NATIVE_TextureGetPixelSize(slag::Pixels::Format format, slag::Pixels::AspectFlags aspectFlags)
@@ -297,9 +297,9 @@ namespace crucible
         }
 
 
-        uint64_t CRUCIBLE_NATIVE_TextureGetMipByteSize(slag::Texture* texture, uint32_t mip)
+        uint64_t CRUCIBLE_NATIVE_TextureGetMipByteSize(slag::Texture* texture,slag::Pixels::AspectFlags aspectFlags, uint32_t mip)
         {
-            return texture->byteSize(mip);
+            return texture->byteSize(aspectFlags,mip);
         }
 
         slag::Pixels::Format CRUCIBLE_NATIVE_TextureGetFormat(slag::Texture* texture)

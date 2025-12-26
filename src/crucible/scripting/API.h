@@ -65,9 +65,9 @@ namespace crucible
             CRUCIBLE_API uint32_t CRUCIBLE_NATIVE_TextureGetMipDepth(slag::Texture* texture, uint32_t mip);
             CRUCIBLE_API uint32_t CRUCIBLE_NATIVE_TextureGetArraySize(slag::Texture* texture);
             CRUCIBLE_API uint32_t CRUCIBLE_NATIVE_TextureGetMipCount(slag::Texture* texture);
-            CRUCIBLE_API uint64_t CRUCIBLE_NATIVE_TextureGetByteSize(slag::Texture* texture);
+            CRUCIBLE_API uint64_t CRUCIBLE_NATIVE_TextureGetByteSize(slag::Texture* texture, slag::Pixels::AspectFlags aspectFlags);
             CRUCIBLE_API uint32_t CRUCIBLE_NATIVE_TextureGetPixelSize(slag::Pixels::Format format, slag::Pixels::AspectFlags aspectFlags);
-            CRUCIBLE_API uint64_t CRUCIBLE_NATIVE_TextureGetMipByteSize(slag::Texture* texture, uint32_t mip);
+            CRUCIBLE_API uint64_t CRUCIBLE_NATIVE_TextureGetMipByteSize(slag::Texture* texture,slag::Pixels::AspectFlags aspectFlags, uint32_t mip);
             CRUCIBLE_API slag::Pixels::Format CRUCIBLE_NATIVE_TextureGetFormat(slag::Texture* texture);
             CRUCIBLE_API slag::Pixels::AspectFlags CRUCIBLE_NATIVE_TextureGetAspectFlags(slag::Pixels::Format format);
             CRUCIBLE_API slag::Texture::SampleCount CRUCIBLE_NATIVE_TextureGetSampleCount(slag::Texture* texture);

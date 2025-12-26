@@ -115,7 +115,7 @@ public unsafe partial class Texture2D: Texture
         for (uint i = 0; i < MipCount; i++)
         {
             regions.Add(new Region(new Offset(0,0), new Extent(MipWidth(i),MipHeight(i)),i));
-            mipSizes.Add(CRUCIBLE_NATIVE_TextureGetMipByteSize(_handle,i));
+            mipSizes.Add(CRUCIBLE_NATIVE_TextureGetMipByteSize(_handle,aspects,i));
         }
 
         var pixels = GetPixels(regions, aspects);

@@ -123,9 +123,9 @@ public abstract unsafe partial class Texture
     [LibraryImport("Crucible")]
     protected static partial uint CRUCIBLE_NATIVE_TextureGetMipCount(IntPtr textureHandle);
     [LibraryImport("Crucible")]
-    protected static partial UInt64 CRUCIBLE_NATIVE_TextureGetByteSize(IntPtr textureHandle);
+    protected static partial UInt64 CRUCIBLE_NATIVE_TextureGetByteSize(IntPtr textureHandle, PixelAspects aspect);
     [LibraryImport("Crucible")]
-    protected static partial UInt64 CRUCIBLE_NATIVE_TextureGetMipByteSize(IntPtr textureHandle, UInt32 mip);
+    protected static partial UInt64 CRUCIBLE_NATIVE_TextureGetMipByteSize(IntPtr textureHandle,PixelAspects aspect, UInt32 mip);
     [LibraryImport("Crucible")]
     protected static partial UInt32 CRUCIBLE_NATIVE_TextureGetPixelSize(PixelFormat format, PixelAspects aspects);
     [LibraryImport("Crucible")]
