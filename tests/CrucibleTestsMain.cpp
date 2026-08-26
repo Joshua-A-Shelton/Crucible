@@ -14,7 +14,11 @@ int main(int argc, char* argv[])
 {
     ::testing::InitGoogleTest(&argc, argv);
 
-    if (crucible::Crucible::initialize() != crucible::CrucibleInitializationResult::SUCCESS)
+    crucible::CrucibleInitParams initParams{};
+#ifdef CRUCIBLE_SCRIPTING_MODULE
+    initParams.scriptingDLLPath = "Crucible-Runtime-Tests.dll";
+#endif
+    if (crucible::Crucible::initialize(initParams) != crucible::CrucibleInitializationResult::SUCCESS)
     {
         std::cout << "Failed to initialize Crucible" << std::endl;
         return -1;

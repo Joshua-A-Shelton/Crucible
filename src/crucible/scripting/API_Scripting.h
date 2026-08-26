@@ -1,8 +1,7 @@
 #ifndef CRUCIBLE_API_SCRIPTING_H
 #define CRUCIBLE_API_SCRIPTING_H
-#include "core/DLLLoader.h"
-#include "core/ManagedInstance.h"
-#include "core/ManagedType.h"
+
+#ifdef CRUCIBLE_SCRIPTING_MODULE
 #include <filesystem>
 
 namespace crucible
@@ -20,6 +19,6 @@ namespace crucible
         //no api functions here, the API functions exists *for* the scripting module
     }
 }
-
+#endif //CRUCIBLE_SCRIPTING_MODULE
 
 #endif //CRUCIBLE_API_SCRIPTING_H

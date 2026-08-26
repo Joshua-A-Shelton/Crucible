@@ -1,5 +1,7 @@
 #ifndef CRUCIBLE_API_RENDERING_H
 #define CRUCIBLE_API_RENDERING_H
+
+#ifdef CRUCIBLE_RENDERING_MODULE
 #include <cstdint>
 #include <slag/Slag.h>
 #include "core/Window.h"
@@ -29,6 +31,6 @@ extern "C"
     crucible::rendering::CRUCIBLE_WINDOW_PRESENT_MODE CRUCIBLE_API_getWindowPresentMode();
 }
 
-
+#endif //CRUCIBLE_RENDERING_MODULE
 
 #endif //CRUCIBLE_API_RENDERING_H

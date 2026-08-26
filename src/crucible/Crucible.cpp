@@ -16,7 +16,7 @@ namespace crucible
         SDL_InitFlags sdlInitFlags = SDL_INIT_EVENTS;
 #endif
 
-#ifdef CRUCIBLE_MODULE_RENDERING
+#ifdef CRUCIBLE_RENDERING_MODULE
         auto renderingResult = rendering::initializeRenderingSubmodule();
         if (renderingResult != CrucibleInitializationResult::SUCCESS)
         {
@@ -25,7 +25,7 @@ namespace crucible
         sdlInitFlags = SDL_INIT_VIDEO;
 #endif
 
-#ifdef CRUCIBLE_MODULE_SCRIPTING
+#ifdef CRUCIBLE_SCRIPTING_MODULE
         auto scriptingResult = scripting::initializeScriptingSubmodule(params.scriptingDLLPath);
         if (scriptingResult != CrucibleInitializationResult::SUCCESS)
         {
@@ -46,11 +46,16 @@ namespace crucible
 
     void Crucible::cleanup()
     {
-#ifdef CRUCIBLE_MODULE_RENDERING
-        rendering::cleanupRenderingSubmodule();
+#ifdef CRUCIBLE_SCRIPTING_MODULE
+        scripting::cleanupScriptingSubmodule();
 #endif
 
+#ifdef CRUCIBLE_RENDERING_MODULE
+        rendering::cleanupRenderingSubmodule();
+#endif
+#ifdef CRUCIBLE_INCLUDE_SDL
         SDL_Quit();
+#endif
     }
 
 } // crucible

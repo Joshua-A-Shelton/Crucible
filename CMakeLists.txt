@@ -6,18 +6,15 @@ include(FetchContent)
 
 OPTION(CRUCIBLE_RENDERING_MODULE "Include Crucible Rendering Module" ON)
 OPTION(CRUCIBLE_SCRIPTING_MODULE "Include Crucible C# Scripting Module" ON)
+
+
 OPTION(CRUCIBLE_AOT_SCRIPTING "Compile C# to native code ahead of time" OFF)
+
+SET(CRUCIBLE_AOT_SCRIPTING ON CACHE BOOL "Manually Set AOT" FORCE)
 
 SET(CRUCIBLE_DOT_NET_VERSION 10)
 
 OPTION(CRUCIBLE_BUILD_TESTS "Build Crucible Tests" ON)
-OPTION(CRUCIBLE_BUILD_AOT_EXAMPLE "Build AOT Scripting Example" ON)
-#SET(CRUCIBLE_BUILD_AOT_EXAMPLE ON CACHE BOOL "Override AOT scripting" FORCE)
-
-
-if(CRUCIBLE_BUILD_AOT_EXAMPLE)
-    SET(CRUCIBLE_AOT_SCRIPTING ON CACHE BOOL "Override AOT scripting" FORCE)
-endif()
 
 
 SET(CRUCIBLE_INCLUDE_SDL OFF)
@@ -35,7 +32,7 @@ endif()
 
 if(CRUCIBLE_RENDERING_MODULE)
     SET(CRUCIBLE_INCLUDE_SDL ON)
-    add_definitions(-DCRUCIBLE_MODULE_RENDERING=1)
+    add_definitions(-DCRUCIBLE_RENDERING_MODULE=1)
     fetchcontent_declare(
             Slag
             GIT_REPOSITORY https://github.com/Joshua-A-Shelton/Slag.git
@@ -55,53 +52,45 @@ if(CRUCIBLE_RENDERING_MODULE)
 endif ()
 
 if(CRUCIBLE_SCRIPTING_MODULE)
-    add_definitions(-DCRUCIBLE_MODULE_SCRIPTING=1)
-    if(NOT CRUCIBLE_AOT_SCRIPTING)
-        MACRO(SUBDIRLIST result curdir partial)
-            FILE(GLOB children RELATIVE ${curdir} ${curdir}/${partial})
-            SET(dirlist "")
-            FOREACH(child ${children})
-                IF(IS_DIRECTORY ${curdir}/${child})
-                    LIST(APPEND dirlist ${child})
-                ENDIF()
-            ENDFOREACH()
-            SET(${result} ${dirlist})
-        ENDMACRO()
+    add_definitions(-DCRUCIBLE_SCRIPTING_MODULE=1)
 
-        if(WIN32)
-            SUBDIRLIST(DOTNETDIRS "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Host.win-x64/" "${CRUCIBLE_DOT_NET_VERSION}.*")
-            list(GET DOTNETDIRS -1 DOTNETDIR)
-            set(DOT_NET_HOST_LOCATION "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Host.win-x64/${DOTNETDIR}/runtimes/win-x64/native")
-            set(NETHOST_DYNAMIC_LIBRARY "nethost.dll")
-        else()
-            SUBDIRLIST(DOTNETDIRS "/usr/lib/dotnet/packs/Microsoft.NETCore.App.Host.ubuntu.22.04-x64" "${CRUCIBLE_DOT_NET_VERSION}.*")
-            list(GET DOTNETDIRS -1 DOTNETDIR)
-            set(DOT_NET_HOST_LOCATION "/usr/lib/dotnet/packs/Microsoft.NETCore.App.Host.ubuntu.22.04-x64/${DOTNETDIR}/runtimes/ubuntu.22.04-x64/native/")
-            set(NETHOST_DYNAMIC_LIBRARY "libnethost.so")
-        endif()
+    MACRO(SUBDIRLIST result curdir partial)
+        FILE(GLOB children RELATIVE ${curdir} ${curdir}/${partial})
+        SET(dirlist "")
+        FOREACH(child ${children})
+            IF(IS_DIRECTORY ${curdir}/${child})
+                LIST(APPEND dirlist ${child})
+            ENDIF()
+        ENDFOREACH()
+        SET(${result} ${dirlist})
+    ENDMACRO()
 
-        if(${DOTNETDIR} STREQUAL "NOTFOUND")
-            message(FATAL_ERROR "Dot Net ${CRUCIBLE_DOT_NET_VERSION} is not installed")
-        else ()
-            message("Using Dot Net version found at ${DOT_NET_HOST_LOCATION}")
-        endif ()
+    if(WIN32)
+        SUBDIRLIST(DOTNETDIRS "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Host.win-x64/" "${CRUCIBLE_DOT_NET_VERSION}.*")
+        list(GET DOTNETDIRS -1 DOTNETDIR)
+        set(DOT_NET_HOST_LOCATION "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Host.win-x64/${DOTNETDIR}/runtimes/win-x64/native")
+        set(NETHOST_DYNAMIC_LIBRARY "nethost.dll")
     else()
+        SUBDIRLIST(DOTNETDIRS "/usr/lib/dotnet/packs/Microsoft.NETCore.App.Host.ubuntu.22.04-x64" "${CRUCIBLE_DOT_NET_VERSION}.*")
+        list(GET DOTNETDIRS -1 DOTNETDIR)
+        set(DOT_NET_HOST_LOCATION "/usr/lib/dotnet/packs/Microsoft.NETCore.App.Host.ubuntu.22.04-x64/${DOTNETDIR}/runtimes/ubuntu.22.04-x64/native/")
+        set(NETHOST_DYNAMIC_LIBRARY "libnethost.so")
     endif()
+
+    if(${DOTNETDIR} STREQUAL "NOTFOUND")
+        message(FATAL_ERROR "Dot Net ${CRUCIBLE_DOT_NET_VERSION} is not installed")
+    else ()
+        message("Using Dot Net version found at ${DOT_NET_HOST_LOCATION}")
+    endif ()
 
 
     SET(CRUCIBLE_SCRIPTING_SOURCES
             src/crucible/scripting/API_Scripting.cpp
             src/crucible/scripting/API_Scripting.h
-            src/crucible/scripting/core/ManagedInstance.cpp
-            src/crucible/scripting/core/ManagedInstance.h
-            src/crucible/scripting/core/ManagedType.cpp
-            src/crucible/scripting/core/ManagedType.h
-            src/crucible/scripting/core/ScriptingModule.cpp
-            src/crucible/scripting/core/ScriptingModule.h
             src/crucible/scripting/exceptions/InvalidManagedResourceException.cpp
             src/crucible/scripting/exceptions/InvalidManagedResourceException.h
-            src/crucible/scripting/core/DLLLoader.cpp
-            src/crucible/scripting/core/DLLLoader.h)
+            src/crucible/scripting/core/Callbacks.h
+    )
 
 endif ()
 
@@ -138,36 +127,37 @@ add_library(crucible::Crucible ALIAS Crucible)
 if(CRUCIBLE_RENDERING_MODULE)
     target_link_libraries(Crucible PUBLIC slag::Slag)
 endif ()
-if(CRUCIBLE_SCRIPTING_MODULE)
-    if(NOT CRUCIBLE_AOT_SCRIPTING)
-        target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})
-        target_link_libraries(Crucible PUBLIC nethost)
-        target_include_directories(Crucible PRIVATE ${DOT_NET_HOST_LOCATION})
 
+if(CRUCIBLE_SCRIPTING_MODULE)
+    target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})
+    target_link_libraries(Crucible PUBLIC nethost)
+    target_include_directories(Crucible PRIVATE ${DOT_NET_HOST_LOCATION})
+
+    if(NOT CRUCIBLE_AOT_SCRIPTING)
         #copy over c# config file (configure_file() is the copy operation, not related to the "configure file" that we're copying)
         configure_file(src/crucible/scripting/config/CSharpConfig.json ${CMAKE_BINARY_DIR}/config/CSharpConfig.json COPYONLY)
         #copy over library that allows us to enter c# code
         configure_file(${DOT_NET_HOST_LOCATION}/${NETHOST_DYNAMIC_LIBRARY} ${CMAKE_BINARY_DIR}/${NETHOST_DYNAMIC_LIBRARY} COPYONLY)
-        #build c# dll
-        file(GLOB_RECURSE CRUCIBLE_CSHARP_FILES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/crucible/scripting/dotnet/Crucible-Runtime/*.cs)
-        add_custom_command(
-                OUTPUT ${CMAKE_BINARY_DIR}/Crucible-Runtime.dll
-                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/crucible/scripting/dotnet/Crucible-Runtime
-                COMMAND dotnet publish Crucible-Runtime /p:Configuration=${CRUCIBLE_BUILD_TYPE} /p:Platform="Any CPU" -o ${CMAKE_BINARY_DIR}
-                DEPENDS ${CRUCIBLE_CSHARP_FILES}
-                COMMENT "Building Crucible .net runtime"
-        )
-        add_custom_target(Crucible-Runtime ALL DEPENDS ${CMAKE_BINARY_DIR}/Crucible-Runtime.dll)
-        add_dependencies(Crucible Crucible-Runtime)
-    else()
     endif()
+    #build c# dll
+    file(GLOB_RECURSE CRUCIBLE_CSHARP_FILES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/crucible/scripting/dotnet/Crucible-Runtime/*.cs)
+    add_custom_command(
+            OUTPUT ${CMAKE_BINARY_DIR}/Crucible-Runtime.dll
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/crucible/scripting/dotnet/Crucible-Runtime
+            COMMAND dotnet publish Crucible-Runtime /p:Configuration=${CRUCIBLE_BUILD_TYPE} /p:Platform="Any CPU" -o ${CMAKE_BINARY_DIR}
+            DEPENDS ${CRUCIBLE_CSHARP_FILES}
+            COMMENT "Building Crucible .net runtime"
+    )
+    add_custom_target(Crucible-Runtime ALL DEPENDS ${CMAKE_BINARY_DIR}/Crucible-Runtime.dll)
+    add_dependencies(Crucible Crucible-Runtime)
 
 endif ()
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Tests
 #-----------------------------------------------------------------------------------------------------------------------
-if(CRUCIBLE_BUILD_TESTS AND NOT CRUCIBLE_AOT_SCRIPTING)
+if(CRUCIBLE_BUILD_TESTS)
+    MESSAGE("Building Crucible Tests")
     FetchContent_Declare( googletest
             GIT_REPOSITORY https://github.com/google/googletest
             GIT_TAG v1.17.0
@@ -187,44 +177,27 @@ if(CRUCIBLE_BUILD_TESTS AND NOT CRUCIBLE_AOT_SCRIPTING)
     target_link_libraries(CrucibleTests GTest::gtest crucible::Crucible)
 
     if(CRUCIBLE_SCRIPTING_MODULE)
+
+        if(WIN32)
+            SET(CRUCIBLE_NATIVE_TARGET win-x64)
+        else()
+            SET(CRUCIBLE_NATIVE_TARGET linux-x64)
+        endif()
+
+        if(CRUCIBLE_AOT_SCRIPTING)
+            SET(CRUCIBLE_PUBLISH_AOT "/p:PublishAot=true")
+        endif()
+
         file(GLOB_RECURSE CRUCIBLE_CSHARP_TEST_FILES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/crucible/scripting/dotnet/Crucible-Runtime-Tests/*.cs)
         add_custom_command(
                 OUTPUT ${CMAKE_BINARY_DIR}/Crucible-Runtime-Tests.dll
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/crucible/scripting/dotnet/Crucible-Runtime
-                COMMAND dotnet publish Crucible-Runtime-Tests /p:Configuration=${CRUCIBLE_BUILD_TYPE} /p:Platform="Any CPU" -o ${CMAKE_BINARY_DIR}
-                DEPENDS ${CRUCIBLE_CSHARP_TEST_FILES}
+                COMMAND dotnet publish Crucible-Runtime-Tests -r ${CRUCIBLE_NATIVE_TARGET} /p:Configuration=${CRUCIBLE_BUILD_TYPE} /p:Platform="Any CPU" ${CRUCIBLE_PUBLISH_AOT} -o ${CMAKE_BINARY_DIR}
+                DEPENDS ${CRUCIBLE_CSHARP_TEST_FILES} ${CRUCIBLE_CSHARP_FILES}
                 COMMENT "Building Crucible .net tests"
         )
         add_custom_target(Crucible-Runtime-Tests ALL DEPENDS ${CMAKE_BINARY_DIR}/Crucible-Runtime-Tests.dll)
         add_dependencies(Crucible-Runtime-Tests Crucible-Runtime)
         add_dependencies(CrucibleTests Crucible-Runtime-Tests)
     endif()
-endif()
-
-
-#-----------------------------------------------------------------------------------------------------------------------
-# AOT example
-#-----------------------------------------------------------------------------------------------------------------------
-
-if(CRUCIBLE_BUILD_AOT_EXAMPLE)
-    add_executable(CrucibleNative
-            examples/native/main.cpp)
-
-    if(WIN32)
-        SET(CRUCIBLE_NATIVE_TARGET win-x64)
-    else()
-        SET(CRUCIBLE_NATIVE_TARGET linux-x64)
-    endif()
-
-    file(GLOB_RECURSE CRUCIBLE_NATIVE_EXAMPLE_FILES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/crucible/scripting/dotnet/NativeExample/*.cs)
-    add_custom_command(
-            OUTPUT ${CMAKE_BINARY_DIR}/NativeExample.dll
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/crucible/scripting/dotnet/Crucible-Runtime
-            COMMAND dotnet publish NativeExample -r ${CRUCIBLE_NATIVE_TARGET} /p:Configuration=${CRUCIBLE_BUILD_TYPE} /p:Platform="Any CPU" -o ${CMAKE_BINARY_DIR}
-            DEPENDS ${CRUCIBLE_NATIVE_EXAMPLE_FILES} ${CRUCIBLE_CSHARP_FILES}
-            COMMENT "Building Crucible native example"
-    )
-    add_custom_target(NativeExample ALL DEPENDS ${CMAKE_BINARY_DIR}/NativeExample.dll)
-    add_dependencies(CrucibleNative NativeExample)
-    target_link_libraries(CrucibleNative crucible::Crucible)
 endif()

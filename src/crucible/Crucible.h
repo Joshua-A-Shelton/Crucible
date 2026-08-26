@@ -1,10 +1,10 @@
 #ifndef CRUCIBLE_CRUCIBLE_H
 #define CRUCIBLE_CRUCIBLE_H
 
-#ifdef CRUCIBLE_MODULE_RENDERING
+#ifdef CRUCIBLE_RENDERING_MODULE
 #include "rendering/API_Rendering.h"
 #endif
-#ifdef CRUCIBLE_MODULE_SCRIPTING
+#ifdef CRUCIBLE_SCRIPTING_MODULE
 #include "scripting/API_Scripting.h"
 #endif
 namespace crucible
@@ -20,15 +20,9 @@ namespace crucible
         UNABLE_TO_INIT_WINDOWING
     };
 
-    enum class CrucibleModuleID
-    {
-        RENDERING = 1,
-        SCRIPTING = 2
-    };
-
     struct CrucibleInitParams
     {
-#ifdef CRUCIBLE_MODULE_SCRIPTING
+#ifdef CRUCIBLE_SCRIPTING_MODULE
         std::filesystem::path scriptingDLLPath;
 #endif
 

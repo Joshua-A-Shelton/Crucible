@@ -1,9 +1,10 @@
 #include "API_Scripting.h"
-#include "core/ScriptingModule.h"
 #include "crucible/Crucible.h"
 
 #include <cassert>
 #include <filesystem>
+
+#include "core/Callbacks.h"
 
 #ifndef CRUCIBLE_AOT_SCRIPTING
 #include <hostfxr.h>
@@ -92,6 +93,14 @@ namespace crucible
         }
 #endif
 
+        void ApplyScriptingCallbacks(const CallbackLocations& callbackLocations)
+        {
+            ScriptingInitializeCallback = callbackLocations.initialize;
+            ScriptingUpdateCallback = callbackLocations.update;
+            ScriptingCleanupCallback = callbackLocations.cleanup;
+        }
+
+
 #ifndef CRUCIBLE_AOT_SCRIPTING
         hostfxr_initialize_for_runtime_config_fn init_for_config_fptr = nullptr;
         hostfxr_get_runtime_delegate_fn get_delegate_fptr = nullptr;
@@ -163,11 +172,12 @@ namespace crucible
             }
 
             component_entry_point_fn initFunc = nullptr;
+            auto typeName = std::string("Crucible.Interop, ") + scriptingDLL.stem().string();
             load_assembly_and_get_function_pointer(
-                    platformString(executableDirectory.string() + DIR_SEPARATOR + "Crucible-Runtime.dll").c_str(),
+                    platformString(scriptingDLL.string().c_str()).c_str(),
                     //              namespace.class, dll name
-                    platformString("Crucible.Initialization.Initializer, Crucible-Runtime").c_str(),
-                    platformString("RuntimeEntry").c_str(),
+                    platformString(typeName).c_str(),
+                    platformString("DynamicRuntimeEntry").c_str(),
                     nullptr,
                     nullptr,
                     (void**)(&initFunc)
@@ -178,23 +188,13 @@ namespace crucible
                 return CrucibleInitializationResult::UNABLE_TO_FIND_SCRIPTING_ENTRY_POINT;
             }
 
-            std::vector<void*> initModules;
-            ScriptingModule scriptingModule{};
-            initModules.push_back(&scriptingModule);
-#ifdef CRUCIBLE_MODULE_RENDERING
-#endif
-
+            CallbackLocations callbackLocations{};
             //call C# initialization function
-            if (initFunc(initModules.data(),initModules.size())!=0)
+            if (initFunc(&callbackLocations,sizeof(CallbackLocations))!=0)
             {
                 return CrucibleInitializationResult::ERROR_IN_SCRIPTING_INITIALIZATION;
             }
-
-            if (DLLLoader::loadLibrary("Core",scriptingDLL.string().c_str())!=AssemblyLoadResult::SUCCESS)
-            {
-                return CrucibleInitializationResult::SCRIPTING_DLL_LOADING_FAILURE;
-            }
-
+            ApplyScriptingCallbacks(callbackLocations);
             return CrucibleInitializationResult::SUCCESS;
         }
 
@@ -206,45 +206,52 @@ namespace crucible
             HMODULE scriptingLibrary = LoadLibraryA(scriptingDLL.string().c_str());
             if (scriptingLibrary)
             {
-                RuntimeEntry initFunc = (RuntimeEntry)GetProcAddress(scriptingLibrary, "RuntimeEntry");
+                RuntimeEntry initFunc = (RuntimeEntry)GetProcAddress(scriptingLibrary, "StaticRuntimeEntry");
                 if (initFunc == nullptr)
                 {
                     return CrucibleInitializationResult::UNABLE_TO_FIND_SCRIPTING_ENTRY_POINT;
                 }
-                std::vector<void*> initModules;
-                ScriptingModule scriptingModule{};
-                initModules.push_back(&scriptingModule);
-#ifdef CRUCIBLE_MODULE_RENDERING
-#endif
 
+                CallbackLocations callbackLocations{};
                 //call C# initialization function
-                if (initFunc(initModules.data(),initModules.size())!=0)
+                if (initFunc(&callbackLocations,sizeof(CallbackLocations))!=0)
                 {
                     return CrucibleInitializationResult::ERROR_IN_SCRIPTING_INITIALIZATION;
                 }
+                ApplyScriptingCallbacks(callbackLocations);
+                return CrucibleInitializationResult::SUCCESS;
             }
             else
             {
-                return CrucibleInitializationResult::UNABLE_TO_FIND_SCRIPTING_ENTRY_POINT;
+                return CrucibleInitializationResult::SCRIPTING_DLL_LOADING_FAILURE;
             }
-            return CrucibleInitializationResult::SUCCESS;
+
         }
 
         CrucibleInitializationResult initializeScriptingSubmodule(const std::filesystem::path& scriptingDLL)
         {
+            CrucibleInitializationResult result = CrucibleInitializationResult::ERROR_IN_SCRIPTING_INITIALIZATION;
 #ifdef CRUCIBLE_AOT_SCRIPTING
-            return initializeCompiledScriptingSubmodule(scriptingDLL);
-#elif
-            return initializeDynamicScriptingSubmodule(scriptingDLL);
+            result = initializeCompiledScriptingSubmodule(scriptingDLL);
+#else
+            result = initializeDynamicScriptingSubmodule(scriptingDLL);
 #endif
+            if (ScriptingInitializeCallback!=nullptr)
+            {
+                ScriptingInitializeCallback();
+            }
+            return result;
         }
 
         void cleanupScriptingSubmodule()
         {
+            if (ScriptingCleanupCallback!=nullptr)
+            {
+                ScriptingCleanupCallback();
+            }
 #ifndef CRUCIBLE_AOT_SCRIPTING
             if (host_handle)
             {
-                DLLLoader::unloadAllContexts();
                 close_fptr(host_handle);
             }
 #endif
