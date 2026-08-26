@@ -1,60 +1,56 @@
 #include "Crucible.h"
-
-#include <iostream>
-#include <slag/Slag.h>
 #include <SDL3/SDL.h>
-#include <crucible/ecs/World.h>
-#include <crucible/scripting/ScriptingEngine.h>
+#ifdef CRUCIBLE_MODULE_RENDERING
+#include "rendering/API_Rendering.h"
+#endif
+#ifdef CRUCIBLE_MODULE_SCRIPTING
+#include "scripting/API_Scripting.h"
+#endif
 
-#include "DeferredJobQueue.h"
 
 namespace crucible
 {
-#ifndef NDEBUG
-    void SLAG_DEBUG_HANDLER(const std::string& message, slag::SlagDebugLevel debugLevel, int32_t messageID)
+    CrucibleInitializationResult Crucible::initialize(const CrucibleInitParams& params)
     {
-        std::cout << message << std::endl;
-    }
+#ifdef CRUCIBLE_INCLUDE_SDL
+        SDL_InitFlags sdlInitFlags = SDL_INIT_EVENTS;
 #endif
 
-    bool initialize()
-    {
-        if (!SDL_Init(SDL_INIT_EVENTS | SDL_INIT_GAMEPAD | SDL_INIT_HAPTIC | SDL_INIT_JOYSTICK | SDL_INIT_VIDEO | SDL_INIT_AUDIO))
+#ifdef CRUCIBLE_MODULE_RENDERING
+        auto renderingResult = rendering::initializeRenderingSubmodule();
+        if (renderingResult != CrucibleInitializationResult::SUCCESS)
         {
-            std::cout << "Unable to initialize SDL3\n";
-            return false;
+            return renderingResult;
         }
-        slag::SlagInitInfo initInfo;
-        initInfo.graphicsBackend = slag::GraphicsBackend::VULKAN_GRAPHICS_BACKEND;
-#ifndef NDEBUG
-        initInfo.slagDebugHandler = SLAG_DEBUG_HANDLER;
+        sdlInitFlags = SDL_INIT_VIDEO;
 #endif
 
-        auto initializationResult = slag::initialize(initInfo);
-        if (initializationResult != slag::SLAG_INITIALIZATION_SUCCESS)
+#ifdef CRUCIBLE_MODULE_SCRIPTING
+        auto scriptingResult = scripting::initializeScriptingSubmodule(params.scriptingDLLPath);
+        if (scriptingResult != CrucibleInitializationResult::SUCCESS)
         {
-            std::cout << "Unable to initialize Slag Graphics Library\n";
-            return false;
+            return scriptingResult;
         }
-        ecs::registerEngineDefinedTypes();
-        if (!scripting::ScriptingEngine::initialize())
+#endif
+
+
+#ifdef CRUCIBLE_INCLUDE_SDL
+        if (!SDL_Init(sdlInitFlags))
         {
-            std::cout << "Unable to initialize C# Scripting Engine\n";
-            return false;
+            return CrucibleInitializationResult::UNABLE_TO_INIT_WINDOWING;
         }
-        if (!DeferredJobQueue::systemInitialize())
-        {
-            std::cout << "Unable to initialize DeferredJobQueue\n";
-            return false;
-        }
-        return true;
+#endif
+
+        return CrucibleInitializationResult::SUCCESS;
     }
 
-    void cleanup()
+    void Crucible::cleanup()
     {
-        DeferredJobQueue::systemCleanup();
-        scripting::ScriptingEngine::cleanup();
-        slag::cleanup();
+#ifdef CRUCIBLE_MODULE_RENDERING
+        rendering::cleanupRenderingSubmodule();
+#endif
+
         SDL_Quit();
     }
+
 } // crucible

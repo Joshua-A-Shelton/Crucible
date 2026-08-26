@@ -1,10 +1,7 @@
 /cmake-build-debug/
 /cmake-build-release/
-/dotnet/Crucible-Runtime/Crucible-Runtime/obj/
-/test/dotnet/Crucible-Runtime-Tests/.idea/
-/test/dotnet/Crucible-Runtime-Tests/Crucible-Runtime-Tests/obj/
-/test/dotnet/Crucible-Runtime-Tests/Crucible-Runtime-Tests/bin/
-/test/dotnet/Crucible-Runtime/Crucible-Runtime/obj/
-/test/dotnet/Crucible-Runtime/Crucible-Runtime/bin/
-/examples/cube/CubeExample/CubeExample/obj/
-/examples/cube/CubeExample/CubeExample/bin/
+/src/crucible/scripting/dotnet/Crucible-Runtime/.idea/
+/src/crucible/scripting/dotnet/Crucible-Runtime/Crucible-Runtime/bin/
+/src/crucible/scripting/dotnet/Crucible-Runtime/Crucible-Runtime/obj/
+/src/crucible/scripting/dotnet/Crucible-Runtime/Crucible-Runtime-Tests/obj/
+/src/crucible/scripting/dotnet/Crucible-Runtime/Crucible-Runtime-Tests/bin/

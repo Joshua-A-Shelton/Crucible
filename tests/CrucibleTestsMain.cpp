@@ -1,16 +1,26 @@
 #include <gtest/gtest.h>
 #include <crucible/Crucible.h>
+// For Direct3D 12 Agility SDK
+#ifdef SLAG_DX12_BACKEND
+#include <intsafe.h>
+extern "C"
+{
+__declspec(dllexport) extern const UINT D3D12SDKVersion = 616;
+__declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\";
+}
+#endif
 
-#include "crucible/scripting/ScriptingEngine.h"
-
-int main(int argc, char** argv)
+int main(int argc, char* argv[])
 {
     ::testing::InitGoogleTest(&argc, argv);
-    crucible::initialize();
-    crucible::scripting::ScriptingEngine::loadCSharpDLL("Testing","Crucible-Runtime-Tests.dll");
+
+    if (crucible::Crucible::initialize() != crucible::CrucibleInitializationResult::SUCCESS)
+    {
+        std::cout << "Failed to initialize Crucible" << std::endl;
+        return -1;
+    }
+
     auto run = RUN_ALL_TESTS();
-    crucible::scripting::ScriptingEngine::unloadAllContexts();
-    crucible::cleanup();
+    crucible::Crucible::cleanup();
     return run;
-    return 1;
 }
