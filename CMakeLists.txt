@@ -6,6 +6,7 @@ include(FetchContent)
 
 OPTION(CRUCIBLE_RENDERING_MODULE "Include Crucible Rendering Module" ON)
 OPTION(CRUCIBLE_SCRIPTING_MODULE "Include Crucible C# Scripting Module" ON)
+OPTION(CRUCIBLE_UPDATE_MODULE "Include Crucible Update Module" ON)
 
 
 OPTION(CRUCIBLE_AOT_SCRIPTING "Compile C# to native code ahead of time" OFF)
@@ -15,6 +16,7 @@ SET(CRUCIBLE_AOT_SCRIPTING ON CACHE BOOL "Manually Set AOT" FORCE)
 SET(CRUCIBLE_DOT_NET_VERSION 10)
 
 OPTION(CRUCIBLE_BUILD_TESTS "Build Crucible Tests" ON)
+OPTION(CRUCIBLE_BUILD_EXAMPLE "Build Crucible Example" ON)
 
 
 SET(CRUCIBLE_INCLUDE_SDL OFF)
@@ -32,6 +34,7 @@ endif()
 
 if(CRUCIBLE_RENDERING_MODULE)
     SET(CRUCIBLE_INCLUDE_SDL ON)
+    SET(CRUCIBLE_UPDATE_MODULE ON CACHE BOOL "" FORCE)
     add_definitions(-DCRUCIBLE_RENDERING_MODULE=1)
     fetchcontent_declare(
             Slag
@@ -48,6 +51,10 @@ if(CRUCIBLE_RENDERING_MODULE)
             src/crucible/rendering/exceptions/ExceededHeapMemoryException.h
             src/crucible/rendering/core/Window.cpp
             src/crucible/rendering/core/Window.h
+            src/crucible/rendering/core/ResourceManager.cpp
+            src/crucible/rendering/core/ResourceManager.h
+            src/crucible/rendering/core/Mesh.cpp
+            src/crucible/rendering/core/Mesh.h
     )
 endif ()
 
@@ -94,9 +101,27 @@ if(CRUCIBLE_SCRIPTING_MODULE)
 
 endif ()
 
-add_library(Crucible ${CRUCIBLE_RENDERING_SOURCES} ${CRUCIBLE_SCRIPTING_SOURCES}
+if(CRUCIBLE_UPDATE_MODULE)
+    SET(CRUCIBLE_INCLUDE_SDL ON)
+    add_definitions(-DCRUCIBLE_UPDATE_MODULE=1)
+    SET(CRUCIBLE_UPDATE_SOURCES
+            src/crucible/update/API_Update.cpp
+            src/crucible/update/API_Update.h
+    )
+endif ()
+
+add_library(Crucible SHARED ${CRUCIBLE_RENDERING_SOURCES} ${CRUCIBLE_SCRIPTING_SOURCES} ${CRUCIBLE_UPDATE_SOURCES}
         src/crucible/Crucible.cpp
-        src/crucible/Crucible.h)
+        src/crucible/Crucible.h
+        src/crucible/core/API_Core.cpp
+        src/crucible/core/API_Core.h
+        src/crucible/core/CrucibleAPI.h)
+
+set_target_properties(Crucible PROPERTIES
+        C_VISIBILITY_PRESET hidden
+        CXX_VISIBILITY_PRESET hidden
+        VISIBILITY_INLINES_HIDDEN ON
+)
 
 #Add SDL if any submodule depends on it
 if(CRUCIBLE_INCLUDE_SDL)
@@ -116,6 +141,24 @@ if(CRUCIBLE_INCLUDE_SDL)
 
     target_link_libraries(Crucible PUBLIC SDL3::SDL3-static)
 endif ()
+
+#get unconditional dependencies
+
+find_package(glm QUIET)
+if(NOT glm_FOUND)
+    fetchcontent_declare(
+            glm
+            GIT_REPOSITORY https://github.com/g-truc/glm.git
+            GIT_TAG 1.0.3
+            GIT_SHALLOW TRUE
+            OVERRIDE_FIND_PACKAGE
+    )
+    find_package(glm)
+endif ()
+
+
+
+target_link_libraries(Crucible PUBLIC glm::glm)
 
 #set up library for consumption in other projects
 target_include_directories(Crucible PUBLIC src)
@@ -149,7 +192,7 @@ if(CRUCIBLE_SCRIPTING_MODULE)
             COMMENT "Building Crucible .net runtime"
     )
     add_custom_target(Crucible-Runtime ALL DEPENDS ${CMAKE_BINARY_DIR}/Crucible-Runtime.dll)
-    add_dependencies(Crucible Crucible-Runtime)
+    add_dependencies(Crucible-Runtime Crucible)
 
 endif ()
 
@@ -200,4 +243,25 @@ if(CRUCIBLE_BUILD_TESTS)
         add_dependencies(Crucible-Runtime-Tests Crucible-Runtime)
         add_dependencies(CrucibleTests Crucible-Runtime-Tests)
     endif()
+endif()
+
+#-----------------------------------------------------------------------------------------------------------------------
+# Example Project
+#-----------------------------------------------------------------------------------------------------------------------
+if(CRUCIBLE_BUILD_EXAMPLE)
+    add_executable(CrucibleExample
+            example/Main.cpp)
+    target_link_libraries(CrucibleExample Crucible)
+
+    file(GLOB_RECURSE CRUCIBLE_CSHARP_EXAMPLE_FILES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/example/dotnet/Example/*.cs)
+    add_custom_command(
+            OUTPUT ${CMAKE_BINARY_DIR}/Example.dll
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/example/dotnet/Example
+            COMMAND dotnet publish Example -r ${CRUCIBLE_NATIVE_TARGET} /p:Configuration=${CRUCIBLE_BUILD_TYPE} /p:Platform="Any CPU" ${CRUCIBLE_PUBLISH_AOT} -o ${CMAKE_BINARY_DIR}
+            DEPENDS ${CRUCIBLE_CSHARP_EXAMPLE_FILES} ${CRUCIBLE_CSHARP_FILES}
+            COMMENT "Building Crucible .net example dll"
+    )
+    add_custom_target(Crucible-Example-Runtime ALL DEPENDS ${CMAKE_BINARY_DIR}/Example.dll)
+    add_dependencies(Crucible-Example-Runtime Crucible-Runtime)
+    add_dependencies(CrucibleExample Crucible-Example-Runtime)
 endif()

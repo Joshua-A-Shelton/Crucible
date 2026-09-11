@@ -3,6 +3,7 @@
 
 #ifdef CRUCIBLE_SCRIPTING_MODULE
 #include <filesystem>
+#include "core/Callbacks.h"
 
 namespace crucible
 {

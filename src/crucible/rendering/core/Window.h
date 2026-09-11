@@ -29,7 +29,7 @@ namespace crucible
         {
         public:
 
-            Window(const std::string& name, uint32_t width, uint32_t height, WindowDecorationMode decorationMode = WindowDecorationMode::BORDERED, WindowTransparency transparency = WindowTransparency::PRE_MULTIPLIED);
+            Window(const std::string& name, uint32_t width, uint32_t height, Window* parentWindow=nullptr, WindowDecorationMode decorationMode = WindowDecorationMode::BORDERED, WindowTransparency transparency = WindowTransparency::PRE_MULTIPLIED);
             ~Window();
             Window(const Window&) = delete;
             Window& operator=(const Window&) = delete;
@@ -37,13 +37,23 @@ namespace crucible
             Window& operator=(Window&&) =delete;
 
             void show() const;
+            void attemptClose();
+            void rebuildRenderTargets(uint32_t width, uint32_t height);
+
+            Window* parent() const;
+            slag::SwapChain* swapChain() const;
+
 
             static void updateWindowPresentMode(CRUCIBLE_WINDOW_PRESENT_MODE newPresentMode);
             static CRUCIBLE_WINDOW_PRESENT_MODE getWindowPresentMode();
+            static std::vector<Window*> getOpenedWindows();
+
         private:
 
             SDL_Window* _window=nullptr;
             slag::SwapChain* _swapChain=nullptr;
+            slag::Texture* _renderBuffer=nullptr;
+            slag::Texture* _depthBuffer=nullptr;
         };
     }// rendering
 

@@ -1,6 +1,7 @@
 #ifndef CRUCIBLE_CRUCIBLE_H
 #define CRUCIBLE_CRUCIBLE_H
 
+#include "core/API_Core.h"
 #ifdef CRUCIBLE_RENDERING_MODULE
 #include "rendering/API_Rendering.h"
 #endif
@@ -31,8 +32,8 @@ namespace crucible
     class Crucible
     {
     public:
-        static CrucibleInitializationResult initialize(const CrucibleInitParams& params);
-        static void cleanup();
+        CRUCIBLE_API static CrucibleInitializationResult initialize(const CrucibleInitParams& params);
+        CRUCIBLE_API static void cleanup();
 
     };
 } // crucible

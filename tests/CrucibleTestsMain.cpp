@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 #include <crucible/Crucible.h>
+
+#include "crucible/update/API_Update.h"
 // For Direct3D 12 Agility SDK
 #ifdef SLAG_DX12_BACKEND
 #include <intsafe.h>

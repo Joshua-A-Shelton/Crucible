@@ -6,6 +6,7 @@
 #include <queue>
 #include <crucible/Crucible.h>
 
+#include "core/ResourceManager.h"
 #include "exceptions/ExceededHeapMemoryException.h"
 struct CRUCIBLE_TEXTURE_INDICES
 {
@@ -53,11 +54,15 @@ crucible::CrucibleInitializationResult crucible::rendering::initializeRenderingS
     CRUCIBLE_RESOURCE_DESCRIPTOR_SIZE = std::max(heapProperties.samplerDescriptorSize, heapProperties.samplerDescriptorSize);
     CRUCIBLE_SAMPLER_DESCRIPTOR_SIZE = heapProperties.samplerDescriptorSize;
 
+    ResourceManager::initialize();
+
     return crucible::CrucibleInitializationResult::SUCCESS;
 }
 
 void crucible::rendering::cleanupRenderingSubmodule()
 {
+    ResourceManager::cleanup();
+
     delete CRUCIBLE_RESOURCE_DESCRIPTOR_HEAP;
     delete CRUCIBLE_SAMPLER_DESCRIPTOR_HEAP;
     CRUCIBLE_RESOURCE_DESCRIPTOR_HEAP = nullptr;
@@ -73,15 +78,15 @@ slag::GraphicsCard* crucible::rendering::getGraphicsCard()
 
 //API Calls
 
-crucible::rendering::Window* CRUCIBLE_API_createWindow(const char* name, uint32_t width, uint32_t height,
+crucible::rendering::Window* CRUCIBLE_API_createWindow(const char* name, uint32_t width, uint32_t height, crucible::rendering::Window* parent,
     crucible::rendering::WindowDecorationMode decorationMode, crucible::rendering::WindowTransparency transparency)
 {
-    return new crucible::rendering::Window(name, width, height, decorationMode, transparency);
+    return new crucible::rendering::Window(name, width, height, parent, decorationMode, transparency);
 }
 
 void CRUCIBLE_API_destroyWindow(crucible::rendering::Window* window)
 {
-    delete window;
+    crucible::rendering::ResourceManager::queueDelete(window);
 }
 
 void CRUCIBLE_API_showWindow(crucible::rendering::Window* window)
@@ -98,4 +103,44 @@ void CRUCIBLE_API_setWindowPresentMode(crucible::rendering::CRUCIBLE_WINDOW_PRES
 crucible::rendering::CRUCIBLE_WINDOW_PRESENT_MODE CRUCIBLE_API_getWindowPresentMode()
 {
     return crucible::rendering::Window::getWindowPresentMode();
+}
+
+slag::Texture* CRUCIBLE_API_createTexture1D(slag::PixelFormat format, slag::TextureUsageFlags usageFlags, uint32_t width, uint32_t mipLevels)
+{
+    return CRUCIBLE_GRAPHICS_CARD->newTexture1D(format, usageFlags, width, mipLevels);
+}
+
+slag::Texture* CRUCIBLE_API_createTexture2D(slag::PixelFormat format, slag::TextureUsageFlags usageFlags,
+    uint32_t width, uint32_t height, uint32_t mipLevels)
+{
+    return CRUCIBLE_GRAPHICS_CARD->newTexture2D(format, usageFlags, width, height, mipLevels);
+}
+
+slag::Texture* CRUCIBLE_API_createTexture2DArray(slag::PixelFormat format, slag::TextureUsageFlags usageFlags,
+    uint32_t width, uint32_t height, uint32_t mipLevels, uint32_t arrayLayers)
+{
+    return CRUCIBLE_GRAPHICS_CARD->newTexture2D(format, usageFlags, width, height, mipLevels, arrayLayers);
+}
+
+void CRUCIBLE_API_destroyTexture(slag::Texture* texture)
+{
+    crucible::rendering::ResourceManager::queueDelete(texture);
+}
+
+crucible::rendering::MeshLoadResult CRUCIBLE_API_createMeshFromFile(const unsigned char* data,
+    crucible::rendering::VertexAttributeFlags cpuAccessibleAttributes, crucible::rendering::Mesh* outMesh)
+{
+    throw std::runtime_error("Not implemented");
+}
+
+crucible::rendering::MeshLoadResult CRUCIBLE_API_createMeshFromVertexData(
+    const crucible::rendering::VertexDataStreams& vertexStreams,
+    crucible::rendering::VertexAttributeFlags cpuAccessibleAttributes, crucible::rendering::Mesh* outMesh)
+{
+    throw std::runtime_error("Not implemented");
+}
+
+void CRUCIBLE_API_destroyMesh(crucible::rendering::Mesh* mesh)
+{
+    delete mesh;
 }

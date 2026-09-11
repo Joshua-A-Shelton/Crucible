@@ -2,17 +2,12 @@
 
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
-        <RootNamespace>Crucible_Runtime_Tests</RootNamespace>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Crucible-Runtime\Crucible-Runtime.csproj" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="Tests\" />
+      <ProjectReference Include="..\..\..\..\src\crucible\scripting\dotnet\Crucible-Runtime\Crucible-Runtime\Crucible-Runtime.csproj" />
     </ItemGroup>
 
 </Project>
