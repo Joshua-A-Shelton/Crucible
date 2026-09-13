@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.29)
 project(Crucible)
-
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_CXX_STANDARD 20)
 include(FetchContent)
 
@@ -78,10 +78,10 @@ if(CRUCIBLE_SCRIPTING_MODULE)
         set(DOT_NET_HOST_LOCATION "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Host.win-x64/${DOTNETDIR}/runtimes/win-x64/native")
         set(NETHOST_DYNAMIC_LIBRARY "nethost.dll")
     else()
-        SUBDIRLIST(DOTNETDIRS "/usr/lib/dotnet/packs/Microsoft.NETCore.App.Host.ubuntu.22.04-x64" "${CRUCIBLE_DOT_NET_VERSION}.*")
+        SUBDIRLIST(DOTNETDIRS "/usr/share/dotnet/host/fxr/" "${CRUCIBLE_DOT_NET_VERSION}.*")
         list(GET DOTNETDIRS -1 DOTNETDIR)
-        set(DOT_NET_HOST_LOCATION "/usr/lib/dotnet/packs/Microsoft.NETCore.App.Host.ubuntu.22.04-x64/${DOTNETDIR}/runtimes/ubuntu.22.04-x64/native/")
-        set(NETHOST_DYNAMIC_LIBRARY "libnethost.so")
+        set(DOT_NET_HOST_LOCATION "/usr/share/dotnet/host/fxr/${DOTNETDIR}")
+        set(NETHOST_DYNAMIC_LIBRARY "libhostfxr.so")
     endif()
 
     if(${DOTNETDIR} STREQUAL "NOTFOUND")
@@ -118,6 +118,7 @@ add_library(Crucible SHARED ${CRUCIBLE_RENDERING_SOURCES} ${CRUCIBLE_SCRIPTING_S
         src/crucible/core/CrucibleAPI.h)
 
 set_target_properties(Crucible PROPERTIES
+        POSITION_INDEPENDENT_CODE ON
         C_VISIBILITY_PRESET hidden
         CXX_VISIBILITY_PRESET hidden
         VISIBILITY_INLINES_HIDDEN ON
@@ -139,7 +140,7 @@ if(CRUCIBLE_INCLUDE_SDL)
         find_package(SDL3 REQUIRED)
     endif ()
 
-    target_link_libraries(Crucible PUBLIC SDL3::SDL3-static)
+    target_link_libraries(Crucible PUBLIC SDL3::SDL3)
 endif ()
 
 #get unconditional dependencies
@@ -173,7 +174,7 @@ endif ()
 
 if(CRUCIBLE_SCRIPTING_MODULE)
     target_link_directories(Crucible PUBLIC ${DOT_NET_HOST_LOCATION})
-    target_link_libraries(Crucible PUBLIC nethost)
+    target_link_libraries(Crucible PUBLIC ${NETHOST_DYNAMIC_LIBRARY})
     target_include_directories(Crucible PRIVATE ${DOT_NET_HOST_LOCATION})
 
     if(NOT CRUCIBLE_AOT_SCRIPTING)

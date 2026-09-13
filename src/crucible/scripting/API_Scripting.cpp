@@ -203,6 +203,7 @@ namespace crucible
 
         CrucibleInitializationResult initializeCompiledScriptingSubmodule(const std::filesystem::path& scriptingDLL)
         {
+#ifdef _WIN32
             HMODULE scriptingLibrary = LoadLibraryA(scriptingDLL.string().c_str());
             if (scriptingLibrary)
             {
@@ -225,6 +226,28 @@ namespace crucible
             {
                 return CrucibleInitializationResult::SCRIPTING_DLL_LOADING_FAILURE;
             }
+#else
+            void* handle = dlopen(scriptingDLL.string().c_str(), RTLD_NOW);
+            if (handle == nullptr)
+            {
+                return CrucibleInitializationResult::UNABLE_TO_LOAD_DOTNET_CORE;
+            }
+            RuntimeEntry initFunc = (RuntimeEntry)dlsym(handle, "StaticRuntimeEntry");
+            const char* dlsym_error = dlerror();
+            if (dlsym_error != nullptr || initFunc == nullptr)
+            {
+                return CrucibleInitializationResult::UNABLE_TO_FIND_SCRIPTING_ENTRY_POINT;
+            }
+            CallbackLocations callbackLocations{};
+            //call C# initialization function
+            if (initFunc(&callbackLocations,sizeof(CallbackLocations))!=0)
+            {
+                return CrucibleInitializationResult::ERROR_IN_SCRIPTING_INITIALIZATION;
+            }
+            ApplyScriptingCallbacks(callbackLocations);
+            return CrucibleInitializationResult::SUCCESS;
+#endif
+
 
         }
 
