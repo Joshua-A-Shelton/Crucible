@@ -169,6 +169,12 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   Systems run in frame phases; structural changes are deferred. Logic not
   about world entities (turn order, inventory, quests, dialogue) is plain
   C# that refers to entities by ID.
+- **Frame phases** (ADR 0013): the frame is an editable, ordered list of
+  phases; systems register into a phase with before/after constraints,
+  sorted when the schedule is built. The fixed tick is a phase group with
+  a step cap. Structural changes apply at the end of each phase.
+  Parallelism in v1 is inside systems. The loop driver is replaceable.
+  The pacing wait comes first, then input.
 
 ## 5. Working with Claude on this repo
 

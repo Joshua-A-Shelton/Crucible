@@ -10,8 +10,9 @@ or in CLAUDE.md, and remove it from this list.
 - 2D physics library (third-party). → 0005
 - Renderer architecture ADR (clustered forward direction set by 0004).
 - Upscaler licenses: DLSS, XeSS (FSR is MIT); SMAA's license. → 0004
-- Frame-phase mechanism: the frame is built from ordered phases a game can
-  reorder, replace, or add to. → 0003, 0006
+- Job system: where it lives (native, C#, or both sharing one pool) and
+  how systems use it. → 0013
+- Names of the default phases. → 0013
 - C#↔C++ binding generator: input (C++ headers or a separate description)
   and output (`LibraryImport` bindings + editor metadata). → 0006
 - Interfaces for replaceable subsystems. → 0006
@@ -41,6 +42,7 @@ or in CLAUDE.md, and remove it from this list.
 ## After v1
 
 - Revisit the "not state of the art" non-goal (CLAUDE.md §2).
+- Automatic parallel scheduling between systems. → 0013
 
 ## Parked
 
