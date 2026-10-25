@@ -23,8 +23,10 @@ or in CLAUDE.md, and remove it from this list.
 - How plain C# services are registered, found, and saved. → 0012
 - C++ runtime extension mechanism (not plugins; C++ never extends the
   editor). → 0002
-- Editor language, editor UI toolkit (third-party?), and whether
-  play-in-editor runs in the editor's process. → 0002
+- UI system (editor and game UI, critical path): retained or immediate
+  mode, layout, styling, input and gamepad navigation, text input and IME,
+  DPI, crisp text rendering, font loading and shaping (third-party?).
+  → 0016
 
 ## Revisit once there is a prototype to test against
 

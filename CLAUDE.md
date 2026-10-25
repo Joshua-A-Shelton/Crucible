@@ -184,6 +184,10 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   list of render passes with named insertion points; core passes are C++,
   C# adds passes through a batched command API. Clustered forward with a
   depth prepass and MSAA. CPU culling with instancing in v1.
+- **Editor** (ADR 0016): written in C#, launched like a game (ADR 0011).
+  Its UI is Crucible's own UI system, shared with games. Play runs in the
+  editor's process by default; "Run standalone" launches a separate
+  process.
 
 ## 5. Working with Claude on this repo
 
