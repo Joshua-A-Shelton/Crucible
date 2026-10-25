@@ -19,8 +19,6 @@ or in CLAUDE.md, and remove it from this list.
   editor). → 0002
 - Editor language, editor UI toolkit (third-party?), and whether
   play-in-editor runs in the editor's process. → 0002
-- Hosting: native executable embedding CoreCLR (JIT) or linking NativeAOT
-  output; what "load the root plugin" means under AOT. → 0001, 0002
 
 ## Revisit once there is a prototype to test against
 

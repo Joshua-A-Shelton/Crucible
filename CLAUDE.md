@@ -149,7 +149,21 @@ Stated by the project owner and refined one at a time (2026-10-24).
   needs an explicit decision from the project owner, recorded in an ADR.
   Each shipped dependency's notice carries over to games (ADR 0007).
 
-## 4. Working with Claude on this repo
+## 4. Architecture
+
+Accepted architecture decisions, summarized. Details live in the ADRs.
+
+- **Hosting** (ADR 0011): a thin C++ launcher owns `main()`, platform init,
+  and shutdown, around the C++ core library. It starts .NET and calls one
+  managed entry point in the engine's C# layer, which drives the frame
+  loop. Plugins register through source-generated entry points in every
+  mode. JIT/editor builds load the core as a shared library; AOT builds
+  link everything into one `<GameName>.exe`.
+- **Hot-reload rule** (ADR 0011): native code holds references only into
+  the engine's C# layer, never into game or plugin assemblies. Native code
+  identifies game objects by IDs, not `GCHandle`s.
+
+## 5. Working with Claude on this repo
 
 This project is as much a learning exercise as it is an engine.
 
