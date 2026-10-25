@@ -43,6 +43,8 @@ How the editor can learn about changes:
   frame or per batch, never per object.
 - **Good defaults:** a new project runs with no configuration, and every
   default can be overridden at the level it lives at.
+- **No art-style lock-in** (added 2026-10-25, ADR 0010): Crucible's own
+  games are stylized, but a game can use any art style.
 
 ## Why
 

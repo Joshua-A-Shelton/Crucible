@@ -10,8 +10,8 @@ compatible.
 
 This file is the source of truth for project goals, constraints, and
 conventions. If a request conflicts with it, point out the conflict before
-writing code. **Status: drafting.** Sections marked *(draft)* are still
-being decided with the project owner, one goal at a time.
+writing code. **Status:** charter complete (2026-10-25); architecture
+decisions in progress (`docs/open-items.md`).
 
 ---
 
@@ -100,6 +100,8 @@ Stated by the project owner and refined one at a time (2026-10-24).
      batch, never per object).
    - A new project runs with no configuration; every default can be
      overridden at the level it lives at.
+   - No art-style lock-in: Crucible's own games are stylized (ADR 0010),
+     but a game can use any art style.
 
 ## 2. Non-goals
 
@@ -116,6 +118,9 @@ Stated by the project owner and refined one at a time (2026-10-24).
 - **No frame generation by default.** Opt-in plugin only (ADR 0003).
 - **No C++ editor extensions.** The editor is extended in C# only
   (ADR 0002).
+- **Not state of the art in v1:** no virtualized geometry (Nanite-style),
+  no real-time global illumination that depends on denoising, no hardware
+  ray tracing. Revisited after v1.
 - **No platforms beyond Slag's:** no macOS, Android, or iOS. Revisited
   with the platforms item in `docs/open-items.md`.
 
@@ -124,6 +129,15 @@ Stated by the project owner and refined one at a time (2026-10-24).
 - **Rendering is built on Slag.** Crucible inherits Slag's platform and API
   baseline (see Slag's CLAUDE.md §3) and its explicit, externally
   synchronized threading model.
+- **Audience and scope** (ADR 0009): Josh's engine, possibly shared with
+  collaborators; public use is allowed but not designed for. A limited
+  feature set, driven by Crucible's own games, with good documentation for
+  what exists. First target: a turn-based 3D RPG; later, a 3D action RPG.
+  Semantic versioning.
+- **Reference targets** (ADR 0010): stylized, anime-esque art with
+  soft-banded toon shading; action RPG feel between Zelda and Kingdom
+  Hearts, faster, with tight parry windows. The first game holds a steady
+  60 fps on Steam Deck at 1280×800 with MSAA.
 - **Platforms** (ADR 0008): games ship on Slag's platforms (Windows and
   Linux, x64; ARM64 compiles but is unsupported in v1) plus Steam Deck as
   an explicit target. Consoles stay possible and are never referenced by

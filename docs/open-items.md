@@ -5,6 +5,8 @@ or in CLAUDE.md, and remove it from this list.
 
 ## Needs a decision from the project owner
 
+- Input timestamps for frame-rate-independent timing checks (parry
+  windows). → 0003, 0010
 - 2D physics library (third-party). → 0005
 - Renderer architecture ADR (clustered forward direction set by 0004).
 - Upscaler licenses: DLSS, XeSS (FSR is MIT); SMAA's license. → 0004
@@ -33,10 +35,10 @@ or in CLAUDE.md, and remove it from this list.
 - Swapchain image count when switching `Mailbox` ↔ `Fifo`, and drivers
   that return three images for `Fifo`. → 0003
 
+## After v1
+
+- Revisit the "not state of the art" non-goal (CLAUDE.md §2).
+
 ## Parked
 
 - Mod API stability across game updates. → 0001
-- Baseline hardware for the speed goal (e.g. CPU core count and age);
-  decides how much multi-core scaling to design for.
-- Scope and audience (personal engine vs. general-purpose).
-- Reference games for the clarity and latency targets.
