@@ -6,9 +6,6 @@ or in CLAUDE.md, and remove it from this list.
 ## Needs a decision from the project owner
 
 - 2D physics library (third-party). → 0005
-- Are 2D gameplay features (2D physics, tilemaps, frame animation) usable
-  from HD 2D games on the 3D renderer, or tied to the pixel-art path?
-  → 0005
 - Renderer architecture ADR (clustered forward direction set by 0004).
 - Upscaler licenses: DLSS, XeSS (FSR is MIT); SMAA's license. → 0004
 - Frame-phase mechanism: the frame is built from ordered phases a game can
@@ -39,7 +36,6 @@ or in CLAUDE.md, and remove it from this list.
 - Mod API stability across game updates. → 0001
 - Baseline hardware for the speed goal (e.g. CPU core count and age);
   decides how much multi-core scaling to design for.
-- Non-goals (CLAUDE.md §2).
 - Crucible's own license.
 - Target platforms (inherit Slag's Windows/Linux, consoles kept possible?).
 - Scope and audience (personal engine vs. general-purpose).

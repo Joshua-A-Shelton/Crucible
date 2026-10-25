@@ -83,6 +83,8 @@ Stated by the project owner and refined one at a time (2026-10-24).
    - Pixel-perfect rendering is first-class (virtual resolution, integer
      scaling, pixel snapping).
    - Dedicated 2D physics; tilemaps and frame-based animation built in.
+     2D gameplay features are usable by any game, whichever renderer
+     draws it.
 7. **Hackable, with good defaults** (ADR 0006). Games can reshape the
    engine to their needs, and the editor picks up on those changes.
    - In scope: configure, extend (C#), replace whole subsystems, and
@@ -96,12 +98,23 @@ Stated by the project owner and refined one at a time (2026-10-24).
    - A new project runs with no configuration; every default can be
      overridden at the level it lives at.
 
-## 2. Non-goals *(draft)*
+## 2. Non-goals
 
-Filled in as the goals are refined.
-
+- **Strictly a game engine.** Slag is general purpose; Crucible is not.
+  Design decisions optimize for games and may rule out non-game software
+  (visualization, film, general tools). Crucible's own editor and
+  game-development tools are the exception.
 - **No mod sandboxing.** C# mods are trusted code with the same access as
   the game process (ADR 0001).
+- **No Mono, no IL→C++ translation.** C# runs on CoreCLR or NativeAOT only
+  (ADR 0001).
+- **No dependence on temporal accumulation** for default image quality.
+  Temporal techniques are opt-in, never required (ADR 0004).
+- **No frame generation by default.** Opt-in plugin only (ADR 0003).
+- **No C++ editor extensions.** The editor is extended in C# only
+  (ADR 0002).
+- **No platforms beyond Slag's:** no macOS, Android, or iOS. Revisited
+  with the platforms item in `docs/open-items.md`.
 
 ## 3. Constraints
 
