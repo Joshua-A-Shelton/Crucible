@@ -179,6 +179,11 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   C++, C# (through a wrapper and the engine's dispatcher), and third-party
   libraries. Frame and background priorities; work stealing, no fibers;
   waiting threads run jobs. enkiTS (zlib) is the fallback.
+- **Renderer foundation** (ADR 0015): built on `slag::rendergraph`
+  (limitations get fixed in Slag). The frame is an ordered, extensible
+  list of render passes with named insertion points; core passes are C++,
+  C# adds passes through a batched command API. Clustered forward with a
+  depth prepass and MSAA. CPU culling with instancing in v1.
 
 ## 5. Working with Claude on this repo
 

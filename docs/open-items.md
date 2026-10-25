@@ -8,7 +8,9 @@ or in CLAUDE.md, and remove it from this list.
 - Input timestamps for frame-rate-independent timing checks (parry
   windows). → 0003, 0010
 - 2D physics library (third-party). → 0005
-- Renderer architecture ADR (clustered forward direction set by 0004).
+- Renderer detail ADRs: materials and shaders; shadows; lighting and
+  ambient light; post-processing and the post-tonemap MSAA resolve; the
+  pixel-art 2D path; the C# rendering (batched command) API. → 0015
 - Upscaler licenses: DLSS, XeSS (FSR is MIT); SMAA's license. → 0004
 - Names of the default phases. → 0013
 - C#↔C++ binding generator: input (C++ headers or a separate description)
@@ -41,6 +43,7 @@ or in CLAUDE.md, and remove it from this list.
 
 - Revisit the "not state of the art" non-goal (CLAUDE.md §2).
 - Automatic parallel scheduling between systems. → 0013
+- GPU-driven culling and draw generation, if needed. → 0015
 
 ## Parked
 
