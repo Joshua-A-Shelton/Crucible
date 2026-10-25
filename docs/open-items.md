@@ -15,6 +15,11 @@ or in CLAUDE.md, and remove it from this list.
 - C#↔C++ binding generator: input (C++ headers or a separate description)
   and output (`LibraryImport` bindings + editor metadata). → 0006
 - Interfaces for replaceable subsystems. → 0006
+- ECS: storage strategy (archetypes or sparse sets), and build our own or
+  use a library (flecs, EnTT; both MIT). → 0012
+- ECS details: hierarchy and relationships, struct-with-references pools,
+  blittable layout migration across hot reload. → 0012
+- How plain C# services are registered, found, and saved. → 0012
 - C++ runtime extension mechanism (not plugins; C++ never extends the
   editor). → 0002
 - Editor language, editor UI toolkit (third-party?), and whether

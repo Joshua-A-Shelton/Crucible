@@ -162,6 +162,13 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
 - **Hot-reload rule** (ADR 0011): native code holds references only into
   the engine's C# layer, never into game or plugin assemblies. Native code
   identifies game objects by IDs, not `GCHandle`s.
+- **Data model** (ADR 0012): hybrid. ECS for the world, shown in the
+  editor as a hierarchy. Blittable components live in native memory,
+  shared by C++ and C# systems without copies. Managed components are
+  pay-for-use (native column holds an index into a per-type C# pool).
+  Systems run in frame phases; structural changes are deferred. Logic not
+  about world entities (turn order, inventory, quests, dialogue) is plain
+  C# that refers to entities by ID.
 
 ## 5. Working with Claude on this repo
 
