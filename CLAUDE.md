@@ -5,6 +5,9 @@ Crucible is a game engine built on Slag
 Direct3D 12 and Vulkan. The primary focus is 3D; excellent 2D support is a
 secondary focus.
 
+Licensed under zlib (`LICENSE`, ADR 0007); dependencies must stay
+compatible.
+
 This file is the source of truth for project goals, constraints, and
 conventions. If a request conflicts with it, point out the conflict before
 writing code. **Status: drafting.** Sections marked *(draft)* are still
@@ -121,9 +124,16 @@ Stated by the project owner and refined one at a time (2026-10-24).
 - **Rendering is built on Slag.** Crucible inherits Slag's platform and API
   baseline (see Slag's CLAUDE.md §3) and its explicit, externally
   synchronized threading model.
+- **Platforms** (ADR 0008): games ship on Slag's platforms (Windows and
+  Linux, x64; ARM64 compiles but is unsupported in v1) plus Steam Deck as
+  an explicit target. Consoles stay possible and are never referenced by
+  name in public code. The editor runs on Windows and Linux with **1:1
+  feature parity** (hard requirement); integrations with single-platform
+  external tools (e.g. PIX) may exist where the tool does.
 - **Third-party licenses must be highly permissive.** zlib is preferred;
   MIT and similar are acceptable. Anything else (e.g. vendor SDK licenses)
   needs an explicit decision from the project owner, recorded in an ADR.
+  Each shipped dependency's notice carries over to games (ADR 0007).
 
 ## 4. Working with Claude on this repo
 

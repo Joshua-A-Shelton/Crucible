@@ -28,6 +28,8 @@ or in CLAUDE.md, and remove it from this list.
 - Late latching of the camera: tentatively in. → 0003
 - Pacing fallback when Slag's frame latency capability is missing, and how
   pacing behaves under `Mailbox`. → 0003
+- Steam Deck: no test device yet; check that SteamOS ships Mesa 26.2+
+  (Slag's RADV minimum). → 0008
 - Swapchain image count when switching `Mailbox` ↔ `Fifo`, and drivers
   that return three images for `Fifo`. → 0003
 
@@ -36,7 +38,5 @@ or in CLAUDE.md, and remove it from this list.
 - Mod API stability across game updates. → 0001
 - Baseline hardware for the speed goal (e.g. CPU core count and age);
   decides how much multi-core scaling to design for.
-- Crucible's own license.
-- Target platforms (inherit Slag's Windows/Linux, consoles kept possible?).
 - Scope and audience (personal engine vs. general-purpose).
 - Reference games for the clarity and latency targets.
