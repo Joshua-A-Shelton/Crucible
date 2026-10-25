@@ -10,8 +10,6 @@ or in CLAUDE.md, and remove it from this list.
 - 2D physics library (third-party). → 0005
 - Renderer architecture ADR (clustered forward direction set by 0004).
 - Upscaler licenses: DLSS, XeSS (FSR is MIT); SMAA's license. → 0004
-- Job system: where it lives (native, C#, or both sharing one pool) and
-  how systems use it. → 0013
 - Names of the default phases. → 0013
 - C#↔C++ binding generator: input (C++ headers or a separate description)
   and output (`LibraryImport` bindings + editor metadata). → 0006

@@ -175,6 +175,10 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   a step cap. Structural changes apply at the end of each phase.
   Parallelism in v1 is inside systems. The loop driver is replaceable.
   The pacing wait comes first, then input.
+- **Job system** (ADR 0014): Crucible's own, native, one pool shared by
+  C++, C# (through a wrapper and the engine's dispatcher), and third-party
+  libraries. Frame and background priorities; work stealing, no fibers;
+  waiting threads run jobs. enkiTS (zlib) is the fallback.
 
 ## 5. Working with Claude on this repo
 
