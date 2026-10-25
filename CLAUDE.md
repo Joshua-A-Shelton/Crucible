@@ -148,6 +148,11 @@ Stated by the project owner and refined one at a time (2026-10-24).
   MIT and similar are acceptable. Anything else (e.g. vendor SDK licenses)
   needs an explicit decision from the project owner, recorded in an ADR.
   Each shipped dependency's notice carries over to games (ADR 0007).
+- **Approved dependencies:** Slag (zlib), .NET (MIT; ADR 0001), SDL3
+  (zlib; ADR 0018), HarfBuzz (Old MIT; ADR 0020), FreeType (FTL, which
+  asks for a credit in product documentation; ADR 0020). Build-time only: libclang (Apache 2.0 with LLVM
+  exception) via ClangSharp (MIT; ADR 0017). Fallback, not used: enkiTS
+  (zlib; ADR 0014). Nothing else without an ADR.
 
 ## 4. Architecture
 
@@ -184,6 +189,22 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   list of render passes with named insertion points; core passes are C++,
   C# adds passes through a batched command API. Clustered forward with a
   depth prepass and MSAA. CPU culling with instancing in v1.
+- **Binding generator** (ADR 0017): annotated C++ headers, parsed at build
+  time with libclang via ClangSharp (build-time only), generate C ABI
+  shims, raw and idiomatic C# layers, struct mirrors with layout checks on
+  both sides, and editor metadata. Only C-shaped signatures cross the
+  boundary. C++ changes need an editor restart; C# changes hot-reload.
+- **Platform layer** (ADR 0018): SDL3's window, input, event, clipboard,
+  and dialog parts, behind Crucible's own platform API. Input timestamps
+  come from SDL events.
+- **UI system** (ADR 0019): a retained element tree in C#, with a
+  custom-draw element for tools; Crucible's own panel layout; text shaping
+  and rasterization native; rendering through the batched command API.
+  Latin text in v1, non-Latin after v1 (UTF-8 throughout, shaping behind
+  an interface). Text (ADR 0020): HarfBuzz shaping, FreeType exact-size
+  glyph atlases. Themes of style classes with a small selector set;
+  gamepad directional navigation and focus scopes; layout snapped to whole
+  pixels.
 - **Editor** (ADR 0016): written in C#, launched like a game (ADR 0011).
   Its UI is Crucible's own UI system, shared with games. Play runs in the
   editor's process by default; "Run standalone" launches a separate
