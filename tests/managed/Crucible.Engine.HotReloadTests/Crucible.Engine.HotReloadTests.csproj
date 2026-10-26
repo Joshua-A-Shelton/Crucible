@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Crucible.Tests.HotReload</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <!-- Hot reload is JIT-only (ADR 0001), so these tests are the one suite
+         without the AOT analyzers, and they are never published as AOT. -->
+    <IsAotCompatible>false</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TUnit" Version="1.76.28" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../../src/managed/Crucible.Engine/Crucible.Engine.csproj" />
+    <!-- Built before the tests run, but not referenced: the tests load them
+         at runtime, from where TestGame.targets copies them. -->
+    <ProjectReference Include="../Crucible.TestGame/Crucible.TestGame.V1.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../Crucible.TestGame/Crucible.TestGame.V2.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyMetadata Include="CrucibleArtifactsPath" Value="$(ArtifactsPath)" />
+  </ItemGroup>
+
+</Project>

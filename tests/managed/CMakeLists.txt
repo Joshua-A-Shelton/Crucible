@@ -1,6 +1,9 @@
 # Built by the crucible_managed target (the whole solution); registered here.
 crucible_add_dotnet_test(Crucible.Engine.Tests)
 
+# Hot reload is JIT-only (ADR 0001), so this suite has no AOT variant.
+crucible_add_dotnet_test(Crucible.Engine.HotReloadTests)
+
 # The same suite again as NativeAOT code (ADR 0001: every C# suite runs under
 # both). Published after the engine's AOT build, since both build the engine.
 if(CRUCIBLE_BUILD_AOT)

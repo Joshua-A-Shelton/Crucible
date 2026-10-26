@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>Crucible.TestGame</AssemblyName>
+    <RootNamespace>Crucible.TestGame</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <TestGameFolder>v1</TestGameFolder>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../../src/managed/Crucible.Engine/Crucible.Engine.csproj" Private="false" />
+  </ItemGroup>
+
+  <Import Project="TestGame.targets" />
+
+</Project>

@@ -1,0 +1,9 @@
+<Project>
+  <!-- Both versions build an assembly named Crucible.TestGame. Each copy goes
+       to its own folder under the artifacts path, where the hot reload tests
+       find it. The engine isn't copied (Private="false"): at runtime it comes
+       from the default load context. -->
+  <Target Name="CopyTestGame" AfterTargets="Build">
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ArtifactsPath)/testgames/$(TestGameFolder)" SkipUnchangedFiles="true" />
+  </Target>
+</Project>
