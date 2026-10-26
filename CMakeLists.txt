@@ -19,6 +19,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(CrucibleCompileOptions)
 include(CrucibleDependencies)
 include(CrucibleDotnet)
+include(CrucibleHosting)
 
 if(CRUCIBLE_BUILD_TESTS)
     enable_testing()
@@ -29,6 +30,7 @@ endif()
 # ---------------------------------------------------------------------------
 
 add_subdirectory(src/native/core)
+add_subdirectory(src/native/launcher)
 
 # ---------------------------------------------------------------------------
 # Managed (C#): one dotnet invocation for the whole solution, so projects that

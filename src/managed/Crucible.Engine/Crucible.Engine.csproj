@@ -2,6 +2,9 @@
 
   <PropertyGroup>
     <RootNamespace>Crucible</RootNamespace>
+    <!-- Emits a runtimeconfig.json so the native launcher can start .NET with
+         this library as its first assembly (ADR 0011). -->
+    <EnableDynamicLoading>true</EnableDynamicLoading>
   </PropertyGroup>
 
 </Project>

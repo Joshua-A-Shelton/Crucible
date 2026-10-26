@@ -13,6 +13,7 @@ else()
     set(CRUCIBLE_DOTNET_CONFIGURATION Release)
 endif()
 
+string(TOLOWER ${CRUCIBLE_DOTNET_CONFIGURATION} CRUCIBLE_DOTNET_CONFIGURATION_DIR)
 set(CRUCIBLE_DOTNET_ARTIFACTS_DIR "${CMAKE_BINARY_DIR}/artifacts")
 
 # crucible_add_dotnet_build(<target> <solution or project file>)
@@ -32,8 +33,7 @@ endfunction()
 # Test projects run on Microsoft.Testing.Platform (ADR 0029), so each one is an
 # executable that CTest runs directly.
 function(crucible_add_dotnet_test project)
-    string(TOLOWER ${CRUCIBLE_DOTNET_CONFIGURATION} configuration)
     add_test(NAME ${project}
-        COMMAND "${CRUCIBLE_DOTNET_ARTIFACTS_DIR}/bin/${project}/${configuration}/${project}${CMAKE_EXECUTABLE_SUFFIX}")
+        COMMAND "${CRUCIBLE_DOTNET_ARTIFACTS_DIR}/bin/${project}/${CRUCIBLE_DOTNET_CONFIGURATION_DIR}/${project}${CMAKE_EXECUTABLE_SUFFIX}")
     set_tests_properties(${project} PROPERTIES LABELS managed)
 endfunction()
