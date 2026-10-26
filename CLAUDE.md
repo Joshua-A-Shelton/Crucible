@@ -160,9 +160,10 @@ Stated by the project owner and refined one at a time (2026-10-24).
   domain); ADR 0022; Slang (Apache 2.0 with LLVM exception; ADR 0025);
   dr_wav, dr_flac (public domain or MIT-0; ADR 0028).
   Build-time only: libclang (Apache 2.0 with LLVM
-  exception) via ClangSharp (MIT; ADR 0017). Fallbacks, not used: enkiTS
+  exception) via ClangSharp (MIT; ADR 0017). Tests only: TUnit (MIT),
+  doctest (MIT); ADR 0029. Fallbacks, not used: enkiTS
   (zlib; ADR 0014), Jolt Physics (MIT; ADR 0027), miniaudio (public
-  domain or MIT-0; ADR 0028). Nothing else without an ADR.
+  domain or MIT-0; ADR 0028), MSTest (MIT; ADR 0029). Nothing else without an ADR.
 
 ## 4. Architecture
 
@@ -259,7 +260,47 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   editor's process by default; "Run standalone" launches a separate
   process.
 
-## 5. Working with Claude on this repo
+## 5. Coding conventions
+
+- **C++:** C++20, following Slag's conventions (Slag CLAUDE.md §10):
+  namespace `crucible`; `PascalCase` types and files; `camelCase` functions,
+  variables, and members (no `m_`); `CRUCIBLE_UPPER_CASE` macros; includes always `#include <crucible/...>`. `.clang-format` (copied
+  from Slag) is authoritative.
+- **C#:** standard .NET conventions: root namespace `Crucible`; `PascalCase`
+  types, methods, properties, and constants; `camelCase` locals and
+  parameters; `_camelCase` private fields; file-scoped namespaces.
+  `.editorconfig` is authoritative and `dotnet format` checks it.
+- **Shared C# settings** (`Directory.Build.props`): .NET 10 (LTS, pinned in
+  `global.json`), nullable reference types, warnings as errors,
+  `IsAotCompatible` (AOT and trim analyzers as errors, ADR 0001) for every
+  project including tests. Packages are pinned by lock file; CI restores in
+  locked mode.
+- Comments explain *why*, not *what*.
+
+## 6. Build & tooling
+
+- CMake 3.25+ with presets: `debug` (Slag validation on) and `release`,
+  Ninja, output in `build/<preset>/`. Version `0.1.0` (semantic
+  versioning, ADR 0009) generates `crucible/Version.h`.
+- C# builds through CMake: the `crucible_managed` target runs `dotnet build
+  Crucible.slnx`, with output under `build/<preset>/artifacts/`. C# test
+  projects are executables registered with CTest.
+- Tests: doctest (C++) and TUnit (C#), ADR 0029. CTest labels: `native`,
+  `managed`.
+- Slag comes from a pinned tag; to work on Slag side by side, configure with
+  `-DFETCHCONTENT_SOURCE_DIR_SLAG=~/Claude/Slag`.
+- CI (`.github/workflows/ci.yml`): Linux (GCC, Clang) and Windows (MSVC) in
+  both presets, both test suites, clang-format and `dotnet format` checks.
+
+```bash
+cmake --preset debug && cmake --build --preset debug
+```
+
+```bash
+ctest --preset debug
+```
+
+## 7. Working with Claude on this repo
 
 This project is as much a learning exercise as it is an engine.
 

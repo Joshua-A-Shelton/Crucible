@@ -1,0 +1,12 @@
+# CMake presets build here; the C# artifacts land under each preset too.
+/build/
+
+# Stray .NET output from building projects outside CMake.
+bin/
+obj/
+
+# IDEs
+.idea/
+.vs/
+.vscode/
+*.user

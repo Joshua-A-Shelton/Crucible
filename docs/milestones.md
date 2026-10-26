@@ -31,6 +31,12 @@ suites run in CI.
 
 **Decides:** the C# test framework (third-party, with its license).
 
+**Status (2026-10-26):** done locally. Debug and release presets build with
+GCC and Clang on Linux; both suites pass (doctest: 2 tests, TUnit: 1);
+clang-format and `dotnet format` checks pass. TUnit and doctest chosen in
+ADR 0029. Not yet run in hosted CI (no remote yet), and not yet built on
+Windows.
+
 ## M1 — Risk spike: the boundary
 
 The smallest program that exercises the boundary's riskiest assumptions.
