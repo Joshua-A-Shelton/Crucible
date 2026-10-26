@@ -151,13 +151,15 @@ Stated by the project owner and refined one at a time (2026-10-24).
 - **Approved dependencies:** Slag (zlib), .NET (MIT; ADR 0001), SDL3
   (zlib; ADR 0018), HarfBuzz (Old MIT; ADR 0020), FreeType (FTL, which
   asks for a credit in product documentation; ADR 0020), Box3D and Box2D
-  v3 (MIT; ADR 0027). Editor only
+  v3 (MIT; ADR 0027), stb_vorbis (public domain or MIT; ADR 0028). Editor only
   (never shipped): cgltf (MIT), ufbx (MIT or public domain), meshoptimizer
   (MIT), stb_image (public domain or MIT), bc7enc_rdo (MIT or public
-  domain); ADR 0022; Slang (Apache 2.0 with LLVM exception; ADR 0025).
+  domain); ADR 0022; Slang (Apache 2.0 with LLVM exception; ADR 0025);
+  dr_wav, dr_flac (public domain or MIT-0; ADR 0028).
   Build-time only: libclang (Apache 2.0 with LLVM
   exception) via ClangSharp (MIT; ADR 0017). Fallbacks, not used: enkiTS
-  (zlib; ADR 0014), Jolt Physics (MIT; ADR 0027). Nothing else without an ADR.
+  (zlib; ADR 0014), Jolt Physics (MIT; ADR 0027), miniaudio (public
+  domain or MIT-0; ADR 0028). Nothing else without an ADR.
 
 ## 4. Architecture
 
@@ -197,7 +199,12 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
 - **Job system** (ADR 0014): Crucible's own, native, one pool shared by
   C++, C# (through a wrapper and the engine's dispatcher), and third-party
   libraries. Frame and background priorities; work stealing, no fibers;
-  waiting threads run jobs. enkiTS (zlib) is the fallback.
+  waiting threads run jobs. enkiTS (zlib) is the fallback. Exception:
+  audio mixing has its own real-time thread (ADR 0028).
+- **Audio** (ADR 0028): SDL3 device output (miniaudio fallback), Crucible's
+  own mixer on a real-time thread fed by a lock-free queue, sounds
+  scheduled at exact event times. PCM/ADPCM effects, streamed Vorbis music.
+  Behind Crucible's audio API; Steam Audio after v1.
 - **Renderer foundation** (ADR 0015): built on `slag::rendergraph`
   (limitations get fixed in Slag). The frame is an ordered, extensible
   list of render passes with named insertion points; core passes are C++,

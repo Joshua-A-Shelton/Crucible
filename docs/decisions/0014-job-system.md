@@ -56,6 +56,9 @@ Build or library:
    non-frame work only.
 6. **Crucible builds its own,** with **enkiTS** (zlib) as the fallback if
    ours doesn't work out.
+7. **Exception (added 2026-10-25, ADR 0028):** audio mixing runs on its own
+   real-time audio thread, because audio deadlines can't wait behind frame
+   jobs.
 
 ## Why
 
