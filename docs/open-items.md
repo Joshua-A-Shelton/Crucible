@@ -14,12 +14,12 @@ or in CLAUDE.md, and remove it from this list.
 - Upscaler licenses: DLSS, XeSS (FSR is MIT); SMAA's license. → 0004
 - Names of the default phases. → 0013
 - Audio (third-party?), including audio importers. → 0018, 0022
-- C++ math library, layout-compatible with the C# types it mirrors. → 0017
+- Whether x64 builds require AVX2. → 0024
+- How Slag maps Vulkan's clip space (Y down) against D3D12's. → 0024
 - Interfaces for replaceable subsystems. → 0006
-- ECS: storage strategy (archetypes or sparse sets), and build our own or
-  use a library (flecs, EnTT; both MIT). → 0012
-- ECS details: hierarchy and relationships, struct-with-references pools,
-  blittable layout migration across hot reload. → 0012
+- ECS details: hierarchy and relationships, change detection,
+  struct-with-references pools, blittable layout migration across hot
+  reload. → 0012, 0023
 - How plain C# services are registered, found, and saved. → 0012
 - C++ runtime extension mechanism (not plugins; C++ never extends the
   editor). → 0002

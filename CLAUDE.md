@@ -177,6 +177,15 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   Systems run in frame phases; structural changes are deferred. Logic not
   about world entities (turn order, inventory, quests, dialogue) is plain
   C# that refers to entities by ID.
+- **ECS storage** (ADR 0023): Crucible's own, chunked archetype tables
+  with opt-in sparse storage for churny components; component types are
+  registered at runtime. flecs is the reference design and fallback.
+- **Math and coordinates** (ADR 0024): Crucible's own C++ math library.
+  Storage types byte-identical to `System.Numerics`, separate SIMD compute
+  types (register and wide/SoA), scalar fallbacks
+  (`docs/learning/storage-and-simd-types.md`). Row vectors stored row-major
+  in C++, C#, and shaders. Left-handed, Y-up, +Z forward, meters;
+  importers mirror right-handed sources.
 - **Frame phases** (ADR 0013): the frame is an editable, ordered list of
   phases; systems register into a phase with before/after constraints,
   sorted when the schedule is built. The fixed tick is a phase group with
@@ -232,7 +241,9 @@ This project is as much a learning exercise as it is an engine.
 - **Explain before acting.** Say what is about to be done and why, and ask
   for feedback, before doing it.
 - **Explanations are kept twice:** walked through in chat, and written into
-  the ADR so the reasoning can be reread later.
+  the ADR so the reasoning can be reread later. Concepts that need a longer
+  explanation get a learning note in `docs/learning/`, listed in
+  `README.md`.
 - **Ask before naming.** Proposed names are placeholders until the project
   owner settles them; final names go in `docs/naming.md`.
 - Record decisions in `docs/decisions/` and update this file when a
