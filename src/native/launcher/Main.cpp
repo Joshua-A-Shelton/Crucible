@@ -2,7 +2,7 @@
 // frame to the engine's C# layer (ADR 0011). In M1 there is no platform setup
 // yet; it only starts .NET and runs the engine's entry point.
 
-#include "DotnetHost.h"
+#include "EngineHost.h"
 
 #include <cstdio>
 #include <cstring>

@@ -29,6 +29,86 @@ function(crucible_add_dotnet_build target project)
         VERBATIM)
 endfunction()
 
+# ---------------------------------------------------------------------------
+# NativeAOT (ADR 0001, 0011)
+# ---------------------------------------------------------------------------
+
+if(WIN32)
+    set(CRUCIBLE_DOTNET_RID win-x64)
+    set(_crucible_aot_static_suffix .lib)
+else()
+    set(CRUCIBLE_DOTNET_RID linux-x64)
+    set(_crucible_aot_static_suffix .a)
+endif()
+
+# MSBuild props for AOT builds: direct P/Invoke into the C++ core, and for AOT
+# executables, the core's static libraries for the .NET toolchain to link.
+# Imported by Directory.Build.targets.
+set(CRUCIBLE_NATIVE_PROPS "${CMAKE_BINARY_DIR}/CrucibleNative.props")
+# NativeAOT links with plain clang and only a small C++ compatibility shim of
+# its own, so the C++ standard library that Slag and the core need is added
+# here. As a NativeSystemLibrary it comes after the static libraries on the
+# link line, which is where it has to be.
+if(WIN32)
+    set(_crucible_core_system_libraries "<NativeLibrary Include=\"d3d12.lib\" /><NativeLibrary Include=\"dxgi.lib\" />")
+else()
+    set(_crucible_core_system_libraries "<NativeSystemLibrary Include=\"stdc++\" />")
+endif()
+file(GENERATE OUTPUT "${CRUCIBLE_NATIVE_PROPS}" CONTENT "<Project>
+  <ItemGroup Condition=\"'$(PublishAot)' == 'true'\">
+    <DirectPInvoke Include=\"crucible_core\" />
+  </ItemGroup>
+  <ItemGroup Condition=\"'$(PublishAot)' == 'true' and '$(NativeLib)' == '' and '$(OutputType)' == 'Exe'\">
+    <NativeLibrary Include=\"$<TARGET_LINKER_FILE:crucible_core_static>\" />
+    <NativeLibrary Include=\"$<TARGET_LINKER_FILE:slag>\" />
+    ${_crucible_core_system_libraries}
+  </ItemGroup>
+</Project>
+")
+
+# crucible_dotnet_publish_directory(<project name> <output variable>)
+function(crucible_dotnet_publish_directory projectName outputVariable)
+    set(${outputVariable}
+        "${CRUCIBLE_DOTNET_ARTIFACTS_DIR}/publish/${projectName}/${CRUCIBLE_DOTNET_CONFIGURATION_DIR}_${CRUCIBLE_DOTNET_RID}"
+        PARENT_SCOPE)
+endfunction()
+
+# crucible_add_dotnet_aot_publish(<target> <project file>
+#     [BYPRODUCTS <files>...] [ARGUMENTS <extra dotnet arguments>...])
+# Publishes a project with NativeAOT. BYPRODUCTS names the files other targets
+# link against, so Ninja knows this target makes them. Runs after the JIT
+# build: both build the same referenced projects into the same output
+# folders, so they must not run at once.
+function(crucible_add_dotnet_aot_publish target project)
+    cmake_parse_arguments(PARSE_ARGV 2 publish "" "" "BYPRODUCTS;ARGUMENTS")
+    add_custom_target(${target} ALL
+        COMMAND "${DOTNET_EXECUTABLE}" publish "${project}"
+            --configuration ${CRUCIBLE_DOTNET_CONFIGURATION}
+            --runtime ${CRUCIBLE_DOTNET_RID}
+            --nologo
+            -p:PublishAot=true
+            "-p:ArtifactsPath=${CRUCIBLE_DOTNET_ARTIFACTS_DIR}"
+            "-p:Version=${PROJECT_VERSION}"
+            "-p:CrucibleNativeProps=${CRUCIBLE_NATIVE_PROPS}"
+            ${publish_ARGUMENTS}
+        BYPRODUCTS ${publish_BYPRODUCTS}
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        USES_TERMINAL
+        VERBATIM)
+    add_dependencies(${target} crucible_managed crucible_core_static)
+endfunction()
+
+# crucible_add_dotnet_aot_test(<project name> <project file>)
+# The same test suite as crucible_add_dotnet_test, compiled with NativeAOT and
+# the core linked in statically, so no library search path is needed.
+function(crucible_add_dotnet_aot_test project projectFile after)
+    crucible_dotnet_publish_directory(${project} publishDirectory)
+    crucible_add_dotnet_aot_publish(${project}.aot "${projectFile}")
+    add_dependencies(${project}.aot ${after})
+    add_test(NAME ${project}.aot COMMAND "${publishDirectory}/${project}${CMAKE_EXECUTABLE_SUFFIX}")
+    set_tests_properties(${project}.aot PROPERTIES LABELS "managed;aot")
+endfunction()
+
 # crucible_add_dotnet_test(<project name>)
 # Test projects run on Microsoft.Testing.Platform (ADR 0029), so each one is an
 # executable that CTest runs directly.

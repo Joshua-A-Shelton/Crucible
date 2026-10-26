@@ -12,7 +12,9 @@ public static class Host
     /// Runs the engine and returns the process exit code. In M1 it only runs
     /// a self-check; later it drives the frame loop until quit.
     /// </summary>
-    [UnmanagedCallersOnly]
+    // JIT hosting finds this method by name; in a NativeAOT build it is
+    // exported as crucible_engine_run for the AOT launcher to call.
+    [UnmanagedCallersOnly(EntryPoint = "crucible_engine_run")]
     public static int Run()
     {
         // An exception escaping into native code crashes the process with no

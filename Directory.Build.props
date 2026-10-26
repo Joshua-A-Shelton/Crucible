@@ -11,6 +11,18 @@
          plugin, game, and test code (ADR 0001). -->
     <IsAotCompatible>true</IsAotCompatible>
 
+    <!-- Every project can be published with NativeAOT for both target
+         platforms, so every restore includes the AOT compiler and both
+         platforms' packages: the lock files then stay identical between a
+         build and a publish.
+
+         PublishAot is set only while restoring; publishes pass it on the
+         command line. Set during a build, it would switch on AOT-style
+         defaults in the JIT build's runtimeconfig.json, one of which turns off
+         native hosting, which the JIT launcher needs (ADR 0011). -->
+    <PublishAot Condition="'$(MSBuildIsRestoring)' == 'true'">true</PublishAot>
+    <RuntimeIdentifiers>linux-x64;win-x64</RuntimeIdentifiers>
+
     <!-- CMake passes the real version and an artifacts path under its build
          directory; these defaults cover building from an IDE. -->
     <Version Condition="'$(Version)' == ''">0.1.0</Version>

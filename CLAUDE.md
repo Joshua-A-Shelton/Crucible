@@ -292,7 +292,12 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   Crucible.slnx`, with output under `build/<preset>/artifacts/`. C# test
   projects are executables registered with CTest.
 - Tests: doctest (C++) and TUnit (C#), ADR 0029. CTest labels: `native`,
-  `managed`.
+  `managed`, `integration` (the launchers), `aot`. Every C# suite also runs
+  as NativeAOT code (`<suite>.aot`).
+- `CRUCIBLE_BUILD_AOT` (on by default; off on Windows until M1 step 8)
+  builds the NativeAOT variants: `crucible_launcher_aot` (core and C# engine
+  statically linked into one executable) and the AOT test suites. AOT
+  publishes take about 30 seconds the first time.
 - Slag comes from a pinned tag; to work on Slag side by side, configure with
   `-DFETCHCONTENT_SOURCE_DIR_SLAG=~/Claude/Slag`.
 - CI (`.github/workflows/ci.yml`): Linux (GCC, Clang) and Windows (MSVC) in

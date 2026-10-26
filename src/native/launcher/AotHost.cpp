@@ -1,0 +1,15 @@
+#include "EngineHost.h"
+
+// Exported by the engine's C# layer, compiled with NativeAOT into a static
+// library and linked into this executable (ADR 0011): no .NET runtime to
+// start, and no assemblies to load.
+extern "C" int crucible_engine_run();
+
+namespace crucible::launcher {
+
+Result<int> runEngine(const std::filesystem::path&)
+{
+    return crucible_engine_run();
+}
+
+} // namespace crucible::launcher

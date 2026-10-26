@@ -1,0 +1,20 @@
+<Project>
+  <!-- NativeAOT link inputs that CMake generates (cmake/CrucibleDotnet.cmake):
+       direct P/Invoke into the C++ core, and its static libraries for AOT
+       executables (ADR 0011). -->
+  <Import Project="$(CrucibleNativeProps)" Condition="'$(CrucibleNativeProps)' != '' and Exists('$(CrucibleNativeProps)')" />
+
+  <!-- A NativeAOT static library leaves the final link to whoever consumes it
+       (the AOT launcher), and that link needs the .NET runtime's support
+       libraries. NativeAOT computes them in SetupOSSpecificProps; this writes
+       them to a linker response file so CMake doesn't hard-code a list that
+       changes between .NET versions. -->
+  <Target Name="CrucibleWriteNativeLinkInputs"
+          AfterTargets="SetupOSSpecificProps"
+          Condition="'$(NativeLib)' == 'Static' and '$(CrucibleLinkInputsFile)' != ''">
+    <WriteLinesToFile File="$(CrucibleLinkInputsFile)"
+                      Lines="@(NativeLibrary->'%(FullPath)');@(NativeSystemLibrary->'-l%(Identity)')"
+                      Overwrite="true"
+                      WriteOnlyWhenDifferent="true" />
+  </Target>
+</Project>
