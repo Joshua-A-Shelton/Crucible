@@ -7,7 +7,6 @@ or in CLAUDE.md, and remove it from this list.
 
 - Input timestamps for frame-rate-independent timing checks (parry
   windows). → 0003, 0010
-- 2D physics library (third-party). → 0005
 - Renderer detail ADRs: shadows; lighting and
   ambient light; post-processing and the post-tonemap MSAA resolve; the
   pixel-art 2D path; the C# rendering (batched command) API. → 0015
@@ -23,7 +22,6 @@ or in CLAUDE.md, and remove it from this list.
 - How plain C# services are registered, found, and saved. → 0012
 - C++ runtime extension mechanism (not plugins; C++ never extends the
   editor). → 0002
-- 3D physics library (third-party?).
 
 ## Revisit once there is a prototype to test against
 
@@ -36,6 +34,9 @@ or in CLAUDE.md, and remove it from this list.
 - EXR input and BC6H compression for HDR textures, when needed. → 0022
 - ACL for clip compression, when clip memory matters. → 0026
 - Animation state machine graph editor, when the action RPG starts. → 0026
+- **Box3D checkpoint, before the action RPG starts:** ragdoll-capable
+  joints, character mover maturity, stability and release cadence. Switch
+  to Jolt if any fall short. → 0027
 - Pacing fallback when Slag's frame latency capability is missing, and how
   pacing behaves under `Mailbox`. → 0003
 - Accuracy of SDL event timestamps on Windows, X11, Wayland, and Steam
@@ -59,3 +60,4 @@ or in CLAUDE.md, and remove it from this list.
 ## Parked
 
 - Mod API stability across game updates. → 0001
+- Deterministic physics, if networking ever comes up. → 0027

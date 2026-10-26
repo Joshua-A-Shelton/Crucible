@@ -150,13 +150,14 @@ Stated by the project owner and refined one at a time (2026-10-24).
   Each shipped dependency's notice carries over to games (ADR 0007).
 - **Approved dependencies:** Slag (zlib), .NET (MIT; ADR 0001), SDL3
   (zlib; ADR 0018), HarfBuzz (Old MIT; ADR 0020), FreeType (FTL, which
-  asks for a credit in product documentation; ADR 0020). Editor only
+  asks for a credit in product documentation; ADR 0020), Box3D and Box2D
+  v3 (MIT; ADR 0027). Editor only
   (never shipped): cgltf (MIT), ufbx (MIT or public domain), meshoptimizer
   (MIT), stb_image (public domain or MIT), bc7enc_rdo (MIT or public
   domain); ADR 0022; Slang (Apache 2.0 with LLVM exception; ADR 0025).
   Build-time only: libclang (Apache 2.0 with LLVM
-  exception) via ClangSharp (MIT; ADR 0017). Fallback, not used: enkiTS
-  (zlib; ADR 0014). Nothing else without an ADR.
+  exception) via ClangSharp (MIT; ADR 0017). Fallbacks, not used: enkiTS
+  (zlib; ADR 0014), Jolt Physics (MIT; ADR 0027). Nothing else without an ADR.
 
 ## 4. Architecture
 
@@ -214,6 +215,11 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   by index, animated in parallel per character. State machines are data
   assets with a C# API; events carry exact clip times; windows are time
   ranges; root motion supported.
+- **Physics** (ADR 0027): Box3D for 3D (Jolt as fallback; checkpoint
+  before the action RPG), Box2D v3 for 2D, behind Crucible's physics API
+  on our job system. Steps in the fixed tick with batched native ECS sync.
+  Combat uses swept, query-based hitboxes with exact hit times.
+  Determinism is not a goal.
 - **Binding generator** (ADR 0017): annotated C++ headers, parsed at build
   time with libclang via ClangSharp (build-time only), generate C ABI
   shims, raw and idiomatic C# layers, struct mirrors with layout checks on
