@@ -11,7 +11,12 @@ project(Crucible
 
 option(CRUCIBLE_BUILD_TESTS "Build Crucible tests" ${PROJECT_IS_TOP_LEVEL})
 
+# The core is also a shared library (ADR 0011), so every static library linked
+# into it, Slag included, must be position-independent.
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include(CrucibleCompileOptions)
 include(CrucibleDependencies)
 include(CrucibleDotnet)
 

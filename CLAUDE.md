@@ -264,8 +264,14 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
 
 - **C++:** C++20, following Slag's conventions (Slag CLAUDE.md §10):
   namespace `crucible`; `PascalCase` types and files; `camelCase` functions,
-  variables, and members (no `m_`); `CRUCIBLE_UPPER_CASE` macros; includes always `#include <crucible/...>`. `.clang-format` (copied
-  from Slag) is authoritative.
+  variables, and members (no `m_`); `CRUCIBLE_UPPER_CASE` macros; includes
+  always `#include <crucible/...>`. `.clang-format` (copied from Slag) is
+  authoritative.
+- **C++ error handling** (ADR 0030): no exceptions, no RTTI. Fallible
+  functions return `crucible::Result<T>`; programmer errors are caught by
+  validation and asserts.
+- **C# error handling** (ADR 0030): exceptions for unexpected failures, the
+  Try pattern for expected ones, and no throwing from per-frame APIs.
 - **C#:** standard .NET conventions: root namespace `Crucible`; `PascalCase`
   types, methods, properties, and constants; `camelCase` locals and
   parameters; `_camelCase` private fields; file-scoped namespaces.

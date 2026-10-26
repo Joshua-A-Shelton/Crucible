@@ -4,7 +4,7 @@
 add_library(crucible_core STATIC)
 add_library(crucible::core ALIAS crucible_core)
 
-target_compile_features(crucible_core PUBLIC cxx_std_20)
+crucible_set_compile_options(crucible_core)
 
 # crucible/Version.h is generated from the project version.
 set(CRUCIBLE_GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
