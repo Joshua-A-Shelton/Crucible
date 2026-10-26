@@ -159,8 +159,8 @@ Stated by the project owner and refined one at a time (2026-10-24).
   (MIT), stb_image (public domain or MIT), bc7enc_rdo (MIT or public
   domain); ADR 0022; Slang (Apache 2.0 with LLVM exception; ADR 0025);
   dr_wav, dr_flac (public domain or MIT-0; ADR 0028).
-  Build-time only: libclang (Apache 2.0 with LLVM
-  exception) via ClangSharp (MIT; ADR 0017). Tests only: TUnit (MIT),
+  Build-time only: the system's libclang (Apache 2.0 with LLVM exception),
+  through Crucible's own bindings (ADR 0017). Tests only: TUnit (MIT),
   doctest (MIT); ADR 0029. Fallbacks, not used: enkiTS
   (zlib; ADR 0014), Jolt Physics (MIT; ADR 0027), miniaudio (public
   domain or MIT-0; ADR 0028), MSTest (MIT; ADR 0029). Nothing else without an ADR.
@@ -232,7 +232,7 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   Combat uses swept, query-based hitboxes with exact hit times.
   Determinism is not a goal.
 - **Binding generator** (ADR 0017): annotated C++ headers, parsed at build
-  time with libclang via ClangSharp (build-time only), generate C ABI
+  time with the system's libclang through Crucible's own bindings, generate C ABI
   shims, raw and idiomatic C# layers, struct mirrors with layout checks on
   both sides, and editor metadata. Only C-shaped signatures cross the
   boundary. C++ changes need an editor restart; C# changes hot-reload.
@@ -298,6 +298,14 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   builds the NativeAOT variants: `crucible_launcher_aot` (core and C# engine
   statically linked into one executable) and the AOT test suites. AOT
   publishes take about 30 seconds the first time.
+- **Build requirements:** CMake, Ninja, a C++20 compiler, the .NET 10 SDK,
+  and Clang with libclang (the binding generator loads the system's
+  libclang, ADR 0017; NativeAOT links with clang on Linux).
+- **Bindings** (ADR 0017): `tools/Crucible.BindGen` runs before the core and
+  engine build, on every public header in `src/native/core/include/`.
+  Output goes to `build/<preset>/generated/`; IDE builds of the C# projects
+  read `build/debug/generated/`, so configure and build the debug preset
+  first.
 - Slag comes from a pinned tag; to work on Slag side by side, configure with
   `-DFETCHCONTENT_SOURCE_DIR_SLAG=~/Claude/Slag`.
 - CI (`.github/workflows/ci.yml`): Linux (GCC, Clang) and Windows (MSVC) in

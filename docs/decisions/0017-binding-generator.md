@@ -1,6 +1,8 @@
 # 0017 — C#↔C++ binding generator
 
-**Status:** Accepted (2026-10-25).
+**Status:** Accepted (2026-10-25). Amended 2026-10-26: libclang is reached
+through Crucible's own bindings to the system's libclang, not ClangSharp
+(see "Amendment" below).
 
 ## Context
 
@@ -26,9 +28,10 @@ Where the source of truth lives:
 
 ## Decision
 
-1. **(a): annotated C++ headers, parsed with libclang via ClangSharp.**
-   Build-time only: neither ships in games or the editor runtime. Parsing
-   is cached per header. (c) is the fallback if libclang becomes a burden.
+1. **(a): annotated C++ headers, parsed with libclang** (via ClangSharp
+   originally; see the amendment). Build-time only: nothing ships in games
+   or the editor runtime. Parsing is cached per header. (c) is the fallback
+   if libclang becomes a burden.
 2. **Exposure rules.** Only C-shaped signatures cross the boundary:
    blittable values and structs, IDs and handles, spans as pointer +
    length, strings as UTF-8 pointer + length. No templates, exceptions, or
@@ -74,6 +77,30 @@ compiler ABI differences, padding, or `bool`) into a build or startup
 failure instead of silent memory corruption.
 
 Given up: a dependency-free build, and hot reload for C++ changes.
+
+## Amendment (2026-10-26): own libclang bindings
+
+Building the generator (M1 step 7) showed two problems with ClangSharp:
+
+- **Size:** its packages carry native libclang and libClangSharp for each
+  platform. Lock files cover both platforms (ADR 0029, Directory.Build.props),
+  so every machine downloads about 470 MB.
+- **No built-in headers:** the packaged libclang comes without Clang's
+  built-in headers (`stddef.h`, `stdarg.h`, ...), so it can't parse even
+  `<cstdint>` alone. A system Clang installation is needed regardless.
+
+Decision: the generator binds the **libclang C API** itself (about 30
+functions: parsing, walking declarations, annotations, types, sizes, field
+offsets, inclusions) and loads the **system's libclang**, found by CMake next
+to the system Clang. The C API is ABI-stable across Clang versions, and
+ClangSharp's low-level layer wraps the same API. libclang finds its own
+built-in headers next to itself, so they always match.
+
+- libclang (Apache 2.0 with LLVM exception) becomes a build-time
+  requirement found on the system, like Clang itself; ClangSharp is no
+  longer a dependency.
+- Given up: ClangSharp's maintained bindings. Kept small, the hand-written
+  ones are also a worked example of the binding work Crucible does.
 
 ## Consequences
 

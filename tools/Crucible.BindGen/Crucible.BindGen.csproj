@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The binding generator (ADR 0017): reads annotated C++ headers with the
+       system's libclang and writes the C ABI shims, the C# bindings, and
+       layout checks. A build tool: never shipped. -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Crucible.BindGen</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <!-- LibraryImport's generated code and libclang's callbacks use pointers. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+</Project>

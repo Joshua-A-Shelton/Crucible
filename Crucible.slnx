@@ -8,4 +8,7 @@
     <Project Path="tests/managed/Crucible.TestGame/Crucible.TestGame.V1.csproj" />
     <Project Path="tests/managed/Crucible.TestGame/Crucible.TestGame.V2.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/Crucible.BindGen/Crucible.BindGen.csproj" />
+  </Folder>
 </Solution>

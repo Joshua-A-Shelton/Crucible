@@ -60,6 +60,13 @@ and a reload cycle unloads cleanly.
 **Settles:** whether ADRs 0001, 0011, and 0017 hold up as written; NativeAOT
 static linking on both platforms; the ClangSharp pipeline.
 
+**Status (2026-10-26):** steps 1–7 done on Linux (GCC and Clang, debug and
+release; 11 CTest entries pass). ADRs 0001 and 0011 hold as written; static
+NativeAOT linking works, so its shared-library fallback isn't needed. ADR
+0017 was amended: the generator binds the system's libclang itself instead
+of using ClangSharp (about 470 MB of packages, and no built-in headers).
+Step 8, Windows (MSVC, AOT on Windows, finding libclang.dll), remains.
+
 ## M2 — Platform and first pixels
 
 - SDL3 window and input events with timestamps, behind Crucible's platform

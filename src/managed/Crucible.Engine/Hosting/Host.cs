@@ -21,6 +21,15 @@ public static class Host
         // useful message, so nothing may leave this method (ADR 0030).
         try
         {
+#if DEBUG
+            // ADR 0017's startup check: every C# struct mirror must match the
+            // C++ layout, or shared native memory would be misread.
+            if (Interop.LayoutChecks.Verify() is { } mismatch)
+            {
+                Console.Error.WriteLine($"Crucible.Hosting: C#/C++ layout mismatch: {mismatch}");
+                return 1;
+            }
+#endif
             // Calls back into the C++ core, so a launcher run exercises both
             // directions of the boundary.
             bool hasRenderBackend = EngineInfo.HasRenderBackend;

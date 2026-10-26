@@ -31,11 +31,12 @@ jobs:
           global-json-file: global.json
 
       - name: Install build tools
-        # Window system headers for Slag's X11/XCB/Wayland paths.
+        # Window system headers for Slag's X11/XCB/Wayland paths; Clang and
+        # libclang for the binding generator (ADR 0017) and NativeAOT's link.
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build libx11-dev libx11-xcb-dev libxcb1-dev libxext-dev libxrandr-dev \
-            libwayland-dev libxkbcommon-dev
+          sudo apt-get install -y ninja-build clang libclang-dev libx11-dev libx11-xcb-dev libxcb1-dev libxext-dev \
+            libxrandr-dev libwayland-dev libxkbcommon-dev
 
       - name: Configure
         run: |
@@ -88,6 +89,16 @@ jobs:
 
       - name: Check C++ formatting
         run: find src/native tests/native \( -name '*.h' -o -name '*.cpp' \) -print0 | xargs -0 clang-format --dry-run --Werror
+
+      # dotnet format analyzes the engine project, which compiles the
+      # generated bindings, so generate them first.
+      - name: Generate bindings
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build clang libclang-dev libx11-dev libx11-xcb-dev libxcb1-dev libxext-dev \
+            libxrandr-dev libwayland-dev libxkbcommon-dev
+          cmake --preset debug -DCRUCIBLE_BUILD_AOT=OFF
+          cmake --build --preset debug --target crucible_bindings
 
       - name: Check C# formatting
         run: dotnet format Crucible.slnx --verify-no-changes

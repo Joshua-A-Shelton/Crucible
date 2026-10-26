@@ -27,6 +27,9 @@
          directory; these defaults cover building from an IDE. -->
     <Version Condition="'$(Version)' == ''">0.1.0</Version>
     <ArtifactsPath Condition="'$(ArtifactsPath)' == ''">$(MSBuildThisFileDirectory)build/artifacts</ArtifactsPath>
+    <!-- Where the binding generator writes (ADR 0017). IDE builds use the
+         debug preset's output, so configure with CMake first. -->
+    <CrucibleGeneratedDir Condition="'$(CrucibleGeneratedDir)' == ''">$(MSBuildThisFileDirectory)build/debug/generated</CrucibleGeneratedDir>
 
     <!-- Packages are pinned by lock file, like the hashes in
          cmake/CrucibleDependencies.cmake; CI refuses to restore anything else. -->

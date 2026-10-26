@@ -24,6 +24,7 @@ function(crucible_add_dotnet_build target project)
             --nologo
             "-p:ArtifactsPath=${CRUCIBLE_DOTNET_ARTIFACTS_DIR}"
             "-p:Version=${PROJECT_VERSION}"
+            "-p:CrucibleGeneratedDir=${CRUCIBLE_GENERATED_DIR}"
         WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
         USES_TERMINAL
         VERBATIM)
@@ -89,6 +90,7 @@ function(crucible_add_dotnet_aot_publish target project)
             -p:PublishAot=true
             "-p:ArtifactsPath=${CRUCIBLE_DOTNET_ARTIFACTS_DIR}"
             "-p:Version=${PROJECT_VERSION}"
+            "-p:CrucibleGeneratedDir=${CRUCIBLE_GENERATED_DIR}"
             "-p:CrucibleNativeProps=${CRUCIBLE_NATIVE_PROPS}"
             ${publish_ARGUMENTS}
         BYPRODUCTS ${publish_BYPRODUCTS}

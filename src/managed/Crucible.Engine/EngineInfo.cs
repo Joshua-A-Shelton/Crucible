@@ -1,5 +1,3 @@
-using Crucible.Interop;
-
 namespace Crucible;
 
 /// <summary>
@@ -11,5 +9,5 @@ public static class EngineInfo
     public const string Name = "Crucible";
 
     /// <summary>Whether the C++ core was built with a Slag render backend.</summary>
-    public static bool HasRenderBackend => Native.HasRenderBackend() != 0;
+    public static bool HasRenderBackend => Core.HasRenderBackend();
 }

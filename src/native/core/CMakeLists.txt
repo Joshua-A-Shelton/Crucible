@@ -13,9 +13,20 @@ target_include_directories(crucible_core_objects PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
     "${CRUCIBLE_GENERATED_INCLUDE_DIR}")
 
+# Every public header is given to the binding generator (ADR 0017); only
+# CRUCIBLE_EXPOSE declarations produce bindings, so exposing something new
+# takes one annotation and no build-file edit.
+file(GLOB CRUCIBLE_CORE_HEADERS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/include/crucible/*.h")
+crucible_generate_bindings(
+    OUTPUT_CPP "${CRUCIBLE_GENERATED_DIR}/native/Bindings.g.cpp"
+    OUTPUT_CS "${CRUCIBLE_GENERATED_DIR}/managed/Bindings.g.cs"
+    INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    HEADERS ${CRUCIBLE_CORE_HEADERS})
+
 target_sources(crucible_core_objects PRIVATE
+    BindingProbe.cpp
     Core.cpp
-    Exports.cpp)
+    "${CRUCIBLE_GENERATED_DIR}/native/Bindings.g.cpp")
 
 # Only CRUCIBLE_EXPORT symbols are visible from the shared library.
 target_compile_definitions(crucible_core_objects PRIVATE CRUCIBLE_CORE_EXPORTS)

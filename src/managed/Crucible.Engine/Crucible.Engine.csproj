@@ -9,4 +9,14 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- The C#/C++ bindings, generated from annotated C++ headers (ADR 0017). -->
+    <Compile Include="$(CrucibleGeneratedDir)/managed/Bindings.g.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Tests check the generated layout checks, which are internal. -->
+    <InternalsVisibleTo Include="Crucible.Engine.Tests" />
+  </ItemGroup>
+
 </Project>

@@ -28,6 +28,7 @@ include(CrucibleCompileOptions)
 include(CrucibleDependencies)
 include(CrucibleDotnet)
 include(CrucibleHosting)
+include(CrucibleBindgen)
 
 if(CRUCIBLE_BUILD_TESTS)
     enable_testing()
@@ -45,6 +46,8 @@ add_subdirectory(src/native/core)
 # ---------------------------------------------------------------------------
 
 crucible_add_dotnet_build(crucible_managed "${CMAKE_CURRENT_SOURCE_DIR}/Crucible.slnx")
+# The engine compiles the generated C# bindings.
+add_dependencies(crucible_managed crucible_bindings)
 
 if(CRUCIBLE_BUILD_AOT)
     # The engine's C# layer as a NativeAOT static library, for the AOT
