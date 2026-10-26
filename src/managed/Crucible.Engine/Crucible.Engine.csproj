@@ -5,6 +5,8 @@
     <!-- Emits a runtimeconfig.json so the native launcher can start .NET with
          this library as its first assembly (ADR 0011). -->
     <EnableDynamicLoading>true</EnableDynamicLoading>
+    <!-- LibraryImport's generated code uses pointers. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
 </Project>

@@ -19,8 +19,12 @@ public static class Host
         // useful message, so nothing may leave this method (ADR 0030).
         try
         {
-            Console.WriteLine($"Crucible.Hosting: {EngineInfo.Name} running on .NET {Environment.Version}");
-            return 0;
+            // Calls back into the C++ core, so a launcher run exercises both
+            // directions of the boundary.
+            bool hasRenderBackend = EngineInfo.HasRenderBackend;
+            Console.WriteLine($"Crucible.Hosting: {EngineInfo.Name} running on .NET {Environment.Version}, " +
+                              $"render backend: {(hasRenderBackend ? "yes" : "no")}");
+            return hasRenderBackend ? 0 : 1;
         }
         catch (Exception exception)
         {

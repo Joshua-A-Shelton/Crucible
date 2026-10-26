@@ -14,7 +14,8 @@ target_include_directories(crucible_core_objects PUBLIC
     "${CRUCIBLE_GENERATED_INCLUDE_DIR}")
 
 target_sources(crucible_core_objects PRIVATE
-    Core.cpp)
+    Core.cpp
+    Exports.cpp)
 
 # Only CRUCIBLE_EXPORT symbols are visible from the shared library.
 target_compile_definitions(crucible_core_objects PRIVATE CRUCIBLE_CORE_EXPORTS)

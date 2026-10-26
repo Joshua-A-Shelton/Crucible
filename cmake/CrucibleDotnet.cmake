@@ -35,5 +35,15 @@ endfunction()
 function(crucible_add_dotnet_test project)
     add_test(NAME ${project}
         COMMAND "${CRUCIBLE_DOTNET_ARTIFACTS_DIR}/bin/${project}/${CRUCIBLE_DOTNET_CONFIGURATION_DIR}/${project}${CMAKE_EXECUTABLE_SUFFIX}")
-    set_tests_properties(${project} PROPERTIES LABELS managed)
+    # The shared core lives in its own build folder, which nothing points .NET
+    # at, so add it to the library search path for test runs. Shipped games
+    # keep the core next to the executable and need nothing like this.
+    if(WIN32)
+        set(_crucible_library_path_variable PATH)
+    else()
+        set(_crucible_library_path_variable LD_LIBRARY_PATH)
+    endif()
+    set_tests_properties(${project} PROPERTIES
+        LABELS managed
+        ENVIRONMENT_MODIFICATION "${_crucible_library_path_variable}=path_list_prepend:$<TARGET_FILE_DIR:crucible_core>")
 endfunction()
