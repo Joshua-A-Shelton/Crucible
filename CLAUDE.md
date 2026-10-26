@@ -153,7 +153,8 @@ Stated by the project owner and refined one at a time (2026-10-24).
   asks for a credit in product documentation; ADR 0020). Editor only
   (never shipped): cgltf (MIT), ufbx (MIT or public domain), meshoptimizer
   (MIT), stb_image (public domain or MIT), bc7enc_rdo (MIT or public
-  domain); ADR 0022. Build-time only: libclang (Apache 2.0 with LLVM
+  domain); ADR 0022; Slang (Apache 2.0 with LLVM exception; ADR 0025).
+  Build-time only: libclang (Apache 2.0 with LLVM
   exception) via ClangSharp (MIT; ADR 0017). Fallback, not used: enkiTS
   (zlib; ADR 0014). Nothing else without an ADR.
 
@@ -201,6 +202,12 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   list of render passes with named insertion points; core passes are C++,
   C# adds passes through a batched command API. Clustered forward with a
   depth prepass and MSAA. CPU culling with instancing in v1.
+- **Materials and shaders** (ADR 0025): Slang, with shading models as
+  interfaces specialized at compile time. Shaders (surface functions) and
+  materials (parameter values) are separate. Variants only where
+  unavoidable, all compiled ahead of time; pipelines are created only while
+  loading. Material parameters live in one bindless buffer, laid out from
+  Slang reflection. Shaders hot-reload in the editor.
 - **Binding generator** (ADR 0017): annotated C++ headers, parsed at build
   time with libclang via ClangSharp (build-time only), generate C ABI
   shims, raw and idiomatic C# layers, struct mirrors with layout checks on

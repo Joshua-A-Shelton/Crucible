@@ -8,7 +8,7 @@ or in CLAUDE.md, and remove it from this list.
 - Input timestamps for frame-rate-independent timing checks (parry
   windows). → 0003, 0010
 - 2D physics library (third-party). → 0005
-- Renderer detail ADRs: materials and shaders; shadows; lighting and
+- Renderer detail ADRs: shadows; lighting and
   ambient light; post-processing and the post-tonemap MSAA resolve; the
   pixel-art 2D path; the C# rendering (batched command) API. → 0015
 - Upscaler licenses: DLSS, XeSS (FSR is MIT); SMAA's license. → 0004
@@ -52,6 +52,8 @@ or in CLAUDE.md, and remove it from this list.
 - Non-Latin text: CJK, complex scripts, right-to-left, IME. → 0019
 - Distance-field text for large, scaled, or animated text. → 0020
 - Accessibility (screen readers); low priority. → 0020
+- Node-graph shader editor. → 0025
+- Shipping the Slang compiler for mod shaders in JIT games. → 0025
 
 ## Parked
 
