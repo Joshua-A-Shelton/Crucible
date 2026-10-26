@@ -208,6 +208,12 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   unavoidable, all compiled ahead of time; pipelines are created only while
   loading. Material parameters live in one bindless buffer, laid out from
   Slang reflection. Shaders hot-reload in the editor.
+- **Skeletal animation** (ADR 0026): Crucible's own runtime (ACL for
+  compression when needed; ozz-animation as reference and fallback).
+  Compute pre-skinning once per frame. Poses in native buffers referenced
+  by index, animated in parallel per character. State machines are data
+  assets with a C# API; events carry exact clip times; windows are time
+  ranges; root motion supported.
 - **Binding generator** (ADR 0017): annotated C++ headers, parsed at build
   time with libclang via ClangSharp (build-time only), generate C ABI
   shims, raw and idiomatic C# layers, struct mirrors with layout checks on

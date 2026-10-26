@@ -24,7 +24,6 @@ or in CLAUDE.md, and remove it from this list.
 - C++ runtime extension mechanism (not plugins; C++ never extends the
   editor). → 0002
 - 3D physics library (third-party?).
-- Skeletal animation.
 
 ## Revisit once there is a prototype to test against
 
@@ -35,6 +34,8 @@ or in CLAUDE.md, and remove it from this list.
 - JSON as the authored text format. → 0021
 - The save-data format. → 0021
 - EXR input and BC6H compression for HDR textures, when needed. → 0022
+- ACL for clip compression, when clip memory matters. → 0026
+- Animation state machine graph editor, when the action RPG starts. → 0026
 - Pacing fallback when Slag's frame latency capability is missing, and how
   pacing behaves under `Mailbox`. → 0003
 - Accuracy of SDL event timestamps on Windows, X11, Wayland, and Steam
