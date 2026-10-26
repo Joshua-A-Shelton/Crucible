@@ -150,7 +150,10 @@ Stated by the project owner and refined one at a time (2026-10-24).
   Each shipped dependency's notice carries over to games (ADR 0007).
 - **Approved dependencies:** Slag (zlib), .NET (MIT; ADR 0001), SDL3
   (zlib; ADR 0018), HarfBuzz (Old MIT; ADR 0020), FreeType (FTL, which
-  asks for a credit in product documentation; ADR 0020). Build-time only: libclang (Apache 2.0 with LLVM
+  asks for a credit in product documentation; ADR 0020). Editor only
+  (never shipped): cgltf (MIT), ufbx (MIT or public domain), meshoptimizer
+  (MIT), stb_image (public domain or MIT), bc7enc_rdo (MIT or public
+  domain); ADR 0022. Build-time only: libclang (Apache 2.0 with LLVM
   exception) via ClangSharp (MIT; ADR 0017). Fallback, not used: enkiTS
   (zlib; ADR 0014). Nothing else without an ADR.
 
@@ -205,6 +208,14 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   glyph atlases. Themes of style classes with a small selector set;
   gamepad directional navigation and focus scopes; layout snapped to whole
   pixels.
+- **Assets and serialization** (ADR 0021): GUID identity; an asset
+  database with a content-hash import cache; JSON for authored files,
+  Crucible's own binary for imported data; source-generated serializers
+  shared by the editor, cooker, saves, and hot reload. Prefabs nest, with
+  overrides at the outermost level only. Shipping builds pack what the root
+  scenes reach; loading is async. Importers (ADR 0022): glTF and FBX for
+  models, our own linear-space sharp-filtered mipmaps, BC7/BC5
+  compression.
 - **Editor** (ADR 0016): written in C#, launched like a game (ADR 0011).
   Its UI is Crucible's own UI system, shared with games. Play runs in the
   editor's process by default; "Run standalone" launches a separate

@@ -13,7 +13,7 @@ or in CLAUDE.md, and remove it from this list.
   pixel-art 2D path; the C# rendering (batched command) API. → 0015
 - Upscaler licenses: DLSS, XeSS (FSR is MIT); SMAA's license. → 0004
 - Names of the default phases. → 0013
-- Audio (third-party?). → 0018
+- Audio (third-party?), including audio importers. → 0018, 0022
 - C++ math library, layout-compatible with the C# types it mirrors. → 0017
 - Interfaces for replaceable subsystems. → 0006
 - ECS: storage strategy (archetypes or sparse sets), and build our own or
@@ -23,9 +23,6 @@ or in CLAUDE.md, and remove it from this list.
 - How plain C# services are registered, found, and saved. → 0012
 - C++ runtime extension mechanism (not plugins; C++ never extends the
   editor). → 0002
-- Asset pipeline and serialization: import formats, the asset database,
-  scene and save-data formats, and serializing managed components across
-  hot reload (0012).
 - 3D physics library (third-party?).
 - Skeletal animation.
 
@@ -35,6 +32,9 @@ or in CLAUDE.md, and remove it from this list.
   with real game code. → 0001
 - Plugins are source-only in v1; revisit prebuilt (binary) plugins. → 0002
 - Late latching of the camera: tentatively in. → 0003
+- JSON as the authored text format. → 0021
+- The save-data format. → 0021
+- EXR input and BC6H compression for HDR textures, when needed. → 0022
 - Pacing fallback when Slag's frame latency capability is missing, and how
   pacing behaves under `Mailbox`. → 0003
 - Accuracy of SDL event timestamps on Windows, X11, Wayland, and Steam
