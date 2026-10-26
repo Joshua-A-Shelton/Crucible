@@ -10,8 +10,9 @@ compatible.
 
 This file is the source of truth for project goals, constraints, and
 conventions. If a request conflicts with it, point out the conflict before
-writing code. **Status:** charter complete (2026-10-25); architecture
-decisions in progress (`docs/open-items.md`).
+writing code. **Status:** charter and core architecture complete; the
+build order is `docs/milestones.md` (2026-10-26). Remaining design items
+are decided as milestones reach them (`docs/open-items.md`).
 
 ---
 
@@ -148,7 +149,9 @@ Stated by the project owner and refined one at a time (2026-10-24).
   MIT and similar are acceptable. Anything else (e.g. vendor SDK licenses)
   needs an explicit decision from the project owner, recorded in an ADR.
   Each shipped dependency's notice carries over to games (ADR 0007).
-- **Approved dependencies:** Slag (zlib), .NET (MIT; ADR 0001), SDL3
+- **Approved dependencies:** Slag (zlib; FetchContent with a pinned tag,
+  or the local checkout through `FETCHCONTENT_SOURCE_DIR_SLAG` during
+  development), .NET (MIT; ADR 0001), SDL3
   (zlib; ADR 0018), HarfBuzz (Old MIT; ADR 0020), FreeType (FTL, which
   asks for a credit in product documentation; ADR 0020), Box3D and Box2D
   v3 (MIT; ADR 0027), stb_vorbis (public domain or MIT; ADR 0028). Editor only
