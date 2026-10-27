@@ -3,7 +3,8 @@
 **Status:** Accepted (2026-10-25). Amended 2026-10-26: libclang is reached
 through Crucible's own bindings to the system's libclang, not ClangSharp
 (see "Amendment" below). Amended again 2026-10-26 (M2): how enums, spans,
-strings, and Result cross, and the namespace mapping.
+strings, and Result cross, and the namespace mapping. Amended again (M3):
+existing C# types and fixed-size arrays.
 
 ## Context
 
@@ -155,5 +156,23 @@ the first real exposed API. Names (`Api`, `CRUCIBLE_EXPOSE_STATUS`,
 ## Consequences
 
 - The C++ math types must be layout-compatible with the C# types they
-  mirror (e.g. `Vec3` ↔ `System.Numerics.Vector3`): an open item for the
-  math library choice.
+  cross as: settled by the amendment below (M3 step 2).
+
+## Amendment (2026-10-26): existing C# types and arrays (M3 step 2)
+
+- **`CRUCIBLE_EXPOSE_AS("System.Numerics.Vector3")`** exposes a struct as an
+  existing C# type with the same layout: no mirror is generated, and the
+  named type appears wherever the C++ type does. C++ `static_assert`s its
+  size and field offsets; C#'s `LayoutChecks` compares the size; tests of
+  the operations on it catch a field-level mismatch (the math types'
+  `MathTests` compare every operation with `System.Numerics`).
+- **Fixed-size arrays in exposed structs** (`int32_t values[3]`): C++
+  `static_assert`s the offset, and the C# mirror's field is a generated
+  `[InlineArray(N)]` struct named after the struct and field
+  (`ProbeArrayValuesArray`, a placeholder), indexed like a span. Arrays of
+  arrays and of `bool` are rejected.
+- **`[assembly: DisableRuntimeMarshalling]`** on the engine assembly: its
+  native calls pass raw memory only, as this ADR's rules already required,
+  which lets `LibraryImport` pass types from other assemblies by value
+  (`System.Numerics`) and turns any signature needing conversion into a
+  compile error. Game assemblies are unaffected.

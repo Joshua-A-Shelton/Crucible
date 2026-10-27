@@ -83,6 +83,7 @@ internal static class TypeKind
     public const int Double = 22;
     public const int Record = 105;
     public const int Enum = 106;
+    public const int ConstantArray = 112;
 }
 
 internal static unsafe partial class Libclang
@@ -201,6 +202,12 @@ internal static unsafe partial class Libclang
 
     [LibraryImport(Library, EntryPoint = "clang_Type_getTemplateArgumentAsType")]
     public static partial CXType TypeGetTemplateArgumentAsType(CXType type, uint index);
+
+    [LibraryImport(Library, EntryPoint = "clang_getArrayElementType")]
+    public static partial CXType GetArrayElementType(CXType type);
+
+    [LibraryImport(Library, EntryPoint = "clang_getArraySize")]
+    public static partial long GetArraySize(CXType type);
 
     [LibraryImport(Library, EntryPoint = "clang_getEnumDeclIntegerType")]
     public static partial CXType GetEnumDeclIntegerType(CXCursor cursor);

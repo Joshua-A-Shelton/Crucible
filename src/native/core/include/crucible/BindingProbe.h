@@ -41,6 +41,19 @@ enum class CRUCIBLE_EXPOSE ProbeKind : uint8_t
 // Zero -> One -> Large -> Zero: an enum in both directions.
 CRUCIBLE_EXPOSE ProbeKind nextProbeKind(ProbeKind kind);
 
+// A fixed-size array field, with a byte after it.
+struct CRUCIBLE_EXPOSE ProbeArray
+{
+    int32_t values[3];
+    uint8_t tail;
+};
+
+CRUCIBLE_EXPOSE ProbeArray makeProbeArray(int32_t first, int32_t second, int32_t third, uint8_t tail);
+
+// values weighted 1, 10, 100, plus tail * 1000: each element must arrive in
+// its own place.
+CRUCIBLE_EXPOSE int32_t weighProbeArray(ProbeArray probe);
+
 // sumBindingProbe over every element: a read-only span.
 CRUCIBLE_EXPOSE double sumBindingProbes(std::span<const BindingProbe> probes);
 

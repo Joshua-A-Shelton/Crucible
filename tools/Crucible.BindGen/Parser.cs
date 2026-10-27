@@ -13,6 +13,7 @@ internal sealed class Parser
 {
     private const string ExposeAnnotation = "crucible_expose";
     private const string StatusAnnotation = "crucible_status";
+    private const string ExposeAsPrefix = "crucible_expose_as:";
 
     private readonly HashSet<string> _headerFiles;
     private readonly Dictionary<string, ExposedStruct> _structsByName = [];
@@ -290,7 +291,13 @@ internal sealed class Parser
             return;
         }
 
-        ExposedStruct exposed = new(qualifiedName, Libclang.Spelling(cursor), scope, Libclang.TypeGetSizeOf(type));
+        string? mapped = Libclang.Children(cursor)
+            .Where(child => child.Kind == CursorKind.AnnotateAttr)
+            .Select(Libclang.Spelling)
+            .FirstOrDefault(annotation => annotation.StartsWith(ExposeAsPrefix, StringComparison.Ordinal))?
+            [ExposeAsPrefix.Length..];
+        ExposedStruct exposed = new(qualifiedName, Libclang.Spelling(cursor), scope, Libclang.TypeGetSizeOf(type),
+            mapped);
         foreach (CXCursor field in Libclang.Children(cursor).Where(child => child.Kind == CursorKind.FieldDecl))
         {
             string name = Libclang.Spelling(field);
@@ -299,7 +306,8 @@ internal sealed class Parser
                 Error(field, $"{qualifiedName}::{name}: bit fields can't cross the boundary");
                 continue;
             }
-            TypeRef? fieldType = Resolve(field, Libclang.GetCursorType(field), $"{qualifiedName}::{name}");
+            TypeRef? fieldType = Resolve(field, Libclang.GetCursorType(field), $"{qualifiedName}::{name}",
+                allowArray: true);
             if (fieldType is not null)
             {
                 // libclang reports offsets in bits.
@@ -418,9 +426,16 @@ internal sealed class Parser
     }
 
     /// <param name="allowParameterShapes">Spans and string views, which only parameters may be.</param>
+    /// <param name="allowArray">Fixed-size arrays, which only struct fields may be.</param>
     private TypeRef? Resolve(CXCursor where, CXType type, string what, bool allowVoid = false,
-        bool allowParameterShapes = false)
+        bool allowParameterShapes = false, bool allowArray = false)
     {
+        if (Libclang.GetCanonicalType(type).Kind == TypeKind.ConstantArray)
+        {
+            return allowArray ? ResolveArray(where, Libclang.GetCanonicalType(type), what) : Reject(where,
+                $"{what}: {Libclang.Spelling(type)}: fixed-size arrays can only be struct fields");
+        }
+
         // Qualifiers don't change the C ABI of a value; const matters only for
         // span elements, which ask for it below.
         CXType canonical = Libclang.GetUnqualifiedType(Libclang.GetCanonicalType(type));
@@ -487,6 +502,32 @@ internal sealed class Parser
             Error(where, message);
             return null;
         }
+    }
+
+    private TypeRef? Reject(CXCursor where, string message)
+    {
+        Error(where, message);
+        return null;
+    }
+
+    private TypeRef? ResolveArray(CXCursor where, CXType canonical, string what)
+    {
+        CXType elementType = Libclang.GetArrayElementType(canonical);
+        if (Libclang.GetCanonicalType(elementType).Kind == TypeKind.ConstantArray)
+        {
+            return Reject(where, $"{what}: arrays of arrays can't cross the boundary; use an array of structs");
+        }
+        TypeRef? element = Resolve(where, elementType, $"{what}: array element");
+        if (element is null)
+        {
+            return null;
+        }
+        if (element.Is(Primitive.Bool))
+        {
+            // A C# bool isn't laid out as a C++ bool; use uint8_t.
+            return Reject(where, $"{what}: arrays of bool can't cross the boundary; use uint8_t");
+        }
+        return new TypeRef(Shape.Array, Element: element, Length: Libclang.GetArraySize(canonical));
     }
 
     private TypeRef? ResolveStandard(CXCursor where, CXType canonical, string name, string spelling, string what)

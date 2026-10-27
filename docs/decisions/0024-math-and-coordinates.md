@@ -1,7 +1,7 @@
 # 0024 — Math library and coordinate conventions
 
 **Status:** Accepted (2026-10-25). Amended 2026-10-26 (M2): clip space
-settled.
+settled. Amended again (M3): the storage types as built.
 
 ## Context
 
@@ -111,3 +111,32 @@ backend (rerun on RADV 2026-10-26: passes).
 So Crucible's projection matrices are the standard left-handed D3D ones,
 depth 0 to 1, with no per-backend Y flip. Crucible gets its own draw test
 when it first draws geometry (M5).
+
+## Amendment (2026-10-26): the storage types (M3 step 2)
+
+Settled with the project owner as decision B of M3.
+
+- **C# sees `System.Numerics`.** The C++ types are exposed as
+  `System.Numerics.Vector2/3/4`, `Quaternion`, and `Matrix4x4` (ADR 0017's
+  `CRUCIBLE_EXPOSE_AS`), so C# code uses .NET's SIMD-accelerated types
+  everywhere, with no second set of types and no conversions at the
+  boundary. Engines that predate accelerated `System.Numerics` (Unity,
+  Godot, Stride) have their own; a new engine on .NET 10 doesn't need to.
+- **The C++ names match:** `crucible::Vector2/3/4`, `Quaternion`,
+  `Matrix4x4` (placeholders), one vocabulary in both languages, in
+  `crucible/Math.h`.
+- **`Matrix4x4` is four `Vector4` rows** (`rows[3]` is the translation),
+  row-major and byte-identical to `System.Numerics.Matrix4x4`. The storage
+  types are 4-byte aligned, as in C#; SIMD alignment belongs to the compute
+  types (step 3).
+- **Radians, and `System.Numerics`' Euler angles:** yaw (around Y), pitch
+  (X), roll (Z), applied roll, then pitch, then yaw.
+- **Conventions written down:** rotations follow the left-hand rule (a
+  positive yaw turns +Z toward +X); the quaternion `*` is the Hamilton
+  product, as in `System.Numerics`, so with row vectors `a * b` means "b,
+  then a", and `concatenate(a, b)` reads in order; projections are
+  left-handed with depth 0 to 1 (`perspectiveFieldOfView`, `orthographic`,
+  `lookAt`, matching .NET's `...LeftHanded` functions).
+- **Every operation computes what its `System.Numerics` counterpart does,**
+  and a C# suite compares them over seeded random inputs (tolerance 1e-5);
+  a deliberately flipped sign fails both the C++ and the C# tests.

@@ -32,16 +32,16 @@ internal static class CppWriter
             foreach (ExposedEnum exposed in model.Enums)
             {
                 text.AppendLine($"static_assert(sizeof({exposed.QualifiedName}) == {exposed.Size}, " +
-                                $"\"{exposed.QualifiedName}: size differs from its C# mirror\");");
+                                $"\"{exposed.QualifiedName}: size differs from its C# type\");");
             }
             foreach (ExposedStruct exposed in model.Structs)
             {
                 text.AppendLine($"static_assert(sizeof({exposed.QualifiedName}) == {exposed.Size}, " +
-                                $"\"{exposed.QualifiedName}: size differs from its C# mirror\");");
+                                $"\"{exposed.QualifiedName}: size differs from its C# type\");");
                 foreach (Field field in exposed.Fields)
                 {
                     text.AppendLine($"static_assert(offsetof({exposed.QualifiedName}, {field.Name}) == {field.Offset}, " +
-                                    $"\"{exposed.QualifiedName}::{field.Name}: offset differs from its C# mirror\");");
+                                    $"\"{exposed.QualifiedName}::{field.Name}: offset differs from its C# type\");");
                 }
             }
         }

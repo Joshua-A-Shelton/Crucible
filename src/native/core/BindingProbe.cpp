@@ -77,4 +77,14 @@ Result<void> checkBindingProbe(int32_t number)
     return number < 0 ? Result<void>(Status::InvalidData) : Result<void>();
 }
 
+ProbeArray makeProbeArray(int32_t first, int32_t second, int32_t third, uint8_t tail)
+{
+    return ProbeArray{{first, second, third}, tail};
+}
+
+int32_t weighProbeArray(ProbeArray probe)
+{
+    return probe.values[0] + probe.values[1] * 10 + probe.values[2] * 100 + probe.tail * 1000;
+}
+
 } // namespace crucible

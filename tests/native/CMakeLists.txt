@@ -2,6 +2,7 @@ add_executable(crucible_native_tests
     Main.cpp
     CoreTests.cpp
     InputTimingTests.cpp
+    MathTests.cpp
     MemoryTests.cpp
     PlatformTests.cpp
     RenderTests.cpp

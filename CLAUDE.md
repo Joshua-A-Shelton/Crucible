@@ -237,7 +237,9 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   both sides, and editor metadata. Only C-shaped signatures cross the
   boundary: plain values, `enum class`, plain-data structs, `std::span` and
   `std::string_view` parameters, and `crucible::Result` returns (throwing in
-  C# unless marked `CRUCIBLE_EXPOSE_STATUS`). Each C++ namespace becomes a
+  C# unless marked `CRUCIBLE_EXPOSE_STATUS`); `CRUCIBLE_EXPOSE_AS` crosses as
+  an existing C# type (the math types as `System.Numerics`), and struct
+  fields may be fixed-size arrays. Each C++ namespace becomes a
   C# namespace, with its functions in an `Api` class. C++ changes need an
   editor restart; C# changes hot-reload.
 - **Platform layer** (ADR 0018): SDL3's window, input, event, clipboard,

@@ -46,7 +46,8 @@ internal static class CSharpWriter
             {
                 WriteEnum(text, exposed);
             }
-            foreach (ExposedStruct exposed in model.Structs.Where(s => s.Scope == scope))
+            // Mapped structs (CRUCIBLE_EXPOSE_AS) cross as an existing C# type.
+            foreach (ExposedStruct exposed in model.Structs.Where(s => s.Scope == scope && s.MappedCSharpType is null))
             {
                 WriteStruct(text, exposed);
             }
@@ -87,6 +88,18 @@ internal static class CSharpWriter
         // Explicit offsets from libclang: the mirror matches what Clang computed
         // by construction, and the C++ static_asserts confirm the real compiler
         // agrees.
+        // An array field's type: an inline array of exactly its length.
+        foreach (Field field in exposed.Fields.Where(field => field.Type.Shape == Shape.Array))
+        {
+            text.AppendLine($"    /// <summary>The storage of <c>{exposed.QualifiedName}::{field.Name}</c>; index it like a span.</summary>");
+            text.AppendLine($"    [InlineArray({field.Type.Length})]");
+            text.AppendLine($"    public struct {ArrayTypeName(exposed, field)}");
+            text.AppendLine("    {");
+            text.AppendLine($"        private {IdiomaticType(field.Type.Element!)} _element0;");
+            text.AppendLine("    }");
+            text.AppendLine();
+        }
+
         text.AppendLine($"    /// <summary>Mirror of <c>{exposed.QualifiedName}</c>.</summary>");
         text.AppendLine($"    [StructLayout(LayoutKind.Explicit, Size = {exposed.Size})]");
         text.AppendLine($"    public partial struct {exposed.Name}");
@@ -106,7 +119,7 @@ internal static class CSharpWriter
             }
             else
             {
-                text.AppendLine($"        [FieldOffset({field.Offset})] public {IdiomaticType(field.Type)} {name};");
+                text.AppendLine($"        [FieldOffset({field.Offset})] public {FieldType(exposed, field)} {name};");
             }
         }
 
@@ -126,7 +139,7 @@ internal static class CSharpWriter
         {
             bool isBool = field.Type.Is(Primitive.Bool);
             string member = isBool ? $"_{field.Name}" : Names.Pascal(field.Name);
-            string type = isBool ? "byte" : IdiomaticType(field.Type);
+            string type = isBool ? "byte" : FieldType(exposed, field);
             text.AppendLine($"            if (Unsafe.ByteOffset(ref start, ref Unsafe.As<{type}, byte>(ref probe.{member})) != {field.Offset})");
             text.AppendLine("            {");
             text.AppendLine($"                return \"{exposed.QualifiedName}::{field.Name}: offset differs from C++ ({field.Offset})\";");
@@ -306,13 +319,15 @@ internal static class CSharpWriter
 
     private static void WriteLayoutChecks(StringBuilder text, BindingModel model)
     {
+        // Mapped structs check their size here; their fields are checked by
+        // the C++ static_asserts and by tests of the operations on them.
+        static string SizeCheck(string type, string name, long size) =>
+            $"(Unsafe.SizeOf<{type}>() != {size} ? \"{name}: size differs from C++ ({size})\" : null)";
         List<string> checks = model.Enums
-            .Select(e =>
-            {
-                string self = QualifiedName(e.Scope, e.Name);
-                return $"(Unsafe.SizeOf<{self}>() != {e.Size} ? \"{e.QualifiedName}: size differs from C++ ({e.Size})\" : null)";
-            })
-            .Concat(model.Structs.Select(s => $"{QualifiedName(s.Scope, s.Name)}.VerifyLayout()"))
+            .Select(e => SizeCheck(QualifiedName(e.Scope, e.Name), e.QualifiedName, e.Size))
+            .Concat(model.Structs.Select(s => s.MappedCSharpType is { } mapped
+                ? SizeCheck($"global::{mapped}", s.QualifiedName, s.Size)
+                : $"{QualifiedName(s.Scope, s.Name)}.VerifyLayout()"))
             .ToList();
 
         text.AppendLine("    /// <summary>Checks every enum and struct mirror against its C++ layout (ADR 0017).</summary>");
@@ -330,8 +345,17 @@ internal static class CSharpWriter
 
     private static string QualifiedName(Scope scope, string name) => $"global::{scope.CSharp}.{name}";
 
+    private static string ArrayTypeName(ExposedStruct owner, Field field) =>
+        $"{owner.Name}{Names.Pascal(field.Name)}Array";
+
+    private static string FieldType(ExposedStruct owner, Field field) =>
+        field.Type.Shape == Shape.Array
+            ? QualifiedName(owner.Scope, ArrayTypeName(owner, field))
+            : IdiomaticType(field.Type);
+
     private static string IdiomaticType(TypeRef type) => type.Shape switch
     {
+        Shape.Struct when type.Struct!.MappedCSharpType is { } mapped => $"global::{mapped}",
         Shape.Struct => QualifiedName(type.Struct!.Scope, type.Struct.Name),
         Shape.Enum => QualifiedName(type.Enum!.Scope, type.Enum.Name),
         _ => Primitives.CSharpIdiomatic(type.Primitive),

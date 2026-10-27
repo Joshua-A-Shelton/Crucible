@@ -29,10 +29,14 @@ internal enum Shape
 
     /// <summary>std::string_view, as a parameter: UTF-8 pointer + length.</summary>
     String,
+
+    /// <summary>A fixed-size array, as a struct field.</summary>
+    Array,
 }
 
 /// <summary>A type in an exposed signature or struct.</summary>
-/// <param name="Element">A span's element type.</param>
+/// <param name="Element">A span's or array's element type.</param>
+/// <param name="Length">An array's length.</param>
 /// <param name="IsConst">Whether a span's elements are const (ReadOnlySpan in C#).</param>
 internal sealed record TypeRef(
     Shape Shape,
@@ -40,7 +44,8 @@ internal sealed record TypeRef(
     ExposedStruct? Struct = null,
     ExposedEnum? Enum = null,
     TypeRef? Element = null,
-    bool IsConst = false)
+    bool IsConst = false,
+    long Length = 0)
 {
     public static TypeRef Of(Primitive primitive) => new(Shape.Primitive, primitive);
 
@@ -69,7 +74,12 @@ internal sealed record Scope(IReadOnlyList<string> Namespaces)
 
 internal sealed record Field(string Name, TypeRef Type, long Offset);
 
-internal sealed record ExposedStruct(string QualifiedName, string Name, Scope Scope, long Size)
+/// <param name="MappedCSharpType">
+/// Set by CRUCIBLE_EXPOSE_AS: the existing C# type it crosses as
+/// ("System.Numerics.Vector3"), so no mirror is generated.
+/// </param>
+internal sealed record ExposedStruct(string QualifiedName, string Name, Scope Scope, long Size,
+    string? MappedCSharpType = null)
 {
     public List<Field> Fields { get; } = [];
 }
