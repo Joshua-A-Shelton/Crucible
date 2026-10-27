@@ -21,6 +21,7 @@ public static class Host
         // useful message, so nothing may leave this method (ADR 0030).
         try
         {
+            CoreLibraryResolver.Register();
 #if DEBUG
             // ADR 0017's startup check: every C# struct mirror must match the
             // C++ layout, or shared native memory would be misread.

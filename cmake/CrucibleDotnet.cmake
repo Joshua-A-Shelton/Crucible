@@ -7,6 +7,12 @@
 
 find_program(DOTNET_EXECUTABLE dotnet REQUIRED)
 
+# The command CMake runs for dotnet build and publish. Visual Studio's
+# developer environment (vcvars64.bat) sets Platform=x64 for the C++ tools;
+# MSBuild reads environment variables as properties, so it would build the
+# C# solution for a platform that doesn't exist. Clear it first.
+set(CRUCIBLE_DOTNET "${CMAKE_COMMAND}" -E env --unset=Platform "${DOTNET_EXECUTABLE}")
+
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(CRUCIBLE_DOTNET_CONFIGURATION Debug)
 else()
@@ -19,7 +25,7 @@ set(CRUCIBLE_DOTNET_ARTIFACTS_DIR "${CMAKE_BINARY_DIR}/artifacts")
 # crucible_add_dotnet_build(<target> <solution or project file>)
 function(crucible_add_dotnet_build target project)
     add_custom_target(${target} ALL
-        COMMAND "${DOTNET_EXECUTABLE}" build "${project}"
+        COMMAND ${CRUCIBLE_DOTNET} build "${project}"
             --configuration ${CRUCIBLE_DOTNET_CONFIGURATION}
             --nologo
             "-p:ArtifactsPath=${CRUCIBLE_DOTNET_ARTIFACTS_DIR}"
@@ -83,7 +89,7 @@ endfunction()
 function(crucible_add_dotnet_aot_publish target project)
     cmake_parse_arguments(PARSE_ARGV 2 publish "" "" "BYPRODUCTS;ARGUMENTS")
     add_custom_target(${target} ALL
-        COMMAND "${DOTNET_EXECUTABLE}" publish "${project}"
+        COMMAND ${CRUCIBLE_DOTNET} publish "${project}"
             --configuration ${CRUCIBLE_DOTNET_CONFIGURATION}
             --runtime ${CRUCIBLE_DOTNET_RID}
             --nologo

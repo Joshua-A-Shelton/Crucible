@@ -10,14 +10,19 @@ project(Crucible
 # ---------------------------------------------------------------------------
 
 option(CRUCIBLE_BUILD_TESTS "Build Crucible tests" ${PROJECT_IS_TOP_LEVEL})
-# Off on Windows until M1 step 8 brings the AOT launcher's link there (the
-# linker response file is written in Unix linker syntax for now).
-if(WIN32)
-    set(_crucible_aot_default OFF)
-else()
-    set(_crucible_aot_default ON)
+option(CRUCIBLE_BUILD_AOT "Build the NativeAOT variants: the AOT launcher and AOT test suites" ON)
+
+# CMake's default MSVC flags turn exceptions on (/EHsc); Crucible builds
+# without them (ADR 0030), and adding /EHs-c- on top makes MSVC warn about
+# the override on every file. Remove the default instead, for Slag too.
+if(MSVC)
+    string(REPLACE "/EHsc" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 endif()
-option(CRUCIBLE_BUILD_AOT "Build the NativeAOT variants: the AOT launcher and AOT test suites" ${_crucible_aot_default})
+
+# The static release C runtime (/MT) everywhere on Windows, in every
+# configuration and for Slag too (ADR 0031): NativeAOT's runtime is built with
+# it, and an executable can't mix C runtimes.
+set(CMAKE_MSVC_RUNTIME_LIBRARY MultiThreaded)
 
 # The core is also a shared library (ADR 0011), so every static library linked
 # into it, Slag included, must be position-independent.

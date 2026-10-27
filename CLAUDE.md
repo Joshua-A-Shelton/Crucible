@@ -276,10 +276,10 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   types, methods, properties, and constants; `camelCase` locals and
   parameters; `_camelCase` private fields; file-scoped namespaces.
   `.editorconfig` is authoritative and `dotnet format` checks it.
-- **Shared C# settings** (`Directory.Build.props`): .NET 10 (LTS, pinned in
-  `global.json`), nullable reference types, warnings as errors,
-  `IsAotCompatible` (AOT and trim analyzers as errors, ADR 0001) for every
-  project including tests. Packages are pinned by lock file; CI restores in
+- **Shared C# settings** (`Directory.Build.props`): .NET 10 (LTS; the exact
+  SDK, 10.0.403, is pinned in `global.json`, ADR 0031), nullable reference
+  types, warnings as errors, `IsAotCompatible` (AOT and trim analyzers as
+  errors, ADR 0001) for every project including tests. Packages are pinned by lock file; CI restores in
   locked mode.
 - Comments explain *why*, not *what*.
 
@@ -294,13 +294,16 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
 - Tests: doctest (C++) and TUnit (C#), ADR 0029. CTest labels: `native`,
   `managed`, `integration` (the launchers), `aot`. Every C# suite also runs
   as NativeAOT code (`<suite>.aot`).
-- `CRUCIBLE_BUILD_AOT` (on by default; off on Windows until M1 step 8)
-  builds the NativeAOT variants: `crucible_launcher_aot` (core and C# engine
+- `CRUCIBLE_BUILD_AOT` (on by default) builds the NativeAOT variants: `crucible_launcher_aot` (core and C# engine
   statically linked into one executable) and the AOT test suites. AOT
   publishes take about 30 seconds the first time.
-- **Build requirements:** CMake, Ninja, a C++20 compiler, the .NET 10 SDK,
-  and Clang with libclang (the binding generator loads the system's
-  libclang, ADR 0017; NativeAOT links with clang on Linux).
+- **Build requirements:** CMake, Ninja, a C++20 compiler (MSVC on Windows),
+  the exact .NET SDK in `global.json`, and Clang with libclang (the binding
+  generator loads the system's libclang, ADR 0017; NativeAOT links with clang
+  on Linux; on Windows LLVM's default folder is searched).
+- **Windows** (ADR 0031): the static C runtime (`/MT`) everywhere, Slag
+  included; the launcher uses `nethost.dll` and `wmain`. Build from a Visual
+  Studio developer environment (`vcvars64.bat`).
 - **Bindings** (ADR 0017): `tools/Crucible.BindGen` runs before the core and
   engine build, on every public header in `src/native/core/include/`.
   Output goes to `build/<preset>/generated/`; IDE builds of the C# projects

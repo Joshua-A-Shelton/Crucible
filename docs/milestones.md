@@ -67,6 +67,11 @@ NativeAOT linking works, so its shared-library fallback isn't needed. ADR
 of using ClangSharp (about 470 MB of packages, and no built-in headers).
 Step 8, Windows (MSVC, AOT on Windows, finding libclang.dll), remains.
 
+**Status (2026-10-26, step 8):** done on Windows 11 with MSVC 19.44: all 13
+CTest entries pass, JIT and AOT, including a non-ASCII path test. Windows
+uses the static C runtime and the exact SDK is pinned (ADR 0031). Not yet
+run in hosted CI (no remote).
+
 ## M2 — Platform and first pixels
 
 - SDL3 window and input events with timestamps, behind Crucible's platform

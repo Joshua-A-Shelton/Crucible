@@ -5,7 +5,11 @@
 # to the system Clang: libclang finds Clang's built-in headers relative to
 # itself, so the two must come from the same installation.
 
-find_program(CRUCIBLE_CLANG NAMES clang REQUIRED
+# LLVM's Windows installer doesn't always add itself to PATH, so its default
+# folder is searched too.
+find_program(CRUCIBLE_CLANG NAMES clang
+    HINTS "$ENV{ProgramFiles}/LLVM/bin"
+    REQUIRED
     DOC "Clang, whose libclang the binding generator uses")
 get_filename_component(_crucible_clang_real "${CRUCIBLE_CLANG}" REALPATH)
 get_filename_component(_crucible_llvm_prefix "${_crucible_clang_real}" DIRECTORY)
@@ -33,7 +37,7 @@ set(CRUCIBLE_BINDGEN_DLL
     "${CRUCIBLE_DOTNET_ARTIFACTS_DIR}/bin/Crucible.BindGen/${CRUCIBLE_DOTNET_CONFIGURATION_DIR}/Crucible.BindGen.dll")
 
 add_custom_target(crucible_bindgen_tool
-    COMMAND "${DOTNET_EXECUTABLE}" build "${CRUCIBLE_BINDGEN_PROJECT}"
+    COMMAND ${CRUCIBLE_DOTNET} build "${CRUCIBLE_BINDGEN_PROJECT}"
         --configuration ${CRUCIBLE_DOTNET_CONFIGURATION}
         --nologo
         "-p:ArtifactsPath=${CRUCIBLE_DOTNET_ARTIFACTS_DIR}"

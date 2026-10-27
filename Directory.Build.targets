@@ -12,8 +12,18 @@
   <Target Name="CrucibleWriteNativeLinkInputs"
           AfterTargets="SetupOSSpecificProps"
           Condition="'$(NativeLib)' == 'Static' and '$(CrucibleLinkInputsFile)' != ''">
+    <!-- Unix: library paths, then system libraries as -l<name>. Windows (MSVC
+         link.exe): quoted library paths, then the SDK's .lib names. -->
+    <ItemGroup Condition="'$(OS)' != 'Windows_NT'">
+      <_CrucibleLinkInput Include="@(NativeLibrary->'%(FullPath)')" />
+      <_CrucibleLinkInput Include="@(NativeSystemLibrary->'-l%(Identity)')" />
+    </ItemGroup>
+    <ItemGroup Condition="'$(OS)' == 'Windows_NT'">
+      <_CrucibleLinkInput Include="@(NativeLibrary->'&quot;%(FullPath)&quot;')" />
+      <_CrucibleLinkInput Include="@(SdkNativeLibrary)" />
+    </ItemGroup>
     <WriteLinesToFile File="$(CrucibleLinkInputsFile)"
-                      Lines="@(NativeLibrary->'%(FullPath)');@(NativeSystemLibrary->'-l%(Identity)')"
+                      Lines="@(_CrucibleLinkInput)"
                       Overwrite="true"
                       WriteOnlyWhenDifferent="true" />
   </Target>

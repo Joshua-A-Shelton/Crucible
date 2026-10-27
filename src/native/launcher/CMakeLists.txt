@@ -9,6 +9,15 @@ add_executable(crucible_launcher
 
 crucible_set_compile_options(crucible_launcher)
 target_link_libraries(crucible_launcher PRIVATE crucible::core crucible::nethost)
+crucible_copy_nethost(crucible_launcher)
+if(WIN32)
+    # Windows keeps DLLs next to the executable; the engine looks there for
+    # the core (CoreLibraryResolver).
+    add_custom_command(TARGET crucible_launcher POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            "$<TARGET_FILE:crucible_core>" "$<TARGET_FILE_DIR:crucible_launcher>"
+        VERBATIM)
+endif()
 
 if(CRUCIBLE_BUILD_AOT)
     add_executable(crucible_launcher_aot
@@ -39,6 +48,19 @@ if(CRUCIBLE_BUILD_TESTS)
     add_test(NAME launcher.jit.missing-engine
         COMMAND crucible_launcher --managed-dir "${CMAKE_CURRENT_BINARY_DIR}/no-engine-here")
     set_tests_properties(launcher.jit.missing-engine PROPERTIES LABELS integration WILL_FAIL TRUE)
+
+    # A managed folder whose name isn't ASCII: on Windows only wmain receives
+    # such a path intact. The setup test copies the engine there first.
+    set(unicodeDirectory "${CMAKE_CURRENT_BINARY_DIR}/managed-Zoë-日本")
+    add_test(NAME launcher.jit.unicode-path.setup
+        COMMAND "${CMAKE_COMMAND}" -E copy_directory
+            "${CRUCIBLE_DOTNET_ARTIFACTS_DIR}/bin/Crucible.Engine/${CRUCIBLE_DOTNET_CONFIGURATION_DIR}"
+            "${unicodeDirectory}")
+    set_tests_properties(launcher.jit.unicode-path.setup PROPERTIES FIXTURES_SETUP unicode-managed-dir)
+    add_test(NAME launcher.jit.unicode-path COMMAND crucible_launcher --managed-dir "${unicodeDirectory}")
+    set_tests_properties(launcher.jit.unicode-path PROPERTIES
+        LABELS integration
+        FIXTURES_REQUIRED unicode-managed-dir)
 
     if(CRUCIBLE_BUILD_AOT)
         add_test(NAME launcher.aot.start COMMAND crucible_launcher_aot)

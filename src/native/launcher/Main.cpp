@@ -5,8 +5,8 @@
 #include "EngineHost.h"
 
 #include <cstdio>
-#include <cstring>
 #include <filesystem>
+#include <string_view>
 #include <system_error>
 
 #if defined(_WIN32)
@@ -16,6 +16,18 @@
 #endif
 
 namespace {
+
+// Windows passes the real UTF-16 arguments only to wmain; main's char** use
+// the legacy code page, which can't represent every path. Elsewhere,
+// arguments are bytes (UTF-8 in practice). Either way they go straight into
+// std::filesystem::path, whose native character type matches.
+#if defined(_WIN32)
+using ArgumentChar = wchar_t;
+constexpr std::wstring_view managedDirOption = L"--managed-dir";
+#else
+using ArgumentChar = char;
+constexpr std::string_view managedDirOption = "--managed-dir";
+#endif
 
 // Shipped games keep their managed assemblies next to the executable.
 std::filesystem::path executableDirectory()
@@ -31,16 +43,14 @@ std::filesystem::path executableDirectory()
 #endif
 }
 
-} // namespace
-
-int main(int argc, char** argv)
+int run(int argc, ArgumentChar** argv)
 {
     // --managed-dir <dir> overrides where the engine's C# assemblies are,
     // for development builds whose assemblies live in the build tree.
     std::filesystem::path managedDirectory = executableDirectory();
     for (int i = 1; i + 1 < argc; ++i)
     {
-        if (std::strcmp(argv[i], "--managed-dir") == 0)
+        if (argv[i] == managedDirOption)
         {
             managedDirectory = argv[i + 1];
         }
@@ -62,3 +72,17 @@ int main(int argc, char** argv)
     }
     return result.value();
 }
+
+} // namespace
+
+#if defined(_WIN32)
+int wmain(int argc, wchar_t** argv)
+{
+    return run(argc, argv);
+}
+#else
+int main(int argc, char** argv)
+{
+    return run(argc, argv);
+}
+#endif

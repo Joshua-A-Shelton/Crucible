@@ -19,20 +19,34 @@ list(SORT _crucible_nethost_headers COMPARE NATURAL ORDER DESCENDING)
 list(GET _crucible_nethost_headers 0 _crucible_nethost_header)
 get_filename_component(CRUCIBLE_NETHOST_DIR "${_crucible_nethost_header}" DIRECTORY)
 
+# On Windows the static libnethost.lib is built against the static C runtime
+# (/MT), which can't be mixed with the DLL runtime Crucible and Slag use
+# (/MD), so Windows uses nethost.dll, which crucible_copy_nethost puts next to
+# the executable. Linux has one C runtime and links nethost statically.
 if(WIN32)
-    set(_crucible_nethost_lib "${CRUCIBLE_NETHOST_DIR}/libnethost.lib")
+    add_library(crucible_nethost SHARED IMPORTED GLOBAL)
+    set_target_properties(crucible_nethost PROPERTIES
+        IMPORTED_IMPLIB "${CRUCIBLE_NETHOST_DIR}/nethost.lib"
+        IMPORTED_LOCATION "${CRUCIBLE_NETHOST_DIR}/nethost.dll"
+        INTERFACE_INCLUDE_DIRECTORIES "${CRUCIBLE_NETHOST_DIR}")
 else()
-    set(_crucible_nethost_lib "${CRUCIBLE_NETHOST_DIR}/libnethost.a")
-endif()
-
-add_library(crucible_nethost STATIC IMPORTED GLOBAL)
-add_library(crucible::nethost ALIAS crucible_nethost)
-set_target_properties(crucible_nethost PROPERTIES
-    IMPORTED_LOCATION "${_crucible_nethost_lib}"
-    INTERFACE_INCLUDE_DIRECTORIES "${CRUCIBLE_NETHOST_DIR}"
-    INTERFACE_COMPILE_DEFINITIONS NETHOST_USE_AS_STATIC)
-if(NOT WIN32)
+    add_library(crucible_nethost STATIC IMPORTED GLOBAL)
+    set_target_properties(crucible_nethost PROPERTIES
+        IMPORTED_LOCATION "${CRUCIBLE_NETHOST_DIR}/libnethost.a"
+        INTERFACE_INCLUDE_DIRECTORIES "${CRUCIBLE_NETHOST_DIR}"
+        INTERFACE_COMPILE_DEFINITIONS NETHOST_USE_AS_STATIC)
     target_link_libraries(crucible_nethost INTERFACE ${CMAKE_DL_LIBS})
 endif()
+add_library(crucible::nethost ALIAS crucible_nethost)
+
+# crucible_copy_nethost(<target>): copies nethost.dll next to <target> on Windows.
+function(crucible_copy_nethost target)
+    if(WIN32)
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                "${CRUCIBLE_NETHOST_DIR}/nethost.dll" "$<TARGET_FILE_DIR:${target}>"
+            VERBATIM)
+    endif()
+endfunction()
 
 message(STATUS "Crucible: nethost from ${CRUCIBLE_NETHOST_DIR}")
