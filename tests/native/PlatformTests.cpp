@@ -10,6 +10,7 @@
 
 #include <array>
 #include <chrono>
+#include <string_view>
 #include <thread>
 
 using namespace crucible::platform;
@@ -148,4 +149,14 @@ TEST_CASE("Latency markers arrive numbered with queue timestamps")
         CHECK(events[i].timestampNs <= after);
     }
     stopLatencyMarkers(); // stopping twice is harmless
+}
+
+TEST_CASE("Event timestamps are arrival times except under X11")
+{
+    PlatformScope platform;
+    // The tests run on the offscreen driver; only x11 reports false.
+    CHECK(eventTimestampsAreArrivals());
+    const char* rawKeyboard = SDL_GetHint(SDL_HINT_WINDOWS_RAW_KEYBOARD);
+    REQUIRE(rawKeyboard != nullptr);
+    CHECK(std::string_view(rawKeyboard) == "1");
 }

@@ -29,7 +29,6 @@ milestone are decided or checked when that milestone reaches them
 
 ## Revisit once there is a prototype to test against
 
-- How Slag maps Vulkan's clip space (Y down) against D3D12's. → 0024 [M2]
 - Whether pacing stays on by default under `Mailbox`. → 0003 [M2,
   decide] Measured with the latency harness (RADV, KDE Wayland, 144 Hz,
   clear-only frames): paced Mailbox reads input 3.9 ms after it arrives
@@ -44,8 +43,15 @@ milestone are decided or checked when that milestone reaches them
   0.8 ms, p95 16.2), and "present done" there marks when DXGI accepts
   another frame, not when one reached the screen. So the harness's present
   column is only meaningful on Vulkan for now.
-- Accuracy of SDL event timestamps on Windows, X11, Wayland, and Steam
-  Deck (parry windows depend on it). → 0018 [M2]
+- Gamepad timestamp accuracy, with the injected-input check
+  (`tests/native/InputTimingTests.cpp`), when gamepad input lands; Steam
+  Deck input timestamps (gamescope, often XWayland). → 0018 [gamepad
+  support; M10 for the Deck] Keyboard and mouse are settled (ADR 0018's
+  amendment).
+- SDL's X11 input timestamps: keyboard events are stamped when processed,
+  and raw mouse motion passes X server milliseconds through as nanoseconds.
+  Report or fix upstream; until then Crucible flags X11
+  (`eventTimestampsAreArrivals`). → 0018
 - Late latching of the camera: tentatively in. → 0003 [M5]
 - JSON as the authored text format. → 0021 [M4]
 - No AOT-analyzer opt-out for game code: expected to stay, but confirm

@@ -89,6 +89,12 @@ bool translate(const SDL_Event& event, InputEvent& out)
 
 Result<void> initialize()
 {
+    // Windows: keyboard events from SDL's raw input thread, stamped on
+    // arrival to well under a millisecond, instead of window messages
+    // (GetMessageTime on a ~15.6 ms tick: about +-7 ms measured; ADR 0018's
+    // amendment). Normal priority, so the SDL_WINDOWS_RAW_KEYBOARD
+    // environment variable still overrides it. No effect elsewhere.
+    SDL_SetHint(SDL_HINT_WINDOWS_RAW_KEYBOARD, "1");
     if (!SDL_Init(SDL_INIT_VIDEO))
     {
         std::fprintf(stderr, "crucible: SDL_Init failed: %s\n", SDL_GetError());
@@ -160,6 +166,12 @@ uint32_t pollEvents(std::span<InputEvent> events)
 uint64_t timestampNow()
 {
     return SDL_GetTicksNS();
+}
+
+bool eventTimestampsAreArrivals()
+{
+    const char* driver = SDL_GetCurrentVideoDriver();
+    return driver == nullptr || std::strcmp(driver, "x11") != 0;
 }
 
 Result<void> nativeWindow(WindowHandle window, slag::NativeWindow& native)

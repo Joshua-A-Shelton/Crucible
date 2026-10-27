@@ -88,6 +88,13 @@ CRUCIBLE_EXPOSE uint32_t pollEvents(std::span<InputEvent> events);
 // Now, on the same clock as InputEvent::timestampNs.
 CRUCIBLE_EXPOSE uint64_t timestampNow();
 
+// Whether InputEvent::timestampNs is when the input arrived (Wayland,
+// Windows) rather than when SDL processed it, which can be a frame later.
+// False under X11, where SDL doesn't convert the X server's event times
+// (ADR 0018's amendment); timing code then treats a timestamp as "no earlier
+// than the poll".
+CRUCIBLE_EXPOSE bool eventTimestampsAreArrivals();
+
 // The latency harness's synthetic input (ADR 0003): a background thread
 // pushes LatencyMarker events into the event queue at random intervals
 // (uniform between half and one and a half times the mean), so they arrive

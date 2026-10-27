@@ -105,3 +105,26 @@ bursts and only holds back once per refresh, so "present done" there is
 when DXGI would take another frame, not when one reached the screen. The
 present column is only trustworthy on Vulkan until Slag has present
 timing.
+
+## How accurate are input timestamps?
+
+The harness measures from "SDL has the event", and its synthetic markers
+carry SDL's own timestamp, so they can't say how well SDL's timestamps match
+when real input arrived. A second check does: it injects real OS input at a
+known moment (`/dev/uinput` on Linux, `SendInput` on Windows), which crosses
+the whole input stack, and compares the timestamp SDL reports. It polls
+8 ms late, as a game polls once a frame, so a timestamp of when SDL
+*processed* the event shows up as about 8 ms, while one of when it
+*arrived* stays near 0.
+
+Results are in ADR 0018's amendment. The short version: Wayland and
+Windows' raw input give arrival times accurate to well under a
+millisecond (Wayland keyboards to the millisecond); Windows' window
+messages are only accurate to about +-7 ms, so Crucible turns on SDL's raw
+keyboard there; X11 gives processing times, so Crucible flags them.
+
+Run it by hand on a desktop (it may need a click to get focus):
+
+```
+crucible_native_tests --no-skip --test-suite=input-timing
+```

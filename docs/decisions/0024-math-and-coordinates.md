@@ -1,6 +1,7 @@
 # 0024 — Math library and coordinate conventions
 
-**Status:** Accepted (2026-10-25).
+**Status:** Accepted (2026-10-25). Amended 2026-10-26 (M2): clip space
+settled.
 
 ## Context
 
@@ -90,5 +91,23 @@ Given up: unmirrored glTF import, and textbook-convention matrices.
 
 - Whether x64 builds require AVX2 (every target from about the last
   decade has it, Steam Deck included).
-- How Slag maps Vulkan's clip space, whose Y points down, against
-  D3D12's.
+- ~~How Slag maps Vulkan's clip space, whose Y points down, against
+  D3D12's.~~ Settled; see the amendment below.
+
+## Amendment (2026-10-26): clip space
+
+Settled with the project owner at the end of M2. Slag gives both backends
+D3D12's clip space (Slag ADR 0037): clip-space +Y is up, viewports and
+textures have their origin at the top left (row 0 is the top), and depth
+runs 0 to 1. On Vulkan, whose clip-space Y points down, Slag flips the
+viewport (a negative height, core since Vulkan 1.1), so the same shader and
+viewport produce the same image on both.
+
+Evidence: Slag's backend test "a triangle renders with +Y up into a cleared
+target" draws vertices at clip (−1, 1), (0, 1), (−1, 0) and checks the
+triangle lands in the top left of the read-back image; it runs on every
+backend (rerun on RADV 2026-10-26: passes).
+
+So Crucible's projection matrices are the standard left-handed D3D ones,
+depth 0 to 1, with no per-backend Y flip. Crucible gets its own draw test
+when it first draws geometry (M5).

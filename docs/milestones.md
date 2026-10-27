@@ -101,9 +101,11 @@ NativeAOT. The binding generator handles enums, spans, strings, and
 RenderSubmit over a window or an offscreen surface; the latency harness
 measures input to present completion. Settled: swapchain image counts (ADR
 0003's amendment). Measured, decision open: pacing under `Mailbox`
-(`docs/open-items.md`). Carried forward: SDL timestamp accuracy (synthetic
-markers carry SDL's own timestamps, so it needs real input) and Vulkan's
-clip-space Y (nothing draws geometry yet). Awaiting the owner's sign-off.
+(`docs/open-items.md`). Then settled before sign-off: SDL timestamp
+accuracy, measured with injected OS input on Wayland, X11, and Windows (ADR
+0018's amendment; raw keyboard on Windows by default, X11 flagged), and
+Vulkan's clip-space Y (ADR 0024's amendment). Gamepads and the Steam Deck
+are carried forward.
 
 ## M3 — Foundations
 
