@@ -7,9 +7,6 @@ milestone are decided or checked when that milestone reaches them
 
 ## Needs a decision from the project owner
 
-- C++ memory policy: allocator hooks, and Crucible's own containers vs. the
-  standard library (Slag routes all CPU memory through callbacks and bans
-  default-allocator standard containers). [M3]
 - Names of the default phases. → 0013 [M3]
 - Whether x64 builds require AVX2. → 0024 [M3]
 - ECS details: hierarchy and relationships, change detection,

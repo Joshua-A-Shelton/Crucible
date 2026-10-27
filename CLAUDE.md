@@ -274,6 +274,11 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
 - **C++ error handling** (ADR 0030): no exceptions, no RTTI. Fallible
   functions return `crucible::Result<T>`; programmer errors are caught by
   validation and asserts.
+- **C++ memory** (ADR 0032): the core runtime (`src/native/core`) uses
+  Crucible's own containers through Crucible's tagged allocator, and only
+  non-allocating standard headers; tools, tests, and the launcher may use
+  the whole standard library. Running out of memory is fatal; `tryAllocate`
+  is for large requests expected to fail sometimes.
 - **C# error handling** (ADR 0030): exceptions for unexpected failures, the
   Try pattern for expected ones, and no throwing from per-frame APIs.
 - **C#:** standard .NET conventions: root namespace `Crucible`; `PascalCase`
