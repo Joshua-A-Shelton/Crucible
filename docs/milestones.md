@@ -105,7 +105,7 @@ measures input to present completion. Settled: swapchain image counts (ADR
 accuracy, measured with injected OS input on Wayland, X11, and Windows (ADR
 0018's amendment; raw keyboard on Windows by default, X11 flagged), and
 Vulkan's clip-space Y (ADR 0024's amendment). Gamepads and the Steam Deck
-are carried forward.
+are carried forward. Signed off by the owner on 2026-10-26; M2 is done.
 
 ## M3 — Foundations
 
