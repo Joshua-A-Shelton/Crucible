@@ -90,3 +90,18 @@ How to read it:
   reached the screen. The display still only changes at a vertical blank, so
   the true gap to paced is less than the read times suggest, and it costs a
   GPU running flat out. Settling it needs present timing or a photodiode.
+
+### On Windows (RTX 2070 SUPER, 60 Hz monitor, Mailbox, paced)
+
+| Backend | read | gpu_done | present_done | frame interval (median, p95) |
+|---|---|---|---|---|
+| Vulkan | 8.1 | 8.8 | 24.8 | 16.7, 18.1 |
+| D3D12 | 8.0 | 8.7 | 8.8 | 0.8, 16.2 |
+
+Vulkan behaves as on Linux: one frame per refresh, the present completing
+about a refresh after the input is read. D3D12 doesn't: DXGI's frame
+latency waitable, with Mailbox-style presents, lets frames through in
+bursts and only holds back once per refresh, so "present done" there is
+when DXGI would take another frame, not when one reached the screen. The
+present column is only trustworthy on Vulkan until Slag has present
+timing.

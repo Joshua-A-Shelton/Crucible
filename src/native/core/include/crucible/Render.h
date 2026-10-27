@@ -48,7 +48,20 @@ CRUCIBLE_EXPORT void shutdown();
 // Creates the window's swapchain (ADR 0003: Mailbox, else double-buffered
 // Fifo). The surface must be destroyed before its window.
 CRUCIBLE_EXPOSE Result<SurfaceHandle> createSurface(platform::WindowHandle window);
+
+// A surface without a window: the same frames, rendered into a texture
+// instead of a swapchain, for headless runs and tests. Presenting is skipped,
+// and pacing waits for the GPU to finish the previous frame.
+CRUCIBLE_EXPOSE Result<SurfaceHandle> createOffscreenSurface(uint32_t width, uint32_t height);
+
 CRUCIBLE_EXPOSE void destroySurface(SurfaceHandle surface);
+
+// Copies an offscreen surface's last frame into `pixels`: rows top to bottom,
+// 4 bytes per pixel in B8G8R8A8 order, sRGB-encoded, tightly packed (width * 4
+// bytes per row). Waits for the GPU. InvalidData if `pixels` is too small,
+// NotFound before the first frame or for a windowed surface. For tests and
+// screenshots, not per frame.
+CRUCIBLE_EXPOSE Result<void> readSurfacePixels(SurfaceHandle surface, std::span<uint8_t> pixels);
 
 // The start of a frame (ADR 0003's just-in-time pacing): waits until a new
 // frame may start, so input read afterwards is as fresh as possible. Uses

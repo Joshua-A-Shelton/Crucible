@@ -51,6 +51,11 @@ struct Surface
 {
     platform::WindowHandle window{};
     slag::Swapchain* swapchain = nullptr;
+    // An offscreen surface has a texture instead of a window and swapchain.
+    // Between operations the texture is always in the RenderTarget layout.
+    slag::Texture* offscreenTexture = nullptr;
+    slag::AttachmentView* offscreenView = nullptr; // the sRGB view
+    bool offscreenRendered = false;
     slag::CommandBuffer* commandBuffers[framesInFlight] = {};
     slag::Semaphore* frames = nullptr; // reaches N once the GPU has finished frame N
     uint64_t submitted = 0;            // frames submitted so far
@@ -115,6 +120,11 @@ void printMessage(const slag::DebugMessage& message, void*)
     std::fprintf(stderr, "crucible: [%s] %s\n", severity, message.text);
 }
 
+bool inUse(const Surface& surface)
+{
+    return surface.swapchain != nullptr || surface.offscreenTexture != nullptr;
+}
+
 Surface* find(SurfaceHandle surface)
 {
     if (surface.value == 0 || surface.value > maxSurfaces)
@@ -122,7 +132,7 @@ Surface* find(SurfaceHandle surface)
         return nullptr;
     }
     Surface& found = renderer.surfaces[surface.value - 1];
-    return found.swapchain != nullptr ? &found : nullptr;
+    return inUse(found) ? &found : nullptr;
 }
 
 void stopGpuTimer(Surface& surface)
@@ -178,6 +188,14 @@ void release(Surface& surface)
     {
         device->destroy(surface.swapchain);
     }
+    if (surface.offscreenView != nullptr)
+    {
+        device->destroy(surface.offscreenView);
+    }
+    if (surface.offscreenTexture != nullptr)
+    {
+        device->destroy(surface.offscreenTexture);
+    }
     surface = Surface{};
 }
 
@@ -188,15 +206,16 @@ Result<void> skip(Surface& surface)
     return {};
 }
 
-// Records the whole frame: the image's previous contents are discarded
-// (Undefined), it's cleared as a render target, then handed to Present.
-Result<void> record(slag::CommandBuffer* commandBuffer, Surface& surface, uint32_t image, const float color[4])
+// Records the whole frame: the target's previous contents are discarded
+// (Undefined), it's cleared as a render target, then handed to Present (a
+// swapchain image) or left as a render target (offscreen).
+Result<void> record(slag::CommandBuffer* commandBuffer, slag::Texture* texture, slag::AttachmentView* view,
+                    bool present, const float color[4])
 {
     if (!commandBuffer->reset() || !commandBuffer->begin())
     {
         return Status::Unsupported;
     }
-    slag::Texture* texture = surface.swapchain->texture(image);
     const slag::TextureBarrier toTarget = {.syncBefore = slag::BarrierSync::None,
                                            .syncAfter = slag::BarrierSync::RenderTarget,
                                            .accessAfter = slag::BarrierAccess::RenderTarget,
@@ -206,12 +225,15 @@ Result<void> record(slag::CommandBuffer* commandBuffer, Surface& surface, uint32
     commandBuffer->barrier({}, {}, {&toTarget, 1});
 
     // The sRGB view: the color is linear and the hardware encodes it.
-    slag::ColorAttachment attachment = {.view = surface.swapchain->srgbAttachmentView(image),
-                                        .loadOp = slag::LoadOp::Clear};
+    slag::ColorAttachment attachment = {.view = view, .loadOp = slag::LoadOp::Clear};
     std::copy(color, color + 4, attachment.clearValue.color);
     commandBuffer->beginRendering({.colorAttachments = {&attachment, 1}});
     commandBuffer->endRendering();
 
+    if (!present)
+    {
+        return commandBuffer->end() ? Result<void>() : Result<void>(Status::Unsupported);
+    }
     const slag::TextureBarrier toPresent = {.syncBefore = slag::BarrierSync::RenderTarget,
                                             .syncAfter = slag::BarrierSync::None,
                                             .accessBefore = slag::BarrierAccess::RenderTarget,
@@ -224,6 +246,98 @@ Result<void> record(slag::CommandBuffer* commandBuffer, Surface& surface, uint32
     {
         return Status::Unsupported;
     }
+    return {};
+}
+
+// The command buffers and frame semaphore every surface has.
+Result<void> createFrameResources(Surface& surface)
+{
+    slag::GraphicsDevice* device = renderer.device;
+    for (slag::CommandBuffer*& commandBuffer : surface.commandBuffers)
+    {
+        slag::Result<slag::CommandBuffer*> created = device->createCommandBuffer({.debugName = "crucible frame"});
+        if (!created)
+        {
+            return toStatus(created.status());
+        }
+        commandBuffer = created.value();
+    }
+    slag::Result<slag::Semaphore*> frames = device->createSemaphore({.debugName = "crucible frames"});
+    if (!frames)
+    {
+        return toStatus(frames.status());
+    }
+    surface.frames = frames.value();
+    return {};
+}
+
+Surface* freeSlot()
+{
+    auto free = std::find_if(renderer.surfaces.begin(), renderer.surfaces.end(),
+                             [](const Surface& surface) { return !inUse(surface); });
+    if (free == renderer.surfaces.end())
+    {
+        std::fprintf(stderr, "crucible: at most %u surfaces\n", maxSurfaces);
+        return nullptr;
+    }
+    return &*free;
+}
+
+SurfaceHandle handleOf(const Surface* slot)
+{
+    return SurfaceHandle{static_cast<uint32_t>(slot - renderer.surfaces.data()) + 1};
+}
+
+// Waits until the command buffer for the next frame is free: the GPU has
+// finished the frame that last used it, framesInFlight frames ago.
+Result<void> waitForCommandBuffer(Surface& surface)
+{
+    if (surface.submitted >= framesInFlight)
+    {
+        slag::Result<void> waited = surface.frames->wait(surface.submitted - framesInFlight + 1, UINT64_MAX);
+        if (!waited)
+        {
+            return toStatus(waited.status());
+        }
+    }
+    return {};
+}
+
+Result<void> submitFrame(Surface& surface, slag::CommandBuffer* commandBuffer, bool acquiredImage)
+{
+    const slag::SemaphoreValue signal = {surface.frames, surface.submitted + 1};
+    slag::Swapchain* const acquiredSwapchains[] = {surface.swapchain};
+    slag::CommandBuffer* const commandBuffers[] = {commandBuffer};
+    slag::SubmitDesc submit = {.commandBuffers = commandBuffers, .signals = {&signal, 1}};
+    if (acquiredImage)
+    {
+        submit.acquiredSwapchains = acquiredSwapchains;
+    }
+    if (slag::Result<void> submitted = renderer.queue->submit(submit); !submitted)
+    {
+        return toStatus(submitted.status());
+    }
+    ++surface.submitted;
+    return {};
+}
+
+Result<void> clearOffscreen(Surface& surface, const float color[4])
+{
+    if (Result<void> waited = waitForCommandBuffer(surface); !waited)
+    {
+        return waited;
+    }
+    slag::CommandBuffer* commandBuffer = surface.commandBuffers[surface.submitted % framesInFlight];
+    if (Result<void> recorded = record(commandBuffer, surface.offscreenTexture, surface.offscreenView, false, color);
+        !recorded)
+    {
+        return recorded;
+    }
+    if (Result<void> submitted = submitFrame(surface, commandBuffer, false); !submitted)
+    {
+        return submitted;
+    }
+    surface.offscreenRendered = true;
     return {};
 }
 
@@ -305,7 +419,7 @@ void shutdown()
         (void)renderer.queue->waitIdle();
         for (Surface& surface : renderer.surfaces)
         {
-            if (surface.swapchain != nullptr)
+            if (inUse(surface))
             {
                 release(surface);
             }
@@ -329,11 +443,9 @@ Result<SurfaceHandle> createSurface(platform::WindowHandle window)
     {
         return Status::Unsupported;
     }
-    auto free = std::find_if(renderer.surfaces.begin(), renderer.surfaces.end(),
-                             [](const Surface& surface) { return surface.swapchain == nullptr; });
-    if (free == renderer.surfaces.end())
+    Surface* free = freeSlot();
+    if (free == nullptr)
     {
-        std::fprintf(stderr, "crucible: at most %u surfaces\n", maxSurfaces);
         return Status::Unsupported;
     }
 
@@ -367,23 +479,11 @@ Result<SurfaceHandle> createSurface(platform::WindowHandle window)
     }
     surface.swapchain = swapchain.value();
 
-    for (slag::CommandBuffer*& commandBuffer : surface.commandBuffers)
-    {
-        slag::Result<slag::CommandBuffer*> created = device->createCommandBuffer({.debugName = "crucible frame"});
-        if (!created)
-        {
-            release(surface);
-            return toStatus(created.status());
-        }
-        commandBuffer = created.value();
-    }
-    slag::Result<slag::Semaphore*> frames = device->createSemaphore({.debugName = "crucible frames"});
-    if (!frames)
+    if (Result<void> created = createFrameResources(surface); !created)
     {
         release(surface);
-        return toStatus(frames.status());
+        return created.status();
     }
-    surface.frames = frames.value();
 
     if (device->capabilities().frameLatency)
     {
@@ -397,7 +497,55 @@ Result<SurfaceHandle> createSurface(platform::WindowHandle window)
     std::fflush(stdout);
 
     *free = std::move(surface);
-    return SurfaceHandle{static_cast<uint32_t>(free - renderer.surfaces.begin()) + 1};
+    return handleOf(free);
+}
+
+Result<SurfaceHandle> createOffscreenSurface(uint32_t width, uint32_t height)
+{
+    slag::GraphicsDevice* device = renderer.device;
+    if (device == nullptr || width == 0 || height == 0)
+    {
+        return Status::Unsupported;
+    }
+    Surface* free = freeSlot();
+    if (free == nullptr)
+    {
+        return Status::Unsupported;
+    }
+
+    // The swapchain's format, with the same sRGB view, so offscreen frames
+    // are rendered exactly as windowed ones.
+    Surface surface;
+    surface.width = width;
+    surface.height = height;
+    const slag::PixelFormat srgb[] = {slag::PixelFormat::B8G8R8A8UnormSrgb};
+    slag::Result<slag::Texture*> texture = device->createTexture2D({.format = slag::PixelFormat::B8G8R8A8Unorm,
+                                                                    .width = width,
+                                                                    .height = height,
+                                                                    .usage = slag::TextureUsage::RenderTarget,
+                                                                    .castableFormats = srgb,
+                                                                    .debugName = "crucible offscreen surface"});
+    if (!texture)
+    {
+        return toStatus(texture.status());
+    }
+    surface.offscreenTexture = texture.value();
+    slag::Result<slag::AttachmentView*> view =
+        device->createAttachmentView({.texture = surface.offscreenTexture, .format = srgb[0]});
+    if (!view)
+    {
+        release(surface);
+        return toStatus(view.status());
+    }
+    surface.offscreenView = view.value();
+    if (Result<void> created = createFrameResources(surface); !created)
+    {
+        release(surface);
+        return created.status();
+    }
+
+    *free = std::move(surface);
+    return handleOf(free);
 }
 
 void destroySurface(SurfaceHandle surface)
@@ -422,7 +570,7 @@ Result<void> waitForNextFrame(SurfaceHandle surface)
     }
 
     // A Timeout is fine here: the frame starts anyway, just later than ideal.
-    if (renderer.device->capabilities().frameLatency)
+    if (found->swapchain != nullptr && renderer.device->capabilities().frameLatency)
     {
         slag::Result<void> waited = found->swapchain->waitForNextFrame(frameWaitTimeoutNs);
         return waited ? Result<void>() : Result<void>(toStatus(waited.status()));
@@ -441,6 +589,16 @@ Result<void> clearAndPresent(SurfaceHandle surface, float red, float green, floa
         return Status::NotFound;
     }
     Surface& target = *found;
+    const float color[4] = {red, green, blue, alpha};
+    if (target.offscreenTexture != nullptr)
+    {
+        if (Result<void> cleared = clearOffscreen(target, color); !cleared)
+        {
+            return cleared;
+        }
+        target.presentedLastFrame = true; // pacing waits behind it, as behind a present
+        return {};
+    }
 
     const platform::WindowSize size = platform::windowPixelSize(target.window);
     if (platform::windowMinimized(target.window) || size.width == 0 || size.height == 0)
@@ -478,32 +636,22 @@ Result<void> clearAndPresent(SurfaceHandle surface, float red, float green, floa
         return toStatus(acquired.status());
     }
 
-    // The command buffer was last used framesInFlight frames ago.
-    if (target.submitted >= framesInFlight)
+    if (Result<void> waited = waitForCommandBuffer(target); !waited)
     {
-        slag::Result<void> waited = target.frames->wait(target.submitted - framesInFlight + 1, UINT64_MAX);
-        if (!waited)
-        {
-            return toStatus(waited.status());
-        }
+        return waited;
     }
+    const uint32_t image = acquired.value();
     slag::CommandBuffer* commandBuffer = target.commandBuffers[target.submitted % framesInFlight];
-    const float color[4] = {red, green, blue, alpha};
-    if (Result<void> recorded = record(commandBuffer, target, acquired.value(), color); !recorded)
+    if (Result<void> recorded = record(commandBuffer, target.swapchain->texture(image),
+                                       target.swapchain->srgbAttachmentView(image), true, color);
+        !recorded)
     {
         return recorded;
     }
-
-    const slag::SemaphoreValue signal = {target.frames, target.submitted + 1};
-    slag::Swapchain* const acquiredSwapchains[] = {target.swapchain};
-    slag::CommandBuffer* const commandBuffers[] = {commandBuffer};
-    if (slag::Result<void> submitted = renderer.queue->submit(
-            {.commandBuffers = commandBuffers, .signals = {&signal, 1}, .acquiredSwapchains = acquiredSwapchains});
-        !submitted)
+    if (Result<void> submitted = submitFrame(target, commandBuffer, true); !submitted)
     {
-        return toStatus(submitted.status());
+        return submitted;
     }
-    ++target.submitted;
 
     const slag::Result<void> presented = renderer.queue->present(target.swapchain, target.presentMode);
     switch (presented.status())
@@ -568,6 +716,94 @@ uint64_t gpuFrameDoneNs(SurfaceHandle surface, uint64_t frame)
         return 0;
     }
     return found->gpuTimer->times[slot].load(std::memory_order_relaxed);
+}
+
+Result<void> readSurfacePixels(SurfaceHandle surface, std::span<uint8_t> pixels)
+{
+    Surface* found = find(surface);
+    if (found == nullptr || found->offscreenTexture == nullptr || !found->offscreenRendered)
+    {
+        return Status::NotFound;
+    }
+    Surface& target = *found;
+    const size_t rowBytes = size_t{target.width} * 4;
+    if (pixels.size() < rowBytes * target.height)
+    {
+        return Status::InvalidData;
+    }
+
+    // A one-off copy with its own command buffer and semaphore, so frame
+    // counting (framesSubmitted) is untouched. The submit runs after the last
+    // frame's, so it sees the frame's writes (Slag ADR 0049).
+    slag::GraphicsDevice* device = renderer.device;
+    const slag::CopyFootprint footprint = device->copyFootprint(target.offscreenTexture, 0);
+    slag::Result<slag::Buffer*> readback = device->createBuffer(
+        {.size = footprint.size, .placement = slag::Placement::automatic(slag::MemoryKind::Readback)});
+    slag::Result<slag::CommandBuffer*> commandBuffer = device->createCommandBuffer({.debugName = "crucible readback"});
+    slag::Result<slag::Semaphore*> done = device->createSemaphore({});
+    Result<void> result;
+    if (!readback || !commandBuffer || !done || !commandBuffer.value()->begin())
+    {
+        result = Status::OutOfDeviceMemory;
+    }
+    else
+    {
+        slag::CommandBuffer* commands = commandBuffer.value();
+        const slag::TextureBarrier toCopy = {.syncAfter = slag::BarrierSync::Copy,
+                                             .accessAfter = slag::BarrierAccess::CopySource,
+                                             .layoutBefore = slag::TextureLayout::RenderTarget,
+                                             .layoutAfter = slag::TextureLayout::CopySource,
+                                             .texture = target.offscreenTexture};
+        commands->barrier({}, {}, {&toCopy, 1});
+        commands->copyTextureToBuffer({readback.value(), 0, footprint.rowPitch}, {.texture = target.offscreenTexture},
+                                      target.width, target.height);
+        // Back to RenderTarget, the layout the texture is always in between operations.
+        const slag::TextureBarrier toTarget = {.syncBefore = slag::BarrierSync::Copy,
+                                               .syncAfter = slag::BarrierSync::RenderTarget,
+                                               .accessBefore = slag::BarrierAccess::CopySource,
+                                               .accessAfter = slag::BarrierAccess::RenderTarget,
+                                               .layoutBefore = slag::TextureLayout::CopySource,
+                                               .layoutAfter = slag::TextureLayout::RenderTarget,
+                                               .texture = target.offscreenTexture};
+        commands->barrier({}, {}, {&toTarget, 1});
+        const slag::SemaphoreValue signal = {done.value(), 1};
+        slag::CommandBuffer* const commandBuffers[] = {commands};
+        slag::Result<void> submitted = commands->end();
+        if (submitted)
+        {
+            submitted = renderer.queue->submit({.commandBuffers = commandBuffers, .signals = {&signal, 1}});
+        }
+        if (submitted)
+        {
+            submitted = done.value()->wait(1, UINT64_MAX);
+        }
+        if (!submitted)
+        {
+            result = toStatus(submitted.status());
+        }
+        else
+        {
+            const auto* source = static_cast<const uint8_t*>(readback.value()->mappedData());
+            for (uint32_t row = 0; row < target.height; ++row)
+            {
+                std::copy_n(source + size_t{row} * footprint.rowPitch, rowBytes, pixels.begin() + row * rowBytes);
+            }
+        }
+    }
+
+    if (done)
+    {
+        device->destroy(done.value());
+    }
+    if (commandBuffer)
+    {
+        device->destroy(commandBuffer.value());
+    }
+    if (readback)
+    {
+        device->destroy(readback.value());
+    }
+    return result;
 }
 
 } // namespace crucible::render

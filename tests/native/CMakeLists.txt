@@ -16,5 +16,8 @@ target_link_libraries(crucible_native_tests PRIVATE crucible::core_static SDL3::
 # SDL's offscreen driver makes real windows that are never shown, so the tests
 # need no display (Windows over SSH has none).
 # ADD_LABELS turns test suites into labels: "gpu" tests need a Slag device.
+# Test names must not contain commas: doctest's label lookup passes the name
+# to --test-case unescaped, where a comma separates filters, so the test
+# silently loses its labels.
 doctest_discover_tests(crucible_native_tests ADD_LABELS 1
     PROPERTIES LABELS native ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen")

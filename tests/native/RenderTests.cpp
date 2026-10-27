@@ -13,6 +13,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdint>
+#include <vector>
 
 using namespace crucible;
 using slag::PresentMode;
@@ -25,7 +27,7 @@ TEST_CASE("Mailbox is chosen with three images when the window supports it")
     CHECK(choice.minImageCount == 3);
 }
 
-TEST_CASE("Without Mailbox, Fifo is chosen with two images, never Immediate")
+TEST_CASE("Without Mailbox Fifo is chosen with two images and never Immediate")
 {
     const std::array modes = {PresentMode::Fifo, PresentMode::Immediate};
     const render::PresentChoice choice = render::choosePresentMode(modes);
@@ -44,7 +46,7 @@ TEST_CASE("A present mode preference applies only where the window supports it")
     CHECK(render::choosePresentMode(fifoOnly, render::PresentPreference::Mailbox).mode == PresentMode::Fifo);
 }
 
-TEST_CASE("Surfaces need the renderer, and unknown surfaces are reported")
+TEST_CASE("Surfaces need the renderer and unknown surfaces are reported")
 {
     CHECK(render::createSurface(platform::WindowHandle{1}).status() == Status::Unsupported);
     CHECK(render::waitForNextFrame(render::SurfaceHandle{}).status() == Status::NotFound);
@@ -79,13 +81,113 @@ TEST_SUITE("gpu")
     }
 }
 
+namespace {
+
+// Every backend compiled in; a backend with no supported device is skipped
+// with a message (Vulkan without VK_EXT_descriptor_heap, for example).
+std::vector<slag::Backend> compiledBackends()
+{
+    std::vector<slag::Backend> backends;
+    for (slag::Backend backend : {slag::Backend::D3D12, slag::Backend::Vulkan})
+    {
+        if (slag::isBackendAvailable(backend))
+        {
+            backends.push_back(backend);
+        }
+    }
+    return backends;
+}
+
+const char* backendName(slag::Backend backend)
+{
+    return backend == slag::Backend::D3D12 ? "D3D12" : "Vulkan";
+}
+
+// One pixel, B8G8R8A8 as read back.
+struct Bgra
+{
+    uint8_t b, g, r, a;
+};
+
+// Every pixel within one step of `expected` (hardware may round the sRGB
+// encoding either way).
+bool allPixelsNear(const std::vector<uint8_t>& pixels, Bgra expected)
+{
+    auto near = [](uint8_t value, uint8_t want) {
+        return value + 1 >= want && value <= want + 1;
+    };
+    for (size_t i = 0; i < pixels.size(); i += 4)
+    {
+        if (!near(pixels[i], expected.b) || !near(pixels[i + 1], expected.g) || !near(pixels[i + 2], expected.r) ||
+            !near(pixels[i + 3], expected.a))
+        {
+            MESSAGE("pixel " << i / 4 << ": " << int(pixels[i]) << " " << int(pixels[i + 1]) << " "
+                             << int(pixels[i + 2]) << " " << int(pixels[i + 3]));
+            return false;
+        }
+    }
+    return true;
+}
+
+} // namespace
+
+TEST_SUITE("gpu")
+{
+    TEST_CASE("Offscreen frames clear to the color and read back sRGB-encoded on every backend")
+    {
+        REQUIRE(platform::initialize());
+        for (slag::Backend backend : compiledBackends())
+        {
+            CAPTURE(backendName(backend));
+            if (!render::initialize(backend))
+            {
+                MESSAGE("no supported device for " << backendName(backend) << "; skipped");
+                continue;
+            }
+
+            constexpr uint32_t width = 64;
+            constexpr uint32_t height = 32;
+            crucible::Result<render::SurfaceHandle> surface = render::createOffscreenSurface(width, height);
+            REQUIRE(surface);
+            std::vector<uint8_t> pixels(width * height * 4);
+            CHECK(render::readSurfacePixels(surface.value(), pixels).status() == Status::NotFound); // no frame yet
+
+            // Linear 0.5 is about 188 once sRGB-encoded; alpha isn't encoded.
+            REQUIRE(render::clearAndPresent(surface.value(), 1.0f, 0.0f, 0.5f, 1.0f));
+            REQUIRE(render::readSurfacePixels(surface.value(), pixels));
+            CHECK(allPixelsNear(pixels, {188, 0, 255, 255}));
+
+            // A later frame replaces it, through both command buffers, paced.
+            REQUIRE(render::setGpuTiming(surface.value(), true));
+            for (int frame = 0; frame < 5; ++frame)
+            {
+                REQUIRE(render::waitForNextFrame(surface.value()));
+                REQUIRE(render::clearAndPresent(surface.value(), 0.0f, 1.0f, 0.0f, 0.25f));
+            }
+            REQUIRE(render::readSurfacePixels(surface.value(), pixels));
+            CHECK(allPixelsNear(pixels, {0, 255, 0, 64}));
+            CHECK(render::framesSubmitted(surface.value()) == 6);
+            // The GPU timing thread stamped the finished frames.
+            CHECK(render::gpuFrameDoneNs(surface.value(), 6) != 0);
+
+            std::vector<uint8_t> tooSmall(16);
+            CHECK(render::readSurfacePixels(surface.value(), tooSmall).status() == Status::InvalidData);
+
+            render::destroySurface(surface.value());
+            CHECK(render::readSurfacePixels(surface.value(), pixels).status() == Status::NotFound);
+            render::shutdown();
+        }
+        platform::shutdown();
+    }
+}
+
 // By hand, on a desktop (skipped otherwise; needs a real video driver):
 //     crucible_native_tests --no-skip --test-suite=window
 // Clears a real window through a color cycle, resizes it halfway through, and
 // prints the present mode and frame times.
 TEST_SUITE("window" * doctest::skip())
 {
-    TEST_CASE("A window clears and presents, through a resize")
+    TEST_CASE("A window clears and presents through a resize")
     {
         REQUIRE(platform::initialize());
         REQUIRE(render::initialize(slag::InstanceDesc{}.backend));

@@ -38,7 +38,12 @@ milestone are decided or checked when that milestone reaches them
   0.2 ms at ~10,000 fps, but when its frames reach the screen is unknown
   without present timing (a Slag after-1.0 feature) or a photodiode. The
   fallback pacing (wait for the previous GPU frame) is decided (ADR 0015's
-  amendment).
+  amendment). On Windows (RTX 2070 SUPER, 60 Hz), Vulkan paces the same way
+  (present done 24.8 ms median), but D3D12's latency waitable under Mailbox
+  doesn't hold frames to the refresh: they come in bursts (interval median
+  0.8 ms, p95 16.2), and "present done" there marks when DXGI accepts
+  another frame, not when one reached the screen. So the harness's present
+  column is only meaningful on Vulkan for now.
 - Accuracy of SDL event timestamps on Windows, X11, Wayland, and Steam
   Deck (parry windows depend on it). → 0018 [M2]
 - Late latching of the camera: tentatively in. → 0003 [M5]

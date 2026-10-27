@@ -12,7 +12,7 @@ public sealed class BeginFramePhase : FramePhase
 
     public override void Run(FrameContext context)
     {
-        // Headless there's nothing to pace against.
+        // Without a surface (C# tests) there's nothing to pace against.
         if (context.Pacing && context.Surface.Value != 0)
         {
             Status status = Render.Api.WaitForNextFrame(context.Surface);
@@ -63,7 +63,7 @@ public sealed class RenderSubmitPhase : FramePhase
     {
         if (context.Surface.Value == 0)
         {
-            return; // headless
+            return; // no surface (C# tests)
         }
         // One cycle every two seconds, on the frame's start time.
         double seconds = context.FrameStartNs / 1e9;

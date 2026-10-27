@@ -47,8 +47,20 @@ public static class Host
         }
     }
 
-    private static int RunHeadless(LaunchOptions options) =>
-        RunLoop(options, default, default);
+    // No window: the frames render into an offscreen surface of the default
+    // window's size, so a headless run still exercises RenderSubmit on the GPU.
+    private static int RunHeadless(LaunchOptions options)
+    {
+        SurfaceHandle surface = Render.Api.CreateOffscreenSurface(1280, 720);
+        try
+        {
+            return RunLoop(options, default, surface);
+        }
+        finally
+        {
+            Render.Api.DestroySurface(surface);
+        }
+    }
 
     private static int RunWindowed(LaunchOptions options)
     {
@@ -83,7 +95,11 @@ public static class Host
             Pacing = !options.NoPacing,
             Latency = latencyLog is null
                 ? null
-                : new LatencyRecorder { RecordsPresents = !options.NoPacing && Render.Api.PacingWaitsForPresent() },
+                : new LatencyRecorder
+                {
+                    // Offscreen frames are never presented.
+                    RecordsPresents = window.Value != 0 && !options.NoPacing && Render.Api.PacingWaitsForPresent(),
+                },
         };
 
         if (context.Latency is not null)

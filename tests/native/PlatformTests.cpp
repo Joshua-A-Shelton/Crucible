@@ -39,7 +39,7 @@ void drain()
 
 } // namespace
 
-TEST_CASE("A window can be created, measured, and destroyed")
+TEST_CASE("A window can be created and measured and destroyed")
 {
     PlatformScope platform;
     crucible::Result<WindowHandle> window = createWindow(320, 240, "Crucible test");
@@ -125,7 +125,7 @@ TEST_CASE("The event clock moves forward")
     CHECK(timestampNow() > first);
 }
 
-TEST_CASE("Latency markers arrive numbered, with queue timestamps")
+TEST_CASE("Latency markers arrive numbered with queue timestamps")
 {
     PlatformScope platform;
     drain();

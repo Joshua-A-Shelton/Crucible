@@ -93,6 +93,18 @@ latency can be measured.
 when switching `Mailbox` ↔ `Fifo`; pacing under `Mailbox`; how Slag maps
 Vulkan's clip-space Y.
 
+**Status (2026-10-26):** steps 1–6 done and verified on Linux (GCC and
+Clang, debug and release) and Windows (MSVC, debug and release; windowed
+runs on D3D12 and Vulkan): 28 CTest entries, the C# suites under JIT and
+NativeAOT. The binding generator handles enums, spans, strings, and
+`Result`; the launcher owns a Slag device; C# drives BeginFrame, Input, and
+RenderSubmit over a window or an offscreen surface; the latency harness
+measures input to present completion. Settled: swapchain image counts (ADR
+0003's amendment). Measured, decision open: pacing under `Mailbox`
+(`docs/open-items.md`). Carried forward: SDL timestamp accuracy (synthetic
+markers carry SDL's own timestamps, so it needs real input) and Vulkan's
+clip-space Y (nothing draws geometry yet). Awaiting the owner's sign-off.
+
 ## M3 — Foundations
 
 - Job system: worker threads, frame and background priorities, waiting

@@ -101,7 +101,7 @@ Settled with the project owner in M2 step 4.
   `Environment.GetCommandLineArgs` can't be relied on.
 - **Launcher options:** `--managed-dir <dir>` (JIT), `--backend d3d12|vulkan`
   (ADR 0015), `--frames N` (stop after N frames), and `--headless` (no
-  window or surface; the loop still runs). The automated launcher tests run
+  window; frames render into an offscreen surface, M2 step 6). The automated launcher tests run
   headless, since the offscreen video driver can't present; real windows are
   checked by hand.
 - **Startup order:** platform, then renderer, then the engine; shutdown in
