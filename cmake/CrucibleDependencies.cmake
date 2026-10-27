@@ -12,8 +12,8 @@ include(FetchContent)
 # ---------------------------------------------------------------------------
 
 FetchContent_Declare(Slag
-    URL https://github.com/Joshua-A-Shelton/Slag/archive/refs/tags/v1.0.0.tar.gz
-    URL_HASH SHA256=200be92484fb716a832d84a26e792b482d75f002fd92797e93e192ad839119c6)
+    URL https://github.com/Joshua-A-Shelton/Slag/archive/refs/tags/v1.0.1.tar.gz
+    URL_HASH SHA256=20e6f05f1da7b94fc35a5e60ab7ebcdba1fc1c2babfc0b473f31c3a23a110068)
 FetchContent_MakeAvailable(Slag)
 
 # The D3D12 Agility SDK (Slag's pinned D3D12 runtime) loads only in an
