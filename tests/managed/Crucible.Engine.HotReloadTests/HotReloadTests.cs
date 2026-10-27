@@ -9,6 +9,14 @@ namespace Crucible.Tests.HotReload;
 // in the test method itself would keep the old version from unloading.
 public class HotReloadTests
 {
+    // The test game runs a job on the workers; its job type must not keep it
+    // from unloading.
+    [Before(Class)]
+    public static void StartWorkers() => Crucible.Jobs.Api.Initialize(4);
+
+    [After(Class)]
+    public static void StopWorkers() => Crucible.Jobs.Api.Shutdown();
+
     // Where the test games are built; see TestGame.targets.
     private static readonly string _testGames = Path.Combine(
         typeof(HotReloadTests).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()

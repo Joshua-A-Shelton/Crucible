@@ -95,6 +95,10 @@ internal sealed record Parameter(string Name, TypeRef Type);
 
 /// <param name="ReturnType">What the function returns, or the T of a returned Result&lt;T&gt;.</param>
 /// <param name="ReturnsResult">Whether the function returns crucible::Result (ADR 0030).</param>
+/// <param name="Internal">
+/// Marked CRUCIBLE_EXPOSE_INTERNAL: the C# method is internal, for the engine
+/// and its tests, not for games.
+/// </param>
 /// <param name="StatusForm">
 /// Marked CRUCIBLE_EXPOSE_STATUS: C# returns the Status (expected or per-frame
 /// failures) instead of throwing.
@@ -105,7 +109,8 @@ internal sealed record ExposedFunction(
     TypeRef ReturnType,
     List<Parameter> Parameters,
     bool ReturnsResult,
-    bool StatusForm)
+    bool StatusForm,
+    bool Internal = false)
 {
     public string QualifiedName => $"{Scope.Cpp}{Name}";
 

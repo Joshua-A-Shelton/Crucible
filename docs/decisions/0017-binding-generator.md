@@ -176,3 +176,12 @@ the first real exposed API. Names (`Api`, `CRUCIBLE_EXPOSE_STATUS`,
   which lets `LibraryImport` pass types from other assemblies by value
   (`System.Numerics`) and turns any signature needing conversion into a
   compile error. Game assemblies are unaffected.
+
+## Amendment (2026-10-27): internal exposure (M3 step 5)
+
+`CRUCIBLE_EXPOSE_INTERNAL` exposes a function as an `internal` C# method:
+callable by the engine's own C# and, through `InternalsVisibleTo`, its
+tests, but not by games. For engine plumbing (the C# job trampoline) and
+the launcher-owned setup functions the tests need. A function pointer
+crosses as a `uint64_t` address, since the generator doesn't do function
+pointers; the job trampoline is the only one so far.

@@ -13,6 +13,7 @@
 // (nesting can't deadlock: a waiting thread runs other jobs).
 
 #include <crucible/Export.h>
+#include <crucible/Expose.h>
 #include <crucible/Result.h>
 
 #include <atomic>
@@ -47,11 +48,12 @@ struct JobCounter
 // Starts the workers: `workerCount` of them, or logical cores minus one
 // (at least one) for 0. Called by the launcher after the platform
 // (ADR 0011). Without it, run executes jobs inline on the calling thread.
-CRUCIBLE_EXPORT Result<void> initialize(uint32_t workerCount = 0);
+// Internal in C#, for the engine's tests, which run without the launcher.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL Result<void> initialize(uint32_t workerCount = 0);
 
 // Runs every queued job, then joins the workers. Counters in use must have
 // reached zero.
-CRUCIBLE_EXPORT void shutdown();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void shutdown();
 
 // Queues `jobs` (copied) and adds them to `counter`.
 void run(std::span<const Job> jobs, JobPriority priority, JobCounter& counter);
@@ -67,9 +69,18 @@ void parallelFor(uint32_t count, uint32_t batchSize, void (*function)(void* data
                  void* data);
 
 // Worker threads (0 before initialize).
-uint32_t workerCount();
+CRUCIBLE_EXPOSE uint32_t workerCount();
 
 // The calling thread's worker index, or -1 if it isn't a worker.
-int32_t currentWorker();
+CRUCIBLE_EXPOSE int32_t currentWorker();
+
+// C# jobs (ADR 0014's amendment, M3 step 5). The engine's C# layer sets its
+// trampoline once: an [UnmanagedCallersOnly] method taking (job ID, begin,
+// end), as an address, since the generator doesn't do function pointers.
+// parallelForManaged is parallelFor with each batch calling the trampoline
+// with `jobId`; the C# side maps the ID to the job body, so native code never
+// holds a pointer into a game assembly. Both internal to the engine.
+CRUCIBLE_EXPOSE_INTERNAL void setManagedTrampoline(uint64_t trampolineAddress);
+CRUCIBLE_EXPOSE_INTERNAL void parallelForManaged(uint64_t jobId, uint32_t count, uint32_t batchSize);
 
 } // namespace crucible::jobs

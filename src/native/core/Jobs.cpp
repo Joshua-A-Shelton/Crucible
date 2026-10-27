@@ -398,4 +398,33 @@ int32_t currentWorker()
     return workerIndex;
 }
 
+namespace {
+
+using ManagedTrampoline = void (*)(uint64_t jobId, uint32_t begin, uint32_t end);
+
+std::atomic<ManagedTrampoline> managedTrampoline{nullptr};
+
+void runManagedRange(void* data, uint32_t begin, uint32_t end)
+{
+    managedTrampoline.load(std::memory_order_acquire)(*static_cast<const uint64_t*>(data), begin, end);
+}
+
+} // namespace
+
+void setManagedTrampoline(uint64_t trampolineAddress)
+{
+    managedTrampoline.store(reinterpret_cast<ManagedTrampoline>(static_cast<uintptr_t>(trampolineAddress)),
+                            std::memory_order_release);
+}
+
+void parallelForManaged(uint64_t jobId, uint32_t count, uint32_t batchSize)
+{
+    if (managedTrampoline.load(std::memory_order_acquire) == nullptr)
+    {
+        std::fprintf(stderr, "crucible: parallelForManaged before the C# trampoline was set\n");
+        return;
+    }
+    parallelFor(count, batchSize, runManagedRange, &jobId);
+}
+
 } // namespace crucible::jobs

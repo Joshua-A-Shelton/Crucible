@@ -279,7 +279,8 @@ internal static class CSharpWriter
             }
         }
 
-        string modifiers = needsUnsafe ? "public static unsafe" : "public static";
+        string access = function.Internal ? "internal" : "public";
+        string modifiers = needsUnsafe ? $"{access} static unsafe" : $"{access} static";
         text.AppendLine($"        /// <summary>Calls <c>{function.QualifiedName}</c>.</summary>");
         text.AppendLine($"        {modifiers} {signatureType} {Names.Pascal(function.Name)}({string.Join(", ", parameters)})");
         text.AppendLine("        {");

@@ -13,6 +13,7 @@ internal sealed class Parser
 {
     private const string ExposeAnnotation = "crucible_expose";
     private const string StatusAnnotation = "crucible_status";
+    private const string InternalAnnotation = "crucible_internal";
     private const string ExposeAsPrefix = "crucible_expose_as:";
 
     private readonly HashSet<string> _headerFiles;
@@ -373,7 +374,8 @@ internal sealed class Parser
         {
             return;
         }
-        ExposedFunction function = new(name, scope, returnType, parameters, returnsResult, statusForm);
+        ExposedFunction function = new(name, scope, returnType, parameters, returnsResult, statusForm,
+            HasAnnotation(cursor, InternalAnnotation));
         if (model.Functions.Any(other => other.CName == function.CName || other.RawName == function.RawName))
         {
             Error(cursor, $"{qualifiedName}: another exposed function already maps to {function.CName}; " +

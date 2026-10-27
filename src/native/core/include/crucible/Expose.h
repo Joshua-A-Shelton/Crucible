@@ -15,6 +15,10 @@
 // expected, or that runs every frame: its C# form returns the Status and
 // hands the value back through an out parameter instead.
 //
+// CRUCIBLE_EXPOSE_INTERNAL exposes a function as an internal C# method: for
+// the engine's own C# and its tests, not for games (the job trampoline, the
+// launcher-owned setup functions).
+//
 // CRUCIBLE_EXPOSE_AS("System.Numerics.Vector3") exposes a struct as an
 // existing C# type with the same layout, instead of generating a mirror
 // (ADR 0024's amendment): the math storage types cross as System.Numerics.
@@ -26,8 +30,10 @@
 #define CRUCIBLE_EXPOSE_STATUS __attribute__((annotate("crucible_expose"), annotate("crucible_status")))
 #define CRUCIBLE_EXPOSE_AS(csharpType)                                                                                 \
     __attribute__((annotate("crucible_expose"), annotate("crucible_expose_as:" csharpType)))
+#define CRUCIBLE_EXPOSE_INTERNAL __attribute__((annotate("crucible_expose"), annotate("crucible_internal")))
 #else
 #define CRUCIBLE_EXPOSE
 #define CRUCIBLE_EXPOSE_STATUS
 #define CRUCIBLE_EXPOSE_AS(csharpType)
+#define CRUCIBLE_EXPOSE_INTERNAL
 #endif

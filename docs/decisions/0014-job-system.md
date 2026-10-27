@@ -136,3 +136,34 @@ As built (`crucible/Jobs.h`, M3 step 4):
 - Tests cover exactly-once execution, parallelFor coverage, nesting,
   concurrent submitters, and the priority rule; they run clean 50 times
   under ThreadSanitizer.
+
+## Amendment (2026-10-27): jobs from C# (M3 step 5)
+
+Settled with the project owner. Names are placeholders.
+
+- **Job bodies are structs implementing `IParallelForJob`**, with
+  `Execute(int begin, int end)`, run by
+  `JobSystem.ParallelFor(ref job, count, batchSize)`. The struct carries
+  the data, so nothing is allocated, and the generic call lets the compiler
+  call `Execute` directly. Unity's job system works this way, with one index
+  per call; a range lets the body loop tightly and use wide math.
+- **The trampoline** (decision 2): at first use, the engine gives native
+  code the address of one `[UnmanagedCallersOnly]` method. A `ParallelFor`
+  puts its body in a slot of a fixed managed table and calls native
+  `parallelForManaged` with the slot's ID; each batch calls the trampoline
+  with (ID, begin, end), which runs the body. Native code never holds a
+  pointer into a game assembly, and the per-type runner pools are generic
+  instantiations over the game's types, so they unload with it (the hot
+  reload test runs a game-defined job, then unloads the game).
+- **Exceptions:** the trampoline catches an exception from a body (it can't
+  cross into native code); the other batches still finish, and
+  `ParallelFor` rethrows the first one on the calling thread with its
+  original stack.
+- **Costs:** one native-to-managed transition per batch (tens of
+  nanoseconds), so batches should hold real work; no allocation per call
+  once warm. Worker threads become managed threads on their first call; idle
+  in native code, they don't hold up the garbage collector.
+- **Exposure:** the trampoline functions and the job system's
+  `initialize`/`shutdown` are exposed as internal C# methods (ADR 0017's
+  `CRUCIBLE_EXPOSE_INTERNAL`): the engine's tests start workers themselves,
+  since they run without the launcher.

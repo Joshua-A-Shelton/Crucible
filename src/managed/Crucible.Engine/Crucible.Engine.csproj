@@ -17,6 +17,7 @@
   <ItemGroup>
     <!-- Tests check the generated layout checks, which are internal. -->
     <InternalsVisibleTo Include="Crucible.Engine.Tests" />
+    <InternalsVisibleTo Include="Crucible.Engine.HotReloadTests" />
   </ItemGroup>
 
 </Project>
