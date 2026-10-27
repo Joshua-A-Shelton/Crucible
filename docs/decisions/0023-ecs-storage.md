@@ -87,3 +87,11 @@ Settled with the project owner in M3 step 6. Names are placeholders.
   so C# crosses the boundary once per chunk; typed C# iteration is built on
   it (decision H, step 7). Per-entity callbacks were given up: not
   C-shaped, and too costly per entity across the boundary.
+- **Worlds are objects:** a `World` holds entities, archetypes, and chunks,
+  and there can be several (the editor's edited and playing scenes; tests),
+  as in Unity, flecs, and Bevy. Components are registered once and shared
+  by all worlds.
+- **Structural changes apply immediately when no query is iterating the
+  world** (setup, tools, tests, sync points); during iteration, systems
+  record them in command buffers applied at the phase's sync point (ADR
+  0013). Validation builds report an immediate change during iteration.
