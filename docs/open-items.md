@@ -46,6 +46,9 @@ milestone are decided or checked when that milestone reaches them
   → 0028 [M8]
 - Steam Deck: no test device yet; check that SteamOS ships Mesa 26.2+
   (Slag's RADV minimum). → 0008 [M10, when a device is available]
+- Hosted CI: turn the workflow's automatic triggers back on when Actions
+  minutes allow, and check whether GitHub's Windows runners have LLVM
+  (CLAUDE.md §6).
 - EXR input and BC6H compression for HDR textures, when needed. → 0022
 - ACL for clip compression, when clip memory matters. → 0026
 - Animation state machine graph editor, when the action RPG starts. → 0026

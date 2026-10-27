@@ -24,18 +24,20 @@ turns up (ADR 0009).
   by side (ADR 0015).
 - .NET SDK detection and C# projects built from CMake.
 - C++ and C# test frameworks, hooked into CTest.
-- CI on Linux and Windows (hosted, like Slag's).
+- A CI workflow describing the verification matrix (Linux and Windows).
+  Hosted CI is off for now; the matrix runs by hand on the owner's machines
+  (CLAUDE.md §6).
 
 **Done when:** CMake builds a C++ library and a C# project, and both test
-suites run in CI.
+suites run in the verification matrix.
 
 **Decides:** the C# test framework (third-party, with its license).
 
 **Status (2026-10-26):** done locally. Debug and release presets build with
 GCC and Clang on Linux; both suites pass (doctest: 2 tests, TUnit: 1);
 clang-format and `dotnet format` checks pass. TUnit and doctest chosen in
-ADR 0029. Not yet run in hosted CI (no remote yet), and not yet built on
-Windows.
+ADR 0029. Windows was verified with M1 step 8 (below): the matrix has run
+on both machines.
 
 ## M1 — Risk spike: the boundary
 
@@ -69,8 +71,8 @@ Step 8, Windows (MSVC, AOT on Windows, finding libclang.dll), remains.
 
 **Status (2026-10-26, step 8):** done on Windows 11 with MSVC 19.44: all 13
 CTest entries pass, JIT and AOT, including a non-ASCII path test. Windows
-uses the static C runtime and the exact SDK is pinned (ADR 0031). Not yet
-run in hosted CI (no remote).
+uses the static C runtime and the exact SDK is pinned (ADR 0031). Verified
+by hand on both machines; M1 is done.
 
 ## M2 — Platform and first pixels
 

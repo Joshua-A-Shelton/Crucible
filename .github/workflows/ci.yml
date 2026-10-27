@@ -1,10 +1,14 @@
-# Hosted CI: build, both test suites, format checks.
+# The verification matrix: build, both test suites, format checks.
+#
+# Manual only (workflow_dispatch): hosted Actions minutes are spent elsewhere
+# for now, so pushes don't trigger it and the matrix is run by hand on the
+# owner's machines (CLAUDE.md §6). To run automatically again, add push and
+# pull_request back under "on".
 
 name: CI
 
 on:
-  push:
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read

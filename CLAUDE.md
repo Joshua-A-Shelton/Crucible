@@ -279,8 +279,8 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
 - **Shared C# settings** (`Directory.Build.props`): .NET 10 (LTS; the exact
   SDK, 10.0.403, is pinned in `global.json`, ADR 0031), nullable reference
   types, warnings as errors, `IsAotCompatible` (AOT and trim analyzers as
-  errors, ADR 0001) for every project including tests. Packages are pinned by lock file; CI restores in
-  locked mode.
+  errors, ADR 0001) for every project including tests. Packages are pinned
+  by lock file; the CI workflow restores in locked mode.
 - Comments explain *why*, not *what*.
 
 ## 6. Build & tooling
@@ -294,9 +294,10 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
 - Tests: doctest (C++) and TUnit (C#), ADR 0029. CTest labels: `native`,
   `managed`, `integration` (the launchers), `aot`. Every C# suite also runs
   as NativeAOT code (`<suite>.aot`).
-- `CRUCIBLE_BUILD_AOT` (on by default) builds the NativeAOT variants: `crucible_launcher_aot` (core and C# engine
-  statically linked into one executable) and the AOT test suites. AOT
-  publishes take about 30 seconds the first time.
+- `CRUCIBLE_BUILD_AOT` (on by default) builds the NativeAOT variants:
+  `crucible_launcher_aot` (core and C# engine statically linked into one
+  executable) and the AOT test suites. AOT publishes take about 30 seconds
+  the first time.
 - **Build requirements:** CMake, Ninja, a C++20 compiler (MSVC on Windows),
   the exact .NET SDK in `global.json`, and Clang with libclang (the binding
   generator loads the system's libclang, ADR 0017; NativeAOT links with clang
@@ -311,8 +312,13 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   first.
 - Slag comes from a pinned tag; to work on Slag side by side, configure with
   `-DFETCHCONTENT_SOURCE_DIR_SLAG=~/Claude/Slag`.
-- CI (`.github/workflows/ci.yml`): Linux (GCC, Clang) and Windows (MSVC) in
-  both presets, both test suites, clang-format and `dotnet format` checks.
+- **Verification by hand** (no hosted CI for now: Actions minutes are spent
+  elsewhere). Before a milestone is marked done, the full matrix runs on the
+  owner's machines: Linux (GCC and Clang, debug and release, clang-format and
+  `dotnet format` checks) and the Windows machine over SSH (MSVC, debug and
+  release). `.github/workflows/ci.yml` is the reference for that matrix and
+  runs only when started by hand (`workflow_dispatch`), so a push never
+  spends minutes.
 
 ```bash
 cmake --preset debug && cmake --build --preset debug
