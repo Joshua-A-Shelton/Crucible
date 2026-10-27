@@ -5,8 +5,10 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <chrono>
 #include <cstdio>
+#include <memory>
 #include <thread>
 
 namespace crucible::render {
@@ -26,6 +28,25 @@ constexpr uint64_t frameWaitTimeoutNs = 100'000'000;
 // spin; this is about one 60 Hz refresh.
 constexpr std::chrono::milliseconds skippedFrameDelay(16);
 
+// The latency harness's GPU timing (ADR 0003): a thread waits for each
+// submitted frame on the frame semaphore and stamps it as soon as the wait
+// returns, so the time is accurate to a thread wake-up, not to a frame. The
+// last `capacity` frames are kept.
+struct GpuTimer
+{
+    static constexpr uint32_t capacity = 256;
+    // Short, so stopping (destroySurface, setGpuTiming off) is prompt.
+    static constexpr uint64_t waitTimeoutNs = 10'000'000;
+
+    std::thread thread;
+    std::atomic<bool> running{true};
+    // Slot i holds the frame number last stamped there and its time; the
+    // frame is written after the time (release), so a reader that sees its
+    // frame number sees its time.
+    std::array<std::atomic<uint64_t>, capacity> frames{};
+    std::array<std::atomic<uint64_t>, capacity> times{};
+};
+
 struct Surface
 {
     platform::WindowHandle window{};
@@ -40,10 +61,12 @@ struct Surface
     // Whether the last frame was presented: pacing waits behind a present, so
     // after a skipped frame there's nothing to wait for.
     bool presentedLastFrame = false;
+    std::unique_ptr<GpuTimer> gpuTimer; // only while the latency harness runs
 };
 
 struct Renderer
 {
+    PresentPreference presentPreference = PresentPreference::Default;
     slag::Instance* instance = nullptr;
     slag::GraphicsDevice* device = nullptr;
     slag::CommandQueue* queue = nullptr;
@@ -102,9 +125,43 @@ Surface* find(SurfaceHandle surface)
     return found.swapchain != nullptr ? &found : nullptr;
 }
 
+void stopGpuTimer(Surface& surface)
+{
+    if (surface.gpuTimer)
+    {
+        surface.gpuTimer->running = false;
+        surface.gpuTimer->thread.join();
+        surface.gpuTimer.reset();
+    }
+}
+
+void startGpuTimer(Surface& surface)
+{
+    surface.gpuTimer = std::make_unique<GpuTimer>();
+    GpuTimer* timer = surface.gpuTimer.get();
+    slag::Semaphore* frames = surface.frames;
+    timer->thread = std::thread([timer, frames] {
+        uint64_t next = frames->value() + 1;
+        while (timer->running)
+        {
+            // Timeout (nothing submitted yet) is a success status; only Ok
+            // means the frame finished.
+            if (frames->wait(next, GpuTimer::waitTimeoutNs).status() != slag::Status::Ok)
+            {
+                continue;
+            }
+            const uint32_t slot = static_cast<uint32_t>(next % GpuTimer::capacity);
+            timer->times[slot].store(platform::timestampNow(), std::memory_order_relaxed);
+            timer->frames[slot].store(next, std::memory_order_release);
+            ++next;
+        }
+    });
+}
+
 // Destroys whatever the surface holds. The GPU must be done with it.
 void release(Surface& surface)
 {
+    stopGpuTimer(surface);
     slag::GraphicsDevice* device = renderer.device;
     for (slag::CommandBuffer*& commandBuffer : surface.commandBuffers)
     {
@@ -172,19 +229,25 @@ Result<void> record(slag::CommandBuffer* commandBuffer, Surface& surface, uint32
 
 } // namespace
 
-PresentChoice choosePresentMode(std::span<const slag::PresentMode> modes)
+PresentChoice choosePresentMode(std::span<const slag::PresentMode> modes, PresentPreference preference)
 {
     // Mailbox needs a third image to always have one free to render into;
     // Fifo gets only two, since a third would queue a frame (ADR 0003).
-    if (std::find(modes.begin(), modes.end(), slag::PresentMode::Mailbox) != modes.end())
+    const bool hasMailbox = std::find(modes.begin(), modes.end(), slag::PresentMode::Mailbox) != modes.end();
+    if (preference == PresentPreference::Fifo || !hasMailbox)
     {
-        return {slag::PresentMode::Mailbox, 3};
+        if (preference == PresentPreference::Mailbox)
+        {
+            std::fprintf(stderr, "crucible: the window doesn't support Mailbox; using Fifo\n");
+        }
+        return {slag::PresentMode::Fifo, 2};
     }
-    return {slag::PresentMode::Fifo, 2};
+    return {slag::PresentMode::Mailbox, 3};
 }
 
-Result<void> initialize(slag::Backend backend)
+Result<void> initialize(slag::Backend backend, PresentPreference presentMode)
 {
+    renderer.presentPreference = presentMode;
     if (!slag::isBackendAvailable(backend))
     {
         std::fprintf(stderr, "crucible: the %s backend isn't available in this build\n",
@@ -253,7 +316,10 @@ void shutdown()
     {
         slag::destroy(renderer.instance);
     }
-    renderer = Renderer{};
+    renderer.presentPreference = PresentPreference::Default;
+    renderer.instance = nullptr;
+    renderer.device = nullptr;
+    renderer.queue = nullptr;
 }
 
 Result<SurfaceHandle> createSurface(platform::WindowHandle window)
@@ -280,7 +346,7 @@ Result<SurfaceHandle> createSurface(platform::WindowHandle window)
     std::array<slag::PresentMode, 3> modes{};
     const uint32_t modeCount =
         std::min(device->supportedPresentModes(native, modes), static_cast<uint32_t>(modes.size()));
-    const PresentChoice choice = choosePresentMode({modes.data(), modeCount});
+    const PresentChoice choice = choosePresentMode({modes.data(), modeCount}, renderer.presentPreference);
     const platform::WindowSize size = platform::windowPixelSize(window);
 
     Surface surface;
@@ -330,7 +396,7 @@ Result<SurfaceHandle> createSurface(platform::WindowHandle window)
                 device->capabilities().frameLatency ? "frame latency" : "previous GPU frame");
     std::fflush(stdout);
 
-    *free = surface;
+    *free = std::move(surface);
     return SurfaceHandle{static_cast<uint32_t>(free - renderer.surfaces.begin()) + 1};
 }
 
@@ -458,6 +524,50 @@ Result<void> clearAndPresent(SurfaceHandle surface, float red, float green, floa
     default:
         return toStatus(presented.status());
     }
+}
+
+uint64_t framesSubmitted(SurfaceHandle surface)
+{
+    const Surface* found = find(surface);
+    return found != nullptr ? found->submitted : 0;
+}
+
+bool pacingWaitsForPresent()
+{
+    return renderer.device != nullptr && renderer.device->capabilities().frameLatency;
+}
+
+Result<void> setGpuTiming(SurfaceHandle surface, bool enabled)
+{
+    Surface* found = find(surface);
+    if (found == nullptr)
+    {
+        return Status::NotFound;
+    }
+    if (enabled && !found->gpuTimer)
+    {
+        startGpuTimer(*found);
+    }
+    else if (!enabled)
+    {
+        stopGpuTimer(*found);
+    }
+    return {};
+}
+
+uint64_t gpuFrameDoneNs(SurfaceHandle surface, uint64_t frame)
+{
+    const Surface* found = find(surface);
+    if (found == nullptr || !found->gpuTimer || frame == 0)
+    {
+        return 0;
+    }
+    const uint32_t slot = static_cast<uint32_t>(frame % GpuTimer::capacity);
+    if (found->gpuTimer->frames[slot].load(std::memory_order_acquire) != frame)
+    {
+        return 0;
+    }
+    return found->gpuTimer->times[slot].load(std::memory_order_relaxed);
 }
 
 } // namespace crucible::render

@@ -34,12 +34,26 @@ TEST_CASE("Without Mailbox, Fifo is chosen with two images, never Immediate")
     CHECK(render::choosePresentMode({}).mode == PresentMode::Fifo);
 }
 
+TEST_CASE("A present mode preference applies only where the window supports it")
+{
+    const std::array both = {PresentMode::Fifo, PresentMode::Mailbox};
+    const std::array fifoOnly = {PresentMode::Fifo};
+    CHECK(render::choosePresentMode(both, render::PresentPreference::Fifo).mode == PresentMode::Fifo);
+    CHECK(render::choosePresentMode(both, render::PresentPreference::Fifo).minImageCount == 2);
+    CHECK(render::choosePresentMode(both, render::PresentPreference::Mailbox).mode == PresentMode::Mailbox);
+    CHECK(render::choosePresentMode(fifoOnly, render::PresentPreference::Mailbox).mode == PresentMode::Fifo);
+}
+
 TEST_CASE("Surfaces need the renderer, and unknown surfaces are reported")
 {
     CHECK(render::createSurface(platform::WindowHandle{1}).status() == Status::Unsupported);
     CHECK(render::waitForNextFrame(render::SurfaceHandle{}).status() == Status::NotFound);
     CHECK(render::clearAndPresent(render::SurfaceHandle{3}, 0, 0, 0, 1).status() == Status::NotFound);
     render::destroySurface(render::SurfaceHandle{3}); // ignored
+    CHECK(render::setGpuTiming(render::SurfaceHandle{1}, true).status() == Status::NotFound);
+    CHECK(render::gpuFrameDoneNs(render::SurfaceHandle{1}, 1) == 0);
+    CHECK(render::framesSubmitted(render::SurfaceHandle{1}) == 0);
+    CHECK_FALSE(render::pacingWaitsForPresent());
 }
 
 TEST_SUITE("gpu")

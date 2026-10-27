@@ -45,6 +45,7 @@ enum class CRUCIBLE_EXPOSE InputEventType : uint32_t
     MouseMotion,          // x, y = position; dx, dy = relative motion
     MouseButtonDown,      // code = button, x, y = position
     MouseButtonUp,        // code = button, x, y = position
+    LatencyMarker,        // synthetic input for the latency harness; code = sequence number
 };
 
 // One input or window event. Flat plain data, so a frame's events cross the
@@ -86,6 +87,14 @@ CRUCIBLE_EXPOSE uint32_t pollEvents(std::span<InputEvent> events);
 
 // Now, on the same clock as InputEvent::timestampNs.
 CRUCIBLE_EXPOSE uint64_t timestampNow();
+
+// The latency harness's synthetic input (ADR 0003): a background thread
+// pushes LatencyMarker events into the event queue at random intervals
+// (uniform between half and one and a half times the mean), so they arrive
+// at random points in the frame, as real input does. Their timestamps are
+// when they entered the queue. Stopping waits for the thread.
+CRUCIBLE_EXPOSE_STATUS Result<void> startLatencyMarkers(uint32_t meanIntervalUs);
+CRUCIBLE_EXPOSE void stopLatencyMarkers();
 
 // The OS handles Slag needs to create a swapchain (ADR 0018). Unsupported for
 // video drivers Slag can't present to, such as the offscreen test driver. Not

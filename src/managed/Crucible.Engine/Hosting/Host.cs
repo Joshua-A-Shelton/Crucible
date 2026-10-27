@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Text;
 using Crucible.Loop;
 using Crucible.Platform;
 using Crucible.Render;
@@ -46,7 +47,8 @@ public static class Host
         }
     }
 
-    private static int RunHeadless(LaunchOptions options) => RunLoop(new FrameContext(), options);
+    private static int RunHeadless(LaunchOptions options) =>
+        RunLoop(options, default, default);
 
     private static int RunWindowed(LaunchOptions options)
     {
@@ -58,7 +60,7 @@ public static class Host
             SurfaceHandle surface = Render.Api.CreateSurface(window);
             try
             {
-                return RunLoop(new FrameContext { Window = window, Surface = surface }, options);
+                return RunLoop(options, window, surface);
             }
             finally
             {
@@ -71,9 +73,42 @@ public static class Host
         }
     }
 
-    private static int RunLoop(FrameContext context, LaunchOptions options)
+    private static int RunLoop(LaunchOptions options, WindowHandle window, SurfaceHandle surface)
     {
-        ulong frames = FrameLoop.CreateDefault().Run(context, options.FrameLimit);
+        string? latencyLog = LatencyLogPath();
+        FrameContext context = new()
+        {
+            Window = window,
+            Surface = surface,
+            Pacing = !options.NoPacing,
+            Latency = latencyLog is null
+                ? null
+                : new LatencyRecorder { RecordsPresents = !options.NoPacing && Render.Api.PacingWaitsForPresent() },
+        };
+
+        if (context.Latency is not null)
+        {
+            StartLatencyHarness(surface);
+        }
+        ulong frames;
+        try
+        {
+            frames = FrameLoop.CreateDefault().Run(context, options.FrameLimit);
+        }
+        finally
+        {
+            // GPU timing stays on until Finish has collected the last frames'
+            // times; DestroySurface stops it.
+            if (context.Latency is not null)
+            {
+                Platform.Api.StopLatencyMarkers();
+            }
+        }
+
+        if (context.Latency is not null && latencyLog is not null)
+        {
+            Console.Write(context.Latency.Finish(surface, latencyLog));
+        }
         if (context.Failure != Status.Ok)
         {
             Console.Error.WriteLine(
@@ -82,5 +117,35 @@ public static class Host
         }
         Console.WriteLine($"Crucible.Hosting: ran {frames} frames");
         return 0;
+    }
+
+    private static void StartLatencyHarness(SurfaceHandle surface)
+    {
+        Status status = Platform.Api.StartLatencyMarkers(LatencyRecorder.MarkerIntervalUs);
+        if (status < 0)
+        {
+            throw new CrucibleException(status, "crucible::platform::startLatencyMarkers");
+        }
+        if (surface.Value != 0)
+        {
+            status = Render.Api.SetGpuTiming(surface, true);
+            if (status < 0)
+            {
+                throw new CrucibleException(status, "crucible::render::setGpuTiming");
+            }
+        }
+    }
+
+    // --latency <file>, stored by the launcher (crucible/Launch.h); null when off.
+    private static string? LatencyLogPath()
+    {
+        Span<byte> buffer = stackalloc byte[512];
+        int length = (int)Api.LatencyLogPath(buffer);
+        if (length > buffer.Length)
+        {
+            buffer = new byte[length];
+            Api.LatencyLogPath(buffer);
+        }
+        return length == 0 ? null : Encoding.UTF8.GetString(buffer[..length]);
     }
 }

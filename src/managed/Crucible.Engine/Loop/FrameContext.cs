@@ -20,6 +20,12 @@ public sealed class FrameContext
     /// <summary>The main window's surface, or default when headless.</summary>
     public SurfaceHandle Surface { get; init; }
 
+    /// <summary>Whether BeginFrame waits for the next frame (ADR 0003); --no-pacing turns it off.</summary>
+    public bool Pacing { get; init; } = true;
+
+    /// <summary>The latency harness, when --latency is given; null otherwise.</summary>
+    public LatencyRecorder? Latency { get; init; }
+
     /// <summary>Counts from 0.</summary>
     public ulong FrameNumber { get; internal set; }
 

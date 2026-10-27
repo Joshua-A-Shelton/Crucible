@@ -30,19 +30,15 @@ milestone are decided or checked when that milestone reaches them
 ## Revisit once there is a prototype to test against
 
 - How Slag maps Vulkan's clip space (Y down) against D3D12's. → 0024 [M2]
-- How pacing behaves under `Mailbox`. → 0003 [M2] The fallback (wait for
-  the previous GPU frame) is decided (ADR 0015's amendment). First
-  measurement (2026-10-26, RADV on KDE Wayland, a clear-only frame):
-  Mailbox paced with `waitForNextFrame` runs at the refresh rate of the
-  monitor the window is on (60 fps on a 60 Hz monitor, 143 on a 144 Hz
-  one), unpaced or with the fallback at ~5000 fps. `present_wait` waits for the
-  display, so frame latency pacing turns Mailbox into one frame per
-  refresh. Decide with the latency harness (M2 step 5), measuring
-  input-to-present rather than frame rate.
-- Swapchain image count when switching `Mailbox` ↔ `Fifo`, and drivers
-  that return three images for `Fifo`. → 0003 [M2] Seen: RADV on Wayland
-  gives 3 images for Fifo when asked for 2; with max frame latency 1 the
-  third image shouldn't queue a frame, to confirm with the latency harness.
+- Whether pacing stays on by default under `Mailbox`. → 0003 [M2,
+  decide] Measured with the latency harness (RADV, KDE Wayland, 144 Hz,
+  clear-only frames): paced Mailbox reads input 3.9 ms after it arrives
+  (median) and completes the present 10.8 ms after (p95 13.6), one frame per
+  refresh. Unpaced Mailbox reads input in 0.05 ms and finishes on the GPU in
+  0.2 ms at ~10,000 fps, but when its frames reach the screen is unknown
+  without present timing (a Slag after-1.0 feature) or a photodiode. The
+  fallback pacing (wait for the previous GPU frame) is decided (ADR 0015's
+  amendment).
 - Accuracy of SDL event timestamps on Windows, X11, Wayland, and Steam
   Deck (parry windows depend on it). → 0018 [M2]
 - Late latching of the camera: tentatively in. → 0003 [M5]

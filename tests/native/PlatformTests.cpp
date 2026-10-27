@@ -9,6 +9,8 @@
 #include <slag/Swapchain.h>
 
 #include <array>
+#include <chrono>
+#include <thread>
 
 using namespace crucible::platform;
 
@@ -121,4 +123,29 @@ TEST_CASE("The event clock moves forward")
     const uint64_t first = timestampNow();
     SDL_DelayNS(1'000'000);
     CHECK(timestampNow() > first);
+}
+
+TEST_CASE("Latency markers arrive numbered, with queue timestamps")
+{
+    PlatformScope platform;
+    drain();
+
+    const uint64_t before = timestampNow();
+    REQUIRE(static_cast<bool>(startLatencyMarkers(2'000)));                      // every 1-3 ms
+    CHECK(startLatencyMarkers(2'000).status() == crucible::Status::Unsupported); // already running
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    stopLatencyMarkers();
+    const uint64_t after = timestampNow();
+
+    std::array<InputEvent, 128> events;
+    const uint32_t count = pollEvents(events);
+    REQUIRE(count >= 5);
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        CHECK(events[i].type == InputEventType::LatencyMarker);
+        CHECK(events[i].code == static_cast<int32_t>(i));
+        CHECK(events[i].timestampNs >= before);
+        CHECK(events[i].timestampNs <= after);
+    }
+    stopLatencyMarkers(); // stopping twice is harmless
 }

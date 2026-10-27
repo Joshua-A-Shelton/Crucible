@@ -3,6 +3,7 @@
 
 #include "EngineHost.h"
 
+#include <crucible/Launch.h>
 #include <crucible/Platform.h>
 #include <crucible/Render.h>
 
@@ -87,16 +88,25 @@ int run(int argc, ArgumentChar** argv)
     // for development builds whose assemblies live in the build tree.
     // --backend d3d12|vulkan overrides Slag's default for the platform (D3D12
     // on Windows, Vulkan elsewhere), so both can be tested on Windows.
-    // --frames N and --headless are passed to the engine (LaunchOptions).
+    // --frames N, --headless and --no-pacing are passed to the engine
+    // (LaunchOptions); --latency <file> turns on the latency harness and
+    // --present-mode fifo|mailbox overrides ADR 0003's default, both for
+    // measuring.
     std::filesystem::path managedDirectory = executableDirectory();
     slag::Backend backend = slag::InstanceDesc{}.backend;
     crucible::LaunchOptions options{};
+    crucible::render::PresentPreference presentMode = crucible::render::PresentPreference::Default;
     for (int i = 1; i < argc; ++i)
     {
         const ArgumentView option = argv[i];
         if (option == CRUCIBLE_ARGUMENT("--headless"))
         {
             options.headless = true;
+            continue;
+        }
+        if (option == CRUCIBLE_ARGUMENT("--no-pacing"))
+        {
+            options.noPacing = true;
             continue;
         }
         if (i + 1 >= argc)
@@ -118,6 +128,18 @@ int run(int argc, ArgumentChar** argv)
         else if (option == CRUCIBLE_ARGUMENT("--frames"))
         {
             valid = parseCount(value, options.frameLimit);
+        }
+        else if (option == CRUCIBLE_ARGUMENT("--present-mode"))
+        {
+            valid = value == CRUCIBLE_ARGUMENT("fifo") || value == CRUCIBLE_ARGUMENT("mailbox");
+            presentMode = value == CRUCIBLE_ARGUMENT("fifo") ? crucible::render::PresentPreference::Fifo
+                                                             : crucible::render::PresentPreference::Mailbox;
+        }
+        else if (option == CRUCIBLE_ARGUMENT("--latency"))
+        {
+            // The engine reads it back as UTF-8 (C# strings).
+            const std::u8string path = std::filesystem::path(value).u8string();
+            crucible::setLatencyLogPath({reinterpret_cast<const char*>(path.data()), path.size()});
         }
         else
         {
@@ -145,7 +167,7 @@ int run(int argc, ArgumentChar** argv)
         std::fprintf(stderr, "crucible: the platform layer could not start\n");
         return 1;
     }
-    if (!crucible::render::initialize(backend))
+    if (!crucible::render::initialize(backend, presentMode))
     {
         std::fprintf(stderr, "crucible: the renderer could not start\n");
         crucible::platform::shutdown();

@@ -8,5 +8,6 @@ Currently in the specification phase; see `CLAUDE.md` and `docs/`.
 Longer explanations of decisions, written to be reread:
 
 - [Storage types vs. SIMD types](docs/learning/storage-and-simd-types.md)
+- [Measuring input latency](docs/learning/measuring-latency.md)
   (ADR 0024): why the math library has two kinds of vector types, and
   which to use.

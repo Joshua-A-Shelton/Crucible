@@ -3,13 +3,27 @@
 #include <SDL3/SDL.h>
 #include <slag/Swapchain.h>
 
+#include <atomic>
+#include <chrono>
 #include <cstdio>
 #include <cstring>
+#include <random>
 #include <string>
+#include <thread>
 
 namespace crucible::platform {
 
 namespace {
+
+// The latency harness's marker thread and the SDL event type it pushes.
+struct LatencyMarkers
+{
+    std::thread thread;
+    std::atomic<bool> running{false};
+    uint32_t eventType = 0;
+};
+
+LatencyMarkers markers;
 
 SDL_Window* find(WindowHandle window)
 {
@@ -61,6 +75,12 @@ bool translate(const SDL_Event& event, InputEvent& out)
         out.y = event.button.y;
         return true;
     default:
+        if (markers.eventType != 0 && event.type == markers.eventType)
+        {
+            out.type = InputEventType::LatencyMarker;
+            out.code = event.user.code;
+            return true;
+        }
         return false;
     }
 }
@@ -79,6 +99,8 @@ Result<void> initialize()
 
 void shutdown()
 {
+    stopLatencyMarkers();
+    markers.eventType = 0;
     SDL_Quit();
 }
 
@@ -175,6 +197,49 @@ Result<void> nativeWindow(WindowHandle window, slag::NativeWindow& native)
         return Status::Unsupported;
     }
     return native.window != 0 ? Result<void>() : Result<void>(Status::Unsupported);
+}
+
+Result<void> startLatencyMarkers(uint32_t meanIntervalUs)
+{
+    if (markers.running || meanIntervalUs == 0)
+    {
+        return Status::Unsupported;
+    }
+    if (markers.eventType == 0)
+    {
+        markers.eventType = SDL_RegisterEvents(1);
+        if (markers.eventType == 0)
+        {
+            return Status::Unsupported;
+        }
+    }
+    markers.running = true;
+    markers.thread = std::thread([meanIntervalUs] {
+        // A fixed seed: runs are repeatable.
+        std::minstd_rand random(12345);
+        std::uniform_int_distribution<uint32_t> interval(meanIntervalUs / 2, meanIntervalUs + meanIntervalUs / 2);
+        int32_t sequence = 0;
+        while (markers.running)
+        {
+            std::this_thread::sleep_for(std::chrono::microseconds(interval(random)));
+            SDL_Event event{};
+            event.type = markers.eventType;
+            event.user.code = sequence++;
+            // A zero timestamp is filled in by SDL with the time it entered
+            // the queue, on the same clock as real events.
+            (void)SDL_PushEvent(&event);
+        }
+    });
+    return {};
+}
+
+void stopLatencyMarkers()
+{
+    if (markers.running)
+    {
+        markers.running = false;
+        markers.thread.join();
+    }
 }
 
 } // namespace crucible::platform

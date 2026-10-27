@@ -12,15 +12,17 @@ public sealed class BeginFramePhase : FramePhase
 
     public override void Run(FrameContext context)
     {
-        if (context.Surface.Value == 0)
+        // Headless there's nothing to pace against.
+        if (context.Pacing && context.Surface.Value != 0)
         {
-            return; // headless: nothing to pace against
+            Status status = Render.Api.WaitForNextFrame(context.Surface);
+            if (status < 0)
+            {
+                context.Fail(status, Name);
+                return;
+            }
         }
-        Status status = Render.Api.WaitForNextFrame(context.Surface);
-        if (status < 0)
-        {
-            context.Fail(status, Name);
-        }
+        context.Latency?.FrameStarted(context, Platform.Api.TimestampNow());
     }
 }
 
@@ -36,6 +38,7 @@ public sealed class InputPhase : FramePhase
     {
         int count = (int)Platform.Api.PollEvents(context.EventBuffer);
         context.SetEventCount(count);
+        context.Latency?.InputRead(context, Platform.Api.TimestampNow());
         foreach (ref readonly InputEvent inputEvent in context.Events)
         {
             if (inputEvent.Type == InputEventType.QuitRequested ||
@@ -65,10 +68,18 @@ public sealed class RenderSubmitPhase : FramePhase
         // One cycle every two seconds, on the frame's start time.
         double seconds = context.FrameStartNs / 1e9;
         float pulse = (float)(0.5 + 0.5 * Math.Sin(seconds * Math.PI));
+        // Only measured with the harness on: it tells a submitted frame from a skipped one.
+        ulong submittedBefore = context.Latency is null ? 0 : Render.Api.FramesSubmitted(context.Surface);
         Status status = Render.Api.ClearAndPresent(context.Surface, 0.02f, 0.02f + 0.08f * pulse, 0.1f, 1.0f);
         if (status < 0)
         {
             context.Fail(status, Name);
+            return;
+        }
+        if (context.Latency is { } latency)
+        {
+            ulong submitted = Render.Api.FramesSubmitted(context.Surface);
+            latency.Submitted(context, Platform.Api.TimestampNow(), submitted, submitted != submittedBefore);
         }
     }
 }

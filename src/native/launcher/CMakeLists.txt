@@ -58,6 +58,13 @@ if(CRUCIBLE_BUILD_TESTS)
     set_tests_properties(launcher.jit.windowed-without-display PROPERTIES LABELS integration WILL_FAIL TRUE
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen")
 
+    # The latency harness, headless: writes its CSVs and prints a summary.
+    add_test(NAME launcher.jit.latency
+        COMMAND crucible_launcher --managed-dir "${engineDirectory}" --headless --frames 1000
+            --latency "${CMAKE_CURRENT_BINARY_DIR}/latency-test.csv")
+    set_tests_properties(launcher.jit.latency PROPERTIES LABELS integration ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "Crucible.Latency: 1000 frames")
+
     add_test(NAME launcher.bad-option COMMAND crucible_launcher --frames many)
     set_tests_properties(launcher.bad-option PROPERTIES LABELS integration WILL_FAIL TRUE)
 

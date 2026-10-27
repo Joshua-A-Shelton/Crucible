@@ -1,6 +1,7 @@
 # 0003 — Frame latency
 
-**Status:** Accepted (2026-10-24).
+**Status:** Accepted (2026-10-24). Amended 2026-10-26 (M2): the latency
+harness, and Fifo image counts.
 
 ## Context
 
@@ -127,3 +128,28 @@ Costs:
   switching between `Mailbox` and `Fifo` needs a `reconfigure` (Slag ADR
   0058) to change the count, and a driver that returns three images for
   `Fifo` needs a check (max frame latency 1 may cover it).
+
+## Amendment (2026-10-26): the latency harness
+
+Settled with the project owner in M2 step 5. Names are placeholders. The
+learning note `docs/learning/measuring-latency.md` explains the stages and
+the first results.
+
+- **Synthetic input:** a native thread pushes marker events into SDL's
+  queue at random intervals (mean 23 ms), so inputs land at random points
+  of a frame and runs are repeatable; real key and mouse presses are
+  recorded too.
+- **"Presented" is approximated** by the next frame's pacing wait
+  returning, which with max frame latency 1 means the present completed.
+  It's only known with pacing on and Slag's frame latency capability. Real
+  present timing (`VK_EXT_present_timing`, DXGI frame statistics) is listed
+  in Slag's after-1.0 features. GPU completion is stamped by a native
+  thread waiting on the frame semaphore.
+- **Switched on by launcher flags:** `--latency <file>` (a CSV per input and
+  one per frame, plus a median/p95/max summary), with `--present-mode
+  fifo|mailbox` and `--no-pacing` to compare setups. Recording uses buffers
+  allocated up front, so it adds no garbage.
+- **Fifo image counts (resolved):** RADV on Wayland gives Fifo four images
+  when asked for two, but paced Fifo measured the same as paced Mailbox
+  (present done 10.5 vs 10.8 ms median at 144 Hz): with max frame latency 1
+  the extra images never queue a frame.

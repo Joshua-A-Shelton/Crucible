@@ -26,6 +26,7 @@ crucible_generate_bindings(
 target_sources(crucible_core_objects PRIVATE
     BindingProbe.cpp
     Core.cpp
+    Launch.cpp
     Platform.cpp
     Render.cpp
     "${CRUCIBLE_GENERATED_DIR}/native/Bindings.g.cpp")
