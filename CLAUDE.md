@@ -308,6 +308,11 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   doctest suite `window` is skipped unless run by hand on a desktop:
   `crucible_native_tests --no-skip --test-suite=window`. Every C# suite also runs
   as NativeAOT code (`<suite>.aot`).
+- **x64 level** (ADR 0024): x86-64-v3 (AVX2) by default, for everything
+  including dependencies and the NativeAOT engine; `CRUCIBLE_X86_LEVEL=v2`
+  builds for SSE4.2. `CRUCIBLE_FORCE_SCALAR_SIMD` tests the SIMD types'
+  scalar paths. The launcher refuses a CPU without the level, with a
+  message.
 - `CRUCIBLE_BUILD_AOT` (on by default) builds the NativeAOT variants:
   `crucible_launcher_aot` (core and C# engine statically linked into one
   executable) and the AOT test suites. AOT publishes take about 30 seconds

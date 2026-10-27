@@ -4,10 +4,24 @@
 #                          statically linked into one executable
 
 add_executable(crucible_launcher
+    CpuCheck.cpp
     Main.cpp
     JitHost.cpp)
 
 crucible_set_compile_options(crucible_launcher)
+
+# The CPU check (ADR 0024's amendment) is compiled for the base x64 level, so
+# it can run on the processors it turns away; the flag after the global one
+# wins.
+if(CRUCIBLE_X64)
+    if(MSVC)
+        set_source_files_properties(CpuCheck.cpp PROPERTIES COMPILE_OPTIONS "/arch:SSE2")
+    else()
+        set_source_files_properties(CpuCheck.cpp PROPERTIES COMPILE_OPTIONS "-march=x86-64")
+    endif()
+    string(REPLACE "v" "" crucibleX86Level "${CRUCIBLE_X86_LEVEL}")
+    set_source_files_properties(CpuCheck.cpp PROPERTIES COMPILE_DEFINITIONS "CRUCIBLE_X86_LEVEL=${crucibleX86Level}")
+endif()
 target_link_libraries(crucible_launcher PRIVATE crucible::core crucible::nethost)
 crucible_copy_nethost(crucible_launcher)
 crucible_use_d3d12_agility(crucible_launcher)
@@ -22,6 +36,7 @@ endif()
 
 if(CRUCIBLE_BUILD_AOT)
     add_executable(crucible_launcher_aot
+        CpuCheck.cpp
         Main.cpp
         AotHost.cpp)
 
@@ -64,6 +79,14 @@ if(CRUCIBLE_BUILD_TESTS)
             --latency "${CMAKE_CURRENT_BINARY_DIR}/latency-test.csv")
     set_tests_properties(launcher.jit.latency PROPERTIES LABELS integration ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "Crucible.Latency: 1000 frames")
+
+    if(CRUCIBLE_X64)
+        # The refusal a CPU without the x64 level gets (ADR 0024's amendment).
+        add_test(NAME launcher.unsupported-cpu COMMAND crucible_launcher --headless --frames 1)
+        set_tests_properties(launcher.unsupported-cpu PROPERTIES LABELS integration
+            ENVIRONMENT "CRUCIBLE_TEST_UNSUPPORTED_CPU=1"
+            PASS_REGULAR_EXPRESSION "needs a processor with")
+    endif()
 
     add_test(NAME launcher.bad-option COMMAND crucible_launcher --frames many)
     set_tests_properties(launcher.bad-option PROPERTIES LABELS integration WILL_FAIL TRUE)

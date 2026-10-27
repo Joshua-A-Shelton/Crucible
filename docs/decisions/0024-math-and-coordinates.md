@@ -1,7 +1,8 @@
 # 0024 — Math library and coordinate conventions
 
 **Status:** Accepted (2026-10-25). Amended 2026-10-26 (M2): clip space
-settled. Amended again (M3): the storage types as built.
+settled. Amended again (M3): the storage types as built, the x64 level,
+and the compute types.
 
 ## Context
 
@@ -89,8 +90,8 @@ Given up: unmirrored glTF import, and textbook-convention matrices.
 
 ## Open
 
-- Whether x64 builds require AVX2 (every target from about the last
-  decade has it, Steam Deck included).
+- ~~Whether x64 builds require AVX2.~~ Yes, by default; see the amendment
+  below.
 - ~~How Slag maps Vulkan's clip space, whose Y points down, against
   D3D12's.~~ Settled; see the amendment below.
 
@@ -140,3 +141,51 @@ Settled with the project owner as decision B of M3.
 - **Every operation computes what its `System.Numerics` counterpart does,**
   and a C# suite compares them over seeded random inputs (tolerance 1e-5);
   a deliberately flipped sign fails both the C++ and the C# tests.
+
+## Amendment (2026-10-27): the x64 level and the compute types (M3 step 3)
+
+Decision C, settled with the project owner.
+
+- **x64 builds require x86-64-v3** (AVX2, FMA, BMI1/2, F16C, MOVBE,
+  LZCNT) by default: everything is compiled for it (the core, Slag, SDL,
+  and the NativeAOT engine, `IlcInstructionSet=x86-64-v3`). The Steam
+  Hardware Survey for September 2026 reports AVX2 on 95.95% of systems and
+  FMA on 96.12% (SSE4.2: 98.21%); Steam Deck and the reference targets have
+  it. It buys one SIMD path on x64, 8-wide batches, FMA, and
+  auto-vectorization of all code. Given up: the ~4% of PCs without AVX2,
+  mostly pre-2013 CPUs and budget Pentium/Celeron chips sold until about
+  2020.
+- **A game can build for x86-64-v2** (SSE4.2) with `CRUCIBLE_X86_LEVEL=v2`;
+  the SIMD types use their SSE paths there, and v2 builds are tested by
+  hand.
+- **The launcher checks the CPU first** (`src/native/launcher/CpuCheck.cpp`,
+  compiled for base x64): from a static initializer of the highest priority
+  and again first in `main`, it checks the v3 feature bits and that the OS
+  saves the 256-bit registers, and otherwise explains (stderr, and a dialog
+  on Windows) instead of crashing with an illegal instruction. Limit: a
+  shared library's static initializers run before the executable's, so with
+  the JIT launcher `crucible_core`'s (which only zero memory) come first.
+  `CRUCIBLE_TEST_UNSUPPORTED_CPU` makes the check refuse, for a test.
+- FMA rounds `a*b + c` once instead of twice, so some float results differ
+  in the last bit from unfused code; determinism isn't a goal (ADR 0027).
+
+The compute types as built (`crucible/Simd.h`, `crucible/SimdWide.h`;
+placeholder names):
+
+- **`SimdVector`** (four floats in a 128-bit register) and **`SimdMatrix`**
+  (four rows): arithmetic, `multiplyAdd`, dot products, `cross`,
+  `normalize3`, the quaternion product, `rotate`, matrix products, and
+  transforms, loaded from and stored to the storage types.
+- **`FloatWide`, `Vector3Wide`, `QuaternionWide`**: one component of
+  `wideLanes` objects per register (8 with AVX2, 4 elsewhere), loaded from
+  and stored to runs of storage types, with partial batches. Full batches
+  transpose in registers on AVX2; other cases go through the stack.
+- **Paths:** SSE (VEX-encoded, with FMA, on v3), NEON, and scalar, chosen at
+  compile time; `CRUCIBLE_FORCE_SCALAR_SIMD` forces the scalar path. Every
+  path is tested against `Math.h` except NEON, which is type-checked for
+  aarch64 with Clang (no ARM machine yet).
+- **Measured** (`docs/learning/simd-and-data-layout.md`): on AoS data the
+  wide types are about 2× faster than the compiler's auto-vectorized scalar
+  code once transposes happen in registers; through the stack they were
+  slower than scalar. The register types are for one-off math. Data layout
+  is an input to the ECS storage decision (M3 step 6).

@@ -92,6 +92,12 @@ endfunction()
 # folders, so they must not run at once.
 function(crucible_add_dotnet_aot_publish target project)
     cmake_parse_arguments(PARSE_ARGV 2 publish "" "" "BYPRODUCTS;ARGUMENTS")
+    # The NativeAOT compiler targets the same x64 level as the C++ (ADR
+    # 0024's amendment); a JIT picks the CPU's own instructions at run time.
+    set(instructionSet "")
+    if(CRUCIBLE_X64)
+        set(instructionSet "-p:IlcInstructionSet=x86-64-${CRUCIBLE_X86_LEVEL}")
+    endif()
     add_custom_target(${target} ALL
         COMMAND ${CRUCIBLE_DOTNET} publish "${project}"
             --configuration ${CRUCIBLE_DOTNET_CONFIGURATION}
@@ -102,6 +108,7 @@ function(crucible_add_dotnet_aot_publish target project)
             "-p:Version=${PROJECT_VERSION}"
             "-p:CrucibleGeneratedDir=${CRUCIBLE_GENERATED_DIR}"
             "-p:CrucibleNativeProps=${CRUCIBLE_NATIVE_PROPS}"
+            ${instructionSet}
             ${publish_ARGUMENTS}
         BYPRODUCTS ${publish_BYPRODUCTS}
         WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"

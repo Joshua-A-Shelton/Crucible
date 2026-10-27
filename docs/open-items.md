@@ -8,7 +8,6 @@ milestone are decided or checked when that milestone reaches them
 ## Needs a decision from the project owner
 
 - Names of the default phases. → 0013 [M3]
-- Whether x64 builds require AVX2. → 0024 [M3]
 - ECS details: hierarchy and relationships, change detection,
   struct-with-references pools, blittable layout migration across hot
   reload. → 0012, 0023 [M3]

@@ -1,6 +1,7 @@
 // The launcher: owns main(), platform and renderer setup, and shutdown, and
 // hands the frame to the engine's C# layer (ADR 0011).
 
+#include "CpuCheck.h"
 #include "EngineHost.h"
 
 #include <crucible/Launch.h>
@@ -84,6 +85,8 @@ bool parseCount(ArgumentView text, uint32_t& count)
 
 int run(int argc, ArgumentChar** argv)
 {
+    crucible::launcher::checkCpu();
+
     // --managed-dir <dir> overrides where the engine's C# assemblies are,
     // for development builds whose assemblies live in the build tree.
     // --backend d3d12|vulkan overrides Slag's default for the platform (D3D12

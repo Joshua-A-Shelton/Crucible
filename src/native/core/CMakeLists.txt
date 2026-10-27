@@ -41,6 +41,11 @@ set_target_properties(crucible_core_objects PROPERTIES
     VISIBILITY_INLINES_HIDDEN ON)
 
 target_link_libraries(crucible_core_objects PUBLIC slag::slag)
+
+# Public, so tests and the launcher see the same SIMD path as the core.
+if(CRUCIBLE_FORCE_SCALAR_SIMD)
+    target_compile_definitions(crucible_core_objects PUBLIC CRUCIBLE_SIMD_SCALAR=1)
+endif()
 # SDL stays private: it never appears in a public header (ADR 0018).
 target_link_libraries(crucible_core_objects PRIVATE SDL3::SDL3-static)
 
