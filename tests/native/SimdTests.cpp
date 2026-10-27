@@ -340,12 +340,12 @@ TEST_SUITE("benchmark" * doctest::skip())
         CHECK(outX[0] == outX[0]);
     }
 
-    TEST_CASE("Streaming: a million vectors, bound by memory bandwidth")
+    TEST_CASE("Streaming a million vectors bound by memory bandwidth")
     {
         benchmark(1'000'000, 1);
     }
 
-    TEST_CASE("Cache-resident: 8192 vectors, 128 times")
+    TEST_CASE("Cache-resident 8192 vectors 128 times")
     {
         benchmark(8192, 128);
     }

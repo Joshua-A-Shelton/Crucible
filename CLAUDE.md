@@ -306,7 +306,9 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   `managed`, `integration` (the launchers, which create a device), `aot`,
   and `gpu` (needs a device Slag supports; `ctest -LE gpu` skips them). The
   doctest suite `window` is skipped unless run by hand on a desktop:
-  `crucible_native_tests --no-skip --test-suite=window`. Every C# suite also runs
+  `crucible_native_tests --no-skip --test-suite=window`. Test names may not contain
+  `,` or `;` (a `;` makes CTest run nothing and report a pass); the
+  `tests.names` test enforces it. Every C# suite also runs
   as NativeAOT code (`<suite>.aot`).
 - **x64 level** (ADR 0024): x86-64-v3 (AVX2) by default, for everything
   including dependencies and the NativeAOT engine; `CRUCIBLE_X86_LEVEL=v2`

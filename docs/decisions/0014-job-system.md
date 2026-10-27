@@ -1,6 +1,7 @@
 # 0014 — Job system
 
-**Status:** Accepted (2026-10-25).
+**Status:** Accepted (2026-10-25). Amended 2026-10-27 (M3): the API shape,
+worker count, and what waiting threads run.
 
 ## Context
 
@@ -80,3 +81,58 @@ frame.
 
 Given up: fibers, and a ready-made, already-tuned scheduler (kept as the
 fallback).
+
+## Amendment (2026-10-27): the API (M3 decision D)
+
+Settled with the project owner in M3 step 4. Names are placeholders.
+
+How engines shape a job API:
+
+- **Handles with dependencies** (Unity's C# Job System, Bevy):
+  `schedule(job, dependsOn)` returns a handle; chains run without anyone
+  waiting in between. Flexible; every job carries dependency bookkeeping.
+- **Counters** (Naughty Dog's GDC 2015 talk, enkiTS's task sets): submit a
+  batch with an atomic counter, each completion decrements it, and waiting
+  runs other jobs until it reaches zero. Small, cheap, and exactly
+  fork-join.
+- **Parent/child jobs** (the "Job System 2.0" series): a job counts its
+  unfinished children. Good for recursive splitting; a counter in every job.
+
+Decisions:
+
+1. **Counters, fork-join.** `run(jobs, priority, counter)`, `wait(counter)`,
+   `isDone(counter)`, and `parallelFor` (split a range, run, wait). Jobs
+   are C-shaped (a function pointer and a data pointer), so C# reaches them
+   by ID (decision 2 above). This matches ADR 0013's "parallelism inside
+   systems". Handles with dependencies are to be revisited
+   (`docs/open-items.md`), likely with automatic scheduling between
+   systems.
+2. **Workers: logical cores minus one,** at least one, because the main
+   thread joins in while it waits; overridable (`initialize`, the
+   launcher's `--workers`). Whether SMT siblings help or hurt is measured
+   with real systems later.
+3. **A waiting thread runs frame jobs only,** so the main thread can't get
+   stuck in a long background job (a texture decode) while its frame
+   waits. Background jobs run only on workers with no frame work, so they
+   should be split small.
+
+As built (`crucible/Jobs.h`, M3 step 4):
+
+- Each worker has a locked double-ended queue per priority; threads that
+  aren't workers submit to a shared queue per priority. A thread takes its
+  own newest job (still in cache), then the shared queue's oldest, then
+  steals other workers' oldest; frame queues everywhere before any
+  background queue.
+- Idle workers and waiting threads spin briefly, then sleep on one
+  "epoch" atomic bumped whenever jobs are queued or a counter reaches zero
+  (C++20 `atomic::wait`: a futex on Linux, `WaitOnAddress` on Windows).
+  Reading it before looking for work or completion means no wake-up is
+  missed. Cost: a counter completing wakes sleeping workers briefly.
+- Nesting is safe: jobs may run and wait on jobs, and a waiting worker runs
+  other frame jobs. Without `initialize`, `run` executes inline.
+- The launcher starts the job system after the platform and before the
+  renderer (`--workers N` overrides the count); workers are named
+  `crucible-wN` for debuggers and profilers.
+- Tests cover exactly-once execution, parallelFor coverage, nesting,
+  concurrent submitters, and the priority rule; they run clean 50 times
+  under ThreadSanitizer.

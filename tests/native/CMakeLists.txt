@@ -2,6 +2,7 @@ add_executable(crucible_native_tests
     Main.cpp
     CoreTests.cpp
     InputTimingTests.cpp
+    JobTests.cpp
     MathTests.cpp
     MemoryTests.cpp
     PlatformTests.cpp
@@ -31,3 +32,9 @@ add_test(NAME core.includes
     COMMAND "${CMAKE_COMMAND}" -DCORE_DIR=${PROJECT_SOURCE_DIR}/src/native/core
         -P "${PROJECT_SOURCE_DIR}/cmake/CheckCoreIncludes.cmake")
 set_tests_properties(core.includes PROPERTIES LABELS native)
+
+# A ';' in a test name makes CTest run nothing and report a pass; a ',' drops
+# the test's suite label. Both are refused here.
+add_test(NAME tests.names
+    COMMAND "${CMAKE_COMMAND}" -DTEST_DIR=${CMAKE_CURRENT_SOURCE_DIR} -P "${PROJECT_SOURCE_DIR}/cmake/CheckTestNames.cmake")
+set_tests_properties(tests.names PROPERTIES LABELS native)

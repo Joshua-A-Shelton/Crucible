@@ -147,7 +147,7 @@ TEST_CASE("create and destroy construct and free one object")
     CHECK(memoryUsage(MemoryTag::General).bytes == before.bytes);
 }
 
-TEST_CASE("Vector grows, keeps its elements, and destroys them")
+TEST_CASE("Vector grows and keeps and destroys its elements")
 {
     {
         Vector<Tracked> values(MemoryTag::Ecs);
@@ -191,7 +191,7 @@ TEST_CASE("pushBack of one of its own elements survives the growth it causes")
     }
 }
 
-TEST_CASE("Vector moves, resizes, and copies only when asked")
+TEST_CASE("Vector moves and resizes and copies only when asked")
 {
     Vector<int> values(MemoryTag::Ecs);
     values.resize(5);
@@ -282,7 +282,7 @@ TEST_CASE("HashMap matches std::unordered_map through inserts and erases")
     CHECK(visited == reference.size());
 }
 
-TEST_CASE("HashMap tryEmplace keeps the existing value; clear keeps the capacity")
+TEST_CASE("HashMap tryEmplace keeps the existing value and clear keeps the capacity")
 {
     HashMap<int*, Tracked> map;
     int a = 0;

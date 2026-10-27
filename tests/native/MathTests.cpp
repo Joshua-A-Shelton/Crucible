@@ -83,7 +83,7 @@ TEST_CASE("Points are row vectors and composition reads in order")
     CHECK(transform(Vector4{1, 2, 3, 0}, t) == Vector4{1, 2, 3, 0}); // directions don't move
 }
 
-TEST_CASE("Matrix4x4 is four Vector4 rows, byte-compatible with System.Numerics")
+TEST_CASE("Matrix4x4 is four Vector4 rows byte-compatible with System.Numerics")
 {
     static_assert(sizeof(Vector2) == 8 && sizeof(Vector3) == 12 && sizeof(Vector4) == 16);
     static_assert(sizeof(Quaternion) == 16 && sizeof(Matrix4x4) == 64);
@@ -127,7 +127,7 @@ TEST_CASE("Quaternions and their matrices rotate alike")
     }
 }
 
-TEST_CASE("Euler angles match axis rotations in roll, pitch, yaw order")
+TEST_CASE("Euler angles match axis rotations in roll then pitch then yaw order")
 {
     const float yaw = 0.7f;
     const float pitch = -0.3f;

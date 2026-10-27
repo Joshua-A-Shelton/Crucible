@@ -4,6 +4,7 @@
 #include "CpuCheck.h"
 #include "EngineHost.h"
 
+#include <crucible/Jobs.h>
 #include <crucible/Launch.h>
 #include <crucible/Platform.h>
 #include <crucible/Render.h>
@@ -91,6 +92,7 @@ int run(int argc, ArgumentChar** argv)
     // for development builds whose assemblies live in the build tree.
     // --backend d3d12|vulkan overrides Slag's default for the platform (D3D12
     // on Windows, Vulkan elsewhere), so both can be tested on Windows.
+    // --workers N overrides the job system's worker count (ADR 0014).
     // --frames N, --headless and --no-pacing are passed to the engine
     // (LaunchOptions); --latency <file> turns on the latency harness and
     // --present-mode fifo|mailbox overrides ADR 0003's default, both for
@@ -99,6 +101,7 @@ int run(int argc, ArgumentChar** argv)
     slag::Backend backend = slag::InstanceDesc{}.backend;
     crucible::LaunchOptions options{};
     crucible::render::PresentPreference presentMode = crucible::render::PresentPreference::Default;
+    uint32_t workers = 0;
     for (int i = 1; i < argc; ++i)
     {
         const ArgumentView option = argv[i];
@@ -127,6 +130,10 @@ int run(int argc, ArgumentChar** argv)
         {
             valid = value == CRUCIBLE_ARGUMENT("d3d12") || value == CRUCIBLE_ARGUMENT("vulkan");
             backend = value == CRUCIBLE_ARGUMENT("d3d12") ? slag::Backend::D3D12 : slag::Backend::Vulkan;
+        }
+        else if (option == CRUCIBLE_ARGUMENT("--workers"))
+        {
+            valid = parseCount(value, workers) && workers > 0;
         }
         else if (option == CRUCIBLE_ARGUMENT("--frames"))
         {
@@ -163,22 +170,30 @@ int run(int argc, ArgumentChar** argv)
         managedDirectory = absoluteDirectory;
     }
 
-    // Platform and renderer setup and shutdown belong to the launcher (ADR
-    // 0011), in that order and in reverse.
+    // Platform, job system, and renderer setup and shutdown belong to the
+    // launcher (ADR 0011), in that order and in reverse.
     if (!crucible::platform::initialize())
     {
         std::fprintf(stderr, "crucible: the platform layer could not start\n");
         return 1;
     }
+    if (!crucible::jobs::initialize(workers))
+    {
+        std::fprintf(stderr, "crucible: the job system could not start\n");
+        crucible::platform::shutdown();
+        return 1;
+    }
     if (!crucible::render::initialize(backend, presentMode))
     {
         std::fprintf(stderr, "crucible: the renderer could not start\n");
+        crucible::jobs::shutdown();
         crucible::platform::shutdown();
         return 1;
     }
 
     const crucible::Result<int> result = crucible::launcher::runEngine(managedDirectory, options);
     crucible::render::shutdown();
+    crucible::jobs::shutdown();
     crucible::platform::shutdown();
     if (!result)
     {

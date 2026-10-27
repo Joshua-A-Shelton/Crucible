@@ -26,6 +26,7 @@ crucible_generate_bindings(
 target_sources(crucible_core_objects PRIVATE
     BindingProbe.cpp
     Core.cpp
+    Jobs.cpp
     Launch.cpp
     Math.cpp
     MathProbe.cpp

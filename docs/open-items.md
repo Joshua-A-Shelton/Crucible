@@ -25,6 +25,10 @@ milestone are decided or checked when that milestone reaches them
 
 ## Revisit once there is a prototype to test against
 
+- Job handles with dependencies (schedule after, without waiting), on top
+  of or instead of counters; likely together with automatic scheduling
+  between systems. → 0014, 0013
+
 - Whether pacing stays on by default under `Mailbox`. → 0003 [M2,
   decide] Measured with the latency harness (RADV, KDE Wayland, 144 Hz,
   clear-only frames): paced Mailbox reads input 3.9 ms after it arrives
