@@ -1,6 +1,7 @@
 # 0023 — ECS storage
 
-**Status:** Accepted (2026-10-25).
+**Status:** Accepted (2026-10-25). Amended 2026-10-27 (M3): IDs, chunks,
+columns, and queries (decision E).
 
 ## Context
 
@@ -59,3 +60,30 @@ boundary poorly.
 Given up: a mature ECS on day one. A basic archetype core is a few
 thousand lines; cached queries, relationships, and change detection come
 on top. If it becomes a time sink, flecs's storage is the fallback.
+
+## Amendment (2026-10-27): IDs, chunks, columns, and queries (M3 decision E)
+
+Settled with the project owner in M3 step 6. Names are placeholders.
+
+- **Entity IDs are 64 bits: a 32-bit index and a 32-bit generation,** as in
+  Unity and Bevy. The generation is bumped when an index is reused, so a
+  stale reference is detected (it would take 4 billion reuses of one slot to
+  fool it); 0 is the null entity. EnTT's 32-bit IDs (20 + 12 bits) were
+  given up: its version wraps after 4096 reuses of a slot.
+- **Archetypes store entities in fixed 16 KB chunks,** as in Unity: stable
+  addresses, one pool of equal blocks (tagged `Ecs`), chunks as natural job
+  batches, and a chunk's columns small enough to stay in cache while a
+  system streams through them. Growable per-archetype tables (flecs, Bevy)
+  were given up: growing moves memory.
+- **Columns are per component:** a `Vector3` column is an array of
+  `Vector3`, so C# gets `Span<Vector3>` and components keep their C++
+  layout. Splitting fields into x, y, z arrays would spare wide math its
+  transpose, but after step 3 that transpose is cheap (wide math is still 2×
+  scalar), and it would cost typed spans everywhere
+  (`docs/learning/simd-and-data-layout.md`).
+- **The core query API is chunk iteration:** a query (required, optional,
+  and excluded components) yields chunks, each with a column pointer per
+  component and a count; a parallel form runs one job per chunk. C-shaped,
+  so C# crosses the boundary once per chunk; typed C# iteration is built on
+  it (decision H, step 7). Per-entity callbacks were given up: not
+  C-shaped, and too costly per entity across the boundary.
