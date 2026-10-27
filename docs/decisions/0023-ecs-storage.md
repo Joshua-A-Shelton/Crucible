@@ -95,3 +95,29 @@ Settled with the project owner in M3 step 6. Names are placeholders.
   world** (setup, tools, tests, sync points); during iteration, systems
   record them in command buffers applied at the phase's sync point (ADR
   0013). Validation builds report an immediate change during iteration.
+
+As built (`crucible/Ecs.h`, M3 step 6a):
+
+- A chunk is one 16 KB block: the entity IDs, then one column per component,
+  each aligned for its type; an archetype's capacity is the most entities
+  whose columns fit. Tags (empty components) take no column.
+- Archetypes stay compact: every chunk is full but the last. Destroying an
+  entity, or moving it to another archetype, moves the archetype's last
+  entity into the hole, and an emptied last chunk returns to the world's
+  block pool. Archetypes are found by a hash of their sorted components and
+  cache their one-component neighbours.
+- Queries track archetypes as they appear; iteration hands out chunks, with
+  read and write column access (write stamps the change version) and a
+  parallel form that runs chunks as jobs.
+- Debug builds report a structural change while a query iterates the world
+  and abort; until Crucible has a validation layer, that path has no
+  automated test.
+- Tests include a model check (20,000 random creates, destroys, adds,
+  removes, and writes against a reference map) and run clean under
+  AddressSanitizer, UndefinedBehaviorSanitizer, and ThreadSanitizer.
+- Measured (release, AMD with 23 workers): creating an entity takes about
+  40 ns; integrating 100,000 positions takes about 0.2 ns per entity
+  sequentially (~25 µs in all), and the parallel form is no faster at that
+  size: waking the workers and handing out ~200 chunks costs about as much
+  as the work. Parallelism pays for heavier systems; batch size and wake-up
+  cost are tuning points for later.
