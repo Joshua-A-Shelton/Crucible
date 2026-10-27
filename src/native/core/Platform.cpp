@@ -1,4 +1,5 @@
 #include <crucible/Platform.h>
+#include <crucible/SmallVector.h>
 
 #include <SDL3/SDL.h>
 #include <slag/Swapchain.h>
@@ -8,7 +9,6 @@
 #include <cstdio>
 #include <cstring>
 #include <random>
-#include <string>
 #include <thread>
 
 namespace crucible::platform {
@@ -113,8 +113,10 @@ void shutdown()
 Result<WindowHandle> createWindow(uint32_t width, uint32_t height, std::string_view title)
 {
     // SDL takes a null-terminated title; a string_view may not be one.
-    const std::string terminated(title);
-    SDL_Window* window = SDL_CreateWindow(terminated.c_str(), static_cast<int>(width), static_cast<int>(height),
+    SmallVector<char, 256> terminated(MemoryTag::Platform);
+    terminated.assign(std::span<const char>(title.data(), title.size()));
+    terminated.pushBack('\0');
+    SDL_Window* window = SDL_CreateWindow(terminated.data(), static_cast<int>(width), static_cast<int>(height),
                                           SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
     if (window == nullptr)
     {

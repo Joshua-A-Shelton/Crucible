@@ -1,3 +1,4 @@
+#include <crucible/Memory.h>
 #include <crucible/Render.h>
 #include <crucible/Version.h>
 
@@ -8,7 +9,6 @@
 #include <atomic>
 #include <chrono>
 #include <cstdio>
-#include <memory>
 #include <thread>
 
 namespace crucible::render {
@@ -66,7 +66,7 @@ struct Surface
     // Whether the last frame was presented: pacing waits behind a present, so
     // after a skipped frame there's nothing to wait for.
     bool presentedLastFrame = false;
-    std::unique_ptr<GpuTimer> gpuTimer; // only while the latency harness runs
+    GpuTimer* gpuTimer = nullptr; // only while the latency harness runs
 };
 
 struct Renderer
@@ -137,18 +137,19 @@ Surface* find(SurfaceHandle surface)
 
 void stopGpuTimer(Surface& surface)
 {
-    if (surface.gpuTimer)
+    if (surface.gpuTimer != nullptr)
     {
         surface.gpuTimer->running = false;
         surface.gpuTimer->thread.join();
-        surface.gpuTimer.reset();
+        destroy(MemoryTag::Render, surface.gpuTimer);
+        surface.gpuTimer = nullptr;
     }
 }
 
 void startGpuTimer(Surface& surface)
 {
-    surface.gpuTimer = std::make_unique<GpuTimer>();
-    GpuTimer* timer = surface.gpuTimer.get();
+    surface.gpuTimer = create<GpuTimer>(MemoryTag::Render);
+    GpuTimer* timer = surface.gpuTimer;
     slag::Semaphore* frames = surface.frames;
     timer->thread = std::thread([timer, frames] {
         uint64_t next = frames->value() + 1;
@@ -273,14 +274,14 @@ Result<void> createFrameResources(Surface& surface)
 
 Surface* freeSlot()
 {
-    auto free = std::find_if(renderer.surfaces.begin(), renderer.surfaces.end(),
-                             [](const Surface& surface) { return !inUse(surface); });
-    if (free == renderer.surfaces.end())
+    auto found = std::find_if(renderer.surfaces.begin(), renderer.surfaces.end(),
+                              [](const Surface& surface) { return !inUse(surface); });
+    if (found == renderer.surfaces.end())
     {
         std::fprintf(stderr, "crucible: at most %u surfaces\n", maxSurfaces);
         return nullptr;
     }
-    return &*free;
+    return &*found;
 }
 
 SurfaceHandle handleOf(const Surface* slot)
@@ -377,6 +378,15 @@ Result<void> initialize(slag::Backend backend, PresentPreference presentMode)
     desc.validationFlags = slag::ValidationFlags::Api;
 #endif
     desc.messageCallback = printMessage;
+    // Slag's CPU memory goes through Crucible's allocator, counted under
+    // Render (ADR 0032). Crucible's allocate never returns null, so Slag
+    // never sees OutOfHostMemory from it.
+    desc.allocatorCallbacks.allocate = [](size_t size, size_t alignment, void*) {
+        return allocate(size, alignment, MemoryTag::Render);
+    };
+    desc.allocatorCallbacks.free = [](void* pointer, size_t size, void*) {
+        free(pointer, size, MemoryTag::Render);
+    };
     desc.applicationName = "Crucible";
     desc.engineName = "Crucible";
     desc.engineVersion = CRUCIBLE_VERSION;
@@ -443,8 +453,8 @@ Result<SurfaceHandle> createSurface(platform::WindowHandle window)
     {
         return Status::Unsupported;
     }
-    Surface* free = freeSlot();
-    if (free == nullptr)
+    Surface* slot = freeSlot();
+    if (slot == nullptr)
     {
         return Status::Unsupported;
     }
@@ -496,8 +506,8 @@ Result<SurfaceHandle> createSurface(platform::WindowHandle window)
                 device->capabilities().frameLatency ? "frame latency" : "previous GPU frame");
     std::fflush(stdout);
 
-    *free = std::move(surface);
-    return handleOf(free);
+    *slot = surface;
+    return handleOf(slot);
 }
 
 Result<SurfaceHandle> createOffscreenSurface(uint32_t width, uint32_t height)
@@ -507,8 +517,8 @@ Result<SurfaceHandle> createOffscreenSurface(uint32_t width, uint32_t height)
     {
         return Status::Unsupported;
     }
-    Surface* free = freeSlot();
-    if (free == nullptr)
+    Surface* slot = freeSlot();
+    if (slot == nullptr)
     {
         return Status::Unsupported;
     }
@@ -544,8 +554,8 @@ Result<SurfaceHandle> createOffscreenSurface(uint32_t width, uint32_t height)
         return created.status();
     }
 
-    *free = std::move(surface);
-    return handleOf(free);
+    *slot = surface;
+    return handleOf(slot);
 }
 
 void destroySurface(SurfaceHandle surface)
@@ -692,7 +702,7 @@ Result<void> setGpuTiming(SurfaceHandle surface, bool enabled)
     {
         return Status::NotFound;
     }
-    if (enabled && !found->gpuTimer)
+    if (enabled && found->gpuTimer == nullptr)
     {
         startGpuTimer(*found);
     }
@@ -706,7 +716,7 @@ Result<void> setGpuTiming(SurfaceHandle surface, bool enabled)
 uint64_t gpuFrameDoneNs(SurfaceHandle surface, uint64_t frame)
 {
     const Surface* found = find(surface);
-    if (found == nullptr || !found->gpuTimer || frame == 0)
+    if (found == nullptr || found->gpuTimer == nullptr || frame == 0)
     {
         return 0;
     }

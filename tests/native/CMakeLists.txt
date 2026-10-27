@@ -2,6 +2,7 @@ add_executable(crucible_native_tests
     Main.cpp
     CoreTests.cpp
     InputTimingTests.cpp
+    MemoryTests.cpp
     PlatformTests.cpp
     RenderTests.cpp
     ResultTests.cpp)
@@ -22,3 +23,9 @@ target_link_libraries(crucible_native_tests PRIVATE crucible::core_static SDL3::
 # silently loses its labels.
 doctest_discover_tests(crucible_native_tests ADD_LABELS 1
     PROPERTIES LABELS native ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen")
+
+# ADR 0032: the core includes only standard headers that don't allocate.
+add_test(NAME core.includes
+    COMMAND "${CMAKE_COMMAND}" -DCORE_DIR=${PROJECT_SOURCE_DIR}/src/native/core
+        -P "${PROJECT_SOURCE_DIR}/cmake/CheckCoreIncludes.cmake")
+set_tests_properties(core.includes PROPERTIES LABELS native)

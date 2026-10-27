@@ -1,6 +1,7 @@
 # 0032 — C++ memory and containers
 
-**Status:** Accepted (2026-10-26). Names are placeholders (docs/naming.md).
+**Status:** Accepted (2026-10-26). Amended 2026-10-26 (M3 step 1): the API
+as built. Names are placeholders (docs/naming.md).
 
 ## Context
 
@@ -92,3 +93,27 @@ the cases where failure is genuinely expected.
 Given up: the standard containers' familiarity in core code, recovery
 from out-of-memory in general, and a single shared copy of the containers
 across Slag and Crucible.
+
+## Amendment (2026-10-26): the API as built (M3 step 1)
+
+- **`crucible/Memory.h`:** `MemoryTag` (`General`, `Platform`, `Render`,
+  `Jobs`, `Ecs`); `allocate` (fatal), `tryAllocate` (null), and `free`, which
+  takes the size and tag but not the alignment, as Slag's does;
+  `create<T>`/`destroy`; `setAllocatorHooks`, called once by the launcher,
+  defaulting to aligned `malloc`; `memoryUsage(tag)` (live bytes and
+  allocations), also exposed to C#. The counters live in the dispatcher, so
+  replaced hooks are counted too.
+- **Containers:** `Vector<T>` and `SmallVector<T, N>` (one implementation;
+  growth constructs the new element before moving the old ones, so
+  `v.pushBack(v[0])` is safe), and `HashMap<K, V>` (linear probing, at most
+  7/8 full, backward-shift deletion, `Hash<K>` for integers, enums, and
+  pointers). Pools come when a step needs them.
+- **Move-only:** copying is deleted; `copy()` makes one when it's meant, so
+  an accidental copy in hot code fails to compile instead of allocating.
+- **`std::thread` is allowed** in the core, as the one exception: it
+  allocates a little internal state through the global heap, once per thread
+  created.
+- **Enforced by a test:** `core.includes` (`cmake/CheckCoreIncludes.cmake`)
+  fails when the core includes a standard header outside the allowed list.
+- **Checked under AddressSanitizer and UndefinedBehaviorSanitizer** (clang):
+  the native tests are clean apart from the GPU driver's own allocations.

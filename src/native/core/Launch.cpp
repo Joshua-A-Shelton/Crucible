@@ -1,19 +1,20 @@
 #include <crucible/Launch.h>
 
+#include <crucible/Vector.h>
+
 #include <algorithm>
-#include <string>
 
 namespace crucible {
 
 namespace {
 
-std::string latencyLog;
+Vector<char> latencyLog;
 
 } // namespace
 
 void setLatencyLogPath(std::string_view utf8Path)
 {
-    latencyLog = utf8Path;
+    latencyLog.assign(std::span<const char>(utf8Path.data(), utf8Path.size()));
 }
 
 uint32_t latencyLogPath(std::span<uint8_t> buffer)

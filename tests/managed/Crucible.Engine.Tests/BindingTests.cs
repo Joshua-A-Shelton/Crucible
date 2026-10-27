@@ -136,6 +136,15 @@ public class BindingTests
         await Assert.That(missing).IsFalse();
     }
 
+    [Test]
+    public async Task MemoryUsageIsReadableFromCSharp()
+    {
+        // Slag isn't running in the test host; the counters still answer.
+        MemoryUsage usage = Api.MemoryUsage(MemoryTag.General);
+
+        await Assert.That(usage.Bytes >= usage.Allocations).IsTrue();
+    }
+
     private static uint Fnv1a(byte[] bytes)
     {
         uint hash = 2166136261;
