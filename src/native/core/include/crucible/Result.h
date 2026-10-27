@@ -2,12 +2,15 @@
 
 // Result<T> and Status (ADR 0030), modeled on slag::Result.
 
+#include <crucible/Expose.h>
+
 #include <cstdint>
 
 namespace crucible {
 
-// Error names are placeholders until settled (docs/naming.md).
-enum class Status : int32_t
+// Error names are placeholders until settled (docs/naming.md). Exposed so C#
+// sees the same values (ADR 0017).
+enum class CRUCIBLE_EXPOSE Status : int32_t
 {
     // Success: the value is valid.
     Ok = 0,

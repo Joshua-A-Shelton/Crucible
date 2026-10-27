@@ -235,7 +235,11 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   time with the system's libclang through Crucible's own bindings, generate C ABI
   shims, raw and idiomatic C# layers, struct mirrors with layout checks on
   both sides, and editor metadata. Only C-shaped signatures cross the
-  boundary. C++ changes need an editor restart; C# changes hot-reload.
+  boundary: plain values, `enum class`, plain-data structs, `std::span` and
+  `std::string_view` parameters, and `crucible::Result` returns (throwing in
+  C# unless marked `CRUCIBLE_EXPOSE_STATUS`). Each C++ namespace becomes a
+  C# namespace, with its functions in an `Api` class. C++ changes need an
+  editor restart; C# changes hot-reload.
 - **Platform layer** (ADR 0018): SDL3's window, input, event, clipboard,
   and dialog parts, behind Crucible's own platform API. Input timestamps
   come from SDL events.

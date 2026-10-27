@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Runtime.InteropServices;
 
 namespace Crucible.BindGen;
@@ -11,9 +12,11 @@ namespace Crucible.BindGen;
 internal sealed class Parser
 {
     private const string ExposeAnnotation = "crucible_expose";
+    private const string StatusAnnotation = "crucible_status";
 
     private readonly HashSet<string> _headerFiles;
     private readonly Dictionary<string, ExposedStruct> _structsByName = [];
+    private readonly Dictionary<string, ExposedEnum> _enumsByName = [];
     private readonly List<string> _errors = [];
 
     private Parser(IEnumerable<string> headers)
@@ -41,9 +44,18 @@ internal sealed class Parser
             }
 
             CXCursor root = Libclang.GetTranslationUnitCursor(translationUnit);
-            // Structs first, so functions can refer to them in any order.
-            parser.Walk(root, "", model, structs: true);
-            parser.Walk(root, "", model, structs: false);
+            // Enums, then structs, then functions, so each can refer to the
+            // ones before it in any order.
+            foreach (Pass pass in Enum.GetValues<Pass>())
+            {
+                parser.Walk(root, [], model, pass);
+            }
+            model.Status = parser._enumsByName.GetValueOrDefault("crucible::Status");
+            if (model.Status is null && model.Functions.Any(function => function.ReturnsResult))
+            {
+                parser._errors.Add("error: functions return crucible::Result, but crucible::Status isn't marked " +
+                                   "CRUCIBLE_EXPOSE");
+            }
 
             model.Dependencies.AddRange(Libclang.Inclusions(translationUnit)
                 .Where(file => file != SyntheticSource)
@@ -160,8 +172,15 @@ internal sealed class Parser
     // Declarations
     // -------------------------------------------------------------------------
 
-    /// <param name="scope">The enclosing namespaces, "crucible::" style.</param>
-    private void Walk(CXCursor parent, string scope, BindingModel model, bool structs)
+    private enum Pass
+    {
+        Enums,
+        Structs,
+        Functions,
+    }
+
+    /// <param name="namespaces">The enclosing namespaces, outermost first.</param>
+    private void Walk(CXCursor parent, List<string> namespaces, BindingModel model, Pass pass)
     {
         foreach (CXCursor cursor in Libclang.Children(parent))
         {
@@ -171,38 +190,107 @@ internal sealed class Parser
                 continue;
             }
 
-            switch (cursor.Kind)
+            if (cursor.Kind == CursorKind.Namespace)
             {
-                case CursorKind.Namespace:
-                    Walk(cursor, $"{scope}{Libclang.Spelling(cursor)}::", model, structs);
+                Walk(cursor, [.. namespaces, Libclang.Spelling(cursor)], model, pass);
+                continue;
+            }
+
+            bool isDeclaration = pass switch
+            {
+                Pass.Enums => cursor.Kind == CursorKind.EnumDecl && Libclang.IsCursorDefinition(cursor) != 0,
+                Pass.Structs => cursor.Kind is CursorKind.StructDecl or CursorKind.ClassDecl &&
+                                Libclang.IsCursorDefinition(cursor) != 0,
+                _ => cursor.Kind == CursorKind.FunctionDecl,
+            };
+            if (!isDeclaration || !HasAnnotation(cursor, ExposeAnnotation))
+            {
+                continue;
+            }
+
+            // Every exposed name is under crucible::, which becomes the C#
+            // root namespace Crucible.
+            if (namespaces.Count == 0 || namespaces[0] != "crucible" || namespaces.Any(name => name.Length == 0))
+            {
+                Error(cursor, $"{Libclang.Spelling(cursor)}: exposed declarations must be in namespace crucible " +
+                              "or a named namespace inside it");
+                continue;
+            }
+
+            Scope scope = new(namespaces);
+            switch (pass)
+            {
+                case Pass.Enums:
+                    AddEnum(cursor, scope, model);
                     break;
-                case CursorKind.StructDecl or CursorKind.ClassDecl when structs && IsExposed(cursor) &&
-                                                                        Libclang.IsCursorDefinition(cursor) != 0:
-                    AddStruct(cursor, model);
+                case Pass.Structs:
+                    AddStruct(cursor, scope, model);
                     break;
-                case CursorKind.FunctionDecl when !structs && IsExposed(cursor):
+                case Pass.Functions:
                     AddFunction(cursor, scope, model);
                     break;
             }
         }
     }
 
-    private static bool IsExposed(CXCursor cursor) =>
+    private static bool HasAnnotation(CXCursor cursor, string annotation) =>
         Libclang.Children(cursor).Any(child =>
-            child.Kind == CursorKind.AnnotateAttr && Libclang.Spelling(child) == ExposeAnnotation);
+            child.Kind == CursorKind.AnnotateAttr && Libclang.Spelling(child) == annotation);
 
-    private void AddStruct(CXCursor cursor, BindingModel model)
+    private void AddEnum(CXCursor cursor, Scope scope, BindingModel model)
     {
-        CXType type = Libclang.GetCursorType(cursor);
-        string qualifiedName = Libclang.Spelling(Libclang.GetCanonicalType(type));
-        if (Libclang.IsPodType(type) == 0)
+        string qualifiedName = Libclang.Spelling(Libclang.GetCanonicalType(Libclang.GetCursorType(cursor)));
+        // A scoped enum always has a fixed underlying type; a plain enum's can
+        // differ between compilers.
+        if (Libclang.EnumDeclIsScoped(cursor) == 0)
         {
-            Error(cursor, $"{qualifiedName} must be plain data (no virtual functions, base classes, " +
-                          "constructors, or non-trivial members) to cross the boundary");
+            Error(cursor, $"{qualifiedName}: only enum class can cross the boundary");
             return;
         }
 
-        ExposedStruct exposed = new(qualifiedName, Libclang.Spelling(cursor), Libclang.TypeGetSizeOf(type));
+        CXType integerType = Libclang.GetEnumDeclIntegerType(cursor);
+        TypeRef? underlying = Resolve(cursor, integerType, $"{qualifiedName}: underlying type");
+        if (underlying is null)
+        {
+            return;
+        }
+        if (underlying.Is(Primitive.Bool))
+        {
+            Error(cursor, $"{qualifiedName}: underlying type must be an integer");
+            return;
+        }
+
+        bool unsigned = underlying.Primitive is Primitive.UInt8 or Primitive.UInt16 or Primitive.UInt32 or
+            Primitive.UInt64;
+        ExposedEnum exposed = new(qualifiedName, Libclang.Spelling(cursor), scope, underlying.Primitive,
+            Libclang.TypeGetSizeOf(integerType));
+        foreach (CXCursor constant in Libclang.Children(cursor)
+                     .Where(child => child.Kind == CursorKind.EnumConstantDecl))
+        {
+            string value = unsigned
+                ? Libclang.GetEnumConstantDeclUnsignedValue(constant).ToString(CultureInfo.InvariantCulture)
+                : Libclang.GetEnumConstantDeclValue(constant).ToString(CultureInfo.InvariantCulture);
+            exposed.Enumerators.Add(new Enumerator(Libclang.Spelling(constant), value));
+        }
+
+        _enumsByName[qualifiedName] = exposed;
+        model.Enums.Add(exposed);
+    }
+
+    private void AddStruct(CXCursor cursor, Scope scope, BindingModel model)
+    {
+        CXType type = Libclang.GetCursorType(cursor);
+        string qualifiedName = Libclang.Spelling(Libclang.GetCanonicalType(type));
+        // Plain data also rules out default member initializers: C#'s default
+        // would silently ignore them.
+        if (Libclang.IsPodType(type) == 0)
+        {
+            Error(cursor, $"{qualifiedName} must be plain data (no virtual functions, base classes, " +
+                          "constructors, default member initializers, or non-trivial members) to cross the boundary");
+            return;
+        }
+
+        ExposedStruct exposed = new(qualifiedName, Libclang.Spelling(cursor), scope, Libclang.TypeGetSizeOf(type));
         foreach (CXCursor field in Libclang.Children(cursor).Where(child => child.Kind == CursorKind.FieldDecl))
         {
             string name = Libclang.Spelling(field);
@@ -223,18 +311,31 @@ internal sealed class Parser
         model.Structs.Add(exposed);
     }
 
-    private void AddFunction(CXCursor cursor, string scope, BindingModel model)
+    private void AddFunction(CXCursor cursor, Scope scope, BindingModel model)
     {
         string name = Libclang.Spelling(cursor);
-        if (model.Functions.Any(function => function.Name == name))
+        string qualifiedName = $"{scope.Cpp}{name}";
+
+        bool returnsResult = false;
+        TypeRef? returnType;
+        CXType resultValue = default;
+        CXType declaredReturn = Libclang.GetCursorResultType(cursor);
+        if (IsResult(declaredReturn, ref resultValue))
         {
-            Error(cursor, $"{name}: an exposed function with this name already exists; exported C names " +
-                          "(crucible_<name>) must be unique");
-            return;
+            returnsResult = true;
+            returnType = Resolve(cursor, resultValue, $"{qualifiedName}: Result value type", allowVoid: true);
+        }
+        else
+        {
+            returnType = Resolve(cursor, declaredReturn, $"{qualifiedName}: return type", allowVoid: true);
         }
 
-        TypeRef? returnType = Resolve(cursor, Libclang.GetCursorResultType(cursor), $"{name}: return type",
-            allowVoid: true);
+        bool statusForm = HasAnnotation(cursor, StatusAnnotation);
+        if (statusForm && !returnsResult)
+        {
+            Error(cursor, $"{qualifiedName}: CRUCIBLE_EXPOSE_STATUS only applies to functions returning Result");
+        }
+
         List<Parameter> parameters = [];
         int count = Libclang.CursorGetNumArguments(cursor);
         for (uint i = 0; i < count; ++i)
@@ -243,29 +344,86 @@ internal sealed class Parser
             string parameterName = Libclang.Spelling(argument);
             if (parameterName.Length == 0)
             {
-                Error(argument, $"{name}: parameter {i + 1} needs a name for the C# binding");
+                Error(argument, $"{qualifiedName}: parameter {i + 1} needs a name for the C# binding");
                 continue;
             }
-            TypeRef? type = Resolve(argument, Libclang.GetCursorType(argument), $"{name}: parameter {parameterName}");
+            if (returnsResult && parameterName == "result")
+            {
+                // The shim adds its own "result" parameter for the value.
+                Error(argument, $"{qualifiedName}: \"result\" is reserved for the Result value; rename the parameter");
+                continue;
+            }
+            TypeRef? type = Resolve(argument, Libclang.GetCursorType(argument),
+                $"{qualifiedName}: parameter {parameterName}", allowParameterShapes: true);
             if (type is not null)
             {
                 parameters.Add(new Parameter(parameterName, type));
             }
         }
 
-        if (returnType is not null && parameters.Count == count)
+        if (returnType is null || parameters.Count != count)
         {
-            model.Functions.Add(new ExposedFunction($"{scope}{name}", name, returnType, parameters));
+            return;
         }
+        ExposedFunction function = new(name, scope, returnType, parameters, returnsResult, statusForm);
+        if (model.Functions.Any(other => other.CName == function.CName || other.RawName == function.RawName))
+        {
+            Error(cursor, $"{qualifiedName}: another exposed function already maps to {function.CName}; " +
+                          "exposed names must be unique within their namespace");
+            return;
+        }
+        model.Functions.Add(function);
     }
 
     // -------------------------------------------------------------------------
     // Types
     // -------------------------------------------------------------------------
 
-    private TypeRef? Resolve(CXCursor where, CXType type, string what, bool allowVoid = false)
+    /// <summary>
+    /// The namespaces around a type's declaration, outermost first, so standard
+    /// types are recognized by name and namespace instead of by spelling (which
+    /// differs between libc++, libstdc++, and MSVC's library).
+    /// </summary>
+    private static (string Name, List<string> Namespaces) Declaration(CXType canonical)
+    {
+        CXCursor declaration = Libclang.GetTypeDeclaration(canonical);
+        List<string> namespaces = [];
+        for (CXCursor parent = Libclang.GetCursorSemanticParent(declaration);
+             parent.Kind == CursorKind.Namespace;
+             parent = Libclang.GetCursorSemanticParent(parent))
+        {
+            namespaces.Insert(0, Libclang.Spelling(parent));
+        }
+        return (Libclang.Spelling(declaration), namespaces);
+    }
+
+    private static bool IsStd(List<string> namespaces) => namespaces.Count > 0 && namespaces[0] == "std";
+
+    /// <summary>Whether a type is crucible::Result&lt;T&gt;; if so, sets <paramref name="value"/> to T.</summary>
+    private static bool IsResult(CXType type, ref CXType value)
     {
         CXType canonical = Libclang.GetCanonicalType(type);
+        if (canonical.Kind != TypeKind.Record)
+        {
+            return false;
+        }
+        (string name, List<string> namespaces) = Declaration(canonical);
+        if (name != "Result" || namespaces is not ["crucible"] ||
+            Libclang.TypeGetNumTemplateArguments(canonical) != 1)
+        {
+            return false;
+        }
+        value = Libclang.TypeGetTemplateArgumentAsType(canonical, 0);
+        return true;
+    }
+
+    /// <param name="allowParameterShapes">Spans and string views, which only parameters may be.</param>
+    private TypeRef? Resolve(CXCursor where, CXType type, string what, bool allowVoid = false,
+        bool allowParameterShapes = false)
+    {
+        // Qualifiers don't change the C ABI of a value; const matters only for
+        // span elements, which ask for it below.
+        CXType canonical = Libclang.GetUnqualifiedType(Libclang.GetCanonicalType(type));
         long size = Libclang.TypeGetSizeOf(canonical);
         Primitive? primitive = canonical.Kind switch
         {
@@ -283,25 +441,90 @@ internal sealed class Parser
         };
         if (primitive is not null)
         {
-            return new TypeRef(primitive.Value, null);
+            return TypeRef.Of(primitive.Value);
         }
 
         string spelling = Libclang.Spelling(type);
-        if (canonical.Kind == TypeKind.Record)
+        string canonicalSpelling = Libclang.Spelling(canonical);
+        if (canonical.Kind == TypeKind.Enum)
         {
-            if (_structsByName.TryGetValue(Libclang.Spelling(canonical), out ExposedStruct? exposed))
+            if (_enumsByName.TryGetValue(canonicalSpelling, out ExposedEnum? exposedEnum))
             {
-                return new TypeRef(Primitive.Void, exposed);
+                return new TypeRef(Shape.Enum, Enum: exposedEnum);
             }
             Error(where, $"{what}: {spelling} isn't marked CRUCIBLE_EXPOSE, so it can't cross the boundary");
             return null;
         }
 
+        if (canonical.Kind == TypeKind.Record)
+        {
+            (string name, List<string> namespaces) = Declaration(canonical);
+            if (IsStd(namespaces) && name is "span" or "basic_string_view")
+            {
+                return allowParameterShapes
+                    ? ResolveStandard(where, canonical, name, spelling, what)
+                    : Fail($"{what}: {spelling} can only be a function parameter");
+            }
+            if (_structsByName.TryGetValue(canonicalSpelling, out ExposedStruct? exposed))
+            {
+                return new TypeRef(Shape.Struct, Struct: exposed);
+            }
+            if (name == "Result" && namespaces is ["crucible"])
+            {
+                return Fail($"{what}: {spelling}: crucible::Result can only be a return type");
+            }
+            return Fail($"{what}: {spelling} isn't marked CRUCIBLE_EXPOSE, so it can't cross the boundary");
+        }
+
         string hint = canonical.Kind is TypeKind.CharS or TypeKind.CharU
             ? " (plain char has no fixed signedness; use int8_t or uint8_t)"
-            : " (only bool, fixed-size integers, float, double, and exposed structs, by value)";
-        Error(where, $"{what}: {spelling} can't cross the boundary{hint}");
-        return null;
+            : " (only bool, fixed-size integers, float, double, and exposed enums and structs by value; " +
+              "std::span and std::string_view parameters; crucible::Result return values)";
+        return Fail($"{what}: {spelling} can't cross the boundary{hint}");
+
+        TypeRef? Fail(string message)
+        {
+            Error(where, message);
+            return null;
+        }
+    }
+
+    private TypeRef? ResolveStandard(CXCursor where, CXType canonical, string name, string spelling, string what)
+    {
+        CXType argument = Libclang.TypeGetTemplateArgumentAsType(canonical, 0);
+        if (name == "basic_string_view")
+        {
+            // Strings cross as UTF-8 (ADR 0017), so only char views.
+            if (Libclang.GetCanonicalType(argument).Kind is not (TypeKind.CharS or TypeKind.CharU))
+            {
+                Error(where, $"{what}: {spelling}: only std::string_view (UTF-8) can cross the boundary");
+                return null;
+            }
+            return new TypeRef(Shape.String);
+        }
+
+        // A parameter's type is never instantiated, so its size is unknown.
+        // Instead: libclang leaves defaulted template arguments out of the
+        // spelling, so span<T> has no second argument while span<T, 4> does,
+        // and exposed element types never contain commas themselves.
+        if (Libclang.Spelling(canonical).Contains(','))
+        {
+            Error(where, $"{what}: {spelling}: only dynamic-extent spans can cross the boundary");
+            return null;
+        }
+        TypeRef? element = Resolve(where, argument, $"{what}: span element");
+        if (element is null)
+        {
+            return null;
+        }
+        if (element.Is(Primitive.Bool))
+        {
+            // A C# bool[] isn't laid out as C++ bools; use uint8_t.
+            Error(where, $"{what}: {spelling}: spans of bool can't cross the boundary; use uint8_t");
+            return null;
+        }
+        bool isConst = Libclang.IsConstQualifiedType(Libclang.GetCanonicalType(argument)) != 0;
+        return new TypeRef(Shape.Span, Element: element, IsConst: isConst);
     }
 
     private void Error(CXCursor cursor, string message) =>

@@ -53,9 +53,12 @@ internal static class CursorKind
 {
     public const int StructDecl = 2;
     public const int ClassDecl = 4;
+    public const int EnumDecl = 5;
     public const int FieldDecl = 6;
+    public const int EnumConstantDecl = 7;
     public const int FunctionDecl = 8;
     public const int Namespace = 22;
+    public const int TranslationUnit = 350;
     public const int AnnotateAttr = 406;
 }
 
@@ -79,6 +82,7 @@ internal static class TypeKind
     public const int Float = 21;
     public const int Double = 22;
     public const int Record = 105;
+    public const int Enum = 106;
 }
 
 internal static unsafe partial class Libclang
@@ -179,6 +183,36 @@ internal static unsafe partial class Libclang
 
     [LibraryImport(Library, EntryPoint = "clang_isPODType")]
     public static partial uint IsPodType(CXType type);
+
+    [LibraryImport(Library, EntryPoint = "clang_getUnqualifiedType")]
+    public static partial CXType GetUnqualifiedType(CXType type);
+
+    [LibraryImport(Library, EntryPoint = "clang_isConstQualifiedType")]
+    public static partial uint IsConstQualifiedType(CXType type);
+
+    [LibraryImport(Library, EntryPoint = "clang_getTypeDeclaration")]
+    public static partial CXCursor GetTypeDeclaration(CXType type);
+
+    [LibraryImport(Library, EntryPoint = "clang_getCursorSemanticParent")]
+    public static partial CXCursor GetCursorSemanticParent(CXCursor cursor);
+
+    [LibraryImport(Library, EntryPoint = "clang_Type_getNumTemplateArguments")]
+    public static partial int TypeGetNumTemplateArguments(CXType type);
+
+    [LibraryImport(Library, EntryPoint = "clang_Type_getTemplateArgumentAsType")]
+    public static partial CXType TypeGetTemplateArgumentAsType(CXType type, uint index);
+
+    [LibraryImport(Library, EntryPoint = "clang_getEnumDeclIntegerType")]
+    public static partial CXType GetEnumDeclIntegerType(CXCursor cursor);
+
+    [LibraryImport(Library, EntryPoint = "clang_EnumDecl_isScoped")]
+    public static partial uint EnumDeclIsScoped(CXCursor cursor);
+
+    [LibraryImport(Library, EntryPoint = "clang_getEnumConstantDeclValue")]
+    public static partial long GetEnumConstantDeclValue(CXCursor cursor);
+
+    [LibraryImport(Library, EntryPoint = "clang_getEnumConstantDeclUnsignedValue")]
+    public static partial ulong GetEnumConstantDeclUnsignedValue(CXCursor cursor);
 
     [LibraryImport(Library, EntryPoint = "clang_getCursorLocation")]
     public static partial CXSourceLocation GetCursorLocation(CXCursor cursor);

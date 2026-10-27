@@ -56,10 +56,11 @@ set(CRUCIBLE_NATIVE_PROPS "${CMAKE_BINARY_DIR}/CrucibleNative.props")
 # its own, so the C++ standard library that Slag and the core need is added
 # here. As a NativeSystemLibrary it comes after the static libraries on the
 # link line, which is where it has to be.
-# On Windows: d3d12 and dxgi for Slag; setupapi, winmm, imm32, and version
-# for SDL linked statically (SDL's documentation lists them).
+# On Windows: d3d12 and dxgi for Slag; for SDL linked statically, the system
+# libraries SDL's documentation lists that NativeAOT doesn't already link
+# (setupapi, winmm, imm32, version, gdi32, shell32).
 if(WIN32)
-    set(_crucible_core_system_libraries "<NativeLibrary Include=\"d3d12.lib\" /><NativeLibrary Include=\"dxgi.lib\" /><NativeLibrary Include=\"setupapi.lib\" /><NativeLibrary Include=\"winmm.lib\" /><NativeLibrary Include=\"imm32.lib\" /><NativeLibrary Include=\"version.lib\" />")
+    set(_crucible_core_system_libraries "<NativeLibrary Include=\"d3d12.lib\" /><NativeLibrary Include=\"dxgi.lib\" /><NativeLibrary Include=\"setupapi.lib\" /><NativeLibrary Include=\"winmm.lib\" /><NativeLibrary Include=\"imm32.lib\" /><NativeLibrary Include=\"version.lib\" /><NativeLibrary Include=\"gdi32.lib\" /><NativeLibrary Include=\"shell32.lib\" />")
 else()
     set(_crucible_core_system_libraries "<NativeSystemLibrary Include=\"stdc++\" />")
 endif()

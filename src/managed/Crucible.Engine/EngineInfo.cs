@@ -9,5 +9,5 @@ public static class EngineInfo
     public const string Name = "Crucible";
 
     /// <summary>Whether the C++ core was built with a Slag render backend.</summary>
-    public static bool HasRenderBackend => Core.HasRenderBackend();
+    public static bool HasRenderBackend => Api.HasRenderBackend();
 }

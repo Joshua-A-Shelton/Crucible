@@ -4,8 +4,11 @@
 // layout handling until real engine types do. Remove once they exist.
 
 #include <crucible/Expose.h>
+#include <crucible/Result.h>
 
 #include <cstdint>
+#include <span>
+#include <string_view>
 
 namespace crucible {
 
@@ -26,5 +29,31 @@ CRUCIBLE_EXPOSE BindingProbe makeBindingProbe(int32_t number, bool flag, float v
 // Sums the numeric fields, plus 1000 if flag is set, so a test can check every
 // field crossed the boundary intact.
 CRUCIBLE_EXPOSE double sumBindingProbe(BindingProbe probe);
+
+// An enum with a one-byte underlying type and a gap in its values.
+enum class CRUCIBLE_EXPOSE ProbeKind : uint8_t
+{
+    Zero,
+    One,
+    Large = 200,
+};
+
+// Zero -> One -> Large -> Zero: an enum in both directions.
+CRUCIBLE_EXPOSE ProbeKind nextProbeKind(ProbeKind kind);
+
+// sumBindingProbe over every element: a read-only span.
+CRUCIBLE_EXPOSE double sumBindingProbes(std::span<const BindingProbe> probes);
+
+// Sets each element's number to its index; returns the count: a writable span.
+CRUCIBLE_EXPOSE uint32_t fillBindingProbes(std::span<BindingProbe> probes);
+
+// FNV-1a over the UTF-8 bytes, so a test can check the exact bytes arrived.
+CRUCIBLE_EXPOSE uint32_t hashText(std::string_view text);
+
+// The three Result forms: a value that throws in C# on failure (NotFound for
+// a negative number), the Status form with a bool value, and Result<void>.
+CRUCIBLE_EXPOSE Result<BindingProbe> findBindingProbe(int32_t number);
+CRUCIBLE_EXPOSE_STATUS Result<bool> isBindingProbeEven(int32_t number);
+CRUCIBLE_EXPOSE Result<void> checkBindingProbe(int32_t number);
 
 } // namespace crucible

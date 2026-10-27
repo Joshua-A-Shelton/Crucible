@@ -21,12 +21,19 @@ internal static class CppWriter
         text.AppendLine();
         text.AppendLine("#include <cstddef>");
         text.AppendLine("#include <cstdint>");
+        text.AppendLine("#include <span>");
+        text.AppendLine("#include <string_view>");
 
-        if (model.Structs.Count > 0)
+        if (model.Enums.Count > 0 || model.Structs.Count > 0)
         {
             text.AppendLine();
             text.AppendLine("// The compiler building this file must agree with libclang, whose sizes and");
             text.AppendLine("// offsets the C# mirrors use.");
+            foreach (ExposedEnum exposed in model.Enums)
+            {
+                text.AppendLine($"static_assert(sizeof({exposed.QualifiedName}) == {exposed.Size}, " +
+                                $"\"{exposed.QualifiedName}: size differs from its C# mirror\");");
+            }
             foreach (ExposedStruct exposed in model.Structs)
             {
                 text.AppendLine($"static_assert(sizeof({exposed.QualifiedName}) == {exposed.Size}, " +
@@ -43,19 +50,43 @@ internal static class CppWriter
         text.AppendLine("extern \"C\" {");
         foreach (ExposedFunction function in model.Functions)
         {
-            string parameters = string.Join(", ",
-                function.Parameters.Select(parameter => $"{CType(parameter.Type)} {parameter.Name}"));
+            List<string> parameters = function.Parameters.SelectMany(CParameters).ToList();
             string arguments = string.Join(", ", function.Parameters.Select(ToCpp));
             string call = $"{function.QualifiedName}({arguments})";
+            bool hasValue = !function.ReturnType.Is(Primitive.Void);
 
             text.AppendLine();
-            text.AppendLine($"CRUCIBLE_EXPORT {CType(function.ReturnType)} {function.CName}({parameters})");
+            if (function.ReturnsResult)
+            {
+                // The status is returned; the value is written through result
+                // only on success, so the caller's default stays otherwise.
+                if (hasValue)
+                {
+                    parameters.Add($"{CType(function.ReturnType)}* result");
+                }
+                text.AppendLine($"CRUCIBLE_EXPORT {model.Status!.QualifiedName} {function.CName}({string.Join(", ", parameters)})");
+                text.AppendLine("{");
+                text.AppendLine($"    auto value = {call};");
+                if (hasValue)
+                {
+                    string unwrapped = function.ReturnType.Is(Primitive.Bool) ? "value.value() ? 1 : 0" : "value.value()";
+                    text.AppendLine("    if (value)");
+                    text.AppendLine("    {");
+                    text.AppendLine($"        *result = {unwrapped};");
+                    text.AppendLine("    }");
+                }
+                text.AppendLine("    return value.status();");
+                text.AppendLine("}");
+                continue;
+            }
+
+            text.AppendLine($"CRUCIBLE_EXPORT {CType(function.ReturnType)} {function.CName}({string.Join(", ", parameters)})");
             text.AppendLine("{");
-            if (function.ReturnType is { IsStruct: false, Primitive: Primitive.Void })
+            if (!hasValue)
             {
                 text.AppendLine($"    {call};");
             }
-            else if (function.ReturnType is { IsStruct: false, Primitive: Primitive.Bool })
+            else if (function.ReturnType.Is(Primitive.Bool))
             {
                 text.AppendLine($"    return {call} ? 1 : 0;");
             }
@@ -70,9 +101,32 @@ internal static class CppWriter
         return text.ToString();
     }
 
-    private static string CType(TypeRef type) => type.Struct?.QualifiedName ?? Primitives.CAbi(type.Primitive);
+    private static string CType(TypeRef type) => type.Shape switch
+    {
+        Shape.Struct => type.Struct!.QualifiedName,
+        Shape.Enum => type.Enum!.QualifiedName,
+        _ => Primitives.CAbi(type.Primitive),
+    };
 
-    // A bool parameter arrives as a byte.
-    private static string ToCpp(Parameter parameter) =>
-        parameter.Type is { IsStruct: false, Primitive: Primitive.Bool } ? $"{parameter.Name} != 0" : parameter.Name;
+    // Spans and string views cross as pointer + length (ADR 0017).
+    private static IEnumerable<string> CParameters(Parameter parameter) => parameter.Type.Shape switch
+    {
+        Shape.String => [$"const char* {parameter.Name}", $"size_t {parameter.Name}Length"],
+        Shape.Span =>
+        [
+            $"{(parameter.Type.IsConst ? "const " : "")}{CType(parameter.Type.Element!)}* {parameter.Name}",
+            $"size_t {parameter.Name}Length",
+        ],
+        _ => [$"{CType(parameter.Type)} {parameter.Name}"],
+    };
+
+    private static string ToCpp(Parameter parameter) => parameter.Type.Shape switch
+    {
+        Shape.String => $"std::string_view({parameter.Name}, {parameter.Name}Length)",
+        Shape.Span =>
+            $"std::span<{(parameter.Type.IsConst ? "const " : "")}{CType(parameter.Type.Element!)}>({parameter.Name}, {parameter.Name}Length)",
+        // A bool parameter arrives as a byte.
+        _ when parameter.Type.Is(Primitive.Bool) => $"{parameter.Name} != 0",
+        _ => parameter.Name,
+    };
 }

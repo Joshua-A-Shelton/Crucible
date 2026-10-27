@@ -28,24 +28,24 @@ bool translate(const SDL_Event& event, InputEvent& out)
         return true;
     case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
         out.type = InputEventType::WindowCloseRequested;
-        out.window = event.window.windowID;
+        out.window.value = event.window.windowID;
         return true;
     case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
         out.type = InputEventType::WindowResized;
-        out.window = event.window.windowID;
+        out.window.value = event.window.windowID;
         out.code = event.window.data1;
         out.value = event.window.data2;
         return true;
     case SDL_EVENT_KEY_DOWN:
     case SDL_EVENT_KEY_UP:
         out.type = event.type == SDL_EVENT_KEY_DOWN ? InputEventType::KeyDown : InputEventType::KeyUp;
-        out.window = event.key.windowID;
+        out.window.value = event.key.windowID;
         out.code = static_cast<int32_t>(event.key.scancode);
         out.value = event.key.repeat ? 1 : 0;
         return true;
     case SDL_EVENT_MOUSE_MOTION:
         out.type = InputEventType::MouseMotion;
-        out.window = event.motion.windowID;
+        out.window.value = event.motion.windowID;
         out.x = event.motion.x;
         out.y = event.motion.y;
         out.dx = event.motion.xrel;
@@ -55,7 +55,7 @@ bool translate(const SDL_Event& event, InputEvent& out)
     case SDL_EVENT_MOUSE_BUTTON_UP:
         out.type =
             event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ? InputEventType::MouseButtonDown : InputEventType::MouseButtonUp;
-        out.window = event.button.windowID;
+        out.window.value = event.button.windowID;
         out.code = event.button.button;
         out.x = event.button.x;
         out.y = event.button.y;
@@ -104,7 +104,7 @@ void destroyWindow(WindowHandle window)
     }
 }
 
-void windowPixelSize(WindowHandle window, uint32_t& width, uint32_t& height)
+WindowSize windowPixelSize(WindowHandle window)
 {
     int w = 0;
     int h = 0;
@@ -112,8 +112,7 @@ void windowPixelSize(WindowHandle window, uint32_t& width, uint32_t& height)
     {
         SDL_GetWindowSizeInPixels(sdlWindow, &w, &h);
     }
-    width = static_cast<uint32_t>(w);
-    height = static_cast<uint32_t>(h);
+    return WindowSize{static_cast<uint32_t>(w), static_cast<uint32_t>(h)};
 }
 
 uint32_t pollEvents(std::span<InputEvent> events)

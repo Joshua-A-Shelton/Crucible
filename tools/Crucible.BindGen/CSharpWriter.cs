@@ -3,8 +3,9 @@ using System.Text;
 namespace Crucible.BindGen;
 
 /// <summary>
-/// Writes the C# side (ADR 0017): struct mirrors with their layout checks, the
-/// public idiomatic layer, and the internal raw LibraryImport layer.
+/// Writes the C# side (ADR 0017): enum and struct mirrors with their layout
+/// checks, the public idiomatic layer (one <c>Api</c> class per namespace), and
+/// the internal raw LibraryImport layer.
 /// </summary>
 internal static class CSharpWriter
 {
@@ -14,6 +15,9 @@ internal static class CSharpWriter
         "base", "checked", "decimal", "event", "explicit", "fixed", "implicit", "in", "internal", "is", "lock",
         "object", "out", "override", "params", "readonly", "ref", "sealed", "string", "unchecked", "value",
     ];
+
+    private const string Native = "global::Crucible.Interop.Native";
+    private const string Utf8Argument = "global::Crucible.Interop.Utf8Argument";
 
     public static string Write(BindingModel model)
     {
@@ -26,15 +30,34 @@ internal static class CSharpWriter
         text.AppendLine();
         text.AppendLine("using System.Runtime.CompilerServices;");
         text.AppendLine("using System.Runtime.InteropServices;");
-        text.AppendLine();
-        text.AppendLine("namespace Crucible");
-        text.AppendLine("{");
-        foreach (ExposedStruct exposed in model.Structs)
+
+        // One C# namespace per C++ namespace, in a stable order.
+        IEnumerable<Scope> scopes = model.Enums.Select(e => e.Scope)
+            .Concat(model.Structs.Select(s => s.Scope))
+            .Concat(model.Functions.Select(f => f.Scope))
+            .Distinct()
+            .OrderBy(scope => scope.CSharp, StringComparer.Ordinal);
+        foreach (Scope scope in scopes)
         {
-            WriteStruct(text, exposed);
+            text.AppendLine();
+            text.AppendLine($"namespace {scope.CSharp}");
+            text.AppendLine("{");
+            foreach (ExposedEnum exposed in model.Enums.Where(e => e.Scope == scope))
+            {
+                WriteEnum(text, exposed);
+            }
+            foreach (ExposedStruct exposed in model.Structs.Where(s => s.Scope == scope))
+            {
+                WriteStruct(text, exposed);
+            }
+            List<ExposedFunction> functions = model.Functions.Where(f => f.Scope == scope).ToList();
+            if (functions.Count > 0)
+            {
+                WriteApi(text, scope, functions);
+            }
+            text.AppendLine("}");
         }
-        WriteIdiomaticLayer(text, model);
-        text.AppendLine("}");
+
         text.AppendLine();
         text.AppendLine("namespace Crucible.Interop");
         text.AppendLine("{");
@@ -42,6 +65,21 @@ internal static class CSharpWriter
         WriteLayoutChecks(text, model);
         text.AppendLine("}");
         return text.ToString();
+    }
+
+    private static void WriteEnum(StringBuilder text, ExposedEnum exposed)
+    {
+        // Values come from libclang, so they match by construction; LayoutChecks
+        // and the C++ static_asserts cover the size.
+        text.AppendLine($"    /// <summary>Mirror of <c>{exposed.QualifiedName}</c>.</summary>");
+        text.AppendLine($"    public enum {exposed.Name} : {Primitives.CSharpRaw(exposed.Underlying)}");
+        text.AppendLine("    {");
+        foreach (Enumerator enumerator in exposed.Enumerators)
+        {
+            text.AppendLine($"        {enumerator.Name} = {enumerator.Value},");
+        }
+        text.AppendLine("    }");
+        text.AppendLine();
     }
 
     private static void WriteStruct(StringBuilder text, ExposedStruct exposed)
@@ -55,8 +93,8 @@ internal static class CSharpWriter
         text.AppendLine("    {");
         foreach (Field field in exposed.Fields)
         {
-            string name = Pascal(field.Name);
-            if (field.Type is { IsStruct: false, Primitive: Primitive.Bool })
+            string name = Names.Pascal(field.Name);
+            if (field.Type.Is(Primitive.Bool))
             {
                 // bool isn't blittable in .NET: store the C++ byte, expose a bool.
                 text.AppendLine($"        [FieldOffset({field.Offset})] private byte _{field.Name};");
@@ -72,20 +110,23 @@ internal static class CSharpWriter
             }
         }
 
+        string self = QualifiedName(exposed.Scope, exposed.Name);
         text.AppendLine();
         text.AppendLine("        /// <summary>Returns null if this mirror's layout matches C++, else the first difference.</summary>");
         text.AppendLine("        internal static string? VerifyLayout()");
         text.AppendLine("        {");
-        text.AppendLine($"            if (Unsafe.SizeOf<{exposed.Name}>() != {exposed.Size})");
+        text.AppendLine($"            if (Unsafe.SizeOf<{self}>() != {exposed.Size})");
         text.AppendLine("            {");
+        // The plain name inside the hole: "global::" there would start a format string.
         text.AppendLine($"                return $\"{exposed.QualifiedName}: size {{Unsafe.SizeOf<{exposed.Name}>()}}, C++ has {exposed.Size}\";");
         text.AppendLine("            }");
-        text.AppendLine($"            {exposed.Name} probe = default;");
-        text.AppendLine($"            ref byte start = ref Unsafe.As<{exposed.Name}, byte>(ref probe);");
+        text.AppendLine($"            {self} probe = default;");
+        text.AppendLine($"            ref byte start = ref Unsafe.As<{self}, byte>(ref probe);");
         foreach (Field field in exposed.Fields)
         {
-            string member = field.Type is { IsStruct: false, Primitive: Primitive.Bool } ? $"_{field.Name}" : Pascal(field.Name);
-            string type = field.Type is { IsStruct: false, Primitive: Primitive.Bool } ? "byte" : IdiomaticType(field.Type);
+            bool isBool = field.Type.Is(Primitive.Bool);
+            string member = isBool ? $"_{field.Name}" : Names.Pascal(field.Name);
+            string type = isBool ? "byte" : IdiomaticType(field.Type);
             text.AppendLine($"            if (Unsafe.ByteOffset(ref start, ref Unsafe.As<{type}, byte>(ref probe.{member})) != {field.Offset})");
             text.AppendLine("            {");
             text.AppendLine($"                return \"{exposed.QualifiedName}::{field.Name}: offset differs from C++ ({field.Offset})\";");
@@ -97,46 +138,167 @@ internal static class CSharpWriter
         text.AppendLine();
     }
 
-    private static void WriteIdiomaticLayer(StringBuilder text, BindingModel model)
+    private static void WriteApi(StringBuilder text, Scope scope, List<ExposedFunction> functions)
     {
-        text.AppendLine("    /// <summary>The C++ core's exposed functions (ADR 0017's idiomatic layer).</summary>");
-        text.AppendLine("    public static partial class Core");
+        text.AppendLine($"    /// <summary>The exposed functions of <c>{scope.Cpp.TrimEnd(':')}</c> (ADR 0017's idiomatic layer).</summary>");
+        text.AppendLine("    public static partial class Api");
         text.AppendLine("    {");
-        for (int i = 0; i < model.Functions.Count; ++i)
+        for (int i = 0; i < functions.Count; ++i)
         {
-            ExposedFunction function = model.Functions[i];
             if (i > 0)
             {
                 text.AppendLine();
             }
-            string parameters = string.Join(", ",
-                function.Parameters.Select(parameter => $"{IdiomaticType(parameter.Type)} {Identifier(parameter.Name)}"));
-            string arguments = string.Join(", ", function.Parameters.Select(ToRaw));
-            string call = $"Interop.Native.{Pascal(function.Name)}({arguments})";
-            if (function.ReturnType is { IsStruct: false, Primitive: Primitive.Bool })
-            {
-                call = $"{call} != 0";
-            }
-            text.AppendLine($"        /// <summary>Calls <c>{function.QualifiedName}</c>.</summary>");
-            text.AppendLine($"        public static {IdiomaticType(function.ReturnType)} {Pascal(function.Name)}({parameters}) => {call};");
+            WriteIdiomaticFunction(text, functions[i]);
         }
         text.AppendLine("    }");
+    }
+
+    private static void WriteIdiomaticFunction(StringBuilder text, ExposedFunction function)
+    {
+        List<string> parameters = [];
+        List<string> setup = [];
+        List<string> pins = [];
+        List<string> arguments = [];
+        foreach (Parameter parameter in function.Parameters)
+        {
+            string name = Identifier(parameter.Name);
+            TypeRef type = parameter.Type;
+            switch (type.Shape)
+            {
+                case Shape.String:
+                    // UTF-8 in a stack buffer (a pooled one for long strings):
+                    // no garbage per call.
+                    parameters.Add($"string {name}");
+                    setup.Add($"using {Utf8Argument} {parameter.Name}Utf8 = new({name}, stackalloc byte[{Utf8Argument}.StackSize]);");
+                    pins.Add($"fixed (byte* {parameter.Name}Pointer = {parameter.Name}Utf8.Bytes)");
+                    arguments.Add($"{parameter.Name}Pointer");
+                    arguments.Add($"(nuint){parameter.Name}Utf8.Bytes.Length");
+                    break;
+                case Shape.Span:
+                    // Pinned, not copied: C++ reads or writes the caller's memory.
+                    string element = IdiomaticType(type.Element!);
+                    parameters.Add($"global::System.{(type.IsConst ? "ReadOnlySpan" : "Span")}<{element}> {name}");
+                    pins.Add($"fixed ({element}* {parameter.Name}Pointer = {name})");
+                    arguments.Add($"{parameter.Name}Pointer");
+                    arguments.Add($"(nuint){name}.Length");
+                    break;
+                default:
+                    parameters.Add($"{IdiomaticType(type)} {name}");
+                    arguments.Add(type.Is(Primitive.Bool) ? $"{name} ? (byte)1 : (byte)0" : name);
+                    break;
+            }
+        }
+
+        TypeRef returnType = function.ReturnType;
+        bool hasValue = !returnType.Is(Primitive.Void);
+        bool isBool = returnType.Is(Primitive.Bool);
+        if (function.ReturnsResult && hasValue)
+        {
+            // The C value goes to a local; a bool crosses as a byte.
+            arguments.Add("&resultValue");
+            if (function.StatusForm)
+            {
+                parameters.Add($"out {IdiomaticType(returnType)} result");
+            }
+        }
+
+        string call = $"{Native}.{function.RawName}({string.Join(", ", arguments)})";
+        string signatureType = function.ReturnsResult
+            ? function.StatusForm ? "global::Crucible.Status" : IdiomaticType(returnType)
+            : IdiomaticType(returnType);
+        bool needsUnsafe = pins.Count > 0 || (function.ReturnsResult && hasValue);
+
+        List<string> body = [.. setup];
+        if (function.ReturnsResult)
+        {
+            if (hasValue)
+            {
+                body.Add($"{RawType(returnType)} resultValue = default;");
+            }
+            if (pins.Count > 0)
+            {
+                body.Add("global::Crucible.Status status;");
+                body.AddRange(pins);
+                body.Add("{");
+                body.Add($"    status = {call};");
+                body.Add("}");
+            }
+            else
+            {
+                body.Add($"global::Crucible.Status status = {call};");
+            }
+            string value = isBool ? "resultValue != 0" : "resultValue";
+            if (function.StatusForm)
+            {
+                if (hasValue)
+                {
+                    body.Add($"result = {value};");
+                }
+                body.Add("return status;");
+            }
+            else
+            {
+                // ADR 0030: an unexpected failure throws in C#.
+                body.Add("if (status < 0)");
+                body.Add("{");
+                body.Add($"    throw new global::Crucible.CrucibleException(status, \"{function.QualifiedName}\");");
+                body.Add("}");
+                if (hasValue)
+                {
+                    body.Add($"return {value};");
+                }
+            }
+        }
+        else
+        {
+            string statement = !hasValue ? $"{call};" : isBool ? $"return {call} != 0;" : $"return {call};";
+            if (pins.Count > 0)
+            {
+                body.AddRange(pins);
+                body.Add("{");
+                body.Add($"    {statement}");
+                body.Add("}");
+            }
+            else
+            {
+                body.Add(statement);
+            }
+        }
+
+        string modifiers = needsUnsafe ? "public static unsafe" : "public static";
+        text.AppendLine($"        /// <summary>Calls <c>{function.QualifiedName}</c>.</summary>");
+        text.AppendLine($"        {modifiers} {signatureType} {Names.Pascal(function.Name)}({string.Join(", ", parameters)})");
+        text.AppendLine("        {");
+        foreach (string line in body)
+        {
+            text.AppendLine($"            {line}");
+        }
+        text.AppendLine("        }");
     }
 
     private static void WriteRawLayer(StringBuilder text, BindingModel model)
     {
         text.AppendLine("    /// <summary>The raw layer: one declaration per exported C function (ADR 0017).</summary>");
-        text.AppendLine("    internal static partial class Native");
+        text.AppendLine("    internal static unsafe partial class Native");
         text.AppendLine("    {");
         text.AppendLine("        /// <summary>The core library's name; .NET adds the platform's prefix and extension.</summary>");
         text.AppendLine("        internal const string CoreLibrary = \"crucible_core\";");
         foreach (ExposedFunction function in model.Functions)
         {
-            string parameters = string.Join(", ",
-                function.Parameters.Select(parameter => $"{RawType(parameter.Type)} {Identifier(parameter.Name)}"));
+            List<string> parameters = function.Parameters.SelectMany(RawParameters).ToList();
+            string returnType = RawType(function.ReturnType);
+            if (function.ReturnsResult)
+            {
+                if (!function.ReturnType.Is(Primitive.Void))
+                {
+                    parameters.Add($"{returnType}* result");
+                }
+                returnType = "global::Crucible.Status";
+            }
             text.AppendLine();
             text.AppendLine($"        [LibraryImport(CoreLibrary, EntryPoint = \"{function.CName}\")]");
-            text.AppendLine($"        internal static partial {RawType(function.ReturnType)} {Pascal(function.Name)}({parameters});");
+            text.AppendLine($"        internal static partial {returnType} {function.RawName}({string.Join(", ", parameters)});");
         }
         text.AppendLine("    }");
         text.AppendLine();
@@ -144,39 +306,53 @@ internal static class CSharpWriter
 
     private static void WriteLayoutChecks(StringBuilder text, BindingModel model)
     {
-        text.AppendLine("    /// <summary>Checks every struct mirror against its C++ layout (ADR 0017).</summary>");
+        List<string> checks = model.Enums
+            .Select(e =>
+            {
+                string self = QualifiedName(e.Scope, e.Name);
+                return $"(Unsafe.SizeOf<{self}>() != {e.Size} ? \"{e.QualifiedName}: size differs from C++ ({e.Size})\" : null)";
+            })
+            .Concat(model.Structs.Select(s => $"{QualifiedName(s.Scope, s.Name)}.VerifyLayout()"))
+            .ToList();
+
+        text.AppendLine("    /// <summary>Checks every enum and struct mirror against its C++ layout (ADR 0017).</summary>");
         text.AppendLine("    internal static class LayoutChecks");
         text.AppendLine("    {");
         text.AppendLine("        /// <summary>Returns null if every mirror matches, else the first difference.</summary>");
         text.AppendLine("        internal static string? Verify()");
         text.AppendLine("        {");
-        if (model.Structs.Count == 0)
-        {
-            text.AppendLine("            return null;");
-        }
-        else
-        {
-            text.AppendLine("            return " +
-                            string.Join("\n                ?? ", model.Structs.Select(s => $"global::Crucible.{s.Name}.VerifyLayout()")) +
-                            ";");
-        }
+        text.AppendLine(checks.Count == 0
+            ? "            return null;"
+            : $"            return {string.Join("\n                ?? ", checks)};");
         text.AppendLine("        }");
         text.AppendLine("    }");
     }
 
-    private static string IdiomaticType(TypeRef type) =>
-        type.Struct is { } exposed ? $"global::Crucible.{exposed.Name}" : Primitives.CSharpIdiomatic(type.Primitive);
+    private static string QualifiedName(Scope scope, string name) => $"global::{scope.CSharp}.{name}";
 
-    private static string RawType(TypeRef type) =>
-        type.Struct is { } exposed ? $"global::Crucible.{exposed.Name}" : Primitives.CSharpRaw(type.Primitive);
+    private static string IdiomaticType(TypeRef type) => type.Shape switch
+    {
+        Shape.Struct => QualifiedName(type.Struct!.Scope, type.Struct.Name),
+        Shape.Enum => QualifiedName(type.Enum!.Scope, type.Enum.Name),
+        _ => Primitives.CSharpIdiomatic(type.Primitive),
+    };
 
-    private static string ToRaw(Parameter parameter)
+    private static string RawType(TypeRef type) => type.Shape switch
+    {
+        Shape.Struct or Shape.Enum => IdiomaticType(type),
+        _ => Primitives.CSharpRaw(type.Primitive),
+    };
+
+    private static IEnumerable<string> RawParameters(Parameter parameter)
     {
         string name = Identifier(parameter.Name);
-        return parameter.Type is { IsStruct: false, Primitive: Primitive.Bool } ? $"{name} ? (byte)1 : (byte)0" : name;
+        return parameter.Type.Shape switch
+        {
+            Shape.String => [$"byte* {name}", $"nuint {parameter.Name}Length"],
+            Shape.Span => [$"{RawType(parameter.Type.Element!)}* {name}", $"nuint {parameter.Name}Length"],
+            _ => [$"{RawType(parameter.Type)} {name}"],
+        };
     }
-
-    private static string Pascal(string name) => name.Length == 0 ? name : char.ToUpperInvariant(name[0]) + name[1..];
 
     private static string Identifier(string name) => _keywords.Contains(name) ? $"@{name}" : name;
 }

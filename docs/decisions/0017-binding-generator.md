@@ -2,7 +2,8 @@
 
 **Status:** Accepted (2026-10-25). Amended 2026-10-26: libclang is reached
 through Crucible's own bindings to the system's libclang, not ClangSharp
-(see "Amendment" below).
+(see "Amendment" below). Amended again 2026-10-26 (M2): how enums, spans,
+strings, and Result cross, and the namespace mapping.
 
 ## Context
 
@@ -107,6 +108,49 @@ platform's C++ headers exactly as the compiler does.
   longer a dependency.
 - Given up: ClangSharp's maintained bindings. Kept small, the hand-written
   ones are also a worked example of the binding work Crucible does.
+
+## Amendment (2026-10-26): how each shape crosses
+
+Settled with the project owner in M2 step 2, when the platform API became
+the first real exposed API. Names (`Api`, `CRUCIBLE_EXPOSE_STATUS`,
+`CrucibleException`) are placeholders.
+
+| C++ | C ABI shim | C# idiomatic layer |
+|---|---|---|
+| `enum class E : uint32_t` | the enum itself | `enum E : uint`, same names and values |
+| `std::span<T>` / `std::span<const T>` parameter | `T*` + `size_t` | `Span<T>` / `ReadOnlySpan<T>`, pinned for the call |
+| `std::string_view` parameter | `const char*` + `size_t`, UTF-8 | `string` |
+| `Result<T>` return | returns `Status`; `T*` result written on success | `T`, throwing `CrucibleException` on failure |
+| `CRUCIBLE_EXPOSE_STATUS Result<T>` | same | `Status F(..., out T result)` |
+
+- **Namespaces:** `crucible::platform::createWindow` is exported as
+  `crucible_platform_createWindow` and called as
+  `Crucible.Platform.Api.CreateWindow`; types go into the matching C#
+  namespace (`Crucible.Platform.InputEvent`). Every exposed declaration is
+  inside `crucible`. Because a bare `Api` inside any `Crucible.*` namespace
+  means the root `Crucible.Api`, and a game importing two namespaces sees two
+  `Api` classes, calls read `Platform.Api.CreateWindow(...)`.
+- **Result (ADR 0030):** the generator can't tell an unexpected failure from
+  an expected or per-frame one, so the header says: throwing is the default,
+  `CRUCIBLE_EXPOSE_STATUS` opts into returning the `Status`. On failure the
+  C# value stays at its default.
+- **Strings** are converted to UTF-8 in a 256-byte stack buffer, or a pooled
+  array for longer ones, so a call creates no garbage, as .NET's own
+  `LibraryImport` string marshalling does.
+- **Spans** are pinned, never copied: C++ reads or writes the caller's
+  memory directly, so a frame's input events are written straight into a C#
+  array. Only dynamic-extent spans of non-`bool` elements cross; a C# `bool[]`
+  isn't laid out like C++ `bool`s.
+- **Out-parameters** (`T&`) are not supported: a C++ reference can't say
+  whether it's output-only. A function returning several values returns an
+  exposed struct (`WindowSize windowPixelSize(WindowHandle)`).
+- **Exposed structs have no default member initializers:** C#'s `default`
+  would silently ignore them, so the plain-data check rejects them.
+- **Detecting standard types** uses the declaration's name and its `std`
+  namespace, not type spellings, which differ between libc++, libstdc++, and
+  MSVC's library. A parameter's span type is never instantiated, so its size
+  is unknown; a fixed extent is detected because libclang leaves defaulted
+  template arguments out of the spelling (`span<T>` versus `span<T, 4>`).
 
 ## Consequences
 

@@ -44,11 +44,10 @@ TEST_CASE("A window can be created, measured, and destroyed")
     REQUIRE(static_cast<bool>(window));
     CHECK(window.value().value != 0);
 
-    uint32_t width = 0;
-    uint32_t height = 0;
-    windowPixelSize(window.value(), width, height);
-    CHECK(width == 320);
-    CHECK(height == 240);
+    const WindowSize size = windowPixelSize(window.value());
+    CHECK(size.width == 320);
+    CHECK(size.height == 240);
+    CHECK(windowPixelSize(WindowHandle{}).width == 0);
 
     destroyWindow(window.value());
 }
@@ -77,7 +76,7 @@ TEST_CASE("SDL events come back as Crucible events with their timestamps")
 
     CHECK(events[0].type == InputEventType::KeyDown);
     CHECK(events[0].timestampNs == 1234);
-    CHECK(events[0].window == 7);
+    CHECK(events[0].window.value == 7);
     CHECK(events[0].code == SDL_SCANCODE_SPACE);
     CHECK(events[0].value == 1);
 
