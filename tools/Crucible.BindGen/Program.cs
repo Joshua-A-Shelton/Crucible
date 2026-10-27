@@ -9,12 +9,13 @@ namespace Crucible.BindGen;
 public static class Program
 {
     private const string Usage =
-        "usage: Crucible.BindGen --libclang <path> --output-cpp <file> --output-cs <file> --depfile <file>\n" +
+        "usage: Crucible.BindGen --libclang <path> --clang <path> --output-cpp <file> --output-cs <file>\n" +
+        "                        --depfile <file>\n" +
         "                        [--include-dir <dir>]... --header <file>...";
 
     public static int Main(string[] args)
     {
-        string? libclang = null, outputCpp = null, outputCs = null, depfile = null;
+        string? libclang = null, clang = null, outputCpp = null, outputCs = null, depfile = null;
         List<string> headers = [];
         List<string> includeDirectories = [];
         for (int i = 0; i + 1 < args.Length; i += 2)
@@ -22,6 +23,7 @@ public static class Program
             switch (args[i])
             {
                 case "--libclang": libclang = args[i + 1]; break;
+                case "--clang": clang = args[i + 1]; break;
                 case "--output-cpp": outputCpp = args[i + 1]; break;
                 case "--output-cs": outputCs = args[i + 1]; break;
                 case "--depfile": depfile = args[i + 1]; break;
@@ -32,14 +34,15 @@ public static class Program
                     return 2;
             }
         }
-        if (libclang is null || outputCpp is null || outputCs is null || depfile is null || headers.Count == 0)
+        if (libclang is null || clang is null || outputCpp is null || outputCs is null || depfile is null ||
+            headers.Count == 0)
         {
             Console.Error.WriteLine(Usage);
             return 2;
         }
 
         Libclang.Load(libclang);
-        BindingModel? model = Parser.Parse(headers, includeDirectories);
+        BindingModel? model = Parser.Parse(clang, headers, includeDirectories);
         if (model is null)
         {
             return 1;

@@ -42,12 +42,13 @@ endif()
 if(CRUCIBLE_BUILD_TESTS)
     add_test(NAME launcher.jit.start
         COMMAND crucible_launcher --managed-dir "${CRUCIBLE_DOTNET_ARTIFACTS_DIR}/bin/Crucible.Engine/${CRUCIBLE_DOTNET_CONFIGURATION_DIR}")
-    set_tests_properties(launcher.jit.start PROPERTIES LABELS integration)
+    set_tests_properties(launcher.jit.start PROPERTIES LABELS integration ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen")
 
     # Proves a hosting failure is reported: no engine assembly, so it must fail.
     add_test(NAME launcher.jit.missing-engine
         COMMAND crucible_launcher --managed-dir "${CMAKE_CURRENT_BINARY_DIR}/no-engine-here")
-    set_tests_properties(launcher.jit.missing-engine PROPERTIES LABELS integration WILL_FAIL TRUE)
+    set_tests_properties(launcher.jit.missing-engine PROPERTIES LABELS integration WILL_FAIL TRUE
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen")
 
     # A managed folder whose name isn't ASCII: on Windows only wmain receives
     # such a path intact. The setup test copies the engine there first.
@@ -60,10 +61,11 @@ if(CRUCIBLE_BUILD_TESTS)
     add_test(NAME launcher.jit.unicode-path COMMAND crucible_launcher --managed-dir "${unicodeDirectory}")
     set_tests_properties(launcher.jit.unicode-path PROPERTIES
         LABELS integration
-        FIXTURES_REQUIRED unicode-managed-dir)
+        FIXTURES_REQUIRED unicode-managed-dir
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen")
 
     if(CRUCIBLE_BUILD_AOT)
         add_test(NAME launcher.aot.start COMMAND crucible_launcher_aot)
-        set_tests_properties(launcher.aot.start PROPERTIES LABELS "integration;aot")
+        set_tests_properties(launcher.aot.start PROPERTIES LABELS "integration;aot" ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen")
     endif()
 endif()

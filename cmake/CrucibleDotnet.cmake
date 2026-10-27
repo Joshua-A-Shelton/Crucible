@@ -56,8 +56,10 @@ set(CRUCIBLE_NATIVE_PROPS "${CMAKE_BINARY_DIR}/CrucibleNative.props")
 # its own, so the C++ standard library that Slag and the core need is added
 # here. As a NativeSystemLibrary it comes after the static libraries on the
 # link line, which is where it has to be.
+# On Windows: d3d12 and dxgi for Slag; setupapi, winmm, imm32, and version
+# for SDL linked statically (SDL's documentation lists them).
 if(WIN32)
-    set(_crucible_core_system_libraries "<NativeLibrary Include=\"d3d12.lib\" /><NativeLibrary Include=\"dxgi.lib\" />")
+    set(_crucible_core_system_libraries "<NativeLibrary Include=\"d3d12.lib\" /><NativeLibrary Include=\"dxgi.lib\" /><NativeLibrary Include=\"setupapi.lib\" /><NativeLibrary Include=\"winmm.lib\" /><NativeLibrary Include=\"imm32.lib\" /><NativeLibrary Include=\"version.lib\" />")
 else()
     set(_crucible_core_system_libraries "<NativeSystemLibrary Include=\"stdc++\" />")
 endif()
@@ -68,6 +70,7 @@ file(GENERATE OUTPUT "${CRUCIBLE_NATIVE_PROPS}" CONTENT "<Project>
   <ItemGroup Condition=\"'$(PublishAot)' == 'true' and '$(NativeLib)' == '' and '$(OutputType)' == 'Exe'\">
     <NativeLibrary Include=\"$<TARGET_LINKER_FILE:crucible_core_static>\" />
     <NativeLibrary Include=\"$<TARGET_LINKER_FILE:slag>\" />
+    <NativeLibrary Include=\"$<TARGET_LINKER_FILE:SDL3-static>\" />
     ${_crucible_core_system_libraries}
   </ItemGroup>
 </Project>

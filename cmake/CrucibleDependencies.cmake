@@ -17,6 +17,29 @@ FetchContent_Declare(Slag
 FetchContent_MakeAvailable(Slag)
 
 # ---------------------------------------------------------------------------
+# SDL3 (zlib): the platform layer (ADR 0018), linked into the core behind
+# Crucible's own platform API. Same version and hash as Slag's samples.
+# Built static, with only the subsystems in use so far: video and events.
+# Gamepads (joystick, HIDAPI, haptic) come with UI navigation in M6, audio in
+# M8, dialogs with the editor in M7. Slag creates the Vulkan surface itself,
+# so SDL's Vulkan support stays off.
+# ---------------------------------------------------------------------------
+
+FetchContent_Declare(SDL3
+    URL https://github.com/libsdl-org/SDL/releases/download/release-3.4.18/SDL3-3.4.18.tar.gz
+    URL_HASH SHA256=9c75cf16330322c217dedd2e0609f1124f1b54b8633e763467b4684d0f4334a3)
+set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+set(SDL_STATIC ON CACHE BOOL "" FORCE)
+set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
+set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(SDL_INSTALL OFF CACHE BOOL "" FORCE)
+foreach(_crucible_sdl_off SDL_AUDIO SDL_CAMERA SDL_GPU SDL_RENDER SDL_HAPTIC SDL_HIDAPI SDL_JOYSTICK SDL_SENSOR
+                          SDL_POWER SDL_DIALOG SDL_OPENGL SDL_OPENGLES SDL_VULKAN)
+    set(${_crucible_sdl_off} OFF CACHE BOOL "" FORCE)
+endforeach()
+FetchContent_MakeAvailable(SDL3)
+
+# ---------------------------------------------------------------------------
 # doctest (MIT): tests only, never linked into the engine (ADR 0029)
 # ---------------------------------------------------------------------------
 

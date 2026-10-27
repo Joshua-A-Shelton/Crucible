@@ -56,6 +56,7 @@ function(crucible_generate_bindings)
     set(depfile "${CRUCIBLE_GENERATED_DIR}/bindings.d")
     set(arguments
         --libclang "${CRUCIBLE_LIBCLANG}"
+        --clang "${CRUCIBLE_CLANG}"
         --output-cpp "${bindings_OUTPUT_CPP}"
         --output-cs "${bindings_OUTPUT_CS}"
         --depfile "${depfile}")

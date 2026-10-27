@@ -4,6 +4,8 @@
 
 #include "EngineHost.h"
 
+#include <crucible/Platform.h>
+
 #include <cstdio>
 #include <filesystem>
 #include <string_view>
@@ -64,7 +66,15 @@ int run(int argc, ArgumentChar** argv)
         managedDirectory = absoluteDirectory;
     }
 
+    // Platform setup and shutdown belong to the launcher (ADR 0011).
+    if (!crucible::platform::initialize())
+    {
+        std::fprintf(stderr, "crucible: the platform layer could not start\n");
+        return 1;
+    }
+
     const crucible::Result<int> result = crucible::launcher::runEngine(managedDirectory);
+    crucible::platform::shutdown();
     if (!result)
     {
         std::fprintf(stderr, "crucible: the engine could not start (status %d)\n", static_cast<int>(result.status()));

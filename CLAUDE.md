@@ -304,7 +304,8 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   on Linux; on Windows LLVM's default folder is searched).
 - **Windows** (ADR 0031): the static C runtime (`/MT`) everywhere, Slag
   included; the launcher uses `nethost.dll` and `wmain`. Build from a Visual
-  Studio developer environment (`vcvars64.bat`).
+  Studio developer environment: `scripts\msvc.cmd <command>` runs a command
+  inside one, finding Visual Studio with vswhere (also over SSH).
 - **Bindings** (ADR 0017): `tools/Crucible.BindGen` runs before the core and
   engine build, on every public header in `src/native/core/include/`.
   Output goes to `build/<preset>/generated/`; IDE builds of the C# projects

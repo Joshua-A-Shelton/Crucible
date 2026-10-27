@@ -103,8 +103,12 @@ internal static unsafe partial class Libclang
     [LibraryImport(Library, EntryPoint = "clang_disposeIndex")]
     public static partial void DisposeIndex(nint index);
 
-    [LibraryImport(Library, EntryPoint = "clang_parseTranslationUnit2")]
-    public static partial int ParseTranslationUnit2(nint index, byte* sourceFilename, byte** commandLineArgs,
+    // The full-command-line form: argv[0] is the compiler's path, which tells
+    // libclang's driver where Clang is installed. Without it the driver looks
+    // for Clang's built-in headers (stddef.h, ...) in a relative path and
+    // finds nothing.
+    [LibraryImport(Library, EntryPoint = "clang_parseTranslationUnit2FullArgv")]
+    public static partial int ParseTranslationUnit2FullArgv(nint index, byte* sourceFilename, byte** commandLineArgs,
         int numCommandLineArgs, CXUnsavedFile* unsavedFiles, uint numUnsavedFiles, uint options,
         nint* translationUnit);
 

@@ -93,8 +93,14 @@ Decision: the generator binds the **libclang C API** itself (about 30
 functions: parsing, walking declarations, annotations, types, sizes, field
 offsets, inclusions) and loads the **system's libclang**, found by CMake next
 to the system Clang. The C API is ABI-stable across Clang versions, and
-ClangSharp's low-level layer wraps the same API. libclang finds its own
-built-in headers next to itself, so they always match.
+ClangSharp's low-level layer wraps the same API.
+
+Correction (M2): libclang does **not** find its built-in headers on its own.
+Called without a program path, its driver doesn't know where Clang is
+installed and looks for them in a relative path. The generator therefore
+parses with `clang_parseTranslationUnit2FullArgv` and the system `clang`'s
+path as argv[0], so the driver finds Clang's built-in headers and the
+platform's C++ headers exactly as the compiler does.
 
 - libclang (Apache 2.0 with LLVM exception) becomes a build-time
   requirement found on the system, like Clang itself; ClangSharp is no

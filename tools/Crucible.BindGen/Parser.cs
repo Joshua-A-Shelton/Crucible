@@ -21,7 +21,8 @@ internal sealed class Parser
         _headerFiles = headers.Select(Path.GetFullPath).ToHashSet();
     }
 
-    public static BindingModel? Parse(IReadOnlyList<string> headers, IReadOnlyList<string> includeDirectories)
+    public static BindingModel? Parse(string clang, IReadOnlyList<string> headers,
+        IReadOnlyList<string> includeDirectories)
     {
         Parser parser = new(headers);
         BindingModel model = new();
@@ -31,7 +32,7 @@ internal sealed class Parser
         }
 
         nint index = Libclang.CreateIndex(0, 0);
-        nint translationUnit = ParseHeaders(index, headers, includeDirectories);
+        nint translationUnit = ParseHeaders(index, clang, headers, includeDirectories);
         try
         {
             if (translationUnit == 0 || !ReportDiagnostics(translationUnit))
@@ -73,11 +74,15 @@ internal sealed class Parser
     // The headers are parsed together, through one unsaved file that includes them.
     private const string SyntheticSource = "crucible_bindgen_input.cpp";
 
-    private static unsafe nint ParseHeaders(nint index, IReadOnlyList<string> headers,
+    private static unsafe nint ParseHeaders(nint index, string clang, IReadOnlyList<string> headers,
         IReadOnlyList<string> includeDirectories)
     {
-        List<string> arguments = ["-x", "c++", "-std=c++20", "-DCRUCIBLE_BINDGEN=1"];
+        // A full command line, as if running the system clang on the synthetic
+        // source: argv[0] lets libclang's driver find Clang's built-in headers
+        // and the platform's C++ headers the way the compiler does.
+        List<string> arguments = [clang, "-x", "c++", "-std=c++20", "-DCRUCIBLE_BINDGEN=1"];
         arguments.AddRange(includeDirectories.Select(directory => $"-I{directory}"));
+        arguments.Add(SyntheticSource);
         string source = string.Concat(headers.Select(header => $"#include \"{Path.GetFullPath(header)}\"\n"));
 
         List<nint> allocations = [];
@@ -103,7 +108,8 @@ internal sealed class Parser
             };
 
             nint translationUnit = 0;
-            int error = Libclang.ParseTranslationUnit2(index, (byte*)Utf8(SyntheticSource), (byte**)argumentPointers,
+            // The source file is named in the command line, so no separate name.
+            int error = Libclang.ParseTranslationUnit2FullArgv(index, null, (byte**)argumentPointers,
                 arguments.Count, &unsaved, 1, Libclang.SkipFunctionBodies, &translationUnit);
             if (error != 0)
             {

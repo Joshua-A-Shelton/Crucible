@@ -26,6 +26,7 @@ crucible_generate_bindings(
 target_sources(crucible_core_objects PRIVATE
     BindingProbe.cpp
     Core.cpp
+    Platform.cpp
     "${CRUCIBLE_GENERATED_DIR}/native/Bindings.g.cpp")
 
 # Only CRUCIBLE_EXPORT symbols are visible from the shared library.
@@ -35,6 +36,8 @@ set_target_properties(crucible_core_objects PROPERTIES
     VISIBILITY_INLINES_HIDDEN ON)
 
 target_link_libraries(crucible_core_objects PUBLIC slag::slag)
+# SDL stays private: it never appears in a public header (ADR 0018).
+target_link_libraries(crucible_core_objects PRIVATE SDL3::SDL3-static)
 
 add_library(crucible_core SHARED)
 add_library(crucible::core ALIAS crucible_core)
