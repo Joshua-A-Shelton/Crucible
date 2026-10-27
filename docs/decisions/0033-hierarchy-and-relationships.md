@@ -57,3 +57,13 @@ added later without changing them.
 
 Given up, for now: querying by relationship directly, which flecs pairs
 offer.
+
+As built (M3 step 6b): `Parent` is a built-in component
+(`parentComponent()`); `setParent(child, parent, index)` inserts at a
+position among the parent's children (or last), moves a child within its
+siblings when the parent is the same, makes it a root for `nullEntity`, and
+refuses dead entities and cycles (found by walking up from the new parent)
+with `InvalidData`. `childrenOf` returns the ordered list. Destroying an
+entity destroys its descendants children-first and removes it from its
+parent's list. Writing `Parent` directly isn't supported: it would leave
+the children lists out of step.

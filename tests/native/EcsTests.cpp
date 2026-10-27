@@ -419,3 +419,293 @@ TEST_SUITE("benchmark" * doctest::skip())
         jobs::shutdown();
     }
 }
+
+// ---------------------------------------------------------------------------
+// Step 6b: sparse storage, the hierarchy, command buffers
+// ---------------------------------------------------------------------------
+
+namespace {
+
+struct Damaged // toggled constantly: sparse
+{
+    int32_t amount;
+};
+
+struct Selected // a sparse tag
+{};
+
+} // namespace
+
+TEST_CASE("Sparse components come and go without moving the entity")
+{
+    const Components c;
+    const ComponentId damaged = registerComponent<Damaged>("Damaged", ComponentStorage::Sparse);
+    const ComponentId selected = registerComponent<Selected>("Selected", ComponentStorage::Sparse);
+    CHECK(isSparse(damaged));
+    CHECK_FALSE(isSparse(c.position));
+    CHECK(componentInfo(damaged).name == "Damaged");
+
+    WorldScope world;
+    const Entity e = createEntity(*world, {&c.position, 1});
+    const Position* before = read<Position>(*world, e);
+    addComponent(*world, e, damaged);
+    addComponent(*world, e, selected);
+    get<Damaged>(*world, e)->amount = 7;
+    CHECK(read<Position>(*world, e) == before); // same chunk, same row
+    CHECK(hasComponent(*world, e, damaged));
+    CHECK(hasComponent(*world, e, selected));
+    CHECK(read<Selected>(*world, e) == nullptr); // a tag has no value
+    CHECK(read<Damaged>(*world, e)->amount == 7);
+
+    removeComponent(*world, e, damaged);
+    CHECK_FALSE(hasComponent(*world, e, damaged));
+    CHECK(read<Position>(*world, e) == before);
+
+    // Created with a sparse component; destroyed entities leave the set.
+    const ComponentId both[] = {c.position, damaged};
+    const Entity f = createEntity(*world, both);
+    CHECK(hasComponent(*world, f, damaged));
+    destroyEntity(*world, e);
+    int visited = 0;
+    forEachSparse(*world, selected, [](Entity, void*, void* data) { ++*static_cast<int*>(data); }, &visited);
+    CHECK(visited == 0); // e had the only Selected
+}
+
+TEST_CASE("Random sparse adds and removes match a reference")
+{
+    const ComponentId damaged = registerComponent<Damaged>("Damaged", ComponentStorage::Sparse);
+    WorldScope world;
+    std::minstd_rand random(5);
+    std::vector<Entity> entities;
+    for (int i = 0; i < 500; ++i)
+    {
+        entities.push_back(createEntity(*world));
+    }
+    std::unordered_map<uint64_t, int32_t> reference;
+    for (int step = 0; step < 20'000; ++step)
+    {
+        const Entity e = entities[random() % entities.size()];
+        if (random() % 2)
+        {
+            addComponent(*world, e, damaged);
+            get<Damaged>(*world, e)->amount = step;
+            reference[e.value] = step;
+        }
+        else
+        {
+            removeComponent(*world, e, damaged);
+            reference.erase(e.value);
+        }
+    }
+    struct Check
+    {
+        std::unordered_map<uint64_t, int32_t>* reference;
+        int visited = 0;
+        int wrong = 0;
+    } check{&reference};
+    forEachSparse(
+        *world, damaged,
+        [](Entity e, void* value, void* data) {
+            auto* state = static_cast<Check*>(data);
+            ++state->visited;
+            auto found = state->reference->find(e.value);
+            state->wrong +=
+                (found == state->reference->end() || found->second != static_cast<Damaged*>(value)->amount) ? 1 : 0;
+        },
+        &check);
+    CHECK(check.visited == static_cast<int>(reference.size()));
+    CHECK(check.wrong == 0);
+}
+
+TEST_CASE("Children keep their order and can be moved within it")
+{
+    WorldScope world;
+    const Entity parent = createEntity(*world);
+    Entity kids[4];
+    for (Entity& kid : kids)
+    {
+        kid = createEntity(*world);
+        REQUIRE(setParent(*world, kid, parent));
+    }
+    CHECK(parentOf(*world, kids[2]) == parent);
+    CHECK(hasComponent(*world, kids[2], parentComponent()));
+    REQUIRE(childrenOf(*world, parent).size() == 4);
+    CHECK(childrenOf(*world, parent)[3] == kids[3]);
+
+    // Same parent, new position: kids[3] moves to the front.
+    REQUIRE(setParent(*world, kids[3], parent, 0));
+    std::span<const Entity> order = childrenOf(*world, parent);
+    CHECK(order[0] == kids[3]);
+    CHECK(order[1] == kids[0]);
+    CHECK(order[3] == kids[2]);
+
+    // Back to the root.
+    REQUIRE(setParent(*world, kids[0], nullEntity));
+    CHECK(parentOf(*world, kids[0]) == nullEntity);
+    CHECK_FALSE(hasComponent(*world, kids[0], parentComponent()));
+    CHECK(childrenOf(*world, parent).size() == 3);
+}
+
+TEST_CASE("Moves that would make a cycle are refused")
+{
+    WorldScope world;
+    const Entity a = createEntity(*world);
+    const Entity b = createEntity(*world);
+    const Entity c = createEntity(*world);
+    REQUIRE(setParent(*world, b, a));
+    REQUIRE(setParent(*world, c, b));
+    CHECK(setParent(*world, a, c).status() == Status::InvalidData); // a under its grandchild
+    CHECK(setParent(*world, a, a).status() == Status::InvalidData);
+    const Entity dead = createEntity(*world);
+    destroyEntity(*world, dead);
+    CHECK(setParent(*world, a, dead).status() == Status::InvalidData);
+    CHECK(parentOf(*world, a) == nullEntity); // unchanged
+}
+
+TEST_CASE("Destroying an entity destroys its descendants and leaves its parent's list")
+{
+    WorldScope world;
+    const Entity root = createEntity(*world);
+    const Entity middle = createEntity(*world);
+    const Entity sibling = createEntity(*world);
+    REQUIRE(setParent(*world, middle, root));
+    REQUIRE(setParent(*world, sibling, root));
+    // A deep chain under middle.
+    Entity chain = middle;
+    std::vector<Entity> descendants;
+    for (int i = 0; i < 200; ++i)
+    {
+        const Entity next = createEntity(*world);
+        REQUIRE(setParent(*world, next, chain));
+        descendants.push_back(next);
+        chain = next;
+    }
+
+    destroyEntity(*world, middle);
+    for (const Entity d : descendants)
+    {
+        CHECK_FALSE(isAlive(*world, d));
+    }
+    REQUIRE(childrenOf(*world, root).size() == 1);
+    CHECK(childrenOf(*world, root)[0] == sibling);
+    CHECK(entityCount(*world) == 2);
+
+    destroyEntity(*world, root);
+    CHECK(entityCount(*world) == 0);
+    CHECK(childrenOf(*world, root).empty());
+}
+
+TEST_CASE("Commands recorded during iteration apply at the sync point")
+{
+    const Components c;
+    WorldScope world;
+    const ComponentId set[] = {c.position, c.health};
+    for (int i = 0; i < 10; ++i)
+    {
+        const Entity e = createEntity(*world, set);
+        get<Health>(*world, e)->value = i;
+    }
+    Query* query = createQuery(*world, {set, {}});
+    CommandBuffer* buffer = createCommandBuffer(*world);
+
+    struct State
+    {
+        CommandBuffer* buffer;
+        Entity spawned = nullEntity;
+    } state{buffer};
+    forEachChunk(
+        *query,
+        [](const ChunkView& view, void* data) {
+            auto* s = static_cast<State*>(data);
+            std::span<const Health> healths = readColumn<Health>(view);
+            for (uint32_t i = 0; i < entityCountOf(view); ++i)
+            {
+                const Entity e = entitiesOf(view)[i];
+                if (healths[i].value % 2 == 1)
+                {
+                    recordDestroy(*s->buffer, e);
+                }
+                else if (healths[i].value == 4)
+                {
+                    // A projectile, its velocity, and a parent: all before it exists.
+                    const ComponentId projectile[] = {componentIdOf<Position>};
+                    s->spawned = recordCreate(*s->buffer, projectile);
+                    recordSet(*s->buffer, s->spawned, Velocity{1, 2, 3});
+                    recordSetParent(*s->buffer, s->spawned, e);
+                    recordRemove(*s->buffer, e, componentIdOf<Position>);
+                }
+            }
+        },
+        &state);
+
+    CHECK(entityCount(*world) == 10);            // nothing applied yet
+    CHECK_FALSE(isAlive(*world, state.spawned)); // reserved, not created
+    apply(*buffer);
+    CHECK(entityCount(*world) == 6); // 5 destroyed, 1 created
+    REQUIRE(isAlive(*world, state.spawned));
+    CHECK(read<Velocity>(*world, state.spawned)->z == 3.0f); // Set added it
+    const Entity parent = parentOf(*world, state.spawned);
+    CHECK(read<Health>(*world, parent)->value == 4);
+    CHECK_FALSE(hasComponent(*world, parent, c.position));
+
+    // Commands on entities that died meanwhile are ignored.
+    recordAdd(*buffer, state.spawned, c.velocity);
+    destroyEntity(*world, state.spawned);
+    apply(*buffer);
+    CHECK(entityCount(*world) == 5);
+
+    destroyCommandBuffer(buffer);
+    destroyQuery(query);
+}
+
+TEST_CASE("A cleared buffer's reserved entities never come alive")
+{
+    WorldScope world;
+    CommandBuffer* buffer = createCommandBuffer(*world);
+    const Entity reserved = recordCreate(*buffer);
+    clear(*buffer);
+    apply(*buffer); // nothing left
+    // The released index is reused, with a newer generation.
+    const Entity reused = createEntity(*world);
+    CHECK(indexOf(reused) == indexOf(reserved));
+    CHECK_FALSE(isAlive(*world, reserved));
+    CHECK(isAlive(*world, reused));
+    destroyCommandBuffer(buffer);
+}
+
+TEST_CASE("Parallel chunk jobs can record into one buffer")
+{
+    const Components c;
+    REQUIRE(jobs::initialize(3));
+    {
+        WorldScope world;
+        const ComponentId set[] = {c.position, c.health};
+        for (int i = 0; i < 20'000; ++i)
+        {
+            const Entity e = createEntity(*world, set);
+            get<Health>(*world, e)->value = i;
+        }
+        Query* query = createQuery(*world, {set, {}});
+        CommandBuffer* buffer = createCommandBuffer(*world);
+        parallelForEachChunk(
+            *query,
+            [](const ChunkView& view, void* data) {
+                auto* b = static_cast<CommandBuffer*>(data);
+                std::span<const Health> healths = readColumn<Health>(view);
+                for (uint32_t i = 0; i < entityCountOf(view); ++i)
+                {
+                    if (healths[i].value % 4 == 0)
+                    {
+                        recordDestroy(*b, entitiesOf(view)[i]);
+                        recordCreate(*b, {&componentIdOf<Health>, 1});
+                    }
+                }
+            },
+            buffer);
+        apply(*buffer);
+        CHECK(entityCount(*world) == 20'000); // 5000 destroyed, 5000 created
+        destroyCommandBuffer(buffer);
+        destroyQuery(query);
+    }
+    jobs::shutdown();
+}

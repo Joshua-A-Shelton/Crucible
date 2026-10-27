@@ -121,3 +121,32 @@ As built (`crucible/Ecs.h`, M3 step 6a):
   size: waking the workers and handing out ~200 chunks costs about as much
   as the work. Parallelism pays for heavier systems; batch size and wake-up
   cost are tuning points for later.
+
+## Amendment (2026-10-27): command buffers and sparse storage (M3 step 6b)
+
+Settled with the project owner. Names are placeholders.
+
+- **Entities created in a command buffer get real IDs at once:** recording
+  a create reserves a fresh index (an atomic counter, so any thread can),
+  and the returned entity is final, so it can be stored in components
+  before playback (flecs reserves IDs similarly). Unity's placeholder IDs,
+  replaced at playback, were given up: a placeholder stored in a
+  component's value would stay wrong. Reserved indices come only from fresh
+  ones; a buffer cleared unapplied releases them with a bumped generation.
+- **Playback goes segment by segment:** each worker records into its own
+  segment without a lock (other threads share one behind a lock), and
+  `apply` plays each segment in recorded order. Which chunks a worker ran
+  varies, so entity order from parallel recording can differ between runs;
+  determinism isn't a goal (ADR 0027). Unity's sort keys were given up for
+  now. Commands on entities that died meanwhile are ignored.
+- **Sparse storage is a sparse set per component per world** (as decided
+  above): dense arrays of values and entities plus each entity's position,
+  so adding and removing are O(1) and never move the entity. A sparse
+  component's ID carries a marker bit, so every call knows where it lives
+  without a lookup. Queries don't see sparse components (validation builds
+  refuse them); they're read per entity or walked with `forEachSparse`.
+  Unity's enableable components (a bit per entity in the chunk) were the
+  alternative considered.
+- Tested with randomized checks against reference maps, recording from
+  parallel chunk jobs, and AddressSanitizer, UndefinedBehaviorSanitizer,
+  and ThreadSanitizer runs.
