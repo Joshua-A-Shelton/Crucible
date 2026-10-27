@@ -16,6 +16,23 @@ FetchContent_Declare(Slag
     URL_HASH SHA256=200be92484fb716a832d84a26e792b482d75f002fd92797e93e192ad839119c6)
 FetchContent_MakeAvailable(Slag)
 
+# The D3D12 Agility SDK (Slag's pinned D3D12 runtime) loads only in an
+# executable that exports its version and folder, so every executable that
+# creates a device calls this. The version is read from Slag's own scope so
+# it can't drift from the SDK Slag was built with.
+if(WIN32)
+    get_directory_property(CRUCIBLE_AGILITY_SDK_VERSION DIRECTORY "${slag_SOURCE_DIR}"
+        DEFINITION SLAG_AGILITY_SDK_VERSION)
+endif()
+function(crucible_use_d3d12_agility target)
+    if(NOT WIN32 OR NOT CRUCIBLE_AGILITY_SDK_VERSION)
+        return()
+    endif()
+    target_sources(${target} PRIVATE "${PROJECT_SOURCE_DIR}/src/native/launcher/D3D12Agility.cpp")
+    target_compile_definitions(${target} PRIVATE CRUCIBLE_AGILITY_SDK_VERSION=${CRUCIBLE_AGILITY_SDK_VERSION})
+    slag_copy_agility_runtime(${target})
+endfunction()
+
 # ---------------------------------------------------------------------------
 # SDL3 (zlib): the platform layer (ADR 0018), linked into the core behind
 # Crucible's own platform API. Same version and hash as Slag's samples.

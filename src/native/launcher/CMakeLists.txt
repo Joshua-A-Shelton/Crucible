@@ -10,6 +10,7 @@ add_executable(crucible_launcher
 crucible_set_compile_options(crucible_launcher)
 target_link_libraries(crucible_launcher PRIVATE crucible::core crucible::nethost)
 crucible_copy_nethost(crucible_launcher)
+crucible_use_d3d12_agility(crucible_launcher)
 if(WIN32)
     # Windows keeps DLLs next to the executable; the engine looks there for
     # the core (CoreLibraryResolver).
@@ -34,6 +35,7 @@ if(CRUCIBLE_BUILD_AOT)
         "${CRUCIBLE_ENGINE_AOT_LIBRARY}"
         crucible::core_static
         "LINKER:@${CRUCIBLE_ENGINE_AOT_LINK_INPUTS}")
+    crucible_use_d3d12_agility(crucible_launcher_aot)
     add_dependencies(crucible_launcher_aot crucible_engine_aot)
     set_property(TARGET crucible_launcher_aot APPEND PROPERTY LINK_DEPENDS
         "${CRUCIBLE_ENGINE_AOT_LIBRARY}" "${CRUCIBLE_ENGINE_AOT_LINK_INPUTS}")

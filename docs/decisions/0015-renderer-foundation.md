@@ -1,6 +1,7 @@
 # 0015 — Renderer foundation
 
-**Status:** Accepted (2026-10-25).
+**Status:** Accepted (2026-10-25). Amended 2026-10-26 (M2): device
+ownership, surfaces, pacing fallback, and backend choice.
 
 ## Context
 
@@ -71,3 +72,37 @@ aliasing MSAA removed.
 
 Given up, for now: GPU-driven rendering, and the render graph's per-frame
 rebuild cost until Slag caches `compile` results.
+
+## Amendment (2026-10-26): device and surfaces
+
+Settled with the project owner in M2 step 3, when the core first created a
+Slag device. Names (`crucible::render`, `SurfaceHandle`) are placeholders.
+
+- **The launcher owns the device,** like the platform (ADR 0011): it calls
+  `render::initialize` after `platform::initialize` and shuts both down in
+  reverse after C# returns. Failure to find a supported GPU is reported
+  before .NET starts. On Windows it's also required: the D3D12 Agility SDK
+  loads only in an executable that exports its version, which a C# test
+  host can't. Every executable that creates a device gets the export
+  (`crucible_use_d3d12_agility`). Software devices (WARP) are not allowed,
+  so a game never silently renders in software.
+- **One surface per window, created explicitly** by C# (`CreateSurface`,
+  `DestroySurface`): the swapchain, two command buffers, and a frame
+  semaphore. The platform layer knows nothing about rendering, and an
+  editor can have windows without one. The surface resizes itself when the
+  window's pixel size changes, and skips frames (sleeping one refresh)
+  while the window is minimized or occluded.
+- **Present mode** (ADR 0003): Mailbox with three images where supported,
+  else Fifo with two; max frame latency 1.
+- **Pacing:** `waitForNextFrame` uses Slag's frame latency capability; where
+  it's missing, it waits until the GPU has finished the previous frame,
+  which ignores presentation but keeps the queue at one frame. Requiring
+  the capability was rejected: some Windows Vulkan drivers lack
+  `present_wait`.
+- **Backend:** Slag's platform default (D3D12 on Windows, Vulkan on Linux),
+  overridden with the launcher's `--backend d3d12|vulkan`, so both are
+  tested on Windows.
+- **Per-frame functions return `Status`** (`CRUCIBLE_EXPOSE_STATUS`, ADR
+  0030); new statuses `DeviceLost` and `OutOfDeviceMemory` map Slag's.
+- **Validation:** debug builds turn on backend validation where installed;
+  Slag's warnings and errors go to stderr, its info messages are dropped.

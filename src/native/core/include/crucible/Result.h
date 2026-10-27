@@ -20,6 +20,8 @@ enum class CRUCIBLE_EXPOSE Status : int32_t
     InvalidData = -2,
     OutOfHostMemory = -3,
     Unsupported = -4,
+    DeviceLost = -5,        // the GPU device stopped working; rendering can't continue
+    OutOfDeviceMemory = -6, // GPU memory ran out
 };
 
 // [[nodiscard]]: ignoring a result warns; write (void) to ignore one on purpose.

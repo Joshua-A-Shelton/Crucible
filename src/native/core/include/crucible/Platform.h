@@ -77,6 +77,9 @@ CRUCIBLE_EXPOSE void destroyWindow(WindowHandle window);
 // with on high-DPI displays. Zero for a window that doesn't exist.
 CRUCIBLE_EXPOSE WindowSize windowPixelSize(WindowHandle window);
 
+// Whether the window is minimized; the renderer skips frames meanwhile.
+CRUCIBLE_EXPOSE bool windowMinimized(WindowHandle window);
+
 // Fills events with pending events and returns how many it wrote. Events that
 // don't fit stay queued for the next call.
 CRUCIBLE_EXPOSE uint32_t pollEvents(std::span<InputEvent> events);

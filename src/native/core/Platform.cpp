@@ -115,6 +115,12 @@ WindowSize windowPixelSize(WindowHandle window)
     return WindowSize{static_cast<uint32_t>(w), static_cast<uint32_t>(h)};
 }
 
+bool windowMinimized(WindowHandle window)
+{
+    SDL_Window* sdlWindow = find(window);
+    return sdlWindow != nullptr && (SDL_GetWindowFlags(sdlWindow) & SDL_WINDOW_MINIMIZED) != 0;
+}
+
 uint32_t pollEvents(std::span<InputEvent> events)
 {
     uint32_t count = 0;

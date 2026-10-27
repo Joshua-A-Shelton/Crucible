@@ -1,10 +1,12 @@
-// The launcher: owns main(), platform setup, and shutdown, and hands the
-// frame to the engine's C# layer (ADR 0011). In M1 there is no platform setup
-// yet; it only starts .NET and runs the engine's entry point.
+// The launcher: owns main(), platform and renderer setup, and shutdown, and
+// hands the frame to the engine's C# layer (ADR 0011).
 
 #include "EngineHost.h"
 
 #include <crucible/Platform.h>
+#include <crucible/Render.h>
+
+#include <slag/Instance.h>
 
 #include <cstdio>
 #include <filesystem>
@@ -25,11 +27,12 @@ namespace {
 // std::filesystem::path, whose native character type matches.
 #if defined(_WIN32)
 using ArgumentChar = wchar_t;
-constexpr std::wstring_view managedDirOption = L"--managed-dir";
+#define CRUCIBLE_ARGUMENT(text) L##text
 #else
 using ArgumentChar = char;
-constexpr std::string_view managedDirOption = "--managed-dir";
+#define CRUCIBLE_ARGUMENT(text) text
 #endif
+using ArgumentView = std::basic_string_view<ArgumentChar>;
 
 // Shipped games keep their managed assemblies next to the executable.
 std::filesystem::path executableDirectory()
@@ -49,12 +52,33 @@ int run(int argc, ArgumentChar** argv)
 {
     // --managed-dir <dir> overrides where the engine's C# assemblies are,
     // for development builds whose assemblies live in the build tree.
+    // --backend d3d12|vulkan overrides Slag's default for the platform (D3D12
+    // on Windows, Vulkan elsewhere), so both can be tested on Windows.
     std::filesystem::path managedDirectory = executableDirectory();
+    slag::Backend backend = slag::InstanceDesc{}.backend;
     for (int i = 1; i + 1 < argc; ++i)
     {
-        if (argv[i] == managedDirOption)
+        const ArgumentView option = argv[i];
+        const ArgumentView value = argv[i + 1];
+        if (option == CRUCIBLE_ARGUMENT("--managed-dir"))
         {
             managedDirectory = argv[i + 1];
+        }
+        else if (option == CRUCIBLE_ARGUMENT("--backend"))
+        {
+            if (value == CRUCIBLE_ARGUMENT("d3d12"))
+            {
+                backend = slag::Backend::D3D12;
+            }
+            else if (value == CRUCIBLE_ARGUMENT("vulkan"))
+            {
+                backend = slag::Backend::Vulkan;
+            }
+            else
+            {
+                std::fprintf(stderr, "crucible: --backend takes d3d12 or vulkan\n");
+                return 1;
+            }
         }
     }
 
@@ -66,14 +90,22 @@ int run(int argc, ArgumentChar** argv)
         managedDirectory = absoluteDirectory;
     }
 
-    // Platform setup and shutdown belong to the launcher (ADR 0011).
+    // Platform and renderer setup and shutdown belong to the launcher (ADR
+    // 0011), in that order and in reverse.
     if (!crucible::platform::initialize())
     {
         std::fprintf(stderr, "crucible: the platform layer could not start\n");
         return 1;
     }
+    if (!crucible::render::initialize(backend))
+    {
+        std::fprintf(stderr, "crucible: the renderer could not start\n");
+        crucible::platform::shutdown();
+        return 1;
+    }
 
     const crucible::Result<int> result = crucible::launcher::runEngine(managedDirectory);
+    crucible::render::shutdown();
     crucible::platform::shutdown();
     if (!result)
     {

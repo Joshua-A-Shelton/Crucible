@@ -30,10 +30,21 @@ milestone are decided or checked when that milestone reaches them
 ## Revisit once there is a prototype to test against
 
 - How Slag maps Vulkan's clip space (Y down) against D3D12's. → 0024 [M2]
-- Pacing fallback when Slag's frame latency capability is missing, and how
-  pacing behaves under `Mailbox`. → 0003 [M2]
+- How pacing behaves under `Mailbox`. → 0003 [M2] The fallback (wait for
+  the previous GPU frame) is decided (ADR 0015's amendment). First
+  measurement (2026-10-26, RADV on KDE Wayland, 60 Hz, a clear-only frame):
+  Mailbox paced with `waitForNextFrame` runs at the refresh rate (60 fps),
+  unpaced or with the fallback at ~5000 fps. `present_wait` waits for the
+  display, so frame latency pacing turns Mailbox into one frame per
+  refresh. Decide with the latency harness (M2 step 5), measuring
+  input-to-present rather than frame rate.
 - Swapchain image count when switching `Mailbox` ↔ `Fifo`, and drivers
-  that return three images for `Fifo`. → 0003 [M2]
+  that return three images for `Fifo`. → 0003 [M2] Seen: RADV on Wayland
+  gives 3 images for Fifo when asked for 2; with max frame latency 1 the
+  third image shouldn't queue a frame, to confirm with the latency harness.
+- Slag passes `minImageCount` to Vulkan without raising it to the surface's
+  minimum: RADV on Wayland requires 4 for Mailbox, so asking for 3 is a
+  Vulkan validation error (it still works). Fix in Slag. [M2]
 - Accuracy of SDL event timestamps on Windows, X11, Wayland, and Steam
   Deck (parry windows depend on it). → 0018 [M2]
 - Late latching of the camera: tentatively in. → 0003 [M5]

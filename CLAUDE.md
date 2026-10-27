@@ -296,7 +296,10 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   Crucible.slnx`, with output under `build/<preset>/artifacts/`. C# test
   projects are executables registered with CTest.
 - Tests: doctest (C++) and TUnit (C#), ADR 0029. CTest labels: `native`,
-  `managed`, `integration` (the launchers), `aot`. Every C# suite also runs
+  `managed`, `integration` (the launchers, which create a device), `aot`,
+  and `gpu` (needs a device Slag supports; `ctest -LE gpu` skips them). The
+  doctest suite `window` is skipped unless run by hand on a desktop:
+  `crucible_native_tests --no-skip --test-suite=window`. Every C# suite also runs
   as NativeAOT code (`<suite>.aot`).
 - `CRUCIBLE_BUILD_AOT` (on by default) builds the NativeAOT variants:
   `crucible_launcher_aot` (core and C# engine statically linked into one
