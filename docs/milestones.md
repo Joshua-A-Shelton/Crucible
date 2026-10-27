@@ -124,8 +124,42 @@ C++ system, in parallel through the job system, with structural changes
 applied at phase ends; math tests pass against `System.Numerics`.
 
 **Decides:** phase names; whether x64 requires AVX2; ECS hierarchy,
-relationships, and change detection (transforms need them); how plain C#
-services are registered and found.
+relationships, and change detection (transforms need them; decided here,
+built as far as the demonstration needs, full transform propagation in
+M5).
+
+**Steps** (agreed 2026-10-26; one commit each, verified on both machines;
+the decision each one needs comes first):
+
+1. C++ memory and containers. Decides A: allocator hooks, and Crucible's
+   own containers vs. the standard library's.
+2. Math storage types and scalar math in C++ (`Vec2/3/4`, `Quat`, `Mat4`),
+   tested against `System.Numerics` through the bindings. Decides B: how
+   the generator maps C++ math types onto `System.Numerics`.
+3. Math compute types: a register vector and 4- and 8-lane wide types, with
+   SSE/AVX2, NEON, and scalar paths, tested against the scalar math and
+   benchmarked. Decides C: whether x64 requires AVX2.
+4. Job system in C++: workers, per-worker queues (locked first) with
+   stealing, frame and background priorities, waiting threads run jobs.
+   Decides D: the job API (handles and dependencies, counters, or
+   parent/child jobs) and the worker count.
+5. Jobs from C#: managed job bodies through the engine's trampoline (ADR
+   0014), a parallel-for, under JIT, AOT, and hot reload.
+6. ECS core in C++: entity IDs, runtime component registration, chunked
+   archetypes, opt-in sparse storage, queries, deferred command buffers.
+   Decides E (entity ID layout, chunk size, query API), F (hierarchy and
+   relationships), and G (change detection), each in its own ADR.
+7. ECS from C#: components registered from C# types, typed span views per
+   chunk, managed component pools, C# systems in parallel chunk loops.
+   Decides H: source generator or runtime reflection for registration,
+   managed "struct with references" pools, layout migration across hot
+   reload.
+8. Full frame phases: editable list, constraints, the fixed-tick group with
+   a step cap, sync points applying deferred ECS changes; C++ and C#
+   systems registered into phases. Decides I: phase names and the system
+   registration API.
+9. The demonstration: thousands of entities updated by a C# and a C++
+   system in parallel, structural changes applied at phase ends, timed.
 
 ## M4 — Assets and serialization
 
@@ -142,7 +176,9 @@ services are registered and found.
 gives an identical scene; mirroring tests show no inside-out faces and
 correct left and right.
 
-**Decides:** exact file layouts.
+**Decides:** exact file layouts; how plain C# services are registered,
+found, and saved (moved from M3 on 2026-10-26: saving them needs this
+milestone's serialization).
 
 ## M5 — Renderer
 

@@ -15,7 +15,7 @@ milestone are decided or checked when that milestone reaches them
 - ECS details: hierarchy and relationships, change detection,
   struct-with-references pools, blittable layout migration across hot
   reload. → 0012, 0023 [M3]
-- How plain C# services are registered, found, and saved. → 0012 [M3]
+- How plain C# services are registered, found, and saved. → 0012 [M4]
 - Renderer details: shadows; lighting and ambient light; post-processing
   and the post-tonemap MSAA resolve; outlines. → 0015 [M5]
 - The C# rendering (batched command) API. → 0015 [M6]
