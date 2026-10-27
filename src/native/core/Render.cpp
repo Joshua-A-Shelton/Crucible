@@ -229,6 +229,9 @@ Result<void> initialize(slag::Backend backend)
     renderer.queue = device->commandQueue(slag::CommandQueueType::Graphics);
     std::printf("crucible: rendering with %s on %s\n", backend == slag::Backend::D3D12 ? "D3D12" : "Vulkan",
                 device->info().name);
+    // Flushed so it keeps its place among C#'s output, which isn't buffered,
+    // when stdout is a pipe.
+    std::fflush(stdout);
     return {};
 }
 
@@ -325,6 +328,7 @@ Result<SurfaceHandle> createSurface(platform::WindowHandle window)
     std::printf("crucible: surface %ux%u, %s, %u images (asked for %u), pacing: %s\n", surface.width, surface.height,
                 name(choice.mode), surface.swapchain->imageCount(), choice.minImageCount,
                 device->capabilities().frameLatency ? "frame latency" : "previous GPU frame");
+    std::fflush(stdout);
 
     *free = surface;
     return SurfaceHandle{static_cast<uint32_t>(free - renderer.surfaces.begin()) + 1};

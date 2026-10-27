@@ -1,6 +1,7 @@
 # 0013 — Frame phases
 
-**Status:** Accepted (2026-10-25).
+**Status:** Accepted (2026-10-25). Amended 2026-10-26 (M2): the minimal
+loop driver.
 
 ## Context
 
@@ -81,3 +82,21 @@ the length of the wait.
 
 Given up, for now: automatic parallelism between systems, and changing the
 schedule every frame.
+
+## Amendment (2026-10-26): the M2 loop driver
+
+Settled with the project owner in M2 step 4. Names (`Crucible.Loop`,
+`FrameLoop`, `FramePhase`, `FrameContext`) are placeholders.
+
+- **The loop is already a list of phase objects,** fixed in M2: a
+  `FrameLoop` runs `FramePhase` objects in order, each with
+  `Run(FrameContext)`, so M3's editable list, constraints, and fixed-tick
+  group extend this shape instead of replacing a hand-written loop.
+- **M2's default list** is BeginFrame (the pacing wait), Input (poll events;
+  an OS quit or closing the main window ends the loop after the frame), and
+  RenderSubmit (clear and present).
+- **Phases never throw** (ADR 0030): a phase reports a failure status
+  through the context, which ends the frame at that phase and the loop with
+  exit code 1.
+- **No garbage per frame:** the context and its event buffer are allocated
+  once; a test checks that a thousand headless frames allocate nothing.

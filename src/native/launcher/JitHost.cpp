@@ -30,7 +30,8 @@ constexpr const char_t* engineRuntimeConfigFile = CRUCIBLE_HOST_TEXT("Crucible.E
 constexpr const char_t* entryPointType = CRUCIBLE_HOST_TEXT("Crucible.Hosting.Host, Crucible.Engine");
 constexpr const char_t* entryPointMethod = CRUCIBLE_HOST_TEXT("Run");
 
-using EntryPointFn = int(CORECLR_DELEGATE_CALLTYPE*)();
+// The options struct crosses by value; its C# mirror is generated (ADR 0017).
+using EntryPointFn = int(CORECLR_DELEGATE_CALLTYPE*)(LaunchOptions);
 
 struct Hostfxr
 {
@@ -99,7 +100,7 @@ Result<Hostfxr> loadHostfxr(const std::filesystem::path& assemblyPath)
 
 } // namespace
 
-Result<int> runEngine(const std::filesystem::path& managedDirectory)
+Result<int> runEngine(const std::filesystem::path& managedDirectory, const LaunchOptions& options)
 {
     const std::filesystem::path assemblyPath = managedDirectory / engineAssemblyFile;
     const std::filesystem::path runtimeConfigPath = managedDirectory / engineRuntimeConfigFile;
@@ -159,7 +160,7 @@ Result<int> runEngine(const std::filesystem::path& managedDirectory)
         return Status::NotFound;
     }
 
-    return reinterpret_cast<EntryPointFn>(entryPoint)();
+    return reinterpret_cast<EntryPointFn>(entryPoint)(options);
 }
 
 } // namespace crucible::launcher

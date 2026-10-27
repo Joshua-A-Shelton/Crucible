@@ -1,5 +1,6 @@
 #pragma once
 
+#include <crucible/Launch.h>
 #include <crucible/Result.h>
 
 #include <filesystem>
@@ -12,6 +13,6 @@ namespace crucible::launcher {
 // JitHost.cpp starts .NET and loads the engine's C# assembly from
 // managedDirectory; AotHost.cpp calls the entry point compiled into the
 // executable and ignores managedDirectory.
-Result<int> runEngine(const std::filesystem::path& managedDirectory);
+Result<int> runEngine(const std::filesystem::path& managedDirectory, const LaunchOptions& options);
 
 } // namespace crucible::launcher

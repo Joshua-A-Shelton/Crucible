@@ -1,6 +1,7 @@
 # 0011 — Hosting and the C#↔C++ boundary
 
-**Status:** Accepted (2026-10-25).
+**Status:** Accepted (2026-10-25). Amended 2026-10-26 (M2): launch
+options.
 
 ## Context
 
@@ -87,3 +88,22 @@ also work but is fiddlier on both platforms.
 
 Given up: (B)'s standard `dotnet run` style tooling for launching games,
 and the option of C++ calling game code directly.
+
+## Amendment (2026-10-26): launch options
+
+Settled with the project owner in M2 step 4.
+
+- **The launcher is the only command-line parser.** It passes a
+  `LaunchOptions` struct (a placeholder name) by value to the managed entry
+  point, `crucible_engine_run(LaunchOptions)`. The struct is exposed through
+  the binding generator (ADR 0017), so its C# mirror and layout check are
+  generated. Neither hosting path hands .NET the command line, so C#'s
+  `Environment.GetCommandLineArgs` can't be relied on.
+- **Launcher options:** `--managed-dir <dir>` (JIT), `--backend d3d12|vulkan`
+  (ADR 0015), `--frames N` (stop after N frames), and `--headless` (no
+  window or surface; the loop still runs). The automated launcher tests run
+  headless, since the offscreen video driver can't present; real windows are
+  checked by hand.
+- **Startup order:** platform, then renderer, then the engine; shutdown in
+  reverse. The engine creates the main window and its surface, and destroys
+  them before returning.

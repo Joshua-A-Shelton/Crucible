@@ -42,9 +42,24 @@ if(CRUCIBLE_BUILD_AOT)
 endif()
 
 if(CRUCIBLE_BUILD_TESTS)
+    # The launchers create a device, so these need a GPU. The offscreen video
+    # driver can't present, so the loop runs headless for a fixed number of
+    # frames; a real window is checked by hand.
+    set(engineDirectory "${CRUCIBLE_DOTNET_ARTIFACTS_DIR}/bin/Crucible.Engine/${CRUCIBLE_DOTNET_CONFIGURATION_DIR}")
     add_test(NAME launcher.jit.start
-        COMMAND crucible_launcher --managed-dir "${CRUCIBLE_DOTNET_ARTIFACTS_DIR}/bin/Crucible.Engine/${CRUCIBLE_DOTNET_CONFIGURATION_DIR}")
-    set_tests_properties(launcher.jit.start PROPERTIES LABELS integration ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen")
+        COMMAND crucible_launcher --managed-dir "${engineDirectory}" --headless --frames 60)
+    set_tests_properties(launcher.jit.start PROPERTIES LABELS integration ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "ran 60 frames")
+
+    # Windowed under the offscreen driver: creating the surface fails, which
+    # throws in C# (ADR 0030) and must come back as a failed run, not a crash.
+    add_test(NAME launcher.jit.windowed-without-display
+        COMMAND crucible_launcher --managed-dir "${engineDirectory}" --frames 1)
+    set_tests_properties(launcher.jit.windowed-without-display PROPERTIES LABELS integration WILL_FAIL TRUE
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen")
+
+    add_test(NAME launcher.bad-option COMMAND crucible_launcher --frames many)
+    set_tests_properties(launcher.bad-option PROPERTIES LABELS integration WILL_FAIL TRUE)
 
     # Proves a hosting failure is reported: no engine assembly, so it must fail.
     add_test(NAME launcher.jit.missing-engine
@@ -60,14 +75,16 @@ if(CRUCIBLE_BUILD_TESTS)
             "${CRUCIBLE_DOTNET_ARTIFACTS_DIR}/bin/Crucible.Engine/${CRUCIBLE_DOTNET_CONFIGURATION_DIR}"
             "${unicodeDirectory}")
     set_tests_properties(launcher.jit.unicode-path.setup PROPERTIES FIXTURES_SETUP unicode-managed-dir)
-    add_test(NAME launcher.jit.unicode-path COMMAND crucible_launcher --managed-dir "${unicodeDirectory}")
+    add_test(NAME launcher.jit.unicode-path
+        COMMAND crucible_launcher --managed-dir "${unicodeDirectory}" --headless --frames 1)
     set_tests_properties(launcher.jit.unicode-path PROPERTIES
         LABELS integration
         FIXTURES_REQUIRED unicode-managed-dir
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen")
 
     if(CRUCIBLE_BUILD_AOT)
-        add_test(NAME launcher.aot.start COMMAND crucible_launcher_aot)
-        set_tests_properties(launcher.aot.start PROPERTIES LABELS "integration;aot" ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen")
+        add_test(NAME launcher.aot.start COMMAND crucible_launcher_aot --headless --frames 60)
+        set_tests_properties(launcher.aot.start PROPERTIES LABELS "integration;aot" ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+            PASS_REGULAR_EXPRESSION "ran 60 frames")
     endif()
 endif()

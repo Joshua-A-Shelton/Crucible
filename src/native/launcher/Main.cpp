@@ -8,8 +8,10 @@
 
 #include <slag/Instance.h>
 
+#include <cstdint>
 #include <cstdio>
 #include <filesystem>
+#include <string>
 #include <string_view>
 #include <system_error>
 
@@ -48,37 +50,83 @@ std::filesystem::path executableDirectory()
 #endif
 }
 
+// For error messages: options are ASCII in practice, so a lossy narrowing of
+// Windows' UTF-16 is enough.
+std::string printable(ArgumentView text)
+{
+    std::string result;
+    for (ArgumentChar c : text)
+    {
+        result.push_back(c >= 0x20 && c < 0x7f ? static_cast<char>(c) : '?');
+    }
+    return result;
+}
+
+bool parseCount(ArgumentView text, uint32_t& count)
+{
+    if (text.empty() || text.size() > 9)
+    {
+        return false;
+    }
+    uint32_t parsed = 0;
+    for (ArgumentChar c : text)
+    {
+        if (c < '0' || c > '9')
+        {
+            return false;
+        }
+        parsed = parsed * 10 + static_cast<uint32_t>(c - '0');
+    }
+    count = parsed;
+    return true;
+}
+
 int run(int argc, ArgumentChar** argv)
 {
     // --managed-dir <dir> overrides where the engine's C# assemblies are,
     // for development builds whose assemblies live in the build tree.
     // --backend d3d12|vulkan overrides Slag's default for the platform (D3D12
     // on Windows, Vulkan elsewhere), so both can be tested on Windows.
+    // --frames N and --headless are passed to the engine (LaunchOptions).
     std::filesystem::path managedDirectory = executableDirectory();
     slag::Backend backend = slag::InstanceDesc{}.backend;
-    for (int i = 1; i + 1 < argc; ++i)
+    crucible::LaunchOptions options{};
+    for (int i = 1; i < argc; ++i)
     {
         const ArgumentView option = argv[i];
-        const ArgumentView value = argv[i + 1];
+        if (option == CRUCIBLE_ARGUMENT("--headless"))
+        {
+            options.headless = true;
+            continue;
+        }
+        if (i + 1 >= argc)
+        {
+            std::fprintf(stderr, "crucible: unknown option or missing value: %s\n", printable(option).c_str());
+            return 1;
+        }
+        const ArgumentView value = argv[++i];
+        bool valid = true;
         if (option == CRUCIBLE_ARGUMENT("--managed-dir"))
         {
-            managedDirectory = argv[i + 1];
+            managedDirectory = value;
         }
         else if (option == CRUCIBLE_ARGUMENT("--backend"))
         {
-            if (value == CRUCIBLE_ARGUMENT("d3d12"))
-            {
-                backend = slag::Backend::D3D12;
-            }
-            else if (value == CRUCIBLE_ARGUMENT("vulkan"))
-            {
-                backend = slag::Backend::Vulkan;
-            }
-            else
-            {
-                std::fprintf(stderr, "crucible: --backend takes d3d12 or vulkan\n");
-                return 1;
-            }
+            valid = value == CRUCIBLE_ARGUMENT("d3d12") || value == CRUCIBLE_ARGUMENT("vulkan");
+            backend = value == CRUCIBLE_ARGUMENT("d3d12") ? slag::Backend::D3D12 : slag::Backend::Vulkan;
+        }
+        else if (option == CRUCIBLE_ARGUMENT("--frames"))
+        {
+            valid = parseCount(value, options.frameLimit);
+        }
+        else
+        {
+            valid = false;
+        }
+        if (!valid)
+        {
+            std::fprintf(stderr, "crucible: bad option: %s %s\n", printable(option).c_str(), printable(value).c_str());
+            return 1;
         }
     }
 
@@ -104,7 +152,7 @@ int run(int argc, ArgumentChar** argv)
         return 1;
     }
 
-    const crucible::Result<int> result = crucible::launcher::runEngine(managedDirectory);
+    const crucible::Result<int> result = crucible::launcher::runEngine(managedDirectory, options);
     crucible::render::shutdown();
     crucible::platform::shutdown();
     if (!result)
