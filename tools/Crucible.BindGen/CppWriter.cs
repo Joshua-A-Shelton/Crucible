@@ -103,6 +103,8 @@ internal static class CppWriter
 
     private static string CType(TypeRef type) => type.Shape switch
     {
+        Shape.Opaque => $"{(type.IsConst ? "const " : "")}{type.Opaque!.QualifiedName}*",
+        Shape.Address => type.IsConst ? "const void*" : "void*",
         Shape.Struct => type.Struct!.QualifiedName,
         Shape.Enum => type.Enum!.QualifiedName,
         _ => Primitives.CAbi(type.Primitive),
@@ -125,6 +127,8 @@ internal static class CppWriter
         Shape.String => $"std::string_view({parameter.Name}, {parameter.Name}Length)",
         Shape.Span =>
             $"std::span<{(parameter.Type.IsConst ? "const " : "")}{CType(parameter.Type.Element!)}>({parameter.Name}, {parameter.Name}Length)",
+        // A handle arrives as a pointer; the C++ function may take a reference.
+        Shape.Opaque when parameter.Type.IsReference => $"*{parameter.Name}",
         // A bool parameter arrives as a byte.
         _ when parameter.Type.Is(Primitive.Bool) => $"{parameter.Name} != 0",
         _ => parameter.Name,

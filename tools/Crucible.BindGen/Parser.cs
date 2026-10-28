@@ -19,6 +19,7 @@ internal sealed class Parser
     private readonly HashSet<string> _headerFiles;
     private readonly Dictionary<string, ExposedStruct> _structsByName = [];
     private readonly Dictionary<string, ExposedEnum> _enumsByName = [];
+    private readonly Dictionary<string, ExposedOpaque> _opaquesByName = [];
     private readonly List<string> _errors = [];
 
     private Parser(IEnumerable<string> headers)
@@ -201,8 +202,7 @@ internal sealed class Parser
             bool isDeclaration = pass switch
             {
                 Pass.Enums => cursor.Kind == CursorKind.EnumDecl && Libclang.IsCursorDefinition(cursor) != 0,
-                Pass.Structs => cursor.Kind is CursorKind.StructDecl or CursorKind.ClassDecl &&
-                                Libclang.IsCursorDefinition(cursor) != 0,
+                Pass.Structs => cursor.Kind is CursorKind.StructDecl or CursorKind.ClassDecl,
                 _ => cursor.Kind == CursorKind.FunctionDecl,
             };
             if (!isDeclaration || !HasAnnotation(cursor, ExposeAnnotation))
@@ -225,8 +225,11 @@ internal sealed class Parser
                 case Pass.Enums:
                     AddEnum(cursor, scope, model);
                     break;
-                case Pass.Structs:
+                case Pass.Structs when Libclang.IsCursorDefinition(cursor) != 0:
                     AddStruct(cursor, scope, model);
+                    break;
+                case Pass.Structs:
+                    AddOpaque(cursor, scope, model);
                     break;
                 case Pass.Functions:
                     AddFunction(cursor, scope, model);
@@ -277,6 +280,20 @@ internal sealed class Parser
 
         _enumsByName[qualifiedName] = exposed;
         model.Enums.Add(exposed);
+    }
+
+    // A declaration without a definition in the headers: native code owns
+    // the type, and C# gets a handle. Declared again later, it's still one.
+    private void AddOpaque(CXCursor cursor, Scope scope, BindingModel model)
+    {
+        string qualifiedName = Libclang.Spelling(Libclang.GetCanonicalType(Libclang.GetCursorType(cursor)));
+        if (_opaquesByName.ContainsKey(qualifiedName) || _structsByName.ContainsKey(qualifiedName))
+        {
+            return;
+        }
+        ExposedOpaque opaque = new(qualifiedName, Libclang.Spelling(cursor), scope);
+        _opaquesByName[qualifiedName] = opaque;
+        model.Opaques.Add(opaque);
     }
 
     private void AddStruct(CXCursor cursor, Scope scope, BindingModel model)
@@ -432,6 +449,11 @@ internal sealed class Parser
     private TypeRef? Resolve(CXCursor where, CXType type, string what, bool allowVoid = false,
         bool allowParameterShapes = false, bool allowArray = false)
     {
+        CXType outer = Libclang.GetCanonicalType(type);
+        if (outer.Kind is TypeKind.Pointer or TypeKind.LValueReference)
+        {
+            return ResolveIndirect(where, type, outer, what, allowHandles: allowParameterShapes || allowVoid);
+        }
         if (Libclang.GetCanonicalType(type).Kind == TypeKind.ConstantArray)
         {
             return allowArray ? ResolveArray(where, Libclang.GetCanonicalType(type), what) : Reject(where,
@@ -504,6 +526,32 @@ internal sealed class Parser
             Error(where, message);
             return null;
         }
+    }
+
+    // Pointers and references cross only as opaque handles or raw addresses,
+    // and only in signatures, never in struct fields.
+    private TypeRef? ResolveIndirect(CXCursor where, CXType type, CXType canonical, string what, bool allowHandles)
+    {
+        string spelling = Libclang.Spelling(type);
+        if (!allowHandles)
+        {
+            return Reject(where, $"{what}: {spelling}: pointers and references can't be struct fields");
+        }
+        CXType pointee = Libclang.GetPointeeType(canonical);
+        CXType pointeeCanonical = Libclang.GetCanonicalType(pointee);
+        bool isConst = Libclang.IsConstQualifiedType(pointeeCanonical) != 0;
+        if (pointeeCanonical.Kind == TypeKind.Void && canonical.Kind == TypeKind.Pointer)
+        {
+            return new TypeRef(Shape.Address, IsConst: isConst);
+        }
+        string pointeeName = Libclang.Spelling(Libclang.GetUnqualifiedType(pointeeCanonical));
+        if (pointeeCanonical.Kind == TypeKind.Record && _opaquesByName.TryGetValue(pointeeName, out ExposedOpaque? opaque))
+        {
+            return new TypeRef(Shape.Opaque, IsConst: isConst, Opaque: opaque,
+                IsReference: canonical.Kind == TypeKind.LValueReference);
+        }
+        return Reject(where, $"{what}: {spelling}: pointers and references cross only as handles to opaque " +
+                             "types (a CRUCIBLE_EXPOSE struct declared but not defined in the headers) or as void*");
     }
 
     private TypeRef? Reject(CXCursor where, string message)

@@ -69,3 +69,33 @@ a component while the game runs keeps the world, instead of restarting it.
 Given up, for now: automatic registration (a call per component type), and
 migration of field renames (a renamed field is a removed one plus a new
 one).
+
+## As built (M3 step 7a)
+
+Settled with the project owner along the way: native objects cross as
+opaque handles (ADR 0017's amendment), chunk jobs are `IChunkJob` structs
+with a `ref struct ChunkView`, and step 7 is split (7b: migration).
+
+- `Components.Register<T>()`, `RegisterTag<T>()` (C# gives an empty struct
+  size 1, so tags are explicit), `RegisterSparse<T>()`, and
+  `RegisterManaged<T>()`; components are registered by their full C# type
+  name.
+- `World` (`IDisposable`): entities; `Get<T>` returns a `ref` into native
+  memory (stamping the change version), `Read<T>` a `ref readonly`; `Set`,
+  `SetManaged`, `GetManaged`; the hierarchy; versions; queries; command
+  buffers.
+- `Query.ForEachChunk` and `ParallelForEachChunk` take a struct
+  `IChunkJob`; the parallel form gathers the query's chunks once and runs
+  them through `JobSystem.ParallelFor`, so no second trampoline was needed.
+  `ChunkView.Read<T>()` and `Write<T>()` are spans over native columns.
+- Managed components: a pool per type holding values in an array, the
+  column holding slot + 1. The release callback is a second
+  `[UnmanagedCallersOnly]` trampoline; native code calls it from
+  `destroyEntity`, moves to an archetype without the column, and
+  `destroyWorld`. The engine's table of pools holds them weakly, so a
+  game's pool never keeps the game from unloading.
+- Tests (JIT and NativeAOT) cover typed access, tags, sparse components,
+  sequential and parallel chunk jobs, change versions, every managed
+  release path, command buffers recorded from parallel chunk jobs, the
+  hierarchy, and allocation-free iteration; the hot reload test game uses
+  its own component, managed component, and chunk job, and still unloads.

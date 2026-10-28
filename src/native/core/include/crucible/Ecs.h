@@ -54,8 +54,8 @@ constexpr bool operator==(Entity a, Entity b)
 using ComponentId = uint32_t;
 inline constexpr ComponentId invalidComponent = ~0u;
 
-// Where a component's values live (ADR 0023).
-enum class ComponentStorage : uint8_t
+// Where a component's values live (ADR 0023, 0035).
+enum class CRUCIBLE_EXPOSE ComponentStorage : uint8_t
 {
     // In the entity's archetype: a column in its chunk, iterated by queries.
     Archetype,
@@ -63,6 +63,10 @@ enum class ComponentStorage : uint8_t
     // constantly: adding and removing never move the entity. Queries don't
     // see them; read them per entity, or walk them with forEachSparse.
     Sparse,
+    // A C# class or a struct holding references (ADR 0012, 0035): the column
+    // holds an int32 slot in a C# pool (slot + 1; 0 is empty), and the ECS
+    // reports each slot it drops through the managed release callback.
+    Managed,
 };
 
 // A sparse component's ID has this bit set, so every call knows where it
@@ -78,8 +82,8 @@ constexpr bool isSparse(ComponentId component)
 // which has no column), shared by every world. Registering a name again
 // returns its existing ID if the size, alignment, and storage match.
 // Thread-safe.
-ComponentId registerComponent(std::string_view name, uint32_t size, uint32_t alignment,
-                              ComponentStorage storage = ComponentStorage::Archetype);
+CRUCIBLE_EXPOSE_INTERNAL ComponentId registerComponent(std::string_view name, uint32_t size, uint32_t alignment,
+                                                       ComponentStorage storage = ComponentStorage::Archetype);
 
 struct ComponentInfo
 {
@@ -111,31 +115,33 @@ ComponentId registerComponent(std::string_view name, ComponentStorage storage = 
 // Worlds and entities
 // ---------------------------------------------------------------------------
 
-struct World;
+struct CRUCIBLE_EXPOSE World;
 
-World* createWorld();
+// Exposed to C# as internal functions (ADR 0035): the public C# API is the
+// engine's World, Query, and CommandBuffer classes built on them.
+CRUCIBLE_EXPOSE_INTERNAL World* createWorld();
 // Destroys every entity and frees the world's memory. Its queries and
 // command buffers must be destroyed first.
-void destroyWorld(World* world);
+CRUCIBLE_EXPOSE_INTERNAL void destroyWorld(World* world);
 
 // A new entity with `components`, zero-initialized.
-Entity createEntity(World& world, std::span<const ComponentId> components = {});
+CRUCIBLE_EXPOSE_INTERNAL Entity createEntity(World& world, std::span<const ComponentId> components = {});
 // Destroys the entity and its descendants (ADR 0033). Does nothing for a
 // dead entity.
-void destroyEntity(World& world, Entity entity);
-bool isAlive(const World& world, Entity entity);
-uint32_t entityCount(const World& world);
+CRUCIBLE_EXPOSE_INTERNAL void destroyEntity(World& world, Entity entity);
+CRUCIBLE_EXPOSE_INTERNAL bool isAlive(const World& world, Entity entity);
+CRUCIBLE_EXPOSE_INTERNAL uint32_t entityCount(const World& world);
 
 // Adding moves the entity to the archetype with the component (zero-
 // initialized); adding one it has, or removing one it lacks, does nothing.
-void addComponent(World& world, Entity entity, ComponentId component);
-void removeComponent(World& world, Entity entity, ComponentId component);
-bool hasComponent(const World& world, Entity entity, ComponentId component);
+CRUCIBLE_EXPOSE_INTERNAL void addComponent(World& world, Entity entity, ComponentId component);
+CRUCIBLE_EXPOSE_INTERNAL void removeComponent(World& world, Entity entity, ComponentId component);
+CRUCIBLE_EXPOSE_INTERNAL bool hasComponent(const World& world, Entity entity, ComponentId component);
 
 // The component's value, or null if the entity is dead or lacks it (or it's
 // a tag). Writable access stamps the column's change version (ADR 0034).
-void* writeComponent(World& world, Entity entity, ComponentId component);
-const void* readComponent(const World& world, Entity entity, ComponentId component);
+CRUCIBLE_EXPOSE_INTERNAL void* writeComponent(World& world, Entity entity, ComponentId component);
+CRUCIBLE_EXPOSE_INTERNAL const void* readComponent(const World& world, Entity entity, ComponentId component);
 
 template <class T>
 T* get(World& world, Entity entity)
@@ -156,8 +162,8 @@ const T* read(const World& world, Entity entity)
 // Starts a new version and returns it; writes stamp columns with the current
 // one. A system remembers the version of its last run and asks for chunks
 // changed since.
-uint32_t advanceVersion(World& world);
-uint32_t currentVersion(const World& world);
+CRUCIBLE_EXPOSE_INTERNAL uint32_t advanceVersion(World& world);
+CRUCIBLE_EXPOSE_INTERNAL uint32_t currentVersion(const World& world);
 
 // ---------------------------------------------------------------------------
 // Queries and chunk iteration
@@ -169,13 +175,13 @@ struct QueryDesc
     std::span<const ComponentId> excluded; // and none of these
 };
 
-struct Query;
+struct CRUCIBLE_EXPOSE Query;
 
 // Matches archetypes as they appear, including ones created later.
 Query* createQuery(World& world, const QueryDesc& desc);
-void destroyQuery(Query* query);
+CRUCIBLE_EXPOSE_INTERNAL void destroyQuery(Query* query);
 
-struct Chunk;
+struct CRUCIBLE_EXPOSE Chunk;
 
 // One chunk during iteration: `count` entities and their columns. Any
 // component may be asked for; a column the chunk lacks (an optional one) is
@@ -232,7 +238,7 @@ struct Parent
     Entity entity;
 };
 
-ComponentId parentComponent();
+CRUCIBLE_EXPOSE_INTERNAL ComponentId parentComponent();
 
 inline constexpr uint32_t appendChild = ~0u;
 
@@ -240,8 +246,9 @@ inline constexpr uint32_t appendChild = ~0u;
 // (appendChild: last), or a root for nullEntity. InvalidData if either is
 // dead or the move would make an entity its own ancestor. Reparenting to the
 // same parent moves the child to `index`.
-Result<void> setParent(World& world, Entity child, Entity parent, uint32_t index = appendChild);
-Entity parentOf(const World& world, Entity child);
+CRUCIBLE_EXPOSE_INTERNAL Result<void> setParent(World& world, Entity child, Entity parent,
+                                                uint32_t index = appendChild);
+CRUCIBLE_EXPOSE_INTERNAL Entity parentOf(const World& world, Entity child);
 // In order; valid until the next change to the hierarchy.
 std::span<const Entity> childrenOf(const World& world, Entity parent);
 
@@ -254,21 +261,22 @@ std::span<const Entity> childrenOf(const World& world, Entity parent);
 // lock on worker threads (one segment per worker); playback applies each
 // thread's commands in order, segment by segment. Commands on entities that
 // died meanwhile are ignored.
-struct CommandBuffer;
+struct CRUCIBLE_EXPOSE CommandBuffer;
 
-CommandBuffer* createCommandBuffer(World& world);
+CRUCIBLE_EXPOSE_INTERNAL CommandBuffer* createCommandBuffer(World& world);
 // Unapplied commands are discarded; their reserved entities are released.
-void destroyCommandBuffer(CommandBuffer* buffer);
+CRUCIBLE_EXPOSE_INTERNAL void destroyCommandBuffer(CommandBuffer* buffer);
 
 // The returned entity is reserved now and final: it can be stored in
 // components before the buffer is applied, and isn't alive until then.
-Entity recordCreate(CommandBuffer& buffer, std::span<const ComponentId> components = {});
-void recordDestroy(CommandBuffer& buffer, Entity entity);
-void recordAdd(CommandBuffer& buffer, Entity entity, ComponentId component);
-void recordRemove(CommandBuffer& buffer, Entity entity, ComponentId component);
+CRUCIBLE_EXPOSE_INTERNAL Entity recordCreate(CommandBuffer& buffer, std::span<const ComponentId> components = {});
+CRUCIBLE_EXPOSE_INTERNAL void recordDestroy(CommandBuffer& buffer, Entity entity);
+CRUCIBLE_EXPOSE_INTERNAL void recordAdd(CommandBuffer& buffer, Entity entity, ComponentId component);
+CRUCIBLE_EXPOSE_INTERNAL void recordRemove(CommandBuffer& buffer, Entity entity, ComponentId component);
 // Copies the component's value now; adds the component if missing.
-void recordSet(CommandBuffer& buffer, Entity entity, ComponentId component, const void* value);
-void recordSetParent(CommandBuffer& buffer, Entity child, Entity parent, uint32_t index = appendChild);
+CRUCIBLE_EXPOSE_INTERNAL void recordSet(CommandBuffer& buffer, Entity entity, ComponentId component, const void* value);
+CRUCIBLE_EXPOSE_INTERNAL void recordSetParent(CommandBuffer& buffer, Entity child, Entity parent,
+                                              uint32_t index = appendChild);
 
 template <class T>
 void recordSet(CommandBuffer& buffer, Entity entity, const T& value)
@@ -278,9 +286,9 @@ void recordSet(CommandBuffer& buffer, Entity entity, const T& value)
 
 // Applies and clears the buffer, keeping its memory for the next frame. The
 // world must not be iterating.
-void apply(CommandBuffer& buffer);
+CRUCIBLE_EXPOSE_INTERNAL void apply(CommandBuffer& buffer);
 // Discards the recorded commands, releasing reserved entities.
-void clear(CommandBuffer& buffer);
+CRUCIBLE_EXPOSE_INTERNAL void clear(CommandBuffer& buffer);
 
 // The size of every chunk; columns are laid out to fill it (ADR 0023).
 inline constexpr uint32_t chunkBytes = 16 * 1024;
@@ -288,5 +296,38 @@ inline constexpr uint32_t chunkBytes = 16 * 1024;
 // Entities per chunk for this world's archetype with exactly `components`
 // (testing and tuning).
 uint32_t chunkCapacityFor(World& world, std::span<const ComponentId> components);
+
+// ---------------------------------------------------------------------------
+// C-shaped forms for C# (ADR 0035); C++ code uses the forms above.
+// ---------------------------------------------------------------------------
+
+CRUCIBLE_EXPOSE_INTERNAL Query* createQueryFrom(World& world, std::span<const ComponentId> required,
+                                                std::span<const ComponentId> excluded);
+
+// Fills `chunks` with the addresses of the query's non-empty chunks (as many
+// as fit) and returns how many there are.
+CRUCIBLE_EXPOSE_INTERNAL uint32_t gatherChunks(Query& query, std::span<uint64_t> chunks);
+
+CRUCIBLE_EXPOSE_INTERNAL uint32_t chunkEntityCount(const Chunk* chunk);
+// The chunk's Entity array.
+CRUCIBLE_EXPOSE_INTERNAL const void* chunkEntities(const Chunk* chunk);
+// The column's start, or null; `write` stamps its change version.
+CRUCIBLE_EXPOSE_INTERNAL void* chunkColumn(World& world, Chunk* chunk, ComponentId component, bool write);
+CRUCIBLE_EXPOSE_INTERNAL bool chunkChangedSince(const Chunk* chunk, ComponentId component, uint32_t version);
+
+// Bracket C#'s chunk iteration, so structural changes during it are caught
+// as in forEachChunk.
+CRUCIBLE_EXPOSE_INTERNAL void beginIteration(World& world);
+CRUCIBLE_EXPOSE_INTERNAL void endIteration(World& world);
+
+// Copies up to `children.size()` of the parent's children, in order, and
+// returns how many it has.
+CRUCIBLE_EXPOSE_INTERNAL uint32_t childrenInto(const World& world, Entity parent, std::span<Entity> children);
+
+// The engine's C# callback for managed components (ADR 0035): an
+// [UnmanagedCallersOnly] method taking (component, slot), as an address. The
+// ECS calls it for every managed slot it drops: when the component is
+// removed, its entity destroyed, or its world destroyed.
+CRUCIBLE_EXPOSE_INTERNAL void setManagedReleaseCallback(uint64_t callbackAddress);
 
 } // namespace crucible::ecs

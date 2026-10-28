@@ -33,6 +33,7 @@ internal static class CSharpWriter
 
         // One C# namespace per C++ namespace, in a stable order.
         IEnumerable<Scope> scopes = model.Enums.Select(e => e.Scope)
+            .Concat(model.Opaques.Select(o => o.Scope))
             .Concat(model.Structs.Select(s => s.Scope))
             .Concat(model.Functions.Select(f => f.Scope))
             .Distinct()
@@ -45,6 +46,10 @@ internal static class CSharpWriter
             foreach (ExposedEnum exposed in model.Enums.Where(e => e.Scope == scope))
             {
                 WriteEnum(text, exposed);
+            }
+            foreach (ExposedOpaque opaque in model.Opaques.Where(o => o.Scope == scope))
+            {
+                WriteHandle(text, opaque);
             }
             // Mapped structs (CRUCIBLE_EXPOSE_AS) cross as an existing C# type.
             foreach (ExposedStruct exposed in model.Structs.Where(s => s.Scope == scope && s.MappedCSharpType is null))
@@ -79,6 +84,20 @@ internal static class CSharpWriter
         {
             text.AppendLine($"        {enumerator.Name} = {enumerator.Value},");
         }
+        text.AppendLine("    }");
+        text.AppendLine();
+    }
+
+    private static void WriteHandle(StringBuilder text, ExposedOpaque opaque)
+    {
+        // The native object's address: native code owns it, so a handle is
+        // plain data that's safe to keep across hot reloads.
+        text.AppendLine($"    /// <summary>Handle to a native <c>{opaque.QualifiedName}</c>.</summary>");
+        text.AppendLine($"    public readonly struct {opaque.HandleName}(nint address)");
+        text.AppendLine("    {");
+        text.AppendLine("        public readonly nint Address = address;");
+        text.AppendLine();
+        text.AppendLine("        public bool IsNull => Address == 0;");
         text.AppendLine("    }");
         text.AppendLine();
     }
@@ -356,6 +375,8 @@ internal static class CSharpWriter
 
     private static string IdiomaticType(TypeRef type) => type.Shape switch
     {
+        Shape.Opaque => QualifiedName(type.Opaque!.Scope, type.Opaque.HandleName),
+        Shape.Address => "nint",
         Shape.Struct when type.Struct!.MappedCSharpType is { } mapped => $"global::{mapped}",
         Shape.Struct => QualifiedName(type.Struct!.Scope, type.Struct.Name),
         Shape.Enum => QualifiedName(type.Enum!.Scope, type.Enum.Name),
@@ -364,7 +385,7 @@ internal static class CSharpWriter
 
     private static string RawType(TypeRef type) => type.Shape switch
     {
-        Shape.Struct or Shape.Enum => IdiomaticType(type),
+        Shape.Struct or Shape.Enum or Shape.Opaque or Shape.Address => IdiomaticType(type),
         _ => Primitives.CSharpRaw(type.Primitive),
     };
 

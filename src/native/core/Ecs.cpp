@@ -72,6 +72,7 @@ struct Column
     ComponentId component;
     uint32_t size; // 0 for a tag, which has no storage
     uint32_t offset;
+    bool managed; // holds a C# pool slot (ADR 0035)
 };
 
 struct Archetype
@@ -227,7 +228,8 @@ Archetype* findArchetype(World& world, std::span<const ComponentId> components)
     archetype->components.assign(components);
     for (ComponentId component : components)
     {
-        archetype->columns.pushBack({component, componentInfo(component).size, 0});
+        const ComponentInfo info = componentInfo(component);
+        archetype->columns.pushBack({component, info.size, 0, info.storage == ComponentStorage::Managed});
     }
     layOut(*archetype);
     candidates->pushBack(archetype);
@@ -371,6 +373,30 @@ void removeRow(World& world, Chunk& chunk, uint32_t row)
     }
 }
 
+using ManagedRelease = void (*)(ComponentId component, int32_t slot);
+
+std::atomic<ManagedRelease> managedRelease{nullptr};
+
+// Reports the managed slots in a row to C# (ADR 0035), except columns that
+// `keep` also has (the entity is moving there with them).
+void releaseManaged(const Chunk& chunk, uint32_t row, const Archetype* keep = nullptr)
+{
+    const ManagedRelease release = managedRelease.load(std::memory_order_acquire);
+    for (const Column& column : chunk.archetype->columns)
+    {
+        if (!column.managed || (keep != nullptr && columnIndex(*keep, column.component) >= 0))
+        {
+            continue;
+        }
+        int32_t slot;
+        std::memcpy(&slot, valueAt(chunk, column, row), sizeof(slot));
+        if (slot != 0 && release != nullptr)
+        {
+            release(column.component, slot);
+        }
+    }
+}
+
 // Moves an entity to `to`, keeping the values of the components both
 // archetypes have and zeroing the ones only `to` has.
 void moveEntity(World& world, Entity entity, Archetype& to)
@@ -399,6 +425,7 @@ void moveEntity(World& world, Entity entity, Archetype& to)
             std::memset(valueAt(*chunk, column, row), 0, column.size);
         }
     }
+    releaseManaged(from, fromRow, &to);
     removeRow(world, from, fromRow);
     // removeRow may have moved another entity, never this one: it's gone from
     // `from` only now.
@@ -662,6 +689,10 @@ void destroyWorld(World* world)
     {
         for (Chunk* chunk : archetype->chunks)
         {
+            for (uint32_t row = 0; row < chunk->count; ++row)
+            {
+                releaseManaged(*chunk, row);
+            }
             free(chunk->data, chunkBytes, MemoryTag::Ecs);
             destroy(MemoryTag::Ecs, chunk);
         }
@@ -720,6 +751,7 @@ void destroyEntity(World& world, Entity entity)
     }
 
     EntityRecord& record = world.records[indexOf(entity)];
+    releaseManaged(*record.chunk, record.row);
     removeRow(world, *record.chunk, record.row);
     record.alive = false;
     record.chunk = nullptr;
@@ -1289,6 +1321,78 @@ void clear(CommandBuffer& buffer)
         segment->reserved.clear();
         segment->bytes.clear();
     }
+}
+
+// ---------------------------------------------------------------------------
+// C-shaped forms for C# (ADR 0035)
+// ---------------------------------------------------------------------------
+
+Query* createQueryFrom(World& world, std::span<const ComponentId> required, std::span<const ComponentId> excluded)
+{
+    return createQuery(world, {required, excluded});
+}
+
+uint32_t gatherChunks(Query& query, std::span<uint64_t> chunks)
+{
+    updateMatches(query);
+    uint32_t total = 0;
+    for (Archetype* archetype : query.matched)
+    {
+        for (Chunk* chunk : archetype->chunks)
+        {
+            if (total < chunks.size())
+            {
+                chunks[total] = reinterpret_cast<uintptr_t>(chunk);
+            }
+            ++total;
+        }
+    }
+    return total;
+}
+
+uint32_t chunkEntityCount(const Chunk* chunk)
+{
+    return chunk->count;
+}
+
+const void* chunkEntities(const Chunk* chunk)
+{
+    return entityIds(*chunk);
+}
+
+void* chunkColumn(World& world, Chunk* chunk, ComponentId component, bool write)
+{
+    const ChunkView view{&world, chunk};
+    return write ? writeColumn(view, component) : const_cast<void*>(readColumn(view, component));
+}
+
+bool chunkChangedSince(const Chunk* chunk, ComponentId component, uint32_t version)
+{
+    const int index = columnIndex(*chunk->archetype, component);
+    return index >= 0 && chunk->versions[index] > version;
+}
+
+void beginIteration(World& world)
+{
+    world.iterating.fetch_add(1);
+}
+
+void endIteration(World& world)
+{
+    world.iterating.fetch_sub(1);
+}
+
+uint32_t childrenInto(const World& world, Entity parent, std::span<Entity> children)
+{
+    const std::span<const Entity> all = childrenOf(world, parent);
+    std::copy_n(all.begin(), std::min(all.size(), children.size()), children.begin());
+    return static_cast<uint32_t>(all.size());
+}
+
+void setManagedReleaseCallback(uint64_t callbackAddress)
+{
+    managedRelease.store(reinterpret_cast<ManagedRelease>(static_cast<uintptr_t>(callbackAddress)),
+                         std::memory_order_release);
 }
 
 } // namespace crucible::ecs

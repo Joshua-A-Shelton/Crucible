@@ -32,6 +32,12 @@ internal enum Shape
 
     /// <summary>A fixed-size array, as a struct field.</summary>
     Array,
+
+    /// <summary>A pointer or reference to an opaque native type: a typed handle in C#.</summary>
+    Opaque,
+
+    /// <summary>void* or const void*: a raw address (nint) for engine code.</summary>
+    Address,
 }
 
 /// <summary>A type in an exposed signature or struct.</summary>
@@ -45,7 +51,9 @@ internal sealed record TypeRef(
     ExposedEnum? Enum = null,
     TypeRef? Element = null,
     bool IsConst = false,
-    long Length = 0)
+    long Length = 0,
+    ExposedOpaque? Opaque = null,
+    bool IsReference = false)
 {
     public static TypeRef Of(Primitive primitive) => new(Shape.Primitive, primitive);
 
@@ -73,6 +81,16 @@ internal sealed record Scope(IReadOnlyList<string> Namespaces)
 }
 
 internal sealed record Field(string Name, TypeRef Type, long Offset);
+
+/// <summary>
+/// A struct declared but not defined in the headers, marked CRUCIBLE_EXPOSE:
+/// native code owns it, and C# holds a handle to it (World*, Query*).
+/// </summary>
+internal sealed record ExposedOpaque(string QualifiedName, string Name, Scope Scope)
+{
+    /// <summary>The C# handle type's name: WorldHandle.</summary>
+    public string HandleName => $"{Name}Handle";
+}
 
 /// <param name="MappedCSharpType">
 /// Set by CRUCIBLE_EXPOSE_AS: the existing C# type it crosses as
@@ -124,6 +142,7 @@ internal sealed record ExposedFunction(
 internal sealed class BindingModel
 {
     public List<ExposedEnum> Enums { get; } = [];
+    public List<ExposedOpaque> Opaques { get; } = [];
     public List<ExposedStruct> Structs { get; } = [];
     public List<ExposedFunction> Functions { get; } = [];
 

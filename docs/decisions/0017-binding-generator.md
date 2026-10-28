@@ -185,3 +185,17 @@ tests, but not by games. For engine plumbing (the C# job trampoline) and
 the launcher-owned setup functions the tests need. A function pointer
 crosses as a `uint64_t` address, since the generator doesn't do function
 pointers; the job trampoline is the only one so far.
+
+## Amendment (2026-10-27): opaque handles and raw addresses (M3 step 7a)
+
+- **Opaque handles:** a struct declared but not defined in the headers and
+  marked `CRUCIBLE_EXPOSE` is opaque (native code owns it). A pointer or
+  reference to it crosses as a generated `readonly struct
+  <Name>Handle { nint Address }`; the shim dereferences it where the C++
+  function takes a reference. Used for `World`, `Query`, `Chunk`, and
+  `CommandBuffer`; hand-written C# classes wrap the handles.
+- **Raw addresses:** `void*` and `const void*` cross as `nint`, for engine
+  code that reaches native memory without copies (component values, chunk
+  columns, ADR 0012); those functions are internal, and games see typed
+  `ref`s and spans. Other pointers are still rejected, with a message
+  naming what's allowed.
