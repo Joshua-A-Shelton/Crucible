@@ -27,6 +27,9 @@ milestone are decided or checked when that milestone reaches them
 - Job handles with dependencies (schedule after, without waiting), on top
   of or instead of counters; likely together with automatic scheduling
   between systems. → 0014, 0013
+- Changing a component's storage (archetype, sparse, managed) across a hot
+  reload: it throws and needs a restart today; migrate it instead if the
+  editor makes it common. → 0035
 
 - Whether pacing stays on by default under `Mailbox`. → 0003 [M2,
   decide] Measured with the latency harness (RADV, KDE Wayland, 144 Hz,

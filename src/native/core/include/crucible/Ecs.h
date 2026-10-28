@@ -96,6 +96,25 @@ struct ComponentInfo
 // Valid for any registered ID.
 ComponentInfo componentInfo(ComponentId component);
 
+// Hot reload (ADR 0035): a component whose layout changed gets a new ID, and
+// every world's values move to it. These run between frames, with no world
+// iterating and no other ECS calls in flight; queries and command buffers
+// naming a retired ID match and change nothing afterwards.
+
+// Frees the component's name, so registerComponent gives that name a new ID;
+// existing values keep the old one until migrated or removed.
+CRUCIBLE_EXPOSE_INTERNAL void retireComponent(ComponentId component);
+
+// In every live world, gives each entity with `from` a `to` instead: the
+// byte ranges in `copies`, as (from offset, to offset, size) triples, are
+// copied and the rest of `to` is zeroed. Both are blittable, with the same
+// storage; managed components keep their ID (C# migrates their pools).
+CRUCIBLE_EXPOSE_INTERNAL void migrateComponent(ComponentId from, ComponentId to, std::span<const uint32_t> copies);
+
+// Removes the component from every entity in every live world, releasing
+// managed slots: for a component type the reloaded game no longer has.
+CRUCIBLE_EXPOSE_INTERNAL void removeComponentEverywhere(ComponentId component);
+
 // The ID registerComponent<T> gave T, or invalidComponent.
 template <class T>
 inline ComponentId componentIdOf = invalidComponent;

@@ -45,12 +45,17 @@ struct ComponentRecord
     uint32_t size;
     uint32_t alignment;
     ComponentStorage storage;
+    // Replaced by a new layout on hot reload (ADR 0035): its name can be
+    // registered again, and the ID lives on only in worlds not yet migrated.
+    bool retired = false;
 };
 
 struct Registry
 {
     std::mutex mutex;
     Vector<ComponentRecord> components{MemoryTag::Ecs};
+    // Every live world, so hot reload can migrate them all.
+    Vector<World*> worlds{MemoryTag::Ecs};
 };
 
 Registry& registry()
@@ -643,7 +648,7 @@ ComponentId registerComponent(std::string_view name, uint32_t size, uint32_t ali
     for (size_t id = 0; id < components.components.size(); ++id)
     {
         const ComponentRecord& existing = components.components[id];
-        if (std::string_view(existing.name.data(), existing.name.size()) == name)
+        if (!existing.retired && std::string_view(existing.name.data(), existing.name.size()) == name)
         {
             if (existing.size != size || existing.alignment != alignment || existing.storage != storage)
             {
@@ -671,12 +676,150 @@ ComponentInfo componentInfo(ComponentId component)
 }
 
 // ---------------------------------------------------------------------------
+// Hot reload (ADR 0035)
+// ---------------------------------------------------------------------------
+
+namespace {
+
+// Taken under the registry lock and used without it: migration calls
+// componentInfo, which takes the lock again.
+Vector<World*> liveWorlds()
+{
+    Registry& components = registry();
+    std::lock_guard lock(components.mutex);
+    return components.worlds.copy();
+}
+
+// The entities whose archetype has `component`, gathered before any moves:
+// moving them changes the archetypes being walked.
+Vector<Entity> entitiesWith(const World& world, ComponentId component)
+{
+    Vector<Entity> entities(MemoryTag::Ecs);
+    for (const Archetype* archetype : world.archetypes)
+    {
+        if (columnIndex(*archetype, component) < 0)
+        {
+            continue;
+        }
+        for (const Chunk* chunk : archetype->chunks)
+        {
+            for (uint32_t row = 0; row < chunk->count; ++row)
+            {
+                entities.pushBack(entityIds(*chunk)[row]);
+            }
+        }
+    }
+    return entities;
+}
+
+void copyFields(std::byte* to, const std::byte* from, std::span<const uint32_t> copies)
+{
+    for (size_t i = 0; i + 2 < copies.size(); i += 3)
+    {
+        std::memcpy(to + copies[i + 1], from + copies[i], copies[i + 2]);
+    }
+}
+
+} // namespace
+
+void retireComponent(ComponentId component)
+{
+    Registry& components = registry();
+    std::lock_guard lock(components.mutex);
+    components.components[component & ~sparseBit].retired = true;
+}
+
+void migrateComponent(ComponentId from, ComponentId to, std::span<const uint32_t> copies)
+{
+    const ComponentInfo source = componentInfo(from);
+    const ComponentInfo target = componentInfo(to);
+    validate(source.storage == target.storage && source.storage != ComponentStorage::Managed,
+             "migrateComponent needs two blittable components with the same storage");
+    validate(copies.size() % 3 == 0, "migrateComponent takes (from offset, to offset, size) triples");
+    for (size_t i = 0; i + 2 < copies.size(); i += 3)
+    {
+        validate(copies[i] + copies[i + 2] <= source.size && copies[i + 1] + copies[i + 2] <= target.size,
+                 "a migrated field lies outside its component");
+    }
+
+    for (World* world : liveWorlds())
+    {
+        checkNotIterating(*world);
+        if (isSparse(from))
+        {
+            SparseSet** found = world->sparseSets.find(from);
+            if (found == nullptr)
+            {
+                continue;
+            }
+            SparseSet* old = *found;
+            SparseSet& set = *sparseSetFor(*world, to);
+            for (size_t i = 0; i < old->entities.size(); ++i)
+            {
+                sparseAdd(set, old->entities[i]);
+                if (set.size != 0 && old->size != 0)
+                {
+                    copyFields(static_cast<std::byte*>(sparseValue(set, old->entities[i])), old->values + i * old->size,
+                               copies);
+                }
+            }
+            world->sparseSets.erase(from);
+            destroySparseSet(old);
+            continue;
+        }
+        // Two moves per entity, through the archetype holding both: simple,
+        // and a reload is rare enough not to need one direct move.
+        for (const Entity entity : entitiesWith(*world, from))
+        {
+            const EntityRecord& record = world->records[indexOf(entity)];
+            moveEntity(*world, entity, *archetypeWith(*world, *record.chunk->archetype, to));
+            Chunk& chunk = *record.chunk;
+            Archetype& both = *chunk.archetype;
+            const Column& oldColumn = both.columns[columnIndex(both, from)];
+            const Column& newColumn = both.columns[columnIndex(both, to)];
+            if (oldColumn.size != 0 && newColumn.size != 0)
+            {
+                copyFields(valueAt(chunk, newColumn, record.row), valueAt(chunk, oldColumn, record.row), copies);
+            }
+            moveEntity(*world, entity, *archetypeWithout(*world, both, from));
+        }
+    }
+}
+
+void removeComponentEverywhere(ComponentId component)
+{
+    for (World* world : liveWorlds())
+    {
+        checkNotIterating(*world);
+        if (isSparse(component))
+        {
+            if (SparseSet** found = world->sparseSets.find(component))
+            {
+                SparseSet* set = *found;
+                world->sparseSets.erase(component);
+                destroySparseSet(set);
+            }
+            continue;
+        }
+        for (const Entity entity : entitiesWith(*world, component))
+        {
+            Archetype& from = *world->records[indexOf(entity)].chunk->archetype;
+            moveEntity(*world, entity, *archetypeWithout(*world, from, component)); // releases managed slots
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Worlds and entities
 // ---------------------------------------------------------------------------
 
 World* createWorld()
 {
-    return create<World>(MemoryTag::Ecs);
+    World* world = create<World>(MemoryTag::Ecs);
+    Registry& components = registry();
+    std::lock_guard lock(components.mutex);
+    components.worlds.pushBack(world);
+    return world;
 }
 
 void destroyWorld(World* world)
@@ -684,6 +827,13 @@ void destroyWorld(World* world)
     if (world == nullptr)
     {
         return;
+    }
+    {
+        Registry& components = registry();
+        std::lock_guard lock(components.mutex);
+        World** found = std::find(components.worlds.begin(), components.worlds.end(), world);
+        *found = components.worlds.back();
+        components.worlds.popBack();
     }
     for (Archetype* archetype : world->archetypes)
     {

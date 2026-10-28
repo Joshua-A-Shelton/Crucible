@@ -99,3 +99,65 @@ with a `ref struct ChunkView`, and step 7 is split (7b: migration).
   release path, command buffers recorded from parallel chunk jobs, the
   hierarchy, and allocation-free iteration; the hot reload test game uses
   its own component, managed component, and chunk job, and still unloads.
+
+## As built (M3 step 7b): layout migration on hot reload
+
+Settled with the project owner: migration is an explicit reload step,
+blittable components are matched by flattened leaf fields, managed fields
+holding the game's own types are reset, and a changed layout gets a new
+`ComponentId` (the old one is retired).
+
+- `GameLoader.Reload(current, path, out notes)` loads the new version
+  beside the old, migrates, and only then creates the new version's entry,
+  so its first `Register` calls return the migrated IDs (migration sets
+  them in the new types' static caches). The caller unloads the old
+  version afterwards. Old values are still readable during migration
+  because the old version is still loaded.
+- Native: the registry lists live worlds, so one call reaches all of them.
+  `retireComponent` frees a name for a new layout. `migrateComponent(from,
+  to, copies)` gives every entity with `from` a `to`, copying
+  (from offset, to offset, size) triples and zeroing the rest; it moves
+  each entity through the archetype holding both, which is simple, and a
+  reload is rare. `removeComponentEverywhere` handles deleted component
+  types. The copies are passed as a `uint32_t` span rather than a struct,
+  because the generator only makes exposed structs public in C#.
+- Which types migrate: `Components` keeps every registration by name, with
+  a weak reference to collectible types. A component migrates if its type
+  comes from the old version's load context, including generic
+  instantiations over the game's types. Its counterpart is found by
+  assembly and full name. Types from the engine or tests are left alone.
+- Blittable components are flattened to leaf fields: primitives, enums
+  (name and underlying type), pointers, and fixed buffers and inline arrays
+  (copied whole). Each leaf's offset is the runtime's own layout, read from
+  a small `DynamicMethod` that takes the field's address with `ldflda`.
+  `Marshal.OffsetOf` gives the marshaled layout, where a `bool` is 4 bytes.
+  Unchanged layouts keep their ID. A blittable type that now holds
+  references is removed: the new version must register it as managed.
+- Managed components keep their ID, since native code holds only slot
+  numbers. The old pool's slots are exported, every value is rebuilt as
+  the new type, and the result is imported at the same slots. Each new
+  value comes from the parameterless constructor, so added fields get their
+  initializers. Fields are matched by name (base classes included) and
+  exact type. A field whose type involves the game is reset. So is a value
+  whose runtime type is the game's, held behind `object` or an interface.
+- What a reload dropped or reset comes back as `MigrationNote`s
+  (component, field, change), for the editor to show. The engine has no
+  logger yet.
+- Not handled:
+  - **Storage changes.** Registering a type with a different kind than
+    before (for example sparse instead of archetype) throws, in the new
+    version's `Register` call. Migration can't see which call the new
+    version makes, so changing storage means a restart.
+  - **Hidden game objects.** A game object nested inside an engine or .NET
+    collection (`List<object>`) isn't seen, and keeps the old version
+    loaded. The unload check reports it.
+  - **Single assembly.** Games are one assembly, since the loader resolves
+    nothing else.
+  - **Stale objects.** Queries and command buffers the old version made are
+    stale after a reload.
+- Tests:
+  - **Native:** migration across two worlds, sparse migration, and removal.
+  - **Hot reload:** a V1→V2 test game whose components change every way
+    listed above. The test checks values, notes, a query over the migrated
+    archetypes, and that both versions still unload. Breaking the copy plan
+    on purpose makes it fail.

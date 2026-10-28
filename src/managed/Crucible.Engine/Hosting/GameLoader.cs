@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.Loader;
+using Crucible.Ecs;
 
 namespace Crucible.Hosting;
 
@@ -19,8 +20,6 @@ public static class GameLoader
     /// collectible load context and creates its entry.
     /// </summary>
     /// <remarks>
-    /// The assembly is read from a stream, not opened by path, so the file
-    /// isn't locked: a rebuild can overwrite it while the old version runs.
     /// Crucible.Engine itself isn't loaded again: the new context falls back
     /// to the default one for it, so the game and the engine share one
     /// <see cref="IGameEntry"/> type.
@@ -28,18 +27,51 @@ public static class GameLoader
     [RequiresUnreferencedCode(JitOnly)]
     public static LoadedGame Load(string path)
     {
-        AssemblyLoadContext context = new($"Game: {Path.GetFileName(path)}", isCollectible: true);
-        Assembly assembly;
-        using (FileStream stream = File.OpenRead(path))
-        {
-            assembly = context.LoadFromStream(stream);
-        }
+        (AssemblyLoadContext context, Assembly assembly) = LoadAssembly(path);
+        return new LoadedGame(context, CreateEntry(assembly, path));
+    }
 
+    /// <summary>
+    /// Loads a new version of <paramref name="current"/>'s game beside it and
+    /// moves every world's component values to the new version's types
+    /// (ADR 0035); then unload <paramref name="current"/>. Returns the new
+    /// version, and in <paramref name="notes"/> what migration had to drop or
+    /// reset, for the editor to show.
+    /// </summary>
+    /// <remarks>
+    /// Call it between frames: no world may be iterating, and nothing else
+    /// may use the ECS meanwhile. The new version's entry is created after
+    /// migration, so its first Register calls already see the migrated IDs.
+    /// Queries and command buffers made by the old version are stale
+    /// afterwards: the new version makes its own.
+    /// </remarks>
+    [RequiresUnreferencedCode(JitOnly)]
+    [RequiresDynamicCode(JitOnly)]
+    public static LoadedGame Reload(LoadedGame current, string path, out IReadOnlyList<MigrationNote> notes)
+    {
+        AssemblyLoadContext oldContext = current.Context;
+        (AssemblyLoadContext context, Assembly assembly) = LoadAssembly(path);
+        notes = ComponentMigration.Migrate(oldContext, context);
+        return new LoadedGame(context, CreateEntry(assembly, path));
+    }
+
+    // The assembly is read from a stream, not opened by path, so the file
+    // isn't locked: a rebuild can overwrite it while the old version runs.
+    [RequiresUnreferencedCode(JitOnly)]
+    private static (AssemblyLoadContext Context, Assembly Assembly) LoadAssembly(string path)
+    {
+        AssemblyLoadContext context = new($"Game: {Path.GetFileName(path)}", isCollectible: true);
+        using FileStream stream = File.OpenRead(path);
+        return (context, context.LoadFromStream(stream));
+    }
+
+    [RequiresUnreferencedCode(JitOnly)]
+    private static IGameEntry CreateEntry(Assembly assembly, string path)
+    {
         GameEntryAttribute attribute = assembly.GetCustomAttribute<GameEntryAttribute>() ??
                                        throw new InvalidOperationException($"{path} has no [GameEntry] attribute.");
-        IGameEntry entry = (IGameEntry)(Activator.CreateInstance(attribute.EntryType) ??
-                                        throw new InvalidOperationException($"Could not create {attribute.EntryType}."));
-        return new LoadedGame(context, entry);
+        return (IGameEntry)(Activator.CreateInstance(attribute.EntryType) ??
+                            throw new InvalidOperationException($"Could not create {attribute.EntryType}."));
     }
 
     /// <summary>
@@ -77,6 +109,9 @@ public sealed class LoadedGame
     }
 
     public IGameEntry Entry => _entry ?? throw new InvalidOperationException("The game has been unloaded.");
+
+    internal AssemblyLoadContext Context =>
+        _context ?? throw new InvalidOperationException("The game has been unloaded.");
 
     /// <summary>
     /// Starts unloading and drops this object's references. Pass the returned

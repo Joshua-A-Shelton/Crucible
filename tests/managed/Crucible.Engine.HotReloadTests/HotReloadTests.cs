@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using Crucible.Ecs;
 using Crucible.Hosting;
 
 namespace Crucible.Tests.HotReload;
@@ -7,6 +8,9 @@ namespace Crucible.Tests.HotReload;
 // The helpers that touch a loaded game are NoInlining: a debug build keeps a
 // method's locals alive until it returns, so any reference to the game held
 // in the test method itself would keep the old version from unloading.
+// Not in parallel: migration changes every live world, and the other tests'
+// games make worlds too.
+[NotInParallel("reload")]
 public class HotReloadTests
 {
     // The test game runs a job on the workers; its job type must not keep it
@@ -50,6 +54,54 @@ public class HotReloadTests
         _leakedEntry = null;
         await Assert.That(GameLoader.WaitForUnload(context)).IsTrue();
     }
+
+    [Test]
+    public async Task MigratesComponentValuesAcrossAReload()
+    {
+        WeakReference v1;
+        WeakReference v2;
+        string problems;
+        IReadOnlyList<MigrationNote> notes;
+        using (World world = new())
+        {
+            (problems, notes, v1, v2) = PopulateReloadAndCheck(world);
+        }
+
+        await Assert.That(problems).IsEqualTo("");
+        const string game = "Crucible.TestGame.TestGameEntry";
+        string[] expected =
+        [
+            $"{game}+Body.Inner.Added: FieldAdded",
+            $"{game}+Body.Inner.Removed: FieldRemoved",
+            $"{game}+Body.Health: FieldTypeChanged",
+            $"{game}+Body.Armor: FieldAdded",
+            $"{game}+Status.Flags: FieldAdded",
+            $"{game}+Doomed: ComponentRemoved",
+            $"{game}+Tag.Owner: FieldReset",
+            $"{game}+Tag.Payload: FieldReset", // held a game object in some values
+            $"{game}+Tag.Added: FieldAdded",
+        ];
+        await Assert.That(notes.Select(note => note.ToString()).Order()).IsEquivalentTo(expected.Order());
+        // Migration kept nothing of the old version.
+        await Assert.That(GameLoader.WaitForUnload(v1)).IsTrue();
+        await Assert.That(GameLoader.WaitForUnload(v2)).IsTrue();
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static (string Problems, IReadOnlyList<MigrationNote> Notes, WeakReference V1, WeakReference V2)
+        PopulateReloadAndCheck(World world)
+    {
+        LoadedGame v1 = GameLoader.Load(TestGame("v1"));
+        Entity[] entities = (Entity[])Call(v1.Entry, "Populate", world);
+        LoadedGame v2 = GameLoader.Reload(v1, TestGame("v2"), out IReadOnlyList<MigrationNote> notes);
+        WeakReference oldContext = v1.Unload();
+        string problems = (string)Call(v2.Entry, "Check", world, entities);
+        return (problems, notes, oldContext, v2.Unload());
+    }
+
+    // The test game's own methods, beyond IGameEntry.
+    private static object Call(IGameEntry entry, string method, params object[] arguments) =>
+        entry.GetType().GetMethod(method)!.Invoke(entry, arguments)!;
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static (int Result, WeakReference Context) RunAndUnload(string path)

@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <random>
 #include <unordered_map>
@@ -357,6 +358,9 @@ TEST_CASE("Parallel chunk iteration updates every entity once")
 TEST_CASE("Destroying a world returns all its memory")
 {
     const Components c;
+    // The registry's list of live worlds keeps its capacity for the process,
+    // like the component registry: grow it before measuring.
+    destroyWorld(createWorld());
     const MemoryUsage before = memoryUsage(MemoryTag::Ecs);
     {
         WorldScope world;
@@ -708,4 +712,104 @@ TEST_CASE("Parallel chunk jobs can record into one buffer")
         destroyQuery(query);
     }
     jobs::shutdown();
+}
+
+namespace {
+
+// One component's layout before and after a hot reload edit (ADR 0035):
+// fields reordered, `health` removed, `armor` added.
+struct StatsBefore
+{
+    int32_t health;
+    float speed;
+    int64_t score;
+};
+
+struct StatsAfter
+{
+    int64_t score;
+    float speed;
+    int32_t armor;
+};
+
+// The copies C# computes for those two: score and speed, where they moved.
+const uint32_t statsCopies[] = {
+    offsetof(StatsBefore, score), offsetof(StatsAfter, score), sizeof(int64_t),
+    offsetof(StatsBefore, speed), offsetof(StatsAfter, speed), sizeof(float),
+};
+
+} // namespace
+
+TEST_CASE("A changed layout moves to a new ID in every world field by field")
+{
+    const Components c;
+    const ComponentId before = registerComponent("MigratedStats", sizeof(StatsBefore), alignof(StatsBefore));
+    WorldScope first;
+    WorldScope second;
+    const ComponentId set[] = {c.position, before};
+    std::vector<Entity> entities;
+    for (World* world : {first.world, second.world})
+    {
+        for (int i = 0; i < 1000; ++i)
+        {
+            const Entity e = createEntity(*world, set);
+            *static_cast<StatsBefore*>(writeComponent(*world, e, before)) = {i, 0.5f * i, 1000ll * i};
+            get<Position>(*world, e)->x = static_cast<float>(i);
+            entities.push_back(e);
+        }
+    }
+
+    retireComponent(before);
+    const ComponentId after = registerComponent("MigratedStats", sizeof(StatsAfter), alignof(StatsAfter));
+    CHECK(after != before);
+    migrateComponent(before, after, statsCopies);
+
+    for (size_t n = 0; n < entities.size(); ++n)
+    {
+        World& world = *(n < 1000 ? first.world : second.world);
+        const Entity e = entities[n];
+        const auto i = static_cast<int>(n % 1000);
+        CHECK_FALSE(hasComponent(world, e, before));
+        const auto* stats = static_cast<const StatsAfter*>(readComponent(world, e, after));
+        REQUIRE(stats != nullptr);
+        CHECK(stats->score == 1000ll * i);
+        CHECK(stats->speed == 0.5f * i);
+        CHECK(stats->armor == 0);                                    // new: zeroed
+        CHECK(read<Position>(world, e)->x == static_cast<float>(i)); // untouched
+    }
+    CHECK(entityCount(*first.world) == 1000);
+    CHECK(registerComponent("MigratedStats", sizeof(StatsAfter), alignof(StatsAfter)) == after);
+}
+
+TEST_CASE("Sparse components migrate and removed types leave every entity")
+{
+    const Components c;
+    const ComponentId before =
+        registerComponent("MigratedSparseStats", sizeof(StatsBefore), alignof(StatsBefore), ComponentStorage::Sparse);
+    const ComponentId gone = registerComponent("RemovedType", sizeof(Health), alignof(Health));
+    const ComponentId goneSparse = registerComponent("RemovedSparseType", 0, 1, ComponentStorage::Sparse);
+    WorldScope world;
+    const ComponentId set[] = {c.position, before, gone, goneSparse};
+    const Entity a = createEntity(*world, set);
+    const Entity b = createEntity(*world, set);
+    *static_cast<StatsBefore*>(writeComponent(*world, a, before)) = {1, 2.0f, 3};
+    *static_cast<StatsBefore*>(writeComponent(*world, b, before)) = {4, 5.0f, 6};
+
+    retireComponent(before);
+    const ComponentId after =
+        registerComponent("MigratedSparseStats", sizeof(StatsAfter), alignof(StatsAfter), ComponentStorage::Sparse);
+    CHECK(isSparse(after));
+    migrateComponent(before, after, statsCopies);
+    CHECK_FALSE(hasComponent(*world, a, before));
+    CHECK(static_cast<const StatsAfter*>(readComponent(*world, b, after))->score == 6);
+    CHECK(static_cast<const StatsAfter*>(readComponent(*world, a, after))->speed == 2.0f);
+
+    retireComponent(gone);
+    removeComponentEverywhere(gone);
+    retireComponent(goneSparse);
+    removeComponentEverywhere(goneSparse);
+    CHECK_FALSE(hasComponent(*world, a, gone));
+    CHECK_FALSE(hasComponent(*world, b, goneSparse));
+    CHECK(hasComponent(*world, b, c.position));
+    CHECK(registerComponent("RemovedType", 8, 8) != gone); // the name is free for a new layout
 }
