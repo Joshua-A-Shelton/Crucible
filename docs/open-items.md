@@ -30,6 +30,13 @@ milestone are decided or checked when that milestone reaches them
 - Changing a component's storage (archetype, sparse, managed) across a hot
   reload: it throws and needs a restart today; migrate it instead if the
   editor makes it common. → 0035
+- An intermittent NativeAOT failure: once (2026-10-28, M4 step 2), an
+  allocation test in `Crucible.Engine.Tests.aot` reported a nonzero count
+  ("Expected to be 0") right after a rebuild. About 50 reruns, alone and in
+  full ctest runs, passed; the test's name was lost. Ruled out: garbage
+  collections on other threads (a probe saw no counter drift in 348 GC
+  windows). Next time, read the name and byte count from
+  `ctest --output-on-failure`. → 0036, 0038
 - Values in a system's fields across a hot reload: the new version's
   systems are new objects, so the old ones' fields are lost. Migrate them
   like component values if games keep much state in systems. → 0036

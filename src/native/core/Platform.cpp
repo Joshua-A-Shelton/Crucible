@@ -256,4 +256,109 @@ void stopLatencyMarkers()
     }
 }
 
+// ---------------------------------------------------------------------------
+// Files
+// ---------------------------------------------------------------------------
+
+namespace {
+
+// SDL wants NUL-terminated paths.
+struct PathString
+{
+    SmallVector<char, 256> text{MemoryTag::Platform};
+
+    explicit PathString(std::string_view path)
+    {
+        text.resize(path.size() + 1);
+        std::memcpy(text.data(), path.data(), path.size());
+        text[path.size()] = '\0';
+    }
+
+    const char* c_str() const
+    {
+        return text.data();
+    }
+};
+
+// Opening failed: NotFound if there's nothing there, IoError otherwise.
+Status openFailure(const char* path)
+{
+    SDL_PathInfo info;
+    return SDL_GetPathInfo(path, &info) ? Status::IoError : Status::NotFound;
+}
+
+std::atomic<uint32_t> temporaryCounter{0};
+
+} // namespace
+
+Result<uint64_t> fileSize(std::string_view utf8Path)
+{
+    const PathString path(utf8Path);
+    SDL_PathInfo info;
+    if (!SDL_GetPathInfo(path.c_str(), &info))
+    {
+        return Status::NotFound;
+    }
+    if (info.type != SDL_PATHTYPE_FILE)
+    {
+        return Status::IoError;
+    }
+    return info.size;
+}
+
+Result<void> readFile(std::string_view utf8Path, std::span<std::byte> destination)
+{
+    const PathString path(utf8Path);
+    SDL_IOStream* file = SDL_IOFromFile(path.c_str(), "rb");
+    if (file == nullptr)
+    {
+        return openFailure(path.c_str());
+    }
+    size_t done = 0;
+    while (done < destination.size())
+    {
+        const size_t read = SDL_ReadIO(file, destination.data() + done, destination.size() - done);
+        if (read == 0)
+        {
+            break;
+        }
+        done += read;
+    }
+    const bool failed = SDL_GetIOStatus(file) == SDL_IO_STATUS_ERROR;
+    SDL_CloseIO(file);
+    if (failed)
+    {
+        return Status::IoError;
+    }
+    return done == destination.size() ? Result<void>() : Result<void>(Status::InvalidData);
+}
+
+Result<void> writeFileAtomically(std::string_view utf8Path, std::span<const std::byte> contents)
+{
+    // Unique among threads and, through the clock, among processes.
+    char suffix[64];
+    std::snprintf(suffix, sizeof(suffix), ".tmp-%u-%llu", temporaryCounter.fetch_add(1),
+                  static_cast<unsigned long long>(SDL_GetTicksNS()));
+    SmallVector<char, 256> temporary(MemoryTag::Platform);
+    temporary.resize(utf8Path.size() + std::strlen(suffix) + 1);
+    std::memcpy(temporary.data(), utf8Path.data(), utf8Path.size());
+    std::memcpy(temporary.data() + utf8Path.size(), suffix, std::strlen(suffix) + 1);
+
+    SDL_IOStream* file = SDL_IOFromFile(temporary.data(), "wb");
+    if (file == nullptr)
+    {
+        return Status::IoError;
+    }
+    const bool written = SDL_WriteIO(file, contents.data(), contents.size()) == contents.size();
+    // Closing flushes; a full disk can show up only here.
+    const bool closed = SDL_CloseIO(file);
+    const PathString path(utf8Path);
+    if (!written || !closed || !SDL_RenamePath(temporary.data(), path.c_str()))
+    {
+        (void)SDL_RemovePath(temporary.data());
+        return Status::IoError;
+    }
+    return {};
+}
+
 } // namespace crucible::platform

@@ -11,6 +11,7 @@
 #include <crucible/Expose.h>
 #include <crucible/Result.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <span>
 #include <string_view>
@@ -102,6 +103,19 @@ CRUCIBLE_EXPOSE bool eventTimestampsAreArrivals();
 // when they entered the queue. Stopping waits for the thread.
 CRUCIBLE_EXPOSE_STATUS Result<void> startLatencyMarkers(uint32_t meanIntervalUs);
 CRUCIBLE_EXPOSE void stopLatencyMarkers();
+
+// Files, by UTF-8 path (ADR 0039). Not exposed: C# has its own file API, and
+// the core reads and writes its binary files itself.
+//
+// The file's size in bytes; NotFound if it doesn't exist.
+Result<uint64_t> fileSize(std::string_view utf8Path);
+// Reads the file's first destination.size() bytes; InvalidData if it is
+// shorter.
+Result<void> readFile(std::string_view utf8Path, std::span<std::byte> destination);
+// Writes the whole file under a temporary name beside it, then renames it
+// over `utf8Path`: a crash or full disk never leaves a half-written file
+// under the real name.
+Result<void> writeFileAtomically(std::string_view utf8Path, std::span<const std::byte> contents);
 
 // The OS handles Slag needs to create a swapchain (ADR 0018). Unsupported for
 // video drivers Slag can't present to, such as the offscreen test driver. Not

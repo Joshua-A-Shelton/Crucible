@@ -57,6 +57,31 @@ endforeach()
 FetchContent_MakeAvailable(SDL3)
 
 # ---------------------------------------------------------------------------
+# zstd (BSD-3-Clause; shipped games include its notice): compresses the
+# sections of Crucible's binary files (ADR 0039). Built static, library only:
+# no programs, tests, legacy formats, or dictionary builder, and no threads of
+# its own, since sections are (de)compressed as jobs (ADR 0014).
+# zstd's CMake asks for 3.10, which leaves policy CMP0091 off and with it
+# CMAKE_MSVC_RUNTIME_LIBRARY; turning the policy on gives zstd the static
+# runtime like everything else (ADR 0031).
+# ---------------------------------------------------------------------------
+
+FetchContent_Declare(zstd
+    URL https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz
+    URL_HASH SHA256=eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3
+    SOURCE_SUBDIR build/cmake)
+set(CMAKE_POLICY_DEFAULT_CMP0091 NEW)
+foreach(_crucible_zstd_off ZSTD_BUILD_PROGRAMS ZSTD_BUILD_TESTS ZSTD_BUILD_SHARED ZSTD_BUILD_CONTRIB
+                           ZSTD_LEGACY_SUPPORT ZSTD_MULTITHREAD_SUPPORT ZSTD_BUILD_DICTBUILDER)
+    set(${_crucible_zstd_off} OFF CACHE BOOL "" FORCE)
+endforeach()
+set(ZSTD_BUILD_STATIC ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(zstd)
+unset(CMAKE_POLICY_DEFAULT_CMP0091)
+# Linked into the shared core too, so position-independent.
+set_target_properties(libzstd_static PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# ---------------------------------------------------------------------------
 # doctest (MIT): tests only, never linked into the engine (ADR 0029)
 # ---------------------------------------------------------------------------
 

@@ -121,6 +121,8 @@ const char* memoryTagName(MemoryTag tag)
         return "Jobs";
     case MemoryTag::Ecs:
         return "Ecs";
+    case MemoryTag::Assets:
+        return "Assets";
     default:
         return "General";
     }

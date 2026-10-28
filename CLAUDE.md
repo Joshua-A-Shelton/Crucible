@@ -154,7 +154,9 @@ Stated by the project owner and refined one at a time (2026-10-24).
   development), .NET (MIT; ADR 0001), SDL3
   (zlib; ADR 0018), HarfBuzz (Old MIT; ADR 0020), FreeType (FTL, which
   asks for a credit in product documentation; ADR 0020), Box3D and Box2D
-  v3 (MIT; ADR 0027), stb_vorbis (public domain or MIT; ADR 0028). Editor only
+  v3 (MIT; ADR 0027), stb_vorbis (public domain or MIT; ADR 0028), zstd
+  (BSD-3-Clause, accepted by the owner: shipped games include
+  `licenses/zstd.txt`; ADR 0039). Editor only
   (never shipped): cgltf (MIT), ufbx (MIT or public domain), meshoptimizer
   (MIT), stb_image (public domain or MIT), bc7enc_rdo (MIT or public
   domain); ADR 0022; Slang (Apache 2.0 with LLVM exception; ADR 0025);

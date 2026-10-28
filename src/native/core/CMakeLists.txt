@@ -24,7 +24,9 @@ crucible_generate_bindings(
     HEADERS ${CRUCIBLE_CORE_HEADERS})
 
 target_sources(crucible_core_objects PRIVATE
+    BinaryFile.cpp
     BindingProbe.cpp
+    Checksum.cpp
     Core.cpp
     Demo.cpp
     Ecs.cpp
@@ -52,6 +54,8 @@ if(CRUCIBLE_FORCE_SCALAR_SIMD)
 endif()
 # SDL stays private: it never appears in a public header (ADR 0018).
 target_link_libraries(crucible_core_objects PRIVATE SDL3::SDL3-static)
+# Compression for binary files (ADR 0039).
+target_link_libraries(crucible_core_objects PRIVATE libzstd_static)
 
 add_library(crucible_core SHARED)
 add_library(crucible::core ALIAS crucible_core)

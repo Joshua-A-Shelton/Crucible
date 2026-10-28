@@ -72,6 +72,7 @@ file(GENERATE OUTPUT "${CRUCIBLE_NATIVE_PROPS}" CONTENT "<Project>
     <NativeLibrary Include=\"$<TARGET_LINKER_FILE:crucible_core_static>\" />
     <NativeLibrary Include=\"$<TARGET_LINKER_FILE:slag>\" />
     <NativeLibrary Include=\"$<TARGET_LINKER_FILE:SDL3-static>\" />
+    <NativeLibrary Include=\"$<TARGET_LINKER_FILE:libzstd_static>\" />
     ${_crucible_core_system_libraries}
   </ItemGroup>
 </Project>
