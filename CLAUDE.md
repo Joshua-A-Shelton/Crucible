@@ -333,11 +333,13 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   Output goes to `build/<preset>/generated/`; IDE builds of the C# projects
   read `build/debug/generated/`, so configure and build the debug preset
   first.
-- **Source generators** (ADR 0036): `tools/Crucible.Generators`
-  (netstandard2.0) writes `[System]` registration into each game assembly.
+- **Source generators** (ADR 0036, 0038): `tools/Crucible.Generators`
+  (netstandard2.0) writes `[System]` registration into each game assembly,
+  and JSON readers and writers into `[Serialized]` types.
   Projects reference it with `OutputItemType="Analyzer"
   ReferenceOutputAssembly="false"`; its tests are `Crucible.Generators.Tests`
-  (JIT only). See `docs/learning/source-generators.md`.
+  (JIT only). See `docs/learning/source-generators.md` and
+  `docs/learning/generated-serializers.md`.
 - **Samples** (ADR 0037): `samples/Particles` is the M3 demonstration, a game
   the JIT launcher loads with `--game <dll>` and configures with
   `--game-arg key=value`; it prints per-step timings.

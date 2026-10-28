@@ -1,8 +1,10 @@
-<!-- An AOT publish of a game sets PublishAot on the command line, and MSBuild
-     applies command-line properties to every project in the build, this one
-     included. TreatAsLocalProperty lets the setting below win: NativeAOT
-     doesn't apply to a compiler plugin. -->
-<Project Sdk="Microsoft.NET.Sdk" TreatAsLocalProperty="PublishAot">
+<!-- An AOT publish of a game sets PublishAot and the runtime (RuntimeIdentifier)
+     on the command line, and MSBuild applies command-line properties to every
+     project in the build, this one included. TreatAsLocalProperty lets the
+     settings below win: NativeAOT doesn't apply to a compiler plugin, and a
+     runtime would add a runtime-specific section to the lock file, different
+     on each platform. -->
+<Project Sdk="Microsoft.NET.Sdk" TreatAsLocalProperty="PublishAot;RuntimeIdentifier">
 
   <!-- Crucible's Roslyn source generators (ADR 0036): run inside the C#
        compiler while a game builds, and never shipped in one. Game projects
@@ -22,6 +24,7 @@
     <IsAotCompatible>false</IsAotCompatible>
     <PublishAot>false</PublishAot>
     <RuntimeIdentifiers></RuntimeIdentifiers>
+    <RuntimeIdentifier></RuntimeIdentifier>
     <!-- Turns on Roslyn's checks for analyzer code (no file or network
          access, no banned APIs). -->
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>

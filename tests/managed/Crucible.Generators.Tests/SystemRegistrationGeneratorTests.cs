@@ -12,36 +12,15 @@ namespace Crucible.Tests.Generators;
 /// </summary>
 public class SystemRegistrationGeneratorTests
 {
-    // The running .NET's assemblies plus the engine: enough to compile a game
-    // source that uses SystemAttribute and GameSystem.
-    private static readonly MetadataReference[] _references =
-    [
-        .. ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator)
-            .Where(path => Path.GetFileName(path) is not "Crucible.Engine.dll")
-            .Select(path => MetadataReference.CreateFromFile(path)),
-        MetadataReference.CreateFromFile(typeof(GameSystem).Assembly.Location),
-    ];
+    private static CSharpCompilation Compile(params string[] sources) => GeneratorHarness.Compile(sources);
 
-    private static CSharpCompilation Compile(params string[] sources) =>
-        CSharpCompilation.Create("Game",
-            sources.Select(source => CSharpSyntaxTree.ParseText(source, path: "Game.cs")),
-            _references,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
+    private static GeneratorDriver Driver() => GeneratorHarness.Driver(new SystemRegistrationGenerator());
 
-    private static GeneratorDriver Driver() =>
-        CSharpGeneratorDriver.Create([new SystemRegistrationGenerator().AsSourceGenerator()],
-            driverOptions: new GeneratorDriverOptions(IncrementalGeneratorOutputKind.None, trackIncrementalGeneratorSteps: true));
-
-    // The generated source (or null), the generator's diagnostics, and every
-    // error in the compilation with the generated code added.
     private static (string? Source, ImmutableArray<Diagnostic> Generator, Diagnostic[] Errors) Run(string source)
     {
-        GeneratorDriver driver = Driver().RunGeneratorsAndUpdateCompilation(Compile(source), out Compilation output,
-            out ImmutableArray<Diagnostic> diagnostics);
-        GeneratorRunResult result = driver.GetRunResult().Results.Single();
-        string? generated = result.GeneratedSources.SingleOrDefault().SourceText?.ToString();
-        Diagnostic[] errors = [.. output.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)];
-        return (generated, diagnostics, errors);
+        (string[] sources, ImmutableArray<Diagnostic> diagnostics, Diagnostic[] errors) =
+            GeneratorHarness.Run(new SystemRegistrationGenerator(), source);
+        return (sources.SingleOrDefault(), diagnostics, errors);
     }
 
     private const string Usings = "using Crucible.Loop;\n";

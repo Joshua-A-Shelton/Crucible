@@ -38,6 +38,49 @@ internal static class Diagnostics
         "Invalid [System] constraint",
         "'{0}': {1}");
 
-    private static DiagnosticDescriptor Error(string id, string title, string message) =>
-        new(id, title, message, Category, DiagnosticSeverity.Error, isEnabledByDefault: true);
+    // Serialization (ADR 0038).
+    private const string SerializationCategory = "Crucible.Serialization";
+
+    public static readonly DiagnosticDescriptor NotPartial = Error("CRU0101",
+        "[Serialized] type that isn't partial",
+        "'{0}' must be partial, and so must every type it is nested in: the generator adds its reader and writer",
+        SerializationCategory);
+
+    public static readonly DiagnosticDescriptor UnsupportedType = Error("CRU0102",
+        "[Serialized] on a type that can't be serialized",
+        "'{0}' can't be serialized: {1}",
+        SerializationCategory);
+
+    public static readonly DiagnosticDescriptor NoParameterlessConstructor = Error("CRU0103",
+        "[Serialized] class without a parameterless constructor",
+        "'{0}' needs a parameterless constructor (any accessibility): reading creates it, then sets its members",
+        SerializationCategory);
+
+    public static readonly DiagnosticDescriptor UnsupportedMember = Error("CRU0104",
+        "Member type that can't be serialized",
+        "'{0}.{1}' has type '{2}', which can't be serialized; mark it [NotSerialized] to leave it out",
+        SerializationCategory);
+
+    public static readonly DiagnosticDescriptor NotWritable = Error("CRU0105",
+        "Serialized member that can't be read back",
+        "'{0}.{1}' {2}, so it can't be read back; mark it [NotSerialized] to leave it out",
+        SerializationCategory);
+
+    public static readonly DiagnosticDescriptor DuplicateName = Error("CRU0106",
+        "Two serialized members share a name",
+        "'{0}': the name '{1}' is used by more than one member (former names included)",
+        SerializationCategory);
+
+    public static readonly DiagnosticDescriptor BadVersion = Error("CRU0107",
+        "Invalid serialized version",
+        "'{0}': {1}",
+        SerializationCategory);
+
+    public static readonly DiagnosticDescriptor MisplacedAttribute = Error("CRU0108",
+        "Serialization attribute where it has no effect",
+        "'{0}': {1}",
+        SerializationCategory);
+
+    private static DiagnosticDescriptor Error(string id, string title, string message, string category = Category) =>
+        new(id, title, message, category, DiagnosticSeverity.Error, isEnabledByDefault: true);
 }
