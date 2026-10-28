@@ -140,3 +140,72 @@ Given up, for now: run conditions (predicates deciding whether a system
 runs), optional constraints for soft dependencies between plugins,
 automatic parallelism between systems (ADR 0013), and systems with
 constructor arguments.
+
+## As built (M3 step 8a)
+
+Step 8 is split: 8a is the schedule, and 8b the source generator. Settled
+with the project owner in 8a: the variable-rate delta is clamped to the
+fixed tick's cap (`MaxFixedSteps` × the step, about 67 ms by default). The
+engine creates the main world. A C++ system is a function plus user data.
+The generator learned to return strings (ADR 0017's amendment).
+
+- **The C# side (`Crucible.Loop`):**
+  - `GameSystem`: `Name` (the full type name by default), `Enabled`,
+    `Start`, `Run`, `Stop`, `LastRunTicks`, `ExceptionCount`.
+  - `ScheduleBuilder`: `CreateDefault`, `AddPhase`, `AddFixedPhase`,
+    `InsertPhaseBefore`/`After` (in the frame or the fixed-tick group),
+    `RemovePhase`, `AddSystem(phase, system, before, after)`,
+    `ReplaceSystem`, `RemoveSystem`, `FixedTickRate`, `MaxFixedSteps`,
+    `IncludeNativeSystems`, `Build`.
+  - The result is an immutable `Schedule` of `FramePhase`s, and
+    `FrameLoop(schedule)` runs it.
+  - M2's three phases became `PacingSystem`, `InputSystem`, and
+    `ClearPresentSystem`, and `FailedPhase` became `FailedSystem`.
+- **Build-time rules:** editing the phase list badly (a duplicate or
+  unknown phase) throws at once. `Build` collects every other problem and
+  throws one exception listing them all: unknown phases or systems,
+  duplicate names, a system placed in `FixedTick` itself, constraints
+  across phases, and cycles (naming the systems in them).
+- **Sorting:** each phase is sorted topologically, with the ordinally
+  smallest ready name going first, so the order doesn't depend on the order
+  systems were added in.
+- **Each frame:**
+  - The clock is injectable (`FrameLoop.Clock`), for tests and later
+    replays.
+  - The delta is 0 on the first frame. The fixed group runs
+    min(owed ÷ step, cap) steps and drops anything still owed past the cap,
+    then sets `FixedAlpha`.
+  - Each phase, and each sub-phase at every step, runs its enabled systems
+    and then applies every world's command buffer.
+  - A system's `Run` is timed with two `Stopwatch` reads. An exception is
+    written to stderr (there's no logger yet), counted, and the next system
+    runs. `Start` and `Stop` are handled the same way, so one broken system
+    doesn't keep the others from starting or stopping. `Stop` runs in
+    reverse order, even after a failure.
+  - A frame with no world allocates nothing, startup included. With a
+    world, starting the loop creates the command buffers, and every frame
+    after that allocates nothing.
+- **Worlds:** `FrameContext.World` is the main world, which the host now
+  creates. `Commands` is its buffer. `AddWorld`, `RemoveWorld`, and
+  `CommandsFor` handle other worlds. The buffers exist while the loop runs.
+- **C++ systems (`crucible/Systems.h`):** `registerSystem(SystemDesc)`
+  copies the description, and registering a name again replaces it;
+  `unregisterSystem` removes one. The C# builder reads the registry through
+  internal functions and wraps each entry in a `NativeSystem`, which calls
+  the function pointer with a `SystemContext` (the world, the command
+  buffer, the frame number, and the times). The loop allocates that context
+  once in native memory and refreshes it at each phase.
+- **Tests:**
+  - **C# (JIT and NativeAOT):** order, ties, every build error, phase
+    edits, the default schedule, replacing an engine system, fixed-tick
+    steps, alpha, the cap and clamp (on a stepped clock), sync points at
+    every phase and step, a throwing system that keeps running, disabled
+    systems, `Start`/`Stop` order, and C++ and C# systems sorted together,
+    where a C++ system's recorded entity is visible in the next phase. Also
+    allocation-free frames with and without a world.
+  - **Native:** a registry test, under the sanitizers too.
+  - **Under NativeAOT,** the latency recorder's no-garbage test now
+    measures inside the loop (frames 10 to 1010). Reading the thread's
+    allocation counter right after creating the recorder (megabytes of
+    arrays) picked up a few stray KB in the full suite. A separate
+    1000-frame run showed they weren't the loop's.

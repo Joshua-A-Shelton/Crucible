@@ -34,6 +34,7 @@ target_sources(crucible_core_objects PRIVATE
     Memory.cpp
     Platform.cpp
     Render.cpp
+    Systems.cpp
     "${CRUCIBLE_GENERATED_DIR}/native/Bindings.g.cpp")
 
 # Only CRUCIBLE_EXPORT symbols are visible from the shared library.

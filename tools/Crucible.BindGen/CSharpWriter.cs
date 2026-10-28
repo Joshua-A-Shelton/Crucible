@@ -235,11 +235,16 @@ internal static class CSharpWriter
             }
         }
 
+        if (returnType.Shape == Shape.String)
+        {
+            arguments.Add("&resultLength");
+        }
         string call = $"{Native}.{function.RawName}({string.Join(", ", arguments)})";
         string signatureType = function.ReturnsResult
             ? function.StatusForm ? "global::Crucible.Status" : IdiomaticType(returnType)
             : IdiomaticType(returnType);
-        bool needsUnsafe = pins.Count > 0 || (function.ReturnsResult && hasValue);
+        bool needsUnsafe = pins.Count > 0 || (function.ReturnsResult && hasValue) ||
+                           returnType.Shape == Shape.String;
 
         List<string> body = [.. setup];
         if (function.ReturnsResult)
@@ -282,6 +287,27 @@ internal static class CSharpWriter
                 }
             }
         }
+        else if (returnType.Shape == Shape.String)
+        {
+            // Copied into a C# string at once: the view need only stay valid
+            // until the call returns. That allocates, so string returns suit
+            // startup and tools, not per-frame calls.
+            body.Add("nuint resultLength;");
+            body.Add("byte* resultPointer;");
+            if (pins.Count > 0)
+            {
+                body.AddRange(pins);
+                body.Add("{");
+                body.Add($"    resultPointer = {call};");
+                body.Add("}");
+            }
+            else
+            {
+                body.Add($"resultPointer = {call};");
+            }
+            // An empty view may have a null data pointer, which GetString refuses.
+            body.Add("return resultLength == 0 ? \"\" : global::System.Text.Encoding.UTF8.GetString(resultPointer, (int)resultLength);");
+        }
         else
         {
             string statement = !hasValue ? $"{call};" : isBool ? $"return {call} != 0;" : $"return {call};";
@@ -321,6 +347,11 @@ internal static class CSharpWriter
         {
             List<string> parameters = function.Parameters.SelectMany(RawParameters).ToList();
             string returnType = RawType(function.ReturnType);
+            if (function.ReturnType.Shape == Shape.String)
+            {
+                parameters.Add("nuint* resultLength");
+                returnType = "byte*";
+            }
             if (function.ReturnsResult)
             {
                 if (!function.ReturnType.Is(Primitive.Void))
@@ -375,6 +406,7 @@ internal static class CSharpWriter
 
     private static string IdiomaticType(TypeRef type) => type.Shape switch
     {
+        Shape.String => "string",
         Shape.Opaque => QualifiedName(type.Opaque!.Scope, type.Opaque.HandleName),
         Shape.Address => "nint",
         Shape.Struct when type.Struct!.MappedCSharpType is { } mapped => $"global::{mapped}",

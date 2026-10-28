@@ -325,7 +325,7 @@ internal sealed class Parser
                 continue;
             }
             TypeRef? fieldType = Resolve(field, Libclang.GetCursorType(field), $"{qualifiedName}::{name}",
-                allowArray: true);
+                allowArray: true, isField: true);
             if (fieldType is not null)
             {
                 // libclang reports offsets in bits.
@@ -353,7 +353,8 @@ internal sealed class Parser
         }
         else
         {
-            returnType = Resolve(cursor, declaredReturn, $"{qualifiedName}: return type", allowVoid: true);
+            returnType = Resolve(cursor, declaredReturn, $"{qualifiedName}: return type", allowVoid: true,
+                allowStringReturn: true);
         }
 
         bool statusForm = HasAnnotation(cursor, StatusAnnotation);
@@ -371,6 +372,13 @@ internal sealed class Parser
             if (parameterName.Length == 0)
             {
                 Error(argument, $"{qualifiedName}: parameter {i + 1} needs a name for the C# binding");
+                continue;
+            }
+            if (returnType?.Shape == Shape.String && parameterName == "resultLength")
+            {
+                // The shim adds its own "resultLength" parameter for the string.
+                Error(argument, $"{qualifiedName}: \"resultLength\" is reserved for the returned string's length; " +
+                                "rename the parameter");
                 continue;
             }
             if (returnsResult && parameterName == "result")
@@ -446,13 +454,17 @@ internal sealed class Parser
 
     /// <param name="allowParameterShapes">Spans and string views, which only parameters may be.</param>
     /// <param name="allowArray">Fixed-size arrays, which only struct fields may be.</param>
+    /// <param name="isField">A struct field: pointers to opaque types only.</param>
+    /// <param name="allowStringReturn">std::string_view, as a plain function's return value.</param>
     private TypeRef? Resolve(CXCursor where, CXType type, string what, bool allowVoid = false,
-        bool allowParameterShapes = false, bool allowArray = false)
+        bool allowParameterShapes = false, bool allowArray = false, bool isField = false,
+        bool allowStringReturn = false)
     {
         CXType outer = Libclang.GetCanonicalType(type);
         if (outer.Kind is TypeKind.Pointer or TypeKind.LValueReference)
         {
-            return ResolveIndirect(where, type, outer, what, allowHandles: allowParameterShapes || allowVoid);
+            return ResolveIndirect(where, type, outer, what, allowHandles: allowParameterShapes || allowVoid || isField,
+                isField);
         }
         if (Libclang.GetCanonicalType(type).Kind == TypeKind.ConstantArray)
         {
@@ -500,9 +512,10 @@ internal sealed class Parser
             (string name, List<string> namespaces) = Declaration(canonical);
             if (IsStd(namespaces) && name is "span" or "basic_string_view")
             {
-                return allowParameterShapes
+                return allowParameterShapes || (allowStringReturn && name == "basic_string_view")
                     ? ResolveStandard(where, canonical, name, spelling, what)
-                    : Fail($"{what}: {spelling} can only be a function parameter");
+                    : Fail($"{what}: {spelling} can only be a function parameter" +
+                           (name == "basic_string_view" ? " or a plain return value" : ""));
             }
             if (_structsByName.TryGetValue(canonicalSpelling, out ExposedStruct? exposed))
             {
@@ -528,21 +541,30 @@ internal sealed class Parser
         }
     }
 
-    // Pointers and references cross only as opaque handles or raw addresses,
-    // and only in signatures, never in struct fields.
-    private TypeRef? ResolveIndirect(CXCursor where, CXType type, CXType canonical, string what, bool allowHandles)
+    // Pointers and references cross only as opaque handles or raw addresses.
+    // A struct field may only be an opaque pointer: a handle is plain data of
+    // a pointer's size, while a reference can't be a C# field and a raw
+    // address would be public in a struct mirror.
+    private TypeRef? ResolveIndirect(CXCursor where, CXType type, CXType canonical, string what, bool allowHandles,
+        bool isField = false)
     {
         string spelling = Libclang.Spelling(type);
         if (!allowHandles)
         {
-            return Reject(where, $"{what}: {spelling}: pointers and references can't be struct fields");
+            return Reject(where, $"{what}: {spelling}: pointers and references can't cross here");
+        }
+        if (isField && canonical.Kind == TypeKind.LValueReference)
+        {
+            return Reject(where, $"{what}: {spelling}: references can't be struct fields; use a pointer");
         }
         CXType pointee = Libclang.GetPointeeType(canonical);
         CXType pointeeCanonical = Libclang.GetCanonicalType(pointee);
         bool isConst = Libclang.IsConstQualifiedType(pointeeCanonical) != 0;
         if (pointeeCanonical.Kind == TypeKind.Void && canonical.Kind == TypeKind.Pointer)
         {
-            return new TypeRef(Shape.Address, IsConst: isConst);
+            return isField
+                ? Reject(where, $"{what}: {spelling}: void* can't be a struct field")
+                : new TypeRef(Shape.Address, IsConst: isConst);
         }
         string pointeeName = Libclang.Spelling(Libclang.GetUnqualifiedType(pointeeCanonical));
         if (pointeeCanonical.Kind == TypeKind.Record && _opaquesByName.TryGetValue(pointeeName, out ExposedOpaque? opaque))

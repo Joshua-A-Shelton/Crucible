@@ -3,13 +3,11 @@ using Crucible.Platform;
 namespace Crucible.Loop;
 
 /// <summary>
-/// ADR 0013's BeginFrame: the pacing wait (ADR 0003), first, so input read
+/// ADR 0013's pacing wait (ADR 0003), in BeginFrame: first, so input read
 /// next is as fresh as possible.
 /// </summary>
-public sealed class BeginFramePhase : FramePhase
+public sealed class PacingSystem : GameSystem
 {
-    public override string Name => "BeginFrame";
-
     public override void Run(FrameContext context)
     {
         // Without a surface (C# tests) there's nothing to pace against.
@@ -27,13 +25,11 @@ public sealed class BeginFramePhase : FramePhase
 }
 
 /// <summary>
-/// ADR 0013's Input: reads this frame's events, and requests quit when the OS
-/// asks or the main window is closed.
+/// ADR 0013's input read, in Input: this frame's events, and a quit request
+/// when the OS asks or the main window is closed.
 /// </summary>
-public sealed class InputPhase : FramePhase
+public sealed class InputSystem : GameSystem
 {
-    public override string Name => "Input";
-
     public override void Run(FrameContext context)
     {
         int count = (int)Platform.Api.PollEvents(context.EventBuffer);
@@ -52,13 +48,12 @@ public sealed class InputPhase : FramePhase
 }
 
 /// <summary>
-/// ADR 0013's RenderSubmit. Until the render graph arrives, the frame is a
-/// clear: a slow pulse, so a stutter or a dropped frame is visible by eye.
+/// The frame's present, in RenderSubmit. Until the render graph arrives, the
+/// frame is a clear: a slow pulse, so a stutter or a dropped frame is visible
+/// by eye. A game replaces it to draw.
 /// </summary>
-public sealed class RenderSubmitPhase : FramePhase
+public sealed class ClearPresentSystem : GameSystem
 {
-    public override string Name => "RenderSubmit";
-
     public override void Run(FrameContext context)
     {
         if (context.Surface.Value == 0)

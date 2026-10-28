@@ -9,7 +9,8 @@ add_executable(crucible_native_tests
     PlatformTests.cpp
     RenderTests.cpp
     ResultTests.cpp
-    SimdTests.cpp)
+    SimdTests.cpp
+    SystemsTests.cpp)
 
 crucible_set_compile_options(crucible_native_tests)
 crucible_use_d3d12_agility(crucible_native_tests)

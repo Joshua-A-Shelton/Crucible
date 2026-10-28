@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text;
+using Crucible.Ecs;
 using Crucible.Loop;
 using Crucible.Platform;
 using Crucible.Render;
@@ -88,8 +89,12 @@ public static class Host
     private static int RunLoop(LaunchOptions options, WindowHandle window, SurfaceHandle surface)
     {
         string? latencyLog = LatencyLogPath();
+        // The main world (ADR 0036): the engine's, so every system, C++ ones
+        // too, can rely on it.
+        using World world = new();
         FrameContext context = new()
         {
+            World = world,
             Window = window,
             Surface = surface,
             Pacing = !options.NoPacing,
@@ -128,7 +133,7 @@ public static class Host
         if (context.Failure != Status.Ok)
         {
             Console.Error.WriteLine(
-                $"Crucible.Hosting: {context.FailedPhase} failed with {context.Failure} on frame {context.FrameNumber}");
+                $"Crucible.Hosting: {context.FailedSystem} failed with {context.Failure} on frame {context.FrameNumber}");
             return 1;
         }
         Console.WriteLine($"Crucible.Hosting: ran {frames} frames");

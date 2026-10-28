@@ -199,3 +199,19 @@ pointers; the job trampoline is the only one so far.
   columns, ADR 0012); those functions are internal, and games see typed
   `ref`s and spans. Other pointers are still rejected, with a message
   naming what's allowed.
+
+## Amendment (2026-10-27): returned strings and handle fields (M3 step 8a)
+
+- **Returned `std::string_view`:** a plain function (not a `Result`) may
+  return a view. The C shim returns its pointer and writes its length
+  through an added `resultLength` parameter, a reserved name. C# copies it
+  into a `string` before returning, so the view only needs to stay valid
+  until the call returns. That allocates, so string returns suit startup
+  and tools, not per-frame calls. An empty view may have a null pointer and
+  comes back as `""`. Used to read the C++ system registry (ADR 0036).
+- **Opaque pointers as struct fields:** a field pointing to an opaque type
+  becomes its `<Name>Handle`, which is a pointer's size, so the layout
+  checks hold as before. References and `void*` are still refused in
+  fields: a reference can't be a C# field, and a raw address would be
+  public in a struct mirror. Used for `SystemContext`'s world and command
+  buffer.

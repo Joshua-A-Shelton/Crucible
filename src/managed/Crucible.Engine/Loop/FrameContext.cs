@@ -1,3 +1,4 @@
+using Crucible.Ecs;
 using Crucible.Platform;
 using Crucible.Render;
 
@@ -7,7 +8,7 @@ namespace Crucible.Loop;
 /// What the phases of one frame share: allocated once, reused every frame, so
 /// the loop creates no garbage.
 /// </summary>
-public sealed class FrameContext
+public sealed unsafe class FrameContext
 {
     // Enough for a frame's events at any realistic rate; more stay queued in
     // SDL for the next frame.
@@ -38,19 +39,158 @@ public sealed class FrameContext
     /// <summary>Ok, or the status of the failure that ends the loop.</summary>
     public Status Failure { get; private set; } = Status.Ok;
 
-    /// <summary>The phase that failed, for the message.</summary>
-    public string? FailedPhase { get; private set; }
+    /// <summary>The system that failed, for the message.</summary>
+    public string? FailedSystem { get; private set; }
+
+    /// <summary>
+    /// The main world (ADR 0036), made by the engine: every system finds it
+    /// here, C++ ones too. Throws if the context has none (as in loop tests).
+    /// </summary>
+    public World World
+    {
+        get => _world ?? throw new InvalidOperationException("This frame context has no main world.");
+        init
+        {
+            _world = value;
+            _worlds.Add(new WorldBuffer(value));
+        }
+    }
+
+    public bool HasWorld => _world is not null;
+
+    /// <summary>
+    /// The main world's command buffer: record structural changes here, and
+    /// the phase's sync point applies them (ADR 0013, 0036). Valid while the
+    /// loop runs.
+    /// </summary>
+    public CommandBuffer Commands => CommandsFor(World);
+
+    /// <summary>
+    /// Adds a world whose command buffer every sync point applies too, as for
+    /// the main world.
+    /// </summary>
+    public void AddWorld(World world)
+    {
+        WorldBuffer entry = new(world);
+        if (_running)
+        {
+            entry.Buffer = world.CreateCommandBuffer();
+        }
+        _worlds.Add(entry);
+    }
+
+    /// <summary>Removes an added world, disposing its command buffer (unapplied commands are dropped).</summary>
+    public void RemoveWorld(World world)
+    {
+        int index = _worlds.FindIndex(entry => entry.World == world);
+        if (index >= 0)
+        {
+            _worlds[index].Buffer?.Dispose();
+            _worlds.RemoveAt(index);
+        }
+    }
+
+    /// <summary>A world's command buffer, for the main world or one added with <see cref="AddWorld"/>.</summary>
+    public CommandBuffer CommandsFor(World world)
+    {
+        foreach (WorldBuffer entry in _worlds)
+        {
+            if (entry.World == world)
+            {
+                return entry.Buffer ?? throw new InvalidOperationException("Command buffers exist while the loop runs.");
+            }
+        }
+        throw new InvalidOperationException("That world isn't in this frame context.");
+    }
+
+    /// <summary>
+    /// Time since the last frame, clamped to the fixed tick's cap (ADR 0036):
+    /// after a long hitch, gameplay and physics agree on how much time passed.
+    /// 0 on the first frame.
+    /// </summary>
+    public double DeltaSeconds { get; internal set; }
+
+    /// <summary>The fixed tick's step.</summary>
+    public double FixedStepSeconds { get; internal set; }
+
+    /// <summary>
+    /// How far the frame is between the last fixed tick and the next, 0..1,
+    /// for interpolating physics transforms (ADR 0003). Set after the
+    /// fixed-tick group runs.
+    /// </summary>
+    public double FixedAlpha { get; internal set; }
+
+    /// <summary>Fixed steps run this frame.</summary>
+    public int FixedSteps { get; internal set; }
+
+    private readonly World? _world;
+    private readonly List<WorldBuffer> _worlds = [];
+    private bool _running;
+
+    private sealed class WorldBuffer(World world)
+    {
+        public World World { get; } = world;
+        public CommandBuffer? Buffer { get; set; }
+    }
+
+    // What C++ systems see (ADR 0036): native memory the loop owns while it
+    // runs, refreshed at each phase.
+    internal SystemContext* NativeContext { get; private set; }
+
+    internal void StartRunning()
+    {
+        _running = true;
+        foreach (WorldBuffer entry in _worlds)
+        {
+            entry.Buffer = entry.World.CreateCommandBuffer();
+        }
+        NativeContext = (SystemContext*)System.Runtime.InteropServices.NativeMemory.AllocZeroed((nuint)sizeof(SystemContext));
+        if (_world is not null)
+        {
+            NativeContext->World = _world.Live;
+            NativeContext->Commands = _worlds[0].Buffer!.Handle;
+        }
+    }
+
+    internal void StopRunning()
+    {
+        foreach (WorldBuffer entry in _worlds)
+        {
+            entry.Buffer?.Dispose();
+            entry.Buffer = null;
+        }
+        System.Runtime.InteropServices.NativeMemory.Free(NativeContext);
+        NativeContext = null;
+        _running = false;
+    }
+
+    // A sync point (ADR 0013): every world's recorded changes, applied.
+    internal void ApplyCommands()
+    {
+        for (int i = 0; i < _worlds.Count; ++i)
+        {
+            _worlds[i].Buffer?.Apply();
+        }
+    }
+
+    internal void RefreshNativeContext()
+    {
+        NativeContext->FrameNumber = FrameNumber;
+        NativeContext->DeltaSeconds = DeltaSeconds;
+        NativeContext->FixedStepSeconds = FixedStepSeconds;
+        NativeContext->FixedAlpha = FixedAlpha;
+    }
 
     /// <summary>This frame's input and window events, in arrival order.</summary>
     public ReadOnlySpan<InputEvent> Events => _events.AsSpan(0, _eventCount);
 
-    /// <summary>Ends the loop after this frame with an error status.</summary>
-    public void Fail(Status status, string phase)
+    /// <summary>Ends the frame here, and the loop with it, with an error status.</summary>
+    public void Fail(Status status, string system)
     {
         if (Failure == Status.Ok)
         {
             Failure = status;
-            FailedPhase = phase;
+            FailedSystem = system;
         }
     }
 

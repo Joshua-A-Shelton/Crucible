@@ -60,6 +60,8 @@ public sealed unsafe class CommandBuffer : IDisposable
 
     public void Clear() => Api.Clear(Live);
 
+    internal CommandBufferHandle Handle => Live;
+
     private CommandBufferHandle Live =>
         _handle.IsNull ? throw new ObjectDisposedException(nameof(CommandBuffer)) : _handle;
 }

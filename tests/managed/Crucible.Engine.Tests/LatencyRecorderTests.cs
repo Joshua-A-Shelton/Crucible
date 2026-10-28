@@ -6,6 +6,7 @@ namespace Crucible.Tests;
 // The latency harness's bookkeeping (ADR 0003), driven by hand: no window,
 // so GPU times are never collected, and the stages come from the timestamps
 // given here.
+[NotInParallel("schedule")]
 public class LatencyRecorderTests
 {
     private static void Deliver(FrameContext context, params InputEvent[] events)
@@ -78,15 +79,28 @@ public class LatencyRecorderTests
     [Test]
     public async Task RecordingAllocatesNothingPerFrame()
     {
-        LatencyRecorder recorder = new();
-        FrameLoop loop = FrameLoop.CreateDefault();
-        loop.Run(new FrameContext { Latency = recorder }, frameLimit: 10);
+        // Measured inside the loop, from frame 10 to 1010: under NativeAOT the
+        // thread's allocation counter, read just after creating the recorder
+        // (megabytes of arrays), could pick up a few stray KB that a separate
+        // 1000-frame run showed weren't the loop's.
+        long[] allocated = new long[2];
+        ScheduleBuilder builder = ScheduleBuilder.CreateDefault();
+        builder.AddSystem("EndFrame", new MeasureSystem(allocated));
+        FrameLoop loop = new(builder.Build());
 
-        FrameContext context = new() { Latency = new LatencyRecorder() };
-        long before = GC.GetAllocatedBytesForCurrentThread();
-        loop.Run(context, frameLimit: 1000);
-        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        loop.Run(new FrameContext { Latency = new LatencyRecorder() }, frameLimit: 1011);
 
-        await Assert.That(allocated).IsEqualTo(0L);
+        await Assert.That(allocated[1] - allocated[0]).IsEqualTo(0L);
+    }
+
+    private sealed class MeasureSystem(long[] allocated) : GameSystem
+    {
+        public override void Run(FrameContext context)
+        {
+            if (context.FrameNumber is 10 or 1010)
+            {
+                allocated[context.FrameNumber == 10 ? 0 : 1] = GC.GetAllocatedBytesForCurrentThread();
+            }
+        }
     }
 }

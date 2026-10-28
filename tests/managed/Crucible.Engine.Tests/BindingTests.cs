@@ -145,6 +145,25 @@ public class BindingTests
         await Assert.That(usage.Bytes >= usage.Allocations).IsTrue();
     }
 
+    [Test]
+    public async Task ReturnedStringViewsArriveAsStrings()
+    {
+        await Assert.That(Api.ProbeText(0)).IsEqualTo("");
+        await Assert.That(Api.ProbeText(1)).IsEqualTo("probe");
+        await Assert.That(Api.ProbeText(2)).IsEqualTo("h\u00e9llo \u2713");
+    }
+
+    [Test]
+    public async Task OpaquePointersCrossAsStructFields()
+    {
+        ProbeObjectHandle object_ = new(0x1234_5678);
+        ProbeHolder holder = Api.HoldProbeObject(object_, 7);
+
+        await Assert.That(holder.Tag).IsEqualTo((byte)7);
+        await Assert.That(holder.Object.Address).IsEqualTo((nint)0x1234_5678);
+        await Assert.That(Api.HeldProbeObject(holder).Address).IsEqualTo((nint)0x1234_5678);
+    }
+
     private static uint Fnv1a(byte[] bytes)
     {
         uint hash = 2166136261;

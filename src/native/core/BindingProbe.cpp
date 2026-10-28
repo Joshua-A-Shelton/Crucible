@@ -87,4 +87,27 @@ int32_t weighProbeArray(ProbeArray probe)
     return probe.values[0] + probe.values[1] * 10 + probe.values[2] * 100 + probe.tail * 1000;
 }
 
+std::string_view probeText(uint32_t index)
+{
+    switch (index)
+    {
+    case 1:
+        return "probe";
+    case 2:
+        return "h\xC3\xA9llo \xE2\x9C\x93"; // "héllo ✓"
+    default:
+        return {};
+    }
+}
+
+ProbeHolder holdProbeObject(ProbeObject* object, uint8_t tag)
+{
+    return ProbeHolder{tag, object};
+}
+
+ProbeObject* heldProbeObject(ProbeHolder holder)
+{
+    return holder.object;
+}
+
 } // namespace crucible

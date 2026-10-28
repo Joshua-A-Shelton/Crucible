@@ -69,4 +69,20 @@ CRUCIBLE_EXPOSE Result<BindingProbe> findBindingProbe(int32_t number);
 CRUCIBLE_EXPOSE_STATUS Result<bool> isBindingProbeEven(int32_t number);
 CRUCIBLE_EXPOSE Result<void> checkBindingProbe(int32_t number);
 
+// A returned std::string_view, copied into a C# string: 0 is empty, 1 is
+// ASCII, 2 has multi-byte UTF-8.
+CRUCIBLE_EXPOSE std::string_view probeText(uint32_t index);
+
+// An opaque type, and a struct holding a pointer to one: a handle as a field.
+struct CRUCIBLE_EXPOSE ProbeObject;
+
+struct CRUCIBLE_EXPOSE ProbeHolder
+{
+    uint8_t tag;
+    ProbeObject* object; // after padding
+};
+
+CRUCIBLE_EXPOSE ProbeHolder holdProbeObject(ProbeObject* object, uint8_t tag);
+CRUCIBLE_EXPOSE ProbeObject* heldProbeObject(ProbeHolder holder);
+
 } // namespace crucible

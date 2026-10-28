@@ -80,6 +80,20 @@ internal static class CppWriter
                 continue;
             }
 
+            if (function.ReturnType.Shape == Shape.String)
+            {
+                // A view can't be returned through the C ABI: its pointer is,
+                // and its length goes through resultLength.
+                parameters.Add("size_t* resultLength");
+                text.AppendLine($"CRUCIBLE_EXPORT const char* {function.CName}({string.Join(", ", parameters)})");
+                text.AppendLine("{");
+                text.AppendLine($"    const std::string_view value = {call};");
+                text.AppendLine("    *resultLength = value.size();");
+                text.AppendLine("    return value.data();");
+                text.AppendLine("}");
+                continue;
+            }
+
             text.AppendLine($"CRUCIBLE_EXPORT {CType(function.ReturnType)} {function.CName}({string.Join(", ", parameters)})");
             text.AppendLine("{");
             if (!hasValue)
