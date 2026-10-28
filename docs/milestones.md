@@ -169,7 +169,7 @@ destroys applied at sync points, in about 0.5 ms per fixed step (release).
 It found and fixed two ECS problems: quadratic record growth and recorded
 creations never reusing indices (ADR 0023's second amendment). Decided:
 phase list (names still placeholders), AVX2 (ADR 0024), hierarchy (0033),
-change detection (0034). Awaiting the owner's sign-off.
+change detection (0034). Signed off by the owner on 2026-10-27; M3 is done.
 
 ## M4 — Assets and serialization
 
