@@ -190,6 +190,35 @@ correct left and right.
 found, and saved (moved from M3 on 2026-10-26: saving them needs this
 milestone's serialization).
 
+**Steps** (agreed 2026-10-27; one commit each, verified on both machines;
+the decision each one needs comes first):
+
+1. The serializer generator, JSON first: reading and writing code for
+   components and plain C# types, with defaults, skipped removed fields,
+   "formerly named", and versioned migrations. Decides J: our own generator
+   over `Utf8JsonWriter`/`Utf8JsonReader`, or `System.Text.Json` source
+   generation underneath; the attribute model.
+2. Crucible's binary format for imported data, read directly by C++.
+   Decides K: the container layout (header, sections, alignment,
+   versioning), and whether it is memory-mapped.
+3. GUIDs, the asset database, and the content-hash import cache. Decides L:
+   the project folder layout, the sidecar format, the content hash, and
+   where the asset pipeline lives (editor-side, not the shipped engine).
+4. Scenes: a world to JSON and back, with the hierarchy and entity
+   references in components. Decides M: how plain C# services are
+   registered, found, and saved.
+5. Texture import: stb_image, linear-space sharp mipmaps, BC7 and BC5
+   through bc7enc_rdo, into the binary format.
+6. glTF import: cgltf and meshoptimizer, mirrored into left-handed space,
+   the node hierarchy as a prefab-like asset, and the mirroring tests.
+   Decides N: vertex layouts and the mesh format.
+7. FBX import through ufbx, into the same mesh format.
+8. Prefabs: instantiation, nesting, and outermost-level overrides.
+9. The demonstration: import a glTF, save the scene as JSON, reload it,
+   and compare.
+
+Cooking and asynchronous loading (ADR 0021) wait for a later milestone.
+
 ## M5 — Renderer
 
 - `slag::rendergraph` integration and the extensible pass list (ADR 0015).
