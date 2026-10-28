@@ -94,7 +94,9 @@ int run(int argc, ArgumentChar** argv)
     // on Windows, Vulkan elsewhere), so both can be tested on Windows.
     // --workers N overrides the job system's worker count (ADR 0014).
     // --frames N, --headless and --no-pacing are passed to the engine
-    // (LaunchOptions); --latency <file> turns on the latency harness and
+    // (LaunchOptions); --game <file> names the game assembly to load and
+    // --game-arg key=value (repeatable) passes it an option; --latency <file>
+    // turns on the latency harness and
     // --present-mode fifo|mailbox overrides ADR 0003's default, both for
     // measuring.
     std::filesystem::path managedDirectory = executableDirectory();
@@ -144,6 +146,24 @@ int run(int argc, ArgumentChar** argv)
             valid = value == CRUCIBLE_ARGUMENT("fifo") || value == CRUCIBLE_ARGUMENT("mailbox");
             presentMode = value == CRUCIBLE_ARGUMENT("fifo") ? crucible::render::PresentPreference::Fifo
                                                              : crucible::render::PresentPreference::Mailbox;
+        }
+        else if (option == CRUCIBLE_ARGUMENT("--game"))
+        {
+            // hostfxr and C# want a fully qualified path, read back as UTF-8.
+            std::error_code error;
+            std::filesystem::path path = std::filesystem::absolute(std::filesystem::path(value), error);
+            const std::u8string utf8 = (error ? std::filesystem::path(value) : path).u8string();
+            crucible::setGamePath({reinterpret_cast<const char*>(utf8.data()), utf8.size()});
+        }
+        else if (option == CRUCIBLE_ARGUMENT("--game-arg"))
+        {
+            const std::u8string utf8 = std::filesystem::path(value).u8string();
+            const std::string_view argument(reinterpret_cast<const char*>(utf8.data()), utf8.size());
+            valid = argument.find('=') != std::string_view::npos && argument.front() != '=';
+            if (valid)
+            {
+                crucible::addGameArgument(argument);
+            }
         }
         else if (option == CRUCIBLE_ARGUMENT("--latency"))
         {

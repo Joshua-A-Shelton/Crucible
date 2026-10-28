@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The M3 demonstration (docs/milestones.md, ADR 0037): a game assembly the
+       launcher loads by path. Thousands of particles, moved by C# and C++
+       systems together, in parallel, with creations and destructions applied
+       at phase ends; it times every step and prints a report. -->
+
+  <PropertyGroup>
+    <RootNamespace>Crucible.Samples.Particles</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The engine isn't copied: at runtime it comes from the default load
+         context, as for every game (ADR 0011). -->
+    <ProjectReference Include="../../src/managed/Crucible.Engine/Crucible.Engine.csproj" Private="false" />
+    <ProjectReference Include="../../tools/Crucible.Generators/Crucible.Generators.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>

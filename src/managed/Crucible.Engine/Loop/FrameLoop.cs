@@ -36,6 +36,7 @@ public sealed class FrameLoop(Schedule schedule)
         // clamped to the same limit (ADR 0036).
         ulong maxDeltaNs = stepNs * (ulong)maxSteps;
         context.FixedStepSeconds = stepNs / 1e9;
+        context.Schedule = Schedule;
 
         context.StartRunning();
         try
@@ -132,7 +133,9 @@ public sealed class FrameLoop(Schedule schedule)
                 return false;
             }
         }
+        long syncStart = Stopwatch.GetTimestamp();
         context.ApplyCommands();
+        phase.LastSyncTicks = Stopwatch.GetTimestamp() - syncStart;
         return true;
     }
 

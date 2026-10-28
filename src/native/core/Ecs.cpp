@@ -126,7 +126,12 @@ struct SparseSet
 struct World
 {
     Vector<EntityRecord> records{MemoryTag::Ecs};
+    // Destroyed entities' indices, for reuse (ADR 0023's amendment). Entries
+    // below freeAvailable can still be taken; those above it were taken
+    // already, by takeIndex from any thread, and are dropped the next time
+    // the list changes (releaseIndex), which never overlaps taking.
     Vector<uint32_t> freeIndices{MemoryTag::Ecs};
+    std::atomic<uint32_t> freeAvailable{0};
     uint32_t aliveCount = 0;
     Vector<Archetype*> archetypes{MemoryTag::Ecs};
     // Archetypes by a hash of their sorted component IDs; a list per hash, in
@@ -447,6 +452,28 @@ const EntityRecord* liveRecord(const World& world, Entity entity)
     }
     const EntityRecord& record = world.records[index];
     return record.alive && record.generation == generationOf(entity) ? &record : nullptr;
+}
+
+// A destroyed entity's index if one is free, else a fresh one. Lock-free,
+// so command buffers can reserve entities from every worker at once; never
+// at the same time as releaseIndex (direct structural changes and playback
+// don't run while other threads record).
+uint32_t takeIndex(World& world)
+{
+    uint32_t available = world.freeAvailable.load(std::memory_order_acquire);
+    while (available > 0 &&
+           !world.freeAvailable.compare_exchange_weak(available, available - 1, std::memory_order_acq_rel))
+    {
+    }
+    return available > 0 ? world.freeIndices[available - 1] : world.nextFreshIndex.fetch_add(1);
+}
+
+// Frees an index for reuse; the caller has bumped its generation.
+void releaseIndex(World& world, uint32_t index)
+{
+    world.freeIndices.resize(world.freeAvailable.load(std::memory_order_acquire)); // drop taken entries
+    world.freeIndices.pushBack(index);
+    world.freeAvailable.store(static_cast<uint32_t>(world.freeIndices.size()), std::memory_order_release);
 }
 
 void checkNotIterating(const World& world)
@@ -862,17 +889,7 @@ void destroyWorld(World* world)
 Entity createEntity(World& world, std::span<const ComponentId> components)
 {
     checkNotIterating(world);
-    uint32_t index;
-    if (!world.freeIndices.empty())
-    {
-        index = world.freeIndices.back();
-        world.freeIndices.popBack();
-    }
-    else
-    {
-        index = world.nextFreshIndex.fetch_add(1);
-    }
-    return createAt(world, index, components);
+    return createAt(world, takeIndex(world), components);
 }
 
 void destroyEntity(World& world, Entity entity)
@@ -908,7 +925,7 @@ void destroyEntity(World& world, Entity entity)
     // The next entity at this index gets a new generation, so this one's
     // references go stale. 0 is skipped, so no live entity is ever 0.
     record.generation = record.generation + 1 == 0 ? 1 : record.generation + 1;
-    world.freeIndices.pushBack(indexOf(entity));
+    releaseIndex(world, indexOf(entity));
     --world.aliveCount;
 }
 
@@ -1395,10 +1412,12 @@ void destroyCommandBuffer(CommandBuffer* buffer)
 
 Entity recordCreate(CommandBuffer& buffer, std::span<const ComponentId> components)
 {
-    // A fresh index, never handed out before, so its generation is 1 and the
-    // entity is final now.
-    const uint32_t index = buffer.world->nextFreshIndex.fetch_add(1);
-    const Entity entity{(uint64_t{1} << 32) | index};
+    // A free index (its generation was bumped when it was freed) or a fresh
+    // one (generation 1): either way the entity is final now.
+    World& world = *buffer.world;
+    const uint32_t index = takeIndex(world);
+    const uint32_t generation = index < world.records.size() ? world.records[index].generation : 1;
+    const Entity entity{(uint64_t{generation} << 32) | index};
     const CommandHeader header{
         CommandType::Create, invalidComponent, entity, nullEntity, static_cast<uint32_t>(components.size_bytes()), 0};
     record(buffer, header, components.data(), index);
@@ -1466,7 +1485,7 @@ void clear(CommandBuffer& buffer)
             }
             EntityRecord& released = world.records[index];
             released.generation = released.generation + 1 == 0 ? 1 : released.generation + 1;
-            world.freeIndices.pushBack(index);
+            releaseIndex(world, index);
         }
         segment->reserved.clear();
         segment->bytes.clear();

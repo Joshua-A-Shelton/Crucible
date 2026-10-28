@@ -27,6 +27,15 @@ public sealed unsafe class FrameContext
     /// <summary>The latency harness, when --latency is given; null otherwise.</summary>
     public LatencyRecorder? Latency { get; init; }
 
+    /// <summary>
+    /// The game's options, from the launcher's --game-arg key=value (ADR
+    /// 0011): the engine passes them on without reading them. Empty without any.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> GameArguments { get; init; } = new Dictionary<string, string>();
+
+    /// <summary>The schedule being run, for systems that report on others (timing, the editor).</summary>
+    public Schedule? Schedule { get; internal set; }
+
     /// <summary>Counts from 0.</summary>
     public ulong FrameNumber { get; internal set; }
 

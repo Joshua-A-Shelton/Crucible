@@ -213,6 +213,29 @@ TEST_CASE("Vector moves and resizes and copies only when asked")
     CHECK(moved.span().size() == 2);
 }
 
+TEST_CASE("Growing a Vector one element at a time with resize reallocates rarely")
+{
+    // An exact-size resize would reallocate (and copy everything) on every
+    // call: entity records grow this way, one index at a time.
+    Vector<int> values(MemoryTag::Ecs);
+    int reallocations = 0;
+    size_t capacity = values.capacity();
+    for (size_t size = 1; size <= 100'000; ++size)
+    {
+        values.resize(size);
+        if (values.capacity() != capacity)
+        {
+            capacity = values.capacity();
+            ++reallocations;
+        }
+    }
+    CHECK(reallocations < 20);
+
+    Vector<int> exact(MemoryTag::Ecs);
+    exact.reserve(1000);
+    CHECK(exact.capacity() == 1000); // reserve stays exact
+}
+
 TEST_CASE("SmallVector stays inline until it outgrows its capacity")
 {
     const MemoryUsage before = memoryUsage(MemoryTag::Platform);

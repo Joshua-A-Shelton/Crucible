@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using Crucible.Ecs;
@@ -92,9 +94,14 @@ public static class Host
         // The main world (ADR 0036): the engine's, so every system, C++ ones
         // too, can rely on it.
         using World world = new();
+        // --game: the game's systems join the engine's (ADR 0036).
+        LoadedGame? game = LoadGame();
+        ScheduleBuilder builder = ScheduleBuilder.CreateDefault();
+        game?.RegisterSystems(builder);
         FrameContext context = new()
         {
             World = world,
+            GameArguments = GameArguments(),
             Window = window,
             Surface = surface,
             Pacing = !options.NoPacing,
@@ -114,7 +121,7 @@ public static class Host
         ulong frames;
         try
         {
-            frames = FrameLoop.CreateDefault().Run(context, options.FrameLimit);
+            frames = new FrameLoop(builder.Build()).Run(context, options.FrameLimit);
         }
         finally
         {
@@ -155,6 +162,48 @@ public static class Host
                 throw new CrucibleException(status, "crucible::render::setGpuTiming");
             }
         }
+    }
+
+    // --game <file> (crucible/Launch.h): loaded into a collectible context,
+    // which only a JIT can do. A NativeAOT engine compiles its game in
+    // instead (ADR 0011), so it refuses the option.
+    private static LoadedGame? LoadGame()
+    {
+        string path = Api.GamePath();
+        if (path.Length == 0)
+        {
+            return null;
+        }
+        if (!RuntimeFeature.IsDynamicCodeSupported)
+        {
+            throw new InvalidOperationException("--game needs the JIT engine: NativeAOT builds compile their game in.");
+        }
+        return LoadJit(path);
+    }
+
+    [UnconditionalSuppressMessage("Trimming", "IL2026",
+        Justification = "Only reached under a JIT (checked above), where nothing is trimmed.")]
+    [UnconditionalSuppressMessage("AOT", "IL3050",
+        Justification = "Only reached under a JIT (checked above).")]
+    private static LoadedGame LoadJit(string path)
+    {
+        LoadedGame game = GameLoader.Load(path);
+        Console.WriteLine($"Crucible.Hosting: loaded {Path.GetFileName(path)}");
+        return game;
+    }
+
+    // --game-arg key=value pairs; the launcher checked each has a key.
+    private static Dictionary<string, string> GameArguments()
+    {
+        Dictionary<string, string> arguments = new(StringComparer.Ordinal);
+        uint count = Api.GameArgumentCount();
+        for (uint i = 0; i < count; ++i)
+        {
+            string argument = Api.GameArgument(i);
+            int split = argument.IndexOf('=');
+            arguments[argument[..split]] = argument[(split + 1)..];
+        }
+        return arguments;
     }
 
     // --latency <file>, stored by the launcher (crucible/Launch.h); null when off.

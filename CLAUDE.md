@@ -338,6 +338,9 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   Projects reference it with `OutputItemType="Analyzer"
   ReferenceOutputAssembly="false"`; its tests are `Crucible.Generators.Tests`
   (JIT only). See `docs/learning/source-generators.md`.
+- **Samples** (ADR 0037): `samples/Particles` is the M3 demonstration, a game
+  the JIT launcher loads with `--game <dll>` and configures with
+  `--game-arg key=value`; it prints per-step timings.
 - Slag comes from a pinned tag; to work on Slag side by side, configure with
   `-DFETCHCONTENT_SOURCE_DIR_SLAG=~/Claude/Slag`.
 - **Verification by hand** (no hosted CI for now: Actions minutes are spent

@@ -12,6 +12,8 @@
 
   <ItemGroup>
     <ProjectReference Include="../../../src/managed/Crucible.Engine/Crucible.Engine.csproj" />
+    <!-- The M3 demonstration's sample game, run here under JIT and NativeAOT. -->
+    <ProjectReference Include="../../../samples/Particles/Crucible.Samples.Particles.csproj" />
     <!-- The system registration generator, as a game uses it (ADR 0036). -->
     <ProjectReference Include="../../../tools/Crucible.Generators/Crucible.Generators.csproj"
                       OutputItemType="Analyzer" ReferenceOutputAssembly="false" />

@@ -10,6 +10,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <mutex>
 #include <random>
 #include <unordered_map>
 #include <vector>
@@ -675,6 +676,102 @@ TEST_CASE("A cleared buffer's reserved entities never come alive")
     CHECK_FALSE(isAlive(*world, reserved));
     CHECK(isAlive(*world, reused));
     destroyCommandBuffer(buffer);
+}
+
+TEST_CASE("Recorded creations reuse destroyed entities' indices")
+{
+    // Spawning only through command buffers must not grow the index space
+    // forever (ADR 0023's amendment).
+    WorldScope world;
+    CommandBuffer* buffer = createCommandBuffer(*world);
+    std::vector<Entity> first;
+    for (int i = 0; i < 1000; ++i)
+    {
+        first.push_back(recordCreate(*buffer));
+    }
+    apply(*buffer);
+    for (const Entity e : first)
+    {
+        recordDestroy(*buffer, e);
+    }
+    apply(*buffer);
+
+    std::vector<Entity> second;
+    for (int i = 0; i < 1000; ++i)
+    {
+        second.push_back(recordCreate(*buffer));
+    }
+    for (const Entity e : second)
+    {
+        CHECK(indexOf(e) < 1000);
+        CHECK(generationOf(e) == 2);
+    }
+    apply(*buffer);
+    CHECK(entityCount(*world) == 1000);
+    CHECK(std::ranges::all_of(second, [&](Entity e) { return isAlive(*world, e); }));
+    CHECK(std::ranges::none_of(first, [&](Entity e) { return isAlive(*world, e); }));
+    // The free list is used up, so the next index is fresh.
+    CHECK(indexOf(createEntity(*world)) == 1000);
+    destroyCommandBuffer(buffer);
+}
+
+TEST_CASE("Parallel recording hands out each free index once")
+{
+    const Components c;
+    REQUIRE(jobs::initialize(3));
+    {
+        WorldScope world;
+        const ComponentId set[] = {c.health};
+        std::vector<Entity> entities;
+        for (int i = 0; i < 20'000; ++i)
+        {
+            entities.push_back(createEntity(*world, set));
+            get<Health>(*world, entities.back())->value = i;
+        }
+        for (int i = 0; i < 20'000; i += 2)
+        {
+            destroyEntity(*world, entities[static_cast<size_t>(i)]);
+        }
+
+        // Every survivor records one creation, from every worker at once:
+        // 10,000 creations for 10,000 free indices.
+        struct State
+        {
+            CommandBuffer* buffer;
+            std::mutex lock;
+            std::vector<Entity> created;
+        } state{createCommandBuffer(*world), {}, {}};
+        Query* query = createQuery(*world, {set, {}});
+        parallelForEachChunk(
+            *query,
+            [](const ChunkView& view, void* data) {
+                auto& s = *static_cast<State*>(data);
+                std::vector<Entity> mine;
+                for (uint32_t i = 0; i < entityCountOf(view); ++i)
+                {
+                    mine.push_back(recordCreate(*s.buffer));
+                }
+                std::lock_guard guard(s.lock);
+                s.created.insert(s.created.end(), mine.begin(), mine.end());
+            },
+            &state);
+        apply(*state.buffer);
+
+        std::vector<uint32_t> indices;
+        for (const Entity e : state.created)
+        {
+            indices.push_back(indexOf(e));
+            CHECK(isAlive(*world, e));
+        }
+        std::ranges::sort(indices);
+        CHECK(indices.size() == 10'000);
+        CHECK(std::ranges::adjacent_find(indices) == indices.end()); // no index twice
+        CHECK(indices.back() < 20'000);                              // all reused
+        CHECK(entityCount(*world) == 20'000);
+        destroyCommandBuffer(state.buffer);
+        destroyQuery(query);
+    }
+    jobs::shutdown();
 }
 
 TEST_CASE("Parallel chunk jobs can record into one buffer")

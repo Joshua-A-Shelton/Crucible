@@ -114,10 +114,15 @@ public:
         }
     }
 
-    // New elements are value-initialized (zero for plain data).
+    // New elements are value-initialized (zero for plain data). Grows
+    // geometrically, like pushBack, so growing one element at a time stays
+    // amortized O(1); reserve is the exact form.
     void resize(size_t newCount)
     {
-        reserve(newCount);
+        if (newCount > capacityCount)
+        {
+            reserve(newCount > capacityCount * 2 ? newCount : capacityCount * 2);
+        }
         while (count > newCount)
         {
             popBack();

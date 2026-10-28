@@ -25,6 +25,9 @@ public sealed class FramePhase
 
     public bool IsFixedGroup { get; }
 
+    /// <summary>How long the phase's last sync point took, in <see cref="System.Diagnostics.Stopwatch"/> ticks.</summary>
+    public long LastSyncTicks { get; internal set; }
+
     // Arrays, so the loop indexes them without allocating enumerators.
     internal GameSystem[] SystemArray { get; }
 

@@ -120,6 +120,12 @@
       },
       "crucible.engine": {
         "type": "Project"
+      },
+      "crucible.samples.particles": {
+        "type": "Project",
+        "dependencies": {
+          "Crucible.Engine": "[0.1.0, )"
+        }
       }
     },
     "net10.0/linux-x64": {

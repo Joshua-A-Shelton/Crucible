@@ -107,3 +107,10 @@ Settled with the project owner in M2 step 4.
 - **Startup order:** platform, then renderer, then the engine; shutdown in
   reverse. The engine creates the main window and its surface, and destroys
   them before returning.
+
+## Amendment (2026-10-27): loading a game (M3 step 9)
+
+- `--game <file>` loads a game assembly (JIT engines only; NativeAOT
+  refuses it), and `--game-arg key=value` passes it options, repeatable.
+  The launcher stores both in the core; the host reads them back. See ADR
+  0037.

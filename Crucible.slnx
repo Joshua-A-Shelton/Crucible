@@ -2,6 +2,9 @@
   <Folder Name="/src/">
     <Project Path="src/managed/Crucible.Engine/Crucible.Engine.csproj" />
   </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/Particles/Crucible.Samples.Particles.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/managed/Crucible.Engine.Tests/Crucible.Engine.Tests.csproj" />
     <Project Path="tests/managed/Crucible.Engine.HotReloadTests/Crucible.Engine.HotReloadTests.csproj" />

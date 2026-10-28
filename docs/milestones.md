@@ -161,6 +161,16 @@ the decision each one needs comes first):
 9. The demonstration: thousands of entities updated by a C# and a C++
    system in parallel, structural changes applied at phase ends, timed.
 
+**Status (2026-10-27):** steps 1–9 done and verified on Linux (GCC, debug
+and release, sanitizers) and Windows (MSVC, debug and release), JIT and
+NativeAOT. The demonstration is `samples/Particles` (ADR 0037): 100,000
+particles moved by C++ and C# systems in parallel, with creations and
+destroys applied at sync points, in about 0.5 ms per fixed step (release).
+It found and fixed two ECS problems: quadratic record growth and recorded
+creations never reusing indices (ADR 0023's second amendment). Decided:
+phase list (names still placeholders), AVX2 (ADR 0024), hierarchy (0033),
+change detection (0034). Awaiting the owner's sign-off.
+
 ## M4 — Assets and serialization
 
 - GUIDs, the asset database, and the content-hash import cache (ADR 0021).

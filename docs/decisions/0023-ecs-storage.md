@@ -150,3 +150,21 @@ Settled with the project owner. Names are placeholders.
 - Tested with randomized checks against reference maps, recording from
   parallel chunk jobs, and AddressSanitizer, UndefinedBehaviorSanitizer,
   and ThreadSanitizer runs.
+
+## Amendment (2026-10-27): recorded creations reuse indices (M3 step 9)
+
+Settled with the project owner after the M3 demonstration showed the cost:
+a game spawning only through command buffers never reused an index, so its
+entity records grew by about 0.5 MB a second at 20,000 spawns a second, and
+the 32-bit index space would run out after a few days of play.
+
+- **`recordCreate` takes a destroyed entity's index when one is free,**
+  else a fresh one. The ID is still final at once: a freed index's
+  generation was bumped when it was freed.
+- **Lock-free:** the free list has an atomic count of entries that can
+  still be taken. `recordCreate` and `createEntity` take one by decrementing
+  it; destroys, clears, and playback drop the taken entries and push.
+- **Rule:** no direct structural change (`createEntity`, `destroyEntity`,
+  `apply`, `clear`) on a world while another thread records into its
+  command buffers. Systems already follow it: recording happens inside
+  phases, structural changes at sync points.

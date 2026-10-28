@@ -28,4 +28,15 @@ CRUCIBLE_EXPORT void setLatencyLogPath(std::string_view utf8Path);
 // full length; call again with a larger buffer if it didn't fit.
 CRUCIBLE_EXPOSE uint32_t latencyLogPath(std::span<uint8_t> buffer);
 
+// --game <file>: the game assembly the engine loads (ADR 0011's JIT path), and
+// --game-arg key=value, repeatable: options for the game, which the engine
+// passes on without reading them. Stored like the latency path; the strings
+// are valid until the launcher changes them, which it doesn't once the
+// engine runs. Empty path: no game.
+CRUCIBLE_EXPORT void setGamePath(std::string_view utf8Path);
+CRUCIBLE_EXPOSE std::string_view gamePath();
+CRUCIBLE_EXPORT void addGameArgument(std::string_view utf8Argument);
+CRUCIBLE_EXPOSE uint32_t gameArgumentCount();
+CRUCIBLE_EXPOSE std::string_view gameArgument(uint32_t index);
+
 } // namespace crucible

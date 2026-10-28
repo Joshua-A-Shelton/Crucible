@@ -88,6 +88,20 @@ if(CRUCIBLE_BUILD_TESTS)
             PASS_REGULAR_EXPRESSION "needs a processor with")
     endif()
 
+    # The M3 demonstration (ADR 0037): the sample game loaded with --game, its
+    # C# and C++ systems run for 60 fixed steps, and its report printed.
+    set(particlesGame
+        "${CRUCIBLE_DOTNET_ARTIFACTS_DIR}/bin/Crucible.Samples.Particles/${CRUCIBLE_DOTNET_CONFIGURATION_DIR}/Crucible.Samples.Particles.dll")
+    add_test(NAME launcher.jit.particles
+        COMMAND crucible_launcher --managed-dir "${engineDirectory}" --headless --game "${particlesGame}"
+            --game-arg particles=5000 --game-arg steps=60)
+    set_tests_properties(launcher.jit.particles PROPERTIES LABELS integration ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "Crucible.Particles: 5000 particles, 60 fixed steps")
+
+    # A game option needs a key and a value.
+    add_test(NAME launcher.bad-game-arg COMMAND crucible_launcher --game-arg particles)
+    set_tests_properties(launcher.bad-game-arg PROPERTIES LABELS integration WILL_FAIL TRUE)
+
     add_test(NAME launcher.bad-option COMMAND crucible_launcher --frames many)
     set_tests_properties(launcher.bad-option PROPERTIES LABELS integration WILL_FAIL TRUE)
 
@@ -116,5 +130,11 @@ if(CRUCIBLE_BUILD_TESTS)
         add_test(NAME launcher.aot.start COMMAND crucible_launcher_aot --headless --frames 60)
         set_tests_properties(launcher.aot.start PROPERTIES LABELS "integration;aot" ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
             PASS_REGULAR_EXPRESSION "ran 60 frames")
+
+        # A NativeAOT engine compiles its game in, so it refuses --game.
+        add_test(NAME launcher.aot.game-refused
+            COMMAND crucible_launcher_aot --headless --frames 1 --game "${particlesGame}")
+        set_tests_properties(launcher.aot.game-refused PROPERTIES LABELS "integration;aot"
+            ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen" PASS_REGULAR_EXPRESSION "--game needs the JIT engine")
     endif()
 endif()

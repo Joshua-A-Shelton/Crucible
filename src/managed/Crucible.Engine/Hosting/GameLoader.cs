@@ -29,7 +29,7 @@ public static class GameLoader
     public static LoadedGame Load(string path)
     {
         (AssemblyLoadContext context, Assembly assembly) = LoadAssembly(path);
-        return new LoadedGame(context, CreateEntry(assembly, path), CreateRegistration(assembly));
+        return new LoadedGame(context, CreateEntry(assembly), CreateRegistration(assembly));
     }
 
     /// <summary>
@@ -53,7 +53,7 @@ public static class GameLoader
         AssemblyLoadContext oldContext = current.Context;
         (AssemblyLoadContext context, Assembly assembly) = LoadAssembly(path);
         notes = ComponentMigration.Migrate(oldContext, context);
-        return new LoadedGame(context, CreateEntry(assembly, path), CreateRegistration(assembly));
+        return new LoadedGame(context, CreateEntry(assembly), CreateRegistration(assembly));
     }
 
     // The assembly is read from a stream, not opened by path, so the file
@@ -67,13 +67,11 @@ public static class GameLoader
     }
 
     [RequiresUnreferencedCode(JitOnly)]
-    private static IGameEntry CreateEntry(Assembly assembly, string path)
-    {
-        GameEntryAttribute attribute = assembly.GetCustomAttribute<GameEntryAttribute>() ??
-                                       throw new InvalidOperationException($"{path} has no [GameEntry] attribute.");
-        return (IGameEntry)(Activator.CreateInstance(attribute.EntryType) ??
-                            throw new InvalidOperationException($"Could not create {attribute.EntryType}."));
-    }
+    private static IGameEntry? CreateEntry(Assembly assembly) =>
+        assembly.GetCustomAttribute<GameEntryAttribute>() is { } attribute
+            ? (IGameEntry)(Activator.CreateInstance(attribute.EntryType) ??
+                           throw new InvalidOperationException($"Could not create {attribute.EntryType}."))
+            : null;
 
     // The generated system registration (ADR 0036), if the game has systems.
     [RequiresUnreferencedCode(JitOnly)]
@@ -112,14 +110,18 @@ public sealed class LoadedGame
     private IGameEntry? _entry;
     private ISystemRegistration? _systems;
 
-    internal LoadedGame(AssemblyLoadContext context, IGameEntry entry, ISystemRegistration? systems)
+    internal LoadedGame(AssemblyLoadContext context, IGameEntry? entry, ISystemRegistration? systems)
     {
         _context = context;
         _entry = entry;
         _systems = systems;
     }
 
-    public IGameEntry Entry => _entry ?? throw new InvalidOperationException("The game has been unloaded.");
+    /// <summary>The game's <see cref="GameEntryAttribute"/> entry (an M1 placeholder); throws if it has none.</summary>
+    public IGameEntry Entry =>
+        _entry ?? throw new InvalidOperationException(_context is null
+            ? "The game has been unloaded."
+            : "The game has no [GameEntry] attribute.");
 
     /// <summary>
     /// Adds the game's <see cref="SystemAttribute"/> systems to
