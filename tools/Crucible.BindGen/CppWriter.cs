@@ -17,7 +17,7 @@ internal static class CppWriter
         {
             text.AppendLine($"#include <{header}>");
         }
-        text.AppendLine("#include <crucible/Export.h>");
+        text.AppendLine($"#include <{model.ExportHeader}>");
         text.AppendLine();
         text.AppendLine("#include <cstddef>");
         text.AppendLine("#include <cstdint>");
@@ -64,7 +64,7 @@ internal static class CppWriter
                 {
                     parameters.Add($"{CType(function.ReturnType)}* result");
                 }
-                text.AppendLine($"CRUCIBLE_EXPORT {model.Status!.QualifiedName} {function.CName}({string.Join(", ", parameters)})");
+                text.AppendLine($"{model.ExportMacro} {model.Status!.QualifiedName} {function.CName}({string.Join(", ", parameters)})");
                 text.AppendLine("{");
                 text.AppendLine($"    auto value = {call};");
                 if (hasValue)
@@ -85,7 +85,7 @@ internal static class CppWriter
                 // A view can't be returned through the C ABI: its pointer is,
                 // and its length goes through resultLength.
                 parameters.Add("size_t* resultLength");
-                text.AppendLine($"CRUCIBLE_EXPORT const char* {function.CName}({string.Join(", ", parameters)})");
+                text.AppendLine($"{model.ExportMacro} const char* {function.CName}({string.Join(", ", parameters)})");
                 text.AppendLine("{");
                 text.AppendLine($"    const std::string_view value = {call};");
                 text.AppendLine("    *resultLength = value.size();");
@@ -94,7 +94,7 @@ internal static class CppWriter
                 continue;
             }
 
-            text.AppendLine($"CRUCIBLE_EXPORT {CType(function.ReturnType)} {function.CName}({string.Join(", ", parameters)})");
+            text.AppendLine($"{model.ExportMacro} {CType(function.ReturnType)} {function.CName}({string.Join(", ", parameters)})");
             text.AppendLine("{");
             if (!hasValue)
             {

@@ -215,3 +215,20 @@ pointers; the job trampoline is the only one so far.
   fields: a reference can't be a C# field, and a raw address would be
   public in a struct mirror. Used for `SystemContext`'s world and command
   buffer.
+
+## Amendment (2026-10-28): more than one library (M4 step 5)
+
+ADR 0042 puts the editor's import code in its own native library,
+`crucible_importers`, beside the core. The generator now serves both:
+
+- `--library`, `--interop-namespace`, `--export-macro`, and
+  `--export-header` choose the library LibraryImport loads, the namespace
+  of the internal raw layer and layout checks, and how the C shims are
+  exported. The defaults are the core's, whose output is unchanged.
+- `--extern-header` names another library's headers: their exposed types
+  resolve (an importer function can return `Result` and use `Status`), but
+  nothing is generated for them, so C# uses the engine's types.
+- CMake's `crucible_generate_bindings` takes the same as arguments, plus a
+  `TARGET` name, once per library.
+- The engine's `Utf8Argument` is public (hidden from IntelliSense), for
+  other assemblies' generated code.

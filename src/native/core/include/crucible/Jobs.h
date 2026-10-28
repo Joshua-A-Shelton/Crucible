@@ -65,11 +65,13 @@ bool isDone(const JobCounter& counter);
 
 // Calls function(data, begin, end) over [0, count) in batches of
 // `batchSize` (0: an automatic size), in parallel, and waits for all of them.
-void parallelFor(uint32_t count, uint32_t batchSize, void (*function)(void* data, uint32_t begin, uint32_t end),
-                 void* data);
+// Exported: editor libraries beside the core (ADR 0042) run their work on
+// the core's workers.
+CRUCIBLE_EXPORT void parallelFor(uint32_t count, uint32_t batchSize,
+                                 void (*function)(void* data, uint32_t begin, uint32_t end), void* data);
 
 // Worker threads (0 before initialize).
-CRUCIBLE_EXPOSE uint32_t workerCount();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t workerCount();
 
 // The calling thread's worker index, or -1 if it isn't a worker.
 CRUCIBLE_EXPOSE int32_t currentWorker();

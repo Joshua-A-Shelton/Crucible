@@ -343,6 +343,10 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   ReferenceOutputAssembly="false"`; its tests are `Crucible.Generators.Tests`
   (JIT only). See `docs/learning/source-generators.md` and
   `docs/learning/generated-serializers.md`.
+- **Importers** (ADR 0042): `src/native/importers` builds `crucible_importers`,
+  an editor-only native library beside the shared core (texture decoding,
+  mipmaps, BC7/BC5/BC4 with RDO), bound into `Crucible.Assets` by a second
+  run of the binding generator. Its tests: `crucible_importers_tests`.
 - **Asset pipeline** (ADR 0040): `src/managed/Crucible.Assets`, editor-side
   and never shipped: projects (`<Name>.crproject`, `Assets/`, `Code/`,
   `Plugins/`, `Cache/`), `.meta` sidecars, the asset database, importers,

@@ -25,6 +25,9 @@ public abstract class Importer
     // so formatting a sidecar by hand doesn't reimport anything.
     internal abstract byte[] CanonicalSettings(ReadOnlySpan<byte> settingsJson);
 
+    // A new sidecar's settings, as JSON.
+    internal abstract byte[] DefaultSettings(string assetPath);
+
     internal abstract void WriteSettings(Utf8JsonWriter writer, ReadOnlySpan<byte> settingsJson);
 
     internal abstract void Run(ImportContext context, ReadOnlySpan<byte> settingsJson);
@@ -40,8 +43,16 @@ public abstract class Importer<TSettings> : Importer where TSettings : IJsonSeri
     /// </summary>
     public abstract void Import(ImportContext context, TSettings settings);
 
+    /// <summary>
+    /// The settings a new file gets in its sidecar: the type's own defaults
+    /// unless an importer knows better from the file (an .hdr image wants HDR).
+    /// </summary>
+    protected virtual TSettings Defaults(string assetPath) => new();
+
     internal override byte[] CanonicalSettings(ReadOnlySpan<byte> settingsJson) =>
         Json.Serialize(Parse(settingsJson));
+
+    internal override byte[] DefaultSettings(string assetPath) => Json.Serialize(Defaults(assetPath));
 
     internal override void WriteSettings(Utf8JsonWriter writer, ReadOnlySpan<byte> settingsJson) =>
         TSettings.WriteJson(writer, Parse(settingsJson));

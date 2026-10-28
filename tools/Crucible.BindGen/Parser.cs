@@ -17,20 +17,31 @@ internal sealed class Parser
     private const string ExposeAsPrefix = "crucible_expose_as:";
 
     private readonly HashSet<string> _headerFiles;
+    private readonly HashSet<string> _externFiles;
+    // Whether the declaration being added comes from an extern header: kept
+    // for lookups, left out of the model the writers emit.
+    private bool _inExtern;
     private readonly Dictionary<string, ExposedStruct> _structsByName = [];
     private readonly Dictionary<string, ExposedEnum> _enumsByName = [];
     private readonly Dictionary<string, ExposedOpaque> _opaquesByName = [];
     private readonly List<string> _errors = [];
 
-    private Parser(IEnumerable<string> headers)
+    private Parser(IEnumerable<string> headers, IEnumerable<string> externHeaders)
     {
-        _headerFiles = headers.Select(Path.GetFullPath).ToHashSet();
+        _externFiles = externHeaders.Select(Path.GetFullPath).ToHashSet();
+        _headerFiles = headers.Select(Path.GetFullPath).Concat(_externFiles).ToHashSet();
     }
 
+    /// <param name="externHeaders">
+    /// Headers whose exposed types another library's bindings already have
+    /// (the core's, for an editor library): parsed so references to their
+    /// types resolve, but nothing is generated for them.
+    /// </param>
     public static BindingModel? Parse(string clang, IReadOnlyList<string> headers,
-        IReadOnlyList<string> includeDirectories)
+        IReadOnlyList<string> includeDirectories, IReadOnlyList<string>? externHeaders = null)
     {
-        Parser parser = new(headers);
+        externHeaders ??= [];
+        Parser parser = new(headers, externHeaders);
         BindingModel model = new();
         foreach (string header in headers)
         {
@@ -38,7 +49,7 @@ internal sealed class Parser
         }
 
         nint index = Libclang.CreateIndex(0, 0);
-        nint translationUnit = ParseHeaders(index, clang, headers, includeDirectories);
+        nint translationUnit = ParseHeaders(index, clang, [.. headers, .. externHeaders], includeDirectories);
         try
         {
             if (translationUnit == 0 || !ReportDiagnostics(translationUnit))
@@ -192,6 +203,7 @@ internal sealed class Parser
             {
                 continue;
             }
+            _inExtern = _externFiles.Contains(Path.GetFullPath(file));
 
             if (cursor.Kind == CursorKind.Namespace)
             {
@@ -279,7 +291,10 @@ internal sealed class Parser
         }
 
         _enumsByName[qualifiedName] = exposed;
-        model.Enums.Add(exposed);
+        if (!_inExtern)
+        {
+            model.Enums.Add(exposed);
+        }
     }
 
     // A declaration without a definition in the headers: native code owns
@@ -293,7 +308,10 @@ internal sealed class Parser
         }
         ExposedOpaque opaque = new(qualifiedName, Libclang.Spelling(cursor), scope);
         _opaquesByName[qualifiedName] = opaque;
-        model.Opaques.Add(opaque);
+        if (!_inExtern)
+        {
+            model.Opaques.Add(opaque);
+        }
     }
 
     private void AddStruct(CXCursor cursor, Scope scope, BindingModel model)
@@ -334,11 +352,18 @@ internal sealed class Parser
         }
 
         _structsByName[qualifiedName] = exposed;
-        model.Structs.Add(exposed);
+        if (!_inExtern)
+        {
+            model.Structs.Add(exposed);
+        }
     }
 
     private void AddFunction(CXCursor cursor, Scope scope, BindingModel model)
     {
+        if (_inExtern)
+        {
+            return; // the other library's bindings have it
+        }
         string name = Libclang.Spelling(cursor);
         string qualifiedName = $"{scope.Cpp}{name}";
 

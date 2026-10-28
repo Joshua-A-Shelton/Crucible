@@ -154,6 +154,20 @@ internal sealed class BindingModel
 
     /// <summary>Every file parsing read, for the depfile.</summary>
     public List<string> Dependencies { get; } = [];
+
+    // Which native library the bindings are for (ADR 0042: the core, or an
+    // editor-only library beside it).
+
+    /// <summary>The library LibraryImport loads: "crucible_core".</summary>
+    public string Library { get; set; } = "crucible_core";
+
+    /// <summary>The C# namespace of the internal raw layer and layout checks.</summary>
+    public string InteropNamespace { get; set; } = "Crucible.Interop";
+
+    /// <summary>The macro exporting the C shims, and the header defining it.</summary>
+    public string ExportMacro { get; set; } = "CRUCIBLE_EXPORT";
+
+    public string ExportHeader { get; set; } = "crucible/Export.h";
 }
 
 internal static class Names

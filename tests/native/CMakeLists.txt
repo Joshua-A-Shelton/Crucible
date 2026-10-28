@@ -30,6 +30,15 @@ target_link_libraries(crucible_native_tests PRIVATE crucible::core_static SDL3::
 doctest_discover_tests(crucible_native_tests ADD_LABELS 1
     PROPERTIES LABELS native ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen")
 
+# The importers (ADR 0042), editor-only: their own executable, so the core's
+# tests never link them.
+add_executable(crucible_importers_tests Main.cpp TextureImportTests.cpp)
+crucible_set_compile_options(crucible_importers_tests)
+target_compile_definitions(crucible_importers_tests PRIVATE DOCTEST_CONFIG_NO_EXCEPTIONS_BUT_WITH_ALL_ASSERTS)
+target_include_directories(crucible_importers_tests SYSTEM PRIVATE "${stb_SOURCE_DIR}") # stb_image_write, to make test images
+target_link_libraries(crucible_importers_tests PRIVATE crucible_importers_static doctest::doctest)
+doctest_discover_tests(crucible_importers_tests ADD_LABELS 1 PROPERTIES LABELS "native;importers")
+
 # ADR 0032: the core includes only standard headers that don't allocate.
 add_test(NAME core.includes
     COMMAND "${CMAKE_COMMAND}" -DCORE_DIR=${PROJECT_SOURCE_DIR}/src/native/core

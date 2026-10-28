@@ -7,7 +7,15 @@
   <PropertyGroup>
     <RootNamespace>Crucible.Assets</RootNamespace>
     <IsPackable>false</IsPackable>
+    <!-- LibraryImport's generated code uses pointers. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The importers library's C#/C++ bindings, generated from its headers
+         (ADR 0017, 0042). -->
+    <Compile Include="$(CrucibleGeneratedDir)/managed/ImportersBindings.g.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- XXH128 for the import cache's keys (ADR 0040): MIT, from the .NET team. -->

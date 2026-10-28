@@ -7,9 +7,12 @@ namespace Crucible.Interop;
 /// A C# string converted to UTF-8 for a <c>std::string_view</c> parameter
 /// (ADR 0017), without garbage: short strings use the caller's stack buffer,
 /// long ones a pooled array returned on dispose. The same approach as .NET's
-/// own LibraryImport string marshaller.
+/// own LibraryImport string marshaller. Public for the generated bindings of
+/// editor libraries in other assemblies (ADR 0042); not meant to be used by
+/// hand.
 /// </summary>
-internal ref struct Utf8Argument
+[System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+public ref struct Utf8Argument
 {
     /// <summary>Stack bytes the generated code reserves per string argument.</summary>
     public const int StackSize = 256;

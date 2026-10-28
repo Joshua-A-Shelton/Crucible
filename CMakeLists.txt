@@ -74,6 +74,8 @@ endif()
 # ---------------------------------------------------------------------------
 
 add_subdirectory(src/native/core)
+# Editor-only: decoders, mipmaps, and GPU compression (ADR 0042).
+add_subdirectory(src/native/importers)
 
 # ---------------------------------------------------------------------------
 # Managed (C#): one dotnet invocation for the whole solution, so projects that
@@ -81,8 +83,9 @@ add_subdirectory(src/native/core)
 # ---------------------------------------------------------------------------
 
 crucible_add_dotnet_build(crucible_managed "${CMAKE_CURRENT_SOURCE_DIR}/Crucible.slnx")
-# The engine compiles the generated C# bindings.
-add_dependencies(crucible_managed crucible_bindings)
+# The engine compiles the generated C# bindings, and Crucible.Assets the
+# importers' (whose tests load the importers' library).
+add_dependencies(crucible_managed crucible_bindings crucible_importers_bindings crucible_importers)
 
 if(CRUCIBLE_BUILD_AOT)
     # The engine's C# layer as a NativeAOT static library, for the AOT

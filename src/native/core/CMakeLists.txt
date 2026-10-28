@@ -18,6 +18,7 @@ target_include_directories(crucible_core_objects PUBLIC
 # takes one annotation and no build-file edit.
 file(GLOB CRUCIBLE_CORE_HEADERS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/include/crucible/*.h")
 crucible_generate_bindings(
+    TARGET crucible_bindings
     OUTPUT_CPP "${CRUCIBLE_GENERATED_DIR}/native/Bindings.g.cpp"
     OUTPUT_CS "${CRUCIBLE_GENERATED_DIR}/managed/Bindings.g.cs"
     INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include"

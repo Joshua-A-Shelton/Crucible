@@ -46,14 +46,20 @@ add_custom_target(crucible_bindgen_tool
     USES_TERMINAL
     VERBATIM)
 
-# crucible_generate_bindings(OUTPUT_CPP <file> OUTPUT_CS <file>
-#     INCLUDE_DIRECTORIES <dirs>... HEADERS <headers>...)
+# crucible_generate_bindings(TARGET <name> OUTPUT_CPP <file> OUTPUT_CS <file>
+#     INCLUDE_DIRECTORIES <dirs>... HEADERS <headers>... [EXTERN_HEADERS <headers>...]
+#     [LIBRARY <name>] [INTEROP_NAMESPACE <namespace>]
+#     [EXPORT_MACRO <macro>] [EXPORT_HEADER <include path>])
 # Must be called in the directory of the target that compiles OUTPUT_CPP.
-# The depfile lists every file clang read, so changing any header an exposed
-# header includes reruns the generator.
+# TARGET names a custom target that runs the generator. EXTERN_HEADERS are
+# another library's exposed headers: their types resolve, nothing is
+# generated for them (ADR 0042). The depfile lists every file clang read, so
+# changing any header an exposed header includes reruns the generator.
 function(crucible_generate_bindings)
-    cmake_parse_arguments(PARSE_ARGV 0 bindings "" "OUTPUT_CPP;OUTPUT_CS" "INCLUDE_DIRECTORIES;HEADERS")
-    set(depfile "${CRUCIBLE_GENERATED_DIR}/bindings.d")
+    cmake_parse_arguments(PARSE_ARGV 0 bindings ""
+        "TARGET;OUTPUT_CPP;OUTPUT_CS;LIBRARY;INTEROP_NAMESPACE;EXPORT_MACRO;EXPORT_HEADER"
+        "INCLUDE_DIRECTORIES;HEADERS;EXTERN_HEADERS")
+    set(depfile "${CRUCIBLE_GENERATED_DIR}/${bindings_TARGET}.d")
     set(arguments
         --libclang "${CRUCIBLE_LIBCLANG}"
         --clang "${CRUCIBLE_CLANG}"
@@ -66,13 +72,23 @@ function(crucible_generate_bindings)
     foreach(header IN LISTS bindings_HEADERS)
         list(APPEND arguments --header "${header}")
     endforeach()
+    foreach(header IN LISTS bindings_EXTERN_HEADERS)
+        list(APPEND arguments --extern-header "${header}")
+    endforeach()
+    foreach(option LIBRARY INTEROP_NAMESPACE EXPORT_MACRO EXPORT_HEADER)
+        if(bindings_${option})
+            string(TOLOWER "${option}" flag)
+            string(REPLACE "_" "-" flag "${flag}")
+            list(APPEND arguments "--${flag}" "${bindings_${option}}")
+        endif()
+    endforeach()
 
     add_custom_command(
         OUTPUT "${bindings_OUTPUT_CPP}" "${bindings_OUTPUT_CS}"
         COMMAND "${DOTNET_EXECUTABLE}" "${CRUCIBLE_BINDGEN_DLL}" ${arguments}
-        DEPENDS crucible_bindgen_tool "${CRUCIBLE_BINDGEN_DLL}" ${bindings_HEADERS}
+        DEPENDS crucible_bindgen_tool "${CRUCIBLE_BINDGEN_DLL}" ${bindings_HEADERS} ${bindings_EXTERN_HEADERS}
         DEPFILE "${depfile}"
-        COMMENT "Generating C#/C++ bindings (crucible-bindgen)"
+        COMMENT "Generating C#/C++ bindings for ${bindings_TARGET} (crucible-bindgen)"
         VERBATIM)
-    add_custom_target(crucible_bindings DEPENDS "${bindings_OUTPUT_CPP}" "${bindings_OUTPUT_CS}")
+    add_custom_target(${bindings_TARGET} DEPENDS "${bindings_OUTPUT_CPP}" "${bindings_OUTPUT_CS}")
 endfunction()

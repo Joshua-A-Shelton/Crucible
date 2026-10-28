@@ -82,6 +82,25 @@ unset(CMAKE_POLICY_DEFAULT_CMP0091)
 set_target_properties(libzstd_static PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # ---------------------------------------------------------------------------
+# Editor-only importers (ADR 0022, 0042), built into crucible_importers and
+# never shipped. Neither project tags releases, so both are pinned by commit.
+#   stb_image (MIT or public domain): decodes PNG, JPEG, TGA, and Radiance HDR.
+#   bc7enc_rdo (MIT or public domain; its optional ISPC encoder, Apache 2.0,
+#     and LodePNG aren't used): BC7, BC4, and BC5 encoding and decoding, and
+#     ERT, its rate-distortion pass. Its own build makes a command-line tool
+#     with OpenMP, so only its sources are fetched (SOURCE_SUBDIR skips it).
+# ---------------------------------------------------------------------------
+
+FetchContent_Declare(stb
+    URL https://github.com/nothings/stb/archive/003501f6d7a8668ce8b6d875e34dd97ad0d5d5b5.tar.gz
+    URL_HASH SHA256=a6c31950b3bdf05eb92258768ba2a11bd44449490574b1aac67028452288c40d)
+FetchContent_Declare(bc7enc_rdo
+    URL https://github.com/richgel999/bc7enc_rdo/archive/b9438627eef73a1157e84201b6fa6eb2ffd6d9f0.tar.gz
+    URL_HASH SHA256=bbb33d1dbb6178a3a2c044956c3cc0b8ea9fc2f2903824379dd86f87d53b64c6
+    SOURCE_SUBDIR do-not-build)
+FetchContent_MakeAvailable(stb bc7enc_rdo)
+
+# ---------------------------------------------------------------------------
 # doctest (MIT): tests only, never linked into the engine (ADR 0029)
 # ---------------------------------------------------------------------------
 

@@ -223,7 +223,7 @@ public sealed class AssetDatabase
         }
         else
         {
-            sidecar = new Sidecar(AssetId.New(), byExtension?.Name ?? "", []);
+            sidecar = new Sidecar(AssetId.New(), byExtension?.Name ?? "", byExtension?.DefaultSettings(path) ?? []);
             rewrite = true;
         }
 
