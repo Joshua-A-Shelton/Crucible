@@ -98,7 +98,26 @@ FetchContent_Declare(bc7enc_rdo
     URL https://github.com/richgel999/bc7enc_rdo/archive/b9438627eef73a1157e84201b6fa6eb2ffd6d9f0.tar.gz
     URL_HASH SHA256=bbb33d1dbb6178a3a2c044956c3cc0b8ea9fc2f2903824379dd86f87d53b64c6
     SOURCE_SUBDIR do-not-build)
-FetchContent_MakeAvailable(stb bc7enc_rdo)
+#   cgltf v1.15 (MIT): parses glTF 2.0, .gltf and .glb (ADR 0022, 0043).
+#   meshoptimizer v1.3 (MIT): welding, vertex cache, overdraw, and fetch
+#     optimization, and LOD simplification (ADR 0043). Built from its sources
+#     like bc7enc_rdo, so its own build (and its options) stay out.
+FetchContent_Declare(cgltf
+    URL https://github.com/jkuhlmann/cgltf/archive/refs/tags/v1.15.tar.gz
+    URL_HASH SHA256=84e352092e5cd6aab7f66de62ddb66beb5e6f18d412ca9d12950d7a55bfef25a
+    SOURCE_SUBDIR do-not-build)
+FetchContent_Declare(meshoptimizer
+    URL https://github.com/zeux/meshoptimizer/archive/refs/tags/v1.3.tar.gz
+    URL_HASH SHA256=ca4f47d451201593904b9e3067fa54b65db94bc34ab5173864950862b748a145
+    SOURCE_SUBDIR do-not-build)
+#   MikkTSpace (zlib): tangents for meshes without them, the reference that
+#     normal-map bakers (Blender, Substance) match (ADR 0043). Pinned by
+#     commit; its licence is in its source.
+FetchContent_Declare(mikktspace
+    URL https://github.com/mmikk/MikkTSpace/archive/3e895b49d05ea07e4c2133156cfa94369e19e409.tar.gz
+    URL_HASH SHA256=aeba65ddee85a679133d510d71d00b108f603752f90b15b9ecf7777033f6e351
+    SOURCE_SUBDIR do-not-build)
+FetchContent_MakeAvailable(stb bc7enc_rdo cgltf meshoptimizer mikktspace)
 
 # ---------------------------------------------------------------------------
 # doctest (MIT): tests only, never linked into the engine (ADR 0029)

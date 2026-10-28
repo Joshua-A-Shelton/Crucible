@@ -69,13 +69,56 @@ public sealed class ImportContext : IDisposable
 {
     private readonly string _assetsFolder;
     private readonly SortedDictionary<string, string> _dependencies = new(StringComparer.Ordinal);
+    private readonly Func<string, AssetId> _idOf;
+    private readonly List<string> _warnings = [];
     private ImportedFileWriter? _output;
 
-    internal ImportContext(AssetId asset, string assetPath, string assetsFolder)
+    internal ImportContext(AssetId asset, string assetPath, string assetsFolder, Func<string, AssetId> idOf)
     {
         Asset = asset;
         AssetPath = assetPath;
         _assetsFolder = assetsFolder;
+        _idOf = idOf;
+    }
+
+    /// <summary>
+    /// Another asset's ID by its path inside <c>Assets/</c> (a glTF's
+    /// textures), or <see cref="AssetId.None"/> if there is none.
+    /// </summary>
+    public AssetId IdOf(string assetPath) => _idOf(assetPath);
+
+    /// <summary>Notes something the import left out or worked around; the import still succeeds.</summary>
+    public void Warn(string message) => _warnings.Add(message);
+
+    internal IReadOnlyList<string> Warnings => _warnings;
+
+    /// <summary>
+    /// A path inside <c>Assets/</c> for a file the source names relative to
+    /// itself ("textures/brick.png" beside "models/wall.gltf" is
+    /// "models/textures/brick.png"), with '.' and '..' resolved; throws if it
+    /// leaves <c>Assets/</c>.
+    /// </summary>
+    public string Resolve(string relative)
+    {
+        List<string> parts = [.. AssetPath.Split('/')[..^1]];
+        foreach (string part in relative.Replace('\\', '/').Split('/'))
+        {
+            if (part is "" or ".")
+            {
+                continue;
+            }
+            if (part == "..")
+            {
+                if (parts.Count == 0)
+                {
+                    throw new InvalidDataException($"{relative} is outside Assets/");
+                }
+                parts.RemoveAt(parts.Count - 1);
+                continue;
+            }
+            parts.Add(part);
+        }
+        return string.Join('/', parts);
     }
 
     public AssetId Asset { get; }

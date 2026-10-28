@@ -189,3 +189,14 @@ placeholder names):
   code once transposes happen in registers; through the stack they were
   slower than scalar. The register types are for one-off math. Data layout
   is an input to the ECS storage decision (M3 step 6).
+
+## Amendment (2026-10-28): mirror on X; front faces clockwise (M4 step 6)
+
+Settled with the project owner: importers mirror right-handed sources on
+**X**, not Z. glTF assets face +Z with -X as their right; flipping X keeps
++Z forward and puts their right side on +X, so they arrive facing the way
+they were authored. Flipping Z would turn every asset around. In detail:
+x becomes -x in positions, normals, tangents, and translations; tangents'
+handedness (w) flips; rotations (x, y, z, w) become (x, -y, -z, w); and
+triangle winding is reversed, so **front faces are clockwise** (as in D3D
+and Unity). Animation keys follow the same rules (ADR 0026). See ADR 0043.

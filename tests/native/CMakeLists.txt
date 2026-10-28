@@ -32,7 +32,7 @@ doctest_discover_tests(crucible_native_tests ADD_LABELS 1
 
 # The importers (ADR 0042), editor-only: their own executable, so the core's
 # tests never link them.
-add_executable(crucible_importers_tests Main.cpp TextureImportTests.cpp)
+add_executable(crucible_importers_tests Main.cpp MeshImportTests.cpp TextureImportTests.cpp)
 crucible_set_compile_options(crucible_importers_tests)
 target_compile_definitions(crucible_importers_tests PRIVATE DOCTEST_CONFIG_NO_EXCEPTIONS_BUT_WITH_ALL_ASSERTS)
 target_include_directories(crucible_importers_tests SYSTEM PRIVATE "${stb_SOURCE_DIR}") # stb_image_write, to make test images

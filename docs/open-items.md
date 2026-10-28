@@ -36,6 +36,10 @@ milestone are decided or checked when that milestone reaches them
   collections on other threads (a probe saw no counter drift in 348 GC
   windows). Next time, read the name and byte count from
   `ctest --output-on-failure`. → 0036, 0038
+- Textures embedded in glTF files (`.glb` images, `data:` URIs): imported as
+  sub-assets with IDs of their own, when a real model needs it; a warning
+  until then. → 0043
+- Skins and morph targets in imported meshes, with animation. → 0026, 0043
 - Values in a system's fields across a hot reload: the new version's
   systems are new objects, so the old ones' fields are lost. Migrate them
   like component values if games keep much state in systems. → 0036

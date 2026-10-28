@@ -1,5 +1,7 @@
 #include <crucible/importers/Texture.h>
 
+#include "Common.h"
+
 #include <crucible/Jobs.h>
 #include <crucible/Memory.h>
 #include <crucible/Vector.h>
@@ -12,8 +14,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstdarg>
-#include <cstdio>
 #include <cstring>
 #include <mutex>
 #include <numbers>
@@ -29,17 +29,6 @@ struct TextureImport
 };
 
 namespace {
-
-thread_local char lastError[512];
-
-Status fail(const char* format, ...)
-{
-    va_list arguments;
-    va_start(arguments, format);
-    std::vsnprintf(lastError, sizeof(lastError), format, arguments);
-    va_end(arguments);
-    return Status::InvalidData;
-}
 
 struct Float4
 {
@@ -70,68 +59,6 @@ struct Image
         return texels[size_t{y} * width + x];
     }
 };
-
-// ---------------------------------------------------------------------------
-// Colour spaces and numbers
-// ---------------------------------------------------------------------------
-
-float srgbToLinear(float c)
-{
-    return c <= 0.04045f ? c / 12.92f : std::pow((c + 0.055f) / 1.055f, 2.4f);
-}
-
-float linearToSrgb(float c)
-{
-    return c <= 0.0031308f ? c * 12.92f : 1.055f * std::pow(c, 1.0f / 2.4f) - 0.055f;
-}
-
-uint8_t toByte(float value)
-{
-    return static_cast<uint8_t>(std::lround(std::clamp(value, 0.0f, 1.0f) * 255.0f));
-}
-
-// IEEE half precision, rounded to nearest even; values past its range
-// become infinity, as the GPU's own conversion does.
-uint16_t toHalf(float value)
-{
-    uint32_t bits;
-    std::memcpy(&bits, &value, 4);
-    const uint32_t sign = (bits >> 16) & 0x8000u;
-    const int32_t exponent = static_cast<int32_t>((bits >> 23) & 0xFF) - 127 + 15;
-    uint32_t mantissa = bits & 0x7FFFFFu;
-    if (((bits >> 23) & 0xFF) == 0xFF)
-    {
-        return static_cast<uint16_t>(sign | 0x7C00u | (mantissa != 0 ? 0x200u : 0u)); // inf or NaN
-    }
-    if (exponent >= 31)
-    {
-        return static_cast<uint16_t>(sign | 0x7C00u);
-    }
-    if (exponent <= 0)
-    {
-        if (exponent < -10)
-        {
-            return static_cast<uint16_t>(sign);
-        }
-        mantissa |= 0x800000u;
-        const uint32_t shift = static_cast<uint32_t>(14 - exponent);
-        uint32_t half = mantissa >> shift;
-        const uint32_t remainder = mantissa & ((1u << shift) - 1);
-        const uint32_t halfway = 1u << (shift - 1);
-        if (remainder > halfway || (remainder == halfway && (half & 1u) != 0))
-        {
-            ++half;
-        }
-        return static_cast<uint16_t>(sign | half);
-    }
-    uint32_t half = (static_cast<uint32_t>(exponent) << 10) | (mantissa >> 13);
-    const uint32_t remainder = mantissa & 0x1FFFu;
-    if (remainder > 0x1000u || (remainder == 0x1000u && (half & 1u) != 0))
-    {
-        ++half; // may carry into the exponent, which is right
-    }
-    return static_cast<uint16_t>(sign | half);
-}
 
 // ---------------------------------------------------------------------------
 // The mipmap filter: a Kaiser-windowed sinc (ADR 0004, 0042)
@@ -661,7 +588,7 @@ void toFilterSpace(Image& image, TextureUsage usage, bool sourceIsHdr)
 
 Result<TextureImport*> importTexture(std::span<const uint8_t> source, TextureSettings settings)
 {
-    lastError[0] = '\0';
+    clearError();
     if (static_cast<uint32_t>(settings.usage) > static_cast<uint32_t>(TextureUsage::Ui))
     {
         return fail("unknown usage %u", static_cast<uint32_t>(settings.usage));
@@ -752,11 +679,6 @@ void copyTextureMip(const TextureImport& texture, uint32_t mip, std::span<uint8_
     }
     std::memcpy(destination.data(), texture.bytes.data() + texture.offsets[mip],
                 std::min<size_t>(size, destination.size()));
-}
-
-std::string_view lastImportError()
-{
-    return lastError;
 }
 
 Result<void> decodeTexels(TextureFormat format, uint32_t width, uint32_t height, std::span<const uint8_t> encoded,

@@ -24,7 +24,11 @@ public enum ImportOutcome
     Failed,
 }
 
-public sealed record ImportResult(AssetId Id, string Path, ImportOutcome Outcome, string? OutputPath, string? Error);
+public sealed record ImportResult(AssetId Id, string Path, ImportOutcome Outcome, string? OutputPath, string? Error)
+{
+    /// <summary>What the importer left out or worked around, for the editor to show.</summary>
+    public IReadOnlyList<string> Warnings { get; init; } = [];
+}
 
 // What the database keeps in Cache/ between runs.
 [Serialized]
@@ -338,7 +342,8 @@ public sealed class AssetDatabase
             return new ImportResult(entry.Id, entry.Path, ImportOutcome.UpToDate, cached, null);
         }
 
-        using ImportContext context = new(entry.Id, entry.Path, Project.AssetsFolder);
+        using ImportContext context = new(entry.Id, entry.Path, Project.AssetsFolder,
+            path => Find(path)?.Id ?? AssetId.None);
         try
         {
             importer.Run(context, entry.Settings);
@@ -357,12 +362,18 @@ public sealed class AssetDatabase
                 Key = key,
                 Dependencies = new Dictionary<string, string>(context.Dependencies, StringComparer.Ordinal),
             };
-            return new ImportResult(entry.Id, entry.Path, ImportOutcome.Imported, output, null);
+            return new ImportResult(entry.Id, entry.Path, ImportOutcome.Imported, output, null)
+            {
+                Warnings = [.. context.Warnings],
+            };
         }
         catch (Exception exception)
         {
             _records.Assets.Remove(entry.Id.ToString());
-            return new ImportResult(entry.Id, entry.Path, ImportOutcome.Failed, null, exception.Message);
+            return new ImportResult(entry.Id, entry.Path, ImportOutcome.Failed, null, exception.Message)
+            {
+                Warnings = [.. context.Warnings],
+            };
         }
     }
 

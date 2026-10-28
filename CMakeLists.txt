@@ -3,7 +3,8 @@ cmake_minimum_required(VERSION 3.25)
 project(Crucible
     VERSION 0.1.0
     DESCRIPTION "Game engine built on Slag"
-    LANGUAGES CXX)
+    # C for MikkTSpace, an editor-only importer dependency (ADR 0043).
+    LANGUAGES C CXX)
 
 # ---------------------------------------------------------------------------
 # Options

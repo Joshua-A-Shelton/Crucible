@@ -159,7 +159,7 @@ Stated by the project owner and refined one at a time (2026-10-24).
   `licenses/zstd.txt`; ADR 0039). Editor only
   (never shipped): cgltf (MIT), ufbx (MIT or public domain), meshoptimizer
   (MIT), stb_image (public domain or MIT), bc7enc_rdo (MIT or public
-  domain); ADR 0022; Slang (Apache 2.0 with LLVM exception; ADR 0025);
+  domain); ADR 0022; MikkTSpace (zlib; ADR 0043); Slang (Apache 2.0 with LLVM exception; ADR 0025);
   dr_wav, dr_flac (public domain or MIT-0; ADR 0028); System.IO.Hashing
   (MIT; XXH128 for the import cache, ADR 0040).
   Build-time only: the system's libclang (Apache 2.0 with LLVM exception),
@@ -345,7 +345,8 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   `docs/learning/generated-serializers.md`.
 - **Importers** (ADR 0042): `src/native/importers` builds `crucible_importers`,
   an editor-only native library beside the shared core (texture decoding,
-  mipmaps, BC7/BC5/BC4 with RDO), bound into `Crucible.Assets` by a second
+  mipmaps, BC7/BC5/BC4 with RDO; glTF meshes, mirrored on X, ADR 0043),
+  bound into `Crucible.Assets` by a second
   run of the binding generator. Its tests: `crucible_importers_tests`.
 - **Asset pipeline** (ADR 0040): `src/managed/Crucible.Assets`, editor-side
   and never shipped: projects (`<Name>.crproject`, `Assets/`, `Code/`,
