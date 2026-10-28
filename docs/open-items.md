@@ -8,9 +8,6 @@ milestone are decided or checked when that milestone reaches them
 ## Needs a decision from the project owner
 
 - Names of the default phases. → 0013 [M3]
-- ECS details: struct-with-references pools, blittable layout migration
-  across hot reload. → 0012, 0023 [M3 step 7] (hierarchy and relationships:
-  ADR 0033; change detection: ADR 0034)
 - How plain C# services are registered, found, and saved. → 0012 [M4]
 - Renderer details: shadows; lighting and ambient light; post-processing
   and the post-tonemap MSAA resolve; outlines. → 0015 [M5]
