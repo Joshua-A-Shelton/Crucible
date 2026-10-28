@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/managed/Crucible.Assets/Crucible.Assets.csproj" />
     <Project Path="src/managed/Crucible.Engine/Crucible.Engine.csproj" />
   </Folder>
   <Folder Name="/samples/">
@@ -7,6 +8,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/managed/Crucible.Engine.Tests/Crucible.Engine.Tests.csproj" />
+    <Project Path="tests/managed/Crucible.Assets.Tests/Crucible.Assets.Tests.csproj" />
     <Project Path="tests/managed/Crucible.Engine.HotReloadTests/Crucible.Engine.HotReloadTests.csproj" />
     <Project Path="tests/managed/Crucible.Generators.Tests/Crucible.Generators.Tests.csproj" />
     <Project Path="tests/managed/Crucible.TestGame/Crucible.TestGame.V1.csproj" />

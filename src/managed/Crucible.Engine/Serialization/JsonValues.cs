@@ -4,6 +4,7 @@ using System.Numerics;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Crucible.Assets;
 
 namespace Crucible.Serialization;
 
@@ -83,6 +84,22 @@ public static class JsonValues
     {
         Expect(reader, JsonTokenType.String, "a GUID string");
         return reader.TryGetGuid(out Guid value) ? value : throw Error(reader, "expected a GUID string");
+    }
+
+    /// <summary>An asset reference: its GUID string, or null for none.</summary>
+    public static AssetId ReadAssetId(ref Utf8JsonReader reader) =>
+        reader.TokenType == JsonTokenType.Null ? AssetId.None : new AssetId(ReadGuid(ref reader));
+
+    public static void WriteAssetId(Utf8JsonWriter writer, AssetId value)
+    {
+        if (value.IsNone)
+        {
+            writer.WriteNullValue();
+        }
+        else
+        {
+            writer.WriteStringValue(value.Value);
+        }
     }
 
     /// <summary>An enum by name (or names, comma-separated, for flags).</summary>

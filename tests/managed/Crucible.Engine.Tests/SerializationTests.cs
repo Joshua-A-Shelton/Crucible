@@ -2,6 +2,7 @@ using System.Numerics;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Crucible.Assets;
 using Crucible.Serialization;
 
 namespace Crucible.Tests;
@@ -56,6 +57,8 @@ public partial class Character
     public Quaternion Rotation = Quaternion.Identity;
     public Matrix4x4 Transform = Matrix4x4.Identity;
     public Guid Id;
+    public AssetId Portrait;
+    public AssetId Missing;
     public int? Level;
     public List<string> Tags = [];
     public float[]? Weights;
@@ -135,6 +138,7 @@ public class SerializationTests
         Rotation = Quaternion.CreateFromYawPitchRoll(0.3f, 0.2f, 0.1f),
         Transform = Matrix4x4.CreateTranslation(1, 2, 3) * Matrix4x4.CreateRotationY(0.7f),
         Id = Guid.Parse("8f14e45f-ceea-467a-9a36-dedd4bea2543"),
+        Portrait = AssetId.Parse("0b6b8e1c-3f0e-4c55-a4d6-2d7c1b2f9e10"),
         Level = 7,
         Tags = ["a", "b"],
         Weights = [0.25f, float.Epsilon],
@@ -167,6 +171,8 @@ public class SerializationTests
         await Assert.That(copy.Rotation).IsEqualTo(original.Rotation);
         await Assert.That(copy.Transform).IsEqualTo(original.Transform);
         await Assert.That(copy.Id).IsEqualTo(original.Id);
+        await Assert.That(copy.Portrait).IsEqualTo(original.Portrait);
+        await Assert.That(copy.Missing.IsNone).IsTrue();
         await Assert.That(copy.Level).IsEqualTo(7);
         await Assert.That(copy.Tags.SequenceEqual(original.Tags)).IsTrue();
         await Assert.That(copy.Weights!.SequenceEqual(original.Weights!)).IsTrue();
@@ -193,6 +199,7 @@ public class SerializationTests
         string character = Json.SerializeToString(new Character { Position = new Vector3(1, 2.5f, -0.1f) });
         await Assert.That(character).Contains("\n  \"Position\": [1, 2.5, -0.1],\n");
         await Assert.That(character).Contains("\n  \"Traits\": \"None\",\n");
+        await Assert.That(character).Contains("\n  \"Portrait\": null,\n");
         await Assert.That(character).DoesNotContain("\r");
         await Assert.That(character).DoesNotContain("TagCount");
         await Assert.That(character).DoesNotContain("Cache");

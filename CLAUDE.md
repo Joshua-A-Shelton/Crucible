@@ -160,7 +160,8 @@ Stated by the project owner and refined one at a time (2026-10-24).
   (never shipped): cgltf (MIT), ufbx (MIT or public domain), meshoptimizer
   (MIT), stb_image (public domain or MIT), bc7enc_rdo (MIT or public
   domain); ADR 0022; Slang (Apache 2.0 with LLVM exception; ADR 0025);
-  dr_wav, dr_flac (public domain or MIT-0; ADR 0028).
+  dr_wav, dr_flac (public domain or MIT-0; ADR 0028); System.IO.Hashing
+  (MIT; XXH128 for the import cache, ADR 0040).
   Build-time only: the system's libclang (Apache 2.0 with LLVM exception),
   through Crucible's own bindings (ADR 0017); Microsoft.CodeAnalysis.CSharp
   (MIT), the Roslyn API for Crucible's source generators (ADR 0036). Tests only: TUnit (MIT),
@@ -342,6 +343,10 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   ReferenceOutputAssembly="false"`; its tests are `Crucible.Generators.Tests`
   (JIT only). See `docs/learning/source-generators.md` and
   `docs/learning/generated-serializers.md`.
+- **Asset pipeline** (ADR 0040): `src/managed/Crucible.Assets`, editor-side
+  and never shipped: projects (`<Name>.crproject`, `Assets/`, `Code/`,
+  `Plugins/`, `Cache/`), `.meta` sidecars, the asset database, importers,
+  and the import cache. Tests: `Crucible.Assets.Tests` (JIT only).
 - **Samples** (ADR 0037): `samples/Particles` is the M3 demonstration, a game
   the JIT launcher loads with `--game <dll>` and configures with
   `--game-arg key=value`; it prints per-step timings.

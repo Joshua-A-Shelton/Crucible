@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The asset pipeline (ADR 0040): projects, sidecars, the asset database,
+       importers, and the import cache. Editor-side (ADR 0002): never part of
+       a shipped game, which needs only AssetId and imported data. -->
+
+  <PropertyGroup>
+    <RootNamespace>Crucible.Assets</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- XXH128 for the import cache's keys (ADR 0040): MIT, from the .NET team. -->
+    <PackageReference Include="System.IO.Hashing" Version="10.0.14" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Crucible.Engine/Crucible.Engine.csproj" />
+    <!-- Its own files (records, stamps, project file) use generated serializers. -->
+    <ProjectReference Include="../../../tools/Crucible.Generators/Crucible.Generators.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Crucible.Assets.Tests" />
+  </ItemGroup>
+
+</Project>
