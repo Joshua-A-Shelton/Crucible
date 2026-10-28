@@ -33,6 +33,9 @@ public sealed unsafe class FrameContext
     /// </summary>
     public IReadOnlyDictionary<string, string> GameArguments { get; init; } = new Dictionary<string, string>();
 
+    /// <summary>The game's plain C# services (ADR 0041), found by type.</summary>
+    public Services Services { get; init; } = new();
+
     /// <summary>The schedule being run, for systems that report on others (timing, the editor).</summary>
     public Schedule? Schedule { get; internal set; }
 

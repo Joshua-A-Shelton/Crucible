@@ -95,12 +95,17 @@ public static class Host
         // too, can rely on it.
         using World world = new();
         // --game: the game's systems join the engine's (ADR 0036).
+        // Components first (systems use them from Start), then services.
         LoadedGame? game = LoadGame();
+        game?.RegisterComponents();
+        Services services = new();
+        game?.RegisterServices(services);
         ScheduleBuilder builder = ScheduleBuilder.CreateDefault();
         game?.RegisterSystems(builder);
         FrameContext context = new()
         {
             World = world,
+            Services = services,
             GameArguments = GameArguments(),
             Window = window,
             Surface = surface,

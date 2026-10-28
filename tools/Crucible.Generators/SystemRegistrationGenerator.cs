@@ -57,16 +57,16 @@ public sealed class SystemRegistrationGenerator : IIncrementalGenerator
         }
         else
         {
-            if (type.IsAbstract || IsGeneric(type))
+            if (type.IsAbstract || Symbols.IsGeneric(type))
             {
                 Report(Diagnostics.NotConcrete, classLocation, display);
             }
             else if (!type.InstanceConstructors.Any(constructor =>
-                         constructor.Parameters.Length == 0 && IsReachable(constructor.DeclaredAccessibility)))
+                         constructor.Parameters.Length == 0 && Symbols.IsReachable(constructor.DeclaredAccessibility)))
             {
                 Report(Diagnostics.NoConstructor, classLocation, display);
             }
-            if (!IsReachableType(type))
+            if (!Symbols.IsReachableType(type))
             {
                 Report(Diagnostics.NotAccessible, classLocation, display);
             }
@@ -116,7 +116,7 @@ public sealed class SystemRegistrationGenerator : IIncrementalGenerator
                     }
                     else
                     {
-                        target.Add(RuntimeName(constraint));
+                        target.Add(Symbols.RuntimeName(constraint));
                     }
                 }
                 else if (element.Value is string { Length: > 0 } name)
@@ -130,7 +130,7 @@ public sealed class SystemRegistrationGenerator : IIncrementalGenerator
             }
         }
 
-        return new SystemModel(RuntimeName(type), type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+        return new SystemModel(Symbols.RuntimeName(type), type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
             phase ?? "", new EquatableArray<string>([.. before]), new EquatableArray<string>([.. after]),
             new EquatableArray<DiagnosticInfo>([.. diagnostics]));
     }
@@ -197,7 +197,7 @@ public sealed class SystemRegistrationGenerator : IIncrementalGenerator
         {
             return "doesn't derive from Crucible.Loop.GameSystem";
         }
-        if (constraint.IsAbstract || IsGeneric(constraint))
+        if (constraint.IsAbstract || Symbols.IsGeneric(constraint))
         {
             return "is abstract or generic, so it is never in a schedule";
         }
@@ -233,47 +233,6 @@ public sealed class SystemRegistrationGenerator : IIncrementalGenerator
             }
         }
         return false;
-    }
-
-    private static bool IsGeneric(INamedTypeSymbol type)
-    {
-        for (INamedTypeSymbol? current = type; current is not null; current = current.ContainingType)
-        {
-            if (current.Arity > 0)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    // The generated class lives in the same assembly, so internal is enough.
-    private static bool IsReachable(Accessibility accessibility) =>
-        accessibility is Accessibility.Public or Accessibility.Internal or Accessibility.ProtectedOrInternal;
-
-    private static bool IsReachableType(INamedTypeSymbol type)
-    {
-        for (INamedTypeSymbol? current = type; current is not null; current = current.ContainingType)
-        {
-            if (!IsReachable(current.DeclaredAccessibility) || current.IsFileLocal)
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    // The name GameSystem.Name defaults to: Type.FullName, with '+' between
-    // nested types.
-    private static string RuntimeName(INamedTypeSymbol type)
-    {
-        if (type.ContainingType is not null)
-        {
-            return RuntimeName(type.ContainingType) + "+" + type.MetadataName;
-        }
-        return type.ContainingNamespace.IsGlobalNamespace
-            ? type.MetadataName
-            : type.ContainingNamespace.ToDisplayString() + "." + type.MetadataName;
     }
 }
 

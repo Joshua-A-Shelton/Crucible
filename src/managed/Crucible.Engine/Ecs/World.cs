@@ -109,6 +109,19 @@ public sealed unsafe class World : IDisposable
         return ref ManagedPool<T>.Instance.Get(*slot - 1);
     }
 
+    // A managed component's value, if the entity has one set.
+    internal bool TryGetManaged<T>(Entity entity, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out T value)
+    {
+        int* slot = (int*)Api.ReadComponent(Live, entity, Components.Of<T>().Value);
+        if (slot == null || *slot == 0)
+        {
+            value = default;
+            return false;
+        }
+        value = ManagedPool<T>.Instance.Get(*slot - 1);
+        return true;
+    }
+
     /// <summary>
     /// Makes <paramref name="child"/> a child of <paramref name="parent"/> at
     /// <paramref name="index"/> (default last), or a root for

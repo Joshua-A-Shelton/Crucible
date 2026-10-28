@@ -29,7 +29,7 @@ public static class GameLoader
     public static LoadedGame Load(string path)
     {
         (AssemblyLoadContext context, Assembly assembly) = LoadAssembly(path);
-        return new LoadedGame(context, CreateEntry(assembly), CreateRegistration(assembly));
+        return new LoadedGame(context, CreateEntry(assembly), CreateRegistrations(assembly));
     }
 
     /// <summary>
@@ -53,7 +53,7 @@ public static class GameLoader
         AssemblyLoadContext oldContext = current.Context;
         (AssemblyLoadContext context, Assembly assembly) = LoadAssembly(path);
         notes = ComponentMigration.Migrate(oldContext, context);
-        return new LoadedGame(context, CreateEntry(assembly), CreateRegistration(assembly));
+        return new LoadedGame(context, CreateEntry(assembly), CreateRegistrations(assembly));
     }
 
     // The assembly is read from a stream, not opened by path, so the file
@@ -73,13 +73,19 @@ public static class GameLoader
                            throw new InvalidOperationException($"Could not create {attribute.EntryType}."))
             : null;
 
-    // The generated system registration (ADR 0036), if the game has systems.
+    // The generated registrations (ADR 0036, 0041) the game has.
     [RequiresUnreferencedCode(JitOnly)]
-    private static ISystemRegistration? CreateRegistration(Assembly assembly) =>
-        assembly.GetCustomAttribute<SystemRegistrationAttribute>() is { } attribute
-            ? (ISystemRegistration)(Activator.CreateInstance(attribute.RegistrationType) ??
-                                    throw new InvalidOperationException($"Could not create {attribute.RegistrationType}."))
-            : null;
+    private static Registrations CreateRegistrations(Assembly assembly) => new(
+        Create<ISystemRegistration>(assembly.GetCustomAttribute<SystemRegistrationAttribute>()?.RegistrationType),
+        Create<IComponentRegistration>(assembly.GetCustomAttribute<ComponentRegistrationAttribute>()?.RegistrationType),
+        Create<IServiceRegistration>(assembly.GetCustomAttribute<ServiceRegistrationAttribute>()?.RegistrationType));
+
+    private static T? Create<T>(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type? type)
+        where T : class =>
+        type is null
+            ? null
+            : (T)(Activator.CreateInstance(type) ?? throw new InvalidOperationException($"Could not create {type}."));
 
     /// <summary>
     /// Waits for an unloaded context to be collected (ADR 0011's unload check).
@@ -108,13 +114,13 @@ public sealed class LoadedGame
 {
     private AssemblyLoadContext? _context;
     private IGameEntry? _entry;
-    private ISystemRegistration? _systems;
+    private Registrations? _registrations;
 
-    internal LoadedGame(AssemblyLoadContext context, IGameEntry? entry, ISystemRegistration? systems)
+    internal LoadedGame(AssemblyLoadContext context, IGameEntry? entry, Registrations registrations)
     {
         _context = context;
         _entry = entry;
-        _systems = systems;
+        _registrations = registrations;
     }
 
     /// <summary>The game's <see cref="GameEntryAttribute"/> entry (an M1 placeholder); throws if it has none.</summary>
@@ -130,14 +136,20 @@ public sealed class LoadedGame
     /// systems: they are new objects, so values in the old ones' fields are
     /// gone.
     /// </summary>
-    public void RegisterSystems(ScheduleBuilder builder)
-    {
-        if (_context is null)
-        {
-            throw new InvalidOperationException("The game has been unloaded.");
-        }
-        _systems?.Register(builder);
-    }
+    public void RegisterSystems(ScheduleBuilder builder) => Live.Systems?.Register(builder);
+
+    /// <summary>
+    /// Registers the game's <see cref="ComponentAttribute"/> types, and which
+    /// of them scenes save (ADR 0041). Call it before the game's systems
+    /// start or a scene loads.
+    /// </summary>
+    public void RegisterComponents() => Live.Components?.Register();
+
+    /// <summary>Creates the game's <see cref="ServiceAttribute"/> services into <paramref name="services"/> (ADR 0041).</summary>
+    public void RegisterServices(Services services) => Live.Services?.Register(services);
+
+    private Registrations Live =>
+        _registrations ?? throw new InvalidOperationException("The game has been unloaded.");
 
     internal AssemblyLoadContext Context =>
         _context ?? throw new InvalidOperationException("The game has been unloaded.");
@@ -151,9 +163,17 @@ public sealed class LoadedGame
         AssemblyLoadContext context = _context ?? throw new InvalidOperationException("Already unloaded.");
         WeakReference weak = new(context);
         _entry = null;
-        _systems = null;
+        _registrations = null;
         _context = null;
+        // The saved-component table would otherwise keep the game's types.
+        SavedComponents.Forget(context);
         context.Unload();
         return weak;
     }
 }
+
+// A game assembly's generated registrations; each is null if it has none.
+internal sealed record Registrations(
+    ISystemRegistration? Systems,
+    IComponentRegistration? Components,
+    IServiceRegistration? Services);

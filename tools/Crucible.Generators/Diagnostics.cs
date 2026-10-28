@@ -81,6 +81,19 @@ internal static class Diagnostics
         "'{0}': {1}",
         SerializationCategory);
 
+    // Components and services (ADR 0041).
+    private const string RegistrationCategory = "Crucible.Registration";
+
+    public static readonly DiagnosticDescriptor BadComponent = Error("CRU0201",
+        "[Component] on a type that can't be a component",
+        "'{0}' can't be a component: {1}",
+        RegistrationCategory);
+
+    public static readonly DiagnosticDescriptor BadService = Error("CRU0202",
+        "[Service] on a type that can't be a service",
+        "'{0}' can't be a service: {1}",
+        RegistrationCategory);
+
     private static DiagnosticDescriptor Error(string id, string title, string message, string category = Category) =>
         new(id, title, message, category, DiagnosticSeverity.Error, isEnabledByDefault: true);
 }

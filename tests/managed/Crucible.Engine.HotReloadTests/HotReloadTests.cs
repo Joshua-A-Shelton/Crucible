@@ -101,6 +101,25 @@ public class HotReloadTests
         await Assert.That(GameLoader.WaitForUnload(v2)).IsTrue();
     }
 
+    [Test]
+    public async Task RegisteredComponentsAndServicesDontKeepTheGameLoaded()
+    {
+        (string saved, WeakReference context) = RegisterAndUnload(TestGame("v1"));
+        await Assert.That(saved).Contains("\"Crucible.TestGame.Garage\"");
+        await Assert.That(GameLoader.WaitForUnload(context)).IsTrue();
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static (string Saved, WeakReference Context) RegisterAndUnload(string path)
+    {
+        LoadedGame game = GameLoader.Load(path);
+        game.RegisterComponents();
+        Services services = new();
+        game.RegisterServices(services);
+        string saved = System.Text.Encoding.UTF8.GetString(services.Save());
+        return (saved, game.Unload());
+    }
+
     // The game's systems in schedule order, through its generated registration.
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static (string Systems, WeakReference Context) SystemsOf(string path)
