@@ -4,6 +4,9 @@ crucible_add_dotnet_test(Crucible.Engine.Tests)
 # Hot reload is JIT-only (ADR 0001), so this suite has no AOT variant.
 crucible_add_dotnet_test(Crucible.Engine.HotReloadTests)
 
+# The source generator's tests run the C# compiler, which needs a JIT.
+crucible_add_dotnet_test(Crucible.Generators.Tests)
+
 # The same suite again as NativeAOT code (ADR 0001: every C# suite runs under
 # both). Published after the engine's AOT build, since both build the engine.
 if(CRUCIBLE_BUILD_AOT)

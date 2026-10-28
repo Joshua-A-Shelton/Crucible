@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using Crucible.Ecs;
 using Crucible.Hosting;
+using Crucible.Loop;
 
 namespace Crucible.Tests.HotReload;
 
@@ -85,6 +86,30 @@ public class HotReloadTests
         // Migration kept nothing of the old version.
         await Assert.That(GameLoader.WaitForUnload(v1)).IsTrue();
         await Assert.That(GameLoader.WaitForUnload(v2)).IsTrue();
+    }
+
+    [Test]
+    public async Task RegistersEachVersionsSystems()
+    {
+        (string first, WeakReference v1) = SystemsOf(TestGame("v1"));
+        await Assert.That(first).IsEqualTo("Crucible.TestGame.SpinSystem");
+        await Assert.That(GameLoader.WaitForUnload(v1)).IsTrue();
+
+        (string second, WeakReference v2) = SystemsOf(TestGame("v2"));
+        await Assert.That(second).IsEqualTo("Crucible.TestGame.AimSystem Crucible.TestGame.SpinSystem");
+        // The built schedule held the game's systems; once it's gone, nothing does.
+        await Assert.That(GameLoader.WaitForUnload(v2)).IsTrue();
+    }
+
+    // The game's systems in schedule order, through its generated registration.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static (string Systems, WeakReference Context) SystemsOf(string path)
+    {
+        LoadedGame game = GameLoader.Load(path);
+        ScheduleBuilder builder = new ScheduleBuilder { IncludeNativeSystems = false }.AddPhase(Phases.Update);
+        game.RegisterSystems(builder);
+        string systems = string.Join(" ", builder.Build().Systems.Select(system => system.Name));
+        return (systems, game.Unload());
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]

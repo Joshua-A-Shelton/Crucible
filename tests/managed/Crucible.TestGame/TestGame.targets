@@ -1,4 +1,11 @@
 <Project>
+  <!-- Both versions register their systems through the source generator
+       (ADR 0036), as a game does. -->
+  <ItemGroup>
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../../../tools/Crucible.Generators/Crucible.Generators.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
   <!-- Both versions build an assembly named Crucible.TestGame. Each copy goes
        to its own folder under the artifacts path, where the hot reload tests
        find it. The engine isn't copied (Private="false"): at runtime it comes

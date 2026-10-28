@@ -1,0 +1,41 @@
+<!-- An AOT publish of a game sets PublishAot on the command line, and MSBuild
+     applies command-line properties to every project in the build, this one
+     included. TreatAsLocalProperty lets the setting below win: NativeAOT
+     doesn't apply to a compiler plugin. -->
+<Project Sdk="Microsoft.NET.Sdk" TreatAsLocalProperty="PublishAot">
+
+  <!-- Crucible's Roslyn source generators (ADR 0036): run inside the C#
+       compiler while a game builds, and never shipped in one. Game projects
+       reference it as an analyzer:
+         <ProjectReference Include="...Crucible.Generators.csproj"
+                           OutputItemType="Analyzer" ReferenceOutputAssembly="false" /> -->
+
+  <PropertyGroup>
+    <!-- The compiler loads generators as netstandard2.0 assemblies, whatever
+         the game targets. -->
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <IsPackable>false</IsPackable>
+    <!-- Directory.Build.props sets these for .NET code; they don't apply to
+         netstandard2.0, and a compiler plugin is never published (see
+         TreatAsLocalProperty above). -->
+    <IsAotCompatible>false</IsAotCompatible>
+    <PublishAot>false</PublishAot>
+    <RuntimeIdentifiers></RuntimeIdentifiers>
+    <!-- Turns on Roslyn's checks for analyzer code (no file or network
+         access, no banned APIs). -->
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <!-- RS2008 asks for release notes listing every diagnostic ID, for
+         analyzers published as packages; this one ships inside the repo. -->
+    <NoWarn>$(NoWarn);RS2008</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 4.14 loads in any compiler from the .NET 9 SDK and Visual Studio 17.14
+         up. Build time only: PrivateAssets keeps it out of every project that
+         references this one. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

@@ -5,10 +5,12 @@
   <Folder Name="/tests/">
     <Project Path="tests/managed/Crucible.Engine.Tests/Crucible.Engine.Tests.csproj" />
     <Project Path="tests/managed/Crucible.Engine.HotReloadTests/Crucible.Engine.HotReloadTests.csproj" />
+    <Project Path="tests/managed/Crucible.Generators.Tests/Crucible.Generators.Tests.csproj" />
     <Project Path="tests/managed/Crucible.TestGame/Crucible.TestGame.V1.csproj" />
     <Project Path="tests/managed/Crucible.TestGame/Crucible.TestGame.V2.csproj" />
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/Crucible.BindGen/Crucible.BindGen.csproj" />
+    <Project Path="tools/Crucible.Generators/Crucible.Generators.csproj" />
   </Folder>
 </Solution>

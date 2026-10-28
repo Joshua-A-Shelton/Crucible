@@ -16,8 +16,8 @@ namespace Crucible.Loop;
 /// </remarks>
 public sealed class ScheduleBuilder
 {
-    /// <summary>The fixed-tick group's place in the phase list.</summary>
-    public const string FixedTick = "FixedTick";
+    /// <summary>The fixed-tick group's place in the phase list (<see cref="Phases.FixedTick"/>).</summary>
+    public const string FixedTick = Phases.FixedTick;
 
     private readonly List<string> _phases = [];
     private readonly List<string> _fixedPhases = [];
@@ -43,18 +43,18 @@ public sealed class ScheduleBuilder
     public static ScheduleBuilder CreateDefault()
     {
         ScheduleBuilder builder = new();
-        foreach (string phase in (string[])["BeginFrame", "Input", FixedTick, "Update", "Animation", "LateUpdate",
-                     "RenderPrepare", "RenderSubmit", "EndFrame"])
+        foreach (string phase in (string[])[Phases.BeginFrame, Phases.Input, FixedTick, Phases.Update,
+                     Phases.Animation, Phases.LateUpdate, Phases.RenderPrepare, Phases.RenderSubmit, Phases.EndFrame])
         {
             builder.AddPhase(phase);
         }
-        foreach (string phase in (string[])["PrePhysics", "Physics", "PostPhysics"])
+        foreach (string phase in (string[])[Phases.PrePhysics, Phases.Physics, Phases.PostPhysics])
         {
             builder.AddFixedPhase(phase);
         }
-        builder.AddSystem("BeginFrame", new PacingSystem());
-        builder.AddSystem("Input", new InputSystem());
-        builder.AddSystem("RenderSubmit", new ClearPresentSystem());
+        builder.AddSystem(Phases.BeginFrame, new PacingSystem());
+        builder.AddSystem(Phases.Input, new InputSystem());
+        builder.AddSystem(Phases.RenderSubmit, new ClearPresentSystem());
         return builder;
     }
 

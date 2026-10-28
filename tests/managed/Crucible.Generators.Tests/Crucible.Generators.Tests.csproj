@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Crucible.Tests.Generators</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <!-- These tests run the C# compiler itself, which needs a JIT, so the
+         suite has no AOT variant (the generated code's AOT run is in
+         Crucible.Engine.Tests). -->
+    <IsAotCompatible>false</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TUnit" Version="1.76.28" />
+    <!-- The same version the generator builds against. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Referenced as a library, not as an analyzer: the tests drive the
+         generator themselves. The engine is referenced for its metadata, which
+         the test compilations need for SystemAttribute and GameSystem. -->
+    <ProjectReference Include="../../../tools/Crucible.Generators/Crucible.Generators.csproj" />
+    <ProjectReference Include="../../../src/managed/Crucible.Engine/Crucible.Engine.csproj" />
+  </ItemGroup>
+
+</Project>

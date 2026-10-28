@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.Loader;
 using Crucible.Ecs;
+using Crucible.Loop;
 
 namespace Crucible.Hosting;
 
@@ -28,7 +29,7 @@ public static class GameLoader
     public static LoadedGame Load(string path)
     {
         (AssemblyLoadContext context, Assembly assembly) = LoadAssembly(path);
-        return new LoadedGame(context, CreateEntry(assembly, path));
+        return new LoadedGame(context, CreateEntry(assembly, path), CreateRegistration(assembly));
     }
 
     /// <summary>
@@ -52,7 +53,7 @@ public static class GameLoader
         AssemblyLoadContext oldContext = current.Context;
         (AssemblyLoadContext context, Assembly assembly) = LoadAssembly(path);
         notes = ComponentMigration.Migrate(oldContext, context);
-        return new LoadedGame(context, CreateEntry(assembly, path));
+        return new LoadedGame(context, CreateEntry(assembly, path), CreateRegistration(assembly));
     }
 
     // The assembly is read from a stream, not opened by path, so the file
@@ -73,6 +74,14 @@ public static class GameLoader
         return (IGameEntry)(Activator.CreateInstance(attribute.EntryType) ??
                             throw new InvalidOperationException($"Could not create {attribute.EntryType}."));
     }
+
+    // The generated system registration (ADR 0036), if the game has systems.
+    [RequiresUnreferencedCode(JitOnly)]
+    private static ISystemRegistration? CreateRegistration(Assembly assembly) =>
+        assembly.GetCustomAttribute<SystemRegistrationAttribute>() is { } attribute
+            ? (ISystemRegistration)(Activator.CreateInstance(attribute.RegistrationType) ??
+                                    throw new InvalidOperationException($"Could not create {attribute.RegistrationType}."))
+            : null;
 
     /// <summary>
     /// Waits for an unloaded context to be collected (ADR 0011's unload check).
@@ -101,14 +110,32 @@ public sealed class LoadedGame
 {
     private AssemblyLoadContext? _context;
     private IGameEntry? _entry;
+    private ISystemRegistration? _systems;
 
-    internal LoadedGame(AssemblyLoadContext context, IGameEntry entry)
+    internal LoadedGame(AssemblyLoadContext context, IGameEntry entry, ISystemRegistration? systems)
     {
         _context = context;
         _entry = entry;
+        _systems = systems;
     }
 
     public IGameEntry Entry => _entry ?? throw new InvalidOperationException("The game has been unloaded.");
+
+    /// <summary>
+    /// Adds the game's <see cref="SystemAttribute"/> systems to
+    /// <paramref name="builder"/>, through its generated registration (ADR
+    /// 0036). After a reload, build a new schedule with the new version's
+    /// systems: they are new objects, so values in the old ones' fields are
+    /// gone.
+    /// </summary>
+    public void RegisterSystems(ScheduleBuilder builder)
+    {
+        if (_context is null)
+        {
+            throw new InvalidOperationException("The game has been unloaded.");
+        }
+        _systems?.Register(builder);
+    }
 
     internal AssemblyLoadContext Context =>
         _context ?? throw new InvalidOperationException("The game has been unloaded.");
@@ -122,6 +149,7 @@ public sealed class LoadedGame
         AssemblyLoadContext context = _context ?? throw new InvalidOperationException("Already unloaded.");
         WeakReference weak = new(context);
         _entry = null;
+        _systems = null;
         _context = null;
         context.Unload();
         return weak;

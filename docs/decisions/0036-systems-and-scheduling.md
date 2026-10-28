@@ -209,3 +209,66 @@ The generator learned to return strings (ADR 0017's amendment).
     allocation counter right after creating the recorder (megabytes of
     arrays) picked up a few stray KB in the full suite. A separate
     1000-frame run showed they weren't the loop's.
+
+## As built (M3 step 8b)
+
+Settled with the project owner in 8b: a `[System]` class can't override
+`Name`, the phase constants live in a `Phases` class, the generated code
+implements an interface of its own, and the generator builds against
+Roslyn 4.14.
+
+- **The attribute** (`Crucible.Loop.SystemAttribute`): the phase is its
+  constructor argument, so the compiler requires it:
+  `[System(Phases.Update, After = [typeof(MoveSystem)], BeforeNames = ["crucible.probe.Count"])]`.
+  `Before` and `After` take types; `BeforeNames` and `AfterNames` take
+  names, for C++ systems and systems that rename themselves. This differs
+  from decision 5's sketch (`Phase =` and mixed lists): one array type per
+  property keeps each one checkable.
+- **Names stay type names.** A `typeof` constraint can only become a name
+  at compile time, and `GameSystem.Name` is virtual. So a `[System]` class,
+  and any base class it has below `GameSystem`, can't override `Name`, and
+  a `typeof` constraint can't name a type that does. Hand-registered
+  systems can still rename themselves; they're named by string.
+- **`Phases`** holds the default phase names as constants, so a typo in one
+  fails to compile; custom phases are plain strings.
+  `ScheduleBuilder.FixedTick` is now `Phases.FixedTick`.
+- **The hook:** the generated `Crucible.Generated.SystemRegistration`
+  (internal, so assemblies never clash) implements `ISystemRegistration`,
+  and `[assembly: SystemRegistration(typeof(...))]` names it.
+  `GameLoader` creates it when loading a game, and
+  `LoadedGame.RegisterSystems(builder)` calls it. AOT code calls the class
+  directly; the generated bootstrap waits for games to be linked into the
+  AOT launcher (docs/open-items.md). After a reload, the schedule is built
+  again from the new version, with new system objects (also in open items).
+- **The generator** (`tools/Crucible.Generators`, netstandard2.0) is an
+  incremental generator. `ForAttributeWithMetadataName` finds the marked
+  classes; each becomes a record of strings and its errors, which compare
+  by value so Roslyn can cache them; one output stage reports the errors
+  and writes one file, sorted by name. Only valid classes get an
+  `AddSystem` call, so a broken class gives its own errors and nothing
+  else.
+- **Compile errors** (IDs are placeholders): `CRU0001` not a `GameSystem`;
+  `CRU0002` abstract or generic; `CRU0003` no public or internal
+  parameterless constructor; `CRU0004` unreachable from generated code
+  (private, protected, or file-local); `CRU0005` overrides `Name`; `CRU0006`
+  an empty phase, or `FixedTick` itself; `CRU0007` a bad constraint (not a
+  system, abstract or generic, renamed, or an empty name). Whether a phase
+  exists is still checked by `Build`: phases are edited at runtime.
+- **Build details:** the generator's project overrides `PublishAot` with
+  `TreatAsLocalProperty`, because an AOT publish sets it on the command
+  line for every project in the build, and it doesn't apply to
+  netstandard2.0. RS2008 (release notes for analyzer packages) is off: the
+  generator isn't published as a package. `Microsoft.CodeAnalysis.CSharp`
+  4.14.0 loads in any compiler from the .NET 9 SDK and Visual Studio 17.14
+  up.
+- **Tests:**
+  - `Crucible.Generators.Tests` (JIT only, since it runs the compiler):
+    the generated calls for top-level, nested, and cross-assembly
+    constraints, quoting, and order; no output without systems; every
+    error, with its file and line; and that an unrelated edit reuses every
+    cached stage.
+  - `Crucible.Engine.Tests` (JIT and NativeAOT): `[System]` classes,
+    registered through the generated class, sorted with the engine's
+    systems and a hand-written one; the assembly attribute.
+  - Hot reload: each test game version registers its own systems through
+    the loader, and still unloads.

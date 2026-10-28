@@ -160,7 +160,8 @@ Stated by the project owner and refined one at a time (2026-10-24).
   domain); ADR 0022; Slang (Apache 2.0 with LLVM exception; ADR 0025);
   dr_wav, dr_flac (public domain or MIT-0; ADR 0028).
   Build-time only: the system's libclang (Apache 2.0 with LLVM exception),
-  through Crucible's own bindings (ADR 0017). Tests only: TUnit (MIT),
+  through Crucible's own bindings (ADR 0017); Microsoft.CodeAnalysis.CSharp
+  (MIT), the Roslyn API for Crucible's source generators (ADR 0036). Tests only: TUnit (MIT),
   doctest (MIT); ADR 0029. Fallbacks, not used: enkiTS
   (zlib; ADR 0014), Jolt Physics (MIT; ADR 0027), miniaudio (public
   domain or MIT-0; ADR 0028), MSTest (MIT; ADR 0029). Nothing else without an ADR.
@@ -332,6 +333,11 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   Output goes to `build/<preset>/generated/`; IDE builds of the C# projects
   read `build/debug/generated/`, so configure and build the debug preset
   first.
+- **Source generators** (ADR 0036): `tools/Crucible.Generators`
+  (netstandard2.0) writes `[System]` registration into each game assembly.
+  Projects reference it with `OutputItemType="Analyzer"
+  ReferenceOutputAssembly="false"`; its tests are `Crucible.Generators.Tests`
+  (JIT only). See `docs/learning/source-generators.md`.
 - Slag comes from a pinned tag; to work on Slag side by side, configure with
   `-DFETCHCONTENT_SOURCE_DIR_SLAG=~/Claude/Slag`.
 - **Verification by hand** (no hosted CI for now: Actions minutes are spent
