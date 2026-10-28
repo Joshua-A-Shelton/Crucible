@@ -8,7 +8,6 @@ milestone are decided or checked when that milestone reaches them
 ## Needs a decision from the project owner
 
 - Final names of the default phases (the list is ADR 0036's). → 0013, 0036 [M3]
-- How plain C# services are registered, found, and saved. → 0012 [M4]
 - Renderer details: shadows; lighting and ambient light; post-processing
   and the post-tonemap MSAA resolve; outlines. → 0015 [M5]
 - The C# rendering (batched command) API. → 0015 [M6]

@@ -109,6 +109,34 @@ public sealed unsafe class World : IDisposable
         return ref ManagedPool<T>.Instance.Get(*slot - 1);
     }
 
+    // Every entity with its components (sparse ones aside), chunk by chunk:
+    // for saving scenes (ADR 0041). Call with no structural change running.
+    internal List<(Entity Entity, ComponentId[] Components)> Contents()
+    {
+        WorldHandle world = Live;
+        ulong[] chunks = new ulong[Math.Max(16, (int)Api.GatherWorldChunks(world, []))];
+        int chunkCount = (int)Api.GatherWorldChunks(world, chunks);
+        List<(Entity, ComponentId[])> contents = [];
+        uint[] ids = new uint[64];
+        for (int i = 0; i < chunkCount; ++i)
+        {
+            ChunkHandle chunk = new((nint)chunks[i]);
+            int idCount = (int)Api.ChunkComponents(chunk, ids);
+            if (idCount > ids.Length)
+            {
+                ids = new uint[idCount];
+                Api.ChunkComponents(chunk, ids);
+            }
+            ComponentId[] components = [.. ids[..idCount].Select(id => new ComponentId(id))];
+            ReadOnlySpan<Entity> entities = new((void*)Api.ChunkEntities(chunk), (int)Api.ChunkEntityCount(chunk));
+            foreach (Entity entity in entities)
+            {
+                contents.Add((entity, components));
+            }
+        }
+        return contents;
+    }
+
     // A managed component's value, if the entity has one set.
     internal bool TryGetManaged<T>(Entity entity, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out T value)
     {

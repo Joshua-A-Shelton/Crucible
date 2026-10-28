@@ -266,3 +266,44 @@ public class AssetDatabaseTests
         await Assert.That(adopted.Importer).IsEqualTo("Text");
     }
 }
+
+// Crucible's own files keep their GUID inside (ADR 0021, 0041).
+public class SceneAssetTests
+{
+    [Test]
+    public async Task ScenesAreIndexedByTheirOwnGuidAndCopiesGetNewOnes()
+    {
+        Project project = Project.Create(Path.Combine(Path.GetTempPath(), "crucible-scenes-" + Guid.NewGuid().ToString("N")), "Game");
+        try
+        {
+            AssetId id = AssetId.New();
+            using (Crucible.Ecs.World world = new())
+            {
+                world.CreateEntity();
+                File.WriteAllBytes(Path.Combine(project.AssetsFolder, "level.scene"), Crucible.Scenes.Scene.Save(world, id));
+            }
+            AssetDatabase database = AssetDatabase.Open(project, []);
+            await Assert.That(database.Find("level.scene")!.Id).IsEqualTo(id);
+            await Assert.That(File.Exists(Path.Combine(project.AssetsFolder, "level.scene.meta"))).IsFalse();
+
+            File.Copy(Path.Combine(project.AssetsFolder, "level.scene"), Path.Combine(project.AssetsFolder, "level2.scene"));
+            database.Refresh();
+            AssetId copy = database.Find("level2.scene")!.Id;
+            await Assert.That(copy).IsNotEqualTo(id);
+            await Assert.That(database.Warnings.Single().Message).Contains("same GUID as level.scene");
+            // The new GUID is in the file, and the rest of it is unchanged.
+            byte[] copied = File.ReadAllBytes(Path.Combine(project.AssetsFolder, "level2.scene"));
+            await Assert.That(Crucible.Scenes.Scene.ReadId(copied)).IsEqualTo(copy);
+            await Assert.That(Encoding.UTF8.GetString(copied).Replace(copy.ToString(), id.ToString()))
+                .IsEqualTo(File.ReadAllText(Path.Combine(project.AssetsFolder, "level.scene")));
+
+            File.WriteAllText(Path.Combine(project.AssetsFolder, "broken.scene"), "{ \"Entities\": [] }");
+            database.Refresh();
+            await Assert.That(database.Warnings.Single().Path).IsEqualTo("broken.scene");
+        }
+        finally
+        {
+            Directory.Delete(project.Root, recursive: true);
+        }
+    }
+}

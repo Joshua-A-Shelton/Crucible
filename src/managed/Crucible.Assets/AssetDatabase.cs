@@ -1,5 +1,6 @@
 using System.Text;
 using Crucible.Binary;
+using Crucible.Scenes;
 using Crucible.Serialization;
 
 namespace Crucible.Assets;
@@ -193,6 +194,11 @@ public sealed class AssetDatabase
 
     private void AddAsset(string path, string fullPath)
     {
+        if (path.EndsWith(Scene.Extension, StringComparison.OrdinalIgnoreCase))
+        {
+            AddOwnFile(path, fullPath);
+            return;
+        }
         string sidecarPath = fullPath + Sidecar.Extension;
         Importer? byExtension = _importersByExtension.GetValueOrDefault(Path.GetExtension(path).ToLowerInvariant());
         Sidecar sidecar;
@@ -255,6 +261,33 @@ public sealed class AssetDatabase
 
         AssetEntry entry = new(sidecar.Id, path, sidecar.Importer) { Settings = settings, Hash = _hashes[path] };
         _byId[entry.Id] = entry;
+        _byPath[path] = entry;
+    }
+
+    // Crucible's own files keep their GUID inside (ADR 0021), as their first
+    // property, and have no sidecar.
+    private void AddOwnFile(string path, string fullPath)
+    {
+        byte[] bytes = File.ReadAllBytes(fullPath);
+        AssetId id = Scene.ReadId(bytes);
+        if (id.IsNone)
+        {
+            _warnings.Add(new AssetWarning(path, $"has no {Scene.GuidProperty} as its first property, so it is skipped"));
+            return;
+        }
+        if (_byId.TryGetValue(id, out AssetEntry? original))
+        {
+            // A copy: a new GUID, replaced as text so nothing else in the file moves.
+            AssetId fresh = AssetId.New();
+            string text = Encoding.UTF8.GetString(bytes);
+            int at = text.IndexOf(id.ToString(), StringComparison.OrdinalIgnoreCase);
+            Files.WriteAtomically(fullPath, Encoding.UTF8.GetBytes(text.Remove(at, 36).Insert(at, fresh.ToString())));
+            _warnings.Add(new AssetWarning(path, $"had the same GUID as {original.Path} (a copy?), so it was given a new one"));
+            _hashes[path] = ContentHash.OfFile(fullPath);
+            id = fresh;
+        }
+        AssetEntry entry = new(id, path, "") { Hash = _hashes[path] };
+        _byId[id] = entry;
         _byPath[path] = entry;
     }
 

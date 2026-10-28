@@ -300,6 +300,8 @@ public sealed class SerializerGenerator : IIncrementalGenerator
                 return new TypeShape(ShapeKind.Guid, expression, null);
             case "Crucible.Assets.AssetId":
                 return new TypeShape(ShapeKind.AssetId, expression, null);
+            case "Crucible.Ecs.Entity":
+                return new TypeShape(ShapeKind.Entity, expression, null);
             case "System.Numerics.Vector2":
                 return new TypeShape(ShapeKind.Vector2, expression, null);
             case "System.Numerics.Vector3":
@@ -475,7 +477,7 @@ public sealed class SerializerGenerator : IIncrementalGenerator
                 code.Line($"writer.WriteNumberValue({value});");
                 break;
             case ShapeKind.Single or ShapeKind.Double or ShapeKind.Vector2 or ShapeKind.Vector3 or ShapeKind.Vector4
-                or ShapeKind.Quaternion or ShapeKind.Matrix4x4 or ShapeKind.AssetId:
+                or ShapeKind.Quaternion or ShapeKind.Matrix4x4 or ShapeKind.AssetId or ShapeKind.Entity:
                 code.Line($"{Values}.Write{shape.Kind}(writer, {value});");
                 break;
             case ShapeKind.Guid:
@@ -652,6 +654,7 @@ internal enum ShapeKind
     String,
     Guid,
     AssetId,
+    Entity,
     Vector2,
     Vector3,
     Vector4,

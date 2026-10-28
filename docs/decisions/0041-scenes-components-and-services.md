@@ -98,3 +98,44 @@ Step 4 is split: 4a registers components and services, 4b saves scenes.
   constructor.
 - The `[System]` generator's symbol checks moved to a shared `Symbols`
   class.
+
+## As built (M4 step 4b: scenes)
+
+- **`Scene.Save(world, id)`** (`Crucible.Scenes`, in the engine: shipped
+  games load scenes) writes every entity in the world:
+  - `"$guid"` first (Crucible's files keep their GUID inside), then
+    `"Entities"`: roots in scene-ID order, each with `"Id"` (16 hex digits),
+    `"Components"` (saved ones only, in name order), and `"Children"` (in
+    their order; omitted when empty).
+  - Scene IDs live in a `SceneEntityId` component. Saving gives one to
+    entities without it, and a new one to the later of two entities sharing
+    one, so it is a structural change: call it between frames.
+  - The world is walked through two new internal native functions,
+    `gatherWorldChunks` and `chunkComponents` (tags included); sparse saved
+    components are checked per entity. The hierarchy's own `Parent`
+    component isn't written: nesting carries it.
+- **`Scene.Load(world, json, newIds)`** adds the entities beside the
+  world's own, in two passes over the file: the first creates every entity
+  and the hierarchy, the second reads components, so a reference may name an
+  entity anywhere in the file. With `newIds`, entities get fresh scene IDs,
+  so one file loads twice into one world (as instancing will). It returns
+  the scene's ID, the roots, and the component names it didn't know (which
+  are skipped). Two entities with one ID, or one without an ID, are errors.
+- **Entity references** (`Entity` members of `[Serialized]` types): during
+  a scene save or load, the target's scene ID as a string, or null when
+  the target isn't in the scene (a destroyed entity); elsewhere, the
+  entity's number, meaningful only within one session.
+- **The asset database** indexes `.scene` files by their `$guid`, with no
+  sidecar. A copy gets a new GUID, written by replacing the GUID's text so
+  nothing else in the file moves; a scene without `$guid` first is skipped
+  with a warning.
+- **Tests:**
+  - C# (JIT and NativeAOT): save, load, and save again give the same bytes,
+    and saving twice keeps every ID; the hierarchy and child order, forward
+    references, a reference to a destroyed entity, sparse, tag, and managed
+    components, and an unsaved one; the file's layout; loading twice with
+    new IDs into one world; unknown components, duplicate and missing IDs,
+    and bad values.
+  - The asset database: scenes by their own GUID, copies, and a scene
+    without one.
+  - Native: listing every chunk with its components, under ASan and UBSan.

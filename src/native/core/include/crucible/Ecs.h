@@ -326,6 +326,12 @@ CRUCIBLE_EXPOSE_INTERNAL Query* createQueryFrom(World& world, std::span<const Co
 // Fills `chunks` with the addresses of the query's non-empty chunks (as many
 // as fit) and returns how many there are.
 CRUCIBLE_EXPOSE_INTERNAL uint32_t gatherChunks(Query& query, std::span<uint64_t> chunks);
+// Every non-empty chunk in the world, whatever its components: for saving
+// scenes (ADR 0041). Returns the total; fills as many as fit.
+CRUCIBLE_EXPOSE_INTERNAL uint32_t gatherWorldChunks(const World& world, std::span<uint64_t> chunks);
+// The chunk's components (tags included, sparse ones not), sorted.
+// Returns the total; fills as many as fit.
+CRUCIBLE_EXPOSE_INTERNAL uint32_t chunkComponents(const Chunk* chunk, std::span<uint32_t> components);
 
 CRUCIBLE_EXPOSE_INTERNAL uint32_t chunkEntityCount(const Chunk* chunk);
 // The chunk's Entity array.

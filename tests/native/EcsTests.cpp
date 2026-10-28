@@ -356,6 +356,39 @@ TEST_CASE("Parallel chunk iteration updates every entity once")
     jobs::shutdown();
 }
 
+TEST_CASE("Every chunk in a world can be listed with its components")
+{
+    const Components c;
+    WorldScope world;
+    const ComponentId moving[] = {c.position, c.velocity};
+    const ComponentId tagged[] = {c.health, c.enemy};
+    for (int i = 0; i < 1000; ++i)
+    {
+        createEntity(*world, moving);
+    }
+    createEntity(*world, tagged);
+    const Entity empty = createEntity(*world);
+    destroyEntity(*world, empty); // its archetype's only chunk is now empty
+
+    std::vector<uint64_t> chunks(gatherWorldChunks(*world, {}));
+    REQUIRE(gatherWorldChunks(*world, chunks) == chunks.size());
+    uint32_t entities = 0;
+    bool sawTag = false;
+    for (uint64_t address : chunks)
+    {
+        const Chunk* chunk = reinterpret_cast<const Chunk*>(address);
+        CHECK(chunkEntityCount(chunk) > 0);
+        entities += chunkEntityCount(chunk);
+        uint32_t ids[8];
+        const uint32_t count = chunkComponents(chunk, ids);
+        REQUIRE(count == 2);
+        CHECK(ids[0] < ids[1]); // sorted
+        sawTag |= ids[0] == c.enemy || ids[1] == c.enemy;
+    }
+    CHECK(entities == 1001);
+    CHECK(sawTag); // tags are listed though they have no column
+}
+
 TEST_CASE("Destroying a world returns all its memory")
 {
     const Components c;

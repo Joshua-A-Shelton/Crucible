@@ -1519,6 +1519,34 @@ uint32_t gatherChunks(Query& query, std::span<uint64_t> chunks)
     return total;
 }
 
+uint32_t gatherWorldChunks(const World& world, std::span<uint64_t> chunks)
+{
+    uint32_t total = 0;
+    for (const Archetype* archetype : world.archetypes)
+    {
+        for (Chunk* chunk : archetype->chunks)
+        {
+            if (chunk->count == 0)
+            {
+                continue;
+            }
+            if (total < chunks.size())
+            {
+                chunks[total] = reinterpret_cast<uintptr_t>(chunk);
+            }
+            ++total;
+        }
+    }
+    return total;
+}
+
+uint32_t chunkComponents(const Chunk* chunk, std::span<uint32_t> components)
+{
+    const Vector<ComponentId>& all = chunk->archetype->components;
+    std::copy_n(all.begin(), std::min(all.size(), components.size()), components.begin());
+    return static_cast<uint32_t>(all.size());
+}
+
 uint32_t chunkEntityCount(const Chunk* chunk)
 {
     return chunk->count;

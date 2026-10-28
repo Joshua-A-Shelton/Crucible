@@ -347,6 +347,10 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   and never shipped: projects (`<Name>.crproject`, `Assets/`, `Code/`,
   `Plugins/`, `Cache/`), `.meta` sidecars, the asset database, importers,
   and the import cache. Tests: `Crucible.Assets.Tests` (JIT only).
+- **Registration and scenes** (ADR 0041): `[Component]`, `[Service]`, and
+  `[System]` types are registered by generated code per assembly;
+  `[Component, Serialized]` types are saved in scenes (`Crucible.Scenes`,
+  `.scene` JSON with the GUID inside).
 - **Samples** (ADR 0037): `samples/Particles` is the M3 demonstration, a game
   the JIT launcher loads with `--game <dll>` and configures with
   `--game-arg key=value`; it prints per-step timings.

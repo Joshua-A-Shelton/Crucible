@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Crucible.Assets;
+using Crucible.Ecs;
 
 namespace Crucible.Serialization;
 
@@ -99,6 +100,56 @@ public static class JsonValues
         else
         {
             writer.WriteStringValue(value.Value);
+        }
+    }
+
+    /// <summary>
+    /// An entity reference (ADR 0033, 0041). While a scene is saved or loaded,
+    /// written as the target's scene ID ("6c1e9a03d7b4f210"), or null when the
+    /// target isn't in the scene; otherwise as the entity's number, which only
+    /// means something in the same session.
+    /// </summary>
+    public static void WriteEntity(Utf8JsonWriter writer, Entity value)
+    {
+        if (value.IsNull)
+        {
+            writer.WriteNullValue();
+        }
+        else if (EntityReferences.Current is { } map)
+        {
+            if (map.TryToScene(value, out ulong sceneId))
+            {
+                writer.WriteStringValue(sceneId.ToString("x16"));
+            }
+            else
+            {
+                writer.WriteNullValue();
+            }
+        }
+        else
+        {
+            writer.WriteNumberValue(value.Value);
+        }
+    }
+
+    public static Entity ReadEntity(ref Utf8JsonReader reader)
+    {
+        switch (reader.TokenType)
+        {
+            case JsonTokenType.Null:
+                return Entity.Null;
+            case JsonTokenType.Number:
+                return new Entity { Value = ReadUInt64(ref reader) };
+            case JsonTokenType.String:
+                if (EntityReferences.Current is not { } map)
+                {
+                    throw Error(reader, "a scene ID can only be read while a scene loads");
+                }
+                return ulong.TryParse(reader.GetString(), System.Globalization.NumberStyles.HexNumber, null, out ulong id)
+                    ? map.ToWorld(id)
+                    : throw Error(reader, "expected a scene ID (16 hex digits)");
+            default:
+                throw Error(reader, "expected an entity reference");
         }
     }
 
@@ -305,4 +356,37 @@ public static class JsonValues
         JsonTokenType.None => "the end of the data",
         _ => type.ToString(),
     };
+}
+
+// How entity references map while a scene is saved or loaded: set for the
+// duration on the thread doing it.
+internal interface IEntityMap
+{
+    bool TryToScene(Entity entity, out ulong sceneId);
+
+    // Entity.Null for an ID the scene doesn't have.
+    Entity ToWorld(ulong sceneId);
+}
+
+internal static class EntityReferences
+{
+    [ThreadStatic]
+    private static IEntityMap? _current;
+
+    public static IEntityMap? Current => _current;
+
+    public static Scope Use(IEntityMap map) => new(map);
+
+    public readonly struct Scope : IDisposable
+    {
+        private readonly IEntityMap? _previous;
+
+        public Scope(IEntityMap map)
+        {
+            _previous = _current;
+            _current = map;
+        }
+
+        public void Dispose() => _current = _previous;
+    }
 }
