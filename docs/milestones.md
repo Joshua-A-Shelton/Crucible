@@ -246,6 +246,46 @@ with no inside-out faces and the model's right arm on +X. Decided: J
 **Decides:** shadows; lighting and ambient light; post-processing and the
 post-tonemap MSAA resolve; outlines.
 
+**Steps** (agreed 2026-10-28; one commit each, verified on both machines;
+the decision each one needs comes first):
+
+1. Shader toolchain: Slang compiled to DXIL and SPIR-V, compiled shaders
+   loaded at run time, and C++/C# layout checks from Slang reflection.
+   Decides O: where Slang runs (a build-time tool, a library in the
+   importers, or both) and the compiled-shader file format.
+2. The render graph and the pass list: the frame on `slag::rendergraph`,
+   an ordered pass list with named insertion points, a first pass drawing
+   a triangle. Decides P: the C++ pass API and how passes declare
+   resources.
+3. GPU assets: imported MESH and texture files loaded into Slag buffers
+   and textures, with descriptor slots and delayed destruction; loading is
+   synchronous for now. Decides Q: runtime asset handles and the loading
+   API, and how mesh data sits in GPU memory.
+4. Transforms and cameras: world-transform propagation and a camera
+   component. Decides R: reverse-Z and an infinite far plane, late
+   latching of the camera, and whether `LocalTransform` becomes a C++
+   struct mirrored into C#.
+5. Drawing meshes: CPU frustum culling on the job system, instanced
+   batches, the depth prepass, and an unlit forward pass with MSAA, front
+   faces clockwise.
+6. Materials: Slang shading-model interfaces, surface functions, the
+   bindless material buffer laid out from reflection, the variant policy,
+   pipelines created while loading, PBR and toon. Decides S: the material
+   asset format and how imported materials become materials.
+7. Lighting: light components, clustered light lists (compute), and
+   ambient light. Decides T: the lighting and ambient model.
+8. Shadows: cascaded sun shadows snapped to texels, and an atlas for local
+   lights. Decides U: shadow techniques and filtering.
+9. The rest of the frame: sky, the sorted transparent pass, specular AA,
+   alpha-to-coverage, tonemapping, the post-tonemap MSAA resolve, and
+   outlines. Decides V: the post-processing chain, the resolve, and
+   outlines.
+10. The demonstration: an imported, lit scene rendered offscreen on D3D12
+    and Vulkan, the images compared within a tolerance.
+
+The batched C# command API stays in M6; in M5, C# provides components
+(cameras, lights, transforms) that C++ render systems read.
+
 ## M6 — UI system
 
 - Text: HarfBuzz shaping, FreeType exact-size glyph atlases (ADR 0020).
