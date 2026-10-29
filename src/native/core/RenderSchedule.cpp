@@ -49,6 +49,7 @@ struct FrameState
     Vector<Entry> entries{MemoryTag::Render};
     std::string_view step;
     bool failed = false;
+    uint32_t descriptorBase = 0; // the surface's reserved resource-heap slots
 };
 
 BlackboardKey registerBlackboardKey(std::string_view name)
@@ -83,6 +84,18 @@ BlackboardKey backbufferKey()
 BlackboardKey viewKey()
 {
     static const BlackboardKey key = registerBlackboardKey("View");
+    return key;
+}
+
+BlackboardKey sceneDepthKey()
+{
+    static const BlackboardKey key = registerBlackboardKey("SceneDepth");
+    return key;
+}
+
+BlackboardKey sceneColorKey()
+{
+    static const BlackboardKey key = registerBlackboardKey("SceneColor");
     return key;
 }
 
@@ -165,10 +178,17 @@ std::string_view RenderStepContext::stepName() const
 // Runs every step for one frame, with the backbuffer published.
 struct FrameBuilder
 {
+    static uint32_t descriptorBase(const RenderStepContext& context)
+    {
+        return static_cast<const FrameState*>(context.frameState)->descriptorBase;
+    }
+
     static Result<void> run(const FrameInputs& inputs)
     {
         FrameState state;
-        RenderStepContext context(inputs.graph, inputs.device);
+        RenderStepContext context(inputs.graph, inputs.device, inputs.viewConstants, inputs.draws);
+        context.world = inputs.world;
+        state.descriptorBase = inputs.descriptorBase;
         context.width = inputs.width;
         context.height = inputs.height;
         context.frame = inputs.frame;
@@ -186,6 +206,11 @@ struct FrameBuilder
         return state.failed ? Result<void>(Status::InvalidData) : Result<void>();
     }
 };
+
+uint32_t surfaceDescriptor(const RenderStepContext& context, uint32_t which)
+{
+    return FrameBuilder::descriptorBase(context) + which;
+}
 
 Result<void> addStepPasses(const FrameInputs& inputs)
 {

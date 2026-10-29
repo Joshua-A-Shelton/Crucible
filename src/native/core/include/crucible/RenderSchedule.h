@@ -10,6 +10,7 @@
 // thread. Graph passes record on job threads (their record functions may run
 // concurrently with each other).
 
+#include <crucible/DrawList.h>
 #include <crucible/Memory.h>
 #include <crucible/Result.h>
 #include <crucible/Vector.h>
@@ -19,7 +20,14 @@
 #include <cstdint>
 #include <string_view>
 
+namespace crucible::ecs {
+struct World;
+}
+
 namespace crucible::render {
+
+// Generated from shaders/crucible/shared.slang (the renderer's shared.g.h).
+struct ViewConstants;
 
 // A blackboard entry's name, registered once and used as a small ID.
 struct BlackboardKey
@@ -40,6 +48,13 @@ BlackboardKey backbufferKey();
 // rounded up to slag::alignment::constantBuffer.
 BlackboardKey viewKey();
 
+// The MSAA targets the default steps draw into (ADR 0051), at
+// msaaSamples(): SceneDepth (D32Float, from DepthPrepass) and SceneColor
+// (R16G16B16A16Float, linear, from Opaque). Resolve writes SceneColor to the
+// backbuffer.
+BlackboardKey sceneDepthKey();
+BlackboardKey sceneColorKey();
+
 // What a step sees while it adds its graph passes for one frame.
 class RenderStepContext
 {
@@ -49,7 +64,12 @@ public:
     uint32_t width;
     uint32_t height;
     uint64_t frame;      // counts the surface's rendered frames from 1
-    float clearColor[4]; // renderFrame's color, for Clear
+    float clearColor[4]; // renderFrame's color, which Opaque clears to
+    ecs::World* world;   // the world drawn, or null
+    // The frame's view (its GPU copy is under viewKey()), and the visible
+    // instances (ADR 0051).
+    const ViewConstants& view;
+    const DrawList& draws;
 
     // Makes a resource available to later steps under `key` this frame.
     void publish(BlackboardKey key, slag::rendergraph::RenderGraphTexture texture);
@@ -64,13 +84,17 @@ public:
 
 private:
     friend struct FrameBuilder;
-    RenderStepContext(slag::rendergraph::RenderGraph& graph, slag::GraphicsDevice& device)
+    RenderStepContext(slag::rendergraph::RenderGraph& graph, slag::GraphicsDevice& device, const ViewConstants& view,
+                      const DrawList& draws)
         : graph(graph)
         , device(device)
         , width(0)
         , height(0)
         , frame(0)
         , clearColor{}
+        , world(nullptr)
+        , view(view)
+        , draws(draws)
     {}
     void* frameState = nullptr;
 };
@@ -127,8 +151,8 @@ private:
     slag::GraphicsDevice* device = nullptr; // while the renderer runs
 };
 
-// The renderer's schedule, holding the default steps (ADR 0048: Clear, then
-// Triangle, until M5 step 5).
+// The renderer's schedule, holding the default steps (ADR 0051: DepthPrepass,
+// Opaque, then Resolve).
 RenderSchedule& renderSchedule();
 
 } // namespace crucible::render

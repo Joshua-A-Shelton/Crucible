@@ -35,3 +35,6 @@ Longer explanations of decisions, written to be reread:
 - [Transforms and cameras](docs/learning/transforms-and-cameras.md)
   (ADR 0050): local and world matrices, view and projection, and why
   reverse-Z.
+- [Drawing meshes](docs/learning/drawing-meshes.md) (ADR 0051): culling,
+  instancing, vertex pulling, the depth prepass, the MSAA resolve, and
+  measuring "only what changed".

@@ -103,3 +103,5 @@ counts uses; or in C++, calling back into C# for bytes.
 - Slag's render graph handles were renamed `RenderGraphTexture` and
   `RenderGraphBuffer` (Slag 1.1.0, owner's request), so Crucible's
   `TextureHandle` doesn't share a name with them.
+- M5 step 5 (ADR 0051) adds `MeshData::descriptor`: each model buffer's
+  raw-buffer slot, allocated with the textures' slots, for vertex pulling.

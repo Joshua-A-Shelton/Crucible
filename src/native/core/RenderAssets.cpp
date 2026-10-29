@@ -255,6 +255,8 @@ Result<LoadedMesh*> createMesh(std::span<const uint8_t> bytes)
     {
         status = Status::InvalidData;
     }
+    // Raw-buffer views (vertex pulling) cover whole 4-byte words.
+    total = (total + 3) / 4 * 4;
 
     slag::Buffer* staging = nullptr;
     if (status == Status::Ok)
@@ -317,6 +319,17 @@ Result<LoadedMesh*> createMesh(std::span<const uint8_t> bytes)
         return status;
     }
 
+    // Shaders read the streams through a raw-buffer slot (vertex pulling, ADR 0051).
+    state.slots->collect();
+    mesh->data.descriptor = state.slots->allocate();
+    if (mesh->data.descriptor == 0)
+    {
+        state.device->destroy(mesh->data.buffer);
+        destroy(MemoryTag::Render, mesh);
+        return Status::OutOfDeviceMemory;
+    }
+    state.device->writeRawBuffer(mesh->data.descriptor, {.buffer = mesh->data.buffer, .size = total});
+
     std::memcpy(&mesh->data.info, mesh->tables.data() + tableOffsets[0], sizeof(assets::MeshFileInfo));
     mesh->data.meshes = tableOf<assets::MeshEntry>(mesh->tables, tableOffsets[1], tableSizes[1]);
     mesh->data.lods = tableOf<assets::MeshLod>(mesh->tables, tableOffsets[2], tableSizes[2]);
@@ -328,6 +341,7 @@ Result<LoadedMesh*> createMesh(std::span<const uint8_t> bytes)
 
 void destroyMesh(LoadedMesh* mesh)
 {
+    state.slots->release(mesh->data.descriptor, lastSignaled());
     state.destroyer->destroyAfter(mesh->data.buffer, lastSignaled());
     destroy(MemoryTag::Render, mesh);
 }
@@ -782,6 +796,13 @@ const MeshData* meshData(MeshHandle mesh)
 {
     const Slot<LoadedMesh>* slot = state.meshes.find(mesh.index, mesh.generation);
     return slot != nullptr ? &slot->value->data : nullptr;
+}
+
+const MeshData* meshDataAt(uint32_t index)
+{
+    return index < state.meshes.slots.size() && state.meshes.slots[index].value != nullptr
+               ? &state.meshes.slots[index].value->data
+               : nullptr;
 }
 
 } // namespace crucible::render

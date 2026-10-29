@@ -80,3 +80,18 @@ Settled in a review of M4's and M5's placeholders (ADR 0047's amendment).
 | `ViewConstants`: `view`, `projection`, `viewProjection`, `inverseView`, `inverseProjection`, `inverseViewProjection`, `cameraPosition`, `time`, `viewportSize` | The per-frame view for shaders |
 | Blackboard key `View`, `viewKey()` | Where steps find the frame's `ViewConstants` |
 | `Matrix4x4::perspectiveReverseZInfinite`, `orthographicReverseZ` | The renderer's projections |
+
+## Drawing meshes (2026-10-29)
+
+| Name | What it is |
+|---|---|
+| `crucible/MeshInstance.h`: `MeshInstance` (`model`, `mesh`), `LoadedMesh` (`handle`) | The saved instance, and the renderer's resolved handle (ADR 0051) |
+| `crucible/DrawList.h`: `DrawList` (`batches`, `instances`, `transforms`), `DrawBatch` (`model`, `mesh`, `lod`, `firstInstance`, `instanceCount`, `baseColorTextures`) | What render steps draw |
+| `RenderStepContext`: `world`, `view`, `draws` | What steps get for drawing |
+| `DepthPrepass`, `Opaque`, `Resolve` | The default render steps |
+| Blackboard keys `SceneDepth`, `SceneColor`; `sceneDepthKey()`, `sceneColorKey()` | The MSAA targets |
+| `MeshData::descriptor` | The model buffer's raw-buffer slot |
+| `setMsaaSamples`, `msaaSamples`, launcher `--msaa` | The MSAA sample count |
+| `renderFrame(..., lastRunVersion, ...)` | The render system's last-run version |
+| `shaders/crucible/mesh.slang` (`depthVertex`, `opaqueVertex`, `opaquePixel`), `resolve.slang` (`fullscreenVertex`, `resolvePixel`) | The default steps' shaders |
+| `InstanceTransform` (`x`, `y`, `z`), `DrawConstants` | GPU structs: world matrix columns, per-draw push constants |

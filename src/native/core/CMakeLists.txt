@@ -64,6 +64,7 @@ target_link_libraries(crucible_core_objects PRIVATE libzstd_static)
 # the objects above and compiles those shaders (ADR 0048's build order).
 add_library(crucible_render_objects OBJECT
     Camera.cpp
+    DrawList.cpp
     Render.cpp
     RenderAssets.cpp
     RenderSchedule.cpp
@@ -80,7 +81,8 @@ crucible_add_shader(crucible_render_objects SOURCE "${PROJECT_SOURCE_DIR}/shader
     CPP_NAMESPACE crucible::render CS_NAMESPACE Crucible.Render)
 crucible_embed_shaders(crucible_render_objects
     OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/EngineShaders.g.cpp"
-    SOURCES "${PROJECT_SOURCE_DIR}/shaders/crucible/triangle.slang")
+    SOURCES "${PROJECT_SOURCE_DIR}/shaders/crucible/mesh.slang"
+        "${PROJECT_SOURCE_DIR}/shaders/crucible/resolve.slang")
 
 # For shaderfax only: no embedded shaders.
 add_library(crucible_engine_shaders_stub OBJECT EngineShadersStub.cpp)

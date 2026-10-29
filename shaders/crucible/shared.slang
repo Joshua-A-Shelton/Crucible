@@ -25,3 +25,13 @@ public struct ViewConstants
     public float time;            // seconds since the renderer started
     public float2 viewportSize;   // pixels
 };
+
+// A world matrix as shaders read it (ADR 0051): its first three columns, so
+// a world position is (dot(p, x), dot(p, y), dot(p, z)) with p = float4(position, 1).
+[GpuShared]
+public struct InstanceTransform
+{
+    public float4 x;
+    public float4 y;
+    public float4 z;
+};

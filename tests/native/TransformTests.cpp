@@ -500,7 +500,7 @@ TEST_SUITE("gpu")
                     CAPTURE(frame);
                     *get<LocalTransform>(*world, camera) = transform({1, 2, static_cast<float>(frame)}, 0.3f);
                     scenes::updateWorldTransforms(*world);
-                    REQUIRE(render::renderFrame(surface.value(), world.world, 0, 0, 0, 1));
+                    REQUIRE(render::renderFrame(surface.value(), world.world, 0, 0, 0, 0, 1));
                     REQUIRE(render::renderQueue()->waitIdle());
                     render::ViewConstants seen{};
                     std::memcpy(&seen, copy.readback->mappedData(), sizeof(seen));

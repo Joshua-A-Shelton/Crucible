@@ -17,16 +17,13 @@ public partial struct LocalTransform
     public static LocalTransform Identity => new() { Rotation = Quaternion.Identity, Scale = Vector3.One };
 }
 
-/// <summary>One mesh of an imported model (ADR 0043, 0045), drawn from M5 on.</summary>
+/// <summary>
+/// One mesh of an imported model (ADR 0043, 0045), drawn from M5 on.
+/// Declared in C++ (crucible/MeshInstance.h, ADR 0051); this half adds
+/// saving.
+/// </summary>
 [Serialized]
-public partial struct MeshInstance
-{
-    /// <summary>The model's asset: its imported MESH file.</summary>
-    public AssetId Model;
-
-    /// <summary>Which of the model's meshes.</summary>
-    public int Mesh;
-}
+public partial struct MeshInstance;
 
 /// <summary>
 /// The engine's own components, registered before scenes and prefabs use
@@ -40,10 +37,12 @@ internal static class EngineComponents
         // the same names, so both languages get the same IDs.
         Api.RegisterTransforms();
         Crucible.Render.Api.RegisterCamera();
+        Api.RegisterMeshInstance();
         Components.Register<LocalTransform>();
         Components.Register<WorldTransform>();
         Components.Register<Crucible.Render.Camera>();
         Components.Register<MeshInstance>();
+        Components.Register<LoadedMesh>();
         Components.Register<SceneEntityId>();
         Components.Register<PrefabInstance>();
         SavedComponents.Add<LocalTransform>();

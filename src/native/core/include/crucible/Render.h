@@ -79,8 +79,20 @@ CRUCIBLE_EXPOSE_STATUS Result<void> waitForNextFrame(SurfaceHandle surface);
 // world (null) or a camera, a default one at the origin looking along +Z.
 // Resizes the swapchain when the window's size changed; skips the frame
 // (still Ok) while the window is minimized or hidden.
-CRUCIBLE_EXPOSE_STATUS Result<void> renderFrame(SurfaceHandle surface, ecs::World* world, float red, float green,
-                                                float blue, float alpha);
+//
+// lastRunVersion is the render system's previous run on this world
+// (FrameContext.LastRunVersion; 0 for a world not drawn before): world
+// matrices that haven't changed since are not sent to the GPU again
+// (ADR 0051).
+CRUCIBLE_EXPOSE_STATUS Result<void> renderFrame(SurfaceHandle surface, ecs::World* world, uint32_t lastRunVersion,
+                                                float red, float green, float blue, float alpha);
+
+// The default steps' MSAA sample count (ADR 0051): 1, 2, 4 (the default),
+// or 8. Changing it while the renderer runs waits for the GPU and prepares
+// every step again. Unsupported for another count, or one the device can't
+// render the scene's formats with.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<void> setMsaaSamples(uint32_t samples);
+CRUCIBLE_EXPOSE uint32_t msaaSamples();
 
 // Latency harness support (ADR 0003).
 //

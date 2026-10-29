@@ -98,12 +98,14 @@ CRUCIBLE_EXPOSE uint32_t samplerDescriptor(Sampler sampler);
 // returns -1 if there is no such asset. Internal to the engine.
 CRUCIBLE_EXPOSE_INTERNAL void setAssetReader(uint64_t readerAddress);
 
-// What render steps read to draw a loaded model (C++ only): its GPU buffer,
-// where each stream starts in it, and the file's tables. Valid until the
+// What render steps read to draw a loaded model (C++ only): its GPU buffer
+// and resource-heap slot, where each stream starts in it, and the file's
+// tables. Valid until the
 // model is unloaded.
 struct MeshData
 {
     slag::Buffer* buffer;
+    uint32_t descriptor; // the buffer's slot in the resource heap, as a ByteAddressBuffer
     assets::MeshFileInfo info;
     // Byte offsets into `buffer`; a stream the file lacks has size 0.
     struct Stream

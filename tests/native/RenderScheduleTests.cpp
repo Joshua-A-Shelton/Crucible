@@ -61,9 +61,9 @@ TEST_CASE("Render steps are edited by name")
     CHECK(names(schedule) == std::vector<std::string>{"Opaque", "Clouds", "Post"});
 }
 
-TEST_CASE("The renderer starts with Clear then Triangle")
+TEST_CASE("The renderer starts with DepthPrepass then Opaque then Resolve")
 {
-    CHECK(names(render::renderSchedule()) == std::vector<std::string>{"Clear", "Triangle"});
+    CHECK(names(render::renderSchedule()) == std::vector<std::string>{"DepthPrepass", "Opaque", "Resolve"});
 }
 
 TEST_CASE("Blackboard keys are registered once by name")
@@ -125,9 +125,9 @@ TEST_SUITE("gpu")
             render::RenderSchedule& schedule = render::renderSchedule();
 
             reads = 0;
-            REQUIRE(schedule.insertBefore("Triangle", {.name = "Test.Publish", .addPasses = publishShared}));
-            REQUIRE(schedule.insertAfter("Triangle", {.name = "Test.Read", .addPasses = readShared}));
-            REQUIRE(render::renderFrame(surface.value(), nullptr, 0, 0, 0, 1));
+            REQUIRE(schedule.insertBefore("Opaque", {.name = "Test.Publish", .addPasses = publishShared}));
+            REQUIRE(schedule.insertAfter("Opaque", {.name = "Test.Read", .addPasses = readShared}));
+            REQUIRE(render::renderFrame(surface.value(), nullptr, 0, 0, 0, 0, 1));
             CHECK(reads == 1);
             REQUIRE(schedule.remove("Test.Read"));
 
@@ -139,10 +139,10 @@ TEST_SUITE("gpu")
 
             // Reading what no step published is reported and fails the frame.
             REQUIRE(schedule.insertBefore("Test.Publish", {.name = "Test.Missing", .addPasses = readMissing}));
-            CHECK(render::renderFrame(surface.value(), nullptr, 0, 0, 0, 1).status() == Status::InvalidData);
+            CHECK(render::renderFrame(surface.value(), nullptr, 0, 0, 0, 0, 1).status() == Status::InvalidData);
             REQUIRE(schedule.remove("Test.Missing"));
             REQUIRE(schedule.remove("Test.Publish"));
-            CHECK(render::renderFrame(surface.value(), nullptr, 0, 0, 0, 1));
+            CHECK(render::renderFrame(surface.value(), nullptr, 0, 0, 0, 0, 1));
 
             render::destroySurface(surface.value());
             render::shutdown();

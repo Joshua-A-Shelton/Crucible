@@ -120,3 +120,8 @@ and C# render steps (the batched command API, M6).
   off-screen frames checked for the clear color in the corners and the
   triangle's three colors where its corners are; the by-hand window test
   (Mailbox at 144 Hz on RADV, no validation errors).
+
+## Amendment (2026-10-29, ADR 0051)
+
+The temporary Clear and Triangle steps are replaced by `DepthPrepass`,
+`Opaque`, and `Resolve`, and `triangle.slang` is gone.

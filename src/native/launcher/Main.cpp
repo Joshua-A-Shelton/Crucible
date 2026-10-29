@@ -98,12 +98,13 @@ int run(int argc, ArgumentChar** argv)
     // --game-arg key=value (repeatable) passes it an option; --latency <file>
     // turns on the latency harness and
     // --present-mode fifo|mailbox overrides ADR 0003's default, both for
-    // measuring.
+    // measuring. --msaa 1|2|4|8 sets the MSAA sample count (ADR 0051).
     std::filesystem::path managedDirectory = executableDirectory();
     slag::Backend backend = slag::InstanceDesc{}.backend;
     crucible::LaunchOptions options{};
     crucible::render::PresentPreference presentMode = crucible::render::PresentPreference::Default;
     uint32_t workers = 0;
+    uint32_t msaa = 0; // 0: the renderer's default
     for (int i = 1; i < argc; ++i)
     {
         const ArgumentView option = argv[i];
@@ -140,6 +141,10 @@ int run(int argc, ArgumentChar** argv)
         else if (option == CRUCIBLE_ARGUMENT("--frames"))
         {
             valid = parseCount(value, options.frameLimit);
+        }
+        else if (option == CRUCIBLE_ARGUMENT("--msaa"))
+        {
+            valid = parseCount(value, msaa) && (msaa == 1 || msaa == 2 || msaa == 4 || msaa == 8);
         }
         else if (option == CRUCIBLE_ARGUMENT("--present-mode"))
         {
@@ -206,6 +211,14 @@ int run(int argc, ArgumentChar** argv)
     if (!crucible::render::initialize(backend, presentMode))
     {
         std::fprintf(stderr, "crucible: the renderer could not start\n");
+        crucible::jobs::shutdown();
+        crucible::platform::shutdown();
+        return 1;
+    }
+    if (msaa != 0 && !crucible::render::setMsaaSamples(msaa))
+    {
+        std::fprintf(stderr, "crucible: this device can't render with %ux MSAA\n", msaa);
+        crucible::render::shutdown();
         crucible::jobs::shutdown();
         crucible::platform::shutdown();
         return 1;

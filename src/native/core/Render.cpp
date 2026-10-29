@@ -20,8 +20,6 @@ namespace crucible::render {
 
 namespace {
 
-// The CPU builds one frame while the GPU may still run the previous one.
-constexpr uint32_t framesInFlight = 2;
 constexpr uint32_t maxSurfaces = 8;
 
 constexpr uint32_t viewConstantsSize = (sizeof(ViewConstants) + slag::alignment::constantBuffer - 1) /
@@ -71,8 +69,9 @@ struct Surface
     // graph's order of frame slots; beginFrame waits until the GPU is done
     // with the one it hands out.
     std::array<slag::Buffer*, framesInFlight> viewBuffers{};
-    uint64_t graphFrames = 0; // frames begun on the graph, for its frame slot
-    uint64_t submitted = 0;   // frames submitted so far
+    uint64_t graphFrames = 0;   // frames begun on the graph, for its frame slot
+    DrawState* draws = nullptr; // its transform buffers and instance lists (ADR 0051)
+    uint64_t submitted = 0;     // frames submitted so far
     slag::PresentMode presentMode{};
     uint32_t width = 0;
     uint32_t height = 0;
@@ -190,6 +189,7 @@ void release(Surface& surface)
     stopGpuTimer(surface);
     slag::GraphicsDevice* device = renderer.device;
     slag::rendergraph::destroy(surface.graph);
+    destroyDrawState(surface.draws);
     for (slag::Buffer* buffer : surface.viewBuffers)
     {
         if (buffer != nullptr)
@@ -239,8 +239,9 @@ slag::AllocatorCallbacks allocatorCallbacks()
 }
 
 // The render graph and frame semaphore every surface has.
-Result<void> createFrameResources(Surface& surface)
+Result<void> createFrameResources(Surface& surface, uint32_t index)
 {
+    surface.draws = createDrawState(8 + index * descriptorsPerSurface);
     slag::GraphicsDevice* device = renderer.device;
     slag::Result<slag::rendergraph::RenderGraph*> graph =
         slag::rendergraph::createRenderGraph({.device = device,
@@ -303,7 +304,7 @@ struct Recording
 // frame semaphore after all of it, for pacing and GPU timing.
 Result<void> renderWithGraph(Surface& surface, slag::Texture* texture, slag::AttachmentView* view,
                              const slag::rendergraph::ImportedTextureDesc& import, ecs::World* world,
-                             const float color[4])
+                             uint32_t lastRunVersion, const float color[4])
 {
     slag::rendergraph::RenderGraph& graph = *surface.graph;
     collectAssets();
@@ -312,16 +313,23 @@ Result<void> renderWithGraph(Surface& surface, slag::Texture* texture, slag::Att
         return toStatus(begun.status());
     }
     // The graph's frame slot (Slag's PassContext::frameSlot) is free again.
-    slag::Buffer* viewBuffer = surface.viewBuffers[surface.graphFrames++ % framesInFlight];
+    const auto frameSlot = static_cast<uint32_t>(surface.graphFrames++ % framesInFlight);
+    slag::Buffer* viewBuffer = surface.viewBuffers[frameSlot];
     const float time = std::chrono::duration<float>(std::chrono::steady_clock::now() - renderer.started).count();
     const ViewConstants constants = viewConstants(world, surface.width, surface.height, time);
     std::memcpy(viewBuffer->mappedData(), &constants, sizeof(constants));
+    Result<DrawList> draws = buildDrawList(*surface.draws, world, constants, surface.height, frameSlot, lastRunVersion);
+    if (!draws)
+    {
+        return draws.status();
+    }
 
     slag::rendergraph::ImportedTextureDesc desc = import;
     desc.attachmentView = view;
     const slag::rendergraph::RenderGraphTexture backbuffer = graph.importTexture(texture, desc);
     if (Result<void> added = addStepPasses({graph, *renderer.device, surface.width, surface.height,
-                                            surface.submitted + 1, color, backbuffer, graph.importBuffer(viewBuffer)});
+                                            surface.submitted + 1, color, backbuffer, graph.importBuffer(viewBuffer),
+                                            constants, draws.value(), world, drawDescriptorBase(*surface.draws)});
         !added)
     {
         return added;
@@ -469,6 +477,7 @@ void shutdown()
                 release(surface);
             }
         }
+        stopDrawing();
         stopAssets();
         renderSchedule().releaseAll();
         renderer.device->shutdown();
@@ -526,7 +535,8 @@ Result<SurfaceHandle> createSurface(platform::WindowHandle window)
     }
     surface.swapchain = swapchain.value();
 
-    if (Result<void> created = createFrameResources(surface); !created)
+    if (Result<void> created = createFrameResources(surface, static_cast<uint32_t>(slot - renderer.surfaces.data()));
+        !created)
     {
         release(surface);
         return created.status();
@@ -585,7 +595,8 @@ Result<SurfaceHandle> createOffscreenSurface(uint32_t width, uint32_t height)
         return toStatus(view.status());
     }
     surface.offscreenView = view.value();
-    if (Result<void> created = createFrameResources(surface); !created)
+    if (Result<void> created = createFrameResources(surface, static_cast<uint32_t>(slot - renderer.surfaces.data()));
+        !created)
     {
         release(surface);
         return created.status();
@@ -628,7 +639,8 @@ Result<void> waitForNextFrame(SurfaceHandle surface)
     return waited ? Result<void>() : Result<void>(toStatus(waited.status()));
 }
 
-Result<void> renderFrame(SurfaceHandle surface, ecs::World* world, float red, float green, float blue, float alpha)
+Result<void> renderFrame(SurfaceHandle surface, ecs::World* world, uint32_t lastRunVersion, float red, float green,
+                         float blue, float alpha)
 {
     Surface* found = find(surface);
     if (found == nullptr)
@@ -643,9 +655,10 @@ Result<void> renderFrame(SurfaceHandle surface, ecs::World* world, float red, fl
         // relies on it); before the first, it's Undefined.
         const slag::TextureLayout initial =
             target.offscreenRendered ? slag::TextureLayout::RenderTarget : slag::TextureLayout::Undefined;
-        if (Result<void> rendered = renderWithGraph(
-                target, target.offscreenTexture, target.offscreenView,
-                {.initialLayout = initial, .finalLayout = slag::TextureLayout::RenderTarget}, world, color);
+        if (Result<void> rendered =
+                renderWithGraph(target, target.offscreenTexture, target.offscreenView,
+                                {.initialLayout = initial, .finalLayout = slag::TextureLayout::RenderTarget}, world,
+                                lastRunVersion, color);
             !rendered)
         {
             return rendered;
@@ -699,7 +712,7 @@ Result<void> renderFrame(SurfaceHandle surface, ecs::World* world, float red, fl
                             {.initialLayout = slag::TextureLayout::Undefined,
                              .finalLayout = slag::TextureLayout::Present,
                              .swapchain = target.swapchain},
-                            world, color);
+                            world, lastRunVersion, color);
         !rendered)
     {
         return rendered;
