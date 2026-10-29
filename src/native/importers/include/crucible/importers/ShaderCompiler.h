@@ -1,0 +1,67 @@
+#pragma once
+
+// The shader compiler (ADR 0025, 0047): Slang source to SPIR-V and (where DXC
+// is available) DXIL for every entry point, plus the layouts of the
+// [GpuShared] structs it declares, checked to be the same on both targets and
+// as constant-buffer and structured-buffer members. Used by crucible_shaderc
+// at build time and by importers in the editor. Editor-only. Names are
+// placeholders (docs/naming.md).
+
+#include <crucible/Result.h>
+
+#include <cstdint>
+#include <span>
+#include <string_view>
+
+namespace crucible::importers {
+
+struct ShaderCompileOptions
+{
+    std::span<const std::string_view> searchPaths; // where `import` finds modules
+    bool dxil;                                     // needs DXC beside Slang
+};
+
+enum class SharedFieldKind : uint32_t
+{
+    Float,
+    Int,
+    Uint, // bool too: 4 bytes in shaders
+};
+
+// One member of a [GpuShared] struct: a scalar, a float vector (columns 2-4),
+// or a float4x4 (rows 4, columns 4). Nested structs are refused for now
+// (ADR 0047: an NVIDIA driver bug).
+struct SharedField
+{
+    std::string_view name;
+    uint32_t offset;
+    uint32_t size;
+    SharedFieldKind kind;
+    uint32_t rows;
+    uint32_t columns;
+};
+
+struct CompiledShader;
+
+// Compiles one module. InvalidData with Slang's diagnostics in
+// lastImportError() if it doesn't compile, uses a type a shared struct can't
+// hold, or lays a shared struct out differently anywhere.
+Result<CompiledShader*> compileShader(std::string_view path, std::string_view source,
+                                      const ShaderCompileOptions& options);
+void destroyCompiledShader(CompiledShader* shader);
+
+uint32_t compiledEntryCount(const CompiledShader& shader);
+std::string_view compiledEntryName(const CompiledShader& shader, uint32_t index);
+
+// The SHDR file (crucible/Shader.h); nothing to write when there are no entry points.
+Result<void> writeShaderFile(const CompiledShader& shader, std::string_view path);
+
+uint32_t sharedStructCount(const CompiledShader& shader);
+std::string_view sharedStructName(const CompiledShader& shader, uint32_t index);
+uint32_t sharedStructSize(const CompiledShader& shader, uint32_t index);
+std::span<const SharedField> sharedStructFields(const CompiledShader& shader, uint32_t index);
+
+// Slang's warnings, if it had any.
+std::string_view compileWarnings(const CompiledShader& shader);
+
+} // namespace crucible::importers

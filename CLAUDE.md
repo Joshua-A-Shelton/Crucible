@@ -159,7 +159,9 @@ Stated by the project owner and refined one at a time (2026-10-24).
   `licenses/zstd.txt`; ADR 0039). Editor only
   (never shipped): cgltf (MIT), ufbx (MIT or public domain), meshoptimizer
   (MIT), stb_image (public domain or MIT), bc7enc_rdo (MIT or public
-  domain); ADR 0022; MikkTSpace (zlib; ADR 0043); Slang (Apache 2.0 with LLVM exception; ADR 0025);
+  domain); ADR 0022; MikkTSpace (zlib; ADR 0043); Slang (Apache 2.0 with LLVM exception; ADR 0025); DXC (University of
+  Illinois/NCSA, accepted by the owner for build time and the editor; ADR
+  0047);
   dr_wav, dr_flac (public domain or MIT-0; ADR 0028); System.IO.Hashing
   (MIT; XXH128 for the import cache, ADR 0040).
   Build-time only: the system's libclang (Apache 2.0 with LLVM exception),

@@ -12,8 +12,8 @@ include(FetchContent)
 # ---------------------------------------------------------------------------
 
 FetchContent_Declare(Slag
-    URL https://github.com/Joshua-A-Shelton/Slag/archive/refs/tags/v1.0.1.tar.gz
-    URL_HASH SHA256=20e6f05f1da7b94fc35a5e60ab7ebcdba1fc1c2babfc0b473f31c3a23a110068)
+    URL https://github.com/Joshua-A-Shelton/Slag/archive/refs/tags/v1.0.2.tar.gz
+    URL_HASH SHA256=4ceb89d5dc4f28adeb6eb8194cf4dd4c34f7412d575167d29aec9f62935a512c)
 FetchContent_MakeAvailable(Slag)
 
 # The D3D12 Agility SDK (Slag's pinned D3D12 runtime) loads only in an
@@ -125,6 +125,37 @@ FetchContent_Declare(ufbx
     URL_HASH SHA256=21edd1021dfb430e37aa6214c9b3bbaa5634b1859cbbef7231e738af4f19c956
     SOURCE_SUBDIR do-not-build)
 FetchContent_MakeAvailable(stb bc7enc_rdo cgltf meshoptimizer mikktspace ufbx)
+
+# ---------------------------------------------------------------------------
+# Shader compilers (ADR 0025, 0047): build time and the editor, never shipped.
+#   Slang 2026.18.2 (Apache 2.0 with LLVM exception), its release binaries:
+#     the library behind crucible_importers' shader compiler and
+#     crucible_shaderc. The version Slag is tested with.
+#   DXC v1.9.2609 (University of Illinois/NCSA, approved for the editor and
+#     build only), Windows only: Slang loads it from beside itself to
+#     produce DXIL. Like Slag, Crucible builds DXIL only on Windows.
+# Both are pinned to the same archives as Slag's CI.
+# ---------------------------------------------------------------------------
+
+if(WIN32)
+    FetchContent_Declare(slang
+        URL https://github.com/shader-slang/slang/releases/download/v2026.18.2/slang-2026.18.2-windows-x86_64.zip
+        URL_HASH SHA256=747602aec6b3623658d55fea87492d71828e15d16802d7941204fde418ceee8e
+        SOURCE_SUBDIR do-not-build)
+    FetchContent_Declare(dxc
+        URL https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.9.2609/dxc_2026_09_29.zip
+        URL_HASH SHA256=ad31b1fc8443175d204f77a611fdb3ef2ec42759bdc2f1167368de24a4a7e7f1
+        SOURCE_SUBDIR do-not-build)
+    FetchContent_MakeAvailable(slang dxc)
+else()
+    FetchContent_Declare(slang
+        URL https://github.com/shader-slang/slang/releases/download/v2026.18.2/slang-2026.18.2-linux-x86_64.tar.gz
+        URL_HASH SHA256=8a097d4365e1cab10265d0b0d77b461b5d30576f99ddc0521a35723c34cad816
+        SOURCE_SUBDIR do-not-build)
+    FetchContent_MakeAvailable(slang)
+endif()
+# The Linux archive keeps the package in lib/cmake/slang, the Windows one in cmake.
+find_package(slang CONFIG REQUIRED PATHS "${slang_SOURCE_DIR}/lib/cmake/slang" "${slang_SOURCE_DIR}/cmake" NO_DEFAULT_PATH)
 
 # ---------------------------------------------------------------------------
 # doctest (MIT): tests only, never linked into the engine (ADR 0029)

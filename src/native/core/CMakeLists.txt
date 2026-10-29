@@ -38,6 +38,7 @@ target_sources(crucible_core_objects PRIVATE
     Memory.cpp
     Platform.cpp
     Render.cpp
+    Shader.cpp
     Systems.cpp
     "${CRUCIBLE_GENERATED_DIR}/native/Bindings.g.cpp")
 

@@ -16,6 +16,7 @@
 //     int32_t mip = findSection(*file.value(), tag("MIP0"));
 //     readSection(*file.value(), mip, destination);
 
+#include <crucible/Export.h>
 #include <crucible/Expose.h>
 #include <crucible/Result.h>
 #include <crucible/Vector.h>
@@ -103,17 +104,18 @@ struct CRUCIBLE_EXPOSE SectionInfo
 
 struct CRUCIBLE_EXPOSE Writer;
 
-CRUCIBLE_EXPOSE Writer* createWriter(uint32_t kind, uint32_t kindVersion);
-CRUCIBLE_EXPOSE void destroyWriter(Writer* writer);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Writer* createWriter(uint32_t kind, uint32_t kindVersion);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void destroyWriter(Writer* writer);
 
 // Copies the data into the writer. `alignment` is a power of two up to
 // maxAlignment; InvalidData otherwise, or if there are too many sections or
 // the data is too large.
-CRUCIBLE_EXPOSE Result<void> addSection(Writer& writer, uint32_t tag, uint32_t version, std::span<const uint8_t> data,
-                                        uint32_t alignment);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<void> addSection(Writer& writer, uint32_t tag, uint32_t version,
+                                                        std::span<const uint8_t> data, uint32_t alignment);
 
 // Compresses the sections (one job each) and writes the file atomically.
-CRUCIBLE_EXPOSE Result<void> writeFile(Writer& writer, std::string_view utf8Path, Compression compression);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<void> writeFile(Writer& writer, std::string_view utf8Path,
+                                                       Compression compression);
 
 // The same, into memory: for tests and archives.
 Result<void> writeToMemory(Writer& writer, Compression compression, Vector<std::byte>& file);

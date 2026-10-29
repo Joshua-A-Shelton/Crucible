@@ -10,7 +10,7 @@ namespace crucible::importers {
 
 namespace {
 
-thread_local char lastError[512];
+thread_local char lastError[4096]; // Slang's diagnostics can run long
 
 } // namespace
 

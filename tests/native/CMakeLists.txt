@@ -10,6 +10,7 @@ add_executable(crucible_native_tests
     PlatformTests.cpp
     RenderTests.cpp
     ResultTests.cpp
+    ShaderTests.cpp
     SimdTests.cpp
     SystemsTests.cpp)
 
@@ -20,6 +21,11 @@ crucible_use_d3d12_agility(crucible_native_tests)
 target_compile_definitions(crucible_native_tests PRIVATE DOCTEST_CONFIG_NO_EXCEPTIONS_BUT_WITH_ALL_ASSERTS)
 # SDL directly too: the platform tests push synthetic SDL events.
 target_link_libraries(crucible_native_tests PRIVATE crucible::core_static SDL3::SDL3-static doctest::doctest)
+# The shader toolchain's test shader (ADR 0047), with its C++ mirror here and
+# its C# mirror for Crucible.Engine.Tests.
+crucible_add_shader(crucible_native_tests SOURCE shaders/LayoutProbe.slang
+    CS_OUTPUT_DIR "${CRUCIBLE_GENERATED_DIR}/managed/shaders")
+add_dependencies(crucible_managed crucible_native_tests_shader_LayoutProbe)
 
 # SDL's offscreen driver makes real windows that are never shown, so the tests
 # need no display (Windows over SSH has none).
@@ -32,11 +38,13 @@ doctest_discover_tests(crucible_native_tests ADD_LABELS 1
 
 # The importers (ADR 0042), editor-only: their own executable, so the core's
 # tests never link them.
-add_executable(crucible_importers_tests Main.cpp FbxImportTests.cpp MeshImportTests.cpp TextureImportTests.cpp)
+add_executable(crucible_importers_tests Main.cpp FbxImportTests.cpp MeshImportTests.cpp ShaderCompilerTests.cpp
+    TextureImportTests.cpp)
 crucible_set_compile_options(crucible_importers_tests)
 # ufbx's sample files (ADR 0044) are the FBX tests' models.
 target_compile_definitions(crucible_importers_tests PRIVATE DOCTEST_CONFIG_NO_EXCEPTIONS_BUT_WITH_ALL_ASSERTS
-    CRUCIBLE_UFBX_DATA_DIR="${ufbx_SOURCE_DIR}/data")
+    CRUCIBLE_UFBX_DATA_DIR="${ufbx_SOURCE_DIR}/data"
+    CRUCIBLE_SHADER_LIBRARY_DIR="${CRUCIBLE_SHADER_LIBRARY_DIR}")
 target_include_directories(crucible_importers_tests SYSTEM PRIVATE "${stb_SOURCE_DIR}") # stb_image_write, to make test images
 target_link_libraries(crucible_importers_tests PRIVATE crucible_importers_static doctest::doctest)
 doctest_discover_tests(crucible_importers_tests ADD_LABELS 1 PROPERTIES LABELS "native;importers")

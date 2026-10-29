@@ -29,13 +29,15 @@ milestone are decided or checked when that milestone reaches them
 - Changing a component's storage (archetype, sparse, managed) across a hot
   reload: it throws and needs a restart today; migrate it instead if the
   editor makes it common. → 0035
-- An intermittent NativeAOT failure: once (2026-10-28, M4 step 2), an
-  allocation test in `Crucible.Engine.Tests.aot` reported a nonzero count
-  ("Expected to be 0") right after a rebuild. About 50 reruns, alone and in
-  full ctest runs, passed; the test's name was lost. Ruled out: garbage
-  collections on other threads (a probe saw no counter drift in 348 GC
-  windows). Next time, read the name and byte count from
-  `ctest --output-on-failure`. → 0036, 0038
+- An intermittent allocation-test failure ("Expected to be 0"): first seen
+  once under NativeAOT (2026-10-28, M4 step 2), name lost. Caught again on
+  2026-10-28 (M5 step 1) under the JIT, release:
+  `EcsTests.IteratingMakesNoGarbageOnceWarm` saw 7,600 bytes allocated on
+  its own thread across 50 `ForEachChunk`/`ParallelForEachChunk` passes, in
+  1 run of 5 (and once in a full ctest run). Ruled out: garbage collections
+  on other threads (a probe saw no counter drift in 348 GC windows). Next:
+  find what the waiting thread allocates (tiered JIT, job helping). → 0036,
+  0038
 - Textures embedded in glTF files (`.glb` images, `data:` URIs): imported as
   sub-assets with IDs of their own, when a real model needs it; a warning
   until then. → 0043
@@ -43,6 +45,10 @@ milestone are decided or checked when that milestone reaches them
 - Mesh LODs: Blender's Suzanne (seven materials, UV seams) gets no level
   beyond LOD 0; find out whether seams or the per-submesh stopping rule
   hold simplification back. → 0043, 0046
+- Shader toolchain: report NVIDIA's Vulkan bug (nested struct members at
+  offset 0 in descriptor-heap buffers, driver 621.01; repro in ADR 0047)
+  and allow nested `[GpuShared]` structs once fixed; arrays and int vectors
+  in shared structs, when a shader needs them. → 0047
 - Prefabs: removing or reordering a prefab's entities in an instance;
   migrating overridden fields when a component's version changes; a
   cached form for spawning at runtime (with cooking); a `Name` component,
