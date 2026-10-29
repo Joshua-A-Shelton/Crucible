@@ -276,13 +276,14 @@ Result<void> renderWithGraph(Surface& surface, slag::Texture* texture, slag::Att
                              const slag::rendergraph::ImportedTextureDesc& import, const float color[4])
 {
     slag::rendergraph::RenderGraph& graph = *surface.graph;
+    collectAssets();
     if (slag::Result<void> begun = graph.beginFrame(); !begun)
     {
         return toStatus(begun.status());
     }
     slag::rendergraph::ImportedTextureDesc desc = import;
     desc.attachmentView = view;
-    const slag::rendergraph::TextureHandle backbuffer = graph.importTexture(texture, desc);
+    const slag::rendergraph::RenderGraphTexture backbuffer = graph.importTexture(texture, desc);
     if (Result<void> added = addStepPasses(
             {graph, *renderer.device, surface.width, surface.height, surface.submitted + 1, color, backbuffer});
         !added)
@@ -315,8 +316,8 @@ Result<void> renderWithGraph(Surface& surface, slag::Texture* texture, slag::Att
     {
         return toStatus(executed.status());
     }
-    const slag::SemaphoreValue signal = {surface.frames, surface.submitted + 1};
-    if (slag::Result<void> signaled = renderer.queue->submit({.signals = {&signal, 1}}); !signaled)
+    const slag::SemaphoreValue signals[] = {{surface.frames, surface.submitted + 1}, workSignal()};
+    if (slag::Result<void> signaled = renderer.queue->submit({.signals = signals}); !signaled)
     {
         return toStatus(signaled.status());
     }
@@ -325,6 +326,16 @@ Result<void> renderWithGraph(Surface& surface, slag::Texture* texture, slag::Att
 }
 
 } // namespace
+
+slag::GraphicsDevice* renderDevice()
+{
+    return renderer.device;
+}
+
+slag::CommandQueue* renderQueue()
+{
+    return renderer.queue;
+}
 
 PresentChoice choosePresentMode(std::span<const slag::PresentMode> modes, PresentPreference preference)
 {
@@ -388,6 +399,12 @@ Result<void> initialize(slag::Backend backend, PresentPreference presentMode)
     }
     renderer.device = device;
     renderer.queue = device->commandQueue(slag::CommandQueueType::Graphics);
+    if (Result<void> started = startAssets(*device, *renderer.queue); !started)
+    {
+        std::fprintf(stderr, "crucible: GPU assets could not start\n");
+        shutdown();
+        return started;
+    }
     // The render steps' pipelines, created now, never during frames (ADR 0025).
     if (Result<void> prepared = renderSchedule().prepareAll(*device); !prepared)
     {
@@ -415,6 +432,7 @@ void shutdown()
                 release(surface);
             }
         }
+        stopAssets();
         renderSchedule().releaseAll();
         renderer.device->shutdown();
     }

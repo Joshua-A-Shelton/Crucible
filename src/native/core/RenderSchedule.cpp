@@ -113,7 +113,7 @@ void reportMissing(FrameState& state, BlackboardKey key, const char* kind)
 
 } // namespace
 
-void RenderStepContext::publish(BlackboardKey key, slag::rendergraph::TextureHandle texture)
+void RenderStepContext::publish(BlackboardKey key, slag::rendergraph::RenderGraphTexture texture)
 {
     if (FrameState::Entry* entry = slot(frameState, key))
     {
@@ -121,7 +121,7 @@ void RenderStepContext::publish(BlackboardKey key, slag::rendergraph::TextureHan
     }
 }
 
-void RenderStepContext::publish(BlackboardKey key, slag::rendergraph::BufferHandle buffer)
+void RenderStepContext::publish(BlackboardKey key, slag::rendergraph::RenderGraphBuffer buffer)
 {
     if (FrameState::Entry* entry = slot(frameState, key))
     {
@@ -129,7 +129,7 @@ void RenderStepContext::publish(BlackboardKey key, slag::rendergraph::BufferHand
     }
 }
 
-slag::rendergraph::TextureHandle RenderStepContext::texture(BlackboardKey key)
+slag::rendergraph::RenderGraphTexture RenderStepContext::texture(BlackboardKey key)
 {
     const FrameState::Entry* entry = slot(frameState, key);
     if (entry == nullptr || entry->kind != FrameState::Kind::Texture)
@@ -140,7 +140,7 @@ slag::rendergraph::TextureHandle RenderStepContext::texture(BlackboardKey key)
     return {entry->index};
 }
 
-slag::rendergraph::BufferHandle RenderStepContext::buffer(BlackboardKey key)
+slag::rendergraph::RenderGraphBuffer RenderStepContext::buffer(BlackboardKey key)
 {
     const FrameState::Entry* entry = slot(frameState, key);
     if (entry == nullptr || entry->kind != FrameState::Kind::Buffer)

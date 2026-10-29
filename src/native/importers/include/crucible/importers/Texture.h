@@ -8,12 +8,17 @@
 
 #include <crucible/Expose.h>
 #include <crucible/Result.h>
+#include <crucible/TextureFile.h>
 
 #include <cstdint>
 #include <span>
 #include <string_view>
 
 namespace crucible::importers {
+
+// The file's layout is the core's (TextureFile.h): the runtime reads it too.
+using assets::TextureFormat;
+using assets::TextureInfo;
 
 // What a texture is for, which decides its format and how it's filtered.
 enum class CRUCIBLE_EXPOSE TextureUsage : uint32_t
@@ -26,15 +31,6 @@ enum class CRUCIBLE_EXPOSE TextureUsage : uint32_t
     Ui,            // UI and pixel art: RGBA8 sRGB, uncompressed, exact
 };
 
-enum class CRUCIBLE_EXPOSE TextureFormat : uint32_t
-{
-    Bc7,
-    Bc5,
-    Bc4,
-    Rgba8,
-    Rgba16F,
-};
-
 struct CRUCIBLE_EXPOSE TextureSettings
 {
     TextureUsage usage;
@@ -44,16 +40,6 @@ struct CRUCIBLE_EXPOSE TextureSettings
     float alphaCutoff;          // for alpha-tested surfaces (foliage, fences)
     float rdoLambda;            // BC7 rate-distortion trade-off; 0 turns it off
     uint32_t quality;           // BC7 encoder effort, 0 (fast) to 4 (best)
-};
-
-// The imported texture, as the binary file's INFO section stores it.
-struct CRUCIBLE_EXPOSE TextureInfo
-{
-    TextureFormat format;
-    uint32_t width;
-    uint32_t height;
-    uint32_t mipCount;
-    uint32_t srgb; // 1 if the GPU should read it as sRGB
 };
 
 struct CRUCIBLE_EXPOSE TextureImport;

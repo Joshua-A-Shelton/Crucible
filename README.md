@@ -30,3 +30,5 @@ Longer explanations of decisions, written to be reread:
 - [The render graph and the render schedule](docs/learning/render-graph.md)
   (ADR 0048): what a render graph works out, and how steps share
   resources.
+- [GPU assets](docs/learning/gpu-assets.md) (ADR 0049): uploads, resizable
+  BAR, generational handles, and freeing what the GPU may still use.

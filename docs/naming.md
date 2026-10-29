@@ -49,3 +49,18 @@ Settled in a review of M4's and M5's placeholders (ADR 0047's amendment).
 | `renderFrame` / `Render.Api.RenderFrame` | Renders and presents one frame |
 | `RenderSystem` | The C# system calling it, in RenderSubmit |
 | `Clear`, `Triangle` | The first render steps (temporary, until M5 step 5) |
+
+## GPU assets (2026-10-29)
+
+| Name | What it is |
+|---|---|
+| `MeshHandle`, `TextureHandle` | A loaded model or texture (ADR 0049); Slag's render graph handles became `RenderGraphTexture` and `RenderGraphBuffer` to keep them apart (Slag 1.1.0) |
+| `acquireMesh` / `releaseMesh`, `acquireTexture` / `releaseTexture` | Counted use by asset ID |
+| `loadMesh` / `unloadMesh`, `loadTexture` / `unloadTexture` | From bytes, outside the asset system |
+| `meshData(MeshHandle)` → `MeshData` | What render steps read to draw a model |
+| `textureDescriptor`, `samplerDescriptor` | Resource- and sampler-heap slots for shaders |
+| `Sampler`: `LinearRepeat`, `LinearClamp`, `PointClamp` | The fixed samplers |
+| `crucible/RenderAssets.h`, `setAssetReader` | The header, and C#'s byte reader |
+| `RenderAssets` | The C# class |
+| `crucible/MeshFile.h`, `crucible/TextureFile.h` | The imported files' layouts, in the core |
+| `AssetId` (C++) | The same 16 bytes as C#'s |

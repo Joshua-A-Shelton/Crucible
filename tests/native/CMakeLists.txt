@@ -8,6 +8,7 @@ add_executable(crucible_native_tests
     MathTests.cpp
     MemoryTests.cpp
     PlatformTests.cpp
+    RenderAssetsTests.cpp
     RenderScheduleTests.cpp
     RenderTests.cpp
     ResultTests.cpp
@@ -20,6 +21,8 @@ crucible_use_d3d12_agility(crucible_native_tests)
 # Tests build without exceptions too (ADR 0030); doctest's REQUIRE then ends
 # the run on failure instead of throwing.
 target_compile_definitions(crucible_native_tests PRIVATE DOCTEST_CONFIG_NO_EXCEPTIONS_BUT_WITH_ALL_ASSERTS)
+# The renderer's internal header too, for the GPU-asset tests' hooks.
+target_include_directories(crucible_native_tests PRIVATE "${PROJECT_SOURCE_DIR}/src/native/core")
 # SDL directly too: the platform tests push synthetic SDL events.
 target_link_libraries(crucible_native_tests PRIVATE crucible::core_static SDL3::SDL3-static doctest::doctest)
 # The shader toolchain's test shader (ADR 0047), with its C++ mirror here and

@@ -91,6 +91,8 @@ crucible_generate_bindings(
     HEADERS ${CRUCIBLE_IMPORTERS_HEADERS}
     # The core's types (Status, Result) are the engine's in C#.
     EXTERN_HEADERS "${PROJECT_SOURCE_DIR}/src/native/core/include/crucible/Result.h"
+        "${PROJECT_SOURCE_DIR}/src/native/core/include/crucible/MeshFile.h"
+        "${PROJECT_SOURCE_DIR}/src/native/core/include/crucible/TextureFile.h"
     LIBRARY crucible_importers
     INTEROP_NAMESPACE Crucible.Assets.Interop
     EXPORT_MACRO CRUCIBLE_IMPORTERS_EXPORT

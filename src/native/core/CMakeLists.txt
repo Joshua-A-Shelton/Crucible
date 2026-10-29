@@ -63,6 +63,7 @@ target_link_libraries(crucible_core_objects PRIVATE libzstd_static)
 # the objects above and compiles those shaders (ADR 0048's build order).
 add_library(crucible_render_objects OBJECT
     Render.cpp
+    RenderAssets.cpp
     RenderSchedule.cpp
     RenderSteps.cpp
     "${CRUCIBLE_GENERATED_DIR}/native/Bindings.g.cpp")

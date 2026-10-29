@@ -18,7 +18,7 @@ namespace {
 
 void addClear(RenderStepContext& context, void*)
 {
-    const slag::rendergraph::TextureHandle backbuffer = context.texture(backbufferKey());
+    const slag::rendergraph::RenderGraphTexture backbuffer = context.texture(backbufferKey());
     slag::ClearValue clear{};
     for (int c = 0; c < 4; ++c)
     {
@@ -93,7 +93,7 @@ void releaseTriangle(slag::GraphicsDevice& device, void* userData)
 
 void addTriangle(RenderStepContext& context, void* userData)
 {
-    const slag::rendergraph::TextureHandle backbuffer = context.texture(backbufferKey());
+    const slag::rendergraph::RenderGraphTexture backbuffer = context.texture(backbufferKey());
     slag::Pipeline* pipeline = static_cast<TriangleStep*>(userData)->pipeline;
     context.graph.addPass(
         "Triangle", slag::CommandQueueType::Graphics,

@@ -46,12 +46,12 @@ public:
     float clearColor[4]; // renderFrame's color, for Clear
 
     // Makes a resource available to later steps under `key` this frame.
-    void publish(BlackboardKey key, slag::rendergraph::TextureHandle texture);
-    void publish(BlackboardKey key, slag::rendergraph::BufferHandle buffer);
+    void publish(BlackboardKey key, slag::rendergraph::RenderGraphTexture texture);
+    void publish(BlackboardKey key, slag::rendergraph::RenderGraphBuffer buffer);
     // What an earlier step published; reported (naming the key and this step)
     // and an invalid handle if none did, or if it is the other kind.
-    slag::rendergraph::TextureHandle texture(BlackboardKey key);
-    slag::rendergraph::BufferHandle buffer(BlackboardKey key);
+    slag::rendergraph::RenderGraphTexture texture(BlackboardKey key);
+    slag::rendergraph::RenderGraphBuffer buffer(BlackboardKey key);
 
     // The step running, for messages.
     std::string_view stepName() const;

@@ -89,7 +89,7 @@ void publishShared(render::RenderStepContext& context, void*)
 
 void readShared(render::RenderStepContext& context, void*)
 {
-    const slag::rendergraph::TextureHandle texture = context.texture(sharedKey);
+    const slag::rendergraph::RenderGraphTexture texture = context.texture(sharedKey);
     reads += texture.index != UINT32_MAX ? 1 : 0;
 }
 

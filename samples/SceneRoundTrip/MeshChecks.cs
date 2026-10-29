@@ -1,6 +1,7 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
+using Crucible.Assets;
 using Crucible.Assets.Importers;
 using Crucible.Binary;
 using Crucible.Importers;
