@@ -227,7 +227,7 @@ as plain and nested prefab instances with overrides, saved as JSON,
 reloaded into an identical world (compared entity by entity and as bytes),
 with no inside-out faces and the model's right arm on +X. Decided: J
 (0038), K (0039), L (0040), M (0041), N (0043), plus FBX (0044) and prefabs
-(0045). Waiting for the owner's sign-off.
+(0045). Signed off by the owner on 2026-10-28; M4 is done.
 
 ## M5 — Renderer
 
