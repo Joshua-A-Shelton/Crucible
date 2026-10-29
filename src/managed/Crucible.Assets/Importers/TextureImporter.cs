@@ -50,6 +50,8 @@ public sealed class TextureImporter : Importer<TextureImportSettings>
 
     public override IReadOnlyList<string> Extensions => [".png", ".jpg", ".jpeg", ".tga", ".hdr"];
 
+    public override string OutputExtension => ".crtexture";
+
     /// <summary>The section holding a mip: MIP0 for the top level, then MIP1 … MIPF.</summary>
     public static uint MipSection(int mip) => Tag.Of($"MIP{mip:X}");
 

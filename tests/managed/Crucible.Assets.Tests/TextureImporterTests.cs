@@ -79,7 +79,7 @@ public class TextureImporterTests
         File.WriteAllBytes(scratch.PathOf("bumps.tga"), Gradient(32));
         AssetDatabase database = scratch.Open();
         database.ImportAll();
-        string sidecar = scratch.PathOf("bumps.tga.meta");
+        string sidecar = scratch.PathOf("bumps.tga.crmeta");
         await Assert.That(File.ReadAllText(sidecar)).Contains("\"Usage\": \"Color\"");
         File.WriteAllText(sidecar, File.ReadAllText(sidecar).Replace("\"Usage\": \"Color\"", "\"Usage\": \"NormalMap\""));
         database.Refresh();
@@ -102,7 +102,7 @@ public class TextureImporterTests
         }
         File.WriteAllBytes(scratch.PathOf("sky.hdr"), [.. hdr]);
         AssetDatabase database = scratch.Open();
-        await Assert.That(File.ReadAllText(scratch.PathOf("sky.hdr.meta"))).Contains("\"Usage\": \"Hdr\"");
+        await Assert.That(File.ReadAllText(scratch.PathOf("sky.hdr.crmeta"))).Contains("\"Usage\": \"Hdr\"");
         ImportResult result = database.ImportAll().Single();
         using ImportedFile file = ImportedFile.Open(result.OutputPath!, TextureImporter.Kind, TextureImporter.KindVersion);
         await Assert.That(Info(file).Format).IsEqualTo(TextureFormat.Rgba16F);

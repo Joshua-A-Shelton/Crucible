@@ -1,16 +1,19 @@
 #pragma once
 
-// Compiled shaders (ADR 0047): a binary file (ADR 0039) of kind SHDR, made by
-// the shader compiler at build or import time, holding each entry point's
-// DXIL and SPIR-V side by side. The runtime hands an entry point to Slag as a
-// list of binaries, of which Slag uses the first its backend accepts. Names
-// are placeholders (docs/naming.md).
+// Compiled shaders (ADR 0047): a binary file (ADR 0039) of kind SHDR,
+// extension .crshader, made by shaderfax at build time or by an importer,
+// holding each entry point's code in every format its target platform loads.
+// The runtime hands an entry point to Slag as a list of binaries, of which
+// Slag uses the first its backend accepts. Names are in docs/naming.md.
 //
 // A SHDR file (version 1):
 //   ENTS  ShaderEntryInfo, one per entry point
 //   NAME  UTF-8 entry point names, by offset and length
-//   DXIL  every entry point's DXIL, back to back (absent when built without it)
-//   SPRV  every entry point's SPIR-V, back to back
+//   CDxx  one per format, in order of preference; xx is the format's number
+//         (ShaderBinaryFormat, Slag's ShaderFormat) as two hex digits: a
+//         ShaderCode per entry point, then the code, each 4-byte aligned. A
+//         platform's build writes only its formats; private backends add
+//         their own (0x80 and up) without public code naming them.
 
 #include <crucible/BinaryFile.h>
 #include <crucible/Result.h>
@@ -28,6 +31,21 @@ namespace crucible::render {
 inline constexpr uint32_t shaderFileKind = binary::tag("SHDR");
 inline constexpr uint32_t shaderFileVersion = 1;
 
+// Numbered as slag::ShaderFormat; 0x80 and up belong to private backends.
+enum class ShaderBinaryFormat : uint8_t
+{
+    Dxil = 0,
+    Spirv = 1,
+};
+
+// The section holding a format's code: "CD" and the number in hex ("CD01").
+constexpr uint32_t shaderCodeTag(uint8_t format)
+{
+    constexpr char digits[] = "0123456789ABCDEF";
+    const char letters[5] = {'C', 'D', digits[format >> 4], digits[format & 15], '\0'};
+    return binary::tag(letters);
+}
+
 enum class ShaderStageKind : uint32_t
 {
     Vertex,
@@ -40,13 +58,17 @@ struct ShaderEntryInfo
     ShaderStageKind stage;
     uint32_t nameOffset; // into NAME
     uint32_t nameLength;
-    uint32_t dxilOffset; // into DXIL; dxilSize 0 when the file has none
-    uint32_t dxilSize;
-    uint32_t spirvOffset; // into SPRV
-    uint32_t spirvSize;
     uint32_t threadGroupSize[3]; // compute only
 };
-static_assert(sizeof(ShaderEntryInfo) == 40);
+static_assert(sizeof(ShaderEntryInfo) == 24);
+
+// An entry point's code in a CDxx section, from the section's start; size 0
+// when the entry point has none in that format.
+struct ShaderCode
+{
+    uint32_t offset;
+    uint32_t size;
+};
 
 struct ShaderFile;
 
@@ -60,8 +82,11 @@ std::string_view shaderEntryName(const ShaderFile& file, uint32_t index);
 // -1 if there is no entry point of that name.
 int32_t findShaderEntry(const ShaderFile& file, std::string_view name);
 
-// The entry point as Slag takes it: DXIL first, then SPIR-V. Valid while the
-// file is.
+// The formats the file holds code for, in order of preference.
+std::span<const uint8_t> shaderFormats(const ShaderFile& file);
+
+// The entry point as Slag takes it: its code in every format the file holds,
+// in order of preference. Valid while the file is.
 void shaderStage(const ShaderFile& file, uint32_t index, slag::ShaderStage& stage);
 
 } // namespace crucible::render

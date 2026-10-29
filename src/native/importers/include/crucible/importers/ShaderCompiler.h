@@ -1,13 +1,13 @@
 #pragma once
 
-// The shader compiler (ADR 0025, 0047): Slang source to SPIR-V and (where DXC
-// is available) DXIL for every entry point, plus the layouts of the
-// [GpuShared] structs it declares, checked to be the same on both targets and
-// as constant-buffer and structured-buffer members. Used by crucible_shaderc
-// at build time and by importers in the editor. Editor-only. Names are
-// placeholders (docs/naming.md).
+// The shader compiler (ADR 0025, 0047): Slang source to every format a target
+// platform loads (DXIL needs DXC beside Slang), for every entry point, plus
+// the layouts of the [GpuShared] structs it declares, checked to be the same
+// on D3D12 and Vulkan and as constant-buffer and structured-buffer members.
+// Used by shaderfax at build time and by importers in the editor. Editor-only.
 
 #include <crucible/Result.h>
+#include <crucible/Shader.h>
 
 #include <cstdint>
 #include <span>
@@ -18,7 +18,9 @@ namespace crucible::importers {
 struct ShaderCompileOptions
 {
     std::span<const std::string_view> searchPaths; // where `import` finds modules
-    bool dxil;                                     // needs DXC beside Slang
+    // What to produce, in order of preference: the target platform's formats
+    // (ADR 0047). Layouts are checked for both D3D12 and Vulkan regardless.
+    std::span<const render::ShaderBinaryFormat> formats;
 };
 
 enum class SharedFieldKind : uint32_t
@@ -53,7 +55,7 @@ void destroyCompiledShader(CompiledShader* shader);
 uint32_t compiledEntryCount(const CompiledShader& shader);
 std::string_view compiledEntryName(const CompiledShader& shader, uint32_t index);
 
-// The SHDR file (crucible/Shader.h); nothing to write when there are no entry points.
+// The SHDR file (crucible/Shader.h): one code section per format asked for.
 Result<void> writeShaderFile(const CompiledShader& shader, std::string_view path);
 
 uint32_t sharedStructCount(const CompiledShader& shader);

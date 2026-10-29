@@ -79,8 +79,8 @@ public class AssetDatabaseTests
         await Assert.That(string.Join(" ", first.Assets.Select(asset => asset.Path))).IsEqualTo("Art/logo.png hello.txt");
         await Assert.That(first.Find("hello.txt")!.Importer).IsEqualTo("Text");
         await Assert.That(first.Find("Art/logo.png")!.Importer).IsEqualTo(""); // no importer for .png yet
-        await Assert.That(File.Exists(scratch.PathOf("hello.txt.meta"))).IsTrue();
-        string sidecar = File.ReadAllText(scratch.PathOf("hello.txt.meta"));
+        await Assert.That(File.Exists(scratch.PathOf("hello.txt.crmeta"))).IsTrue();
+        string sidecar = File.ReadAllText(scratch.PathOf("hello.txt.crmeta"));
         await Assert.That(sidecar).Contains("\"Importer\": \"Text\"");
         await Assert.That(sidecar).Contains("\"Upper\": true");
         await Assert.That(first.FilesHashed).IsEqualTo(2);
@@ -88,7 +88,7 @@ public class AssetDatabaseTests
         AssetDatabase second = scratch.Open();
         await Assert.That(second.Find("hello.txt")!.Id).IsEqualTo(first.Find("hello.txt")!.Id);
         await Assert.That(second.FilesHashed).IsEqualTo(0); // the stamps matched
-        await Assert.That(File.ReadAllText(scratch.PathOf("hello.txt.meta"))).IsEqualTo(sidecar); // untouched
+        await Assert.That(File.ReadAllText(scratch.PathOf("hello.txt.crmeta"))).IsEqualTo(sidecar); // untouched
     }
 
     [Test]
@@ -103,14 +103,14 @@ public class AssetDatabaseTests
 
         Directory.CreateDirectory(scratch.PathOf("Moved"));
         File.Move(scratch.PathOf("a.txt"), scratch.PathOf("Moved/a.txt"));
-        File.Move(scratch.PathOf("a.txt.meta"), scratch.PathOf("Moved/a.txt.meta"));
+        File.Move(scratch.PathOf("a.txt.crmeta"), scratch.PathOf("Moved/a.txt.crmeta"));
         File.Move(scratch.PathOf("b.txt"), scratch.PathOf("Moved/b.txt")); // sidecar left behind
         database.Refresh();
 
         await Assert.That(database.Find("Moved/a.txt")!.Id).IsEqualTo(a);
         await Assert.That(database.Find(a)!.Path).IsEqualTo("Moved/a.txt");
         await Assert.That(database.Find("Moved/b.txt")!.Id).IsNotEqualTo(b);
-        await Assert.That(database.Warnings.Single().Path).IsEqualTo("b.txt.meta");
+        await Assert.That(database.Warnings.Single().Path).IsEqualTo("b.txt.crmeta");
     }
 
     [Test]
@@ -120,7 +120,7 @@ public class AssetDatabaseTests
         scratch.Write("a.txt", "a");
         AssetId original = scratch.Open().Find("a.txt")!.Id;
         File.Copy(scratch.PathOf("a.txt"), scratch.PathOf("b.txt"));
-        File.Copy(scratch.PathOf("a.txt.meta"), scratch.PathOf("b.txt.meta"));
+        File.Copy(scratch.PathOf("a.txt.crmeta"), scratch.PathOf("b.txt.crmeta"));
 
         AssetDatabase database = scratch.Open();
         await Assert.That(database.Find("a.txt")!.Id).IsEqualTo(original); // first in path order keeps it
@@ -170,7 +170,7 @@ public class AssetDatabaseTests
         await Assert.That(Outcome(database, "hello.txt")).IsEqualTo(ImportOutcome.UpToDate);
 
         // Its settings.
-        string sidecar = scratch.PathOf("hello.txt.meta");
+        string sidecar = scratch.PathOf("hello.txt.crmeta");
         File.WriteAllText(sidecar, File.ReadAllText(sidecar).Replace("\"Upper\": true", "\"Upper\": false").Replace("\"Repeat\": 1", "\"Repeat\": 2"));
         database.Refresh();
         await Assert.That(Outcome(database, "hello.txt")).IsEqualTo(ImportOutcome.Imported);
@@ -214,7 +214,7 @@ public class AssetDatabaseTests
 
         // A dependency that disappears makes the list stale, and its import fails.
         File.Delete(scratch.PathOf("parts/one.txt"));
-        File.Delete(scratch.PathOf("parts/one.txt.meta"));
+        File.Delete(scratch.PathOf("parts/one.txt.crmeta"));
         database.Refresh();
         await Assert.That(database.ImportedFile(list)).IsNull();
         ImportResult failed = database.ImportAll().Single(result => result.Path == "all.list");
@@ -228,7 +228,7 @@ public class AssetDatabaseTests
         scratch.Write("ok.txt", "fine");
         scratch.Write("broken.bad", "?");
         scratch.Write("other.dat", "?");
-        File.WriteAllText(scratch.PathOf("other.dat.meta"), """{ "Guid": "1b2c3d4e-0000-4000-8000-000000000001", "Importer": "Gone" }""");
+        File.WriteAllText(scratch.PathOf("other.dat.crmeta"), """{ "Guid": "1b2c3d4e-0000-4000-8000-000000000001", "Importer": "Gone" }""");
         AssetDatabase database = scratch.Open();
         await Assert.That(database.Warnings.Single().Message).Contains("Gone");
 
@@ -246,11 +246,11 @@ public class AssetDatabaseTests
         using Scratch scratch = new();
         scratch.Write("hello.txt", "hi");
         const string broken = "{ \"Guid\": \"not a guid\" ";
-        File.WriteAllText(scratch.PathOf("hello.txt.meta"), broken);
+        File.WriteAllText(scratch.PathOf("hello.txt.crmeta"), broken);
         AssetDatabase database = scratch.Open();
         await Assert.That(database.Find("hello.txt")).IsNull();
-        await Assert.That(database.Warnings.Single().Path).IsEqualTo("hello.txt.meta");
-        await Assert.That(File.ReadAllText(scratch.PathOf("hello.txt.meta"))).IsEqualTo(broken);
+        await Assert.That(database.Warnings.Single().Path).IsEqualTo("hello.txt.crmeta");
+        await Assert.That(File.ReadAllText(scratch.PathOf("hello.txt.crmeta"))).IsEqualTo(broken);
     }
 
     [Test]
@@ -259,7 +259,7 @@ public class AssetDatabaseTests
         using Scratch scratch = new();
         scratch.Write("notes.txt", "n");
         AssetId id = AssetDatabase.Open(scratch.Project, []).Find("notes.txt")!.Id; // no importers yet
-        await Assert.That(File.ReadAllText(scratch.PathOf("notes.txt.meta"))).Contains("\"Importer\": \"\"");
+        await Assert.That(File.ReadAllText(scratch.PathOf("notes.txt.crmeta"))).Contains("\"Importer\": \"\"");
 
         AssetEntry adopted = scratch.Open().Find("notes.txt")!;
         await Assert.That(adopted.Id).IsEqualTo(id);
@@ -280,26 +280,26 @@ public class SceneAssetTests
             using (Crucible.Ecs.World world = new())
             {
                 world.CreateEntity();
-                File.WriteAllBytes(Path.Combine(project.AssetsFolder, "level.scene"), Crucible.Scenes.Scene.Save(world, id));
+                File.WriteAllBytes(Path.Combine(project.AssetsFolder, "level.crscene"), Crucible.Scenes.Scene.Save(world, id));
             }
             AssetDatabase database = AssetDatabase.Open(project, []);
-            await Assert.That(database.Find("level.scene")!.Id).IsEqualTo(id);
-            await Assert.That(File.Exists(Path.Combine(project.AssetsFolder, "level.scene.meta"))).IsFalse();
+            await Assert.That(database.Find("level.crscene")!.Id).IsEqualTo(id);
+            await Assert.That(File.Exists(Path.Combine(project.AssetsFolder, "level.crscene.crmeta"))).IsFalse();
 
-            File.Copy(Path.Combine(project.AssetsFolder, "level.scene"), Path.Combine(project.AssetsFolder, "level2.scene"));
+            File.Copy(Path.Combine(project.AssetsFolder, "level.crscene"), Path.Combine(project.AssetsFolder, "level2.crscene"));
             database.Refresh();
-            AssetId copy = database.Find("level2.scene")!.Id;
+            AssetId copy = database.Find("level2.crscene")!.Id;
             await Assert.That(copy).IsNotEqualTo(id);
-            await Assert.That(database.Warnings.Single().Message).Contains("same GUID as level.scene");
+            await Assert.That(database.Warnings.Single().Message).Contains("same GUID as level.crscene");
             // The new GUID is in the file, and the rest of it is unchanged.
-            byte[] copied = File.ReadAllBytes(Path.Combine(project.AssetsFolder, "level2.scene"));
+            byte[] copied = File.ReadAllBytes(Path.Combine(project.AssetsFolder, "level2.crscene"));
             await Assert.That(Crucible.Scenes.Scene.ReadId(copied)).IsEqualTo(copy);
             await Assert.That(Encoding.UTF8.GetString(copied).Replace(copy.ToString(), id.ToString()))
-                .IsEqualTo(File.ReadAllText(Path.Combine(project.AssetsFolder, "level.scene")));
+                .IsEqualTo(File.ReadAllText(Path.Combine(project.AssetsFolder, "level.crscene")));
 
-            File.WriteAllText(Path.Combine(project.AssetsFolder, "broken.scene"), "{ \"Entities\": [] }");
+            File.WriteAllText(Path.Combine(project.AssetsFolder, "broken.crscene"), "{ \"Entities\": [] }");
             database.Refresh();
-            await Assert.That(database.Warnings.Single().Path).IsEqualTo("broken.scene");
+            await Assert.That(database.Warnings.Single().Path).IsEqualTo("broken.crscene");
         }
         finally
         {

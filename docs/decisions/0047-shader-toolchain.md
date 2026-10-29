@@ -1,6 +1,7 @@
 # 0047 — The shader toolchain
 
-**Status:** Accepted (2026-10-28). Names are placeholders (docs/naming.md).
+**Status:** Accepted (2026-10-28), amended the same day: per-platform
+formats, and names settled (see the amendment). Names in docs/naming.md.
 
 ## Context
 
@@ -30,7 +31,7 @@ University of Illinois/NCSA licence.
 
 1. **One compile path on Slang's library API,** in the importers
    (`crucible_importers`, editor-only). The build compiles engine shaders
-   with `crucible_shaderc`, a small tool linked against the same code.
+   with `shaderfax`, a small tool linked against the same code.
    In-memory compiles, full reflection, and modules cached across a
    material's variants.
 2. **Shared structs are written in Slang** and marked `[GpuShared]`; the
@@ -85,7 +86,7 @@ University of Illinois/NCSA licence.
   of 92) is an open item to report.
 - **Matrices:** Slang 2026.18.2 already lays matrices out row-major by
   default; `-matrix-layout-row-major` pins it.
-- **`crucible_shaderc`** writes `<name>.shdr` and the mirrors
+- **`shaderfax`** writes `<name>.crshader` and the mirrors
   `<name>.g.h` (with `static_assert`s on size and offsets, using
   `crucible::Vector2/3/4` and `Matrix4x4`, all 4-byte aligned) and
   `<name>.g.cs` (explicit layout, System.Numerics). CMake's
@@ -95,7 +96,7 @@ University of Illinois/NCSA licence.
 - **Runtime** (`crucible/Shader.h`, core): `loadShaderFile` and
   `shaderStage`, which gives Slag DXIL first, then SPIR-V.
 - **Windows:** Slang's and DXC's DLLs are copied beside the core and beside
-  `crucible_shaderc`. The core now exports its binary-file writer, which the
+  `shaderfax`. The core now exports its binary-file writer, which the
   importers' DLL calls.
 - **Tests:** a GPU test fills buffers of `[GpuShared]` structs on every
   backend the build has (D3D12 and Vulkan on Windows, Vulkan on Linux) and
@@ -103,3 +104,42 @@ University of Illinois/NCSA licence.
   float then a float3: 16-byte stride, which needs Slag's
   `scalarBlockLayout`) and a row-major matrix; compiler tests for each
   refusal; a C# test of the C# mirrors' offsets, under JIT and NativeAOT.
+
+## Amendment (2026-10-28): per-platform formats, and names
+
+Raised by the owner after step 1 was committed: a game shouldn't ship
+shader formats its platform can't load, and future console backends need
+a place for their own formats.
+
+**Which formats a file holds depends on the target platform**, not on the
+shader: Windows runs D3D12 and Vulkan (DXIL and SPIR-V, or one if a game
+drops a backend), Linux runs Vulkan (SPIR-V only), and a console its own
+format, made by an NDA-only compiler on a licensed machine. Options: one
+file per shader with a section per format; one file per format (stripping
+is leaving files out, but entry-point data is duplicated and the loader
+must pick a file by backend, the check Slag's binary lists avoid); or both
+formats always (as first built: every platform carries code it can't use,
+and console formats have no slot).
+
+**Decision: one file, a code section per format, written per platform.**
+
+- **Layout:** `ENTS` (stage, name, thread group size) and `NAME`, then one
+  section per format, `CDxx`, where `xx` is the format's number in hex
+  (`ShaderBinaryFormat`, numbered as Slag's `ShaderFormat`: `CD00` DXIL,
+  `CD01` SPIR-V). Each holds a `ShaderCode` (offset, size) per entry point,
+  then the code. Sections appear in order of preference, and the loader
+  offers Slag each entry point's code in that order, leaving out formats
+  where it has none. A private backend's compiler adds its own section
+  (0x80 and up) with no public code naming it; a test loads such a file.
+- **Formats per build:** `CRUCIBLE_SHADER_FORMATS` (CMake), defaulting to
+  `dxil,spirv` on Windows and `spirv` elsewhere; `shaderfax --formats`.
+  Cooking (a later milestone) will write each platform's set the same way.
+  Layouts are still checked for both D3D12 and Vulkan whatever is written.
+
+**Names settled by the owner** (docs/naming.md): the compiler is
+`shaderfax` (was `crucible_shaderc`); compiled shaders are `.crshader`
+(was `.shdr`); `[GpuShared]`, `crucible_add_shader`, and the SHDR kind tag
+stay. Settled in the same review: `.crmeta` sidecars, `.crscene` scenes,
+`.crprefab` prefabs, `.crproject` kept, and imported files named by kind
+(`.crmesh`, `.crtexture`, `.crshader`; each importer declares its
+`OutputExtension`) instead of `.bin`.

@@ -5,6 +5,18 @@ or in CLAUDE.md, and remove it from this list. Items tagged with a
 milestone are decided or checked when that milestone reaches them
 (`docs/milestones.md`).
 
+## Recheck before every release (until v1)
+
+Workarounds for other people's bugs. Before each release, check whether
+the bug is fixed in current drivers or tools; lift the workaround when it
+is, and record which version fixed it.
+
+- **Nested structs in `[GpuShared]` types** are refused because NVIDIA's
+  Vulkan driver (621.01, 2026-10) places a nested struct's members at the
+  outer struct's offset 0 in buffers reached through descriptor heaps.
+  Recheck with the repro in ADR 0047 on current NVIDIA drivers (and report
+  it to NVIDIA if no one has); allow nesting once it's fixed. → 0047
+
 ## Needs a decision from the project owner
 
 - Final names of the default phases (the list is ADR 0036's). → 0013, 0036 [M3]
@@ -45,10 +57,8 @@ milestone are decided or checked when that milestone reaches them
 - Mesh LODs: Blender's Suzanne (seven materials, UV seams) gets no level
   beyond LOD 0; find out whether seams or the per-submesh stopping rule
   hold simplification back. → 0043, 0046
-- Shader toolchain: report NVIDIA's Vulkan bug (nested struct members at
-  offset 0 in descriptor-heap buffers, driver 621.01; repro in ADR 0047)
-  and allow nested `[GpuShared]` structs once fixed; arrays and int vectors
-  in shared structs, when a shader needs them. → 0047
+- Shader toolchain: arrays and int vectors in shared structs, when a
+  shader needs them. → 0047
 - Prefabs: removing or reordering a prefab's entities in an instance;
   migrating overridden fields when a component's version changes; a
   cached form for spawning at runtime (with cooking); a `Name` component,

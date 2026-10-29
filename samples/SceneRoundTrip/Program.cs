@@ -68,7 +68,7 @@ foreach (AssetEntry entry in database.Assets.Where(entry => entry.Importer.Lengt
     report.Check(result.Outcome == ImportOutcome.Imported, $"{entry.Path} imports", result.Error);
 }
 AssetId model = database.Find(modelPath)?.Id ?? throw new InvalidOperationException($"there is no {modelPath} in the project");
-AssetId pedestal = database.Find("Prefabs/Pedestal.prefab")!.Id;
+AssetId pedestal = database.Find("Prefabs/Pedestal.crprefab")!.Id;
 
 // 3. A scene: the model twice (the second moved, turned, and with its
 // first child node stretched), the pedestal prefab (which nests the
@@ -92,7 +92,7 @@ Entity[] roots = [first, second, stand, watcher];
 
 // 4. Save, reload into a new world, compare, and save again.
 byte[] saved = Scene.Save(world, sceneId, library);
-string scenePath = Path.Combine(project.AssetsFolder, "Demo.scene");
+string scenePath = Path.Combine(project.AssetsFolder, "Demo.crscene");
 File.WriteAllBytes(scenePath, saved);
 byte[] expected = Scene.SaveUnpacked(world, sceneId);
 

@@ -21,6 +21,12 @@ public abstract class Importer
     /// <summary>The file extensions it takes by default, lowercase with the dot (".png").</summary>
     public abstract IReadOnlyList<string> Extensions { get; }
 
+    /// <summary>
+    /// The extension of the file it writes, named after its kind (".crmesh",
+    /// ".crtexture"; docs/naming.md).
+    /// </summary>
+    public abstract string OutputExtension { get; }
+
     // Settings cross the database as JSON: canonical (re-serialized) bytes,
     // so formatting a sidecar by hand doesn't reimport anything.
     internal abstract byte[] CanonicalSettings(ReadOnlySpan<byte> settingsJson);

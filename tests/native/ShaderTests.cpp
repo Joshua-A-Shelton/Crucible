@@ -2,7 +2,10 @@
 // and run. The "gpu" suite needs a Slag device; it runs on every backend this
 // build has (D3D12 and Vulkan on Windows, Vulkan on Linux).
 
+#include <crucible/BinaryFile.h>
+#include <crucible/Memory.h>
 #include <crucible/Shader.h>
+#include <crucible/Vector.h>
 
 #include <LayoutProbe.g.h>
 
@@ -38,7 +41,7 @@ void collectMessage(const slag::DebugMessage& message, void* userData)
 
 std::vector<uint8_t> probeShader()
 {
-    return readFile(CRUCIBLE_SHADER_DIR "/LayoutProbe.shdr");
+    return readFile(CRUCIBLE_SHADER_DIR "/LayoutProbe.crshader");
 }
 
 } // namespace
@@ -57,16 +60,22 @@ TEST_CASE("A compiled shader lists its entry points")
     CHECK(entry.stage == render::ShaderStageKind::Compute);
     CHECK(entry.threadGroupSize[0] == 64);
     CHECK(entry.threadGroupSize[1] == 1);
-    CHECK(entry.spirvSize > 0);
+    // The build's formats (CRUCIBLE_SHADER_FORMATS), in order of preference.
+    const std::span<const uint8_t> formats = render::shaderFormats(*file.value());
 #ifdef _WIN32
-    CHECK(entry.dxilSize > 0);
+    REQUIRE(formats.size() == 2);
+    CHECK(formats[0] == static_cast<uint8_t>(slag::ShaderFormat::Dxil));
+    CHECK(formats[1] == static_cast<uint8_t>(slag::ShaderFormat::Spirv));
 #else
-    CHECK(entry.dxilSize == 0); // no DXC outside Windows
+    REQUIRE(formats.size() == 1); // Linux ships SPIR-V only
+    CHECK(formats[0] == static_cast<uint8_t>(slag::ShaderFormat::Spirv));
 #endif
     slag::ShaderStage stage;
     render::shaderStage(*file.value(), 0, stage);
     CHECK(std::string(stage.entryPoint) == "fill");
+    REQUIRE(stage.binaries.size() == formats.size());
     CHECK(stage.binaries.back().format == slag::ShaderFormat::Spirv);
+    CHECK(stage.binaries.back().size > 0);
     render::destroyShaderFile(file.value());
 
     const std::vector<uint8_t> junk = {1, 2, 3, 4};
@@ -125,6 +134,56 @@ std::vector<uint8_t> runFill(slag::GraphicsDevice* device, const render::ShaderF
     device->destroy(output);
     device->destroy(pipeline.value());
     return bytes;
+}
+
+// A format no public code names (a private backend's, 0x80 and up) is just
+// another code section, offered to Slag in file order; an entry point with
+// no code in a format is left out of that format.
+TEST_CASE("Shader files carry any format in order of preference")
+{
+    const render::ShaderEntryInfo entries[2] = {{render::ShaderStageKind::Compute, 0, 1, {1, 1, 1}},
+                                                {render::ShaderStageKind::Compute, 1, 1, {1, 1, 1}}};
+    auto codeSection = [](std::vector<uint8_t> first, std::vector<uint8_t> second) {
+        std::vector<uint8_t> section(2 * sizeof(render::ShaderCode));
+        const render::ShaderCode where[2] = {
+            {static_cast<uint32_t>(section.size()), static_cast<uint32_t>(first.size())},
+            {static_cast<uint32_t>(section.size() + first.size()), static_cast<uint32_t>(second.size())}};
+        std::memcpy(section.data(), where, sizeof(where));
+        section.insert(section.end(), first.begin(), first.end());
+        section.insert(section.end(), second.begin(), second.end());
+        return section;
+    };
+    const std::vector<uint8_t> privateCode = codeSection({0x80, 0x81, 0x82, 0x83}, {});
+    const std::vector<uint8_t> spirvCode = codeSection({1, 2, 3, 4}, {5, 6, 7, 8});
+    const uint8_t names[] = {'a', 'b'};
+    binary::Writer* writer = binary::createWriter(render::shaderFileKind, render::shaderFileVersion);
+    REQUIRE(binary::addSection(*writer, binary::tag("ENTS"), 1,
+                               {reinterpret_cast<const uint8_t*>(entries), sizeof(entries)}, 16));
+    REQUIRE(binary::addSection(*writer, binary::tag("NAME"), 1, names, 16));
+    REQUIRE(binary::addSection(*writer, render::shaderCodeTag(0x80), 1, privateCode, 16));
+    REQUIRE(binary::addSection(*writer, render::shaderCodeTag(1), 1, spirvCode, 16));
+    Vector<std::byte> bytes(MemoryTag::Render);
+    REQUIRE(binary::writeToMemory(*writer, binary::Compression::None, bytes));
+    binary::destroyWriter(writer);
+
+    Result<render::ShaderFile*> file =
+        render::loadShaderFile({reinterpret_cast<const uint8_t*>(bytes.data()), bytes.size()});
+    REQUIRE(file);
+    const std::span<const uint8_t> formats = render::shaderFormats(*file.value());
+    REQUIRE(formats.size() == 2);
+    CHECK(formats[0] == 0x80);
+    CHECK(formats[1] == 1);
+    slag::ShaderStage stage;
+    render::shaderStage(*file.value(), 0, stage);
+    REQUIRE(stage.binaries.size() == 2);
+    CHECK(static_cast<uint8_t>(stage.binaries[0].format) == 0x80);
+    CHECK(static_cast<const uint8_t*>(stage.binaries[0].data)[3] == 0x83);
+    CHECK(stage.binaries[1].format == slag::ShaderFormat::Spirv);
+    render::shaderStage(*file.value(), 1, stage);
+    REQUIRE(stage.binaries.size() == 1); // no private-format code for this one
+    CHECK(static_cast<const uint8_t*>(stage.binaries[0].data)[0] == 5);
+    CHECK(std::string(stage.entryPoint) == "b");
+    render::destroyShaderFile(file.value());
 }
 
 TEST_SUITE("gpu")

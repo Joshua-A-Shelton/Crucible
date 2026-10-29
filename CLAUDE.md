@@ -352,12 +352,12 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   run of the binding generator. Its tests: `crucible_importers_tests`.
 - **Asset pipeline** (ADR 0040): `src/managed/Crucible.Assets`, editor-side
   and never shipped: projects (`<Name>.crproject`, `Assets/`, `Code/`,
-  `Plugins/`, `Cache/`), `.meta` sidecars, the asset database, importers,
+  `Plugins/`, `Cache/`), `.crmeta` sidecars, the asset database, importers,
   and the import cache. Tests: `Crucible.Assets.Tests` (JIT only).
 - **Registration and scenes** (ADR 0041): `[Component]`, `[Service]`, and
   `[System]` types are registered by generated code per assembly;
   `[Component, Serialized]` types are saved in scenes (`Crucible.Scenes`,
-  `.scene` JSON with the GUID inside).
+  `.crscene` JSON with the GUID inside).
 - **Samples** (ADR 0037): `samples/Particles` is the M3 demonstration, a game
   the JIT launcher loads with `--game <dll>` and configures with
   `--game-arg key=value`; it prints per-step timings.
@@ -394,7 +394,9 @@ This project is as much a learning exercise as it is an engine.
   explanation get a learning note in `docs/learning/`, listed in
   `README.md`.
 - **Ask before naming.** Proposed names are placeholders until the project
-  owner settles them; final names go in `docs/naming.md`.
+  owner settles them; final names go in `docs/naming.md`. **File extensions
+  and the names of tools, executables, and anything else users type or see
+  are asked about before they're used**, not settled afterwards.
 - Record decisions in `docs/decisions/` and update this file when a
   decision changes a rule here. Unresolved questions live in
   `docs/open-items.md`.

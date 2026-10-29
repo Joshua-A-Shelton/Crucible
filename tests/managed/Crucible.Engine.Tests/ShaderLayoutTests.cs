@@ -3,7 +3,7 @@ using Crucible.Shaders;
 
 namespace Crucible.Tests;
 
-// The C# mirrors crucible_shaderc generates from [GpuShared] structs
+// The C# mirrors shaderfax generates from [GpuShared] structs
 // (ADR 0047): the shader's offsets and sizes, under JIT and NativeAOT. The
 // native ShaderTests check the same layout against the GPU.
 public class ShaderLayoutTests

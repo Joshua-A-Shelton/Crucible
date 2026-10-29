@@ -77,7 +77,7 @@ endif()
 add_subdirectory(src/native/core)
 # Editor-only: decoders, mipmaps, and GPU compression (ADR 0042).
 add_subdirectory(src/native/importers)
-# Build-time shader compiles (ADR 0047), with the importers' crucible_shaderc.
+# Build-time shader compiles (ADR 0047), with the importers' shaderfax.
 include(CrucibleShaders)
 
 # ---------------------------------------------------------------------------

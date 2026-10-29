@@ -25,8 +25,15 @@ struct CompiledShader
         render::ShaderStageKind stage;
         uint32_t name; // into strings
         uint32_t threadGroupSize[3];
-        Vector<uint8_t> dxil{MemoryTag::Assets};
-        Vector<uint8_t> spirv{MemoryTag::Assets};
+        Vector<Vector<uint8_t>*> code{MemoryTag::Assets}; // per format, as asked for
+
+        ~Entry()
+        {
+            for (Vector<uint8_t>* blob : code)
+            {
+                destroy(MemoryTag::Assets, blob);
+            }
+        }
     };
     struct Struct
     {
@@ -44,6 +51,7 @@ struct CompiledShader
         uint32_t rows;
         uint32_t columns;
     };
+    Vector<render::ShaderBinaryFormat> formats{MemoryTag::Assets};
     Vector<Entry*> entries{MemoryTag::Assets};
     Vector<Struct> structs{MemoryTag::Assets};
     Vector<Field> fields{MemoryTag::Assets};
@@ -95,7 +103,7 @@ slang::IGlobalSession* globalSession()
 
 // The targets, in this order, with Slag's flags (Slag ADR 0034) and ADR
 // 0047's: row-major matrices, and D3D12's buffer layouts on Vulkan. HLSL is
-// there only for D3D12's layouts, which need no DXC.
+// there only for D3D12's layouts, which need no DXC; DXIL only when asked.
 enum Target : SlangInt
 {
     Spirv,
@@ -348,8 +356,7 @@ Status describeStructs(CompiledShader& shader, slang::ISession* session, slang::
 // Entry points
 // ---------------------------------------------------------------------------
 
-Status compileEntry(CompiledShader& shader, slang::ISession* session, slang::IModule* module, SlangInt32 index,
-                    bool dxil)
+Status compileEntry(CompiledShader& shader, slang::ISession* session, slang::IModule* module, SlangInt32 index)
 {
     ComPtr<slang::IEntryPoint> entryPoint;
     ComPtr<slang::IComponentType> composite;
@@ -390,18 +397,19 @@ Status compileEntry(CompiledShader& shader, slang::ISession* session, slang::IMo
         return fail("entry point %s: only vertex, pixel, and compute shaders are supported", reflection->getName());
     }
 
-    const SlangInt targets[2] = {Spirv, Dxil};
-    Vector<uint8_t>* outputs[2] = {&entry->spirv, &entry->dxil};
-    for (int t = 0; t < (dxil ? 2 : 1); ++t)
+    for (render::ShaderBinaryFormat format : shader.formats)
     {
+        const bool dxil = format == render::ShaderBinaryFormat::Dxil;
         ComPtr<slang::IBlob> code;
         diagnostics = nullptr;
-        if (SLANG_FAILED(linked->getEntryPointCode(0, targets[t], code.writeRef(), diagnostics.writeRef())))
+        if (SLANG_FAILED(linked->getEntryPointCode(0, dxil ? Dxil : Spirv, code.writeRef(), diagnostics.writeRef())))
         {
-            return failWith(t == 0 ? "can't make SPIR-V" : "can't make DXIL", diagnostics);
+            return failWith(dxil ? "can't make DXIL (is DXC beside Slang?)" : "can't make SPIR-V", diagnostics);
         }
         appendWarnings(shader, diagnostics);
-        outputs[t]->assign(
+        auto* blob = create<Vector<uint8_t>>(MemoryTag::Assets, MemoryTag::Assets);
+        entry->code.pushBack(blob);
+        blob->assign(
             std::span<const uint8_t>(static_cast<const uint8_t*>(code->getBufferPointer()), code->getBufferSize()));
     }
     return Status::Ok;
@@ -432,7 +440,16 @@ Result<CompiledShader*> compileShader(std::string_view path, std::string_view so
     {
         arguments.pushBack(argument);
     }
-    if (options.dxil)
+    bool dxil = false;
+    for (render::ShaderBinaryFormat format : options.formats)
+    {
+        if (format != render::ShaderBinaryFormat::Dxil && format != render::ShaderBinaryFormat::Spirv)
+        {
+            return fail("format %u: only DXIL and SPIR-V can be made here", static_cast<unsigned>(format));
+        }
+        dxil |= format == render::ShaderBinaryFormat::Dxil;
+    }
+    if (dxil)
     {
         for (const char* argument : {"-target", "dxil", "-profile", "sm_6_8", "-matrix-layout-row-major"})
         {
@@ -496,11 +513,12 @@ Result<CompiledShader*> compileShader(std::string_view path, std::string_view so
     }
 
     CompiledShader* shader = create<CompiledShader>(MemoryTag::Assets);
+    shader->formats.assign(options.formats);
     appendWarnings(*shader, diagnostics);
     Status status = describeStructs(*shader, session.get(), module);
     for (SlangInt32 i = 0; status == Status::Ok && i < module->getDefinedEntryPointCount(); ++i)
     {
-        status = compileEntry(*shader, session.get(), module, i, options.dxil);
+        status = compileEntry(*shader, session.get(), module, i);
     }
     if (status != Status::Ok)
     {
@@ -535,8 +553,9 @@ std::string_view compiledEntryName(const CompiledShader& shader, uint32_t index)
 
 Result<void> writeShaderFile(const CompiledShader& shader, std::string_view path)
 {
+    const size_t count = shader.entries.size();
     Vector<render::ShaderEntryInfo> entries(MemoryTag::Assets);
-    Vector<uint8_t> names(MemoryTag::Assets), dxil(MemoryTag::Assets), spirv(MemoryTag::Assets);
+    Vector<uint8_t> names(MemoryTag::Assets);
     for (const CompiledShader::Entry* entry : shader.entries)
     {
         const std::string_view name = shader.string(entry->name);
@@ -544,31 +563,10 @@ Result<void> writeShaderFile(const CompiledShader& shader, std::string_view path
         info.stage = entry->stage;
         info.nameOffset = static_cast<uint32_t>(names.size());
         info.nameLength = static_cast<uint32_t>(name.size());
+        std::memcpy(info.threadGroupSize, entry->threadGroupSize, sizeof(info.threadGroupSize));
         for (char c : name)
         {
             names.pushBack(static_cast<uint8_t>(c));
-        }
-        // Each blob 4-byte aligned, as SPIR-V's words are.
-        while (dxil.size() % 4 != 0)
-        {
-            dxil.pushBack(0);
-        }
-        while (spirv.size() % 4 != 0)
-        {
-            spirv.pushBack(0);
-        }
-        info.dxilOffset = static_cast<uint32_t>(dxil.size());
-        info.dxilSize = static_cast<uint32_t>(entry->dxil.size());
-        info.spirvOffset = static_cast<uint32_t>(spirv.size());
-        info.spirvSize = static_cast<uint32_t>(entry->spirv.size());
-        std::memcpy(info.threadGroupSize, entry->threadGroupSize, sizeof(info.threadGroupSize));
-        for (uint8_t value : entry->dxil)
-        {
-            dxil.pushBack(value);
-        }
-        for (uint8_t value : entry->spirv)
-        {
-            spirv.pushBack(value);
         }
         entries.pushBack(info);
     }
@@ -581,13 +579,27 @@ Result<void> writeShaderFile(const CompiledShader& shader, std::string_view path
     {
         result = binary::addSection(*writer, binary::tag("NAME"), 1, names.span(), 16);
     }
-    if (result && !dxil.empty())
+    // One section per format: a ShaderCode per entry point, then the code.
+    for (size_t f = 0; result && f < shader.formats.size(); ++f)
     {
-        result = binary::addSection(*writer, binary::tag("DXIL"), 1, dxil.span(), 16);
-    }
-    if (result)
-    {
-        result = binary::addSection(*writer, binary::tag("SPRV"), 1, spirv.span(), 16);
+        Vector<uint8_t> section(MemoryTag::Assets);
+        section.resize(count * sizeof(render::ShaderCode));
+        for (size_t e = 0; e < count; ++e)
+        {
+            while (section.size() % 4 != 0) // SPIR-V is made of 4-byte words
+            {
+                section.pushBack(0);
+            }
+            const Vector<uint8_t>& code = *shader.entries[e]->code[f];
+            const render::ShaderCode where{static_cast<uint32_t>(section.size()), static_cast<uint32_t>(code.size())};
+            std::memcpy(section.data() + e * sizeof(render::ShaderCode), &where, sizeof(where));
+            for (uint8_t value : code)
+            {
+                section.pushBack(value);
+            }
+        }
+        result = binary::addSection(*writer, render::shaderCodeTag(static_cast<uint8_t>(shader.formats[f])), 1,
+                                    section.span(), 16);
     }
     if (result)
     {

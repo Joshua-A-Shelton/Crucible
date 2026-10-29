@@ -66,7 +66,7 @@ without walking its folder.
 - **Projects** (`Crucible.Assets.Project`): `Create` makes the folders, the
   project file (`{ "Name": ... }`), and a `.gitignore` holding `/Cache/`;
   `Open` reads one.
-- **Sidecars** (`<file>.meta`, written by hand because the settings' type
+- **Sidecars** (`<file>.crmeta`, written by hand because the settings' type
   depends on the importer): `Guid`, `Importer`, and the importer's
   `Settings`, written by its generated serializer. Every file in `Assets/`
   gets one, even with no importer (its `Importer` is empty until one
@@ -94,8 +94,9 @@ without walking its folder.
   importer's name and version, the source's hash, each dependency's path
   and hash, and the settings re-serialized (so reformatting a sidecar by
   hand changes nothing). The output is `Cache/Imported/<first two hex
-  digits>/<key>.bin`, compressed at the fast level. `Cache/imports.json`
-  records each asset's key and dependencies; an asset is up to date when
+  digits>/<key>` plus the extension of what it holds (each importer's
+  `OutputExtension`: `.crmesh`, `.crtexture`), compressed at the fast
+  level. `Cache/imports.json` records each asset's key and dependencies; an asset is up to date when
   its key, recomputed from the current hashes, matches and the output
   exists. A missing dependency makes it stale.
 - **Not yet:** Crucible's own files keeping their GUID inside (with scenes

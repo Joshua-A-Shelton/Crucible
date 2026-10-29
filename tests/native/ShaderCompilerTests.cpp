@@ -17,7 +17,8 @@ namespace {
 Result<CompiledShader*> compile(std::string_view source)
 {
     const std::string_view searchPaths[] = {CRUCIBLE_SHADER_LIBRARY_DIR};
-    return compileShader("Test.slang", source, {searchPaths, false});
+    const render::ShaderBinaryFormat formats[] = {render::ShaderBinaryFormat::Spirv};
+    return compileShader("Test.slang", source, {searchPaths, formats});
 }
 
 std::string error()

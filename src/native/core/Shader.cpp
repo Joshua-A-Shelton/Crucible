@@ -8,28 +8,51 @@
 
 namespace crucible::render {
 
+static_assert(static_cast<uint8_t>(slag::ShaderFormat::Dxil) == static_cast<uint8_t>(ShaderBinaryFormat::Dxil));
+static_assert(static_cast<uint8_t>(slag::ShaderFormat::Spirv) == static_cast<uint8_t>(ShaderBinaryFormat::Spirv));
+
 struct ShaderFile
 {
     Vector<ShaderEntryInfo> entries{MemoryTag::Render};
-    Vector<char> names{MemoryTag::Render};          // each NUL-terminated too, for Slag's entry point name
-    Vector<uint32_t> nameStarts{MemoryTag::Render}; // into names
-    Vector<uint8_t> dxil{MemoryTag::Render};
-    Vector<uint8_t> spirv{MemoryTag::Render};
-    Vector<slag::ShaderBinary> binaries{MemoryTag::Render}; // two slots per entry
+    Vector<char> names{MemoryTag::Render};            // each NUL-terminated too, for Slag's entry point name
+    Vector<uint32_t> nameStarts{MemoryTag::Render};   // into names
+    Vector<uint8_t> formats{MemoryTag::Render};       // in order of preference
+    Vector<Vector<uint8_t>*> code{MemoryTag::Render}; // one section per format
+    // Per entry point, its binaries (one per format it has code in), back to back.
+    Vector<slag::ShaderBinary> binaries{MemoryTag::Render};
+    Vector<uint32_t> binaryStarts{MemoryTag::Render}; // entry count + 1
+
+    ~ShaderFile()
+    {
+        for (Vector<uint8_t>* section : code)
+        {
+            destroy(MemoryTag::Render, section);
+        }
+    }
 };
 
 namespace {
 
-Status readInto(const binary::File& file, uint32_t tag, Vector<uint8_t>& out)
+Status readSection(const binary::File& file, uint32_t index, Vector<uint8_t>& out)
 {
-    const int32_t index = binary::findSection(file, tag);
-    if (index < 0)
+    out.resize(binary::sectionInfo(file, index).size);
+    return binary::readSection(file, index, out.span()).status();
+}
+
+// The format a CDxx tag names, or -1 for another tag.
+int32_t formatOf(uint32_t tag)
+{
+    auto hex = [](uint32_t letter) -> int32_t {
+        return letter >= '0' && letter <= '9'   ? static_cast<int32_t>(letter - '0')
+               : letter >= 'A' && letter <= 'F' ? static_cast<int32_t>(letter - 'A' + 10)
+                                                : -1;
+    };
+    if ((tag & 0xFFFF) != (binary::tag("CD00") & 0xFFFF))
     {
-        return Status::Ok;
+        return -1;
     }
-    out.resize(binary::sectionInfo(file, static_cast<uint32_t>(index)).size);
-    const Result<void> read = binary::readSection(file, static_cast<uint32_t>(index), out.span());
-    return read.status();
+    const int32_t high = hex((tag >> 16) & 0xFF), low = hex(tag >> 24);
+    return high < 0 || low < 0 ? -1 : high * 16 + low;
 }
 
 } // namespace
@@ -44,18 +67,24 @@ Result<ShaderFile*> loadShaderFile(std::span<const uint8_t> bytes)
     binary::File& file = *opened.value();
     ShaderFile* shader = create<ShaderFile>(MemoryTag::Render);
     Vector<uint8_t> entries(MemoryTag::Render), names(MemoryTag::Render);
-    Status status = readInto(file, binary::tag("ENTS"), entries);
-    if (status == Status::Ok)
+    Status status = Status::Ok;
+    for (uint32_t i = 0; status == Status::Ok && i < binary::sectionCount(file); ++i)
     {
-        status = readInto(file, binary::tag("NAME"), names);
-    }
-    if (status == Status::Ok)
-    {
-        status = readInto(file, binary::tag("DXIL"), shader->dxil);
-    }
-    if (status == Status::Ok)
-    {
-        status = readInto(file, binary::tag("SPRV"), shader->spirv);
+        const uint32_t tag = binary::sectionInfo(file, i).tag;
+        if (tag == binary::tag("ENTS"))
+        {
+            status = readSection(file, i, entries);
+        }
+        else if (tag == binary::tag("NAME"))
+        {
+            status = readSection(file, i, names);
+        }
+        else if (const int32_t format = formatOf(tag); format >= 0)
+        {
+            shader->formats.pushBack(static_cast<uint8_t>(format));
+            shader->code.pushBack(create<Vector<uint8_t>>(MemoryTag::Render, MemoryTag::Render));
+            status = readSection(file, i, *shader->code[shader->code.size() - 1]);
+        }
     }
     binary::closeFile(opened.value());
     if (status != Status::Ok || entries.size() % sizeof(ShaderEntryInfo) != 0)
@@ -64,15 +93,21 @@ Result<ShaderFile*> loadShaderFile(std::span<const uint8_t> bytes)
         return status != Status::Ok ? status : Status::InvalidData;
     }
 
-    shader->entries.resize(entries.size() / sizeof(ShaderEntryInfo));
+    const size_t count = entries.size() / sizeof(ShaderEntryInfo);
+    shader->entries.resize(count);
     std::memcpy(shader->entries.data(), entries.data(), entries.size());
-    for (const ShaderEntryInfo& entry : shader->entries)
+    for (const Vector<uint8_t>* section : shader->code)
     {
-        const bool fits = uint64_t{entry.nameOffset} + entry.nameLength <= names.size() &&
-                          uint64_t{entry.dxilOffset} + entry.dxilSize <= shader->dxil.size() &&
-                          uint64_t{entry.spirvOffset} + entry.spirvSize <= shader->spirv.size() &&
-                          entry.stage <= ShaderStageKind::Compute;
-        if (!fits)
+        if (section->size() < count * sizeof(ShaderCode))
+        {
+            destroyShaderFile(shader);
+            return Status::InvalidData;
+        }
+    }
+    for (uint32_t e = 0; e < count; ++e)
+    {
+        const ShaderEntryInfo& entry = shader->entries[e];
+        if (uint64_t{entry.nameOffset} + entry.nameLength > names.size() || entry.stage > ShaderStageKind::Compute)
         {
             destroyShaderFile(shader);
             return Status::InvalidData;
@@ -83,13 +118,26 @@ Result<ShaderFile*> loadShaderFile(std::span<const uint8_t> bytes)
             shader->names.pushBack(static_cast<char>(names[entry.nameOffset + c]));
         }
         shader->names.pushBack('\0');
+
+        shader->binaryStarts.pushBack(static_cast<uint32_t>(shader->binaries.size()));
+        for (uint32_t f = 0; f < shader->code.size(); ++f)
+        {
+            const Vector<uint8_t>& section = *shader->code[f];
+            ShaderCode code;
+            std::memcpy(&code, section.data() + e * sizeof(ShaderCode), sizeof(code));
+            if (uint64_t{code.offset} + code.size > section.size())
+            {
+                destroyShaderFile(shader);
+                return Status::InvalidData;
+            }
+            if (code.size > 0)
+            {
+                shader->binaries.pushBack(
+                    {static_cast<slag::ShaderFormat>(shader->formats[f]), section.data() + code.offset, code.size});
+            }
+        }
     }
-    for (const ShaderEntryInfo& entry : shader->entries)
-    {
-        shader->binaries.pushBack({slag::ShaderFormat::Dxil, shader->dxil.data() + entry.dxilOffset, entry.dxilSize});
-        shader->binaries.pushBack(
-            {slag::ShaderFormat::Spirv, shader->spirv.data() + entry.spirvOffset, entry.spirvSize});
-    }
+    shader->binaryStarts.pushBack(static_cast<uint32_t>(shader->binaries.size()));
     return shader;
 }
 
@@ -128,17 +176,16 @@ int32_t findShaderEntry(const ShaderFile& file, std::string_view name)
     return -1;
 }
 
+std::span<const uint8_t> shaderFormats(const ShaderFile& file)
+{
+    return file.formats.span();
+}
+
 void shaderStage(const ShaderFile& file, uint32_t index, slag::ShaderStage& stage)
 {
-    const ShaderEntryInfo& entry = file.entries[index];
-    // A missing format is left out, so Slag reports what was offered.
-    const slag::ShaderBinary* pair = file.binaries.data() + index * 2;
-    std::span<const slag::ShaderBinary> binaries(pair, 2);
-    if (entry.dxilSize == 0)
-    {
-        binaries = binaries.subspan(1);
-    }
-    stage = {binaries, file.names.data() + file.nameStarts[index]};
+    const uint32_t first = file.binaryStarts[index];
+    stage = {std::span<const slag::ShaderBinary>(file.binaries.data() + first, file.binaryStarts[index + 1] - first),
+             file.names.data() + file.nameStarts[index]};
 }
 
 } // namespace crucible::render

@@ -19,9 +19,17 @@ which the driver compiles again for the actual GPU:
 written once. For DXIL it hands its output to DXC, which is why Crucible
 builds DXIL only on Windows, where D3D12 runs anyway.
 
-A compiled shader is stored as a `SHDR` file holding both forms side by
-side. Slag takes a list of binaries per stage and uses the first one its
-backend accepts, so the engine never asks "which backend am I on?".
+A compiled shader is a `.crshader` file with one section per format, in
+order of preference. Slag takes a list of binaries per stage and uses the
+first one its backend accepts, so the engine never asks "which backend am
+I on?".
+
+Which formats go in the file is decided by the platform being built for,
+not by the shader: Windows can run D3D12 and Vulkan, so it gets both;
+Linux runs Vulkan only, so it gets SPIR-V; a console would get only its
+own format. Sections are numbered by format (`CD00` DXIL, `CD01` SPIR-V),
+so a console backend kept in a private repository can add its own section
+without public code ever naming it.
 
 ## Why layouts are the hard part
 

@@ -114,12 +114,12 @@ endif()
 add_library(crucible_importers_static STATIC)
 target_link_libraries(crucible_importers_static PUBLIC crucible_importers_objects crucible_core_static)
 
-# The build's shader compiler (ADR 0047): the importers' compile path as a
-# command-line tool, for the engine's own shaders.
-add_executable(crucible_shaderc ShaderCompilerTool.cpp)
-crucible_set_compile_options(crucible_shaderc)
-target_link_libraries(crucible_shaderc PRIVATE crucible_importers_static)
+# shaderfax, the build's shader compiler (ADR 0047): the importers' compile
+# path as a command-line tool, for the engine's own shaders.
+add_executable(shaderfax Shaderfax.cpp)
+crucible_set_compile_options(shaderfax)
+target_link_libraries(shaderfax PRIVATE crucible_importers_static)
 if(WIN32)
-    add_custom_command(TARGET crucible_shaderc POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${CRUCIBLE_SHADER_COMPILER_DLLS} "$<TARGET_FILE_DIR:crucible_shaderc>")
+    add_custom_command(TARGET shaderfax POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${CRUCIBLE_SHADER_COMPILER_DLLS} "$<TARGET_FILE_DIR:shaderfax>")
 endif()

@@ -19,7 +19,7 @@ public struct PrefabInstance
 }
 
 /// <summary>
-/// Prefabs (ADR 0021, 0045): a <c>.prefab</c> file is a scene with one root
+/// Prefabs (ADR 0021, 0045): a <c>.crprefab</c> file is a scene with one root
 /// entity; an imported model (a MESH file) is one too, one entity per node.
 /// Instances keep the prefab's entities under IDs derived from the
 /// instance's, and save only what they change. Names are placeholders
@@ -27,7 +27,7 @@ public struct PrefabInstance
 /// </summary>
 public static class Prefab
 {
-    public const string Extension = ".prefab";
+    public const string Extension = ".crprefab";
 
     /// <summary>
     /// Creates an instance of <paramref name="prefab"/> with a new ID, under
@@ -64,7 +64,7 @@ public static class Prefab
 /// <summary>
 /// Reads prefabs and models for instancing (ADR 0045), each once, through a
 /// function the host supplies: the asset database's in the editor. It
-/// returns a <c>.prefab</c> file's bytes or a model's imported MESH file, or
+/// returns a <c>.crprefab</c> file's bytes or a model's imported MESH file, or
 /// null when there is no such asset.
 /// </summary>
 public sealed class PrefabLibrary(Func<AssetId, byte[]?> read)

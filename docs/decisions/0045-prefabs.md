@@ -50,7 +50,7 @@ building on them; or deferred, leaving models out of step 9.
 
 ## Details
 
-- **A `.prefab` file** is a scene file with exactly one root entity. The
+- **A `.crprefab` file** is a scene file with exactly one root entity. The
   asset database indexes it by its `$guid`, like a scene. A prefab whose
   root is itself an instance is a variant of that prefab.
 - **An instance in a file:**
@@ -106,7 +106,7 @@ building on them; or deferred, leaving models out of step 9.
   `LocalTransform`, `MeshInstance`) are registered when the first `World`
   is created. The engine runs the serializer generator for its own types;
   its registration generators find nothing to emit there.
-- `AssetDatabase.Prefabs()` reads `.prefab` files from disk and models
+- `AssetDatabase.Prefabs()` reads `.crprefab` files from disk and models
   through their import, importing them first if needed.
 - Model nodes sharing a name with a sibling are told apart by order, so
   reordering only those swaps their IDs.
@@ -115,7 +115,7 @@ building on them; or deferred, leaving models out of step 9.
   each file's overrides, added and removed components and added children,
   per-instance IDs and references, unpacking, refused removals and moves,
   missing and self-containing prefabs, models and reordered nodes; and
-  through the asset database, a `.prefab` and an imported FBX in a scene.
+  through the asset database, a `.crprefab` and an imported FBX in a scene.
 
 ## Why
 

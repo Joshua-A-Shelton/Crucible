@@ -28,6 +28,8 @@ public sealed class TextImporter : Importer<TextSettings>
 
     public override IReadOnlyList<string> Extensions => [".txt"];
 
+    public override string OutputExtension => ".crtext";
+
     public override void Import(ImportContext context, TextSettings settings)
     {
         Runs++;
@@ -44,6 +46,8 @@ public partial class ListSettings;
 // contents joined, so changing any of them reimports the list.
 public sealed class ListImporter : Importer<ListSettings>
 {
+    public override string OutputExtension => ".crlist";
+
     public int Runs { get; private set; }
 
     public override string Name => "List";
@@ -64,6 +68,8 @@ public sealed class ListImporter : Importer<ListSettings>
 
 public sealed class BrokenImporter : Importer<ListSettings>
 {
+    public override string OutputExtension => ".crlist";
+
     public override string Name => "Broken";
 
     public override int Version => 1;

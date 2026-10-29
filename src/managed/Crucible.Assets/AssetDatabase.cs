@@ -318,7 +318,7 @@ public sealed class AssetDatabase
     }
 
     /// <summary>
-    /// Prefabs for instancing (ADR 0045): <c>.prefab</c> files as they are on
+    /// Prefabs for instancing (ADR 0045): <c>.crprefab</c> files as they are on
     /// disk, and models as imported, importing them first if needed.
     /// </summary>
     public PrefabLibrary Prefabs() => new(ReadPrefab);
@@ -347,7 +347,7 @@ public sealed class AssetDatabase
             return null;
         }
         string? key = KeyOf(entry, importer, record.Dependencies.Keys);
-        string output = OutputPath(record.Key);
+        string output = OutputPath(record.Key, importer);
         return key == record.Key && File.Exists(output) ? output : null;
     }
 
@@ -375,7 +375,7 @@ public sealed class AssetDatabase
             // The key uses the dependencies as they were read during the
             // import, so a file changed meanwhile is caught next time.
             string key = Key(entry, importer, context.Dependencies);
-            string output = OutputPath(key);
+            string output = OutputPath(key, importer);
             Directory.CreateDirectory(Path.GetDirectoryName(output)!);
             context.Output.Write(output, Compression.Fast);
             _records.Assets[entry.Id.ToString()] = new ImportRecord
@@ -437,7 +437,8 @@ public sealed class AssetDatabase
         return ContentHash.Of([.. header, .. entry.Settings]);
     }
 
-    private string OutputPath(string key) => Path.Combine(ImportedFolder, key[..2], key + ".bin");
+    private string OutputPath(string key, Importer importer) =>
+        Path.Combine(ImportedFolder, key[..2], key + importer.OutputExtension);
 
     // ---------------------------------------------------------------------
 

@@ -18,6 +18,8 @@ public sealed class FbxImporter : Importer<MeshImportSettings>
 
     public override IReadOnlyList<string> Extensions => [".fbx"];
 
+    public override string OutputExtension => MeshImporter.FileExtension;
+
     public override void Import(ImportContext context, MeshImportSettings settings)
     {
         byte[] bytes = context.ReadSource();

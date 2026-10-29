@@ -125,7 +125,7 @@ Step 4 is split: 4a registers components and services, 4b saves scenes.
   a scene save or load, the target's scene ID as a string, or null when
   the target isn't in the scene (a destroyed entity); elsewhere, the
   entity's number, meaningful only within one session.
-- **The asset database** indexes `.scene` files by their `$guid`, with no
+- **The asset database** indexes `.crscene` files by their `$guid`, with no
   sidecar. A copy gets a new GUID, written by replacing the GUID's text so
   nothing else in the file moves; a scene without `$guid` first is skipped
   with a warning.

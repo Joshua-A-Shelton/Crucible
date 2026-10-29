@@ -29,14 +29,14 @@ and prefabs. M3's demonstration (ADR 0037) was a sample run by the tests.
    make a mirroring mistake visible, and every part is closed, so
    inside-out faces can be counted.
 3. **Everything M4 built:** the model and its texture imported, two model
-   instances (one with overrides), an authored `.prefab` nesting a model
+   instances (one with overrides), an authored `.crprefab` nesting a model
    instance, and a component of the sample's own referring into an
    instance.
 
 ## Details
 
 - **The round trip:** copy the project to a work folder, import everything,
-  build the world, save `Demo.scene`, load it into a new world, compare,
+  build the world, save `Demo.crscene`, load it into a new world, compare,
   and save again.
 - **Identical** means both:
   - **The same world:** `Scene.SaveUnpacked` writes every entity in full,
@@ -71,7 +71,7 @@ that loads wrong and a file that drifts.
 
 - `samples/SceneRoundTrip` (`Crucible.Samples.SceneRoundTrip`), with its
   project in `Project/` (`Demo.crproject`; the model, its texture, their
-  sidecars with fixed GUIDs, and the hand-written `Prefabs/Pedestal.prefab`
+  sidecars with fixed GUIDs, and the hand-written `Prefabs/Pedestal.crprefab`
   nesting the model and overriding its position and scale). The scene:
   the model, the model again moved, turned, and with its body stretched,
   the pedestal, and a watcher whose `LookAt` targets the first model's nose.

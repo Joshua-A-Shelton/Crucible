@@ -5,7 +5,7 @@ using Crucible.Serialization;
 namespace Crucible.Assets;
 
 /// <summary>
-/// A foreign file's companion, <c>&lt;file&gt;.meta</c> (ADR 0021, 0040): its
+/// A foreign file's companion, <c>&lt;file&gt;.crmeta</c> (ADR 0021, 0040): its
 /// GUID, its importer, and the importer's settings.
 /// </summary>
 /// <remarks>
@@ -21,7 +21,7 @@ namespace Crucible.Assets;
 /// </remarks>
 internal sealed record Sidecar(AssetId Id, string Importer, byte[] SettingsJson)
 {
-    public const string Extension = ".meta";
+    public const string Extension = ".crmeta";
 
     public static Sidecar Read(ReadOnlySpan<byte> json)
     {

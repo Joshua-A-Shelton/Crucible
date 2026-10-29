@@ -130,7 +130,7 @@ FetchContent_MakeAvailable(stb bc7enc_rdo cgltf meshoptimizer mikktspace ufbx)
 # Shader compilers (ADR 0025, 0047): build time and the editor, never shipped.
 #   Slang 2026.18.2 (Apache 2.0 with LLVM exception), its release binaries:
 #     the library behind crucible_importers' shader compiler and
-#     crucible_shaderc. The version Slag is tested with.
+#     shaderfax. The version Slag is tested with.
 #   DXC v1.9.2609 (University of Illinois/NCSA, approved for the editor and
 #     build only), Windows only: Slang loads it from beside itself to
 #     produce DXIL. Like Slag, Crucible builds DXIL only on Windows.

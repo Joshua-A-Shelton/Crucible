@@ -22,12 +22,12 @@ public class PrefabAssetTests
             {
                 Entity crate = world.CreateEntity();
                 world.Set(crate, LocalTransform.Identity);
-                File.WriteAllBytes(Path.Combine(project.AssetsFolder, "crate.prefab"), Prefab.Save(world, crate, crateId));
+                File.WriteAllBytes(Path.Combine(project.AssetsFolder, "crate.crprefab"), Prefab.Save(world, crate, crateId));
             }
 
             AssetDatabase database = AssetDatabase.Open(project, [new FbxImporter()]);
-            await Assert.That(database.Find("crate.prefab")!.Id).IsEqualTo(crateId);
-            await Assert.That(File.Exists(Path.Combine(project.AssetsFolder, "crate.prefab.meta"))).IsFalse();
+            await Assert.That(database.Find("crate.crprefab")!.Id).IsEqualTo(crateId);
+            await Assert.That(File.Exists(Path.Combine(project.AssetsFolder, "crate.crprefab.crmeta"))).IsFalse();
             AssetId boxesId = database.Find("boxes.fbx")!.Id;
 
             // The model is imported on first use.

@@ -37,7 +37,7 @@ public sealed record SceneLoad(AssetId Id, IReadOnlyList<Entity> Roots, IReadOnl
 /// </summary>
 public static class Scene
 {
-    public const string Extension = ".scene";
+    public const string Extension = ".crscene";
 
     /// <summary>The property holding the scene's own asset ID, written first (ADR 0021: Crucible's files keep their GUID inside).</summary>
     public const string GuidProperty = "$guid";

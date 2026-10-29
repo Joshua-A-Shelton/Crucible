@@ -11,13 +11,13 @@ MyGame/
   .gitignore            keeps Cache/ out of source control
   Assets/
     hero.png            a source file
-    hero.png.meta       its sidecar: GUID, importer, settings
+    hero.png.crmeta     its sidecar: GUID, importer, settings
   Code/                 the game's C# project
   Plugins/
   Cache/                rebuildable: delete it any time
     stamps.json         size, time, and hash of every file
     imports.json        what each asset's last import depended on
-    Imported/4f/4f3a….bin
+    Imported/4f/4f3a….crtexture
 ```
 
 ## Identity: GUIDs, not paths
@@ -59,7 +59,7 @@ An import's output depends on:
 - any other files it read (a glTF's buffers, say).
 
 Hash all of those together and you get a **key**. The output is stored
-under that key: `Cache/Imported/4f/4f3a….bin`. To check whether an asset
+under that key: `Cache/Imported/4f/4f3a….crtexture`. To check whether an asset
 needs importing, recompute the key from the current files: if a file with
 that name exists, it's exactly what an import would produce now.
 

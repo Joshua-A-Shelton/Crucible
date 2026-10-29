@@ -47,6 +47,10 @@ public sealed class MeshImporter : Importer<MeshImportSettings>
 
     public override IReadOnlyList<string> Extensions => [".gltf", ".glb"];
 
+    public const string FileExtension = ".crmesh";
+
+    public override string OutputExtension => FileExtension;
+
     public override void Import(ImportContext context, MeshImportSettings settings)
     {
         GltfSourceHandle source = Native(() => ImportersApi.ParseGltf(context.ReadSource()));
