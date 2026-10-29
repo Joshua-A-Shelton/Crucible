@@ -44,6 +44,17 @@ public sealed unsafe class World : IDisposable
     /// </summary>
     public void UpdateWorldTransforms() => Crucible.Scenes.Api.UpdateWorldTransforms(Live);
 
+    /// <summary>
+    /// The entity's world matrix as it is now (ADR 0050), from its own and
+    /// its ancestors' local transforms, without storing it: its
+    /// <see cref="Crucible.Scenes.WorldTransform"/> stays as last propagated.
+    /// Costs one step per ancestor; for many entities,
+    /// <see cref="UpdateWorldTransforms"/> is cheaper. Identity without a
+    /// <see cref="Crucible.Scenes.LocalTransform"/>.
+    /// </summary>
+    public System.Numerics.Matrix4x4 ComputeWorldTransform(Entity entity) =>
+        Crucible.Scenes.Api.ComputeWorldTransform(Live, entity);
+
     public Entity CreateEntity(params ReadOnlySpan<ComponentId> components) =>
         Api.CreateEntity(Live, Ids(components));
 
@@ -180,6 +191,16 @@ public sealed unsafe class World : IDisposable
     public uint AdvanceVersion() => Api.AdvanceVersion(Live);
 
     public uint CurrentVersion => Api.CurrentVersion(Live);
+
+    /// <summary>
+    /// Whether the component changed in the entity's chunk after
+    /// <paramref name="version"/> (ADR 0034; versions are per chunk, so a
+    /// change to any entity there counts), as
+    /// <see cref="ChunkView.ChangedSince"/> does for a chunk. Usually given
+    /// <see cref="Crucible.Loop.FrameContext.LastRunVersion"/>.
+    /// </summary>
+    public bool ChangedSince(Entity entity, ComponentId component, uint version) =>
+        Api.EntityChangedSince(Live, entity, component.Value, version);
 
     public Query CreateQuery(ReadOnlySpan<ComponentId> required, ReadOnlySpan<ComponentId> excluded = default) =>
         new(this, Api.CreateQueryFrom(Live, Ids(required), Ids(excluded)));

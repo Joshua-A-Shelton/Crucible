@@ -97,14 +97,24 @@ const Matrix4x4& worldOf(World& world, Entity entity)
     return read<WorldTransform>(world, entity)->matrix;
 }
 
-// Runs the propagation system as the loop would, applying its commands.
-void runPropagation(World& world)
+// Runs the propagation system as the loop would: with the version of its
+// last run (0: first), applying its commands, then advancing the version.
+// Returns the version it ran at, for the next run.
+uint32_t runPropagation(World& world, uint32_t lastRunVersion = 0)
 {
     CommandBuffer* commands = createCommandBuffer(world);
-    const loop::SystemContext context{.world = &world, .commands = commands};
+    const loop::SystemContext context{.world = &world, .commands = commands, .lastRunVersion = lastRunVersion};
     reinterpret_cast<loop::SystemFunction>(scenes::transformPropagationFunction())(context, nullptr);
     apply(*commands);
     destroyCommandBuffer(commands);
+    const uint32_t ran = currentVersion(world);
+    advanceVersion(world);
+    return ran;
+}
+
+bool worldChangedSince(World& world, Entity entity, uint32_t version)
+{
+    return changedSince(world, entity, componentIdOf<WorldTransform>, version);
 }
 
 } // namespace
@@ -233,6 +243,83 @@ TEST_CASE("Deep and wide hierarchies propagate in parallel like a serial walk")
         CHECK(wrong == 0);
     }
     jobs::shutdown();
+}
+
+TEST_CASE("Propagation recomputes only what moved since its last run")
+{
+    scenes::registerTransforms();
+    render::registerCamera();
+    REQUIRE(jobs::initialize(3));
+    {
+        WorldScope world;
+        const Entity mover = spawn(*world, transform({1, 0, 0}));
+        const Entity rider = spawn(*world, transform({0, 1, 0}), mover);
+        const Entity passenger = spawn(*world, transform({0, 0, 1}), rider);
+        // Elsewhere: an archetype of its own, so its chunk stays untouched.
+        const ComponentId tagged[] = {componentIdOf<LocalTransform>, componentIdOf<WorldTransform>,
+                                      componentIdOf<Camera>};
+        const Entity still = createEntity(*world, tagged);
+        *get<LocalTransform>(*world, still) = transform({7, 7, 7});
+
+        uint32_t last = runPropagation(*world);
+        CHECK(near(worldOf(*world, passenger), Matrix4x4::translation({1, 1, 1})));
+
+        // Nothing changed: nothing written.
+        last = runPropagation(*world, last);
+        CHECK_FALSE(worldChangedSince(*world, mover, last - 1));
+        CHECK_FALSE(worldChangedSince(*world, passenger, last - 1));
+
+        // Moving the root reaches its descendants, whose own chunks are clean.
+        get<LocalTransform>(*world, mover)->position = {2, 0, 0};
+        const uint32_t before = last;
+        last = runPropagation(*world, last);
+        CHECK(near(worldOf(*world, passenger), Matrix4x4::translation({2, 1, 1})));
+        CHECK(worldChangedSince(*world, passenger, before));
+        CHECK_FALSE(worldChangedSince(*world, still, before));
+        CHECK(near(worldOf(*world, still), Matrix4x4::translation({7, 7, 7})));
+
+        // A middle entity moving takes the one below with it.
+        get<LocalTransform>(*world, rider)->position = {0, 3, 0};
+        last = runPropagation(*world, last);
+        CHECK(near(worldOf(*world, passenger), Matrix4x4::translation({2, 3, 1})));
+
+        // Reparenting is a change too.
+        REQUIRE(setParent(*world, passenger, still));
+        last = runPropagation(*world, last);
+        CHECK(near(worldOf(*world, passenger), Matrix4x4::translation({7, 7, 8})));
+
+        // A parent losing its transforms leaves its children as roots.
+        removeComponent(*world, still, componentIdOf<LocalTransform>);
+        last = runPropagation(*world, last);
+        CHECK(near(worldOf(*world, passenger), Matrix4x4::translation({0, 0, 1})));
+
+        // Rewriting the same local transform writes no new world matrix.
+        *get<LocalTransform>(*world, mover) = *read<LocalTransform>(*world, mover);
+        const uint32_t rewritten = last;
+        last = runPropagation(*world, last);
+        CHECK_FALSE(worldChangedSince(*world, mover, rewritten));
+    }
+    jobs::shutdown();
+}
+
+TEST_CASE("computeWorldTransform is fresh without storing anything")
+{
+    scenes::registerTransforms();
+    WorldScope world;
+    const Entity root = spawn(*world, transform({1, 0, 0}, pi / 2));
+    const Entity child = spawn(*world, transform({0, 0, 2}, 0, {2, 2, 2}), root);
+    const Entity grandchild = spawn(*world, transform({0, 1, 0}), child);
+    scenes::updateWorldTransforms(*world);
+    CHECK(near(scenes::computeWorldTransform(*world, grandchild), worldOf(*world, grandchild)));
+
+    get<LocalTransform>(*world, root)->position = {5, 0, 0};
+    const Matrix4x4 stored = worldOf(*world, grandchild);
+    const Matrix4x4 now = scenes::computeWorldTransform(*world, grandchild);
+    CHECK(near(worldOf(*world, grandchild), stored)); // not written
+    scenes::updateWorldTransforms(*world);
+    CHECK(near(now, worldOf(*world, grandchild)));
+
+    CHECK(near(scenes::computeWorldTransform(*world, createEntity(*world)), Matrix4x4::identity()));
 }
 
 TEST_CASE("The renderer views from the camera with the highest priority")
@@ -454,15 +541,51 @@ TEST_SUITE("benchmark" * doctest::skip())
                     parent = spawn(*world, transform({0, 1, 0}, 0.1f), parent);
                 }
             }
-            double best = 1e30;
-            for (int run = 0; run < 20; ++run)
-            {
-                const auto start = std::chrono::steady_clock::now();
-                scenes::updateWorldTransforms(*world);
-                best = std::min(
-                    best, std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count());
-            }
-            MESSAGE("propagate 100k entities: " << best << " ms (" << jobs::workerCount() << " workers)");
+            std::vector<Entity> roots;
+            const ComponentId rootSet[] = {componentIdOf<LocalTransform>, componentIdOf<WorldTransform>};
+            Query* rootQuery = createQuery(*world, {.required = rootSet, .excluded = {}});
+            forEachChunk(
+                *rootQuery,
+                [](const ChunkView& view, void* data) {
+                    if (readColumn(view, parentComponent()) == nullptr)
+                    {
+                        auto& list = *static_cast<std::vector<Entity>*>(data);
+                        list.insert(list.end(), entitiesOf(view), entitiesOf(view) + entityCountOf(view));
+                    }
+                },
+                &roots);
+            destroyQuery(rootQuery);
+
+            // Each frame as the system sees it: `move` roots moved since its
+            // last run (a root and its chain: 10 entities each).
+            uint32_t last = runPropagation(*world);
+            auto time = [&](size_t move) {
+                double best = 1e30;
+                for (int run = 0; run < 20; ++run)
+                {
+                    for (size_t i = 0; i < move; ++i)
+                    {
+                        get<LocalTransform>(*world, roots[(i * 97 + run) % roots.size()])->position.y += 1;
+                    }
+                    const auto start = std::chrono::steady_clock::now();
+                    CommandBuffer* commands = createCommandBuffer(*world);
+                    const loop::SystemContext context{
+                        .world = world.world, .commands = commands, .lastRunVersion = last};
+                    reinterpret_cast<loop::SystemFunction>(scenes::transformPropagationFunction())(context, nullptr);
+                    best = std::min(
+                        best,
+                        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count());
+                    destroyCommandBuffer(commands);
+                    last = currentVersion(*world);
+                    advanceVersion(*world);
+                }
+                return best;
+            };
+            const double none = time(0);
+            const double some = time(100);
+            const double all = time(roots.size());
+            MESSAGE("propagate 100k entities: nothing moved " << none << " ms, 1% moved " << some << " ms, all moved "
+                                                              << all << " ms (" << jobs::workerCount() << " workers)");
         }
         jobs::shutdown();
     }

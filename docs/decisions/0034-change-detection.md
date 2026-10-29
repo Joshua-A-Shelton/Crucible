@@ -53,3 +53,20 @@ Given up: precision. One changed entity makes its whole chunk (up to a few
 hundred entities) look changed, and a system that asks to write but writes
 nothing still marks it; systems that need exact per-entity changes keep
 their own state.
+
+## Amendment (2026-10-29, ADR 0050): the loop advances versions
+
+Nothing advanced the world's version until M5 step 4, so "changed since
+my last run" couldn't work. Now:
+
+- **The frame loop advances the main world's version after every
+  system.** Each system runs at a version of its own. Whatever comes after
+  it (other systems, sync points, edits between frames) is stamped newer.
+- **Each system gets the version of its previous run on that world:**
+  C# `FrameContext.LastRunVersion`, C++ `SystemContext::lastRunVersion`.
+  It is 0 on the first run, which counts everything as changed. A system's
+  own writes don't count as changes to it.
+- **Stamps are atomic** (relaxed), so jobs may write different entities of
+  one chunk through `writeComponent`.
+- **`changedSince(world, entity, component, version)`** (C#
+  `World.ChangedSince`) answers for an entity's chunk.

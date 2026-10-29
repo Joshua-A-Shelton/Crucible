@@ -50,27 +50,38 @@ C#.
 - **`WorldTransform { Matrix4x4 matrix; }`:** object to world for row
   vectors, `local * parent`. It is derived, so it is never saved.
 - **Propagation** (`crucible.TransformPropagation`, C++, first in
-  RenderPrepare of the default schedule) runs two passes over entities that
-  have both components, one job per chunk:
-  1. Each world matrix is set to the entity's local matrix (scale, then
-     rotation, then translation). Writing the columns stamps their change
-     versions for the whole update.
-  2. Each root walks its subtree depth first, multiplying children by their
-     parent. A root is an entity with no parent, or whose parent lacks the
-     components. Subtrees are disjoint, so they run in parallel. Writes in
-     this pass skip the stamp, which pass 1 already made and which would race
-     if made from many jobs.
+  RenderPrepare of the default schedule) is incremental (owner's request;
+  amendment to ADR 0034 for the versions it relies on). One job per chunk of
+  entities with both components; each root walks its subtree depth first.
+  - A root is an entity with no parent, or whose parent lacks the
+    components.
+  - An entity is recomputed (`local * parent`) when its chunk's
+    `LocalTransform` or `Parent` changed since the system's last run, or
+    when an ancestor was recomputed. Otherwise its stored matrix is reused.
+  - A root under a transform-less parent is always recomputed, since a
+    parent losing its transforms changes nothing in the child's chunk.
+  - A matrix is written only when its value differs, so the
+    `WorldTransform` column's change version means "moved". Step 5 can skip
+    re-uploading chunks that didn't move.
 
-  Everything is recomputed every frame. Skipping unchanged subtrees waits for
-  a profile that asks for it: 100k entities take 0.64 ms in a release build
-  on 23 workers (the "benchmark" suite).
+  The walk still visits every entity to compare versions, and that
+  dominates. For 100k entities on 23 workers in release: 0.39 ms when
+  nothing moved, 0.47 ms when 1% moved, 0.56 ms when everything moved. A
+  chunk-ordered walk that skips untouched hierarchies entirely is the next
+  step if profiles ask for it.
+- **One entity on demand:** `computeWorldTransform(world, entity)` (C#
+  `World.ComputeWorldTransform`) multiplies up through the ancestors and
+  returns the matrix without storing it. It costs one step per ancestor and
+  is read-only, so many threads may call it while nothing writes
+  transforms.
 - **Missing world transforms:** the system gives an entity that has a
   `LocalTransform` but no `WorldTransform` one through the command buffer,
   already placed under its parent. It applies at RenderPrepare's sync point,
   before RenderSubmit draws.
-- **On demand:** `updateWorldTransforms(world)` (C# `World.UpdateWorldTransforms`)
-  for gameplay that reads a parent it just moved. Otherwise world matrices
-  are last frame's until RenderPrepare.
+- **Everything on demand:** `updateWorldTransforms(world)` (C#
+  `World.UpdateWorldTransforms`) recomputes every matrix, since it doesn't
+  know what changed since when. It still writes only those that moved.
+  Otherwise world matrices are last frame's until RenderPrepare.
 - **Not in the C++ system registry:** every schedule includes every
   registered C++ system (ADR 0036), and a custom schedule may have no
   RenderPrepare. So `ScheduleBuilder.CreateDefault` adds the system through
@@ -110,6 +121,12 @@ C#.
 ## As built (M5 step 4)
 
 - Tests:
+  - Incremental propagation: only moved subtrees are rewritten, an
+    untouched chunk keeps its version, middle entities and reparenting
+    reach below, a parent losing its transforms leaves roots, and an
+    unchanged rewrite writes nothing.
+  - `computeWorldTransform` is fresh and stores nothing.
+  - The loop hands each system its last-run version (C#).
   - Propagation composes three levels, places entities under
     transform-less parents as roots, stamps change versions, adds missing
     world transforms, and matches a serial walk over 200 chains of 20 on 4

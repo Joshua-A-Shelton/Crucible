@@ -132,6 +132,14 @@ public sealed unsafe class FrameContext
     /// </summary>
     public double FixedAlpha { get; internal set; }
 
+    /// <summary>
+    /// The main world's change version during the running system's previous
+    /// run (ADR 0034), for <c>ChangedSince</c>; 0 on its first run on this
+    /// world. The loop advances the version after every system, so writes
+    /// since then, by anyone, are newer.
+    /// </summary>
+    public uint LastRunVersion { get; internal set; }
+
     /// <summary>Fixed steps run this frame.</summary>
     public int FixedSteps { get; internal set; }
 
@@ -185,12 +193,36 @@ public sealed unsafe class FrameContext
         }
     }
 
+    // Before each system: its version from its previous run on the main world.
+    internal void BeginSystem(GameSystem system)
+    {
+        LastRunVersion = _world is not null && ReferenceEquals(system.LastRunWorld, _world) ? system.LastRunVersion : 0;
+        if (NativeContext != null)
+        {
+            NativeContext->LastRunVersion = LastRunVersion;
+        }
+    }
+
+    // After each system: remember the version it ran at, then start a newer
+    // one, so anything written afterwards (other systems, sync points, edits
+    // between frames) counts as a change to it (ADR 0034).
+    internal void EndSystem(GameSystem system)
+    {
+        if (_world is not null)
+        {
+            system.LastRunWorld = _world;
+            system.LastRunVersion = _world.CurrentVersion;
+            _world.AdvanceVersion();
+        }
+    }
+
     internal void RefreshNativeContext()
     {
         NativeContext->FrameNumber = FrameNumber;
         NativeContext->DeltaSeconds = DeltaSeconds;
         NativeContext->FixedStepSeconds = FixedStepSeconds;
         NativeContext->FixedAlpha = FixedAlpha;
+        NativeContext->LastRunVersion = LastRunVersion;
     }
 
     /// <summary>This frame's input and window events, in arrival order.</summary>

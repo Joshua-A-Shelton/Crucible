@@ -19,10 +19,35 @@ happen:
     world  = local * parent's world
 
 A hand's world matrix is its local matrix, then its arm's world matrix, and
-so on up to a root. Parents must be finished before their children. The
-propagation system first turns every local transform into a matrix, then
-walks each root's subtree from the top down. Different roots' subtrees
-share nothing, so they're spread across the job system.
+so on up to a root. Parents must be finished before their children, so
+the propagation system walks each root's subtree from the top down. Each
+entity's local transform becomes a matrix and is multiplied by its
+parent's world matrix. Different roots' subtrees share nothing, so they're
+spread across the job system.
+
+## Only what moved
+
+Most things in a level don't move most frames, so the system skips them.
+Each chunk column has a change version (ADR 0034), and the frame loop
+gives every system the version of its previous run. The walk compares
+versions: an entity whose chunk's local transform or parent changed since
+then is recomputed, and so is everything below it, whether its own chunk
+changed or not. The rest keep last frame's matrix.
+
+Two lessons from measuring it:
+
+- **Skipping the math isn't skipping the work.** The walk still visits
+  every entity to look at versions, and those scattered lookups cost more
+  than the matrix multiplies. With nothing moving, a frame is only about a
+  third cheaper.
+- **The bigger win is downstream.** A world matrix is written only when it
+  actually changes, so its column's version means "this chunk moved". Step
+  5 can then skip re-uploading instance data for everything that stood
+  still.
+
+For one entity right now (say, a hand that was just attached),
+`computeWorldTransform` multiplies up through its ancestors without
+waiting for the system and without storing anything.
 
 ## From world to screen
 

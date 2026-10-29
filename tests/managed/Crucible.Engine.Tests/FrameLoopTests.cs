@@ -293,6 +293,35 @@ public class FrameLoopTests
     }
 
     [Test]
+    public async Task EachSystemSeesTheVersionOfItsLastRun()
+    {
+        using World world = new();
+        Entity entity = world.CreateEntity(Components.Of<Crucible.Scenes.LocalTransform>());
+        List<(uint Last, bool Changed)> seen = [];
+        Schedule schedule = Builder("A")
+            .AddSystem("A", new ActionSystem("reader", c =>
+                seen.Add((c.LastRunVersion, world.ChangedSince(entity, Components.Of<Crucible.Scenes.LocalTransform>(),
+                    c.LastRunVersion)))))
+            .AddSystem("A", new ActionSystem("writer", c =>
+            {
+                if (c.FrameNumber == 1)
+                {
+                    world.Get<Crucible.Scenes.LocalTransform>(entity).Position.X = 1;
+                }
+            }))
+            .Build();
+
+        new FrameLoop(schedule).Run(new FrameContext { World = world }, frameLimit: 4);
+
+        // First run: 0 (everything is new). The write in frame 1, after the
+        // reader ran, is seen in frame 2 and not again.
+        await Assert.That(seen[0].Last).IsEqualTo(0u);
+        await Assert.That(string.Join(" ", seen.Select(s => s.Changed))).IsEqualTo("True False True False");
+        await Assert.That(seen[1].Last).IsGreaterThan(0u);
+        await Assert.That(seen[3].Last).IsGreaterThan(seen[2].Last);
+    }
+
+    [Test]
     public async Task CppSystemsSortAndRunWithCSharpSystems()
     {
         using World world = new();

@@ -9,14 +9,11 @@
 // half of the partial struct adds [Serialized]); WorldTransform is derived
 // and never saved.
 
+#include <crucible/Ecs.h>
 #include <crucible/Expose.h>
 #include <crucible/Math.h>
 
 #include <cstdint>
-
-namespace crucible::ecs {
-struct World;
-}
 
 namespace crucible::scenes {
 
@@ -36,6 +33,13 @@ struct CRUCIBLE_EXPOSE WorldTransform
     Matrix4x4 matrix;
 };
 
+// The entity's world matrix as it is now, from its own and its ancestors'
+// local transforms (cost: its depth), without storing it: WorldTransform
+// stays as last propagated. Identity without a LocalTransform. Read-only, so
+// callable from many threads while nothing writes transforms or the
+// hierarchy. For many entities, updateWorldTransforms is cheaper.
+CRUCIBLE_EXPOSE_INTERNAL Matrix4x4 computeWorldTransform(const ecs::World& world, ecs::Entity entity);
+
 // Recomputes every world matrix now, for code that can't wait for
 // "crucible.TransformPropagation" (gameplay reading a parent it just moved).
 // An entity takes part when it has both components; one under a parent
@@ -46,8 +50,9 @@ CRUCIBLE_EXPOSE_INTERNAL void updateWorldTransforms(ecs::World& world);
 CRUCIBLE_EXPOSE_INTERNAL void registerTransforms();
 
 // The system "crucible.TransformPropagation", as the function address C#'s
-// default schedule calls in RenderPrepare (ADR 0050): it updates the world
-// matrices, and gives entities that have a LocalTransform but no
+// default schedule calls in RenderPrepare (ADR 0050): it recomputes the
+// world matrices of entities whose local transform or parent changed since
+// its last run, and everything below them; and it gives entities that have a LocalTransform but no
 // WorldTransform one (applied at RenderPrepare's sync point, so it's in place
 // for RenderSubmit). Not in the C++ system registry, which every schedule
 // includes: custom schedules add it themselves, or not.

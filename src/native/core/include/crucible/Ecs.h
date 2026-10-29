@@ -219,6 +219,10 @@ void* writeColumn(const ChunkView& view, ComponentId component);
 // Whether the column was written, or the chunk's entities changed, after
 // `version`.
 bool changedSince(const ChunkView& view, ComponentId component, uint32_t version);
+// The same for the chunk an entity is in: true if any entity there changed
+// (versions are per chunk). False for a dead entity or one without the
+// component; always true for a sparse component, which keeps no versions.
+bool changedSince(const World& world, Entity entity, ComponentId component, uint32_t version);
 
 template <class T>
 std::span<const T> readColumn(const ChunkView& view)
@@ -339,6 +343,8 @@ CRUCIBLE_EXPOSE_INTERNAL const void* chunkEntities(const Chunk* chunk);
 // The column's start, or null; `write` stamps its change version.
 CRUCIBLE_EXPOSE_INTERNAL void* chunkColumn(World& world, Chunk* chunk, ComponentId component, bool write);
 CRUCIBLE_EXPOSE_INTERNAL bool chunkChangedSince(const Chunk* chunk, ComponentId component, uint32_t version);
+CRUCIBLE_EXPOSE_INTERNAL bool entityChangedSince(const World& world, Entity entity, ComponentId component,
+                                                 uint32_t version);
 
 // Bracket C#'s chunk iteration, so structural changes during it are caught
 // as in forEachChunk.

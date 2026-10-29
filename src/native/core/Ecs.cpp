@@ -295,6 +295,20 @@ Entity* entityIds(const Chunk& chunk)
     return reinterpret_cast<Entity*>(chunk.data);
 }
 
+// Writes from different jobs may stamp the same column (different entities
+// in one chunk), so stamps are atomic; relaxed is enough, as they all store
+// the same version and nothing else is ordered by them.
+void stamp(uint32_t& version, uint32_t value)
+{
+    std::atomic_ref<uint32_t>(version).store(value, std::memory_order_relaxed);
+}
+
+uint32_t stampOf(const uint32_t& version)
+{
+    // atomic_ref<const T> is C++26; loading through it doesn't write.
+    return std::atomic_ref<uint32_t>(const_cast<uint32_t&>(version)).load(std::memory_order_relaxed);
+}
+
 // A new entity counts as a change to every column (ADR 0034).
 void stampAll(World& world, Chunk& chunk)
 {
@@ -1015,7 +1029,7 @@ void* writeComponent(World& world, Entity entity, ComponentId component)
     {
         return nullptr;
     }
-    chunk.versions[index] = world.version;
+    stamp(chunk.versions[index], world.version);
     return valueAt(chunk, chunk.archetype->columns[index], record->row);
 }
 
@@ -1106,7 +1120,7 @@ void* writeColumn(const ChunkView& view, ComponentId component)
     {
         return nullptr;
     }
-    chunk.versions[index] = view.world->version;
+    stamp(chunk.versions[index], view.world->version);
     return chunk.data + chunk.archetype->columns[index].offset;
 }
 
@@ -1114,7 +1128,23 @@ bool changedSince(const ChunkView& view, ComponentId component, uint32_t version
 {
     const Chunk& chunk = *view.chunk;
     const int index = columnIndex(*chunk.archetype, component);
-    return index >= 0 && chunk.versions[index] > version;
+    return index >= 0 && stampOf(chunk.versions[index]) > version;
+}
+
+bool changedSince(const World& world, Entity entity, ComponentId component, uint32_t version)
+{
+    const EntityRecord* record = liveRecord(world, entity);
+    if (record == nullptr)
+    {
+        return false;
+    }
+    if (isSparse(component))
+    {
+        return true; // sparse sets keep no versions
+    }
+    const Chunk& chunk = *record->chunk;
+    const int index = columnIndex(*chunk.archetype, component);
+    return index >= 0 && stampOf(chunk.versions[index]) > version;
 }
 
 void forEachChunk(Query& query, ChunkFunction function, void* data)
@@ -1566,7 +1596,12 @@ void* chunkColumn(World& world, Chunk* chunk, ComponentId component, bool write)
 bool chunkChangedSince(const Chunk* chunk, ComponentId component, uint32_t version)
 {
     const int index = columnIndex(*chunk->archetype, component);
-    return index >= 0 && chunk->versions[index] > version;
+    return index >= 0 && stampOf(chunk->versions[index]) > version;
+}
+
+bool entityChangedSince(const World& world, Entity entity, ComponentId component, uint32_t version)
+{
+    return changedSince(world, entity, component, version);
 }
 
 void beginIteration(World& world)

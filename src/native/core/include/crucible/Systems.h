@@ -24,6 +24,11 @@ struct CRUCIBLE_EXPOSE SystemContext
     double deltaSeconds;     // clamped like the fixed tick (ADR 0036)
     double fixedStepSeconds; // the fixed tick's step
     double fixedAlpha;       // how far the frame is between two ticks, 0..1
+    // The world's change version during this system's previous run, for
+    // ecs::changedSince (ADR 0034); 0 on its first run on this world. The
+    // loop advances the version after every system, so writes since then,
+    // by anyone, are newer.
+    uint32_t lastRunVersion;
 };
 
 // Runs on the loop's thread, like a C# system; split work across cores with

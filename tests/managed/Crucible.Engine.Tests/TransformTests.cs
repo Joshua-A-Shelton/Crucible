@@ -30,6 +30,11 @@ public class TransformTests
         Matrix4x4 placed = world.Read<WorldTransform>(child).Matrix;
         await Assert.That(placed.Translation).IsEqualTo(new Vector3(2, 10, 0));
         await Assert.That(placed.M11).IsEqualTo(2f);
+
+        // Fresh on demand, without storing it.
+        world.Get<LocalTransform>(parent).Position = new Vector3(0, 20, 0);
+        await Assert.That(world.ComputeWorldTransform(child).Translation).IsEqualTo(new Vector3(2, 20, 0));
+        await Assert.That(world.Read<WorldTransform>(child).Matrix.Translation).IsEqualTo(new Vector3(2, 10, 0));
     }
 
     [Test]

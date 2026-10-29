@@ -1,3 +1,5 @@
+using Crucible.Ecs;
+
 namespace Crucible.Loop;
 
 /// <summary>
@@ -27,6 +29,11 @@ public abstract class GameSystem
 
     /// <summary>Exceptions <see cref="Run"/> has thrown since the loop started.</summary>
     public int ExceptionCount { get; internal set; }
+
+    // The world the system last ran on and its version then, for
+    // FrameContext.LastRunVersion.
+    internal World? LastRunWorld { get; set; }
+    internal uint LastRunVersion { get; set; }
 
     /// <summary>Called once before the first frame, in schedule order: create queries here.</summary>
     public virtual void Start(FrameContext context)

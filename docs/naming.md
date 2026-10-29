@@ -71,6 +71,9 @@ Settled in a review of M4's and M5's placeholders (ADR 0047's amendment).
 |---|---|
 | `crucible/Transform.h`: `LocalTransform`, `WorldTransform` (`matrix`) | Transforms, in `crucible::scenes` / `Crucible.Scenes` (ADR 0050) |
 | `updateWorldTransforms`, C# `World.UpdateWorldTransforms` | Propagation on demand |
+| `computeWorldTransform`, C# `World.ComputeWorldTransform` | One entity's world matrix now, not stored |
+| `SystemContext::lastRunVersion`, C# `FrameContext.LastRunVersion` | The version of a system's previous run (ADR 0034 amendment) |
+| `changedSince(world, entity, ...)`, C# `World.ChangedSince` | Per-entity form of `changedSince` |
 | `crucible.TransformPropagation` | The propagation system |
 | `crucible/Camera.h`: `Camera`, `CameraProjection` (`Perspective`, `Orthographic`) | The camera component, in `crucible::render` / `Crucible.Render` |
 | `Camera` fields: `projection`, `fieldOfViewY`, `orthographicHeight`, `nearPlane`, `farPlane`, `priority` | Full vertical angle, full height |

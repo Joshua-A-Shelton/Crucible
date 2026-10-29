@@ -116,6 +116,7 @@ public sealed class FrameLoop(Schedule schedule)
                 continue;
             }
             long start = Stopwatch.GetTimestamp();
+            context.BeginSystem(system);
             try
             {
                 system.Run(context);
@@ -127,6 +128,7 @@ public sealed class FrameLoop(Schedule schedule)
                 system.ExceptionCount++;
                 Console.Error.WriteLine($"Crucible.Loop: {system.Name} threw: {exception}");
             }
+            context.EndSystem(system);
             system.LastRunTicks = Stopwatch.GetTimestamp() - start;
             if (context.Failure != Status.Ok)
             {
