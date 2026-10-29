@@ -1,45 +1,15 @@
 // glTF mesh import (ADR 0043): mirroring into left-handed space on X (ADR
 // 0024's amendment), winding, tangents, welding, LODs, and the MESH layout.
 
-#include <crucible/BinaryFile.h>
+#include "MeshTestSupport.h"
+
 #include <crucible/Memory.h>
-#include <crucible/importers/Mesh.h>
-#include <crucible/importers/Texture.h>
-
-#include <doctest/doctest.h>
-
-#include <array>
-#include <cmath>
-#include <cstring>
-#include <map>
-// doctest prints a string_view with operator<<, which MSVC declares only in
-// <ostream>.
-#include <ostream>
-#include <string>
-#include <string_view>
-#include <vector>
 
 using namespace crucible;
 using namespace crucible::importers;
+using namespace crucible::importers::testing;
 
 namespace {
-
-using Vec3 = std::array<float, 3>;
-
-Vec3 cross(const Vec3& a, const Vec3& b)
-{
-    return {a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]};
-}
-
-float dot(const Vec3& a, const Vec3& b)
-{
-    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-}
-
-Vec3 minus(const Vec3& a, const Vec3& b)
-{
-    return {a[0] - b[0], a[1] - b[1], a[2] - b[2]};
-}
 
 std::string base64(const std::vector<uint8_t>& bytes)
 {
@@ -158,130 +128,6 @@ struct Gltf
             out += ",\"images\":" + list(images) + ",\"textures\":" + list(textures);
         }
         return out + "}";
-    }
-};
-
-MeshSettings settings()
-{
-    return {.optimize = true,
-            .generateTangents = true,
-            .generateLods = true,
-            .maxLods = 4,
-            .lodRatio = 0.5f,
-            .lodMaxError = 0.05f};
-}
-
-// An imported file's sections, by tag.
-struct Imported
-{
-    MeshImport* mesh = nullptr;
-    std::map<uint32_t, std::vector<uint8_t>> sections;
-
-    explicit Imported(const std::string& json, MeshSettings options = settings())
-    {
-        std::vector<uint8_t> bytes(json.begin(), json.end());
-        Result<GltfSource*> source = parseGltf(bytes);
-        INFO(lastImportError());
-        REQUIRE(source);
-        Result<MeshImport*> result = importGltf(*source.value(), options);
-        INFO(lastImportError());
-        REQUIRE(result);
-        destroyGltfSource(source.value());
-        mesh = result.value();
-        for (uint32_t i = 0; i < meshSectionCount(*mesh); ++i)
-        {
-            const MeshSectionInfo info = meshSection(*mesh, i);
-            std::vector<uint8_t>& data = sections[info.tag];
-            data.resize(info.size);
-            copyMeshSection(*mesh, i, data);
-        }
-    }
-
-    ~Imported()
-    {
-        destroyMeshImport(mesh);
-    }
-
-    template <class T>
-    std::vector<T> table(const char (&tag)[5]) const
-    {
-        const std::vector<uint8_t>& data = sections.at(binary::tag(tag));
-        std::vector<T> values(data.size() / sizeof(T));
-        std::memcpy(values.data(), data.data(), values.size() * sizeof(T));
-        return values;
-    }
-
-    bool has(const char (&tag)[5]) const
-    {
-        return sections.count(binary::tag(tag)) != 0;
-    }
-
-    Vec3 position(uint32_t vertex) const
-    {
-        const auto& data = sections.at(binary::tag("POSN"));
-        Vec3 p;
-        std::memcpy(p.data(), data.data() + vertex * 12, 12);
-        return p;
-    }
-
-    // Octahedral decoding, as a shader does it.
-    static Vec3 decode(int16_t ex, int16_t ey)
-    {
-        float x = std::max(ex / 32767.0f, -1.0f), y = std::max(ey / 32767.0f, -1.0f);
-        float z = 1.0f - std::fabs(x) - std::fabs(y);
-        if (z < 0)
-        {
-            const float fx = (1.0f - std::fabs(y)) * (x >= 0 ? 1.0f : -1.0f);
-            const float fy = (1.0f - std::fabs(x)) * (y >= 0 ? 1.0f : -1.0f);
-            x = fx;
-            y = fy;
-        }
-        const float length = std::sqrt(x * x + y * y + z * z);
-        return {x / length, y / length, z / length};
-    }
-
-    Vec3 normal(uint32_t vertex) const
-    {
-        const auto& data = sections.at(binary::tag("NRML"));
-        int16_t e[2];
-        std::memcpy(e, data.data() + vertex * 4, 4);
-        return decode(e[0], e[1]);
-    }
-
-    // Tangent direction and handedness.
-    std::pair<Vec3, float> tangent(uint32_t vertex) const
-    {
-        const auto& data = sections.at(binary::tag("TNGT"));
-        int16_t e[4];
-        std::memcpy(e, data.data() + vertex * 8, 8);
-        return {decode(e[0], e[1]), e[2] < 0 ? -1.0f : 1.0f};
-    }
-
-    // A level's triangles, as vertex triples, for mesh `m`.
-    std::vector<std::array<uint32_t, 3>> triangles(uint32_t m, uint32_t level) const
-    {
-        const MeshEntry entry = table<MeshEntry>("MSHS")[m];
-        const MeshLod lod = table<MeshLod>("LODS")[entry.lodOffset + level];
-        const std::vector<MeshRange> ranges = table<MeshRange>("RNGS");
-        const std::vector<uint8_t>& indexBytes = sections.at(binary::tag("INDX"));
-        std::vector<std::array<uint32_t, 3>> result;
-        for (uint32_t s = 0; s < entry.submeshCount; ++s)
-        {
-            const MeshRange range = ranges[lod.rangeOffset + s];
-            for (uint32_t i = 0; i < range.indexCount; i += 3)
-            {
-                std::array<uint32_t, 3> triangle{};
-                for (uint32_t k = 0; k < 3; ++k)
-                {
-                    uint32_t index = 0;
-                    std::memcpy(&index, indexBytes.data() + range.indexByteOffset + (i + k) * entry.indexSize,
-                                entry.indexSize);
-                    triangle[k] = entry.vertexOffset + index;
-                }
-                result.push_back(triangle);
-            }
-        }
-        return result;
     }
 };
 

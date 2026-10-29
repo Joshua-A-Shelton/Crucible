@@ -1,12 +1,9 @@
-#include <crucible/importers/Mesh.h>
+#include "MeshBuilder.h"
 
 #include "Common.h"
 
 #include <crucible/BinaryFile.h>
-#include <crucible/Memory.h>
-#include <crucible/Vector.h>
 
-#include <cgltf.h>
 #include <meshoptimizer.h>
 #include <mikktspace.h>
 
@@ -18,114 +15,62 @@
 
 namespace crucible::importers {
 
+uint32_t StringList::add(std::string_view value)
+{
+    for (char c : value)
+    {
+        text.pushBack(c);
+    }
+    ends.pushBack(static_cast<uint32_t>(text.size()));
+    return count() - 1;
+}
+
+uint32_t StringList::addFormat(const char* format, ...)
+{
+    char line[512];
+    va_list arguments;
+    va_start(arguments, format);
+    std::vsnprintf(line, sizeof(line), format, arguments);
+    va_end(arguments);
+    return add(line);
+}
+
+std::string_view StringList::at(uint32_t index) const
+{
+    if (index >= ends.size())
+    {
+        return {};
+    }
+    const uint32_t begin = index == 0 ? 0 : ends[index - 1];
+    return {text.data() + begin, ends[index] - begin};
+}
+
+SourceScene::~SourceScene()
+{
+    for (SourceMesh* mesh : meshes)
+    {
+        destroy(MemoryTag::Assets, mesh);
+    }
+}
+
+SourceMesh& SourceScene::addMesh(std::string_view name)
+{
+    SourceMesh* mesh = create<SourceMesh>(MemoryTag::Assets);
+    mesh->name = strings.add(name);
+    meshes.pushBack(mesh);
+    return *mesh;
+}
+
+const char* nameOf(const char* name, const char* fallback)
+{
+    return name != nullptr && name[0] != '\0' ? name : fallback;
+}
+
 namespace {
-
-// ---------------------------------------------------------------------------
-// cgltf through Crucible's allocator
-// ---------------------------------------------------------------------------
-
-constexpr size_t sizePrefix = 16;
-
-void* allocateSized(void*, cgltf_size size)
-{
-    auto* block = static_cast<std::byte*>(tryAllocate(size + sizePrefix, 16, MemoryTag::Assets));
-    if (block == nullptr)
-    {
-        return nullptr;
-    }
-    std::memcpy(block, &size, sizeof(size));
-    return block + sizePrefix;
-}
-
-void freeSized(void*, void* pointer)
-{
-    if (pointer == nullptr)
-    {
-        return;
-    }
-    std::byte* block = static_cast<std::byte*>(pointer) - sizePrefix;
-    size_t size;
-    std::memcpy(&size, block, sizeof(size));
-    free(block, size + sizePrefix, MemoryTag::Assets);
-}
-
-// Buffers in other files come from C#, which records them as dependencies;
-// cgltf never opens a file itself.
-cgltf_result refuseFile(const cgltf_memory_options*, const cgltf_file_options*, const char*, cgltf_size*, void**)
-{
-    return cgltf_result_io_error;
-}
-
-cgltf_options options()
-{
-    cgltf_options result{};
-    result.memory.alloc_func = allocateSized;
-    result.memory.free_func = freeSized;
-    result.file.read = refuseFile;
-    return result;
-}
-
-const char* describe(cgltf_result result)
-{
-    switch (result)
-    {
-    case cgltf_result_data_too_short:
-        return "the file is cut short";
-    case cgltf_result_unknown_format:
-        return "it isn't glTF JSON or a .glb";
-    case cgltf_result_invalid_json:
-        return "its JSON doesn't parse";
-    case cgltf_result_invalid_gltf:
-        return "its JSON isn't valid glTF";
-    case cgltf_result_invalid_options:
-        return "invalid options";
-    case cgltf_result_file_not_found:
-    case cgltf_result_io_error:
-        return "a file can't be read";
-    case cgltf_result_out_of_memory:
-        return "out of memory";
-    case cgltf_result_legacy_gltf:
-        return "it is glTF 1.0, which isn't supported";
-    default:
-        return "unknown error";
-    }
-}
-
-bool isDataUri(const char* uri)
-{
-    return std::strncmp(uri, "data:", 5) == 0;
-}
 
 // ---------------------------------------------------------------------------
 // Building one mesh, corner by corner
 // ---------------------------------------------------------------------------
-
-// A mesh's triangles before welding: every corner with all its attributes,
-// so normals and tangents can be generated per face.
-struct Corners
-{
-    Vector<float> positions{MemoryTag::Assets}; // 3 per corner
-    Vector<float> normals{MemoryTag::Assets};   // 3
-    Vector<float> tangents{MemoryTag::Assets};  // 4
-    Vector<float> uv0{MemoryTag::Assets};       // 2
-    Vector<float> uv1{MemoryTag::Assets};       // 2
-    Vector<float> colors{MemoryTag::Assets};    // 4, linear
-
-    uint32_t count() const
-    {
-        return static_cast<uint32_t>(positions.size() / 3);
-    }
-};
-
-struct Submesh
-{
-    uint32_t firstCorner;
-    uint32_t cornerCount;
-    int32_t material;
-    bool hasNormals;
-    bool hasTangents;
-    bool hasUv0;
-};
 
 // A welded, optimized mesh, ready to pack.
 struct BuiltMesh
@@ -156,35 +101,6 @@ struct BuiltMesh
 uint32_t bit(MeshAttribute attribute)
 {
     return static_cast<uint32_t>(attribute);
-}
-
-const cgltf_accessor* findAttribute(const cgltf_primitive& primitive, cgltf_attribute_type type, int index)
-{
-    for (cgltf_size i = 0; i < primitive.attributes_count; ++i)
-    {
-        if (primitive.attributes[i].type == type && primitive.attributes[i].index == index)
-        {
-            return primitive.attributes[i].data;
-        }
-    }
-    return nullptr;
-}
-
-// An accessor's values as floats (normalized integers become [0, 1] or
-// [-1, 1]), `components` per element; empty if absent or unreadable.
-Vector<float> unpack(const cgltf_accessor* accessor, uint32_t components)
-{
-    Vector<float> values(MemoryTag::Assets);
-    if (accessor == nullptr || cgltf_num_components(accessor->type) != components)
-    {
-        return values;
-    }
-    values.resize(accessor->count * components);
-    if (cgltf_accessor_unpack_floats(accessor, values.data(), values.size()) != values.size())
-    {
-        values.clear();
-    }
-    return values;
 }
 
 // The face normal of the stored (clockwise-front) triangle: cross(B - A,
@@ -255,152 +171,25 @@ void tangentSet(const SMikkTSpaceContext* context, const float tangent[], float 
     out[3] = sign;
 }
 
-struct Warnings
+// Builds one mirrored source mesh; its corners are used up.
+void buildMesh(SourceMesh& mesh, const char* meshName, const MeshSettings& settings, BuiltMesh& built,
+               StringList& warnings)
 {
-    Vector<char> text{MemoryTag::Assets};
-    Vector<uint32_t> ends{MemoryTag::Assets};
+    Corners& corners = mesh.corners;
+    const Vector<Submesh>& submeshes = mesh.submeshes;
 
-    void add(const char* format, ...)
-    {
-        char line[512];
-        va_list arguments;
-        va_start(arguments, format);
-        std::vsnprintf(line, sizeof(line), format, arguments);
-        va_end(arguments);
-        for (const char* c = line; *c != '\0'; ++c)
-        {
-            text.pushBack(*c);
-        }
-        ends.pushBack(static_cast<uint32_t>(text.size()));
-    }
-};
-
-const char* nameOf(const char* name, const char* fallback)
-{
-    return name != nullptr && name[0] != '\0' ? name : fallback;
-}
-
-// Reads one glTF mesh's triangle primitives into corners, mirrored on X with
-// the winding reversed (ADR 0024's amendment).
-Status readCorners(const cgltf_data& data, const cgltf_mesh& mesh, Corners& corners, Vector<Submesh>& submeshes,
-                   Warnings& warnings)
-{
-    const char* meshName = nameOf(mesh.name, "(unnamed)");
-    bool warnedSkin = false;
-    for (cgltf_size p = 0; p < mesh.primitives_count; ++p)
-    {
-        const cgltf_primitive& primitive = mesh.primitives[p];
-        if (primitive.type != cgltf_primitive_type_triangles)
-        {
-            warnings.add("mesh %s: primitive %u isn't triangles (points, lines, strips, or fans), so it is left out",
-                         meshName, static_cast<unsigned>(p));
-            continue;
-        }
-        if (!warnedSkin && (primitive.targets_count > 0 || findAttribute(primitive, cgltf_attribute_type_joints, 0)))
-        {
-            warnings.add("mesh %s: skins and morph targets aren't imported yet", meshName);
-            warnedSkin = true;
-        }
-        const cgltf_accessor* positionAccessor = findAttribute(primitive, cgltf_attribute_type_position, 0);
-        Vector<float> positions = unpack(positionAccessor, 3);
-        if (positions.empty())
-        {
-            warnings.add("mesh %s: primitive %u has no positions, so it is left out", meshName,
-                         static_cast<unsigned>(p));
-            continue;
-        }
-        const size_t vertexCount = positionAccessor->count;
-        const Vector<float> normals = unpack(findAttribute(primitive, cgltf_attribute_type_normal, 0), 3);
-        const Vector<float> tangents = unpack(findAttribute(primitive, cgltf_attribute_type_tangent, 0), 4);
-        const Vector<float> uv0 = unpack(findAttribute(primitive, cgltf_attribute_type_texcoord, 0), 2);
-        const Vector<float> uv1 = unpack(findAttribute(primitive, cgltf_attribute_type_texcoord, 1), 2);
-        const cgltf_accessor* colorAccessor = findAttribute(primitive, cgltf_attribute_type_color, 0);
-        const uint32_t colorComponents =
-            colorAccessor != nullptr ? static_cast<uint32_t>(cgltf_num_components(colorAccessor->type)) : 0;
-        const Vector<float> colors = unpack(colorAccessor, colorComponents == 3 ? 3 : 4);
-
-        const size_t indexCount = primitive.indices != nullptr ? primitive.indices->count : vertexCount;
-        if (indexCount % 3 != 0)
-        {
-            return fail("mesh %s: primitive %u has %zu indices, not a multiple of 3", meshName,
-                        static_cast<unsigned>(p), indexCount);
-        }
-        const int32_t material =
-            primitive.material != nullptr ? static_cast<int32_t>(cgltf_material_index(&data, primitive.material)) : -1;
-        const uint32_t first = corners.count();
-        // Reversing the winding: each triangle's corners in the order 0, 2, 1.
-        constexpr int order[3] = {0, 2, 1};
-        for (size_t triangle = 0; triangle < indexCount / 3; ++triangle)
-        {
-            for (int k : order)
-            {
-                const size_t i = triangle * 3 + static_cast<size_t>(k);
-                const size_t v = primitive.indices != nullptr ? cgltf_accessor_read_index(primitive.indices, i) : i;
-                if (v >= vertexCount)
-                {
-                    return fail("mesh %s: primitive %u has index %zu past its %zu vertices", meshName,
-                                static_cast<unsigned>(p), v, vertexCount);
-                }
-                // Mirroring on X: x, and the tangent's handedness, change sign.
-                corners.positions.pushBack(-positions[v * 3]);
-                corners.positions.pushBack(positions[v * 3 + 1]);
-                corners.positions.pushBack(positions[v * 3 + 2]);
-                for (int c = 0; c < 3; ++c)
-                {
-                    corners.normals.pushBack(normals.empty() ? 0.0f : (c == 0 ? -1.0f : 1.0f) * normals[v * 3 + c]);
-                }
-                for (int c = 0; c < 4; ++c)
-                {
-                    corners.tangents.pushBack(
-                        tangents.empty() ? 0.0f : (c == 0 || c == 3 ? -1.0f : 1.0f) * tangents[v * 4 + c]);
-                }
-                for (int c = 0; c < 2; ++c)
-                {
-                    corners.uv0.pushBack(uv0.empty() ? 0.0f : uv0[v * 2 + c]);
-                    corners.uv1.pushBack(uv1.empty() ? 0.0f : uv1[v * 2 + c]);
-                }
-                for (uint32_t c = 0; c < 4; ++c)
-                {
-                    corners.colors.pushBack(colors.empty()        ? 1.0f
-                                            : c < colorComponents ? colors[v * colorComponents + c]
-                                                                  : 1.0f);
-                }
-            }
-        }
-        submeshes.pushBack(
-            {first, corners.count() - first, material, !normals.empty(), !tangents.empty(), !uv0.empty()});
-    }
-    return Status::Ok;
-}
-
-Status buildMesh(const cgltf_data& data, const cgltf_mesh& mesh, const MeshSettings& settings, BuiltMesh& built,
-                 Warnings& warnings)
-{
-    const char* meshName = nameOf(mesh.name, "(unnamed)");
-    Corners corners;
-    Vector<Submesh> submeshes(MemoryTag::Assets);
-    if (const Status status = readCorners(data, mesh, corners, submeshes, warnings); status != Status::Ok)
-    {
-        return status;
-    }
-
-    // Which attributes the mesh has: any primitive's attribute makes it.
+    // Which attributes the mesh has: any submesh's attribute makes it.
     bool anyTangents = false, anyUv0 = false, anyUv1 = false, anyColors = false;
-    for (cgltf_size p = 0; p < mesh.primitives_count; ++p)
+    for (const Submesh& submesh : submeshes)
     {
-        const cgltf_primitive& primitive = mesh.primitives[p];
-        if (primitive.type != cgltf_primitive_type_triangles)
-        {
-            continue;
-        }
-        anyTangents |= findAttribute(primitive, cgltf_attribute_type_tangent, 0) != nullptr;
-        anyUv0 |= findAttribute(primitive, cgltf_attribute_type_texcoord, 0) != nullptr;
-        anyUv1 |= findAttribute(primitive, cgltf_attribute_type_texcoord, 1) != nullptr;
-        anyColors |= findAttribute(primitive, cgltf_attribute_type_color, 0) != nullptr;
+        anyTangents |= submesh.hasTangents;
+        anyUv0 |= submesh.hasUv0;
+        anyUv1 |= submesh.hasUv1;
+        anyColors |= submesh.hasColors;
     }
     const bool tangentsWanted = anyTangents || (settings.generateTangents && anyUv0);
 
-    // Normals: flat ones where the source has none, as glTF asks.
+    // Normals: flat ones where the source has none, as glTF asks (FBX too).
     for (const Submesh& submesh : submeshes)
     {
         if (submesh.hasNormals)
@@ -430,8 +219,8 @@ Status buildMesh(const cgltf_data& data, const cgltf_mesh& mesh, const MeshSetti
             }
             if (!submesh.hasUv0)
             {
-                warnings.add("mesh %s: a primitive has no UVs, so it gets no tangents (normal maps won't apply)",
-                             meshName);
+                warnings.addFormat("mesh %s: a primitive has no UVs, so it gets no tangents (normal maps won't apply)",
+                                   meshName);
                 continue;
             }
             TangentContext context{&corners, submesh.firstCorner, submesh.cornerCount};
@@ -459,7 +248,7 @@ Status buildMesh(const cgltf_data& data, const cgltf_mesh& mesh, const MeshSetti
         {
             built.ranges.pushBack({0, 0, submesh.material});
         }
-        return Status::Ok;
+        return;
     }
 
     // Weld identical corners into shared vertices. Welding compares bytes,
@@ -619,7 +408,6 @@ Status buildMesh(const cgltf_data& data, const cgltf_mesh& mesh, const MeshSetti
             built.boundsMax[c] = std::max(built.boundsMax[c], built.positions[v * 3 + c]);
         }
     }
-    return Status::Ok;
 }
 
 // ---------------------------------------------------------------------------
@@ -669,66 +457,44 @@ struct Blob
     }
 };
 
-// Decomposes a column-major matrix into translation, rotation, and scale.
-void decompose(const float* m, float* translation, float* rotation, float* scale)
+// Mirroring on X (ADR 0024's amendment): x, and the tangent's handedness,
+// change sign, and each triangle's last two corners swap so front faces
+// stay front faces, now clockwise.
+void swapCorners(Vector<float>& stream, uint32_t components, uint32_t a, uint32_t b)
 {
-    translation[0] = m[12];
-    translation[1] = m[13];
-    translation[2] = m[14];
-    float columns[3][3];
-    for (int c = 0; c < 3; ++c)
+    for (uint32_t c = 0; c < components; ++c)
     {
-        scale[c] = std::sqrt(m[c * 4] * m[c * 4] + m[c * 4 + 1] * m[c * 4 + 1] + m[c * 4 + 2] * m[c * 4 + 2]);
-        for (int r = 0; r < 3; ++r)
+        std::swap(stream[a * components + c], stream[b * components + c]);
+    }
+}
+
+void mirror(SourceScene& scene)
+{
+    for (SourceMesh* mesh : scene.meshes)
+    {
+        Corners& corners = mesh->corners;
+        for (uint32_t i = 0; i < corners.count(); ++i)
         {
-            columns[c][r] = scale[c] > 0 ? m[c * 4 + r] / scale[c] : 0.0f;
+            corners.positions[i * 3] = -corners.positions[i * 3];
+            corners.normals[i * 3] = -corners.normals[i * 3];
+            corners.tangents[i * 4] = -corners.tangents[i * 4];
+            corners.tangents[i * 4 + 3] = -corners.tangents[i * 4 + 3];
+        }
+        for (uint32_t i = 0; i + 2 < corners.count(); i += 3)
+        {
+            swapCorners(corners.positions, 3, i + 1, i + 2);
+            swapCorners(corners.normals, 3, i + 1, i + 2);
+            swapCorners(corners.tangents, 4, i + 1, i + 2);
+            swapCorners(corners.uv0, 2, i + 1, i + 2);
+            swapCorners(corners.uv1, 2, i + 1, i + 2);
+            swapCorners(corners.colors, 4, i + 1, i + 2);
         }
     }
-    // A mirroring matrix: put the reflection into one scale.
-    const float determinant = columns[0][0] * (columns[1][1] * columns[2][2] - columns[2][1] * columns[1][2]) -
-                              columns[1][0] * (columns[0][1] * columns[2][2] - columns[2][1] * columns[0][2]) +
-                              columns[2][0] * (columns[0][1] * columns[1][2] - columns[1][1] * columns[0][2]);
-    if (determinant < 0)
+    for (SourceNode& node : scene.nodes)
     {
-        scale[0] = -scale[0];
-        for (int r = 0; r < 3; ++r)
-        {
-            columns[0][r] = -columns[0][r];
-        }
-    }
-    // Rotation matrix (element row r, column c is columns[c][r]) to quaternion.
-    const float trace = columns[0][0] + columns[1][1] + columns[2][2];
-    if (trace > 0)
-    {
-        const float s = std::sqrt(trace + 1.0f) * 2.0f;
-        rotation[3] = 0.25f * s;
-        rotation[0] = (columns[1][2] - columns[2][1]) / s;
-        rotation[1] = (columns[2][0] - columns[0][2]) / s;
-        rotation[2] = (columns[0][1] - columns[1][0]) / s;
-    }
-    else if (columns[0][0] > columns[1][1] && columns[0][0] > columns[2][2])
-    {
-        const float s = std::sqrt(1.0f + columns[0][0] - columns[1][1] - columns[2][2]) * 2.0f;
-        rotation[3] = (columns[1][2] - columns[2][1]) / s;
-        rotation[0] = 0.25f * s;
-        rotation[1] = (columns[1][0] + columns[0][1]) / s;
-        rotation[2] = (columns[2][0] + columns[0][2]) / s;
-    }
-    else if (columns[1][1] > columns[2][2])
-    {
-        const float s = std::sqrt(1.0f + columns[1][1] - columns[0][0] - columns[2][2]) * 2.0f;
-        rotation[3] = (columns[2][0] - columns[0][2]) / s;
-        rotation[0] = (columns[1][0] + columns[0][1]) / s;
-        rotation[1] = 0.25f * s;
-        rotation[2] = (columns[2][1] + columns[1][2]) / s;
-    }
-    else
-    {
-        const float s = std::sqrt(1.0f + columns[2][2] - columns[0][0] - columns[1][1]) * 2.0f;
-        rotation[3] = (columns[0][1] - columns[1][0]) / s;
-        rotation[0] = (columns[2][0] + columns[0][2]) / s;
-        rotation[1] = (columns[2][1] + columns[1][2]) / s;
-        rotation[2] = 0.25f * s;
+        node.translation[0] = -node.translation[0];
+        node.rotation[1] = -node.rotation[1];
+        node.rotation[2] = -node.rotation[2];
     }
 }
 
@@ -738,185 +504,36 @@ void decompose(const float* m, float* translation, float* rotation, float* scale
 // The API
 // ---------------------------------------------------------------------------
 
-struct GltfSource
+Result<MeshImport*> buildMeshImport(SourceScene& scene, MeshSettings settings)
 {
-    Vector<uint8_t> bytes{MemoryTag::Assets}; // cgltf points into it
-    cgltf_data* data = nullptr;
-    Vector<uint32_t> external{MemoryTag::Assets}; // buffers in other files
-    Vector<char> uris{MemoryTag::Assets};         // their decoded URIs, back to back
-    Vector<uint32_t> uriEnds{MemoryTag::Assets};
-    Vector<void*> provided{MemoryTag::Assets}; // what setGltfBuffer copied, to free
-};
-
-struct MeshImport
-{
-    struct Section
-    {
-        uint32_t tag;
-        uint32_t version;
-        uint64_t offset;
-        uint64_t size;
-    };
-    Vector<uint8_t> bytes{MemoryTag::Assets};
-    Vector<Section> sections{MemoryTag::Assets};
-    Vector<MaterialEntry> materials{MemoryTag::Assets};
-    Vector<char> textureUris{MemoryTag::Assets}; // five per material, back to back
-    Vector<uint32_t> textureUriEnds{MemoryTag::Assets};
-    Warnings warnings;
-
-    void addSection(uint32_t tag, const Vector<uint8_t>& section)
-    {
-        sections.pushBack({tag, 1, bytes.size(), section.size()});
-        for (uint8_t value : section)
-        {
-            bytes.pushBack(value);
-        }
-    }
-};
-
-Result<GltfSource*> parseGltf(std::span<const uint8_t> bytes)
-{
-    clearError();
-    GltfSource* source = create<GltfSource>(MemoryTag::Assets);
-    source->bytes.assign(bytes);
-    const cgltf_options parseOptions = options();
-    const cgltf_result result = cgltf_parse(&parseOptions, source->bytes.data(), source->bytes.size(), &source->data);
-    if (result != cgltf_result_success)
-    {
-        destroyGltfSource(source);
-        return fail("can't read the glTF: %s", describe(result));
-    }
-    for (cgltf_size i = 0; i < source->data->buffers_count; ++i)
-    {
-        const char* uri = source->data->buffers[i].uri;
-        if (uri == nullptr || isDataUri(uri))
-        {
-            continue;
-        }
-        source->external.pushBack(static_cast<uint32_t>(i));
-        // Decoded in a copy: "my%20mesh.bin" is the file "my mesh.bin".
-        Vector<char> decoded(MemoryTag::Assets);
-        decoded.assign(std::span<const char>(uri, std::strlen(uri) + 1));
-        const cgltf_size length = cgltf_decode_uri(decoded.data());
-        for (cgltf_size c = 0; c < length; ++c)
-        {
-            source->uris.pushBack(decoded[c]);
-        }
-        source->uriEnds.pushBack(static_cast<uint32_t>(source->uris.size()));
-    }
-    return source;
-}
-
-void destroyGltfSource(GltfSource* source)
-{
-    if (source == nullptr)
-    {
-        return;
-    }
-    if (source->data != nullptr)
-    {
-        cgltf_free(source->data);
-    }
-    for (void* provided : source->provided)
-    {
-        freeSized(nullptr, provided);
-    }
-    destroy(MemoryTag::Assets, source);
-}
-
-uint32_t gltfBufferCount(const GltfSource& source)
-{
-    return static_cast<uint32_t>(source.external.size());
-}
-
-std::string_view gltfBufferUri(const GltfSource& source, uint32_t index)
-{
-    if (index >= source.uriEnds.size())
-    {
-        return {};
-    }
-    const uint32_t begin = index == 0 ? 0 : source.uriEnds[index - 1];
-    return {source.uris.data() + begin, source.uriEnds[index] - begin};
-}
-
-Result<void> setGltfBuffer(GltfSource& source, uint32_t index, std::span<const uint8_t> bytes)
-{
-    if (index >= source.external.size())
-    {
-        return fail("there is no external buffer %u", index);
-    }
-    cgltf_buffer& buffer = source.data->buffers[source.external[index]];
-    if (bytes.size() < buffer.size)
-    {
-        return fail("buffer %.*s has %zu bytes, but the glTF says %zu",
-                    static_cast<int>(gltfBufferUri(source, index).size()), gltfBufferUri(source, index).data(),
-                    bytes.size(), static_cast<size_t>(buffer.size));
-    }
-    void* copy = allocateSized(nullptr, bytes.size() == 0 ? 1 : bytes.size());
-    if (copy == nullptr)
-    {
-        return Status::OutOfHostMemory;
-    }
-    std::memcpy(copy, bytes.data(), bytes.size());
-    source.provided.pushBack(copy);
-    buffer.data = copy;
-    buffer.data_free_method = cgltf_data_free_method_none; // freed with the source
-    return {};
-}
-
-Result<MeshImport*> importGltf(GltfSource& source, MeshSettings settings)
-{
-    clearError();
-    cgltf_data& data = *source.data;
-    for (uint32_t i = 0; i < source.external.size(); ++i)
-    {
-        if (data.buffers[source.external[i]].data == nullptr)
-        {
-            const std::string_view uri = gltfBufferUri(source, i);
-            return fail("buffer %.*s wasn't provided", static_cast<int>(uri.size()), uri.data());
-        }
-    }
-    const cgltf_options loadOptions = options();
-    if (cgltf_load_buffers(&loadOptions, &data, nullptr) != cgltf_result_success)
-    {
-        return fail("can't read the glTF's embedded buffers");
-    }
-    if (const cgltf_result valid = cgltf_validate(&data); valid != cgltf_result_success)
-    {
-        return fail("the glTF isn't valid (%s): does an accessor or view point outside its buffer?", describe(valid));
-    }
     settings.lodRatio = std::clamp(settings.lodRatio, 0.05f, 0.95f);
     settings.maxLods = std::min(settings.maxLods, 8u);
+    mirror(scene);
 
     MeshImport* result = create<MeshImport>(MemoryTag::Assets);
+    result->warnings = static_cast<StringList&&>(scene.warnings);
     Blob names;
-    auto addName = [&](const char* name, uint32_t& offset, uint32_t& length) {
+    auto addName = [&](uint32_t name, uint32_t& offset, uint32_t& length) {
+        const std::string_view text = scene.strings.at(name);
         offset = static_cast<uint32_t>(names.bytes.size());
-        length = name != nullptr ? static_cast<uint32_t>(std::strlen(name)) : 0;
-        for (uint32_t c = 0; c < length; ++c)
+        length = static_cast<uint32_t>(text.size());
+        for (char c : text)
         {
-            names.bytes.pushBack(static_cast<uint8_t>(name[c]));
+            names.bytes.pushBack(static_cast<uint8_t>(c));
         }
     };
 
     // Every mesh, built and appended to the shared streams.
     Vector<BuiltMesh*> built(MemoryTag::Assets);
-    for (cgltf_size m = 0; m < data.meshes_count; ++m)
+    for (SourceMesh* source : scene.meshes)
     {
         BuiltMesh* mesh = create<BuiltMesh>(MemoryTag::Assets);
         built.pushBack(mesh);
-        if (const Status status = buildMesh(data, data.meshes[m], settings, *mesh, result->warnings);
-            status != Status::Ok)
-        {
-            for (BuiltMesh* done : built)
-            {
-                destroy(MemoryTag::Assets, done);
-            }
-            destroyMeshImport(result);
-            return status;
-        }
+        const std::string_view name = scene.strings.at(source->name);
+        char meshName[128];
+        std::snprintf(meshName, sizeof(meshName), "%.*s", static_cast<int>(name.size()), name.data());
+        buildMesh(*source, nameOf(meshName, "(unnamed)"), settings, *mesh, result->warnings);
     }
-
     uint32_t streams = 0, totalVertices = 0;
     bool floatUv0 = false, floatUv1 = false;
     for (const BuiltMesh* mesh : built)
@@ -932,7 +549,7 @@ Result<MeshImport*> importGltf(GltfSource& source, MeshSettings settings)
 
     Blob info, entries, lods, ranges, positions, normals, tangents, uv0, uv1, colors, indices, nodes;
     uint32_t vertexOffset = 0;
-    for (cgltf_size m = 0; m < built.size(); ++m)
+    for (uint32_t m = 0; m < built.size(); ++m)
     {
         const BuiltMesh& mesh = *built[m];
         MeshEntry entry{};
@@ -943,7 +560,7 @@ Result<MeshImport*> importGltf(GltfSource& source, MeshSettings settings)
         entry.lodOffset = static_cast<uint32_t>(lods.bytes.size() / sizeof(MeshLod));
         entry.lodCount = static_cast<uint32_t>(mesh.lodErrors.size());
         entry.submeshCount = mesh.submeshCount;
-        addName(data.meshes[m].name, entry.nameOffset, entry.nameLength);
+        addName(scene.meshes[m]->name, entry.nameOffset, entry.nameLength);
         std::memcpy(entry.boundsMin, mesh.boundsMin, 12);
         std::memcpy(entry.boundsMax, mesh.boundsMax, 12);
         entries.add(entry);
@@ -1016,79 +633,31 @@ Result<MeshImport*> importGltf(GltfSource& source, MeshSettings settings)
         vertexOffset += mesh.vertexCount;
     }
 
-    // Nodes, mirrored like everything else.
-    for (cgltf_size n = 0; n < data.nodes_count; ++n)
+    for (const SourceNode& node : scene.nodes)
     {
-        const cgltf_node& node = data.nodes[n];
-        MeshNode out{};
-        out.parent = node.parent != nullptr ? static_cast<int32_t>(cgltf_node_index(&data, node.parent)) : -1;
-        out.mesh = node.mesh != nullptr ? static_cast<int32_t>(cgltf_mesh_index(&data, node.mesh)) : -1;
-        if (node.has_matrix)
-        {
-            decompose(node.matrix, out.translation, out.rotation, out.scale);
-        }
-        else
-        {
-            const float none[3] = {0, 0, 0}, identity[4] = {0, 0, 0, 1}, one[3] = {1, 1, 1};
-            std::memcpy(out.translation, node.has_translation ? node.translation : none, 12);
-            std::memcpy(out.rotation, node.has_rotation ? node.rotation : identity, 16);
-            std::memcpy(out.scale, node.has_scale ? node.scale : one, 12);
-        }
-        out.translation[0] = -out.translation[0];
-        out.rotation[1] = -out.rotation[1];
-        out.rotation[2] = -out.rotation[2];
+        MeshNode out{node.parent, node.mesh};
+        std::memcpy(out.translation, node.translation, 12);
+        std::memcpy(out.rotation, node.rotation, 16);
+        std::memcpy(out.scale, node.scale, 12);
         addName(node.name, out.nameOffset, out.nameLength);
         nodes.add(out);
     }
 
     // Materials, with each texture's file for C# to turn into an asset ID.
-    for (cgltf_size i = 0; i < data.materials_count; ++i)
+    for (const SourceMaterial& material : scene.materials)
     {
-        const cgltf_material& material = data.materials[i];
-        MaterialEntry entry{};
-        const cgltf_pbr_metallic_roughness& pbr = material.pbr_metallic_roughness;
-        const float white[4] = {1, 1, 1, 1};
-        std::memcpy(entry.baseColor, material.has_pbr_metallic_roughness ? pbr.base_color_factor : white, 16);
-        entry.metallic = material.has_pbr_metallic_roughness ? pbr.metallic_factor : 1.0f;
-        entry.roughness = material.has_pbr_metallic_roughness ? pbr.roughness_factor : 1.0f;
-        std::memcpy(entry.emissive, material.emissive_factor, 12);
-        entry.alphaMode = material.alpha_mode == cgltf_alpha_mode_mask    ? 1u
-                          : material.alpha_mode == cgltf_alpha_mode_blend ? 2u
-                                                                          : 0u;
-        entry.alphaCutoff = material.alpha_cutoff;
-        entry.doubleSided = material.double_sided ? 1u : 0u;
+        MaterialEntry entry = material.entry;
         addName(material.name, entry.nameOffset, entry.nameLength);
         result->materials.pushBack(entry);
-
-        const cgltf_texture_view* views[5] = {&pbr.base_color_texture, &pbr.metallic_roughness_texture,
-                                              &material.normal_texture, &material.occlusion_texture,
-                                              &material.emissive_texture};
-        for (const cgltf_texture_view* view : views)
+        for (uint32_t texture : material.textures)
         {
-            const cgltf_image* image = view->texture != nullptr ? view->texture->image : nullptr;
-            if (image != nullptr && image->uri != nullptr && !isDataUri(image->uri))
-            {
-                Vector<char> decoded(MemoryTag::Assets);
-                decoded.assign(std::span<const char>(image->uri, std::strlen(image->uri) + 1));
-                const cgltf_size length = cgltf_decode_uri(decoded.data());
-                for (cgltf_size c = 0; c < length; ++c)
-                {
-                    result->textureUris.pushBack(decoded[c]);
-                }
-            }
-            else if (image != nullptr)
-            {
-                result->warnings.add("material %s: a texture is embedded in the glTF, which isn't imported yet; "
-                                     "save it as its own image file",
-                                     nameOf(material.name, "(unnamed)"));
-            }
-            result->textureUriEnds.pushBack(static_cast<uint32_t>(result->textureUris.size()));
+            result->textures.add(scene.strings.at(texture));
         }
     }
 
     const MeshFileInfo fileInfo{static_cast<uint32_t>(built.size()),
-                                static_cast<uint32_t>(data.nodes_count),
-                                static_cast<uint32_t>(data.materials_count),
+                                static_cast<uint32_t>(scene.nodes.size()),
+                                static_cast<uint32_t>(scene.materials.size()),
                                 totalVertices,
                                 streams,
                                 (floatUv0 ? 1u : 0u) | (floatUv1 ? 2u : 0u)};
@@ -1182,23 +751,17 @@ std::string_view meshMaterialTexture(const MeshImport& mesh, uint32_t material, 
     {
         return {};
     }
-    const uint32_t begin = slot == 0 ? 0 : mesh.textureUriEnds[slot - 1];
-    return {mesh.textureUris.data() + begin, mesh.textureUriEnds[slot] - begin};
+    return mesh.textures.at(static_cast<uint32_t>(slot));
 }
 
 uint32_t meshWarningCount(const MeshImport& mesh)
 {
-    return static_cast<uint32_t>(mesh.warnings.ends.size());
+    return mesh.warnings.count();
 }
 
 std::string_view meshWarning(const MeshImport& mesh, uint32_t index)
 {
-    if (index >= mesh.warnings.ends.size())
-    {
-        return {};
-    }
-    const uint32_t begin = index == 0 ? 0 : mesh.warnings.ends[index - 1];
-    return {mesh.warnings.text.data() + begin, mesh.warnings.ends[index] - begin};
+    return mesh.warnings.at(index);
 }
 
 } // namespace crucible::importers

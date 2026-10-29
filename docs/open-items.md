@@ -40,6 +40,11 @@ milestone are decided or checked when that milestone reaches them
   sub-assets with IDs of their own, when a real model needs it; a warning
   until then. → 0043
 - Skins and morph targets in imported meshes, with animation. → 0026, 0043
+- FBX: textures embedded in the file (with glTF's), separate metalness and
+  roughness textures packed into one, and per-instance materials. → 0044
+- FBX from Blender's default export arrives with nodes scaled by 100 and
+  vertices by 1/100: an import setting to fold a uniform node scale into
+  a mesh only that node uses, if it bothers anyone. → 0044
 - Values in a system's fields across a hot reload: the new version's
   systems are new objects, so the old ones' fields are lost. Migrate them
   like component values if games keep much state in systems. → 0036

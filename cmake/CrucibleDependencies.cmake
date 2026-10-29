@@ -117,7 +117,14 @@ FetchContent_Declare(mikktspace
     URL https://github.com/mmikk/MikkTSpace/archive/3e895b49d05ea07e4c2133156cfa94369e19e409.tar.gz
     URL_HASH SHA256=aeba65ddee85a679133d510d71d00b108f603752f90b15b9ecf7777033f6e351
     SOURCE_SUBDIR do-not-build)
-FetchContent_MakeAvailable(stb bc7enc_rdo cgltf meshoptimizer mikktspace)
+#   ufbx v0.23.1 (MIT or public domain): reads FBX, converting axes, units,
+#     and geometry transforms at load (ADR 0022, 0044). Its data/ folder
+#     doubles as the FBX importer's test models.
+FetchContent_Declare(ufbx
+    URL https://github.com/ufbx/ufbx/archive/refs/tags/v0.23.1.tar.gz
+    URL_HASH SHA256=21edd1021dfb430e37aa6214c9b3bbaa5634b1859cbbef7231e738af4f19c956
+    SOURCE_SUBDIR do-not-build)
+FetchContent_MakeAvailable(stb bc7enc_rdo cgltf meshoptimizer mikktspace ufbx)
 
 # ---------------------------------------------------------------------------
 # doctest (MIT): tests only, never linked into the engine (ADR 0029)

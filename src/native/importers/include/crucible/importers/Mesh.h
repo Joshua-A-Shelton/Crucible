@@ -1,10 +1,11 @@
 #pragma once
 
-// Mesh import (ADR 0043): glTF through cgltf, mirrored into Crucible's
-// left-handed space on X (ADR 0024's amendment), with missing normals and
-// tangents generated (tangents by MikkTSpace), welded, optimized and given
-// LODs by meshoptimizer, and packed into one stream per attribute. The C#
-// mesh importer writes the result as a MESH binary file (ADR 0039).
+// Mesh import (ADR 0043, 0044): glTF through cgltf and FBX through ufbx,
+// mirrored into Crucible's left-handed space on X (ADR 0024's amendment),
+// with missing normals and tangents generated (tangents by MikkTSpace),
+// welded, optimized and given LODs by meshoptimizer, and packed into one
+// stream per attribute. The C# mesh and FBX importers write the result as
+// a MESH binary file (ADR 0039).
 // Editor-only. Names are placeholders (docs/naming.md).
 //
 // A MESH file (kind tag("MESH"), version 1) holds every mesh of one source:
@@ -154,6 +155,10 @@ CRUCIBLE_EXPOSE std::string_view gltfBufferUri(const GltfSource& source, uint32_
 CRUCIBLE_EXPOSE Result<void> setGltfBuffer(GltfSource& source, uint32_t index, std::span<const uint8_t> bytes);
 
 CRUCIBLE_EXPOSE Result<MeshImport*> importGltf(GltfSource& source, MeshSettings settings);
+// Reads a binary or ASCII .fbx (ADR 0044), converted to the same space as
+// glTF: meters, Y up, with its geometry transforms baked into the vertices.
+// Textures are left for C# to find, as for glTF.
+CRUCIBLE_EXPOSE Result<MeshImport*> importFbx(std::span<const uint8_t> bytes, MeshSettings settings);
 CRUCIBLE_EXPOSE void destroyMeshImport(MeshImport* mesh);
 
 // The file's sections, MATL aside.
@@ -162,8 +167,9 @@ CRUCIBLE_EXPOSE MeshSectionInfo meshSection(const MeshImport& mesh, uint32_t ind
 CRUCIBLE_EXPOSE void copyMeshSection(const MeshImport& mesh, uint32_t index, std::span<uint8_t> destination);
 
 // Materials, with texture IDs left zero for C# to fill: each texture's file
-// (relative to the glTF's folder) or empty, and whether it is embedded in
-// the glTF instead (not supported yet: reported as a warning).
+// (relative to the source's folder; for FBX, possibly absolute) or empty.
+// Textures embedded in the source aren't supported yet: they are reported as
+// warnings.
 CRUCIBLE_EXPOSE uint32_t meshMaterialCount(const MeshImport& mesh);
 CRUCIBLE_EXPOSE MaterialEntry meshMaterial(const MeshImport& mesh, uint32_t index);
 CRUCIBLE_EXPOSE std::string_view meshMaterialTexture(const MeshImport& mesh, uint32_t material, TextureRole role);

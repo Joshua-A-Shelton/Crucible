@@ -31,7 +31,11 @@ add_library(crucible_meshopt STATIC ${CRUCIBLE_MESHOPT_SOURCES})
 target_include_directories(crucible_meshopt SYSTEM PUBLIC "${meshoptimizer_SOURCE_DIR}/src")
 add_library(crucible_mikktspace STATIC "${mikktspace_SOURCE_DIR}/mikktspace.c")
 target_include_directories(crucible_mikktspace SYSTEM PUBLIC "${mikktspace_SOURCE_DIR}")
-foreach(thirdParty crucible_meshopt crucible_mikktspace)
+# ufbx (ADR 0044) as C. It can't open files: Crucible hands it bytes.
+add_library(crucible_ufbx STATIC "${ufbx_SOURCE_DIR}/ufbx.c")
+target_include_directories(crucible_ufbx SYSTEM PUBLIC "${ufbx_SOURCE_DIR}")
+target_compile_definitions(crucible_ufbx PUBLIC UFBX_NO_STDIO)
+foreach(thirdParty crucible_meshopt crucible_mikktspace crucible_ufbx)
     set_target_properties(${thirdParty} PROPERTIES POSITION_INDEPENDENT_CODE ON)
     if(MSVC)
         target_compile_options(${thirdParty} PRIVATE /W0)
@@ -43,6 +47,8 @@ endforeach()
 add_library(crucible_importers_objects OBJECT
     CgltfImplementation.cpp
     Common.cpp
+    Fbx.cpp
+    Gltf.cpp
     Mesh.cpp
     StbImage.cpp
     Texture.cpp
@@ -55,7 +61,7 @@ set_target_properties(crucible_importers_objects PROPERTIES
     POSITION_INDEPENDENT_CODE ON
     CXX_VISIBILITY_PRESET hidden
     VISIBILITY_INLINES_HIDDEN ON)
-target_link_libraries(crucible_importers_objects PRIVATE crucible_bc7enc crucible_meshopt crucible_mikktspace)
+target_link_libraries(crucible_importers_objects PRIVATE crucible_bc7enc crucible_meshopt crucible_mikktspace crucible_ufbx)
 # The core's headers; which form of the core is linked is up to each form below.
 target_include_directories(crucible_importers_objects PUBLIC
     $<TARGET_PROPERTY:crucible_core_objects,INTERFACE_INCLUDE_DIRECTORIES>)

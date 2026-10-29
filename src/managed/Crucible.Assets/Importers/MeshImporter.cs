@@ -66,19 +66,10 @@ public sealed class MeshImporter : Importer<MeshImportSettings>
                 }
                 Native(() => ImportersApi.SetGltfBuffer(source, i, bytes));
             }
-            MeshSettings native = new()
-            {
-                Optimize = settings.Optimize,
-                GenerateTangents = settings.GenerateTangents,
-                GenerateLods = settings.GenerateLods,
-                MaxLods = (uint)Math.Clamp(settings.MaxLods, 0, 8),
-                LodRatio = settings.LodRatio,
-                LodMaxError = Math.Max(0, settings.LodMaxError),
-            };
-            MeshImportHandle mesh = Native(() => ImportersApi.ImportGltf(source, native));
+            MeshImportHandle mesh = Native(() => ImportersApi.ImportGltf(source, ToNative(settings)));
             try
             {
-                Write(context, mesh);
+                Write(context, mesh, uri => [context.Resolve(uri)]);
             }
             finally
             {
@@ -91,7 +82,22 @@ public sealed class MeshImporter : Importer<MeshImportSettings>
         }
     }
 
-    private static void Write(ImportContext context, MeshImportHandle mesh)
+    internal static MeshSettings ToNative(MeshImportSettings settings) => new()
+    {
+        Optimize = settings.Optimize,
+        GenerateTangents = settings.GenerateTangents,
+        GenerateLods = settings.GenerateLods,
+        MaxLods = (uint)Math.Clamp(settings.MaxLods, 0, 8),
+        LodRatio = settings.LodRatio,
+        LodMaxError = Math.Max(0, settings.LodMaxError),
+    };
+
+    /// <summary>
+    /// Writes an import as a MESH file, shared by every model format. Each
+    /// texture's file, as the source names it, becomes the asset at the first
+    /// of <paramref name="candidates"/>' paths that is one.
+    /// </summary>
+    internal static void Write(ImportContext context, MeshImportHandle mesh, Func<string, IReadOnlyList<string>> candidates)
     {
         ImportedFileWriter output = context.CreateOutput(Kind, KindVersion);
         for (uint i = 0; i < ImportersApi.MeshSectionCount(mesh); ++i)
@@ -114,11 +120,12 @@ public sealed class MeshImporter : Importer<MeshImportSettings>
                 {
                     continue;
                 }
-                string path = context.Resolve(uri);
-                AssetId texture = context.IdOf(path);
+                IReadOnlyList<string> paths = candidates(uri);
+                AssetId texture = paths.Select(context.IdOf).FirstOrDefault(id => !id.IsNone);
                 if (texture.IsNone)
                 {
-                    context.Warn($"material {m}: its {role} texture, {path}, isn't in Assets/");
+                    string looked = paths.Count == 0 ? uri : string.Join(" or ", paths);
+                    context.Warn($"material {m}: its {role} texture, {looked}, isn't in Assets/");
                     continue;
                 }
                 texture.Value.TryWriteBytes(TextureSlot(ref material, role));
@@ -144,7 +151,7 @@ public sealed class MeshImporter : Importer<MeshImportSettings>
     };
 
     // The importers report failure as InvalidData with a reason.
-    private static T Native<T>(Func<T> call)
+    internal static T Native<T>(Func<T> call)
     {
         try
         {
@@ -156,7 +163,7 @@ public sealed class MeshImporter : Importer<MeshImportSettings>
         }
     }
 
-    private static void Native(Action call) => Native(() =>
+    internal static void Native(Action call) => Native(() =>
     {
         call();
         return 0;
