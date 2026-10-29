@@ -48,11 +48,11 @@ public sealed class InputSystem : GameSystem
 }
 
 /// <summary>
-/// The frame's present, in RenderSubmit. Until the render graph arrives, the
-/// frame is a clear: a slow pulse, so a stutter or a dropped frame is visible
-/// by eye. A game replaces it to draw.
+/// The frame's render and present, in RenderSubmit: the render schedule's
+/// steps (ADR 0048), over a clear that pulses slowly, so a stutter or a
+/// dropped frame is visible by eye.
 /// </summary>
-public sealed class ClearPresentSystem : GameSystem
+public sealed class RenderSystem : GameSystem
 {
     public override void Run(FrameContext context)
     {
@@ -65,7 +65,7 @@ public sealed class ClearPresentSystem : GameSystem
         float pulse = (float)(0.5 + 0.5 * Math.Sin(seconds * Math.PI));
         // Only measured with the harness on: it tells a submitted frame from a skipped one.
         ulong submittedBefore = context.Latency is null ? 0 : Render.Api.FramesSubmitted(context.Surface);
-        Status status = Render.Api.ClearAndPresent(context.Surface, 0.02f, 0.02f + 0.08f * pulse, 0.1f, 1.0f);
+        Status status = Render.Api.RenderFrame(context.Surface, 0.02f, 0.02f + 0.08f * pulse, 0.1f, 1.0f);
         if (status < 0)
         {
             context.Fail(status, Name);

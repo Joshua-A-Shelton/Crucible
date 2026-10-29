@@ -1,8 +1,12 @@
+#include "RenderInternal.h"
+
+#include <crucible/Jobs.h>
 #include <crucible/Memory.h>
 #include <crucible/Render.h>
 #include <crucible/Version.h>
 
 #include <slag/Slag.h>
+#include <slag/rendergraph/RenderGraph.h>
 
 #include <algorithm>
 #include <array>
@@ -15,8 +19,7 @@ namespace crucible::render {
 
 namespace {
 
-// Two command buffers per surface: the CPU records one frame while the GPU
-// may still run the previous one.
+// The CPU builds one frame while the GPU may still run the previous one.
 constexpr uint32_t framesInFlight = 2;
 constexpr uint32_t maxSurfaces = 8;
 
@@ -56,7 +59,9 @@ struct Surface
     slag::Texture* offscreenTexture = nullptr;
     slag::AttachmentView* offscreenView = nullptr; // the sRGB view
     bool offscreenRendered = false;
-    slag::CommandBuffer* commandBuffers[framesInFlight] = {};
+    // The surface's render graph (ADR 0048), rebuilt every frame from the
+    // render schedule.
+    slag::rendergraph::RenderGraph* graph = nullptr;
     slag::Semaphore* frames = nullptr; // reaches N once the GPU has finished frame N
     uint64_t submitted = 0;            // frames submitted so far
     slag::PresentMode presentMode{};
@@ -174,13 +179,7 @@ void release(Surface& surface)
 {
     stopGpuTimer(surface);
     slag::GraphicsDevice* device = renderer.device;
-    for (slag::CommandBuffer*& commandBuffer : surface.commandBuffers)
-    {
-        if (commandBuffer != nullptr)
-        {
-            device->destroy(commandBuffer);
-        }
-    }
+    slag::rendergraph::destroy(surface.graph);
     if (surface.frames != nullptr)
     {
         device->destroy(surface.frames);
@@ -207,62 +206,36 @@ Result<void> skip(Surface& surface)
     return {};
 }
 
-// Records the whole frame: the target's previous contents are discarded
-// (Undefined), it's cleared as a render target, then handed to Present (a
-// swapchain image) or left as a render target (offscreen).
-Result<void> record(slag::CommandBuffer* commandBuffer, slag::Texture* texture, slag::AttachmentView* view,
-                    bool present, const float color[4])
+// Slag's CPU memory goes through Crucible's allocator, counted under Render
+// (ADR 0032). Crucible's allocate never returns null, so Slag never sees
+// OutOfHostMemory from it.
+slag::AllocatorCallbacks allocatorCallbacks()
 {
-    if (!commandBuffer->reset() || !commandBuffer->begin())
-    {
-        return Status::Unsupported;
-    }
-    const slag::TextureBarrier toTarget = {.syncBefore = slag::BarrierSync::None,
-                                           .syncAfter = slag::BarrierSync::RenderTarget,
-                                           .accessAfter = slag::BarrierAccess::RenderTarget,
-                                           .layoutBefore = slag::TextureLayout::Undefined,
-                                           .layoutAfter = slag::TextureLayout::RenderTarget,
-                                           .texture = texture};
-    commandBuffer->barrier({}, {}, {&toTarget, 1});
-
-    // The sRGB view: the color is linear and the hardware encodes it.
-    slag::ColorAttachment attachment = {.view = view, .loadOp = slag::LoadOp::Clear};
-    std::copy(color, color + 4, attachment.clearValue.color);
-    commandBuffer->beginRendering({.colorAttachments = {&attachment, 1}});
-    commandBuffer->endRendering();
-
-    if (!present)
-    {
-        return commandBuffer->end() ? Result<void>() : Result<void>(Status::Unsupported);
-    }
-    const slag::TextureBarrier toPresent = {.syncBefore = slag::BarrierSync::RenderTarget,
-                                            .syncAfter = slag::BarrierSync::None,
-                                            .accessBefore = slag::BarrierAccess::RenderTarget,
-                                            .accessAfter = slag::BarrierAccess::NoAccess,
-                                            .layoutBefore = slag::TextureLayout::RenderTarget,
-                                            .layoutAfter = slag::TextureLayout::Present,
-                                            .texture = texture};
-    commandBuffer->barrier({}, {}, {&toPresent, 1});
-    if (!commandBuffer->end())
-    {
-        return Status::Unsupported;
-    }
-    return {};
+    slag::AllocatorCallbacks callbacks;
+    callbacks.allocate = [](size_t size, size_t alignment, void*) {
+        return allocate(size, alignment, MemoryTag::Render);
+    };
+    callbacks.free = [](void* pointer, size_t size, void*) {
+        free(pointer, size, MemoryTag::Render);
+    };
+    return callbacks;
 }
 
-// The command buffers and frame semaphore every surface has.
+// The render graph and frame semaphore every surface has.
 Result<void> createFrameResources(Surface& surface)
 {
     slag::GraphicsDevice* device = renderer.device;
-    for (slag::CommandBuffer*& commandBuffer : surface.commandBuffers)
+    slag::Result<slag::rendergraph::RenderGraph*> graph =
+        slag::rendergraph::createRenderGraph({.device = device,
+                                              .graphicsQueue = renderer.queue,
+                                              .framesInFlight = framesInFlight,
+                                              .allocatorCallbacks = allocatorCallbacks(),
+                                              .messageCallback = printMessage});
+    if (!graph)
     {
-        slag::Result<slag::CommandBuffer*> created = device->createCommandBuffer({.debugName = "crucible frame"});
-        if (!created)
-        {
-            return toStatus(created.status());
-        }
-        commandBuffer = created.value();
+        return toStatus(graph.status());
     }
+    surface.graph = graph.value();
     slag::Result<slag::Semaphore*> frames = device->createSemaphore({.debugName = "crucible frames"});
     if (!frames)
     {
@@ -289,56 +262,65 @@ SurfaceHandle handleOf(const Surface* slot)
     return SurfaceHandle{static_cast<uint32_t>(slot - renderer.surfaces.data()) + 1};
 }
 
-// Waits until the command buffer for the next frame is free: the GPU has
-// finished the frame that last used it, framesInFlight frames ago.
-Result<void> waitForCommandBuffer(Surface& surface)
+struct Recording
 {
-    if (surface.submitted >= framesInFlight)
-    {
-        slag::Result<void> waited = surface.frames->wait(surface.submitted - framesInFlight + 1, UINT64_MAX);
-        if (!waited)
-        {
-            return toStatus(waited.status());
-        }
-    }
-    return {};
-}
+    slag::rendergraph::RenderGraph* graph;
+    std::atomic<bool> failed{false};
+};
 
-Result<void> submitFrame(Surface& surface, slag::CommandBuffer* commandBuffer, bool acquiredImage)
+// One frame on the surface's graph (ADR 0048): the image imported and
+// published as the backbuffer, every render step's passes, compiled,
+// recorded in parallel on the job system, and submitted; then a signal of the
+// frame semaphore after all of it, for pacing and GPU timing.
+Result<void> renderWithGraph(Surface& surface, slag::Texture* texture, slag::AttachmentView* view,
+                             const slag::rendergraph::ImportedTextureDesc& import, const float color[4])
 {
-    const slag::SemaphoreValue signal = {surface.frames, surface.submitted + 1};
-    slag::Swapchain* const acquiredSwapchains[] = {surface.swapchain};
-    slag::CommandBuffer* const commandBuffers[] = {commandBuffer};
-    slag::SubmitDesc submit = {.commandBuffers = commandBuffers, .signals = {&signal, 1}};
-    if (acquiredImage)
+    slag::rendergraph::RenderGraph& graph = *surface.graph;
+    if (slag::Result<void> begun = graph.beginFrame(); !begun)
     {
-        submit.acquiredSwapchains = acquiredSwapchains;
+        return toStatus(begun.status());
     }
-    if (slag::Result<void> submitted = renderer.queue->submit(submit); !submitted)
+    slag::rendergraph::ImportedTextureDesc desc = import;
+    desc.attachmentView = view;
+    const slag::rendergraph::TextureHandle backbuffer = graph.importTexture(texture, desc);
+    if (Result<void> added = addStepPasses(
+            {graph, *renderer.device, surface.width, surface.height, surface.submitted + 1, color, backbuffer});
+        !added)
     {
-        return toStatus(submitted.status());
+        return added;
+    }
+    if (slag::Result<void> compiled = graph.compile(); !compiled)
+    {
+        return toStatus(compiled.status());
+    }
+    Recording recording{&graph};
+    jobs::parallelFor(
+        graph.passCount(), 1,
+        [](void* data, uint32_t begin, uint32_t end) {
+            auto& job = *static_cast<Recording*>(data);
+            for (uint32_t pass = begin; pass < end; ++pass)
+            {
+                if (!job.graph->recordPass(pass))
+                {
+                    job.failed = true;
+                }
+            }
+        },
+        &recording);
+    if (recording.failed)
+    {
+        return Status::Unsupported;
+    }
+    if (slag::Result<void> executed = graph.execute(); !executed)
+    {
+        return toStatus(executed.status());
+    }
+    const slag::SemaphoreValue signal = {surface.frames, surface.submitted + 1};
+    if (slag::Result<void> signaled = renderer.queue->submit({.signals = {&signal, 1}}); !signaled)
+    {
+        return toStatus(signaled.status());
     }
     ++surface.submitted;
-    return {};
-}
-
-Result<void> clearOffscreen(Surface& surface, const float color[4])
-{
-    if (Result<void> waited = waitForCommandBuffer(surface); !waited)
-    {
-        return waited;
-    }
-    slag::CommandBuffer* commandBuffer = surface.commandBuffers[surface.submitted % framesInFlight];
-    if (Result<void> recorded = record(commandBuffer, surface.offscreenTexture, surface.offscreenView, false, color);
-        !recorded)
-    {
-        return recorded;
-    }
-    if (Result<void> submitted = submitFrame(surface, commandBuffer, false); !submitted)
-    {
-        return submitted;
-    }
-    surface.offscreenRendered = true;
     return {};
 }
 
@@ -378,15 +360,7 @@ Result<void> initialize(slag::Backend backend, PresentPreference presentMode)
     desc.validationFlags = slag::ValidationFlags::Api;
 #endif
     desc.messageCallback = printMessage;
-    // Slag's CPU memory goes through Crucible's allocator, counted under
-    // Render (ADR 0032). Crucible's allocate never returns null, so Slag
-    // never sees OutOfHostMemory from it.
-    desc.allocatorCallbacks.allocate = [](size_t size, size_t alignment, void*) {
-        return allocate(size, alignment, MemoryTag::Render);
-    };
-    desc.allocatorCallbacks.free = [](void* pointer, size_t size, void*) {
-        free(pointer, size, MemoryTag::Render);
-    };
+    desc.allocatorCallbacks = allocatorCallbacks();
     desc.applicationName = "Crucible";
     desc.engineName = "Crucible";
     desc.engineVersion = CRUCIBLE_VERSION;
@@ -414,6 +388,13 @@ Result<void> initialize(slag::Backend backend, PresentPreference presentMode)
     }
     renderer.device = device;
     renderer.queue = device->commandQueue(slag::CommandQueueType::Graphics);
+    // The render steps' pipelines, created now, never during frames (ADR 0025).
+    if (Result<void> prepared = renderSchedule().prepareAll(*device); !prepared)
+    {
+        std::fprintf(stderr, "crucible: the render steps could not be prepared\n");
+        shutdown();
+        return prepared;
+    }
     std::printf("crucible: rendering with %s on %s\n", backend == slag::Backend::D3D12 ? "D3D12" : "Vulkan",
                 device->info().name);
     // Flushed so it keeps its place among C#'s output, which isn't buffered,
@@ -434,6 +415,7 @@ void shutdown()
                 release(surface);
             }
         }
+        renderSchedule().releaseAll();
         renderer.device->shutdown();
     }
     if (renderer.instance != nullptr)
@@ -591,7 +573,7 @@ Result<void> waitForNextFrame(SurfaceHandle surface)
     return waited ? Result<void>() : Result<void>(toStatus(waited.status()));
 }
 
-Result<void> clearAndPresent(SurfaceHandle surface, float red, float green, float blue, float alpha)
+Result<void> renderFrame(SurfaceHandle surface, float red, float green, float blue, float alpha)
 {
     Surface* found = find(surface);
     if (found == nullptr)
@@ -602,10 +584,18 @@ Result<void> clearAndPresent(SurfaceHandle surface, float red, float green, floa
     const float color[4] = {red, green, blue, alpha};
     if (target.offscreenTexture != nullptr)
     {
-        if (Result<void> cleared = clearOffscreen(target, color); !cleared)
+        // Between frames the texture stays in RenderTarget (readSurfacePixels
+        // relies on it); before the first, it's Undefined.
+        const slag::TextureLayout initial =
+            target.offscreenRendered ? slag::TextureLayout::RenderTarget : slag::TextureLayout::Undefined;
+        if (Result<void> rendered =
+                renderWithGraph(target, target.offscreenTexture, target.offscreenView,
+                                {.initialLayout = initial, .finalLayout = slag::TextureLayout::RenderTarget}, color);
+            !rendered)
         {
-            return cleared;
+            return rendered;
         }
+        target.offscreenRendered = true;
         target.presentedLastFrame = true; // pacing waits behind it, as behind a present
         return {};
     }
@@ -646,21 +636,18 @@ Result<void> clearAndPresent(SurfaceHandle surface, float red, float green, floa
         return toStatus(acquired.status());
     }
 
-    if (Result<void> waited = waitForCommandBuffer(target); !waited)
-    {
-        return waited;
-    }
+    // The previous contents are discarded; the graph's first submit waits for
+    // the acquired image.
     const uint32_t image = acquired.value();
-    slag::CommandBuffer* commandBuffer = target.commandBuffers[target.submitted % framesInFlight];
-    if (Result<void> recorded = record(commandBuffer, target.swapchain->texture(image),
-                                       target.swapchain->srgbAttachmentView(image), true, color);
-        !recorded)
+    if (Result<void> rendered =
+            renderWithGraph(target, target.swapchain->texture(image), target.swapchain->srgbAttachmentView(image),
+                            {.initialLayout = slag::TextureLayout::Undefined,
+                             .finalLayout = slag::TextureLayout::Present,
+                             .swapchain = target.swapchain},
+                            color);
+        !rendered)
     {
-        return recorded;
-    }
-    if (Result<void> submitted = submitFrame(target, commandBuffer, true); !submitted)
-    {
-        return submitted;
+        return rendered;
     }
 
     const slag::Result<void> presented = renderer.queue->present(target.swapchain, target.presentMode);

@@ -21,7 +21,8 @@ crucible_generate_bindings(
     TARGET crucible_bindings
     OUTPUT_CPP "${CRUCIBLE_GENERATED_DIR}/native/Bindings.g.cpp"
     OUTPUT_CS "${CRUCIBLE_GENERATED_DIR}/managed/Bindings.g.cs"
-    INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    # Slag's headers too: RenderSchedule.h uses its render graph's types.
+    INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include" "${slag_SOURCE_DIR}/include"
     HEADERS ${CRUCIBLE_CORE_HEADERS})
 
 target_sources(crucible_core_objects PRIVATE
@@ -37,10 +38,8 @@ target_sources(crucible_core_objects PRIVATE
     MathProbe.cpp
     Memory.cpp
     Platform.cpp
-    Render.cpp
     Shader.cpp
-    Systems.cpp
-    "${CRUCIBLE_GENERATED_DIR}/native/Bindings.g.cpp")
+    Systems.cpp)
 
 # Only CRUCIBLE_EXPORT symbols are visible from the shared library.
 target_compile_definitions(crucible_core_objects PRIVATE CRUCIBLE_CORE_EXPORTS)
@@ -59,9 +58,32 @@ target_link_libraries(crucible_core_objects PRIVATE SDL3::SDL3-static)
 # Compression for binary files (ADR 0039).
 target_link_libraries(crucible_core_objects PRIVATE libzstd_static)
 
+# The renderer (ADR 0015, 0048), with the engine's shaders embedded, and the
+# generated bindings (which call into it): built after shaderfax, which links
+# the objects above and compiles those shaders (ADR 0048's build order).
+add_library(crucible_render_objects OBJECT
+    Render.cpp
+    RenderSchedule.cpp
+    RenderSteps.cpp
+    "${CRUCIBLE_GENERATED_DIR}/native/Bindings.g.cpp")
+crucible_set_compile_options(crucible_render_objects)
+target_compile_definitions(crucible_render_objects PRIVATE CRUCIBLE_CORE_EXPORTS)
+set_target_properties(crucible_render_objects PROPERTIES
+    CXX_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN ON)
+target_link_libraries(crucible_render_objects PUBLIC crucible_core_objects slag::rendergraph)
+crucible_embed_shaders(crucible_render_objects
+    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/EngineShaders.g.cpp"
+    SOURCES "${PROJECT_SOURCE_DIR}/shaders/crucible/triangle.slang")
+
+# For shaderfax only: no embedded shaders.
+add_library(crucible_engine_shaders_stub OBJECT EngineShadersStub.cpp)
+crucible_set_compile_options(crucible_engine_shaders_stub)
+target_link_libraries(crucible_engine_shaders_stub PRIVATE crucible_core_objects)
+
 add_library(crucible_core SHARED)
 add_library(crucible::core ALIAS crucible_core)
-target_link_libraries(crucible_core PUBLIC crucible_core_objects)
+target_link_libraries(crucible_core PUBLIC crucible_core_objects crucible_render_objects)
 if(NOT WIN32 AND NOT APPLE)
     # Keep Slag's symbols (and any other static library's) out of the
     # shared library's export table.
@@ -70,4 +92,4 @@ endif()
 
 add_library(crucible_core_static STATIC)
 add_library(crucible::core_static ALIAS crucible_core_static)
-target_link_libraries(crucible_core_static PUBLIC crucible_core_objects)
+target_link_libraries(crucible_core_static PUBLIC crucible_core_objects crucible_render_objects)

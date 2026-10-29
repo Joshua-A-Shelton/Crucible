@@ -216,9 +216,11 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   scheduled at exact event times. PCM/ADPCM effects, streamed Vorbis music.
   Behind Crucible's audio API; Steam Audio after v1.
 - **Renderer foundation** (ADR 0015): built on `slag::rendergraph`
-  (limitations get fixed in Slag). The frame is an ordered, extensible
-  list of render passes with named insertion points; core passes are C++,
-  C# adds passes through a batched command API. Clustered forward with a
+  (limitations get fixed in Slag). The frame is a `RenderSchedule` of named
+  `RenderStep`s, edited by name, each adding graph passes and sharing
+  resources through the `Blackboard` (ADR 0048); core steps are C++, C#
+  adds steps through a batched command API (M6). The engine's own shaders
+  are embedded in the core. Clustered forward with a
   depth prepass and MSAA. CPU culling with instancing in v1.
 - **Materials and shaders** (ADR 0025): Slang, with shading models as
   interfaces specialized at compile time. Shaders (surface functions) and

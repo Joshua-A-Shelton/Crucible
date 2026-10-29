@@ -36,3 +36,16 @@ Settled in a review of M4's and M5's placeholders (ADR 0047's amendment).
 | `crucible_add_shader` | The CMake function that runs it |
 | `[GpuShared]` | Slang attribute: a struct C++ and C# mirror |
 | `CRBN`, `TXTR`, `MESH`, `SHDR`, and section tags | Binary-file magic and tags (ADRs 0039, 0042, 0043, 0047) |
+
+## Rendering (2026-10-28)
+
+| Name | What it is |
+|---|---|
+| `RenderSchedule` | The frame's ordered render steps (ADR 0048) |
+| `RenderStep` | One entry: a named step adding 1..n graph passes |
+| `RenderStepContext` | What a step sees while adding its passes |
+| `Blackboard`, `BlackboardKey` | Resources steps share by name |
+| `Backbuffer` | The built-in blackboard key for the surface's image |
+| `renderFrame` / `Render.Api.RenderFrame` | Renders and presents one frame |
+| `RenderSystem` | The C# system calling it, in RenderSubmit |
+| `Clear`, `Triangle` | The first render steps (temporary, until M5 step 5) |

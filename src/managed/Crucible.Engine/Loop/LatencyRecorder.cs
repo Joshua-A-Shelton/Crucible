@@ -13,7 +13,7 @@ namespace Crucible.Loop;
 /// The name is a placeholder (docs/naming.md).
 /// </summary>
 /// <remarks>
-/// Stages per input: read by the Input phase, ClearAndPresent returned
+/// Stages per input: read by the Input phase, RenderFrame returned
 /// (submitted and presented), GPU finished (stamped by a native thread), and
 /// present done: the next frame's pacing wait returning, which with max frame
 /// latency 1 means this frame's present completed. Only known when pacing is
@@ -40,7 +40,7 @@ public sealed class LatencyRecorder
     {
         public ulong StartNs;      // the pacing wait returned (or the frame began, unpaced)
         public ulong InputReadNs;
-        public ulong SubmittedNs;  // ClearAndPresent returned
+        public ulong SubmittedNs;  // RenderFrame returned
         public ulong GpuDoneNs;
         public ulong PresentDoneNs;
         public ulong SubmitIndex;  // Render.Api.FramesSubmitted after this frame; 0 if skipped

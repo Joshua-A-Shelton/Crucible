@@ -74,11 +74,12 @@ endif()
 # Native (C++)
 # ---------------------------------------------------------------------------
 
+# Build-time shader compiles (ADR 0047), with the importers' shaderfax; the
+# core embeds the engine's own (ADR 0048).
+include(CrucibleShaders)
 add_subdirectory(src/native/core)
 # Editor-only: decoders, mipmaps, and GPU compression (ADR 0042).
 add_subdirectory(src/native/importers)
-# Build-time shader compiles (ADR 0047), with the importers' shaderfax.
-include(CrucibleShaders)
 
 # ---------------------------------------------------------------------------
 # Managed (C#): one dotnet invocation for the whole solution, so projects that

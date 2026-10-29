@@ -11,6 +11,9 @@ include(FetchContent)
 # Crucible side by side (ADR 0015, docs/milestones.md M0).
 # ---------------------------------------------------------------------------
 
+# The optional render graph module (Slag ADR 0072), which the renderer is
+# built on (ADR 0015, 0048).
+set(SLAG_BUILD_RENDERGRAPH ON)
 FetchContent_Declare(Slag
     URL https://github.com/Joshua-A-Shelton/Slag/archive/refs/tags/v1.0.2.tar.gz
     URL_HASH SHA256=4ceb89d5dc4f28adeb6eb8194cf4dd4c34f7412d575167d29aec9f62935a512c)

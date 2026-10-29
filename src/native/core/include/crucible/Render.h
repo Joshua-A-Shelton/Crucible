@@ -1,9 +1,9 @@
 #pragma once
 
 // The renderer's foundation (ADR 0015): one Slag device, and a surface per
-// window that clears and presents with the latency rules of ADR 0003. Until
-// the render graph arrives, a frame is a clear to one color. Names are
-// placeholders (docs/naming.md).
+// window that renders the render schedule's steps (ADR 0048) and presents
+// with the latency rules of ADR 0003. Names are placeholders unless listed
+// in docs/naming.md.
 //
 // Threading: like the platform layer, everything runs on the launcher's main
 // thread.
@@ -69,11 +69,11 @@ CRUCIBLE_EXPOSE Result<void> readSurfacePixels(SurfaceHandle surface, std::span<
 // previous frame.
 CRUCIBLE_EXPOSE_STATUS Result<void> waitForNextFrame(SurfaceHandle surface);
 
-// Renders one frame: clears the window to a linear color and presents it.
+// Renders one frame through the render schedule (ADR 0048), with
+// `red`..`alpha` (linear) as the Clear step's color, and presents it.
 // Resizes the swapchain when the window's size changed; skips the frame
 // (still Ok) while the window is minimized or hidden.
-CRUCIBLE_EXPOSE_STATUS Result<void> clearAndPresent(SurfaceHandle surface, float red, float green, float blue,
-                                                    float alpha);
+CRUCIBLE_EXPOSE_STATUS Result<void> renderFrame(SurfaceHandle surface, float red, float green, float blue, float alpha);
 
 // Latency harness support (ADR 0003).
 //

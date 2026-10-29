@@ -59,3 +59,30 @@ function(crucible_add_shader target)
     target_include_directories(${target} PRIVATE "${_dir}")
     target_compile_definitions(${target} PRIVATE "CRUCIBLE_SHADER_DIR=\"${_dir}\"")
 endfunction()
+
+# The engine's own shaders, embedded in the core library (ADR 0048):
+#
+#   crucible_embed_shaders(<object-library> OUTPUT <file.cpp> SOURCES <file.slang>...)
+#
+# Compiles each source as crucible_add_shader does, then writes <file.cpp>
+# with every .crshader as a byte array, found by name (the source's file
+# name without extension) through crucible::render::engineShader.
+function(crucible_embed_shaders target)
+    cmake_parse_arguments(ARG "" "OUTPUT" "SOURCES" ${ARGN})
+    set(_dir "${CMAKE_CURRENT_BINARY_DIR}/shaders")
+    set(_pairs "")
+    set(_files "")
+    foreach(_source IN LISTS ARG_SOURCES)
+        crucible_add_shader(${target} SOURCE "${_source}")
+        get_filename_component(_name "${_source}" NAME_WE)
+        list(APPEND _pairs "${_name}=${_dir}/${_name}.crshader")
+        list(APPEND _files "${_dir}/${_name}.crshader")
+    endforeach()
+    add_custom_command(OUTPUT "${ARG_OUTPUT}"
+        COMMAND "${CMAKE_COMMAND}" "-DOUTPUT=${ARG_OUTPUT}" "-DSHADERS=${_pairs}"
+            -P "${PROJECT_SOURCE_DIR}/cmake/EmbedShaders.cmake"
+        DEPENDS ${_files} "${PROJECT_SOURCE_DIR}/cmake/EmbedShaders.cmake"
+        COMMENT "Embedding the engine's shaders"
+        VERBATIM)
+    target_sources(${target} PRIVATE "${ARG_OUTPUT}")
+endfunction()

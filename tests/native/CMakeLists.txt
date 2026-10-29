@@ -8,6 +8,7 @@ add_executable(crucible_native_tests
     MathTests.cpp
     MemoryTests.cpp
     PlatformTests.cpp
+    RenderScheduleTests.cpp
     RenderTests.cpp
     ResultTests.cpp
     ShaderTests.cpp

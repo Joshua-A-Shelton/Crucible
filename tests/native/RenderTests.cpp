@@ -50,7 +50,7 @@ TEST_CASE("Surfaces need the renderer and unknown surfaces are reported")
 {
     CHECK(render::createSurface(platform::WindowHandle{1}).status() == Status::Unsupported);
     CHECK(render::waitForNextFrame(render::SurfaceHandle{}).status() == Status::NotFound);
-    CHECK(render::clearAndPresent(render::SurfaceHandle{3}, 0, 0, 0, 1).status() == Status::NotFound);
+    CHECK(render::renderFrame(render::SurfaceHandle{3}, 0, 0, 0, 1).status() == Status::NotFound);
     render::destroySurface(render::SurfaceHandle{3}); // ignored
     CHECK(render::setGpuTiming(render::SurfaceHandle{1}, true).status() == Status::NotFound);
     CHECK(render::gpuFrameDoneNs(render::SurfaceHandle{1}, 1) == 0);
@@ -109,31 +109,55 @@ struct Bgra
     uint8_t b, g, r, a;
 };
 
-// Every pixel within one step of `expected` (hardware may round the sRGB
-// encoding either way).
-bool allPixelsNear(const std::vector<uint8_t>& pixels, Bgra expected)
+bool near(Bgra pixel, Bgra expected)
 {
-    auto near = [](uint8_t value, uint8_t want) {
+    auto close = [](uint8_t value, uint8_t want) {
         return value + 1 >= want && value <= want + 1;
     };
-    for (size_t i = 0; i < pixels.size(); i += 4)
+    return close(pixel.b, expected.b) && close(pixel.g, expected.g) && close(pixel.r, expected.r) &&
+           close(pixel.a, expected.a);
+}
+
+Bgra pixelAt(const std::vector<uint8_t>& pixels, uint32_t width, uint32_t x, uint32_t y)
+{
+    const size_t at = (size_t{y} * width + x) * 4;
+    return {pixels[at], pixels[at + 1], pixels[at + 2], pixels[at + 3]};
+}
+
+// The default render steps' frame (ADR 0048): the clear color in the corners
+// (within one step: hardware may round the sRGB encoding either way), and the
+// Triangle step's triangle, which a winding mistake would cull: red near its
+// top corner, green near its bottom right, blue near its bottom left.
+void checkFrame(const std::vector<uint8_t>& pixels, uint32_t width, uint32_t height, Bgra clear)
+{
+    for (auto [x, y] : {std::pair{0u, 0u}, {width - 1, 0u}, {0u, height - 1}, {width - 1, height - 1}})
     {
-        if (!near(pixels[i], expected.b) || !near(pixels[i + 1], expected.g) || !near(pixels[i + 2], expected.r) ||
-            !near(pixels[i + 3], expected.a))
-        {
-            MESSAGE("pixel " << i / 4 << ": " << int(pixels[i]) << " " << int(pixels[i + 1]) << " "
-                             << int(pixels[i + 2]) << " " << int(pixels[i + 3]));
-            return false;
-        }
+        const Bgra corner = pixelAt(pixels, width, x, y);
+        CAPTURE(x);
+        CAPTURE(y);
+        CHECK(near(corner, clear));
     }
-    return true;
+    // The triangle's corners are at (0, 0.6), (0.55, -0.45), (-0.55, -0.45)
+    // in clip space, y up; pixel rows go down.
+    auto pixelOf = [&](float clipX, float clipY) {
+        return pixelAt(pixels, width, static_cast<uint32_t>((clipX + 1) / 2 * width),
+                       static_cast<uint32_t>((1 - clipY) / 2 * height));
+    };
+    const Bgra top = pixelOf(0.0f, 0.45f), right = pixelOf(0.4f, -0.38f), left = pixelOf(-0.4f, -0.38f);
+    CHECK(top.r > top.g);
+    CHECK(top.r > top.b);
+    CHECK(right.g > right.r);
+    CHECK(right.g > right.b);
+    CHECK(left.b > left.r);
+    CHECK(left.b > left.g);
+    CHECK(top.a == 255);
 }
 
 } // namespace
 
 TEST_SUITE("gpu")
 {
-    TEST_CASE("Offscreen frames clear to the color and read back sRGB-encoded on every backend")
+    TEST_CASE("Offscreen frames render the steps and read back sRGB-encoded on every backend")
     {
         REQUIRE(platform::initialize());
         for (slag::Backend backend : compiledBackends())
@@ -153,19 +177,19 @@ TEST_SUITE("gpu")
             CHECK(render::readSurfacePixels(surface.value(), pixels).status() == Status::NotFound); // no frame yet
 
             // Linear 0.5 is about 188 once sRGB-encoded; alpha isn't encoded.
-            REQUIRE(render::clearAndPresent(surface.value(), 1.0f, 0.0f, 0.5f, 1.0f));
+            REQUIRE(render::renderFrame(surface.value(), 1.0f, 0.0f, 0.5f, 1.0f));
             REQUIRE(render::readSurfacePixels(surface.value(), pixels));
-            CHECK(allPixelsNear(pixels, {188, 0, 255, 255}));
+            checkFrame(pixels, width, height, {188, 0, 255, 255});
 
-            // A later frame replaces it, through both command buffers, paced.
+            // A later frame replaces it, through both frames in flight, paced.
             REQUIRE(render::setGpuTiming(surface.value(), true));
             for (int frame = 0; frame < 5; ++frame)
             {
                 REQUIRE(render::waitForNextFrame(surface.value()));
-                REQUIRE(render::clearAndPresent(surface.value(), 0.0f, 1.0f, 0.0f, 0.25f));
+                REQUIRE(render::renderFrame(surface.value(), 0.0f, 1.0f, 0.0f, 0.25f));
             }
             REQUIRE(render::readSurfacePixels(surface.value(), pixels));
-            CHECK(allPixelsNear(pixels, {0, 255, 0, 64}));
+            checkFrame(pixels, width, height, {0, 255, 0, 64});
             CHECK(render::framesSubmitted(surface.value()) == 6);
             // The GPU timing thread stamped the finished frames.
             CHECK(render::gpuFrameDoneNs(surface.value(), 6) != 0);
@@ -211,7 +235,7 @@ TEST_SUITE("window" * doctest::skip())
                 SDL_SetWindowSize(SDL_GetWindowFromID(window.value().value), 800, 450);
             }
             const float t = static_cast<float>(frame) / frames;
-            REQUIRE(render::clearAndPresent(surface.value(), t, 0.2f, 1.0f - t, 1.0f));
+            REQUIRE(render::renderFrame(surface.value(), t, 0.2f, 1.0f - t, 1.0f));
             longest = std::max(longest, platform::timestampNow() - frameStart);
         }
         const double seconds = static_cast<double>(platform::timestampNow() - start) / 1e9;

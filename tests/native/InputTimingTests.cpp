@@ -175,7 +175,7 @@ struct TestWindow
 
     void present()
     {
-        (void)crucible::render::clearAndPresent(surface, 0.05f, 0.1f, 0.2f, 1.0f);
+        (void)crucible::render::renderFrame(surface, 0.05f, 0.1f, 0.2f, 1.0f);
     }
 
     bool focused() const

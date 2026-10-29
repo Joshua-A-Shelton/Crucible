@@ -70,6 +70,7 @@ file(GENERATE OUTPUT "${CRUCIBLE_NATIVE_PROPS}" CONTENT "<Project>
   </ItemGroup>
   <ItemGroup Condition=\"'$(PublishAot)' == 'true' and '$(NativeLib)' == '' and '$(OutputType)' == 'Exe'\">
     <NativeLibrary Include=\"$<TARGET_LINKER_FILE:crucible_core_static>\" />
+    <NativeLibrary Include=\"$<TARGET_LINKER_FILE:slag_rendergraph>\" />
     <NativeLibrary Include=\"$<TARGET_LINKER_FILE:slag>\" />
     <NativeLibrary Include=\"$<TARGET_LINKER_FILE:SDL3-static>\" />
     <NativeLibrary Include=\"$<TARGET_LINKER_FILE:libzstd_static>\" />

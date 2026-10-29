@@ -188,4 +188,16 @@ void shaderStage(const ShaderFile& file, uint32_t index, slag::ShaderStage& stag
              file.names.data() + file.nameStarts[index]};
 }
 
+std::span<const uint8_t> engineShader(std::string_view name)
+{
+    for (size_t i = 0; i < embeddedShaderCount; ++i)
+    {
+        if (name == embeddedShaders[i].name)
+        {
+            return {embeddedShaders[i].data, embeddedShaders[i].size};
+        }
+    }
+    return {};
+}
+
 } // namespace crucible::render

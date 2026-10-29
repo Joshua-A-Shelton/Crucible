@@ -27,3 +27,6 @@ Longer explanations of decisions, written to be reread:
 - [Prefabs](docs/learning/prefabs.md) (ADR 0045)
 - [The shader toolchain](docs/learning/shader-toolchain.md) (ADR 0047):
   DXIL and SPIR-V, and buffer layout rules.
+- [The render graph and the render schedule](docs/learning/render-graph.md)
+  (ADR 0048): what a render graph works out, and how steps share
+  resources.

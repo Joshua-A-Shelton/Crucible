@@ -54,7 +54,7 @@ public sealed class ScheduleBuilder
         }
         builder.AddSystem(Phases.BeginFrame, new PacingSystem());
         builder.AddSystem(Phases.Input, new InputSystem());
-        builder.AddSystem(Phases.RenderSubmit, new ClearPresentSystem());
+        builder.AddSystem(Phases.RenderSubmit, new RenderSystem());
         return builder;
     }
 

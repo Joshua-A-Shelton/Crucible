@@ -191,7 +191,7 @@ public class FrameLoopTests
         await Assert.That(phases).IsEqualTo("BeginFrame Input FixedTick(PrePhysics Physics PostPhysics) Update " +
                                             "Animation LateUpdate RenderPrepare RenderSubmit EndFrame");
         await Assert.That(string.Join(" ", schedule.Systems.Select(system => system.Name))).IsEqualTo(
-            "Crucible.Loop.PacingSystem Crucible.Loop.InputSystem Crucible.Loop.ClearPresentSystem");
+            "Crucible.Loop.PacingSystem Crucible.Loop.InputSystem Crucible.Loop.RenderSystem");
         await Assert.That(schedule.FixedStepNs).IsEqualTo(16_666_667ul);
         await Assert.That(schedule.MaxFixedSteps).IsEqualTo(4);
     }
@@ -201,7 +201,7 @@ public class FrameLoopTests
     {
         ScheduleBuilder builder = ScheduleBuilder.CreateDefault();
         builder.IncludeNativeSystems = false;
-        builder.ReplaceSystem("Crucible.Loop.ClearPresentSystem", new ActionSystem("MyPresent", _ => { }));
+        builder.ReplaceSystem("Crucible.Loop.RenderSystem", new ActionSystem("MyPresent", _ => { }));
 
         Schedule schedule = builder.Build();
 
