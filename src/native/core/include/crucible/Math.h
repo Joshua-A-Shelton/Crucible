@@ -115,6 +115,12 @@ struct CRUCIBLE_EXPOSE_AS("System.Numerics.Matrix4x4") Matrix4x4
     static Matrix4x4 perspectiveFieldOfView(float fieldOfViewY, float aspectRatio, float nearPlane, float farPlane);
     // A left-handed orthographic projection centered on the view axis.
     static Matrix4x4 orthographic(float width, float height, float nearPlane, float farPlane);
+    // The renderer's projections (ADR 0050): reverse-Z, so depth is 1 at
+    // `nearPlane` and falls toward 0 with distance, where floats are most
+    // precise. The perspective one has no far plane: depth reaches 0 only at
+    // infinity.
+    static Matrix4x4 perspectiveReverseZInfinite(float fieldOfViewY, float aspectRatio, float nearPlane);
+    static Matrix4x4 orthographicReverseZ(float width, float height, float nearPlane, float farPlane);
     // A left-handed view matrix: the camera at `eye`, looking at `target`.
     static Matrix4x4 lookAt(Vector3 eye, Vector3 target, Vector3 up);
 };

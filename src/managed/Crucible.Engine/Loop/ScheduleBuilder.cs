@@ -54,6 +54,9 @@ public sealed class ScheduleBuilder
         }
         builder.AddSystem(Phases.BeginFrame, new PacingSystem());
         builder.AddSystem(Phases.Input, new InputSystem());
+        // C++, but not in the C++ registry, which every schedule includes.
+        builder.AddSystem(Phases.RenderPrepare, new NativeSystem("crucible.TransformPropagation",
+            Crucible.Scenes.Api.TransformPropagationFunction(), 0));
         builder.AddSystem(Phases.RenderSubmit, new RenderSystem());
         return builder;
     }

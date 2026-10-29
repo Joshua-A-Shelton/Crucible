@@ -169,6 +169,24 @@ TEST_CASE("Projections map near to depth 0 and far to depth 1")
     CHECK(near(transformPoint({-10, -5, 11}, ortho), {-1, -1, 1}));
 }
 
+TEST_CASE("Reverse-Z projections map near to depth 1 and far toward 0")
+{
+    const Matrix4x4 perspective = Matrix4x4::perspectiveReverseZInfinite(pi / 3, 16.0f / 9.0f, 0.1f);
+    const Vector4 nearPoint = transform({0, 0, 0.1f, 1}, perspective);
+    const Vector4 farPoint = transform({0, 0, 1.0e6f, 1}, perspective);
+    CHECK(near(nearPoint.z / nearPoint.w, 1.0f));
+    CHECK(farPoint.z / farPoint.w > 0.0f);
+    CHECK(farPoint.z / farPoint.w < 1.0e-6f);
+    const Vector4 top = transform({0, std::tan(pi / 6), 1, 1}, perspective);
+    CHECK(near(top.y / top.w, 1.0f));
+    const Vector4 right = transform({std::tan(pi / 6) * 16.0f / 9.0f, 0, 1, 1}, perspective);
+    CHECK(near(right.x / right.w, 1.0f));
+
+    const Matrix4x4 ortho = Matrix4x4::orthographicReverseZ(20, 10, 1, 11);
+    CHECK(near(transformPoint({10, 5, 1}, ortho), {1, 1, 1}));
+    CHECK(near(transformPoint({-10, -5, 11}, ortho), {-1, -1, 0}));
+}
+
 TEST_CASE("lookAt puts the target straight ahead")
 {
     const Vector3 eye{3, 2, -5};

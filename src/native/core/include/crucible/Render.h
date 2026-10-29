@@ -16,6 +16,10 @@
 #include <cstdint>
 #include <span>
 
+namespace crucible::ecs {
+struct World;
+}
+
 namespace slag {
 enum class Backend : uint8_t;
 enum class PresentMode : uint8_t;
@@ -70,10 +74,13 @@ CRUCIBLE_EXPOSE Result<void> readSurfacePixels(SurfaceHandle surface, std::span<
 CRUCIBLE_EXPOSE_STATUS Result<void> waitForNextFrame(SurfaceHandle surface);
 
 // Renders one frame through the render schedule (ADR 0048), with
-// `red`..`alpha` (linear) as the Clear step's color, and presents it.
+// `red`..`alpha` (linear) as the Clear step's color, and presents it. The
+// view is the world's camera with the highest priority (ADR 0050); without a
+// world (null) or a camera, a default one at the origin looking along +Z.
 // Resizes the swapchain when the window's size changed; skips the frame
 // (still Ok) while the window is minimized or hidden.
-CRUCIBLE_EXPOSE_STATUS Result<void> renderFrame(SurfaceHandle surface, float red, float green, float blue, float alpha);
+CRUCIBLE_EXPOSE_STATUS Result<void> renderFrame(SurfaceHandle surface, ecs::World* world, float red, float green,
+                                                float blue, float alpha);
 
 // Latency harness support (ADR 0003).
 //

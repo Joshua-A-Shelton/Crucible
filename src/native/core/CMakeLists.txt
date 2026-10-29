@@ -39,7 +39,8 @@ target_sources(crucible_core_objects PRIVATE
     Memory.cpp
     Platform.cpp
     Shader.cpp
-    Systems.cpp)
+    Systems.cpp
+    Transform.cpp)
 
 # Only CRUCIBLE_EXPORT symbols are visible from the shared library.
 target_compile_definitions(crucible_core_objects PRIVATE CRUCIBLE_CORE_EXPORTS)
@@ -62,6 +63,7 @@ target_link_libraries(crucible_core_objects PRIVATE libzstd_static)
 # generated bindings (which call into it): built after shaderfax, which links
 # the objects above and compiles those shaders (ADR 0048's build order).
 add_library(crucible_render_objects OBJECT
+    Camera.cpp
     Render.cpp
     RenderAssets.cpp
     RenderSchedule.cpp
@@ -73,6 +75,9 @@ set_target_properties(crucible_render_objects PROPERTIES
     CXX_VISIBILITY_PRESET hidden
     VISIBILITY_INLINES_HIDDEN ON)
 target_link_libraries(crucible_render_objects PUBLIC crucible_core_objects slag::rendergraph)
+# The C++ mirrors of the shader library's [GpuShared] structs (ViewConstants).
+crucible_add_shader(crucible_render_objects SOURCE "${PROJECT_SOURCE_DIR}/shaders/crucible/shared.slang"
+    CPP_NAMESPACE crucible::render CS_NAMESPACE Crucible.Render)
 crucible_embed_shaders(crucible_render_objects
     OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/EngineShaders.g.cpp"
     SOURCES "${PROJECT_SOURCE_DIR}/shaders/crucible/triangle.slang")

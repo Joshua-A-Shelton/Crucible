@@ -13,6 +13,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdio>
+#include <cstring>
 #include <thread>
 
 namespace crucible::render {
@@ -22,6 +23,9 @@ namespace {
 // The CPU builds one frame while the GPU may still run the previous one.
 constexpr uint32_t framesInFlight = 2;
 constexpr uint32_t maxSurfaces = 8;
+
+constexpr uint32_t viewConstantsSize = (sizeof(ViewConstants) + slag::alignment::constantBuffer - 1) /
+                                       slag::alignment::constantBuffer * slag::alignment::constantBuffer;
 
 // Bounds the pacing wait, so a window that stops presenting (hidden, or a
 // stalled compositor) slows the loop instead of hanging it.
@@ -63,7 +67,12 @@ struct Surface
     // render schedule.
     slag::rendergraph::RenderGraph* graph = nullptr;
     slag::Semaphore* frames = nullptr; // reaches N once the GPU has finished frame N
-    uint64_t submitted = 0;            // frames submitted so far
+    // The frames' ViewConstants, one buffer per frame in flight, used in the
+    // graph's order of frame slots; beginFrame waits until the GPU is done
+    // with the one it hands out.
+    std::array<slag::Buffer*, framesInFlight> viewBuffers{};
+    uint64_t graphFrames = 0; // frames begun on the graph, for its frame slot
+    uint64_t submitted = 0;   // frames submitted so far
     slag::PresentMode presentMode{};
     uint32_t width = 0;
     uint32_t height = 0;
@@ -77,6 +86,7 @@ struct Surface
 struct Renderer
 {
     PresentPreference presentPreference = PresentPreference::Default;
+    std::chrono::steady_clock::time_point started; // ViewConstants' time counts from here
     slag::Instance* instance = nullptr;
     slag::GraphicsDevice* device = nullptr;
     slag::CommandQueue* queue = nullptr;
@@ -180,6 +190,13 @@ void release(Surface& surface)
     stopGpuTimer(surface);
     slag::GraphicsDevice* device = renderer.device;
     slag::rendergraph::destroy(surface.graph);
+    for (slag::Buffer* buffer : surface.viewBuffers)
+    {
+        if (buffer != nullptr)
+        {
+            device->destroy(buffer);
+        }
+    }
     if (surface.frames != nullptr)
     {
         device->destroy(surface.frames);
@@ -242,6 +259,18 @@ Result<void> createFrameResources(Surface& surface)
         return toStatus(frames.status());
     }
     surface.frames = frames.value();
+    for (slag::Buffer*& buffer : surface.viewBuffers)
+    {
+        slag::Result<slag::Buffer*> created =
+            device->createBuffer({.size = viewConstantsSize,
+                                  .placement = slag::Placement::automatic(slag::MemoryKind::Upload),
+                                  .debugName = "crucible view constants"});
+        if (!created)
+        {
+            return toStatus(created.status());
+        }
+        buffer = created.value();
+    }
     return {};
 }
 
@@ -273,7 +302,8 @@ struct Recording
 // recorded in parallel on the job system, and submitted; then a signal of the
 // frame semaphore after all of it, for pacing and GPU timing.
 Result<void> renderWithGraph(Surface& surface, slag::Texture* texture, slag::AttachmentView* view,
-                             const slag::rendergraph::ImportedTextureDesc& import, const float color[4])
+                             const slag::rendergraph::ImportedTextureDesc& import, ecs::World* world,
+                             const float color[4])
 {
     slag::rendergraph::RenderGraph& graph = *surface.graph;
     collectAssets();
@@ -281,11 +311,17 @@ Result<void> renderWithGraph(Surface& surface, slag::Texture* texture, slag::Att
     {
         return toStatus(begun.status());
     }
+    // The graph's frame slot (Slag's PassContext::frameSlot) is free again.
+    slag::Buffer* viewBuffer = surface.viewBuffers[surface.graphFrames++ % framesInFlight];
+    const float time = std::chrono::duration<float>(std::chrono::steady_clock::now() - renderer.started).count();
+    const ViewConstants constants = viewConstants(world, surface.width, surface.height, time);
+    std::memcpy(viewBuffer->mappedData(), &constants, sizeof(constants));
+
     slag::rendergraph::ImportedTextureDesc desc = import;
     desc.attachmentView = view;
     const slag::rendergraph::RenderGraphTexture backbuffer = graph.importTexture(texture, desc);
-    if (Result<void> added = addStepPasses(
-            {graph, *renderer.device, surface.width, surface.height, surface.submitted + 1, color, backbuffer});
+    if (Result<void> added = addStepPasses({graph, *renderer.device, surface.width, surface.height,
+                                            surface.submitted + 1, color, backbuffer, graph.importBuffer(viewBuffer)});
         !added)
     {
         return added;
@@ -356,6 +392,7 @@ PresentChoice choosePresentMode(std::span<const slag::PresentMode> modes, Presen
 Result<void> initialize(slag::Backend backend, PresentPreference presentMode)
 {
     renderer.presentPreference = presentMode;
+    renderer.started = std::chrono::steady_clock::now();
     if (!slag::isBackendAvailable(backend))
     {
         std::fprintf(stderr, "crucible: the %s backend isn't available in this build\n",
@@ -591,7 +628,7 @@ Result<void> waitForNextFrame(SurfaceHandle surface)
     return waited ? Result<void>() : Result<void>(toStatus(waited.status()));
 }
 
-Result<void> renderFrame(SurfaceHandle surface, float red, float green, float blue, float alpha)
+Result<void> renderFrame(SurfaceHandle surface, ecs::World* world, float red, float green, float blue, float alpha)
 {
     Surface* found = find(surface);
     if (found == nullptr)
@@ -606,9 +643,9 @@ Result<void> renderFrame(SurfaceHandle surface, float red, float green, float bl
         // relies on it); before the first, it's Undefined.
         const slag::TextureLayout initial =
             target.offscreenRendered ? slag::TextureLayout::RenderTarget : slag::TextureLayout::Undefined;
-        if (Result<void> rendered =
-                renderWithGraph(target, target.offscreenTexture, target.offscreenView,
-                                {.initialLayout = initial, .finalLayout = slag::TextureLayout::RenderTarget}, color);
+        if (Result<void> rendered = renderWithGraph(
+                target, target.offscreenTexture, target.offscreenView,
+                {.initialLayout = initial, .finalLayout = slag::TextureLayout::RenderTarget}, world, color);
             !rendered)
         {
             return rendered;
@@ -662,7 +699,7 @@ Result<void> renderFrame(SurfaceHandle surface, float red, float green, float bl
                             {.initialLayout = slag::TextureLayout::Undefined,
                              .finalLayout = slag::TextureLayout::Present,
                              .swapchain = target.swapchain},
-                            color);
+                            world, color);
         !rendered)
     {
         return rendered;

@@ -80,6 +80,12 @@ BlackboardKey backbufferKey()
     return key;
 }
 
+BlackboardKey viewKey()
+{
+    static const BlackboardKey key = registerBlackboardKey("View");
+    return key;
+}
+
 // ---------------------------------------------------------------------------
 // RenderStepContext
 // ---------------------------------------------------------------------------
@@ -169,6 +175,7 @@ struct FrameBuilder
         std::memcpy(context.clearColor, inputs.clearColor, sizeof(context.clearColor));
         context.frameState = &state;
         context.publish(backbufferKey(), inputs.backbuffer);
+        context.publish(viewKey(), inputs.view);
         const RenderSchedule& schedule = renderSchedule();
         for (uint32_t i = 0; i < schedule.stepCount() && !state.failed; ++i)
         {

@@ -127,7 +127,7 @@ TEST_SUITE("gpu")
             reads = 0;
             REQUIRE(schedule.insertBefore("Triangle", {.name = "Test.Publish", .addPasses = publishShared}));
             REQUIRE(schedule.insertAfter("Triangle", {.name = "Test.Read", .addPasses = readShared}));
-            REQUIRE(render::renderFrame(surface.value(), 0, 0, 0, 1));
+            REQUIRE(render::renderFrame(surface.value(), nullptr, 0, 0, 0, 1));
             CHECK(reads == 1);
             REQUIRE(schedule.remove("Test.Read"));
 
@@ -139,10 +139,10 @@ TEST_SUITE("gpu")
 
             // Reading what no step published is reported and fails the frame.
             REQUIRE(schedule.insertBefore("Test.Publish", {.name = "Test.Missing", .addPasses = readMissing}));
-            CHECK(render::renderFrame(surface.value(), 0, 0, 0, 1).status() == Status::InvalidData);
+            CHECK(render::renderFrame(surface.value(), nullptr, 0, 0, 0, 1).status() == Status::InvalidData);
             REQUIRE(schedule.remove("Test.Missing"));
             REQUIRE(schedule.remove("Test.Publish"));
-            CHECK(render::renderFrame(surface.value(), 0, 0, 0, 1));
+            CHECK(render::renderFrame(surface.value(), nullptr, 0, 0, 0, 1));
 
             render::destroySurface(surface.value());
             render::shutdown();

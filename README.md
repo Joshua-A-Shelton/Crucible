@@ -32,3 +32,6 @@ Longer explanations of decisions, written to be reread:
   resources.
 - [GPU assets](docs/learning/gpu-assets.md) (ADR 0049): uploads, resizable
   BAR, generational handles, and freeing what the GPU may still use.
+- [Transforms and cameras](docs/learning/transforms-and-cameras.md)
+  (ADR 0050): local and world matrices, view and projection, and why
+  reverse-Z.

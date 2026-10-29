@@ -65,7 +65,7 @@ public sealed class RenderSystem : GameSystem
         float pulse = (float)(0.5 + 0.5 * Math.Sin(seconds * Math.PI));
         // Only measured with the harness on: it tells a submitted frame from a skipped one.
         ulong submittedBefore = context.Latency is null ? 0 : Render.Api.FramesSubmitted(context.Surface);
-        Status status = Render.Api.RenderFrame(context.Surface, 0.02f, 0.02f + 0.08f * pulse, 0.1f, 1.0f);
+        Status status = Render.Api.RenderFrame(context.Surface, context.HasWorld ? context.World.Live : default, 0.02f, 0.02f + 0.08f * pulse, 0.1f, 1.0f);
         if (status < 0)
         {
             context.Fail(status, Name);

@@ -64,3 +64,16 @@ Settled in a review of M4's and M5's placeholders (ADR 0047's amendment).
 | `RenderAssets` | The C# class |
 | `crucible/MeshFile.h`, `crucible/TextureFile.h` | The imported files' layouts, in the core |
 | `AssetId` (C++) | The same 16 bytes as C#'s |
+
+## Transforms and cameras (2026-10-29)
+
+| Name | What it is |
+|---|---|
+| `crucible/Transform.h`: `LocalTransform`, `WorldTransform` (`matrix`) | Transforms, in `crucible::scenes` / `Crucible.Scenes` (ADR 0050) |
+| `updateWorldTransforms`, C# `World.UpdateWorldTransforms` | Propagation on demand |
+| `crucible.TransformPropagation` | The propagation system |
+| `crucible/Camera.h`: `Camera`, `CameraProjection` (`Perspective`, `Orthographic`) | The camera component, in `crucible::render` / `Crucible.Render` |
+| `Camera` fields: `projection`, `fieldOfViewY`, `orthographicHeight`, `nearPlane`, `farPlane`, `priority` | Full vertical angle, full height |
+| `ViewConstants`: `view`, `projection`, `viewProjection`, `inverseView`, `inverseProjection`, `inverseViewProjection`, `cameraPosition`, `time`, `viewportSize` | The per-frame view for shaders |
+| Blackboard key `View`, `viewKey()` | Where steps find the frame's `ViewConstants` |
+| `Matrix4x4::perspectiveReverseZInfinite`, `orthographicReverseZ` | The renderer's projections |

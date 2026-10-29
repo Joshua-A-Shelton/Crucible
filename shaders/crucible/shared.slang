@@ -7,3 +7,21 @@
 public struct GpuSharedAttribute
 {
 };
+
+// The view a frame is drawn from (ADR 0050), filled by the renderer from the
+// camera every frame. Row vectors, as in C++: a world position p lands at
+// mul(float4(p, 1), viewProjection). Depth is reverse-Z, with no far plane
+// for a perspective camera.
+[GpuShared]
+public struct ViewConstants
+{
+    public float4x4 view;
+    public float4x4 projection;
+    public float4x4 viewProjection;
+    public float4x4 inverseView;
+    public float4x4 inverseProjection;
+    public float4x4 inverseViewProjection;
+    public float3 cameraPosition; // world space
+    public float time;            // seconds since the renderer started
+    public float2 viewportSize;   // pixels
+};

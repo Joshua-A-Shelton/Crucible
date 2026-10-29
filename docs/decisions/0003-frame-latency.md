@@ -47,7 +47,8 @@ and `Immediate` (both queried), switchable per present (Slag ADR 0056).
   (tearing) is available to players who want it. Three-image `Fifo` is
   excluded: it adds a frame of queue.
 - **Late latching: tentatively yes,** to be revisited once there is a
-  prototype (see below).
+  prototype (see below). ADR 0050 keeps the camera's data where latching
+  can rewrite it, but doesn't latch yet.
 - **Default game loop** (see below): variable-rate loop, fixed-tick
   physics, physics bodies interpolated by default. The loop is easy for a
   game to change.

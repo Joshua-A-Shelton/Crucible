@@ -71,6 +71,21 @@ Matrix4x4 Matrix4x4::orthographic(float width, float height, float nearPlane, fl
     return {{{2.0f / width, 0, 0, 0}, {0, 2.0f / height, 0, 0}, {0, 0, range, 0}, {0, 0, -range * nearPlane, 1}}};
 }
 
+// Clip w is view-space z, and clip z the constant `nearPlane`, so depth is
+// nearPlane / z.
+Matrix4x4 Matrix4x4::perspectiveReverseZInfinite(float fieldOfViewY, float aspectRatio, float nearPlane)
+{
+    const float height = 1.0f / std::tan(fieldOfViewY * 0.5f);
+    const float width = height / aspectRatio;
+    return {{{width, 0, 0, 0}, {0, height, 0, 0}, {0, 0, 0, 1}, {0, 0, nearPlane, 0}}};
+}
+
+Matrix4x4 Matrix4x4::orthographicReverseZ(float width, float height, float nearPlane, float farPlane)
+{
+    const float range = 1.0f / (farPlane - nearPlane);
+    return {{{2.0f / width, 0, 0, 0}, {0, 2.0f / height, 0, 0}, {0, 0, -range, 0}, {0, 0, range * farPlane, 1}}};
+}
+
 // The camera's axes become the matrix's columns: +Z toward the target, +X to
 // the right of it, +Y up.
 Matrix4x4 Matrix4x4::lookAt(Vector3 eye, Vector3 target, Vector3 up)

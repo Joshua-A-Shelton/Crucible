@@ -14,15 +14,18 @@ add_executable(crucible_native_tests
     ResultTests.cpp
     ShaderTests.cpp
     SimdTests.cpp
-    SystemsTests.cpp)
+    SystemsTests.cpp
+    TransformTests.cpp)
 
 crucible_set_compile_options(crucible_native_tests)
 crucible_use_d3d12_agility(crucible_native_tests)
 # Tests build without exceptions too (ADR 0030); doctest's REQUIRE then ends
 # the run on failure instead of throwing.
 target_compile_definitions(crucible_native_tests PRIVATE DOCTEST_CONFIG_NO_EXCEPTIONS_BUT_WITH_ALL_ASSERTS)
-# The renderer's internal header too, for the GPU-asset tests' hooks.
-target_include_directories(crucible_native_tests PRIVATE "${PROJECT_SOURCE_DIR}/src/native/core")
+# The renderer's internal headers, for the GPU tests' hooks, and the mirrors they
+# include (shared.g.h).
+target_include_directories(crucible_native_tests PRIVATE "${PROJECT_SOURCE_DIR}/src/native/core"
+    "${PROJECT_BINARY_DIR}/src/native/core/shaders")
 # SDL directly too: the platform tests push synthetic SDL events.
 target_link_libraries(crucible_native_tests PRIVATE crucible::core_static SDL3::SDL3-static doctest::doctest)
 # The shader toolchain's test shader (ADR 0047), with its C++ mirror here and
@@ -30,6 +33,8 @@ target_link_libraries(crucible_native_tests PRIVATE crucible::core_static SDL3::
 crucible_add_shader(crucible_native_tests SOURCE shaders/LayoutProbe.slang
     CS_OUTPUT_DIR "${CRUCIBLE_GENERATED_DIR}/managed/shaders")
 add_dependencies(crucible_managed crucible_native_tests_shader_LayoutProbe)
+# The camera's test shader (ADR 0050).
+crucible_add_shader(crucible_native_tests SOURCE shaders/ViewProbe.slang)
 
 # SDL's offscreen driver makes real windows that are never shown, so the tests
 # need no display (Windows over SSH has none).

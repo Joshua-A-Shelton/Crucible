@@ -37,6 +37,13 @@ public sealed unsafe class World : IDisposable
 
     public int EntityCount => (int)Api.EntityCount(Live);
 
+    /// <summary>
+    /// Recomputes every <see cref="Crucible.Scenes.WorldTransform"/> now
+    /// (ADR 0050), for code that can't wait for the propagation system in
+    /// RenderPrepare. Not while iterating.
+    /// </summary>
+    public void UpdateWorldTransforms() => Crucible.Scenes.Api.UpdateWorldTransforms(Live);
+
     public Entity CreateEntity(params ReadOnlySpan<ComponentId> components) =>
         Api.CreateEntity(Live, Ids(components));
 

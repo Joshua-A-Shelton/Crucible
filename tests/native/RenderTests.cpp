@@ -50,7 +50,7 @@ TEST_CASE("Surfaces need the renderer and unknown surfaces are reported")
 {
     CHECK(render::createSurface(platform::WindowHandle{1}).status() == Status::Unsupported);
     CHECK(render::waitForNextFrame(render::SurfaceHandle{}).status() == Status::NotFound);
-    CHECK(render::renderFrame(render::SurfaceHandle{3}, 0, 0, 0, 1).status() == Status::NotFound);
+    CHECK(render::renderFrame(render::SurfaceHandle{3}, nullptr, 0, 0, 0, 1).status() == Status::NotFound);
     render::destroySurface(render::SurfaceHandle{3}); // ignored
     CHECK(render::setGpuTiming(render::SurfaceHandle{1}, true).status() == Status::NotFound);
     CHECK(render::gpuFrameDoneNs(render::SurfaceHandle{1}, 1) == 0);
@@ -177,7 +177,7 @@ TEST_SUITE("gpu")
             CHECK(render::readSurfacePixels(surface.value(), pixels).status() == Status::NotFound); // no frame yet
 
             // Linear 0.5 is about 188 once sRGB-encoded; alpha isn't encoded.
-            REQUIRE(render::renderFrame(surface.value(), 1.0f, 0.0f, 0.5f, 1.0f));
+            REQUIRE(render::renderFrame(surface.value(), nullptr, 1.0f, 0.0f, 0.5f, 1.0f));
             REQUIRE(render::readSurfacePixels(surface.value(), pixels));
             checkFrame(pixels, width, height, {188, 0, 255, 255});
 
@@ -186,7 +186,7 @@ TEST_SUITE("gpu")
             for (int frame = 0; frame < 5; ++frame)
             {
                 REQUIRE(render::waitForNextFrame(surface.value()));
-                REQUIRE(render::renderFrame(surface.value(), 0.0f, 1.0f, 0.0f, 0.25f));
+                REQUIRE(render::renderFrame(surface.value(), nullptr, 0.0f, 1.0f, 0.0f, 0.25f));
             }
             REQUIRE(render::readSurfacePixels(surface.value(), pixels));
             checkFrame(pixels, width, height, {0, 255, 0, 64});
@@ -235,7 +235,7 @@ TEST_SUITE("window" * doctest::skip())
                 SDL_SetWindowSize(SDL_GetWindowFromID(window.value().value), 800, 450);
             }
             const float t = static_cast<float>(frame) / frames;
-            REQUIRE(render::renderFrame(surface.value(), t, 0.2f, 1.0f - t, 1.0f));
+            REQUIRE(render::renderFrame(surface.value(), nullptr, t, 0.2f, 1.0f - t, 1.0f));
             longest = std::max(longest, platform::timestampNow() - frameStart);
         }
         const double seconds = static_cast<double>(platform::timestampNow() - start) / 1e9;

@@ -34,6 +34,12 @@ std::string_view blackboardKeyName(BlackboardKey key);
 // The surface's image, published before the first step runs.
 BlackboardKey backbufferKey();
 
+// The frame's ViewConstants (shaders/crucible/shared.slang, ADR 0050), in an
+// upload buffer published before the first step runs. Read it as a constant
+// buffer: setConstantBuffer(address, size) with the size of ViewConstants
+// rounded up to slag::alignment::constantBuffer.
+BlackboardKey viewKey();
+
 // What a step sees while it adds its graph passes for one frame.
 class RenderStepContext
 {

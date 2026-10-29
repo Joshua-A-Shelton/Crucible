@@ -7,16 +7,13 @@ namespace Crucible.Scenes;
 
 /// <summary>
 /// An entity's position, rotation, and scale relative to its parent
-/// (ADR 0024: left-handed, Y up, meters). World transforms come with M5
-/// (ADR 0045). Names are placeholders (docs/naming.md).
+/// (ADR 0024: left-handed, Y up, meters). Declared in C++
+/// (crucible/Transform.h, ADR 0050); this half adds saving and
+/// <see cref="Identity"/>.
 /// </summary>
 [Serialized]
 public partial struct LocalTransform
 {
-    public Vector3 Position;
-    public Quaternion Rotation;
-    public Vector3 Scale;
-
     public static LocalTransform Identity => new() { Rotation = Quaternion.Identity, Scale = Vector3.One };
 }
 
@@ -39,12 +36,19 @@ internal static class EngineComponents
 {
     private static readonly Lazy<bool> _registered = new(() =>
     {
+        // C++ registers its components (and the propagation system) under
+        // the same names, so both languages get the same IDs.
+        Api.RegisterTransforms();
+        Crucible.Render.Api.RegisterCamera();
         Components.Register<LocalTransform>();
+        Components.Register<WorldTransform>();
+        Components.Register<Crucible.Render.Camera>();
         Components.Register<MeshInstance>();
         Components.Register<SceneEntityId>();
         Components.Register<PrefabInstance>();
         SavedComponents.Add<LocalTransform>();
         SavedComponents.Add<MeshInstance>();
+        SavedComponents.Add<Crucible.Render.Camera>();
         return true;
     });
 
