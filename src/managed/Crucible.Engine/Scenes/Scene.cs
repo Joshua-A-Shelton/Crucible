@@ -58,6 +58,13 @@ public static class Scene
     public static byte[] Save(World world, AssetId id, PrefabLibrary? prefabs = null) =>
         SceneWriter.Write(world, null, id, prefabs);
 
+    /// <summary>
+    /// Writes every entity in full, prefab instances expanded into plain
+    /// entities (ADR 0046): two worlds are the same exactly when this gives
+    /// the same bytes. The result is a valid scene with no instances.
+    /// </summary>
+    public static byte[] SaveUnpacked(World world, AssetId id) => SceneWriter.Write(world, null, id, null, unpack: true);
+
     // ---------------------------------------------------------------------
     // Loading
     // ---------------------------------------------------------------------

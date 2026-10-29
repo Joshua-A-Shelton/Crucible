@@ -219,6 +219,16 @@ the decision each one needs comes first):
 
 Cooking and asynchronous loading (ADR 0021) wait for a later milestone.
 
+**Status (2026-10-28):** steps 1–9 done and verified on Linux (GCC, debug
+and release; ASan/UBSan and TSan for the importers) and Windows (MSVC,
+debug and release). The demonstration is `samples/SceneRoundTrip` (ADR
+0046): a lopsided glTF model and its texture imported, placed in a scene
+as plain and nested prefab instances with overrides, saved as JSON,
+reloaded into an identical world (compared entity by entity and as bytes),
+with no inside-out faces and the model's right arm on +X. Decided: J
+(0038), K (0039), L (0040), M (0041), N (0043), plus FBX (0044) and prefabs
+(0045). Waiting for the owner's sign-off.
+
 ## M5 — Renderer
 
 - `slag::rendergraph` integration and the extensible pass list (ADR 0015).

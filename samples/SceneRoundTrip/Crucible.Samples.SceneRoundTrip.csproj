@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The M4 demonstration (docs/milestones.md, ADR 0046): imports a project's
+       assets, builds a scene of model and prefab instances, saves it as JSON,
+       reloads it, and checks the two worlds and files are identical and the
+       imported model is mirrored correctly. Editor-side, so JIT only, like
+       Crucible.Assets. -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Crucible.Samples.SceneRoundTrip</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/managed/Crucible.Assets/Crucible.Assets.csproj" />
+    <ProjectReference Include="../../tools/Crucible.Generators/Crucible.Generators.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>

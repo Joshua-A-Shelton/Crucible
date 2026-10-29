@@ -18,11 +18,13 @@ internal sealed class SceneWriter
     private readonly Dictionary<Entity, SavedComponent[]> _saved;
     private readonly PrefabLibrary? _library;
     private readonly Utf8JsonWriter _writer;
+    private readonly bool _unpack;
     private readonly ComponentId _instanceComponent = Components.Of<PrefabInstance>();
 
     private SceneWriter(World world, Map map, Dictionary<Entity, SavedComponent[]> saved, PrefabLibrary? library,
-        Utf8JsonWriter writer)
+        Utf8JsonWriter writer, bool unpack)
     {
+        _unpack = unpack;
         _world = world;
         _map = map;
         _saved = saved;
@@ -30,8 +32,12 @@ internal sealed class SceneWriter
         _writer = writer;
     }
 
-    /// <summary>Writes <paramref name="roots"/> and their descendants, or every entity if null.</summary>
-    public static byte[] Write(World world, IReadOnlyList<Entity>? roots, AssetId id, PrefabLibrary? library)
+    /// <summary>
+    /// Writes <paramref name="roots"/> and their descendants, or every entity
+    /// if null; with <paramref name="unpack"/>, instances as plain entities.
+    /// </summary>
+    public static byte[] Write(World world, IReadOnlyList<Entity>? roots, AssetId id, PrefabLibrary? library,
+        bool unpack = false)
     {
         EngineComponents.Register();
         List<(Entity Entity, ComponentId[] Components)> contents = world.Contents();
@@ -45,7 +51,7 @@ internal sealed class SceneWriter
         using (EntityReferences.Use(map))
         using (Utf8JsonWriter writer = new(buffer, new JsonWriterOptions { Indented = true, NewLine = "\n" }))
         {
-            SceneWriter scene = new(world, map, saved, library, writer);
+            SceneWriter scene = new(world, map, saved, library, writer, unpack);
             writer.WriteStartObject();
             writer.WritePropertyName(Scene.GuidProperty);
             JsonValues.WriteAssetId(writer, id);
@@ -121,7 +127,7 @@ internal sealed class SceneWriter
 
     private void WriteEntity(Entity entity)
     {
-        if (_world.Has(entity, _instanceComponent))
+        if (!_unpack && _world.Has(entity, _instanceComponent))
         {
             WriteInstance(entity);
             return;

@@ -1,0 +1,31 @@
+{
+  "$guid": "6c0f5a1e-2b3d-4c5e-8f70-9a1b2c3d4e03",
+  "Entities": [
+    {
+      "Id": "0000000000000001",
+      "Components": {
+        "Crucible.Scenes.LocalTransform": {
+          "Position": [0, 0, 0],
+          "Rotation": [0, 0, 0, 1],
+          "Scale": [1, 1, 1]
+        }
+      },
+      "Children": [
+        {
+          "Id": "0000000000000002",
+          "Prefab": "6c0f5a1e-2b3d-4c5e-8f70-9a1b2c3d4e01",
+          "Overrides": {
+            "0000000000000002": {
+              "Components": {
+                "Crucible.Scenes.LocalTransform": {
+                  "Position": [0, 1, 0],
+                  "Scale": [0.5, 0.5, 0.5]
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

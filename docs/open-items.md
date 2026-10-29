@@ -40,6 +40,9 @@ milestone are decided or checked when that milestone reaches them
   sub-assets with IDs of their own, when a real model needs it; a warning
   until then. → 0043
 - Skins and morph targets in imported meshes, with animation. → 0026, 0043
+- Mesh LODs: Blender's Suzanne (seven materials, UV seams) gets no level
+  beyond LOD 0; find out whether seams or the per-submesh stopping rule
+  hold simplification back. → 0043, 0046
 - Prefabs: removing or reordering a prefab's entities in an instance;
   migrating overridden fields when a component's version changes; a
   cached form for spawning at runtime (with cooking); a `Name` component,

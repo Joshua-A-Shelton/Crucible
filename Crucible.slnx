@@ -5,6 +5,7 @@
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/Particles/Crucible.Samples.Particles.csproj" />
+    <Project Path="samples/SceneRoundTrip/Crucible.Samples.SceneRoundTrip.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/managed/Crucible.Engine.Tests/Crucible.Engine.Tests.csproj" />

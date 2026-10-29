@@ -19,3 +19,20 @@ if(CRUCIBLE_BUILD_AOT)
         "${PROJECT_SOURCE_DIR}/tests/managed/Crucible.Engine.Tests/Crucible.Engine.Tests.csproj"
         crucible_engine_aot)
 endif()
+
+# The M4 demonstration (ADR 0046): the sample program run on the project
+# checked in beside it, failing on any failed check. Editor-side, so JIT only.
+set(sceneRoundTrip "${CRUCIBLE_DOTNET_ARTIFACTS_DIR}/bin/Crucible.Samples.SceneRoundTrip/${CRUCIBLE_DOTNET_CONFIGURATION_DIR}/Crucible.Samples.SceneRoundTrip${CMAKE_EXECUTABLE_SUFFIX}")
+add_test(NAME samples.scene-roundtrip
+    COMMAND "${sceneRoundTrip}"
+        --project "${PROJECT_SOURCE_DIR}/samples/SceneRoundTrip/Project/Demo.crproject"
+        --work "${CMAKE_CURRENT_BINARY_DIR}/scene-roundtrip")
+if(WIN32)
+    set(_libraryPath PATH)
+else()
+    set(_libraryPath LD_LIBRARY_PATH)
+endif()
+set_tests_properties(samples.scene-roundtrip PROPERTIES
+    LABELS integration
+    PASS_REGULAR_EXPRESSION "All [0-9]+ checks passed"
+    ENVIRONMENT_MODIFICATION "${_libraryPath}=path_list_prepend:$<TARGET_FILE_DIR:crucible_core>")
