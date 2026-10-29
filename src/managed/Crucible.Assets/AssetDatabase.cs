@@ -198,7 +198,8 @@ public sealed class AssetDatabase
 
     private void AddAsset(string path, string fullPath)
     {
-        if (path.EndsWith(Scene.Extension, StringComparison.OrdinalIgnoreCase))
+        if (path.EndsWith(Scene.Extension, StringComparison.OrdinalIgnoreCase) ||
+            path.EndsWith(Prefab.Extension, StringComparison.OrdinalIgnoreCase))
         {
             AddOwnFile(path, fullPath);
             return;
@@ -314,6 +315,26 @@ public sealed class AssetDatabase
         ImportResult result = Import(entry);
         Files.WriteAtomically(RecordsPath, Json.Serialize(_records));
         return result;
+    }
+
+    /// <summary>
+    /// Prefabs for instancing (ADR 0045): <c>.prefab</c> files as they are on
+    /// disk, and models as imported, importing them first if needed.
+    /// </summary>
+    public PrefabLibrary Prefabs() => new(ReadPrefab);
+
+    private byte[]? ReadPrefab(AssetId id)
+    {
+        if (Find(id) is not { } entry)
+        {
+            return null;
+        }
+        if (entry.Path.EndsWith(Prefab.Extension, StringComparison.OrdinalIgnoreCase))
+        {
+            return File.ReadAllBytes(FullPath(Project.AssetsFolder, entry.Path));
+        }
+        string? output = ImportedFile(id) ?? Import(id).OutputPath;
+        return output is null ? null : File.ReadAllBytes(output);
     }
 
     /// <summary>The asset's imported file, if its import is up to date; null otherwise.</summary>

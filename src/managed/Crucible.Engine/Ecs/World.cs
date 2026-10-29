@@ -16,7 +16,13 @@ namespace Crucible.Ecs;
 /// </remarks>
 public sealed unsafe class World : IDisposable
 {
-    public World() => Handle = Api.CreateWorld();
+    public World()
+    {
+        // The engine's own components (scene IDs, transforms) are there for
+        // every world, before games use them.
+        Crucible.Scenes.EngineComponents.Register();
+        Handle = Api.CreateWorld();
+    }
 
     internal WorldHandle Handle { get; private set; }
 

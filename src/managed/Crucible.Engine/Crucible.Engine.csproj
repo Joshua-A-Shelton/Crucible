@@ -15,6 +15,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The serializer generator, for the engine's own saved components
+         (ADR 0045). The registration generators find nothing here: engine
+         components are registered by hand (EngineComponents). -->
+    <ProjectReference Include="../../../tools/Crucible.Generators/Crucible.Generators.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Tests check the generated layout checks, which are internal. -->
     <InternalsVisibleTo Include="Crucible.Engine.Tests" />
     <InternalsVisibleTo Include="Crucible.Engine.HotReloadTests" />

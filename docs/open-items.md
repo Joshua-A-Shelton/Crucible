@@ -40,6 +40,10 @@ milestone are decided or checked when that milestone reaches them
   sub-assets with IDs of their own, when a real model needs it; a warning
   until then. → 0043
 - Skins and morph targets in imported meshes, with animation. → 0026, 0043
+- Prefabs: removing or reordering a prefab's entities in an instance;
+  migrating overridden fields when a component's version changes; a
+  cached form for spawning at runtime (with cooking); a `Name` component,
+  for the editor and for model nodes. → 0045
 - FBX: textures embedded in the file (with glTF's), separate metalness and
   roughness textures packed into one, and per-instance materials. → 0044
 - FBX from Blender's default export arrives with nodes scaled by 100 and
