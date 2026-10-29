@@ -267,7 +267,8 @@ the decision each one needs comes first):
    struct mirrored into C#.
 5. Drawing meshes: CPU frustum culling on the job system, instanced
    batches, the depth prepass, and an unlit forward pass with MSAA, front
-   faces clockwise.
+   faces clockwise. Measures whether incremental transform propagation
+   pays off (docs/open-items.md).
 6. Materials: Slang shading-model interfaces, surface functions, the
    bindless material buffer laid out from reflection, the variant policy,
    pipelines created while loading, PBR and toon. Decides S: the material

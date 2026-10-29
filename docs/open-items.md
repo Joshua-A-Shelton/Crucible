@@ -33,6 +33,14 @@ is, and record which version fixed it.
 
 ## Revisit once there is a prototype to test against
 
+- Whether incremental transform propagation pays off. Skipping unchanged
+  subtrees saves only about a third of the walk (100k entities: 0.39 ms
+  when nothing moved, 0.56 ms when all moved), so the case for it rests on
+  step 5 skipping instance uploads for chunks whose `WorldTransform`
+  didn't change. Measure both with and without it once meshes draw; keep
+  it, replace it with a chunk-ordered walk that skips untouched
+  hierarchies, or return to recomputing everything. → 0050, 0034 [M5 step 5]
+
 - First-class relationship queries (flecs-style pairs: "everything related
   to X"), beyond entity IDs in components. → 0033
 - Job handles with dependencies (schedule after, without waiting), on top
