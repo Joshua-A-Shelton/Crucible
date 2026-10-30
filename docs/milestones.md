@@ -282,7 +282,8 @@ the decision each one needs comes first):
    outlines. Decides V: the post-processing chain, the resolve, and
    outlines.
 10. The demonstration: an imported, lit scene rendered offscreen on D3D12
-    and Vulkan, the images compared within a tolerance.
+    and Vulkan, the images compared within a tolerance. Re-measures the
+    incremental transform paths on it (docs/open-items.md).
 
 The batched C# command API stays in M6; in M5, C# provides components
 (cameras, lights, transforms) that C++ render systems read.

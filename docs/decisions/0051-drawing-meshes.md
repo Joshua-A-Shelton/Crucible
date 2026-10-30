@@ -127,8 +127,14 @@ resizable BAR, so the transforms go to `Upload` memory):
   BAR the matrices go to system memory, which is cheaper for the CPU to
   write.
 
-Whether to keep the incremental paths is the owner's decision
-(docs/open-items.md).
+**Kept for now (owner, 2026-10-29).** Both paths were never slower in any
+measured case. Upload skipping relies on propagation writing only matrices
+that changed, so dropping incremental propagation would save less code
+than it seems. The numbers come from a synthetic flat scene and cover CPU
+time only, so they are measured again on step 10's imported scene. Drop
+the paths if the savings there are under about 5%, or if they get in the
+way of later work such as GPU-driven culling. If they matter, the bigger
+lever is layout: dynamic entities in chunks of their own.
 
 ## As built (M5 step 5)
 

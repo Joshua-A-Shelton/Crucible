@@ -19,16 +19,6 @@ is, and record which version fixed it.
 
 ## Needs a decision from the project owner
 
-- **Keep the incremental transform paths?** Measured in M5
-  step 5 (ADR 0051), with 100k instances and 1% moving:
-  - Propagation: nothing in a flat scene on Linux, about 27% on Windows,
-    and about a third in deep hierarchies (ADR 0050).
-  - Uploads: about 0.35 ms (24% of the draw list's CPU time) on Linux and
-    0.18 ms (8%) on Windows, but only when the movers sit in chunks of
-    their own. Scattered movers make nearly every chunk look changed.
-
-  Options: keep both; keep the uploads and drop incremental propagation;
-  or recompute and send everything. → 0050, 0051, 0034
 - Final names of the default phases (the list is ADR 0036's). → 0013, 0036 [M3]
 - Renderer details: shadows; lighting and ambient light; post-processing
   and the post-tonemap MSAA resolve; outlines. → 0015 [M5]
@@ -43,6 +33,9 @@ is, and record which version fixed it.
 
 ## Revisit once there is a prototype to test against
 
+- Re-measure the incremental transform paths (kept for now, ADR 0051) on
+  step 10's imported scene, GPU time included; drop them if they save
+  under about 5% there. → 0050, 0051 [M5 step 10]
 
 - First-class relationship queries (flecs-style pairs: "everything related
   to X"), beyond entity IDs in components. → 0033
