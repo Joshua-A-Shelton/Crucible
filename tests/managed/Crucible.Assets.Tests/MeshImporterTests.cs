@@ -1,9 +1,11 @@
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using Crucible.Assets;
 using Crucible.Assets.Importers;
 using Crucible.Binary;
 using Crucible.Importers;
+using Crucible.Shaders;
 
 namespace Crucible.Tests.Assets;
 
@@ -115,9 +117,38 @@ public class MeshImporterTests
         await Assert.That(new Guid(MeshImporter.TextureSlot(ref material, TextureRole.BaseColor))).IsEqualTo(brick.Value);
         await Assert.That(new Guid(MeshImporter.TextureSlot(ref material, TextureRole.Normal))).IsEqualTo(Guid.Empty);
 
+        // One generated material per slot (ADR 0052): toon by default, its
+        // base-color texture referenced at DefaultMaterial's slot.
+        byte[] generated = file.Read(file.Find(MeshImporter.GeneratedMaterialsSection)).ToArray();
+        MaterialInfo generatedInfo = MemoryMarshal.Read<MaterialInfo>(generated);
+        await Assert.That(generatedInfo.Type).IsEqualTo((uint)DefaultMaterialType.Toon);
+        await Assert.That(generatedInfo.ParameterSize).IsEqualTo((uint)Unsafe.SizeOf<DefaultMaterial>());
+        await Assert.That(generatedInfo.TextureCount).IsEqualTo(1u);
+        MaterialTexture texture = MemoryMarshal.Read<MaterialTexture>(generated.AsSpan((int)generatedInfo.TextureOffset));
+        await Assert.That(texture.Offset).IsEqualTo((uint)Marshal.OffsetOf<DefaultMaterial>(nameof(DefaultMaterial.BaseColorTexture)));
+        await Assert.That(new Guid(texture.Texture)).IsEqualTo(brick.Value);
+        DefaultMaterial parameters = MemoryMarshal.Read<DefaultMaterial>(generated.AsSpan((int)generatedInfo.ParameterOffset));
+        await Assert.That(parameters.BaseColor.X).IsEqualTo(material.BaseColor[0]);
+
         // Mirrored on X: the vertex at glTF x = 1 is at x = -1.
         float[] positions = MemoryMarshal.Cast<byte, float>(file.Read(file.Find(Tag.Of("POSN")))).ToArray();
         await Assert.That(positions.Where((_, i) => i % 3 == 0).Min()).IsEqualTo(-1f);
+    }
+
+    [Test]
+    public async Task GeneratedMaterialsFollowTheShadingSettingAndAlphaMode()
+    {
+        MaterialEntry masked = new() { AlphaMode = (uint)AlphaMode.Mask, AlphaCutoff = 0.3f, DoubleSided = 1 };
+        MaterialEntry opaque = new() { AlphaCutoff = 0.5f };
+        byte[] section = MeshImporter.GeneratedMaterials([masked, opaque], ShadingModel.Pbr);
+        MaterialInfo[] infos = MemoryMarshal.Cast<byte, MaterialInfo>(section.AsSpan(0, 2 * Unsafe.SizeOf<MaterialInfo>())).ToArray();
+        await Assert.That(infos.All(info => info.Type == (uint)DefaultMaterialType.Pbr)).IsTrue();
+        await Assert.That((infos[0].AlphaMode, infos[0].DoubleSided, infos[0].TextureCount)).IsEqualTo((AlphaMode.Mask, 1u, 0u));
+        DefaultMaterial first = MemoryMarshal.Read<DefaultMaterial>(section.AsSpan((int)infos[0].ParameterOffset));
+        DefaultMaterial second = MemoryMarshal.Read<DefaultMaterial>(section.AsSpan((int)infos[1].ParameterOffset));
+        // The cutoff reaches the shader only for alpha-tested materials.
+        await Assert.That(first.AlphaCutoff).IsEqualTo(0.3f);
+        await Assert.That(second.AlphaCutoff).IsEqualTo(0f);
     }
 
     [Test]

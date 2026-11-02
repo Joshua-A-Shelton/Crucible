@@ -38,3 +38,6 @@ Longer explanations of decisions, written to be reread:
 - [Drawing meshes](docs/learning/drawing-meshes.md) (ADR 0051): culling,
   instancing, vertex pulling, the depth prepass, the MSAA resolve, and
   measuring "only what changed".
+- [Materials](docs/learning/materials.md) (ADR 0052): materials, shading
+  models, and the lighting loop; generics, toon bands, and the material
+  buffer.

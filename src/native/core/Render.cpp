@@ -450,6 +450,12 @@ Result<void> initialize(slag::Backend backend, PresentPreference presentMode)
         shutdown();
         return started;
     }
+    if (Result<void> started = startMaterials(*device); !started)
+    {
+        std::fprintf(stderr, "crucible: materials could not start\n");
+        shutdown();
+        return started;
+    }
     // The render steps' pipelines, created now, never during frames (ADR 0025).
     if (Result<void> prepared = renderSchedule().prepareAll(*device); !prepared)
     {
@@ -479,6 +485,7 @@ void shutdown()
         }
         stopDrawing();
         stopAssets();
+        stopMaterials();
         renderSchedule().releaseAll();
         renderer.device->shutdown();
     }

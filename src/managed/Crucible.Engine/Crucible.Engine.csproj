@@ -12,6 +12,8 @@
   <ItemGroup>
     <!-- The C#/C++ bindings, generated from annotated C++ headers (ADR 0017). -->
     <Compile Include="$(CrucibleGeneratedDir)/managed/Bindings.g.cs" />
+    <!-- The engine shaders' [GpuShared] structs (DefaultMaterial), from shaderfax. -->
+    <Compile Include="$(CrucibleGeneratedDir)/managed/engine-shaders/default.g.cs" />
   </ItemGroup>
 
   <ItemGroup>

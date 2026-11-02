@@ -83,12 +83,10 @@ void printId(const AssetId& id, char (&text)[33])
 // The model cache
 // ---------------------------------------------------------------------------
 
-// A model acquired for mesh instances, with its base-color textures.
+// A model acquired for mesh instances (its materials come with it).
 struct CachedModel
 {
-    MeshHandle handle{};                                   // generation 0: it failed to load, retried once expired
-    Vector<uint32_t> baseColorTextures{MemoryTag::Render}; // per material: slot or 0
-    Vector<TextureHandle> textures{MemoryTag::Render};
+    MeshHandle handle{}; // generation 0: it failed to load, retried once expired
     Clock::time_point lastUsed;
 };
 
@@ -96,9 +94,8 @@ struct Cache
 {
     HashMap<AssetId, CachedModel*, AssetIdHash> models{MemoryTag::Render};
     // By MeshHandle index: the build that last saw an instance of the model
-    // (written from culling jobs), and the cache entry.
+    // (written from culling jobs).
     Vector<uint64_t> lastBuild{MemoryTag::Render};
-    Vector<CachedModel*> byIndex{MemoryTag::Render};
     uint64_t build = 0;
 };
 
@@ -110,20 +107,12 @@ void releaseModel(CachedModel* model)
 {
     if (model->handle.generation != 0)
     {
-        if (model->handle.index < cache.byIndex.size())
-        {
-            cache.byIndex[model->handle.index] = nullptr;
-        }
         releaseMesh(model->handle);
-    }
-    for (TextureHandle texture : model->textures)
-    {
-        releaseTexture(texture);
     }
     destroy(MemoryTag::Render, model);
 }
 
-// The model's handle, acquired (with its base-color textures) on first use.
+// The model's handle, acquired on first use.
 MeshHandle resolve(const AssetId& id)
 {
     if (isZero(id.bytes))
@@ -139,29 +128,11 @@ MeshHandle resolve(const AssetId& id)
     if (Result<MeshHandle> acquired = acquireMesh(id))
     {
         model->handle = acquired.value();
-        const MeshData& data = *meshData(model->handle);
-        for (const assets::MaterialEntry& material : data.materials)
-        {
-            uint32_t slot = 0;
-            if (!isZero(material.baseColorTexture))
-            {
-                AssetId textureId;
-                std::memcpy(textureId.bytes, material.baseColorTexture, 16);
-                if (Result<TextureHandle> texture = acquireTexture(textureId))
-                {
-                    model->textures.pushBack(texture.value());
-                    slot = textureDescriptor(texture.value());
-                }
-            }
-            model->baseColorTextures.pushBack(slot);
-        }
         const uint32_t index = model->handle.index;
         if (cache.lastBuild.size() <= index)
         {
             cache.lastBuild.resize(index + 1);
-            cache.byIndex.resize(index + 1);
         }
-        cache.byIndex[index] = model;
     }
     else
     {
@@ -596,12 +567,10 @@ Result<void> batch(DrawState& state, uint32_t frameSlot)
     {
         *state.batchOf.find(key) = static_cast<uint32_t>(state.batches.size());
         const uint32_t modelIndex = static_cast<uint32_t>(key >> 32);
-        const CachedModel* cached = modelIndex < cache.byIndex.size() ? cache.byIndex[modelIndex] : nullptr;
-        state.batches.pushBack(
-            {.model = meshDataAt(modelIndex),
-             .mesh = static_cast<uint32_t>((key >> 8) & 0xffffff),
-             .lod = static_cast<uint32_t>(key & 0xff),
-             .baseColorTextures = cached != nullptr ? cached->baseColorTextures.span() : std::span<const uint32_t>()});
+        state.batches.pushBack({.model = meshDataAt(modelIndex),
+                                .mesh = static_cast<uint32_t>((key >> 8) & 0xffffff),
+                                .lod = static_cast<uint32_t>(key & 0xff),
+                                .materials = modelMaterials(modelIndex)});
         state.cursors.pushBack(0);
     }
     for (const WorkerOutput* out : state.workers)
@@ -734,7 +703,6 @@ void stopDrawing()
     }
     cache.models.clear();
     cache.lastBuild.clear();
-    cache.byIndex.clear();
 }
 
 void forceFullTransformUploads(bool force)

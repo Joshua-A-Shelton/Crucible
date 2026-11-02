@@ -44,6 +44,9 @@ struct LoadedMesh
 {
     MeshData data{};
     Vector<uint8_t> tables{MemoryTag::Render}; // the file's tables, which data's spans point into
+    // One per slot (MeshFileInfo::materialCount), from the MTLS section;
+    // none for a file without one, whose slots draw the fallback.
+    Vector<MaterialHandle> materials{MemoryTag::Render};
 };
 
 struct LoadedTexture
@@ -203,6 +206,48 @@ std::span<const T> tableOf(const Vector<uint8_t>& tables, uint64_t offset, uint6
 // Models
 // ---------------------------------------------------------------------------
 
+void destroyMesh(LoadedMesh* mesh);
+
+// The model's generated materials (ADR 0052), one per slot.
+Status createMaterials(LoadedMesh& mesh, const Vector<uint8_t>& section)
+{
+    if (section.empty())
+    {
+        return Status::Ok;
+    }
+    const uint32_t count = mesh.data.info.materialCount;
+    if (section.size() < uint64_t{count} * sizeof(assets::MaterialInfo))
+    {
+        return Status::InvalidData;
+    }
+    for (uint32_t m = 0; m < count; ++m)
+    {
+        assets::MaterialInfo info;
+        std::memcpy(&info, section.data() + m * sizeof(info), sizeof(info));
+        const uint64_t textureBytes = uint64_t{info.textureCount} * sizeof(assets::MaterialTexture);
+        if (uint64_t{info.parameterOffset} + info.parameterSize > section.size() ||
+            info.textureOffset + textureBytes > section.size() ||
+            info.textureOffset % alignof(assets::MaterialTexture) != 0)
+        {
+            return Status::InvalidData;
+        }
+        Vector<assets::MaterialTexture> textures(MemoryTag::Render);
+        textures.resize(info.textureCount);
+        if (textureBytes != 0)
+        {
+            std::memcpy(textures.data(), section.data() + info.textureOffset, textureBytes);
+        }
+        Result<MaterialHandle> material =
+            createMaterial(info, {section.data() + info.parameterOffset, info.parameterSize}, textures.span());
+        if (!material)
+        {
+            return material.status();
+        }
+        mesh.materials.pushBack(material.value());
+    }
+    return Status::Ok;
+}
+
 Result<LoadedMesh*> createMesh(std::span<const uint8_t> bytes)
 {
     Result<binary::File*> opened = binary::parseFile(bytes, assets::meshFileKind, assets::meshFileVersion);
@@ -297,6 +342,11 @@ Result<LoadedMesh*> createMesh(std::span<const uint8_t> bytes)
             }
         }
     }
+    Vector<uint8_t> generated(MemoryTag::Render);
+    if (status == Status::Ok && binary::findSection(file, assets::meshMaterialsTag) >= 0)
+    {
+        status = readSection(file, assets::meshMaterialsTag, generated);
+    }
     binary::closeFile(opened.value());
     if (status == Status::Ok && staging != nullptr)
     {
@@ -336,11 +386,20 @@ Result<LoadedMesh*> createMesh(std::span<const uint8_t> bytes)
     mesh->data.ranges = tableOf<assets::MeshRange>(mesh->tables, tableOffsets[3], tableSizes[3]);
     mesh->data.nodes = tableOf<assets::MeshNode>(mesh->tables, tableOffsets[4], tableSizes[4]);
     mesh->data.materials = tableOf<assets::MaterialEntry>(mesh->tables, tableOffsets[5], tableSizes[5]);
+    if (Status made = createMaterials(*mesh, generated); made != Status::Ok)
+    {
+        destroyMesh(mesh);
+        return made;
+    }
     return mesh;
 }
 
 void destroyMesh(LoadedMesh* mesh)
 {
+    for (MaterialHandle material : mesh->materials)
+    {
+        destroyMaterial(material);
+    }
     state.slots->release(mesh->data.descriptor, lastSignaled());
     state.destroyer->destroyAfter(mesh->data.buffer, lastSignaled());
     destroy(MemoryTag::Render, mesh);
@@ -803,6 +862,18 @@ const MeshData* meshDataAt(uint32_t index)
     return index < state.meshes.slots.size() && state.meshes.slots[index].value != nullptr
                ? &state.meshes.slots[index].value->data
                : nullptr;
+}
+
+std::span<const MaterialHandle> modelMaterials(uint32_t meshIndex)
+{
+    return meshIndex < state.meshes.slots.size() && state.meshes.slots[meshIndex].value != nullptr
+               ? state.meshes.slots[meshIndex].value->materials.span()
+               : std::span<const MaterialHandle>();
+}
+
+slag::SemaphoreValue lastWorkSignaled()
+{
+    return lastSignaled();
 }
 
 } // namespace crucible::render

@@ -35,3 +35,24 @@ public struct InstanceTransform
     public float4 y;
     public float4 z;
 };
+
+// Per draw, as push constants (ADR 0051, 0052): one submesh of one batch.
+// Stream offsets are bytes into the model's buffer, at the mesh's first
+// vertex; a stream the mesh lacks (attributes) isn't read.
+[GpuShared]
+public struct DrawConstants
+{
+    public uint model; // the model buffer's slot (MeshData::descriptor)
+    public uint positions;
+    public uint normals;
+    public uint tangents;
+    public uint uv0;
+    public uint uv1;
+    public uint colors;
+    public uint attributes; // the mesh's MeshAttribute bits
+    public uint floatUvs;   // bit 0: UV0 holds floats, bit 1: UV1; else halves
+    public uint instances;  // DrawList::instances
+    public uint transforms; // DrawList::transforms
+    public uint materials;  // the material buffer's slot (a ByteAddressBuffer)
+    public uint material;   // this draw's material: its byte offset there
+};

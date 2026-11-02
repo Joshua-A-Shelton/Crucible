@@ -66,3 +66,10 @@ Generating the C# parameter layout from Slang reflection applies ADR
 
 Given up, for now: a visual node-graph editor, and runtime shader
 compilation in shipped games.
+
+## Amendment (2026-11-02, ADR 0052)
+
+The interfaces as built: `IShadingModel` carries its own `Data` and
+`Accumulator` through `begin`, `light`, `ambient`, and `finish` hooks;
+`IMaterial` gives `surface` and `shading`. Materials' fields are their
+parameters, read from one byte-address buffer.

@@ -62,6 +62,13 @@ struct CRUCIBLE_EXPOSE TextureHandle
     uint32_t generation;
 };
 
+// A loaded material (ADR 0052): for now, a model's generated ones.
+struct CRUCIBLE_EXPOSE MaterialHandle
+{
+    uint32_t index;
+    uint32_t generation;
+};
+
 // The samplers made when the renderer starts, until materials choose their
 // own (M5 step 6). Linear is trilinear with anisotropy.
 enum class CRUCIBLE_EXPOSE Sampler : uint32_t

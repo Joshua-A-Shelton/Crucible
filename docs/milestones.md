@@ -272,7 +272,15 @@ the decision each one needs comes first):
 6. Materials: Slang shading-model interfaces, surface functions, the
    bindless material buffer laid out from reflection, the variant policy,
    pipelines created while loading, PBR and toon. Decides S: the material
-   asset format and how imported materials become materials.
+   asset format and how imported materials become materials. Split in two
+   (owner, 2026-11-02):
+   - 6a: the material system on the engine's built-in materials: the
+     interfaces with hooks, toon and PBR, the material buffer, pipelines
+     per material, and each model's generated materials (inside its
+     .crmesh), lit by a temporary sun and ambient.
+   - 6b: game material shaders (the Shader importer, .slang to .crshader),
+     .crmaterial assets imported to .crmat, model slots remapped to them,
+     and generated C# types written into the project.
 7. Lighting: light components, clustered light lists (compute), and
    ambient light. Decides T: the lighting and ambient model.
 8. Shadows: cascaded sun shadows snapped to texels, and an atlas for local

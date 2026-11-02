@@ -65,6 +65,7 @@ target_link_libraries(crucible_core_objects PRIVATE libzstd_static)
 add_library(crucible_render_objects OBJECT
     Camera.cpp
     DrawList.cpp
+    Materials.cpp
     Render.cpp
     RenderAssets.cpp
     RenderSchedule.cpp
@@ -82,7 +83,11 @@ crucible_add_shader(crucible_render_objects SOURCE "${PROJECT_SOURCE_DIR}/shader
 crucible_embed_shaders(crucible_render_objects
     OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/EngineShaders.g.cpp"
     SOURCES "${PROJECT_SOURCE_DIR}/shaders/crucible/mesh.slang"
-        "${PROJECT_SOURCE_DIR}/shaders/crucible/resolve.slang")
+        "${PROJECT_SOURCE_DIR}/shaders/crucible/default.slang"
+        "${PROJECT_SOURCE_DIR}/shaders/crucible/resolve.slang"
+    # The C# mirrors of their [GpuShared] structs (DefaultMaterial), for
+    # Crucible.Engine.
+    CS_OUTPUT_DIR "${CRUCIBLE_GENERATED_DIR}/managed/engine-shaders")
 
 # For shaderfax only: no embedded shaders.
 add_library(crucible_engine_shaders_stub OBJECT EngineShadersStub.cpp)

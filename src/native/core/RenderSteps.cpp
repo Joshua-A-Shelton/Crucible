@@ -1,31 +1,25 @@
-// The default render steps (ADR 0048, 0051): DepthPrepass draws the draw
-// list's depth into SceneDepth; Opaque clears SceneColor to renderFrame's
-// color and draws each submesh's unlit base color, testing against the
-// prepass's depth; Resolve averages SceneColor's samples into the backbuffer.
-// SceneColor and SceneDepth are MSAA transients at msaaSamples().
+// The default render steps (ADR 0048, 0051, 0052): DepthPrepass draws the
+// draw list's depth into SceneDepth; Opaque clears SceneColor to
+// renderFrame's color and draws each submesh with its material, testing
+// against the prepass's depth; Resolve averages SceneColor's samples into
+// the backbuffer. SceneColor and SceneDepth are MSAA transients at
+// msaaSamples().
 
 #include "RenderInternal.h"
 
 #include <crucible/Render.h>
 #include <crucible/Shader.h>
 
-#include "mesh.g.h" // DrawConstants
-
+#include <algorithm>
 #include <cstdio>
 
 namespace crucible::render {
 
 namespace {
 
-using shaders::DrawConstants;
-
-constexpr slag::PixelFormat sceneColorFormat = slag::PixelFormat::R16G16B16A16Float;
-constexpr slag::PixelFormat sceneDepthFormat = slag::PixelFormat::D32Float;
-
 uint32_t samples = 4;
 
-// The pipeline built from an embedded shader's entry points; pixel may be
-// null (depth only).
+// The pipeline built from an embedded shader's entry points.
 Result<slag::Pipeline*> createPipeline(slag::GraphicsDevice& device, const char* shader, const char* vertexEntry,
                                        const char* pixelEntry, slag::GraphicsPipelineDesc desc)
 {
@@ -36,17 +30,14 @@ Result<slag::Pipeline*> createPipeline(slag::GraphicsDevice& device, const char*
         return file.status();
     }
     const int32_t vertex = findShaderEntry(*file.value(), vertexEntry);
-    const int32_t pixel = pixelEntry != nullptr ? findShaderEntry(*file.value(), pixelEntry) : -1;
-    if (vertex < 0 || (pixelEntry != nullptr && pixel < 0))
+    const int32_t pixel = findShaderEntry(*file.value(), pixelEntry);
+    if (vertex < 0 || pixel < 0)
     {
         destroyShaderFile(file.value());
         return Status::InvalidData;
     }
     shaderStage(*file.value(), static_cast<uint32_t>(vertex), desc.vertex);
-    if (pixel >= 0)
-    {
-        shaderStage(*file.value(), static_cast<uint32_t>(pixel), desc.pixel);
-    }
+    shaderStage(*file.value(), static_cast<uint32_t>(pixel), desc.pixel);
     slag::Result<slag::Pipeline*> pipeline = device.createGraphicsPipeline(desc);
     destroyShaderFile(file.value());
     if (!pipeline)
@@ -66,31 +57,25 @@ void destroyPipeline(slag::GraphicsDevice& device, void* userData)
     }
 }
 
-// Clockwise front faces (ADR 0024), back faces culled.
-constexpr slag::RasterizerState meshRasterizer{.cullMode = slag::CullMode::Back, .frontCounterClockwise = false};
-
-// Every batch's submeshes; with `material`, each one's base color too.
-void drawBatches(slag::CommandBuffer* commands, const DrawList& draws, bool material)
+// One submesh of one batch, with the pipeline it draws with.
+struct Draw
 {
-    const uint32_t sampler = samplerDescriptor(Sampler::LinearRepeat);
+    const DrawBatch* batch;
+    uint32_t submesh;
+    slag::Pipeline* pipeline;
+    uint32_t material; // byte offset in the material buffer
+};
+
+// Every batch's submeshes, ordered by pipeline so the GPU switches state as
+// little as possible; kept per step, reused frame to frame.
+void gatherDraws(const DrawList& draws, bool depth, Vector<Draw>& out)
+{
+    out.clear();
     for (const DrawBatch& batch : draws.batches)
     {
         const MeshData& model = *batch.model;
         const assets::MeshEntry& mesh = model.meshes[batch.mesh];
         const assets::MeshLod& lod = model.lods[mesh.lodOffset + batch.lod];
-        commands->bindIndexBuffer(model.buffer, model.indices.offset, model.indices.size,
-                                  mesh.indexSize == 2 ? slag::IndexFormat::Uint16 : slag::IndexFormat::Uint32);
-        const bool floatUvs = (model.info.floatUvs & 1) != 0;
-        DrawConstants constants{};
-        constants.model = model.descriptor;
-        constants.positions = static_cast<uint32_t>(model.positions.offset + uint64_t{mesh.vertexOffset} * 12);
-        constants.uv0 = static_cast<uint32_t>(model.uv0.offset + uint64_t{mesh.vertexOffset} * (floatUvs ? 8 : 4));
-        constants.colors = static_cast<uint32_t>(model.colors.offset + uint64_t{mesh.vertexOffset} * 4);
-        constants.attributes = mesh.attributes;
-        constants.floatUvs = floatUvs ? 1 : 0;
-        constants.instances = draws.instances;
-        constants.transforms = draws.transforms;
-        constants.baseColorSampler = sampler;
         for (uint32_t submesh = 0; submesh < mesh.submeshCount; ++submesh)
         {
             const assets::MeshRange& range = model.ranges[lod.rangeOffset + submesh];
@@ -98,19 +83,56 @@ void drawBatches(slag::CommandBuffer* commands, const DrawList& draws, bool mate
             {
                 continue;
             }
-            constants.baseColor = {1, 1, 1, 1};
-            constants.baseColorTexture = 0;
-            if (material && range.material >= 0 && static_cast<size_t>(range.material) < model.materials.size())
-            {
-                const auto m = static_cast<size_t>(range.material);
-                const float* color = model.materials[m].baseColor;
-                constants.baseColor = {color[0], color[1], color[2], color[3]};
-                constants.baseColorTexture = m < batch.baseColorTextures.size() ? batch.baseColorTextures[m] : 0;
-            }
-            commands->pushConstants(&constants, sizeof(constants));
-            commands->drawIndexed(range.indexCount, batch.instanceCount, range.indexByteOffset / mesh.indexSize, 0,
-                                  batch.firstInstance);
+            const MaterialHandle handle =
+                range.material >= 0 && static_cast<size_t>(range.material) < batch.materials.size()
+                    ? batch.materials[static_cast<size_t>(range.material)]
+                    : MaterialHandle{};
+            const MaterialDraw material = materialDraw(handle);
+            out.pushBack(
+                {&batch, submesh, depth ? material.pipelines->depth : material.pipelines->forward, material.offset});
         }
+    }
+    std::stable_sort(out.data(), out.data() + out.size(),
+                     [](const Draw& a, const Draw& b) { return a.pipeline < b.pipeline; });
+}
+
+void recordDraws(slag::CommandBuffer* commands, const DrawList& draws, const Vector<Draw>& list)
+{
+    slag::Pipeline* bound = nullptr;
+    for (const Draw& draw : list)
+    {
+        if (draw.pipeline != bound)
+        {
+            commands->bindPipeline(draw.pipeline);
+            bound = draw.pipeline;
+        }
+        const DrawBatch& batch = *draw.batch;
+        const MeshData& model = *batch.model;
+        const assets::MeshEntry& mesh = model.meshes[batch.mesh];
+        const assets::MeshRange& range =
+            model.ranges[model.lods[mesh.lodOffset + batch.lod].rangeOffset + draw.submesh];
+        commands->bindIndexBuffer(model.buffer, model.indices.offset, model.indices.size,
+                                  mesh.indexSize == 2 ? slag::IndexFormat::Uint16 : slag::IndexFormat::Uint32);
+        const uint64_t first = mesh.vertexOffset;
+        const bool floatUv0 = (model.info.floatUvs & 1) != 0;
+        const bool floatUv1 = (model.info.floatUvs & 2) != 0;
+        DrawConstants constants{};
+        constants.model = model.descriptor;
+        constants.positions = static_cast<uint32_t>(model.positions.offset + first * 12);
+        constants.normals = static_cast<uint32_t>(model.normals.offset + first * 4);
+        constants.tangents = static_cast<uint32_t>(model.tangents.offset + first * 8);
+        constants.uv0 = static_cast<uint32_t>(model.uv0.offset + first * (floatUv0 ? 8 : 4));
+        constants.uv1 = static_cast<uint32_t>(model.uv1.offset + first * (floatUv1 ? 8 : 4));
+        constants.colors = static_cast<uint32_t>(model.colors.offset + first * 4);
+        constants.attributes = mesh.attributes;
+        constants.floatUvs = model.info.floatUvs;
+        constants.instances = draws.instances;
+        constants.transforms = draws.transforms;
+        constants.materials = materialBufferDescriptor;
+        constants.material = draw.material;
+        commands->pushConstants(&constants, sizeof(constants));
+        commands->drawIndexed(range.indexCount, batch.instanceCount, range.indexByteOffset / mesh.indexSize, 0,
+                              batch.firstInstance);
     }
 }
 
@@ -124,25 +146,7 @@ uint32_t viewSize()
 // DepthPrepass
 // ---------------------------------------------------------------------------
 
-slag::Pipeline* depthPipeline = nullptr;
-
-Result<void> prepareDepthPrepass(slag::GraphicsDevice& device, void*)
-{
-    Result<slag::Pipeline*> pipeline = createPipeline(
-        device, "mesh", "depthVertex", nullptr,
-        {.rasterizer = meshRasterizer,
-         // Reverse-Z (ADR 0050): nearer is greater.
-         .depthStencil = {.depthTest = true, .depthWrite = true, .depthCompareOp = slag::CompareOp::Greater},
-         .depthStencilFormat = sceneDepthFormat,
-         .sampleCount = samples,
-         .debugName = "DepthPrepass"});
-    if (!pipeline)
-    {
-        return pipeline.status();
-    }
-    depthPipeline = pipeline.value();
-    return {};
-}
+Vector<Draw> depthDraws{MemoryTag::Render};
 
 void addDepthPrepass(RenderStepContext& context, void*)
 {
@@ -155,17 +159,18 @@ void addDepthPrepass(RenderStepContext& context, void*)
                                                 .debugName = "SceneDepth"});
     context.publish(sceneDepthKey(), depth);
     const slag::rendergraph::RenderGraphBuffer view = context.buffer(viewKey());
+    gatherDraws(context.draws, true, depthDraws);
     const DrawList* draws = &context.draws;
     context.graph.addPass(
         "DepthPrepass", slag::CommandQueueType::Graphics,
         [&](slag::rendergraph::PassBuilder& pass) {
             pass.use(view, slag::rendergraph::Usage::ConstantBuffer);
+            // Reverse-Z (ADR 0050): far is 0.
             pass.depthStencil(depth, slag::LoadOp::Clear, slag::StoreOp::Store, {.depth = 0.0f});
         },
         [draws, view](slag::rendergraph::PassContext& pass, slag::CommandBuffer* commands) {
-            commands->bindPipeline(depthPipeline);
             commands->setConstantBuffer(pass.buffer(view)->gpuAddress(), viewSize());
-            drawBatches(commands, *draws, false);
+            recordDraws(commands, *draws, depthDraws);
         });
 }
 
@@ -173,29 +178,7 @@ void addDepthPrepass(RenderStepContext& context, void*)
 // Opaque
 // ---------------------------------------------------------------------------
 
-slag::Pipeline* opaquePipeline = nullptr;
-
-Result<void> prepareOpaque(slag::GraphicsDevice& device, void*)
-{
-    const slag::PixelFormat formats[] = {sceneColorFormat};
-    Result<slag::Pipeline*> pipeline = createPipeline(
-        device, "mesh", "opaqueVertex", "opaquePixel",
-        {.rasterizer = meshRasterizer,
-         // The prepass wrote the depth; GreaterEqual rather than Equal, so a
-         // last-bit difference between the two pipelines' positions can't
-         // drop a pixel.
-         .depthStencil = {.depthTest = true, .depthWrite = false, .depthCompareOp = slag::CompareOp::GreaterEqual},
-         .colorFormats = formats,
-         .depthStencilFormat = sceneDepthFormat,
-         .sampleCount = samples,
-         .debugName = "Opaque"});
-    if (!pipeline)
-    {
-        return pipeline.status();
-    }
-    opaquePipeline = pipeline.value();
-    return {};
-}
+Vector<Draw> opaqueDraws{MemoryTag::Render};
 
 void addOpaque(RenderStepContext& context, void*)
 {
@@ -214,6 +197,7 @@ void addOpaque(RenderStepContext& context, void*)
     {
         clear.color[c] = context.clearColor[c];
     }
+    gatherDraws(context.draws, false, opaqueDraws);
     const DrawList* draws = &context.draws;
     context.graph.addPass(
         "Opaque", slag::CommandQueueType::Graphics,
@@ -223,9 +207,8 @@ void addOpaque(RenderStepContext& context, void*)
             pass.depthStencil(depth, slag::LoadOp::Load, slag::StoreOp::Store, {}, true);
         },
         [draws, view](slag::rendergraph::PassContext& pass, slag::CommandBuffer* commands) {
-            commands->bindPipeline(opaquePipeline);
             commands->setConstantBuffer(pass.buffer(view)->gpuAddress(), viewSize());
-            drawBatches(commands, *draws, true);
+            recordDraws(commands, *draws, opaqueDraws);
         });
 }
 
@@ -279,16 +262,9 @@ void addResolve(RenderStepContext& context, void*)
 
 void addDefaultSteps(RenderSchedule& schedule)
 {
-    (void)schedule.add({.name = "DepthPrepass",
-                        .addPasses = addDepthPrepass,
-                        .userData = &depthPipeline,
-                        .prepare = prepareDepthPrepass,
-                        .release = destroyPipeline});
-    (void)schedule.add({.name = "Opaque",
-                        .addPasses = addOpaque,
-                        .userData = &opaquePipeline,
-                        .prepare = prepareOpaque,
-                        .release = destroyPipeline});
+    // Their pipelines are the materials' (Materials.cpp).
+    (void)schedule.add({.name = "DepthPrepass", .addPasses = addDepthPrepass});
+    (void)schedule.add({.name = "Opaque", .addPasses = addOpaque});
     (void)schedule.add({.name = "Resolve",
                         .addPasses = addResolve,
                         .userData = &resolvePipeline,
@@ -328,6 +304,10 @@ Result<void> setMsaaSamples(uint32_t count)
     RenderSchedule& schedule = renderSchedule();
     schedule.releaseAll();
     samples = count;
+    if (Result<void> rebuilt = rebuildMaterialPipelines(); !rebuilt)
+    {
+        return rebuilt;
+    }
     return schedule.prepareAll(*device);
 }
 

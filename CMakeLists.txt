@@ -90,6 +90,8 @@ crucible_add_dotnet_build(crucible_managed "${CMAKE_CURRENT_SOURCE_DIR}/Crucible
 # The engine compiles the generated C# bindings, and Crucible.Assets the
 # importers' (whose tests load the importers' library).
 add_dependencies(crucible_managed crucible_bindings crucible_importers_bindings crucible_importers)
+# The engine shaders' C# mirrors (DefaultMaterial), which Crucible.Engine compiles.
+add_dependencies(crucible_managed crucible_render_objects_shader_default)
 
 if(CRUCIBLE_BUILD_AOT)
     # The engine's C# layer as a NativeAOT static library, for the AOT

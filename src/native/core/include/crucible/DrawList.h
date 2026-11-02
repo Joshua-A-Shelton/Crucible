@@ -13,6 +13,7 @@
 namespace crucible::render {
 
 struct MeshData;
+struct MaterialHandle;
 
 // The visible instances of one mesh at one level of detail: one instanced
 // drawIndexed per submesh, all with the same instances.
@@ -23,9 +24,10 @@ struct DrawBatch
     uint32_t lod;           // that mesh's level, 0 the finest
     uint32_t firstInstance; // into the instance list: the draw's firstInstance
     uint32_t instanceCount;
-    // Per model material: its base-color texture's resource-heap slot, 0 for
-    // none. Until materials (M5 step 6).
-    std::span<const uint32_t> baseColorTextures;
+    // The model's material for each of its slots (ADR 0052); a submesh's
+    // MeshRange::material picks one. Empty for a model without generated
+    // materials, whose submeshes draw the fallback.
+    std::span<const MaterialHandle> materials;
 };
 
 struct DrawList

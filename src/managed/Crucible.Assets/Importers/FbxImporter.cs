@@ -14,7 +14,8 @@ public sealed class FbxImporter : Importer<MeshImportSettings>
 {
     public override string Name => "Fbx";
 
-    public override int Version => 1;
+    // 2: generated materials (MTLS).
+    public override int Version => 2;
 
     public override IReadOnlyList<string> Extensions => [".fbx"];
 
@@ -26,7 +27,7 @@ public sealed class FbxImporter : Importer<MeshImportSettings>
         MeshImportHandle mesh = MeshImporter.Native(() => ImportersApi.ImportFbx(bytes, MeshImporter.ToNative(settings)));
         try
         {
-            MeshImporter.Write(context, mesh, path => TexturePaths(context, path));
+            MeshImporter.Write(context, mesh, settings, path => TexturePaths(context, path));
         }
         finally
         {

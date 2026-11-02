@@ -33,6 +33,11 @@ is, and record which version fixed it.
 
 ## Revisit once there is a prototype to test against
 
+- Materials after 6a (ADR 0052): the temporary sun and ambient give way to
+  step 7's lights; blended materials draw as opaque until step 9's
+  transparent pass; specular AA and alpha-to-coverage come in step 9;
+  materials choose samplers (the built-in ones use linear repeat). → 0052
+  [M5 steps 7, 9]
 - Re-measure the incremental transform paths (kept for now, ADR 0051) on
   step 10's imported scene, GPU time included; drop them if they save
   under about 5% there. → 0050, 0051 [M5 step 10]

@@ -3,6 +3,7 @@
 // Between the renderer (Render.cpp), the render schedule, and the default
 // steps (ADR 0048). Internal.
 
+#include <crucible/MaterialFile.h>
 #include <crucible/RenderAssets.h>
 #include <crucible/RenderSchedule.h>
 
@@ -25,6 +26,9 @@ inline constexpr uint32_t transformsDescriptor = 0;               // + frame slo
 inline constexpr uint32_t instancesDescriptor = framesInFlight;   // + frame slot
 inline constexpr uint32_t resolveDescriptor = 2 * framesInFlight; // + frame slot
 static_assert(3 * framesInFlight <= descriptorsPerSurface);
+
+// The material buffer's slot (a ByteAddressBuffer), below the surfaces'.
+inline constexpr uint32_t materialBufferDescriptor = 1;
 
 // The surface's slot `which` (one of the above, plus the frame slot).
 uint32_t surfaceDescriptor(const RenderStepContext& context, uint32_t which);
@@ -104,6 +108,38 @@ const MeshData* meshDataAt(uint32_t index);
 // the highest priority, or a default one when the world (which may be null)
 // has none.
 ViewConstants viewConstants(ecs::World* world, uint32_t width, uint32_t height, float time);
+
+// Materials.cpp (ADR 0052): the material buffer and the pipelines each kind
+// of material draws with, made while loading. Started after the assets,
+// stopped after them (models free their materials as they unload).
+struct MaterialPipelines
+{
+    slag::Pipeline* depth;   // DepthPrepass
+    slag::Pipeline* forward; // Opaque
+};
+struct MaterialDraw
+{
+    const MaterialPipelines* pipelines;
+    uint32_t offset; // the parameters' byte offset in the material buffer
+};
+Result<void> startMaterials(slag::GraphicsDevice& device);
+void stopMaterials();
+// From a record (MaterialFile.h); textures are acquired by asset ID.
+Result<MaterialHandle> createMaterial(const assets::MaterialInfo& info, std::span<const uint8_t> parameters,
+                                      std::span<const assets::MaterialTexture> textures);
+void destroyMaterial(MaterialHandle material);
+// A stale or missing handle draws as the fallback (white toon).
+MaterialDraw materialDraw(MaterialHandle material);
+// After the sample count changes.
+Result<void> rebuildMaterialPipelines();
+// A loaded model's materials, one per slot, by its handle's index.
+std::span<const MaterialHandle> modelMaterials(uint32_t meshIndex);
+// The last value of the work semaphore signalled (RenderAssets.cpp).
+slag::SemaphoreValue lastWorkSignaled();
+
+// The scene targets' formats (RenderSteps.cpp, Materials.cpp).
+inline constexpr slag::PixelFormat sceneColorFormat = slag::PixelFormat::R16G16B16A16Float;
+inline constexpr slag::PixelFormat sceneDepthFormat = slag::PixelFormat::D32Float;
 
 // The backbuffer's view format: the surfaces' sRGB view (Render.cpp).
 inline constexpr slag::PixelFormat backbufferFormat = slag::PixelFormat::B8G8R8A8UnormSrgb;

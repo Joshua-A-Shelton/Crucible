@@ -4,6 +4,7 @@
 // unused; MSAA settings.
 
 #include "RenderInternal.h"
+#include "TestModels.h"
 
 #include <crucible/BinaryFile.h>
 #include <crucible/Camera.h>
@@ -38,153 +39,31 @@ using crucible::scenes::WorldTransform;
 
 namespace {
 
-std::vector<uint8_t> fileBytes(binary::Writer* writer)
-{
-    Vector<std::byte> bytes(MemoryTag::General);
-    REQUIRE(binary::writeToMemory(*writer, binary::Compression::Fast, bytes));
-    binary::destroyWriter(writer);
-    const auto* data = reinterpret_cast<const uint8_t*>(bytes.data());
-    return {data, data + bytes.size()};
-}
-
-template <class T>
-void addSection(binary::Writer* writer, const char (&tag)[5], const std::vector<T>& values)
-{
-    REQUIRE(binary::addSection(*writer, binary::tag(tag), 1,
-                               {reinterpret_cast<const uint8_t*>(values.data()), values.size() * sizeof(T)}, 16));
-}
-
-assets::AssetId idOf(uint8_t first)
-{
-    assets::AssetId id{};
-    id.bytes[0] = first;
-    id.bytes[15] = 0x5A;
-    return id;
-}
-
-// A unit quad in the XY plane facing -Z (clockwise from a camera looking
-// along +Z), with half-float UVs and one material.
-std::vector<uint8_t> quadModel(const float (&baseColor)[4], const assets::AssetId* texture)
-{
-    binary::Writer* writer = binary::createWriter(assets::meshFileKind, assets::meshFileVersion);
-    addSection(writer, "INFO", std::vector<assets::MeshFileInfo>{{1, 1, 1, 4, 4, 0}});
-    assets::MeshEntry entry{};
-    entry.vertexCount = 4;
-    entry.indexSize = 2;
-    entry.attributes = 4; // UV0
-    entry.lodCount = 1;
-    entry.submeshCount = 1;
-    const float boundsMin[3] = {-0.5f, -0.5f, 0}, boundsMax[3] = {0.5f, 0.5f, 0};
-    std::memcpy(entry.boundsMin, boundsMin, sizeof(boundsMin));
-    std::memcpy(entry.boundsMax, boundsMax, sizeof(boundsMax));
-    addSection(writer, "MSHS", std::vector<assets::MeshEntry>{entry});
-    addSection(writer, "LODS", std::vector<assets::MeshLod>{{0, 0.0f}});
-    addSection(writer, "RNGS", std::vector<assets::MeshRange>{{0, 6, 0}});
-    addSection(writer, "POSN", std::vector<float>{-0.5f, -0.5f, 0, -0.5f, 0.5f, 0, 0.5f, 0.5f, 0, 0.5f, -0.5f, 0});
-    // Half floats: 0 and 1 (0x3c00).
-    addSection(writer, "UV0_", std::vector<uint16_t>{0, 0x3c00, 0, 0, 0x3c00, 0, 0x3c00, 0x3c00});
-    addSection(writer, "INDX", std::vector<uint16_t>{0, 1, 2, 0, 2, 3});
-    assets::MeshNode node{};
-    node.parent = -1;
-    node.mesh = 0;
-    addSection(writer, "NODE", std::vector<assets::MeshNode>{node});
-    assets::MaterialEntry material{};
-    std::memcpy(material.baseColor, baseColor, sizeof(baseColor));
-    if (texture != nullptr)
-    {
-        std::memcpy(material.baseColorTexture, texture->bytes, 16);
-    }
-    addSection(writer, "MATL", std::vector<assets::MaterialEntry>{material});
-    return fileBytes(writer);
-}
-
-// A 1x1 RGBA8 texture, not sRGB.
-std::vector<uint8_t> pixelTexture(uint8_t r, uint8_t g, uint8_t b)
-{
-    binary::Writer* writer = binary::createWriter(assets::textureFileKind, assets::textureFileVersion);
-    addSection(writer, "INFO", std::vector<assets::TextureInfo>{{assets::TextureFormat::Rgba8, 1, 1, 1, 0}});
-    const std::vector<uint8_t> texel = {r, g, b, 255};
-    REQUIRE(binary::addSection(*writer, assets::textureMipTag(0), 1, texel, 16));
-    return fileBytes(writer);
-}
-
-std::map<uint8_t, std::vector<uint8_t>> library;
-
-int32_t readTestAsset(const assets::AssetId* id, void* context,
-                      void (*deliver)(void* context, const uint8_t* data, uint64_t size))
-{
-    auto found = library.find(id->bytes[0]);
-    if (found == library.end())
-    {
-        return -1;
-    }
-    deliver(context, found->second.data(), found->second.size());
-    return 0;
-}
-
 // Gives an entity an archetype (so a chunk) of its own.
 struct Moving
 {};
 
-struct Bgra
+using test::Bgra;
+using test::library;
+using test::pixelOf;
+using test::readPixels;
+using test::readTestAsset;
+using test::Scene;
+
+// Lit, so only the hue is checked: the channel is bright, the others dark.
+bool isRed(Bgra pixel)
 {
-    uint8_t b, g, r, a;
-};
-
-struct Scene
-{
-    World* world = createWorld();
-    uint32_t lastRun = 0;
-
-    ~Scene()
-    {
-        destroyWorld(world);
-    }
-
-    Entity quad(const assets::AssetId& model, Vector3 position, float scale = 1)
-    {
-        const ComponentId set[] = {componentIdOf<MeshInstance>, componentIdOf<LocalTransform>,
-                                   componentIdOf<WorldTransform>};
-        const Entity entity = createEntity(*world, set);
-        *get<MeshInstance>(*world, entity) = {model, 0};
-        *get<LocalTransform>(*world, entity) = {position, {0, 0, 0, 1}, {scale, scale, scale}};
-        return entity;
-    }
-
-    // One frame as the loop runs it: propagation, then the render system
-    // with its last-run version, then a newer version.
-    void render(render::SurfaceHandle surface)
-    {
-        scenes::updateWorldTransforms(*world);
-        REQUIRE(render::renderFrame(surface, world, lastRun, 0, 0, 0, 1));
-        lastRun = currentVersion(*world);
-        advanceVersion(*world);
-    }
-};
-
-std::vector<uint8_t> readPixels(render::SurfaceHandle surface, uint32_t width, uint32_t height)
-{
-    std::vector<uint8_t> pixels(width * height * 4);
-    REQUIRE(render::readSurfacePixels(surface, pixels));
-    return pixels;
+    return pixel.r > 100 && pixel.g < pixel.r / 3 && pixel.b < pixel.r / 3;
 }
 
-// The pixel where a world position lands.
-Bgra pixelOf(const std::vector<uint8_t>& pixels, const render::ViewConstants& view, Vector3 position)
+bool isBlue(Bgra pixel)
 {
-    const Vector4 clip = transform(Vector4{position.x, position.y, position.z, 1}, view.viewProjection);
-    const auto x = static_cast<uint32_t>((clip.x / clip.w + 1) * 0.5f * view.viewportSize.x);
-    const auto y = static_cast<uint32_t>((1 - clip.y / clip.w) * 0.5f * view.viewportSize.y);
-    const size_t at = (size_t{y} * static_cast<uint32_t>(view.viewportSize.x) + x) * 4;
-    return {pixels[at], pixels[at + 1], pixels[at + 2], pixels[at + 3]};
+    return pixel.b > 100 && pixel.r < pixel.b / 3 && pixel.g < pixel.b / 3;
 }
 
-bool isColor(Bgra pixel, uint8_t r, uint8_t g, uint8_t b)
+bool isBlack(Bgra pixel)
 {
-    auto close = [](uint8_t value, uint8_t want) {
-        return value + 2 >= want && value <= want + 2;
-    };
-    return close(pixel.r, r) && close(pixel.g, g) && close(pixel.b, b);
+    return pixel.r < 3 && pixel.g < 3 && pixel.b < 3;
 }
 
 } // namespace
@@ -206,12 +85,12 @@ TEST_SUITE("gpu")
         scenes::registerMeshInstance();
         render::registerCamera();
         registerComponent<Moving>("Test.Moving");
-        const float red[4] = {1, 0, 0, 1}, white[4] = {1, 1, 1, 1}, green[4] = {0, 1, 0, 1};
-        const assets::AssetId redQuad = idOf(1), texturedQuad = idOf(2), blueTexture = idOf(3), greenQuad = idOf(4);
-        library[1] = quadModel(red, nullptr);
-        library[2] = quadModel(white, &blueTexture);
-        library[3] = pixelTexture(0, 0, 255);
-        library[4] = quadModel(green, nullptr);
+        const assets::AssetId redQuad = test::idOf(1), texturedQuad = test::idOf(2), blueTexture = test::idOf(3),
+                              greenQuad = test::idOf(4);
+        library[1] = test::quadModel({.baseColor = {1, 0, 0, 1}});
+        library[2] = test::quadModel({.texture = &blueTexture});
+        library[3] = test::pixelTexture(0, 0, 255, 255);
+        library[4] = test::quadModel({.baseColor = {0, 1, 0, 1}});
         render::setAssetReader(reinterpret_cast<uint64_t>(&readTestAsset));
         REQUIRE(platform::initialize());
         for (slag::Backend backend : {slag::Backend::D3D12, slag::Backend::Vulkan})
@@ -250,10 +129,10 @@ TEST_SUITE("gpu")
                 CHECK(first.cachedModels == 3);
                 std::vector<uint8_t> pixels = readPixels(surface.value(), width, height);
                 const render::ViewConstants view = render::viewConstants(scene.world, width, height, 0);
-                CHECK(isColor(pixelOf(pixels, view, {-3, 0, 0}), 255, 0, 0));
-                CHECK(isColor(pixelOf(pixels, view, {3, 0, 0}), 255, 0, 0));
-                CHECK(isColor(pixelOf(pixels, view, {0, 0, 0}), 0, 0, 255)); // white x blue texture
-                CHECK(isColor(pixelOf(pixels, view, {0, 2, 0}), 0, 0, 0));   // the clear color
+                CHECK(isRed(pixelOf(pixels, view, {-3, 0, 0})));
+                CHECK(isRed(pixelOf(pixels, view, {3, 0, 0})));
+                CHECK(isBlue(pixelOf(pixels, view, {0, 0, 0})));  // white x blue texture
+                CHECK(isBlack(pixelOf(pixels, view, {0, 2, 0}))); // the clear color
                 const LoadedMesh* loaded = read<LoadedMesh>(*scene.world, left);
                 REQUIRE(loaded != nullptr);
                 const render::MeshHandle redHandle = loaded->handle;
@@ -273,12 +152,12 @@ TEST_SUITE("gpu")
                 scene.render(surface.value());
                 CHECK(render::drawStats().transformsSent == 1);
                 pixels = readPixels(surface.value(), width, height);
-                CHECK(isColor(pixelOf(pixels, view, {3, 1.5f, 0}), 255, 0, 0));
-                CHECK(isColor(pixelOf(pixels, view, {3, -0.8f, 0}), 0, 0, 0));
+                CHECK(isRed(pixelOf(pixels, view, {3, 1.5f, 0})));
+                CHECK(isBlack(pixelOf(pixels, view, {3, -0.8f, 0})));
                 // And the other slot's copy catches up the next frame.
                 scene.render(surface.value());
                 pixels = readPixels(surface.value(), width, height);
-                CHECK(isColor(pixelOf(pixels, view, {3, 1.5f, 0}), 255, 0, 0));
+                CHECK(isRed(pixelOf(pixels, view, {3, 1.5f, 0})));
 
                 // Forced full uploads send everything.
                 render::forceFullTransformUploads(true);
@@ -290,8 +169,8 @@ TEST_SUITE("gpu")
                 REQUIRE(render::setMsaaSamples(1));
                 scene.render(surface.value());
                 pixels = readPixels(surface.value(), width, height);
-                CHECK(isColor(pixelOf(pixels, view, {-3, 0, 0}), 255, 0, 0));
-                CHECK(isColor(pixelOf(pixels, view, {0, 0, 0}), 0, 0, 255));
+                CHECK(isRed(pixelOf(pixels, view, {-3, 0, 0})));
+                CHECK(isBlue(pixelOf(pixels, view, {0, 0, 0})));
                 REQUIRE(render::setMsaaSamples(4));
 
                 // Once nothing uses a model, it's released after a while.
@@ -324,8 +203,7 @@ TEST_SUITE("benchmark" * doctest::skip())
         scenes::registerMeshInstance();
         render::registerCamera();
         registerComponent<Moving>("Test.Moving");
-        const float red[4] = {1, 0, 0, 1};
-        library[1] = quadModel(red, nullptr);
+        library[1] = test::quadModel({.baseColor = {1, 0, 0, 1}});
         render::setAssetReader(reinterpret_cast<uint64_t>(&readTestAsset));
         REQUIRE(jobs::initialize(0));
         REQUIRE(platform::initialize());
@@ -345,8 +223,8 @@ TEST_SUITE("benchmark" * doctest::skip())
             std::vector<Entity> movers;
             for (int i = 0; i < 100'000; ++i)
             {
-                const Entity entity =
-                    scene.quad(idOf(1), {static_cast<float>(i % 400) - 200, static_cast<float>(i / 400) - 125, 0});
+                const Entity entity = scene.quad(
+                    test::idOf(1), {static_cast<float>(i % 400) - 200, static_cast<float>(i / 400) - 125, 0});
                 if (i % 100 == 0)
                 {
                     movers.push_back(entity);
