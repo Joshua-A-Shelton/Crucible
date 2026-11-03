@@ -31,6 +31,14 @@ is, and record which version fixed it.
 
 ## Revisit once there is a prototype to test against
 
+- Games bringing assemblies (ADR 0056): the launcher loads a game alone
+  into its own load context, and nothing resolves the assemblies beside it
+  (the Diorama sample resolves its own). Packages a game uses will need
+  the engine to. → 0011
+- Sidecar settings at the wrong level are ignored without a word (the
+  Diorama's `Outline` was, until it moved under `Settings`): warn on
+  unknown keys. → 0040
+
 - Outlines after 9b (ADR 0055), chosen as hulls but marked by the owner to
   come back to:
   - edge-detected outlines (creases and intersections), compared and
@@ -41,7 +49,7 @@ is, and record which version fixed it.
     vertex colors; blended materials have no outlines.
 - Finishing after 9b (ADR 0055): automatic exposure (opt-in, temporal);
   LUT grading (needs 3D texture import); SMAA (ADR 0004's optional
-  extra); measure bloom and outlines on Steam Deck at step 10. → 0055
+  extra); measure bloom and outlines on Steam Deck once there is one (M10). → 0055
 
 - Shadows after step 8 (ADR 0054): when the atlas is full, a light goes
   without shadows that frame (nothing reports it); bias and normal offset
@@ -49,7 +57,7 @@ is, and record which version fixed it.
   model changing under the same handle (clear it on hot reload, M7); a
   debug view of the cascades and the atlas would help tuning; one-sided
   meshes cast only from their front. Measure the shadow passes on Steam
-  Deck at step 10. → 0054
+  Deck once there is one (M10). → 0054
 
 - Lighting after step 7 (ADR 0053): lights past a cluster's 64 are dropped
   silently (count them in debug, or raise the cap if scenes need it);
@@ -73,10 +81,6 @@ is, and record which version fixed it.
   just for them). Objects passing through each other sort as wholes.
   Transparent surfaces cast no shadows. Painted cubemap skies wait for
   cubemap import. → 0055
-- Re-measure the incremental transform paths (kept for now, ADR 0051) on
-  step 10's imported scene, GPU time included; drop them if they save
-  under about 5% there. → 0050, 0051 [M5 step 10]
-
 - First-class relationship queries (flecs-style pairs: "everything related
   to X"), beyond entity IDs in components. → 0033
 - Job handles with dependencies (schedule after, without waiting), on top

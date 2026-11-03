@@ -174,3 +174,10 @@ Settled in a review of M4's and M5's placeholders (ADR 0047's amendment).
 | `MaterialInfo::outlineWidth`, `outlineColor`, `outlineTint`; `.crmaterial` and `MeshImportSettings` `Outline { Width, Color, Tint }`, C# `OutlineSettings` | A material's outline |
 | `MeshAttribute::OutlineNormals`, stream `ONRM` | Outline normals |
 | Library `outlineVertexMain`, `materialOutline<M>`, `worldNormal`, `outlineFadeDistance`; entries `outlineVertex`, `<Type>_outline`, default.slang `toonOutlinePixel`, `pbrOutlinePixel`; `MaterialPipelines::outline`; `DrawConstants` `outlineNormals`, `outlineWidth`, `outlineColor`, `outlineTint` | Hull rendering |
+
+## The M5 demonstration (2026-11-03, M5 step 10)
+
+| Name | What it is |
+|---|---|
+| `samples/Diorama` (`Crucible.Samples.Diorama`), `make_scene.py`, `run_diorama.cmake`; CTest `samples.diorama` | The demonstration (ADR 0056) |
+| `--game-arg` `project`, `frames`, `capture`, `compare`, `measure` | Its options |

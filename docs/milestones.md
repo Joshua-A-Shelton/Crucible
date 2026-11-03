@@ -302,6 +302,18 @@ the decision each one needs comes first):
 The batched C# command API stays in M6; in M5, C# provides components
 (cameras, lights, transforms) that C++ render systems read.
 
+**Status (2026-11-03):** steps 1–10 done and verified on Linux (GCC, debug
+and release; ASan/UBSan, TSan; Vulkan on RADV) and Windows (MSVC, debug and
+release; D3D12 and Vulkan on NVIDIA). The demonstration is `samples/Diorama`
+(ADR 0056): our own glTF village imported through the asset pipeline, lit
+by a shadowed sun, shadowed lamps and a spot light, with a sky, alpha-tested
+trees, glass, an outlined toon hero, bloom, and grading. It renders headless
+on D3D12 and Vulkan on the same GPU within 0.035/255 on average (0.11% of
+pixels off by more than 8/255, the alpha-to-coverage edges), with no
+temporal techniques. The incremental transform paths saved nothing there
+and were dropped. Decided: O (0047), P (0048), Q (0049), R (0050), S (0052),
+T (0053), U (0054), V (0055). Awaiting the owner's sign-off.
+
 ## M6 — UI system
 
 - Text: HarfBuzz shaping, FreeType exact-size glyph atlases (ADR 0020).

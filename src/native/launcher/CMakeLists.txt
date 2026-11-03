@@ -98,6 +98,24 @@ if(CRUCIBLE_BUILD_TESTS)
     set_tests_properties(launcher.jit.particles PROPERTIES LABELS integration ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "Crucible.Particles: 5000 particles, 60 fixed steps")
 
+    # The M5 demonstration (ADR 0056): the Diorama imported and rendered on
+    # Vulkan, and on Windows on D3D12 too, the two images compared. The asset
+    # pipeline's native library sits beside the core.
+    set(dioramaGame
+        "${CRUCIBLE_DOTNET_ARTIFACTS_DIR}/bin/Crucible.Samples.Diorama/${CRUCIBLE_DOTNET_CONFIGURATION_DIR}/Crucible.Samples.Diorama.dll")
+    if(WIN32)
+        set(_libraryPath PATH)
+    else()
+        set(_libraryPath LD_LIBRARY_PATH)
+    endif()
+    add_test(NAME samples.diorama
+        COMMAND "${CMAKE_COMMAND}" "-DLAUNCHER=$<TARGET_FILE:crucible_launcher>" "-DENGINE=${engineDirectory}"
+            "-DGAME=${dioramaGame}" "-DPROJECT=${PROJECT_SOURCE_DIR}/samples/Diorama/Project/Diorama.crproject"
+            "-DOUT=${CMAKE_CURRENT_BINARY_DIR}/diorama" -P "${PROJECT_SOURCE_DIR}/samples/Diorama/run_diorama.cmake")
+    set_tests_properties(samples.diorama PROPERTIES LABELS "integration;gpu"
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        ENVIRONMENT_MODIFICATION "${_libraryPath}=path_list_prepend:$<TARGET_FILE_DIR:crucible_core>")
+
     # A game option needs a key and a value.
     add_test(NAME launcher.bad-game-arg COMMAND crucible_launcher --game-arg particles)
     set_tests_properties(launcher.bad-game-arg PROPERTIES LABELS integration WILL_FAIL TRUE)

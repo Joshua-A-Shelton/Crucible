@@ -52,3 +52,6 @@ Longer explanations of decisions, written to be reread:
 - [Finishing the image](docs/learning/finishing-the-image.md) (ADR 0055):
   exposure and tonemappers, resolving after tonemapping, bloom, grading,
   and inverted-hull against edge-detected outlines.
+- [Comparing renders across graphics APIs](docs/learning/comparing-renders.md)
+  (ADR 0056): why D3D12 and Vulkan differ, tolerances, difference images,
+  and measuring before keeping an optimization.

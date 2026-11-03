@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The M5 demonstration (docs/milestones.md, ADR 0056): a game assembly the
+       launcher loads by path. It imports the project beside it, builds a lit
+       scene of model instances, renders it headless, and captures, compares,
+       or measures. It runs the asset pipeline itself, which is editor code,
+       so JIT only, like Crucible.Assets. -->
+
+  <PropertyGroup>
+    <RootNamespace>Crucible.Samples.Diorama</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <!-- The asset pipeline's packages beside the game, where it finds its
+         dependencies (Dependencies.cs). -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The engine isn't copied: at runtime it comes from the default load
+         context, as for every game (ADR 0011). The asset pipeline is. -->
+    <ProjectReference Include="../../src/managed/Crucible.Engine/Crucible.Engine.csproj" Private="false" />
+    <ProjectReference Include="../../src/managed/Crucible.Assets/Crucible.Assets.csproj" />
+    <ProjectReference Include="../../tools/Crucible.Generators/Crucible.Generators.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>

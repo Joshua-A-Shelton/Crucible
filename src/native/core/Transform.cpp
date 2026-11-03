@@ -30,53 +30,30 @@ const WorldTransform* transformedParent(const ecs::World& world, ecs::Entity ent
     return ecs::read<WorldTransform>(world, parent);
 }
 
-// Whether an entity's chunk changed its local transform or parent since
-// `since`: a write, a reparent, or an entity moving in (ADR 0034). Versions
-// are per chunk, so a change to any entity there counts.
-bool changed(const ecs::World& world, ecs::Entity entity, uint32_t since)
-{
-    return ecs::changedSince(world, entity, ecs::componentIdOf<LocalTransform>, since) ||
-           ecs::changedSince(world, entity, ecs::parentComponent(), since);
-}
-
-// Writes only a matrix that differs, so the column's change version says
-// which world matrices really moved (what step 5's uploads skip by).
-// Stamping is atomic, so jobs may write different entities of one chunk.
+// Writes the matrix; stamping is atomic, so jobs may write different
+// entities of one chunk.
 const Matrix4x4& place(ecs::World& world, ecs::Entity entity, const Matrix4x4& matrix)
 {
-    if (ecs::read<WorldTransform>(world, entity)->matrix == matrix)
-    {
-        return matrix;
-    }
     WorldTransform* transform = ecs::get<WorldTransform>(world, entity);
     transform->matrix = matrix;
     return transform->matrix;
 }
 
-struct Walk
+// Depth first, so a parent is final before its children. Every matrix is
+// recomputed every run: skipping unchanged ones saved nothing measurable on
+// the M5 demonstration (ADR 0056).
+void placeChildren(ecs::World& world, ecs::Entity parent, const Matrix4x4& parentMatrix)
 {
-    ecs::World* world;
-    uint32_t since; // 0: everything
-};
-
-// Depth first, so a parent is final before its children. A child is
-// recomputed when it, or anything above it, changed; otherwise its stored
-// matrix is already right.
-void placeChildren(const Walk& walk, ecs::Entity parent, const Matrix4x4& parentMatrix, bool parentMoved)
-{
-    ecs::World& world = *walk.world;
     for (const ecs::Entity child : ecs::childrenOf(world, parent))
     {
-        const WorldTransform* stored = ecs::read<WorldTransform>(world, child);
-        if (stored == nullptr || !ecs::hasComponent(world, child, ecs::componentIdOf<LocalTransform>))
+        if (!ecs::hasComponent(world, child, ecs::componentIdOf<WorldTransform>) ||
+            !ecs::hasComponent(world, child, ecs::componentIdOf<LocalTransform>))
         {
             continue; // its children are roots of their own
         }
-        const bool moved = parentMoved || changed(world, child, walk.since);
         const Matrix4x4 matrix =
-            moved ? place(world, child, localMatrix(*ecs::read<LocalTransform>(world, child)) * parentMatrix)
-                  : stored->matrix;
-        placeChildren(walk, child, matrix, moved);
+            place(world, child, localMatrix(*ecs::read<LocalTransform>(world, child)) * parentMatrix);
+        placeChildren(world, child, matrix);
     }
 }
 
@@ -84,26 +61,17 @@ void placeChildren(const Walk& walk, ecs::Entity parent, const Matrix4x4& parent
 // places its subtree. Subtrees are disjoint, so they run in parallel.
 void placeSubtrees(const ecs::ChunkView& view, void* data)
 {
-    const Walk& walk = *static_cast<const Walk*>(data);
-    ecs::World& world = *walk.world;
+    ecs::World& world = *static_cast<ecs::World*>(data);
     const std::span<const LocalTransform> locals = ecs::readColumn<LocalTransform>(view);
     const ecs::Entity* entities = ecs::entitiesOf(view);
     const bool hasParents = ecs::readColumn(view, ecs::parentComponent()) != nullptr;
-    const bool chunkChanged = ecs::changedSince(view, ecs::componentIdOf<LocalTransform>, walk.since) ||
-                              ecs::changedSince(view, ecs::parentComponent(), walk.since);
     for (size_t i = 0; i < locals.size(); ++i)
     {
         if (hasParents && transformedParent(world, entities[i]) != nullptr)
         {
             continue; // placed by its root
         }
-        // A root under a parent without transforms is always recomputed: if
-        // the parent just lost them, nothing in this chunk changed. Rare, so
-        // cheap.
-        const bool moved = chunkChanged || (hasParents && ecs::parentOf(world, entities[i]) != ecs::nullEntity);
-        const Matrix4x4 matrix = moved ? place(world, entities[i], localMatrix(locals[i]))
-                                       : ecs::read<WorldTransform>(world, entities[i])->matrix;
-        placeChildren(walk, entities[i], matrix, moved);
+        placeChildren(world, entities[i], place(world, entities[i], localMatrix(locals[i])));
     }
 }
 
@@ -131,14 +99,13 @@ void addMissing(const ecs::ChunkView& view, void* data)
     }
 }
 
-void propagate(ecs::World& world, ecs::CommandBuffer* commands, uint32_t since)
+void propagate(ecs::World& world, ecs::CommandBuffer* commands)
 {
     // Made per call: they're cheap next to the work, and nothing outlives the
     // world they match.
     const ecs::ComponentId both[] = {ecs::componentIdOf<LocalTransform>, ecs::componentIdOf<WorldTransform>};
     ecs::Query* transformed = ecs::createQuery(world, {.required = both});
-    Walk walk{&world, since};
-    ecs::parallelForEachChunk(*transformed, placeSubtrees, &walk);
+    ecs::parallelForEachChunk(*transformed, placeSubtrees, &world);
     ecs::destroyQuery(transformed);
 
     if (commands != nullptr)
@@ -156,7 +123,7 @@ void propagationSystem(const loop::SystemContext& context, void*)
 {
     if (context.world != nullptr) // a loop without a world (C# tests)
     {
-        propagate(*context.world, context.commands, context.lastRunVersion);
+        propagate(*context.world, context.commands);
     }
 }
 
@@ -164,9 +131,7 @@ void propagationSystem(const loop::SystemContext& context, void*)
 
 void updateWorldTransforms(ecs::World& world)
 {
-    // Not knowing what changed since when, it recomputes everything; place
-    // still writes only what moved.
-    propagate(world, nullptr, 0);
+    propagate(world, nullptr);
 }
 
 Matrix4x4 computeWorldTransform(const ecs::World& world, ecs::Entity entity)

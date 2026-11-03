@@ -4,6 +4,7 @@
     <Project Path="src/managed/Crucible.Engine/Crucible.Engine.csproj" />
   </Folder>
   <Folder Name="/samples/">
+    <Project Path="samples/Diorama/Crucible.Samples.Diorama.csproj" />
     <Project Path="samples/Particles/Crucible.Samples.Particles.csproj" />
     <Project Path="samples/SceneRoundTrip/Crucible.Samples.SceneRoundTrip.csproj" />
   </Folder>

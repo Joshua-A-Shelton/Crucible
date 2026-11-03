@@ -112,11 +112,6 @@ uint32_t runPropagation(World& world, uint32_t lastRunVersion = 0)
     return ran;
 }
 
-bool worldChangedSince(World& world, Entity entity, uint32_t version)
-{
-    return changedSince(world, entity, componentIdOf<WorldTransform>, version);
-}
-
 } // namespace
 
 TEST_CASE("World transforms compose down the hierarchy")
@@ -245,7 +240,7 @@ TEST_CASE("Deep and wide hierarchies propagate in parallel like a serial walk")
     jobs::shutdown();
 }
 
-TEST_CASE("Propagation recomputes only what moved since its last run")
+TEST_CASE("Propagation places every entity under its parent each run")
 {
     scenes::registerTransforms();
     render::registerCamera();
@@ -255,7 +250,7 @@ TEST_CASE("Propagation recomputes only what moved since its last run")
         const Entity mover = spawn(*world, transform({1, 0, 0}));
         const Entity rider = spawn(*world, transform({0, 1, 0}), mover);
         const Entity passenger = spawn(*world, transform({0, 0, 1}), rider);
-        // Elsewhere: an archetype of its own, so its chunk stays untouched.
+        // Elsewhere, in an archetype of its own.
         const ComponentId tagged[] = {componentIdOf<LocalTransform>, componentIdOf<WorldTransform>,
                                       componentIdOf<Camera>};
         const Entity still = createEntity(*world, tagged);
@@ -264,18 +259,10 @@ TEST_CASE("Propagation recomputes only what moved since its last run")
         uint32_t last = runPropagation(*world);
         CHECK(near(worldOf(*world, passenger), Matrix4x4::translation({1, 1, 1})));
 
-        // Nothing changed: nothing written.
-        last = runPropagation(*world, last);
-        CHECK_FALSE(worldChangedSince(*world, mover, last - 1));
-        CHECK_FALSE(worldChangedSince(*world, passenger, last - 1));
-
-        // Moving the root reaches its descendants, whose own chunks are clean.
+        // Moving the root reaches its descendants.
         get<LocalTransform>(*world, mover)->position = {2, 0, 0};
-        const uint32_t before = last;
         last = runPropagation(*world, last);
         CHECK(near(worldOf(*world, passenger), Matrix4x4::translation({2, 1, 1})));
-        CHECK(worldChangedSince(*world, passenger, before));
-        CHECK_FALSE(worldChangedSince(*world, still, before));
         CHECK(near(worldOf(*world, still), Matrix4x4::translation({7, 7, 7})));
 
         // A middle entity moving takes the one below with it.
@@ -292,12 +279,6 @@ TEST_CASE("Propagation recomputes only what moved since its last run")
         removeComponent(*world, still, componentIdOf<LocalTransform>);
         last = runPropagation(*world, last);
         CHECK(near(worldOf(*world, passenger), Matrix4x4::translation({0, 0, 1})));
-
-        // Rewriting the same local transform writes no new world matrix.
-        *get<LocalTransform>(*world, mover) = *read<LocalTransform>(*world, mover);
-        const uint32_t rewritten = last;
-        last = runPropagation(*world, last);
-        CHECK_FALSE(worldChangedSince(*world, mover, rewritten));
     }
     jobs::shutdown();
 }

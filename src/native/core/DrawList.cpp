@@ -101,7 +101,6 @@ struct Cache
 };
 
 Cache cache;
-bool fullUploads = false;
 DrawStats stats{};
 
 void releaseModel(CachedModel* model)
@@ -233,15 +232,13 @@ void expireModels()
 // Culling and batching
 // ---------------------------------------------------------------------------
 
-// One frame slot's GPU data: world matrices by entity index, kept across
-// frames and brought up to date from the chunks that changed since this
-// slot last was; and the visible instances' entity indices.
+// One frame slot's GPU data: every instance's world matrix by entity index,
+// written each frame (skipping unchanged ones saved nothing measurable on the
+// M5 demonstration, ADR 0056); and the visible instances' entity indices.
 struct FrameBuffers
 {
     slag::Buffer* transforms = nullptr;
     uint32_t transformCapacity = 0;
-    uint32_t synced = 0; // the world's version when this copy was last brought up to date
-    bool valid = false;  // false: send everything
     slag::Buffer* instances = nullptr;
     uint32_t instanceCapacity = 0;
 };
@@ -256,7 +253,6 @@ struct WorkerOutput
     Vector<uint64_t> casterHashes{MemoryTag::Render}; // per shadow view
 
     uint32_t instances = 0;
-    uint32_t sent = 0;
 };
 
 // View 0 is the camera, shadow views follow it. Sorting the keys groups the
@@ -317,7 +313,6 @@ struct CullJob
     DrawState* state;
     ecs::World* world;
     FrameBuffers* frame;
-    bool sendAll;
     std::array<Plane, 6> planes;
     Vector3 camera;
     Vector3 forward;
@@ -388,9 +383,6 @@ void cullChunk(const ecs::ChunkView& view, void* data)
     const std::span<const LoadedMesh> loaded = ecs::readColumn<LoadedMesh>(view);
     const std::span<const WorldTransform> worlds = ecs::readColumn<WorldTransform>(view);
     const ecs::Entity* entities = ecs::entitiesOf(view);
-    // Only chunks whose world matrices changed since this slot's copy was
-    // last brought up to date are sent again.
-    const bool send = job.sendAll || ecs::changedSince(view, ecs::componentIdOf<WorldTransform>, job.frame->synced);
     auto* transforms = static_cast<InstanceTransform*>(job.frame->transforms->mappedData());
 
     for (size_t i = 0; i < instances.size(); ++i)
@@ -406,11 +398,7 @@ void cullChunk(const ecs::ChunkView& view, void* data)
             continue;
         }
         const Matrix4x4& world = worlds[i].matrix;
-        if (send)
-        {
-            writeTransform(transforms[index], world);
-            ++out.sent;
-        }
+        writeTransform(transforms[index], world);
         ++out.instances;
 
         const MeshHandle handle = loaded[i].handle;
@@ -511,7 +499,6 @@ Result<void> ensureTransforms(DrawState& state, uint32_t frameSlot, uint32_t cap
     }
     frame.transforms = buffer.value();
     frame.transformCapacity = capacity;
-    frame.valid = false;
     device.writeStructuredBuffer(state.descriptorBase + transformsDescriptor + frameSlot,
                                  {.buffer = frame.transforms, .count = capacity, .stride = sizeof(InstanceTransform)});
     return {};
@@ -565,12 +552,10 @@ Result<void> cull(DrawState& state, ecs::World& world, const ViewConstants& view
             out->casterHashes.clear();
             out->casterHashes.resize(shadows.size());
             out->instances = 0;
-            out->sent = 0;
         }
         CullJob job{.state = &state,
                     .world = &world,
                     .frame = &frame,
-                    .sendAll = fullUploads || !frame.valid,
                     .planes = frustumPlanes(view.viewProjection),
                     .camera = view.cameraPosition,
                     .forward = {view.inverseView.rows[2].x, view.inverseView.rows[2].y, view.inverseView.rows[2].z},
@@ -591,8 +576,6 @@ Result<void> cull(DrawState& state, ecs::World& world, const ViewConstants& view
         }
     }
     ecs::destroyQuery(query);
-    frame.synced = ecs::currentVersion(world);
-    frame.valid = true;
     state.casterHashes.clear();
     state.casterHashes.resize(shadows.size());
     for (const WorkerOutput* out : state.workers)
@@ -737,14 +720,6 @@ Result<DrawList> buildDrawList(DrawState& state, ecs::World* world, const ViewCo
     {
         return DrawList{{}, slots[0], slots[1]};
     }
-    if (lastRunVersion == 0)
-    {
-        // A world not seen before: every copy starts over.
-        for (FrameBuffers& frame : state.frames)
-        {
-            frame.valid = false;
-        }
-    }
     // Workers may have been added since (the job system restarted).
     while (state.workers.size() <= jobs::workerCount())
     {
@@ -764,7 +739,6 @@ Result<DrawList> buildDrawList(DrawState& state, ecs::World* world, const ViewCo
     for (WorkerOutput* out : state.workers)
     {
         stats.instances += out->instances;
-        stats.transformsSent += out->sent;
         // Stale or new handles: resolved now, drawn next frame.
         for (ecs::Entity entity : out->unresolved)
         {
@@ -807,11 +781,6 @@ void stopDrawing()
     }
     cache.models.clear();
     cache.lastBuild.clear();
-}
-
-void forceFullTransformUploads(bool force)
-{
-    fullUploads = force;
 }
 
 DrawStats drawStats()

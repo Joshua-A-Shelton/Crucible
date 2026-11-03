@@ -51,8 +51,8 @@ CRUCIBLE_EXPOSE_INTERNAL void registerTransforms();
 
 // The system "crucible.TransformPropagation", as the function address C#'s
 // default schedule calls in RenderPrepare (ADR 0050): it recomputes the
-// world matrices of entities whose local transform or parent changed since
-// its last run, and everything below them; and it gives entities that have a LocalTransform but no
+// world matrix of every entity with both components, every run (ADR 0056);
+// and it gives entities that have a LocalTransform but no
 // WorldTransform one (applied at RenderPrepare's sync point, so it's in place
 // for RenderSubmit). Not in the C++ system registry, which every schedule
 // includes: custom schedules add it themselves, or not.

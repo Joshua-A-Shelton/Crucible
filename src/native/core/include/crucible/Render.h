@@ -81,9 +81,8 @@ CRUCIBLE_EXPOSE_STATUS Result<void> waitForNextFrame(SurfaceHandle surface);
 // (still Ok) while the window is minimized or hidden.
 //
 // lastRunVersion is the render system's previous run on this world
-// (FrameContext.LastRunVersion; 0 for a world not drawn before): world
-// matrices that haven't changed since are not sent to the GPU again
-// (ADR 0051).
+// (FrameContext.LastRunVersion; 0 for a world not drawn before): mesh
+// instances whose model changed since are resolved again (ADR 0051).
 CRUCIBLE_EXPOSE_STATUS Result<void> renderFrame(SurfaceHandle surface, ecs::World* world, uint32_t lastRunVersion,
                                                 float red, float green, float blue, float alpha);
 

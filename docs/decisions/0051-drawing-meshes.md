@@ -88,7 +88,8 @@ unchanged transforms is to be measured here (docs/open-items.md).
   and `draws`.
 - **`renderFrame(surface, world, lastRunVersion, ...)`:** the render
   system's last-run version (ADR 0034 amendment). 0 means a world not seen
-  before, so every copy starts over.
+  before, so every copy starts over. (Since ADR 0056, it only finds mesh
+  instances whose model changed.)
 - **Descriptors:** each surface reserves 8 resource-heap slots below the
   textures' 1024: transforms, the instance list, and Resolve's input, one
   per frame slot each.
@@ -135,6 +136,12 @@ time only, so they are measured again on step 10's imported scene. Drop
 the paths if the savings there are under about 5%, or if they get in the
 way of later work such as GPU-driven culling. If they matter, the bigger
 lever is layout: dynamic entities in chunks of their own.
+
+**Dropped (owner, 2026-11-03; ADR 0056).** On the M5 demonstration's town
+(2,776 entities, 36 moving) neither path saved anything measurable on
+either machine, so every world matrix is now sent each frame and
+`renderFrame`'s last-run version only finds mesh instances whose model
+changed.
 
 ## As built (M5 step 5)
 

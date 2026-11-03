@@ -121,7 +121,7 @@ struct ShadowCullView
 // the view, and those that cast shadows against each shadow view, on the job
 // system, and batches the visible ones, in the graph's frame slot
 // `frameSlot`. lastRunVersion: the render system's previous run (0: a world
-// not seen before, so everything is sent again).
+// not seen before), for finding mesh instances whose model changed.
 Result<DrawList> buildDrawList(DrawState& state, ecs::World* world, const ViewConstants& view, uint32_t height,
                                uint32_t frameSlot, uint32_t lastRunVersion,
                                std::span<const ShadowCullView> shadowViews);
@@ -137,17 +137,13 @@ std::span<const float> instanceDistances(const DrawState& state);
 uint64_t shadowCasterHash(const DrawState& state, uint32_t index);
 // Releases every cached model; before stopAssets.
 void stopDrawing();
-// Tests and measurement: send every world matrix each frame, as if every
-// WorldTransform had changed.
-void forceFullTransformUploads(bool force);
 // Tests: what the last buildDrawList did.
 struct DrawStats
 {
-    uint32_t instances;      // mesh instances seen
-    uint32_t visible;        // instances drawn
-    uint32_t transformsSent; // world matrices written to the GPU copy
-    uint32_t cachedModels;   // models held for instances
-    uint64_t cpuNs;          // building the list, uploads included
+    uint32_t instances;    // mesh instances seen
+    uint32_t visible;      // instances drawn
+    uint32_t cachedModels; // models held for instances
+    uint64_t cpuNs;        // building the list, uploads included
 };
 DrawStats drawStats();
 

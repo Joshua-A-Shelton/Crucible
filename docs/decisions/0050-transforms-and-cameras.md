@@ -58,6 +58,9 @@ C#.
   - An entity is recomputed (`local * parent`) when its chunk's
     `LocalTransform` or `Parent` changed since the system's last run, or
     when an ancestor was recomputed. Otherwise its stored matrix is reused.
+  - **Amended (ADR 0056, 2026-11-03):** dropped. Skipping unchanged
+    entities saved nothing measurable on the M5 demonstration, so every
+    entity is recomputed every run.
   - A root under a transform-less parent is always recomputed, since a
     parent losing its transforms changes nothing in the child's chunk.
   - A matrix is written only when its value differs, so the

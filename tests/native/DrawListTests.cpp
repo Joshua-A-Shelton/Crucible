@@ -39,10 +39,6 @@ using crucible::scenes::WorldTransform;
 
 namespace {
 
-// Gives an entity an archetype (so a chunk) of its own.
-struct Moving
-{};
-
 using test::Bgra;
 using test::library;
 using test::pixelOf;
@@ -85,7 +81,6 @@ TEST_SUITE("gpu")
         scenes::registerMeshInstance();
         render::registerCamera();
         render::registerLights();
-        registerComponent<Moving>("Test.Moving");
         const assets::AssetId redQuad = test::idOf(1), texturedQuad = test::idOf(2), blueTexture = test::idOf(3),
                               greenQuad = test::idOf(4);
         library[1] = test::quadModel({.baseColor = {1, 0, 0, 1}});
@@ -117,7 +112,6 @@ TEST_SUITE("gpu")
                 // hidden behind the first, and one far outside the view.
                 const Entity left = scene.quad(redQuad, {-3, 0, 0}, 2);
                 const Entity right = scene.quad(redQuad, {3, 0, 0}, 2);
-                addComponent(*scene.world, right, componentIdOf<Moving>);
                 scene.quad(texturedQuad, {0, 0, 0}, 2);
                 scene.quad(greenQuad, {-3, 0, 2}, 1.5f);
                 const Entity far = scene.quad(redQuad, {500, 0, 0});
@@ -127,7 +121,6 @@ TEST_SUITE("gpu")
                 const render::DrawStats first = render::drawStats();
                 CHECK(first.instances == 5);
                 CHECK(first.visible == 4);
-                CHECK(first.transformsSent == 5);
                 CHECK(first.cachedModels == 3);
                 std::vector<uint8_t> pixels = readPixels(surface.value(), width, height);
                 const render::ViewConstants view = render::viewConstants(scene.world, width, height, 0);
@@ -140,32 +133,19 @@ TEST_SUITE("gpu")
                 const render::MeshHandle redHandle = loaded->handle;
                 CHECK(render::meshData(redHandle) != nullptr);
 
-                // Nothing moved: no world matrix is sent again (both frame
-                // slots' copies are already up to date after two frames).
                 scene.render(surface.value());
                 scene.render(surface.value());
-                CHECK(render::drawStats().transformsSent == 0);
                 CHECK(render::drawStats().visible == 4);
 
-                // One moves: only its chunk is sent (it's alone there;
-                // versions are per chunk, so chunk-mates would go too), and
-                // it's drawn where it moved.
+                // One moves: it's drawn where it moved, in both frame slots.
                 get<LocalTransform>(*scene.world, right)->position = {3, 1.5f, 0};
                 scene.render(surface.value());
-                CHECK(render::drawStats().transformsSent == 1);
                 pixels = readPixels(surface.value(), width, height);
                 CHECK(isRed(pixelOf(pixels, view, {3, 1.5f, 0})));
                 CHECK(isBlack(pixelOf(pixels, view, {3, -0.8f, 0})));
-                // And the other slot's copy catches up the next frame.
                 scene.render(surface.value());
                 pixels = readPixels(surface.value(), width, height);
                 CHECK(isRed(pixelOf(pixels, view, {3, 1.5f, 0})));
-
-                // Forced full uploads send everything.
-                render::forceFullTransformUploads(true);
-                scene.render(surface.value());
-                CHECK(render::drawStats().transformsSent == 5);
-                render::forceFullTransformUploads(false);
 
                 // Without MSAA the frame is the same where it's flat.
                 REQUIRE(render::setMsaaSamples(1));
@@ -188,104 +168,6 @@ TEST_SUITE("gpu")
             render::shutdown();
         }
         platform::shutdown();
-        render::setAssetReader(0);
-        library.clear();
-    }
-}
-
-// By hand: crucible_native_tests --no-skip --test-suite=benchmark -tc="Drawing*"
-// Whether incremental propagation and transform uploads pay off (docs/open-items.md):
-// 100k mesh instances, 1% moving each frame, either scattered among the
-// static ones or in an archetype of their own, timed incremental and full.
-TEST_SUITE("benchmark" * doctest::skip())
-{
-    TEST_CASE("Drawing: incremental against full transform work")
-    {
-        scenes::registerTransforms();
-        scenes::registerMeshInstance();
-        render::registerCamera();
-        render::registerLights();
-        registerComponent<Moving>("Test.Moving");
-        library[1] = test::quadModel({.baseColor = {1, 0, 0, 1}});
-        render::setAssetReader(reinterpret_cast<uint64_t>(&readTestAsset));
-        REQUIRE(jobs::initialize(0));
-        REQUIRE(platform::initialize());
-        REQUIRE(render::initialize(slag::InstanceDesc{}.backend));
-        Result<render::SurfaceHandle> surface = render::createOffscreenSurface(1280, 720);
-        REQUIRE(surface);
-
-        for (bool grouped : {false, true})
-        {
-            Scene scene;
-            scene.defaultLighting();
-            const ComponentId cameraSet[] = {componentIdOf<LocalTransform>, componentIdOf<WorldTransform>,
-                                             componentIdOf<Camera>};
-            const Entity camera = createEntity(*scene.world, cameraSet);
-            *get<LocalTransform>(*scene.world, camera) = {{0, 0, -150}, {0, 0, 0, 1}, {1, 1, 1}};
-            *get<Camera>(*scene.world, camera) = {
-                .projection = CameraProjection::Perspective, .fieldOfViewY = 1.0f, .nearPlane = 0.1f};
-            std::vector<Entity> movers;
-            for (int i = 0; i < 100'000; ++i)
-            {
-                const Entity entity = scene.quad(
-                    test::idOf(1), {static_cast<float>(i % 400) - 200, static_cast<float>(i / 400) - 125, 0});
-                if (i % 100 == 0)
-                {
-                    movers.push_back(entity);
-                    if (grouped)
-                    {
-                        addComponent(*scene.world, entity, componentIdOf<Moving>);
-                    }
-                }
-            }
-            scene.render(surface.value());
-            scene.render(surface.value());
-
-            auto time = [&](bool full) {
-                render::forceFullTransformUploads(full);
-                double propagate = 1e30, draw = 1e30;
-                uint32_t propagationLast = currentVersion(*scene.world);
-                for (int frame = 0; frame < 30; ++frame)
-                {
-                    for (Entity mover : movers)
-                    {
-                        get<LocalTransform>(*scene.world, mover)->position.z = 0.01f * (frame % 2);
-                    }
-                    // Propagation as the system runs it: since its last run, or everything.
-                    CommandBuffer* commands = createCommandBuffer(*scene.world);
-                    const loop::SystemContext context{
-                        .world = scene.world, .commands = commands, .lastRunVersion = full ? 0 : propagationLast};
-                    auto start = std::chrono::steady_clock::now();
-                    reinterpret_cast<loop::SystemFunction>(scenes::transformPropagationFunction())(context, nullptr);
-                    propagate = std::min(
-                        propagate,
-                        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count());
-                    destroyCommandBuffer(commands);
-                    propagationLast = currentVersion(*scene.world);
-                    advanceVersion(*scene.world);
-
-                    // The draw list's CPU time: renderFrame also waits for the GPU.
-                    REQUIRE(render::renderFrame(surface.value(), scene.world, scene.lastRun, 0, 0, 0, 1));
-                    draw = std::min(draw, static_cast<double>(render::drawStats().cpuNs) / 1e6);
-                    scene.lastRun = currentVersion(*scene.world);
-                    advanceVersion(*scene.world);
-                }
-                const std::string label =
-                    std::string(grouped ? "grouped, " : "scattered, ") + (full ? "full:        " : "incremental: ");
-                MESSAGE(label << "propagate " << propagate << " ms, draw list " << draw << " ms, matrices sent "
-                              << render::drawStats().transformsSent << ", visible " << render::drawStats().visible);
-            };
-            for (int round = 0; round < 3; ++round)
-            {
-                time(round % 2 != 0);
-                time(round % 2 == 0);
-            }
-            render::forceFullTransformUploads(false);
-        }
-        render::destroySurface(surface.value());
-        render::shutdown();
-        platform::shutdown();
-        jobs::shutdown();
         render::setAssetReader(0);
         library.clear();
     }
