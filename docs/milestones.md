@@ -312,7 +312,7 @@ on D3D12 and Vulkan on the same GPU within 0.035/255 on average (0.11% of
 pixels off by more than 8/255, the alpha-to-coverage edges), with no
 temporal techniques. The incremental transform paths saved nothing there
 and were dropped. Decided: O (0047), P (0048), Q (0049), R (0050), S (0052),
-T (0053), U (0054), V (0055). Awaiting the owner's sign-off.
+T (0053), U (0054), V (0055). Signed off by the owner on 2026-11-03; M5 is done.
 
 ## M6 — UI system
 
