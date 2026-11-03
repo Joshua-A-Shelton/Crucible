@@ -38,16 +38,25 @@ internal static class EngineComponents
         Api.RegisterTransforms();
         Crucible.Render.Api.RegisterCamera();
         Api.RegisterMeshInstance();
+        Crucible.Render.Api.RegisterLights();
         Components.Register<LocalTransform>();
         Components.Register<WorldTransform>();
         Components.Register<Crucible.Render.Camera>();
         Components.Register<MeshInstance>();
         Components.Register<LoadedMesh>();
+        Components.Register<Crucible.Render.DirectionalLight>();
+        Components.Register<Crucible.Render.PointLight>();
+        Components.Register<Crucible.Render.SpotLight>();
+        Components.Register<Crucible.Render.AmbientLight>();
         Components.Register<SceneEntityId>();
         Components.Register<PrefabInstance>();
         SavedComponents.Add<LocalTransform>();
         SavedComponents.Add<MeshInstance>();
         SavedComponents.Add<Crucible.Render.Camera>();
+        SavedComponents.Add<Crucible.Render.DirectionalLight>();
+        SavedComponents.Add<Crucible.Render.PointLight>();
+        SavedComponents.Add<Crucible.Render.SpotLight>();
+        SavedComponents.Add<Crucible.Render.AmbientLight>();
         return true;
     });
 

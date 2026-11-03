@@ -295,11 +295,41 @@ public M loadMaterial<M : IMaterial>()
     return materials.Load<M>(draw.material);
 }
 
-// Until step 7's light components: one sun and a constant ambient.
-static const float3 temporarySunDirection = float3(0.32, 0.86, -0.4); // toward the sun
-static const float3 temporarySunColor = float3(1.0, 0.97, 0.92);
-static const float3 temporaryAmbient = float3(0.22, 0.24, 0.3);
+// The cluster grid (ADR 0053): LightClustering's 16 x 9 x 24.
+static const uint clusterCountX = 16;
+static const uint clusterCountY = 9;
+static const uint clusterCountZ = 24;
+static const uint maxLightsPerCluster = 64;
 
+// The cluster a pixel falls in: its screen tile, and the slice of its view
+// depth.
+public uint clusterOf(float4 screenPosition, float3 world)
+{
+    const uint2 tile = min(uint2(screenPosition.xy / view.clusterTileSize), uint2(clusterCountX - 1, clusterCountY - 1));
+    const float depth = max(mul(float4(world, 1.0), view.view).z, 1e-4);
+    const int slice = clamp(int(floor(log(depth) * view.clusterSliceScale + view.clusterSliceBias)), 0,
+                            int(clusterCountZ) - 1);
+    return tile.x + tile.y * clusterCountX + uint(slice) * clusterCountX * clusterCountY;
+}
+
+// A point or spot light at a position: inverse square, smoothly windowed to
+// zero at its range; for a spot, its cone.
+public LightSample pointSample(LightData light, float3 position)
+{
+    const float3 toLight = light.position - position;
+    const float distanceSquared = max(dot(toLight, toLight), 1e-4);
+    const float distance = sqrt(distanceSquared);
+    const float ratio = distance / max(light.range, 1e-4);
+    const float window = saturate(1.0 - ratio * ratio * ratio * ratio);
+    LightSample sample;
+    sample.direction = toLight / distance;
+    const float cone = saturate(dot(light.direction, sample.direction) * light.spotScale + light.spotOffset);
+    sample.color = light.color * (window * window / distanceSquared) * (cone * cone);
+    return sample;
+}
+
+// The lighting loop: every directional light, then the point and spot
+// lights in the pixel's cluster, then the ambient light for its normal.
 public float4 shadeMaterial<M : IMaterial>(MaterialVertex v, bool frontFace)
 {
     const M material = loadMaterial<M>();
@@ -307,12 +337,31 @@ public float4 shadeMaterial<M : IMaterial>(MaterialVertex v, bool frontFace)
     const SurfaceData surface = material.surface(input);
     const M.Shading.Data data = material.shading(input);
     M.Shading.Accumulator accumulator = M.Shading.begin(surface, data, input);
-    LightSample sun;
-    sun.direction = normalize(temporarySunDirection);
-    sun.color = temporarySunColor;
-    M.Shading.light(accumulator, sun);
+
+    StructuredBuffer<LightData> lights = ResourceDescriptorHeap[view.lights];
+    for (uint i = 0; i < view.directionalLightCount; ++i)
+    {
+        LightSample sun;
+        sun.direction = lights[i].direction;
+        sun.color = lights[i].color;
+        M.Shading.light(accumulator, sun);
+    }
+    if (view.lightCount > 0)
+    {
+        StructuredBuffer<uint> counts = ResourceDescriptorHeap[view.clusterRanges];
+        StructuredBuffer<uint> lists = ResourceDescriptorHeap[view.clusterLights];
+        const uint cluster = clusterOf(input.screenPosition, input.position);
+        const uint count = counts[cluster];
+        for (uint j = 0; j < count; ++j)
+        {
+            M.Shading.light(accumulator, pointSample(lights[lists[cluster * maxLightsPerCluster + j]], input.position));
+        }
+    }
+
+    // Hemisphere ambient (ADR 0053): the sky's color above, the ground's
+    // below.
     AmbientSample ambient;
-    ambient.color = temporaryAmbient;
+    ambient.color = lerp(view.ambientGround, view.ambientSky, surface.normal.y * 0.5 + 0.5);
     M.Shading.ambient(accumulator, ambient);
     return M.Shading.finish(accumulator, surface, data, input);
 }

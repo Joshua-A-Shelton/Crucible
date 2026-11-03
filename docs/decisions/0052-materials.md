@@ -49,7 +49,8 @@ light component pulled forward; or unlit until step 7.
      (`MeshImportSettings.Shading`, toon by default).
    - They live in the model's `.crmesh` as its `MTLS` section, not as
      separate assets: the asset database has one output per import.
-3. **A temporary sun and constant ambient** light everything until step 7.
+3. **A temporary sun and constant ambient** light everything until step 7
+   (replaced by light components and clusters, ADR 0053).
 4. **Generated C# types** per material shader, written into the game
    project's `Generated/` folder (6b).
 5. **Shading models carry their own state through the lighting loop**

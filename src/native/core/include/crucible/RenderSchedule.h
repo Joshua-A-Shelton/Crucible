@@ -55,6 +55,14 @@ BlackboardKey viewKey();
 BlackboardKey sceneDepthKey();
 BlackboardKey sceneColorKey();
 
+// The frame's lights (ADR 0053), published before the first step runs: the
+// visible lights' LightData (an upload buffer, under Lights), and
+// LightClustering's output (LightClusters: each cluster's light count, then
+// each cluster's list of light indices). Shaders find them through
+// ViewConstants' lights, clusterRanges, and clusterLights slots.
+BlackboardKey lightsKey();
+BlackboardKey lightClustersKey();
+
 // What a step sees while it adds its graph passes for one frame.
 class RenderStepContext
 {
@@ -151,8 +159,8 @@ private:
     slag::GraphicsDevice* device = nullptr; // while the renderer runs
 };
 
-// The renderer's schedule, holding the default steps (ADR 0051: DepthPrepass,
-// Opaque, then Resolve).
+// The renderer's schedule, holding the default steps (ADR 0051, 0053):
+// DepthPrepass, LightClustering, Opaque, then Resolve.
 RenderSchedule& renderSchedule();
 
 } // namespace crucible::render

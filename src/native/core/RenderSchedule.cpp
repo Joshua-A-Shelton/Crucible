@@ -99,6 +99,18 @@ BlackboardKey sceneColorKey()
     return key;
 }
 
+BlackboardKey lightsKey()
+{
+    static const BlackboardKey key = registerBlackboardKey("Lights");
+    return key;
+}
+
+BlackboardKey lightClustersKey()
+{
+    static const BlackboardKey key = registerBlackboardKey("LightClusters");
+    return key;
+}
+
 // ---------------------------------------------------------------------------
 // RenderStepContext
 // ---------------------------------------------------------------------------
@@ -196,6 +208,7 @@ struct FrameBuilder
         context.frameState = &state;
         context.publish(backbufferKey(), inputs.backbuffer);
         context.publish(viewKey(), inputs.view);
+        context.publish(lightsKey(), inputs.lights);
         const RenderSchedule& schedule = renderSchedule();
         for (uint32_t i = 0; i < schedule.stepCount() && !state.failed; ++i)
         {

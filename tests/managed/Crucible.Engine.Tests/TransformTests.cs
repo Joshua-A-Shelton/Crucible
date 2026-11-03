@@ -69,4 +69,25 @@ public class TransformTests
         await Assert.That(read.OrthographicHeight).IsEqualTo(12f);
         await Assert.That(read.Priority).IsEqualTo(3);
     }
+
+    [Test]
+    public async Task ScenesSaveLights()
+    {
+        using World world = new();
+        Entity lamp = world.CreateEntity(Components.Of<LocalTransform>(), Components.Of<SpotLight>());
+        world.Set(lamp, LocalTransform.Identity);
+        world.Set(lamp, new SpotLight
+        {
+            Color = new Vector3(1, 0.5f, 0.25f), Intensity = 4, Range = 6, InnerConeAngle = 0.3f, OuterConeAngle = 0.6f,
+        });
+        Entity sky = world.CreateEntity(Components.Of<AmbientLight>());
+        world.Set(sky, new AmbientLight { SkyColor = new Vector3(0.4f, 0.5f, 0.7f), GroundColor = new Vector3(0.2f), Intensity = 1 });
+
+        using World loaded = new();
+        SceneLoad load = Scene.Load(loaded, Scene.Save(world, _sceneId));
+        Entity spot = load.Roots.Single(root => loaded.Has(root, Components.Of<SpotLight>()));
+        await Assert.That(loaded.Read<SpotLight>(spot).OuterConeAngle).IsEqualTo(0.6f);
+        Entity ambient = load.Roots.Single(root => loaded.Has(root, Components.Of<AmbientLight>()));
+        await Assert.That(loaded.Read<AmbientLight>(ambient).SkyColor).IsEqualTo(new Vector3(0.4f, 0.5f, 0.7f));
+    }
 }

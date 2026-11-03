@@ -33,11 +33,6 @@ using crucible::scenes::WorldTransform;
 using crucible::test::Bgra;
 using crucible::test::QuadOptions;
 
-uint32_t shaderFileKind()
-{
-    return render::shaderFileKind;
-}
-
 namespace {
 
 // The direction toward the temporary sun (material.slang).
@@ -60,78 +55,6 @@ Quaternion tiltFor(float target)
         }
     }
     return Quaternion::fromAxisAngle({1, 0, 0}, best);
-}
-
-std::vector<uint8_t> readFile(const std::string& path)
-{
-    std::ifstream file(path, std::ios::binary);
-    return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
-}
-
-// A material shader's first type, from its MTYP section: its defaults and
-// the offsets of its named parameters.
-struct TypeLayout
-{
-    std::vector<uint8_t> defaults;
-    std::vector<std::pair<std::string, uint32_t>> offsets;
-
-    uint32_t offsetOf(const std::string& name) const
-    {
-        for (const auto& [parameter, offset] : offsets)
-        {
-            if (parameter == name)
-            {
-                return offset;
-            }
-        }
-        FAIL("no parameter " << name);
-        return 0;
-    }
-};
-
-TypeLayout firstType(const std::vector<uint8_t>& shader)
-{
-    Result<binary::File*> file = binary::parseFile(shader, shaderFileKind(), 1);
-    REQUIRE(file);
-    const int32_t index = binary::findSection(*file.value(), assets::shaderMaterialTypesTag);
-    REQUIRE(index >= 0);
-    std::vector<uint8_t> types(binary::sectionInfo(*file.value(), static_cast<uint32_t>(index)).size);
-    REQUIRE(binary::readSection(*file.value(), static_cast<uint32_t>(index), types));
-    binary::closeFile(file.value());
-    assets::MaterialTypeInfo type;
-    std::memcpy(&type, types.data() + 8, sizeof(type));
-    uint32_t typeCount;
-    std::memcpy(&typeCount, types.data(), 4);
-    TypeLayout layout;
-    layout.defaults.assign(types.begin() + type.defaultsOffset, types.begin() + type.defaultsOffset + type.size);
-    for (uint32_t p = 0; p < type.parameterCount; ++p)
-    {
-        assets::MaterialParameter parameter;
-        std::memcpy(&parameter,
-                    types.data() + 8 + typeCount * sizeof(assets::MaterialTypeInfo) +
-                        (type.firstParameter + p) * sizeof(parameter),
-                    sizeof(parameter));
-        layout.offsets.emplace_back(
-            std::string(reinterpret_cast<const char*>(types.data()) + parameter.nameOffset, parameter.nameLength),
-            parameter.offset);
-    }
-    return layout;
-}
-
-// A .crmat: one record of the shader's type 0, opaque.
-std::vector<uint8_t> materialFile(const assets::AssetId& shader, const std::vector<uint8_t>& parameters)
-{
-    assets::MaterialInfo info{};
-    std::memcpy(info.shader, shader.bytes, 16);
-    info.parameterOffset = sizeof(info);
-    info.parameterSize = static_cast<uint32_t>(parameters.size());
-    info.textureOffset = (sizeof(info) + info.parameterSize + 3) / 4 * 4;
-    std::vector<uint8_t> record(info.textureOffset);
-    std::memcpy(record.data(), &info, sizeof(info));
-    std::memcpy(record.data() + sizeof(info), parameters.data(), parameters.size());
-    binary::Writer* writer = binary::createWriter(assets::materialFileKind, assets::materialFileVersion);
-    test::addSection(writer, assets::meshMaterialsTag, record);
-    return test::fileBytes(writer);
 }
 
 int difference(Bgra a, Bgra b)
@@ -159,6 +82,7 @@ TEST_SUITE("gpu")
         scenes::registerTransforms();
         scenes::registerMeshInstance();
         render::registerCamera();
+        render::registerLights();
         const assets::AssetId toon = test::idOf(1), pbr = test::idOf(2), masked = test::idOf(3),
                               halfClear = test::idOf(4), oneSided = test::idOf(5), twoSided = test::idOf(6);
         test::library[1] = test::quadModel({.baseColor = {1, 0.2f, 0.2f, 1}});
@@ -182,6 +106,7 @@ TEST_SUITE("gpu")
             REQUIRE(surface);
             {
                 test::Scene scene;
+                scene.defaultLighting();
                 addCamera(scene);
                 // N·L of 0.4 and 0.65 fall in the same toon band, 0.9 in
                 // the next (2 bands, edges near 0.25 and 0.75).
@@ -241,11 +166,12 @@ TEST_SUITE("gpu")
         scenes::registerTransforms();
         scenes::registerMeshInstance();
         render::registerCamera();
+        render::registerLights();
         const assets::AssetId shader = test::idOf(7), flat = test::idOf(8), model = test::idOf(9);
-        const std::vector<uint8_t> shaderBytes = readFile(CRUCIBLE_SHADER_DIR "/TestMaterials.crshader");
-        const TypeLayout layout = firstType(shaderBytes);
+        const std::vector<uint8_t> shaderBytes = test::readFile(CRUCIBLE_SHADER_DIR "/TestMaterials.crshader");
+        const test::TypeLayout layout = test::typeNamed(shaderBytes, "Flat");
         test::library[7] = shaderBytes;
-        test::library[8] = materialFile(shader, layout.defaults);
+        test::library[8] = test::materialFile(shader, layout.index, layout.defaults);
         test::library[9] = test::quadModel({.baseColor = {1, 0, 0, 1}, .remap = &flat});
         render::setAssetReader(reinterpret_cast<uint64_t>(&test::readTestAsset));
         REQUIRE(platform::initialize());
@@ -261,6 +187,7 @@ TEST_SUITE("gpu")
             REQUIRE(surface);
             {
                 test::Scene scene;
+                scene.defaultLighting();
                 addCamera(scene);
                 scene.quad(model, {0, 0, 0}, 4);
                 scene.render(surface.value());

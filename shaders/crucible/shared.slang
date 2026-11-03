@@ -24,6 +24,22 @@ public struct ViewConstants
     public float3 cameraPosition; // world space
     public float time;            // seconds since the renderer started
     public float2 viewportSize;   // pixels
+    // Lighting (ADR 0053): the clusters' screen tiles in pixels, the
+    // ambient light's two colors (intensity applied), and the view-depth
+    // slice of a depth z, floor(log(z) * scale + bias).
+    public float2 clusterTileSize;
+    public float3 ambientSky;
+    public float clusterSliceScale;
+    public float3 ambientGround;
+    public float clusterSliceBias;
+    public uint directionalLightCount; // the first entries of lights
+    public uint lightCount;            // point and spot lights after them
+    // Resource-heap slots: StructuredBuffer<LightData> lights; each
+    // cluster's light count (StructuredBuffer<uint>) and its list of light
+    // indices (StructuredBuffer<uint>, maxLightsPerCluster per cluster).
+    public uint lights;
+    public uint clusterRanges;
+    public uint clusterLights;
 };
 
 // A world matrix as shaders read it (ADR 0051): its first three columns, so
@@ -56,4 +72,19 @@ public struct DrawConstants
     public uint materials;  // the material buffer's slot (a ByteAddressBuffer)
     public uint material;   // this draw's material: its byte offset there
     public float alphaCutoff; // alpha-tested materials discard below it; 0 otherwise
+};
+
+// One light as shaders read it (ADR 0053), in world space. Directional
+// lights: direction toward the light, range 0. Point lights: spotScale 0 and
+// spotOffset 1 (no cone). Spot lights: direction toward the light (against
+// the cone's axis), and the cone as saturate(cos * spotScale + spotOffset).
+[GpuShared]
+public struct LightData
+{
+    public float3 position;
+    public float range;
+    public float3 direction;
+    public float spotScale;
+    public float3 color; // intensity applied
+    public float spotOffset;
 };

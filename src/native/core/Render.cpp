@@ -69,9 +69,10 @@ struct Surface
     // graph's order of frame slots; beginFrame waits until the GPU is done
     // with the one it hands out.
     std::array<slag::Buffer*, framesInFlight> viewBuffers{};
-    uint64_t graphFrames = 0;   // frames begun on the graph, for its frame slot
-    DrawState* draws = nullptr; // its transform buffers and instance lists (ADR 0051)
-    uint64_t submitted = 0;     // frames submitted so far
+    uint64_t graphFrames = 0;     // frames begun on the graph, for its frame slot
+    DrawState* draws = nullptr;   // its transform buffers and instance lists (ADR 0051)
+    LightState* lights = nullptr; // its light buffers (ADR 0053)
+    uint64_t submitted = 0;       // frames submitted so far
     slag::PresentMode presentMode{};
     uint32_t width = 0;
     uint32_t height = 0;
@@ -190,6 +191,7 @@ void release(Surface& surface)
     slag::GraphicsDevice* device = renderer.device;
     slag::rendergraph::destroy(surface.graph);
     destroyDrawState(surface.draws);
+    destroyLightState(surface.lights);
     for (slag::Buffer* buffer : surface.viewBuffers)
     {
         if (buffer != nullptr)
@@ -242,6 +244,11 @@ slag::AllocatorCallbacks allocatorCallbacks()
 Result<void> createFrameResources(Surface& surface, uint32_t index)
 {
     surface.draws = createDrawState(8 + index * descriptorsPerSurface);
+    surface.lights = createLightState(8 + index * descriptorsPerSurface);
+    if (surface.lights == nullptr)
+    {
+        return Status::OutOfDeviceMemory;
+    }
     slag::GraphicsDevice* device = renderer.device;
     slag::Result<slag::rendergraph::RenderGraph*> graph =
         slag::rendergraph::createRenderGraph({.device = device,
@@ -316,7 +323,8 @@ Result<void> renderWithGraph(Surface& surface, slag::Texture* texture, slag::Att
     const auto frameSlot = static_cast<uint32_t>(surface.graphFrames++ % framesInFlight);
     slag::Buffer* viewBuffer = surface.viewBuffers[frameSlot];
     const float time = std::chrono::duration<float>(std::chrono::steady_clock::now() - renderer.started).count();
-    const ViewConstants constants = viewConstants(world, surface.width, surface.height, time);
+    ViewConstants constants = viewConstants(world, surface.width, surface.height, time);
+    gatherLights(*surface.lights, world, frameSlot, constants);
     std::memcpy(viewBuffer->mappedData(), &constants, sizeof(constants));
     Result<DrawList> draws = buildDrawList(*surface.draws, world, constants, surface.height, frameSlot, lastRunVersion);
     if (!draws)
@@ -329,7 +337,8 @@ Result<void> renderWithGraph(Surface& surface, slag::Texture* texture, slag::Att
     const slag::rendergraph::RenderGraphTexture backbuffer = graph.importTexture(texture, desc);
     if (Result<void> added = addStepPasses({graph, *renderer.device, surface.width, surface.height,
                                             surface.submitted + 1, color, backbuffer, graph.importBuffer(viewBuffer),
-                                            constants, draws.value(), world, drawDescriptorBase(*surface.draws)});
+                                            graph.importBuffer(lightBuffer(*surface.lights, frameSlot)), constants,
+                                            draws.value(), world, drawDescriptorBase(*surface.draws)});
         !added)
     {
         return added;

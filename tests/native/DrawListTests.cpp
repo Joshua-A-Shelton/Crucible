@@ -84,6 +84,7 @@ TEST_SUITE("gpu")
         scenes::registerTransforms();
         scenes::registerMeshInstance();
         render::registerCamera();
+        render::registerLights();
         registerComponent<Moving>("Test.Moving");
         const assets::AssetId redQuad = test::idOf(1), texturedQuad = test::idOf(2), blueTexture = test::idOf(3),
                               greenQuad = test::idOf(4);
@@ -105,6 +106,7 @@ TEST_SUITE("gpu")
             REQUIRE(surface);
             {
                 Scene scene;
+                scene.defaultLighting();
                 const ComponentId cameraSet[] = {componentIdOf<LocalTransform>, componentIdOf<WorldTransform>,
                                                  componentIdOf<Camera>};
                 const Entity camera = createEntity(*scene.world, cameraSet);
@@ -202,6 +204,7 @@ TEST_SUITE("benchmark" * doctest::skip())
         scenes::registerTransforms();
         scenes::registerMeshInstance();
         render::registerCamera();
+        render::registerLights();
         registerComponent<Moving>("Test.Moving");
         library[1] = test::quadModel({.baseColor = {1, 0, 0, 1}});
         render::setAssetReader(reinterpret_cast<uint64_t>(&readTestAsset));
@@ -214,6 +217,7 @@ TEST_SUITE("benchmark" * doctest::skip())
         for (bool grouped : {false, true})
         {
             Scene scene;
+            scene.defaultLighting();
             const ComponentId cameraSet[] = {componentIdOf<LocalTransform>, componentIdOf<WorldTransform>,
                                              componentIdOf<Camera>};
             const Entity camera = createEntity(*scene.world, cameraSet);

@@ -7,6 +7,7 @@
 
 #include "RenderInternal.h"
 
+#include <crucible/Lights.h>
 #include <crucible/Render.h>
 #include <crucible/Shader.h>
 
@@ -177,6 +178,84 @@ void addDepthPrepass(RenderStepContext& context, void*)
 }
 
 // ---------------------------------------------------------------------------
+// LightClustering
+// ---------------------------------------------------------------------------
+
+slag::Pipeline* clusterPipeline = nullptr;
+
+Result<void> prepareLightClustering(slag::GraphicsDevice& device, void*)
+{
+    Result<ShaderFile*> file = loadShaderFile(engineShader("clusters"));
+    if (!file)
+    {
+        return file.status();
+    }
+    const int32_t entry = findShaderEntry(*file.value(), "buildClusters");
+    if (entry < 0)
+    {
+        destroyShaderFile(file.value());
+        return Status::InvalidData;
+    }
+    slag::ShaderStage stage;
+    shaderStage(*file.value(), static_cast<uint32_t>(entry), stage);
+    slag::Result<slag::Pipeline*> pipeline =
+        device.createComputePipeline({.compute = stage, .debugName = "LightClustering"});
+    destroyShaderFile(file.value());
+    if (!pipeline)
+    {
+        return Status::Unsupported;
+    }
+    clusterPipeline = pipeline.value();
+    return {};
+}
+
+// One buffer: each cluster's light count, then each cluster's list.
+constexpr uint64_t clusterListsOffset = uint64_t{clusterCount} * sizeof(uint32_t);
+constexpr uint64_t clusterBufferSize = clusterListsOffset + uint64_t{clusterCount} * maxLightsPerCluster * 4;
+
+void addLightClustering(RenderStepContext& context, void*)
+{
+    const slag::rendergraph::RenderGraphBuffer clusters =
+        context.graph.createTransientBuffer({.size = clusterBufferSize, .debugName = "LightClusters"});
+    context.publish(lightClustersKey(), clusters);
+    const slag::rendergraph::RenderGraphBuffer view = context.buffer(viewKey());
+    const slag::rendergraph::RenderGraphBuffer lights = context.buffer(lightsKey());
+    // The surface's slots for this frame slot: the transient buffer differs
+    // from frame to frame, so its views are written while recording.
+    const uint32_t ranges = surfaceDescriptor(context, clusterRangesDescriptor);
+    const uint32_t lists = surfaceDescriptor(context, clusterLightsDescriptor);
+    const uint32_t rwRanges = surfaceDescriptor(context, rwClusterRangesDescriptor);
+    const uint32_t rwLists = surfaceDescriptor(context, rwClusterLightsDescriptor);
+    slag::GraphicsDevice* device = &context.device;
+    context.graph.addPass(
+        "LightClustering", slag::CommandQueueType::Graphics,
+        [&](slag::rendergraph::PassBuilder& pass) {
+            pass.use(view, slag::rendergraph::Usage::ConstantBuffer);
+            pass.use(lights, slag::rendergraph::Usage::ShaderRead);
+            pass.use(clusters, slag::rendergraph::Usage::ShaderWrite);
+        },
+        [=](slag::rendergraph::PassContext& pass, slag::CommandBuffer* commands) {
+            const uint32_t slot = pass.frameSlot();
+            slag::Buffer* buffer = pass.buffer(clusters);
+            const slag::StructuredBufferDescriptor countsView{
+                .buffer = buffer, .count = clusterCount, .stride = sizeof(uint32_t)};
+            const slag::StructuredBufferDescriptor listsView{.buffer = buffer,
+                                                             .offset = clusterListsOffset,
+                                                             .count = clusterCount * maxLightsPerCluster,
+                                                             .stride = sizeof(uint32_t)};
+            device->writeStructuredBuffer(ranges + slot, countsView);
+            device->writeStructuredBuffer(lists + slot, listsView);
+            device->writeRWStructuredBuffer(rwRanges + slot, countsView);
+            device->writeRWStructuredBuffer(rwLists + slot, listsView);
+            const uint32_t constants[2] = {rwRanges + slot, rwLists + slot};
+            commands->bindPipeline(clusterPipeline);
+            commands->setConstantBuffer(pass.buffer(view)->gpuAddress(), viewSize());
+            commands->pushConstants(constants, sizeof(constants));
+            commands->dispatch((clusterCount + 63) / 64, 1, 1);
+        });
+}
+
+// ---------------------------------------------------------------------------
 // Opaque
 // ---------------------------------------------------------------------------
 
@@ -194,6 +273,8 @@ void addOpaque(RenderStepContext& context, void*)
     context.publish(sceneColorKey(), color);
     const slag::rendergraph::RenderGraphTexture depth = context.texture(sceneDepthKey());
     const slag::rendergraph::RenderGraphBuffer view = context.buffer(viewKey());
+    const slag::rendergraph::RenderGraphBuffer lights = context.buffer(lightsKey());
+    const slag::rendergraph::RenderGraphBuffer clusters = context.buffer(lightClustersKey());
     slag::ClearValue clear{};
     for (int c = 0; c < 4; ++c)
     {
@@ -205,6 +286,8 @@ void addOpaque(RenderStepContext& context, void*)
         "Opaque", slag::CommandQueueType::Graphics,
         [&](slag::rendergraph::PassBuilder& pass) {
             pass.use(view, slag::rendergraph::Usage::ConstantBuffer);
+            pass.use(lights, slag::rendergraph::Usage::ShaderRead);
+            pass.use(clusters, slag::rendergraph::Usage::ShaderRead);
             pass.renderTarget(color, slag::LoadOp::Clear, slag::StoreOp::Store, clear);
             pass.depthStencil(depth, slag::LoadOp::Load, slag::StoreOp::Store, {}, true);
         },
@@ -266,6 +349,11 @@ void addDefaultSteps(RenderSchedule& schedule)
 {
     // Their pipelines are the materials' (Materials.cpp).
     (void)schedule.add({.name = "DepthPrepass", .addPasses = addDepthPrepass});
+    (void)schedule.add({.name = "LightClustering",
+                        .addPasses = addLightClustering,
+                        .userData = &clusterPipeline,
+                        .prepare = prepareLightClustering,
+                        .release = destroyPipeline});
     (void)schedule.add({.name = "Opaque", .addPasses = addOpaque});
     (void)schedule.add({.name = "Resolve",
                         .addPasses = addResolve,

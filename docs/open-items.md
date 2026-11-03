@@ -33,6 +33,11 @@ is, and record which version fixed it.
 
 ## Revisit once there is a prototype to test against
 
+- Lighting after step 7 (ADR 0053): lights past a cluster's 64 are dropped
+  silently (count them in debug, or raise the cap if scenes need it);
+  spot lights are culled and clustered by their range sphere, not their
+  cone; the 1024 visible lights are kept in entity order, not by
+  importance. → 0053
 - MikkTSpace (third party, tangent generation) shifts a 32-bit value by 32
   at mikktspace.c line 1667 in the importers' tests; UBSan reports it. Found
   in M5 step 6b's sanitizer run; look at whether upstream has fixed it, or
@@ -42,8 +47,7 @@ is, and record which version fixed it.
   material overrides; material type names share one C# namespace
   (`Crucible.Materials`), so two shaders can't both declare a `Brick`;
   arrays whose elements are padded can't be mirrored in C#. → 0052
-- Materials after 6a (ADR 0052): the temporary sun and ambient give way to
-  step 7's lights; blended materials draw as opaque until step 9's
+- Materials after 6a (ADR 0052): blended materials draw as opaque until step 9's
   transparent pass; specular AA and alpha-to-coverage come in step 9;
   materials choose samplers (the built-in ones use linear repeat). → 0052
   [M5 steps 7, 9]

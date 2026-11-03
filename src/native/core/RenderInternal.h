@@ -21,11 +21,20 @@ inline constexpr uint32_t framesInFlight = 2;
 // Each surface's reserved resource-heap slots, below the loaded textures'
 // (which start at 1024): `descriptorsPerSurface` from 8 + surface index *
 // descriptorsPerSurface, one per frame slot for each of these.
-inline constexpr uint32_t descriptorsPerSurface = 8;
-inline constexpr uint32_t transformsDescriptor = 0;               // + frame slot
-inline constexpr uint32_t instancesDescriptor = framesInFlight;   // + frame slot
-inline constexpr uint32_t resolveDescriptor = 2 * framesInFlight; // + frame slot
-static_assert(3 * framesInFlight <= descriptorsPerSurface);
+inline constexpr uint32_t descriptorsPerSurface = 16;
+// (LightClustering writes the cluster lists through the RW slots, Opaque
+// reads them through the others.)
+inline constexpr uint32_t transformsDescriptor = 0;                       // + frame slot
+inline constexpr uint32_t instancesDescriptor = framesInFlight;           // + frame slot
+inline constexpr uint32_t resolveDescriptor = 2 * framesInFlight;         // + frame slot
+inline constexpr uint32_t lightsDescriptor = 3 * framesInFlight;          // + frame slot
+inline constexpr uint32_t clusterRangesDescriptor = 4 * framesInFlight;   // + frame slot
+inline constexpr uint32_t clusterLightsDescriptor = 5 * framesInFlight;   // + frame slot
+inline constexpr uint32_t rwClusterRangesDescriptor = 6 * framesInFlight; // + frame slot
+inline constexpr uint32_t rwClusterLightsDescriptor = 7 * framesInFlight; // + frame slot
+static_assert(8 * framesInFlight <= descriptorsPerSurface);
+// 8 surfaces from slot 8: they must stay below the loaded textures' 1024.
+static_assert(8 + 8 * descriptorsPerSurface <= 1024);
 
 // The material buffer's slot (a ByteAddressBuffer), below the surfaces'.
 inline constexpr uint32_t materialBufferDescriptor = 1;
@@ -42,7 +51,8 @@ struct FrameInputs
     uint64_t frame;
     const float* clearColor; // 4
     slag::rendergraph::RenderGraphTexture backbuffer;
-    slag::rendergraph::RenderGraphBuffer view; // the frame's ViewConstants
+    slag::rendergraph::RenderGraphBuffer view;   // the frame's ViewConstants
+    slag::rendergraph::RenderGraphBuffer lights; // the frame's LightData
     const ViewConstants& viewConstants;
     const DrawList& draws;
     ecs::World* world;
@@ -53,7 +63,7 @@ struct FrameInputs
 // reported) when a step read a blackboard entry no one published.
 Result<void> addStepPasses(const FrameInputs& inputs);
 
-// DepthPrepass, Opaque, then Resolve (RenderSteps.cpp).
+// DepthPrepass, LightClustering, Opaque, then Resolve (RenderSteps.cpp).
 void addDefaultSteps(RenderSchedule& schedule);
 
 // DrawList.cpp (ADR 0051): a surface's drawing state (its transform buffers
@@ -142,6 +152,21 @@ Status readAsset(const assets::AssetId& id, Vector<uint8_t>& out);
 std::span<const MaterialHandle> modelMaterials(uint32_t meshIndex);
 // The last value of the work semaphore signalled (RenderAssets.cpp).
 slag::SemaphoreValue lastWorkSignaled();
+
+// Lights.cpp (ADR 0053): a surface's light buffers, one per frame slot, and
+// the frame's lights gathered into them: the counts, ambient light, light
+// slots, and cluster parameters written into the view's constants.
+struct LightState;
+LightState* createLightState(uint32_t descriptorBase);
+void destroyLightState(LightState* state);
+void gatherLights(LightState& state, ecs::World* world, uint32_t frameSlot, ViewConstants& view);
+slag::Buffer* lightBuffer(const LightState& state, uint32_t frameSlot);
+// The cluster grid (clusters.slang): screen tiles across and down, depth
+// slices.
+inline constexpr uint32_t clusterCountX = 16;
+inline constexpr uint32_t clusterCountY = 9;
+inline constexpr uint32_t clusterCountZ = 24;
+inline constexpr uint32_t clusterCount = clusterCountX * clusterCountY * clusterCountZ;
 
 // The scene targets' formats (RenderSteps.cpp, Materials.cpp).
 inline constexpr slag::PixelFormat sceneColorFormat = slag::PixelFormat::R16G16B16A16Float;

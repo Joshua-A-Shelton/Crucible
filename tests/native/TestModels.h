@@ -8,12 +8,14 @@
 
 #include <crucible/BinaryFile.h>
 #include <crucible/Ecs.h>
+#include <crucible/Lights.h>
 #include <crucible/MaterialFile.h>
 #include <crucible/Memory.h>
 #include <crucible/MeshFile.h>
 #include <crucible/MeshInstance.h>
 #include <crucible/Render.h>
 #include <crucible/RenderAssets.h>
+#include <crucible/Shader.h>
 #include <crucible/TextureFile.h>
 #include <crucible/Transform.h>
 #include <crucible/Vector.h>
@@ -22,8 +24,13 @@
 
 #include <doctest/doctest.h>
 
+#include <cmath>
 #include <cstring>
+#include <fstream>
+#include <iterator>
 #include <map>
+#include <string>
+#include <string_view>
 #include <vector>
 
 namespace crucible::test {
@@ -193,6 +200,50 @@ struct Scene
         return entity;
     }
 
+    // A rotation turning +Z (where lights shine) to `direction`.
+    static Quaternion facing(Vector3 direction)
+    {
+        const Vector3 forward{0, 0, 1};
+        const Vector3 to = normalize(direction);
+        const float cosine = dot(forward, to);
+        if (cosine < -0.9999f)
+        {
+            return Quaternion::fromAxisAngle({0, 1, 0}, 3.14159265f);
+        }
+        const Vector3 axis = cross(forward, to);
+        const float length = std::sqrt(dot(axis, axis));
+        return length < 1e-6f ? Quaternion{0, 0, 0, 1}
+                              : Quaternion::fromAxisAngle(axis / length, std::acos(std::fmin(cosine, 1.0f)));
+    }
+
+    // A directional light coming from `towardLight`.
+    ecs::Entity sun(Vector3 towardLight, Vector3 color = {1, 0.97f, 0.92f}, float intensity = 1)
+    {
+        const ecs::ComponentId set[] = {ecs::componentIdOf<scenes::LocalTransform>,
+                                        ecs::componentIdOf<scenes::WorldTransform>,
+                                        ecs::componentIdOf<render::DirectionalLight>};
+        const ecs::Entity entity = ecs::createEntity(*world, set);
+        *ecs::get<scenes::LocalTransform>(*world, entity) = {{0, 0, 0}, facing(-towardLight), {1, 1, 1}};
+        *ecs::get<render::DirectionalLight>(*world, entity) = {color, intensity};
+        return entity;
+    }
+
+    ecs::Entity ambient(Vector3 sky, Vector3 ground, float intensity = 1)
+    {
+        const ecs::ComponentId set[] = {ecs::componentIdOf<render::AmbientLight>};
+        const ecs::Entity entity = ecs::createEntity(*world, set);
+        *ecs::get<render::AmbientLight>(*world, entity) = {sky, ground, intensity};
+        return entity;
+    }
+
+    // The sun and ambient light the renderer had before light components
+    // (M5 step 6a), for tests written against it.
+    void defaultLighting()
+    {
+        sun({0.32f, 0.86f, -0.4f});
+        ambient({0.22f, 0.24f, 0.3f}, {0.22f, 0.24f, 0.3f});
+    }
+
     // One frame as the loop runs it: propagation, then the render system
     // with its last-run version, then a newer version.
     void render(render::SurfaceHandle surface)
@@ -219,6 +270,91 @@ inline Bgra pixelOf(const std::vector<uint8_t>& pixels, const render::ViewConsta
     const auto y = static_cast<uint32_t>((1 - clip.y / clip.w) * 0.5f * view.viewportSize.y);
     const size_t at = (size_t{y} * static_cast<uint32_t>(view.viewportSize.x) + x) * 4;
     return {pixels[at], pixels[at + 1], pixels[at + 2], pixels[at + 3]};
+}
+
+inline std::vector<uint8_t> readFile(const std::string& path)
+{
+    std::ifstream file(path, std::ios::binary);
+    return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+}
+
+// A material shader's type, from its MTYP section: its index, defaults, and
+// the offsets of its named parameters.
+struct TypeLayout
+{
+    uint32_t index = 0;
+    std::vector<uint8_t> defaults;
+    std::vector<std::pair<std::string, uint32_t>> offsets;
+
+    uint32_t offsetOf(const std::string& name) const
+    {
+        for (const auto& [parameter, offset] : offsets)
+        {
+            if (parameter == name)
+            {
+                return offset;
+            }
+        }
+        FAIL("no parameter " << name);
+        return 0;
+    }
+};
+
+inline TypeLayout typeNamed(const std::vector<uint8_t>& shader, std::string_view name)
+{
+    Result<binary::File*> file = binary::parseFile(shader, render::shaderFileKind, 1);
+    REQUIRE(file);
+    const int32_t section = binary::findSection(*file.value(), assets::shaderMaterialTypesTag);
+    REQUIRE(section >= 0);
+    std::vector<uint8_t> types(binary::sectionInfo(*file.value(), static_cast<uint32_t>(section)).size);
+    REQUIRE(binary::readSection(*file.value(), static_cast<uint32_t>(section), types));
+    binary::closeFile(file.value());
+    uint32_t typeCount;
+    std::memcpy(&typeCount, types.data(), 4);
+    for (uint32_t t = 0; t < typeCount; ++t)
+    {
+        assets::MaterialTypeInfo type;
+        std::memcpy(&type, types.data() + 8 + t * sizeof(type), sizeof(type));
+        if (std::string_view(reinterpret_cast<const char*>(types.data()) + type.nameOffset, type.nameLength) != name)
+        {
+            continue;
+        }
+        TypeLayout layout;
+        layout.index = t;
+        layout.defaults.assign(types.begin() + type.defaultsOffset, types.begin() + type.defaultsOffset + type.size);
+        for (uint32_t p = 0; p < type.parameterCount; ++p)
+        {
+            assets::MaterialParameter parameter;
+            std::memcpy(&parameter,
+                        types.data() + 8 + typeCount * sizeof(assets::MaterialTypeInfo) +
+                            (type.firstParameter + p) * sizeof(parameter),
+                        sizeof(parameter));
+            layout.offsets.emplace_back(
+                std::string(reinterpret_cast<const char*>(types.data()) + parameter.nameOffset, parameter.nameLength),
+                parameter.offset);
+        }
+        return layout;
+    }
+    FAIL("no material type " << name);
+    return {};
+}
+
+// A .crmat: one opaque record of the shader's type `type`.
+inline std::vector<uint8_t> materialFile(const assets::AssetId& shader, uint32_t type,
+                                         const std::vector<uint8_t>& parameters)
+{
+    assets::MaterialInfo info{};
+    std::memcpy(info.shader, shader.bytes, 16);
+    info.type = type;
+    info.parameterOffset = sizeof(info);
+    info.parameterSize = static_cast<uint32_t>(parameters.size());
+    info.textureOffset = (sizeof(info) + info.parameterSize + 3) / 4 * 4;
+    std::vector<uint8_t> record(info.textureOffset);
+    std::memcpy(record.data(), &info, sizeof(info));
+    std::memcpy(record.data() + sizeof(info), parameters.data(), parameters.size());
+    binary::Writer* writer = binary::createWriter(assets::materialFileKind, assets::materialFileVersion);
+    addSection(writer, assets::meshMaterialsTag, record);
+    return fileBytes(writer);
 }
 
 } // namespace crucible::test

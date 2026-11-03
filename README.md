@@ -41,3 +41,5 @@ Longer explanations of decisions, written to be reread:
 - [Materials](docs/learning/materials.md) (ADR 0052): materials, shading
   models, and the lighting loop; generics, toon bands, and the material
   buffer.
+- [Lighting](docs/learning/lighting.md) (ADR 0053): clusters, why lights
+  have a range, CPU culling, and hemisphere ambient.

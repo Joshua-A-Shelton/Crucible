@@ -6,6 +6,7 @@ add_executable(crucible_native_tests
     EcsTests.cpp
     InputTimingTests.cpp
     JobTests.cpp
+    LightTests.cpp
     MaterialTests.cpp
     MathTests.cpp
     MemoryTests.cpp

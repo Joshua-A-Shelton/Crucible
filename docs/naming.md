@@ -128,3 +128,14 @@ Settled in a review of M4's and M5's placeholders (ADR 0047's amendment).
 | `shaderfax --materials`, `crucible_add_shader(... MATERIALS)` | Building material shaders |
 | `acquireMaterial`, `releaseMaterial`, `setMaterialParameters`; internal `materialShader`, `materialTypeName`, `createMaterialFromRecords`, `readAsset` | Runtime |
 | `compileMaterialShader`, `compiledSectionCount` / `compiledSection` / `copyCompiledSection`, `compiledDependencyCount` / `compiledDependency`, `ShaderSectionInfo` | The importers' compiler API |
+
+## Lighting (2026-11-02)
+
+| Name | What it is |
+|---|---|
+| `crucible/Lights.h`: `DirectionalLight` (`color`, `intensity`), `PointLight` (+ `range`), `SpotLight` (+ `innerConeAngle`, `outerConeAngle`, full angles), `AmbientLight` (`skyColor`, `groundColor`, `intensity`) | Light components, C# `Crucible.Render.*` (ADR 0053) |
+| `maxDirectionalLights` (4), `maxVisibleLights` (1024), `maxLightsPerCluster` (64) | Limits |
+| Step `LightClustering`; blackboard keys `Lights`, `LightClusters`; `lightsKey()`, `lightClustersKey()` | The render step |
+| `[GpuShared] LightData` (`position`, `range`, `direction`, `spotScale`, `color`, `spotOffset`) | A light as shaders read it |
+| `ViewConstants`: `clusterTileSize`, `ambientSky`, `clusterSliceScale`, `ambientGround`, `clusterSliceBias`, `directionalLightCount`, `lightCount`, `lights`, `clusterRanges`, `clusterLights` | The frame's lighting |
+| `shaders/crucible/clusters.slang` (`buildClusters`); library `clusterOf`, `pointSample` | Shaders |
