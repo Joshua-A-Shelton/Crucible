@@ -9,6 +9,11 @@
 // white light of intensity 1, facing a white Lambert surface, lights it to
 // 1. Point and spot lights fall off with inverse square, smoothly windowed
 // to zero at `range`.
+//
+// Shadows (ADR 0054): a light casts them when `castsShadows` is set. The
+// brightest directional light that casts gets cascaded shadow maps out to
+// its `shadowDistance`; point and spot lights get tiles in the shadow atlas,
+// redrawn only when the light or something in its range moves.
 
 #include <crucible/Expose.h>
 #include <crucible/Math.h>
@@ -19,6 +24,8 @@ struct CRUCIBLE_EXPOSE DirectionalLight
 {
     Vector3 color; // linear
     float intensity;
+    bool castsShadows;    // only the brightest casting directional light does
+    float shadowDistance; // meters from the camera that shadows reach; 0 for 100
 };
 
 struct CRUCIBLE_EXPOSE PointLight
@@ -26,6 +33,7 @@ struct CRUCIBLE_EXPOSE PointLight
     Vector3 color;
     float intensity;
     float range; // meters: no light past it
+    bool castsShadows;
 };
 
 // The cone's angles are full angles, in radians: inside innerConeAngle the
@@ -37,6 +45,7 @@ struct CRUCIBLE_EXPOSE SpotLight
     float range;
     float innerConeAngle;
     float outerConeAngle;
+    bool castsShadows;
 };
 
 // Light that isn't from a light: skyColor from above, groundColor from below,
@@ -55,6 +64,10 @@ struct CRUCIBLE_EXPOSE AmbientLight
 inline constexpr uint32_t maxDirectionalLights = 4;
 inline constexpr uint32_t maxVisibleLights = 1024;
 inline constexpr uint32_t maxLightsPerCluster = 64;
+// Shadows (ADR 0054): the sun's cascades, and the point and spot lights
+// given atlas tiles, most important first.
+inline constexpr uint32_t shadowCascadeCount = 4;
+inline constexpr uint32_t maxShadowedLights = 16;
 
 // Registers the components. Registering again is harmless.
 CRUCIBLE_EXPOSE_INTERNAL void registerLights();

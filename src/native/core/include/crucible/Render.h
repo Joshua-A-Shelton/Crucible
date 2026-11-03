@@ -94,6 +94,16 @@ CRUCIBLE_EXPOSE_STATUS Result<void> renderFrame(SurfaceHandle surface, ecs::Worl
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<void> setMsaaSamples(uint32_t samples);
 CRUCIBLE_EXPOSE uint32_t msaaSamples();
 
+// Shadow quality (ADR 0054): each of the sun's cascades is a square map this
+// many texels wide (default 2048), and each surface's shadow atlas, holding
+// point and spot lights' tiles, this many (default 4096). Powers of two from
+// 256 to 8192; Unsupported for others. Changing the atlas's size while the
+// renderer runs waits for the GPU, and every tile is drawn again.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<void> setShadowMapSize(uint32_t size);
+CRUCIBLE_EXPOSE uint32_t shadowMapSize();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<void> setShadowAtlasSize(uint32_t size);
+CRUCIBLE_EXPOSE uint32_t shadowAtlasSize();
+
 // Latency harness support (ADR 0003).
 //
 // How many frames the surface has submitted; a frame that was skipped

@@ -91,8 +91,10 @@ interface IMaterial
   alpha and occlusion. It's the same for every model, so a material can
   change models without being rewritten.
 - **A light sample** has its direction and its color with attenuation
-  applied. Shadows will be folded in at step 8, so models never see the
-  light loop's internals.
+  applied. Shadows were to be folded in at step 8; instead they come
+  separately, as `LightSample::shadow`, so toon can band them like faces
+  turned away (ADR 0054). Models still never see the light loop's
+  internals.
 - **A material's fields are its parameters,** read from the material
   buffer with `ByteAddressBuffer.Load<M>`.
 - **`TextureSlot`** is a resource-heap slot (a `uint`).

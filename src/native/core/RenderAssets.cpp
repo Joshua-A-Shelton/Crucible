@@ -716,8 +716,17 @@ Result<void> startAssets(slag::GraphicsDevice& device, slag::CommandQueue& queue
          .addressU = slag::AddressMode::Clamp,
          .addressV = slag::AddressMode::Clamp,
          .addressW = slag::AddressMode::Clamp},
+        // Shadow maps (ADR 0054, shadows.slang's shadowComparisonSampler):
+        // bilinear comparisons, lit where the receiver is no farther than
+        // what the light saw.
+        {.mipFilter = slag::Filter::Point,
+         .addressU = slag::AddressMode::Clamp,
+         .addressV = slag::AddressMode::Clamp,
+         .addressW = slag::AddressMode::Clamp,
+         .compareEnable = true,
+         .compareOp = slag::CompareOp::LessEqual},
     };
-    for (uint32_t i = 0; i < 3; ++i)
+    for (uint32_t i = 0; i < 4; ++i)
     {
         device.writeSampler(firstSamplerSlot + i, samplers[i]);
     }

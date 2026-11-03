@@ -139,3 +139,16 @@ Settled in a review of M4's and M5's placeholders (ADR 0047's amendment).
 | `[GpuShared] LightData` (`position`, `range`, `direction`, `spotScale`, `color`, `spotOffset`) | A light as shaders read it |
 | `ViewConstants`: `clusterTileSize`, `ambientSky`, `clusterSliceScale`, `ambientGround`, `clusterSliceBias`, `directionalLightCount`, `lightCount`, `lights`, `clusterRanges`, `clusterLights` | The frame's lighting |
 | `shaders/crucible/clusters.slang` (`buildClusters`); library `clusterOf`, `pointSample` | Shaders |
+
+## Shadows (2026-11-02)
+
+| Name | What it is |
+|---|---|
+| `DirectionalLight` `castsShadows`, `shadowDistance`; `PointLight` / `SpotLight` `castsShadows`; `MeshInstance::noShadows` | What casts (ADR 0054); zeroed components cast from meshes, not lights |
+| `shadowCascadeCount` (4), `maxShadowedLights` (16) | Limits, in `crucible/Lights.h` |
+| `setShadowMapSize` / `shadowMapSize`, `setShadowAtlasSize` / `shadowAtlasSize`; launcher `--shadow-map-size`, `--shadow-atlas-size` | Quality settings |
+| Step `Shadows`; graph passes `ShadowCascade`, `ShadowAtlas`; blackboard keys `ShadowCascades`, `ShadowAtlas`; `shadowCascadesKey()`, `shadowAtlasKey()` | The render step |
+| `[GpuShared] ShadowView` (`viewProjection`, `rect`, `texelSize`, `normalOffset`, `normalOffsetPerMeter`, `layer`); `LightData::shadowView`, `noShadowView` | Shadow views as shaders read them |
+| `ViewConstants`: `shadowViews`, `cascadeMap`, `shadowAtlas`, `cascadeSplits` | The frame's shadows |
+| `LightSample::shadow` | What shading models receive |
+| `shaders/crucible/shadows.slang`: `sunShadow`, `localShadow`, `shadowComparisonSampler`; mesh.slang `clearTileVertex` | Shaders |

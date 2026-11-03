@@ -50,6 +50,7 @@ struct FrameState
     std::string_view step;
     bool failed = false;
     uint32_t descriptorBase = 0; // the surface's reserved resource-heap slots
+    const ShadowFrame* shadows = nullptr;
 };
 
 BlackboardKey registerBlackboardKey(std::string_view name)
@@ -108,6 +109,18 @@ BlackboardKey lightsKey()
 BlackboardKey lightClustersKey()
 {
     static const BlackboardKey key = registerBlackboardKey("LightClusters");
+    return key;
+}
+
+BlackboardKey shadowCascadesKey()
+{
+    static const BlackboardKey key = registerBlackboardKey("ShadowCascades");
+    return key;
+}
+
+BlackboardKey shadowAtlasKey()
+{
+    static const BlackboardKey key = registerBlackboardKey("ShadowAtlas");
     return key;
 }
 
@@ -195,12 +208,18 @@ struct FrameBuilder
         return static_cast<const FrameState*>(context.frameState)->descriptorBase;
     }
 
+    static const ShadowFrame& shadows(const RenderStepContext& context)
+    {
+        return *static_cast<const FrameState*>(context.frameState)->shadows;
+    }
+
     static Result<void> run(const FrameInputs& inputs)
     {
         FrameState state;
         RenderStepContext context(inputs.graph, inputs.device, inputs.viewConstants, inputs.draws);
         context.world = inputs.world;
         state.descriptorBase = inputs.descriptorBase;
+        state.shadows = &inputs.shadows;
         context.width = inputs.width;
         context.height = inputs.height;
         context.frame = inputs.frame;
@@ -223,6 +242,11 @@ struct FrameBuilder
 uint32_t surfaceDescriptor(const RenderStepContext& context, uint32_t which)
 {
     return FrameBuilder::descriptorBase(context) + which;
+}
+
+const ShadowFrame& shadowFrame(const RenderStepContext& context)
+{
+    return FrameBuilder::shadows(context);
 }
 
 Result<void> addStepPasses(const FrameInputs& inputs)

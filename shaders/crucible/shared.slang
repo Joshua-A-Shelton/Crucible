@@ -40,6 +40,15 @@ public struct ViewConstants
     public uint lights;
     public uint clusterRanges;
     public uint clusterLights;
+    // Shadows (ADR 0054): resource-heap slots of the frame's
+    // StructuredBuffer<ShadowView> (the cascades first), the cascades'
+    // Texture2DArray<float> (0: the sun casts no shadows this frame), and
+    // the shadow atlas's Texture2D<float> (0: no light has a tile); and the
+    // view depth where each of the sun's cascades ends.
+    public uint shadowViews;
+    public uint cascadeMap;
+    public uint shadowAtlas;
+    public float4 cascadeSplits;
 };
 
 // A world matrix as shaders read it (ADR 0051): its first three columns, so
@@ -87,4 +96,27 @@ public struct LightData
     public float spotScale;
     public float3 color; // intensity applied
     public float spotOffset;
+    // Its first ShadowView (a point light's six cube faces follow it, in
+    // the order +X, -X, +Y, -Y, +Z, -Z), or noShadowView.
+    public uint shadowView;
+};
+
+public static const uint noShadowView = 0xffffffff;
+
+// One shadow map's view (ADR 0054): a cascade, a spot light's tile, or one
+// face of a point light's. Depth is conventional (0 near, 1 far), compared
+// with the stored depth by a LessEqual comparison sampler.
+[GpuShared]
+public struct ShadowView
+{
+    public float4x4 viewProjection; // world position to the map's clip space
+    // Where the view sits in its map's UVs: offset in xy, size in zw.
+    public float4 rect;
+    public float texelSize; // 1 / the map's size in texels
+    // A texel's width in meters, which the normal offset scales with:
+    // normalOffset everywhere (cascades), plus normalOffsetPerMeter per
+    // meter from the light (atlas tiles).
+    public float normalOffset;
+    public float normalOffsetPerMeter;
+    public uint layer; // the cascade's layer; 0 for atlas tiles
 };

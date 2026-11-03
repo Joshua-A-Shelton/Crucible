@@ -4,6 +4,7 @@
 #include <crucible/Ecs.h>
 #include <crucible/Transform.h>
 
+#include <cmath>
 #include <cstdint>
 
 namespace crucible::render {
@@ -56,6 +57,24 @@ Matrix4x4 withoutScale(const Matrix4x4& world)
 }
 
 } // namespace
+
+std::array<Plane, 6> frustumPlanes(const Matrix4x4& m)
+{
+    // clip = p * M, so each plane is a sum of M's columns.
+    auto column = [&](int j) {
+        return Vector4{m.rows[0][j], m.rows[1][j], m.rows[2][j], m.rows[3][j]};
+    };
+    const Vector4 x = column(0), y = column(1), z = column(2), w = column(3);
+    const Vector4 sums[6] = {w + x, w - x, w + y, w - y, w - z, z};
+    std::array<Plane, 6> planes{};
+    for (int i = 0; i < 6; ++i)
+    {
+        const float length = std::sqrt(sums[i].x * sums[i].x + sums[i].y * sums[i].y + sums[i].z * sums[i].z);
+        const float scale = length > 0 ? 1.0f / length : 0.0f;
+        planes[i] = {{sums[i].x * scale, sums[i].y * scale, sums[i].z * scale}, sums[i].w * scale};
+    }
+    return planes;
+}
 
 void registerCamera()
 {

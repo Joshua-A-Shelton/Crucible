@@ -11,7 +11,7 @@ between what it is and how light treats it.
 - **The shading model** says how light *treats* it: whether lighting
   falls off smoothly (physically based) or in steps (toon).
 - **The engine** runs the lighting loop: which lights reach the pixel,
-  their direction and strength, and later shadows. It hands each light to
+  their direction and strength, and their shadows. It hands each light to
   the shading model.
 
 Keeping these apart is what lets a game write a new look without touching

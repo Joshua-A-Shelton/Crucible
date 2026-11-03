@@ -9,9 +9,10 @@
 
 #include "shared.g.h" // ViewConstants, generated from shaders/crucible/shared.slang
 
-namespace crucible::ecs {
-struct World;
-}
+#include <crucible/Ecs.h>
+#include <crucible/Math.h>
+
+#include <array>
 
 namespace crucible::render {
 
@@ -21,9 +22,10 @@ inline constexpr uint32_t framesInFlight = 2;
 // Each surface's reserved resource-heap slots, below the loaded textures'
 // (which start at 1024): `descriptorsPerSurface` from 8 + surface index *
 // descriptorsPerSurface, one per frame slot for each of these.
-inline constexpr uint32_t descriptorsPerSurface = 16;
+inline constexpr uint32_t descriptorsPerSurface = 24;
 // (LightClustering writes the cluster lists through the RW slots, Opaque
-// reads them through the others.)
+// reads them through the others. The shadow atlas outlives frames, so it
+// has one slot.)
 inline constexpr uint32_t transformsDescriptor = 0;                       // + frame slot
 inline constexpr uint32_t instancesDescriptor = framesInFlight;           // + frame slot
 inline constexpr uint32_t resolveDescriptor = 2 * framesInFlight;         // + frame slot
@@ -32,7 +34,10 @@ inline constexpr uint32_t clusterRangesDescriptor = 4 * framesInFlight;   // + f
 inline constexpr uint32_t clusterLightsDescriptor = 5 * framesInFlight;   // + frame slot
 inline constexpr uint32_t rwClusterRangesDescriptor = 6 * framesInFlight; // + frame slot
 inline constexpr uint32_t rwClusterLightsDescriptor = 7 * framesInFlight; // + frame slot
-static_assert(8 * framesInFlight <= descriptorsPerSurface);
+inline constexpr uint32_t shadowViewsDescriptor = 8 * framesInFlight;     // + frame slot
+inline constexpr uint32_t cascadeMapDescriptor = 9 * framesInFlight;      // + frame slot
+inline constexpr uint32_t shadowAtlasDescriptor = 10 * framesInFlight;
+static_assert(10 * framesInFlight + 1 <= descriptorsPerSurface);
 // 8 surfaces from slot 8: they must stay below the loaded textures' 1024.
 static_assert(8 + 8 * descriptorsPerSurface <= 1024);
 
@@ -41,6 +46,20 @@ inline constexpr uint32_t materialBufferDescriptor = 1;
 
 // The surface's slot `which` (one of the above, plus the frame slot).
 uint32_t surfaceDescriptor(const RenderStepContext& context, uint32_t which);
+
+// A view's planes for row vectors (Gribb and Hartmann): left, right, bottom,
+// top, then w - z and z, normalized so a sphere's radius compares with the
+// distance. Inside is 0 <= z <= w: for reverse-Z, w - z is the near plane
+// and z the far one (an infinite perspective's is 0 = near, always inside);
+// for conventional depth, the other way round. (Camera.cpp)
+struct Plane
+{
+    Vector3 normal;
+    float distance;
+};
+std::array<Plane, 6> frustumPlanes(const Matrix4x4& viewProjection);
+
+struct ShadowFrame;
 
 struct FrameInputs
 {
@@ -57,13 +76,18 @@ struct FrameInputs
     const DrawList& draws;
     ecs::World* world;
     uint32_t descriptorBase;
+    const ShadowFrame& shadows;
 };
 
 // Runs every step of the schedule for one frame. InvalidData (already
 // reported) when a step read a blackboard entry no one published.
 Result<void> addStepPasses(const FrameInputs& inputs);
 
-// DepthPrepass, LightClustering, Opaque, then Resolve (RenderSteps.cpp).
+// The frame's shadow passes, for the Shadows step (RenderSchedule.cpp).
+const ShadowFrame& shadowFrame(const RenderStepContext& context);
+
+// DepthPrepass, LightClustering, Shadows, Opaque, then Resolve
+// (RenderSteps.cpp).
 void addDefaultSteps(RenderSchedule& schedule);
 
 // DrawList.cpp (ADR 0051): a surface's drawing state (its transform buffers
@@ -73,12 +97,31 @@ struct DrawState;
 DrawState* createDrawState(uint32_t descriptorBase);
 void destroyDrawState(DrawState* state); // the GPU must be done with it
 uint32_t drawDescriptorBase(const DrawState& state);
+// A view culled for a shadow map besides the camera's (ADR 0054). Cascades
+// leave out their near plane, so casters between the light and the cascade
+// still cast (the shadow pipelines clamp their depth).
+struct ShadowCullView
+{
+    std::array<Plane, 6> planes;
+    uint32_t planeCount;
+    bool orthographic;
+    Vector3 eye;          // perspective: the light, for choosing levels of detail
+    float pixelsPerMeter; // a shadow-map texel per meter (at distance 1 for a perspective view)
+};
 // Resolves new or changed mesh instances, then culls every instance against
-// the view on the job system and batches the visible ones, in the graph's
-// frame slot `frameSlot`. lastRunVersion: the render system's previous run
-// (0: a world not seen before, so everything is sent again).
+// the view, and those that cast shadows against each shadow view, on the job
+// system, and batches the visible ones, in the graph's frame slot
+// `frameSlot`. lastRunVersion: the render system's previous run (0: a world
+// not seen before, so everything is sent again).
 Result<DrawList> buildDrawList(DrawState& state, ecs::World* world, const ViewConstants& view, uint32_t height,
-                               uint32_t frameSlot, uint32_t lastRunVersion);
+                               uint32_t frameSlot, uint32_t lastRunVersion,
+                               std::span<const ShadowCullView> shadowViews);
+// Shadow view `index`'s batches from the last buildDrawList, and a hash of
+// its casters (each one's entity, model, mesh, level, and world matrix), the
+// same whichever order they were found in: an atlas tile whose hash is the
+// same as when it was drawn still holds the right shadow.
+DrawList shadowDrawList(const DrawState& state, uint32_t index);
+uint64_t shadowCasterHash(const DrawState& state, uint32_t index);
 // Releases every cached model; before stopAssets.
 void stopDrawing();
 // Tests and measurement: send every world matrix each frame, as if every
@@ -126,6 +169,7 @@ struct MaterialPipelines
 {
     slag::Pipeline* depth;   // DepthPrepass
     slag::Pipeline* forward; // Opaque
+    slag::Pipeline* shadow;  // Shadows: depth only, clamped and biased (ADR 0054)
 };
 struct MaterialDraw
 {
@@ -141,7 +185,7 @@ Result<MaterialHandle> createMaterial(const assets::MaterialInfo& info, std::spa
 void destroyMaterial(MaterialHandle material);
 // A stale or missing handle draws as the fallback (white toon).
 MaterialDraw materialDraw(MaterialHandle material);
-// After the sample count changes.
+// After the sample count or the shadow-map format changes.
 Result<void> rebuildMaterialPipelines();
 // Record `index` of an MTLS section (MaterialFile.h).
 Result<MaterialHandle> createMaterialFromRecords(std::span<const uint8_t> section, uint32_t index);
@@ -156,10 +200,13 @@ slag::SemaphoreValue lastWorkSignaled();
 // Lights.cpp (ADR 0053): a surface's light buffers, one per frame slot, and
 // the frame's lights gathered into them: the counts, ambient light, light
 // slots, and cluster parameters written into the view's constants.
+// The lights that cast shadows this frame go into `shadows`.
+struct ShadowRequests;
 struct LightState;
 LightState* createLightState(uint32_t descriptorBase);
 void destroyLightState(LightState* state);
-void gatherLights(LightState& state, ecs::World* world, uint32_t frameSlot, ViewConstants& view);
+void gatherLights(LightState& state, ecs::World* world, uint32_t frameSlot, ViewConstants& view,
+                  ShadowRequests& shadows);
 slag::Buffer* lightBuffer(const LightState& state, uint32_t frameSlot);
 // The cluster grid (clusters.slang): screen tiles across and down, depth
 // slices.
@@ -167,6 +214,83 @@ inline constexpr uint32_t clusterCountX = 16;
 inline constexpr uint32_t clusterCountY = 9;
 inline constexpr uint32_t clusterCountZ = 24;
 inline constexpr uint32_t clusterCount = clusterCountX * clusterCountY * clusterCountZ;
+
+// Shadows.cpp (ADR 0054): the sun's cascades, fitted and snapped each frame,
+// and the point and spot lights' tiles in the surface's shadow atlas,
+// redrawn only when they change.
+//
+// LightData::shadowView for a light without shadows (shared.slang's).
+inline constexpr uint32_t noShadowView = 0xffffffff;
+// A point or spot light that casts shadows, visible this frame.
+struct ShadowLight
+{
+    ecs::Entity entity;
+    uint32_t light; // its index in the frame's LightData
+    bool point;
+    Vector3 position;
+    Vector3 axis; // spot: along the cone
+    float range;
+    float outerConeAngle; // spot: the full angle
+};
+struct ShadowRequests
+{
+    bool sun = false;     // whether the first directional light casts
+    Vector3 sunDirection; // toward the light
+    float sunDistance = 0;
+    Vector<ShadowLight> lights{MemoryTag::Render};
+};
+// One shadow map's pass: a cascade's layer, or an atlas tile.
+struct ShadowPass
+{
+    uint32_t cullView; // its ShadowCullView, and so its DrawList
+    uint32_t layer;    // cascades
+    slag::Rect rect;   // atlas tiles: where it is, in texels
+    uint64_t constants; // the GPU address of its ViewConstants (the view replaced by the light's)
+    DrawList draws;
+};
+struct ShadowFrame
+{
+    // Each frame's cascades (none when the sun casts no shadows), and the
+    // atlas tiles to draw again.
+    std::span<const ShadowPass> cascades;
+    std::span<const ShadowPass> tiles;
+    uint32_t cascadeSize;
+    uint32_t cascadeSlot;      // the cascades' Texture2DArray slot this frame
+    slag::Texture* atlas;      // null: no light has a tile
+    slag::AttachmentView* atlasView;
+    slag::TextureLayout atlasLayout; // its layout before the frame
+};
+struct ShadowState;
+ShadowState* createShadowState(uint32_t descriptorBase);
+void destroyShadowState(ShadowState* state); // the GPU must be done with it
+// Where gatherLights puts the frame's requests.
+ShadowRequests& shadowRequests(ShadowState& state);
+// Before culling: fits the cascades, gives lights their tiles, writes the
+// frame's ShadowViews, sets each shadowed light's LightData::shadowView, and
+// fills the view's shadow constants.
+Result<void> prepareShadows(ShadowState& state, ecs::World* world, const ShadowRequests& requests,
+                            LightData* lights, uint32_t frameSlot, ViewConstants& view);
+std::span<const ShadowCullView> shadowCullViews(const ShadowState& state);
+// After culling: which tiles changed, and each pass's constants.
+const ShadowFrame& finishShadows(ShadowState& state, const DrawState& draws, const ViewConstants& view,
+                                 uint32_t frameSlot);
+// The sun's cascades for a view (written to `views`, shadowCascadeCount
+// of them, and the view's cascadeSplits): spheres around slices of the
+// view out to `sunDistance`, snapped to whole texels of `size`-texel maps
+// in the light's view.
+void fitCascades(ViewConstants& view, Vector3 sunDirection, float sunDistance, uint32_t size, ShadowView* views);
+// Tests: what the last finishShadows did.
+struct ShadowStats
+{
+    uint32_t cascades;    // drawn
+    uint32_t tilesDrawn;  // atlas tiles drawn again
+    uint32_t tilesKept;   // atlas tiles still right from earlier frames
+};
+ShadowStats shadowStats();
+// The shadow-map format: D16Unorm, or D32Float where D16Unorm can't be
+// filtered; Undefined where neither can (no shadows). Chosen at start-up.
+slag::PixelFormat shadowFormat();
+void chooseShadowFormat(slag::GraphicsDevice& device);
 
 // The scene targets' formats (RenderSteps.cpp, Materials.cpp).
 inline constexpr slag::PixelFormat sceneColorFormat = slag::PixelFormat::R16G16B16A16Float;

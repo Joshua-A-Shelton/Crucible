@@ -43,3 +43,5 @@ Longer explanations of decisions, written to be reread:
   buffer.
 - [Lighting](docs/learning/lighting.md) (ADR 0053): clusters, why lights
   have a range, CPU culling, and hemisphere ambient.
+- [Shadows](docs/learning/shadows.md) (ADR 0054): cascades, snapping
+  against shimmer, acne and bias, the tent filter, and the cached atlas.

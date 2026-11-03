@@ -87,7 +87,7 @@ or a constant.
 - **The render graph** orders it: LightClustering writes the cluster
   buffer, and Opaque reads it, so the graph puts a barrier between them.
 - **The default schedule** is DepthPrepass, LightClustering, Opaque, then
-  Resolve.
+  Resolve (Shadows joins before Opaque at step 8, ADR 0054).
 
 ## As built (M5 step 7)
 

@@ -10,6 +10,7 @@
 // specialized at compile time; nothing dispatches at runtime.
 
 import crucible.shared;
+import crucible.shadows;
 
 // The frame's view and the draw's constants (ADR 0050, 0051).
 public ConstantBuffer<ViewConstants> view : register(b1);
@@ -96,12 +97,16 @@ public struct SurfaceData
     }
 }
 
-// One light reaching the pixel: toward it, and its color with attenuation
-// (distance, and shadow from step 8) already applied.
+// One light reaching the pixel: toward it, its color with distance and cone
+// applied, and how much of it shadows let through (ADR 0054: 1 lit, 0
+// shadowed). Shadow is kept apart from color so a model can treat a cast
+// shadow like a surface turned away (toon bands both alike); a model must
+// apply it itself.
 public struct LightSample
 {
     public float3 direction;
     public float3 color;
+    public float shadow;
 }
 
 // Light that isn't from a light: a constant ambient until step 7.
@@ -325,6 +330,7 @@ public LightSample pointSample(LightData light, float3 position)
     sample.direction = toLight / distance;
     const float cone = saturate(dot(light.direction, sample.direction) * light.spotScale + light.spotOffset);
     sample.color = light.color * (window * window / distanceSquared) * (cone * cone);
+    sample.shadow = 1.0;
     return sample;
 }
 
@@ -339,11 +345,16 @@ public float4 shadeMaterial<M : IMaterial>(MaterialVertex v, bool frontFace)
     M.Shading.Accumulator accumulator = M.Shading.begin(surface, data, input);
 
     StructuredBuffer<LightData> lights = ResourceDescriptorHeap[view.lights];
+    const float viewDepth = mul(float4(input.position, 1.0), view.view).z;
     for (uint i = 0; i < view.directionalLightCount; ++i)
     {
         LightSample sun;
         sun.direction = lights[i].direction;
         sun.color = lights[i].color;
+        // The cascades are the first directional light's.
+        sun.shadow = i == 0 ? sunShadow(input.position, input.normal, sun.direction, viewDepth, view.cascadeSplits,
+                                        view.shadowViews, view.cascadeMap)
+                            : 1.0;
         M.Shading.light(accumulator, sun);
     }
     if (view.lightCount > 0)
@@ -354,7 +365,10 @@ public float4 shadeMaterial<M : IMaterial>(MaterialVertex v, bool frontFace)
         const uint count = counts[cluster];
         for (uint j = 0; j < count; ++j)
         {
-            M.Shading.light(accumulator, pointSample(lights[lists[cluster * maxLightsPerCluster + j]], input.position));
+            const LightData light = lights[lists[cluster * maxLightsPerCluster + j]];
+            LightSample sample = pointSample(light, input.position);
+            sample.shadow = localShadow(light, input.position, input.normal, view.shadowViews, view.shadowAtlas);
+            M.Shading.light(accumulator, sample);
         }
     }
 
@@ -463,7 +477,10 @@ public struct ToonShading : IShadingModel
 
     public static void light(inout Accumulator a, LightSample light)
     {
-        const float response = band(dot(a.normal, light.direction), max(a.data.bands, 1u), a.data.softness);
+        // A cast shadow darkens like turning away: into the same bands, and
+        // so the same shadow tint.
+        const float response =
+            band(saturate(dot(a.normal, light.direction)) * light.shadow, max(a.data.bands, 1u), a.data.softness);
         a.lit += light.color * response;
         a.rimLight = max(a.rimLight, response);
     }
@@ -543,7 +560,7 @@ public struct PbrShading : IShadingModel
         const float3 diffuse = (1.0 - fresnel) * a.diffuseColor / 3.14159265;
         // Lights are in "pi-normalized" units: a white light at normal
         // incidence lights a white Lambert surface to 1.
-        a.color += (diffuse + specular) * light.color * nl * 3.14159265;
+        a.color += (diffuse + specular) * light.color * (nl * light.shadow * 3.14159265);
     }
 
     public static void ambient(inout Accumulator a, AmbientSample ambient)

@@ -1,7 +1,8 @@
 // The frame's lights (ADR 0053): directional lights (brightest first, so
-// the sun for step 8's shadows is the first), point and spot lights culled
-// against the view by their range on the job system, and the ambient light;
-// uploaded per frame slot for LightClustering and the lighting loop.
+// the sun for shadows is the first), point and spot lights culled against
+// the view by their range on the job system, and the ambient light; uploaded
+// per frame slot for LightClustering and the lighting loop. Those that cast
+// shadows are handed to Shadows.cpp (ADR 0054).
 
 #include "RenderInternal.h"
 
@@ -31,31 +32,6 @@ namespace {
 
 using scenes::WorldTransform;
 
-struct Plane
-{
-    Vector3 normal;
-    float distance;
-};
-
-// The view's planes for row vectors (as DrawList.cpp's culling).
-std::array<Plane, 6> frustumPlanes(const Matrix4x4& m)
-{
-    auto column = [&](int j) {
-        return Vector4{m.rows[0][j], m.rows[1][j], m.rows[2][j], m.rows[3][j]};
-    };
-    const Vector4 x = column(0), y = column(1), z = column(2), w = column(3);
-    const Vector4 sums[6] = {w + x, w - x, w + y, w - y, w - z, z};
-    std::array<Plane, 6> planes{};
-    for (int i = 0; i < 6; ++i)
-    {
-        // Normalized, so a sphere's radius compares with the distance.
-        const float length = std::sqrt(sums[i].x * sums[i].x + sums[i].y * sums[i].y + sums[i].z * sums[i].z);
-        const float scale = length > 0 ? 1.0f / length : 0.0f;
-        planes[i] = {{sums[i].x * scale, sums[i].y * scale, sums[i].z * scale}, sums[i].w * scale};
-    }
-    return planes;
-}
-
 Vector3 axisOf(const Matrix4x4& world)
 {
     return normalize(Vector3{world.rows[2].x, world.rows[2].y, world.rows[2].z});
@@ -66,10 +42,16 @@ Vector3 positionOf(const Matrix4x4& world)
     return {world.rows[3].x, world.rows[3].y, world.rows[3].z};
 }
 
+// Shadows reach this far when a directional light doesn't say.
+constexpr float defaultShadowDistance = 100.0f;
+
 struct Found
 {
     uint32_t entity; // index, for a deterministic order
     LightData light;
+    ecs::Entity handle;
+    bool castsShadows;
+    float shadowReach; // directional: shadowDistance; spot: the full outer angle
 };
 
 struct Cull
@@ -91,9 +73,14 @@ void cullChunk(const ecs::ChunkView& view, void* data)
     for (size_t i = 0; i < worlds.size(); ++i)
     {
         LightData light{};
+        light.shadowView = noShadowView;
+        bool casts = false;
+        float outerAngle = 0;
         if (cull.spot)
         {
             const SpotLight& spot = ecs::readColumn<SpotLight>(view)[i];
+            casts = spot.castsShadows;
+            outerAngle = std::clamp(spot.outerConeAngle, 0.0f, 3.1f);
             const float cosInner = std::cos(std::clamp(spot.innerConeAngle, 0.0f, 3.1f) * 0.5f);
             const float cosOuter = std::cos(std::clamp(spot.outerConeAngle, 0.0f, 3.1f) * 0.5f);
             light.range = spot.range;
@@ -104,6 +91,7 @@ void cullChunk(const ecs::ChunkView& view, void* data)
         else
         {
             const PointLight& point = ecs::readColumn<PointLight>(view)[i];
+            casts = point.castsShadows;
             light.range = point.range;
             light.color = point.color * point.intensity;
             light.spotScale = 0;
@@ -126,7 +114,7 @@ void cullChunk(const ecs::ChunkView& view, void* data)
         }
         if (inside)
         {
-            out.pushBack({ecs::indexOf(entities[i]), light});
+            out.pushBack({ecs::indexOf(entities[i]), light, entities[i], casts, outerAngle});
         }
     }
 }
@@ -190,8 +178,11 @@ void destroyLightState(LightState* state)
     destroy(MemoryTag::Render, state);
 }
 
-void gatherLights(LightState& state, ecs::World* world, uint32_t frameSlot, ViewConstants& view)
+void gatherLights(LightState& state, ecs::World* world, uint32_t frameSlot, ViewConstants& view,
+                  ShadowRequests& shadows)
 {
+    shadows.sun = false;
+    shadows.lights.clear();
     // The view's near plane and the depth where its clusters end: past the
     // farthest visible light's reach, nothing needs a cluster.
     const Matrix4x4& projection = view.projection;
@@ -225,7 +216,9 @@ void gatherLights(LightState& state, ecs::World* world, uint32_t frameSlot, View
                     LightData light{};
                     light.direction = -axisOf(worlds[i].matrix);
                     light.color = suns[i].color * suns[i].intensity;
-                    found.pushBack({ecs::indexOf(entities[i]), light});
+                    light.shadowView = noShadowView;
+                    found.pushBack({ecs::indexOf(entities[i]), light, entities[i], suns[i].castsShadows,
+                                    suns[i].shadowDistance});
                 }
             },
             &state.all);
@@ -241,6 +234,20 @@ void gatherLights(LightState& state, ecs::World* world, uint32_t frameSlot, View
         for (uint32_t i = 0; i < directionalCount; ++i)
         {
             lights[i] = state.all[i].light;
+        }
+        // The brightest that casts shadows comes first, so the lighting loop
+        // knows the cascades are the first light's.
+        for (uint32_t i = 0; i < directionalCount; ++i)
+        {
+            if (state.all[i].castsShadows)
+            {
+                std::swap(lights[0], lights[i]);
+                shadows.sun = true;
+                shadows.sunDirection = lights[0].direction;
+                shadows.sunDistance =
+                    state.all[i].shadowReach > 0 ? state.all[i].shadowReach : defaultShadowDistance;
+                break;
+            }
         }
 
         // Point and spot lights the view can see, in entity order.
@@ -277,6 +284,12 @@ void gatherLights(LightState& state, ecs::World* world, uint32_t frameSlot, View
         {
             const LightData& light = state.all[i].light;
             lights[directionalCount + i] = light;
+            if (state.all[i].castsShadows)
+            {
+                const bool point = light.spotScale == 0;
+                shadows.lights.pushBack({state.all[i].handle, directionalCount + i, point, light.position,
+                                         -light.direction, light.range, state.all[i].shadowReach});
+            }
             const Vector4 viewPosition =
                 transform(Vector4{light.position.x, light.position.y, light.position.z, 1}, view.view);
             farthest = std::max(farthest, viewPosition.z + light.range);

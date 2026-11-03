@@ -63,6 +63,15 @@ BlackboardKey sceneColorKey();
 BlackboardKey lightsKey();
 BlackboardKey lightClustersKey();
 
+// The Shadows step's maps (ADR 0054), in the shadow-map depth format:
+// ShadowCascades, the sun's cascades as a 4-layer array, made each frame and
+// published only when the sun casts shadows; and ShadowAtlas, the point and
+// spot lights' tiles, kept across frames, published only while a light has
+// a tile. Shaders find them through ViewConstants' cascadeMap and
+// shadowAtlas slots (0 when not published).
+BlackboardKey shadowCascadesKey();
+BlackboardKey shadowAtlasKey();
+
 // What a step sees while it adds its graph passes for one frame.
 class RenderStepContext
 {
@@ -159,8 +168,8 @@ private:
     slag::GraphicsDevice* device = nullptr; // while the renderer runs
 };
 
-// The renderer's schedule, holding the default steps (ADR 0051, 0053):
-// DepthPrepass, LightClustering, Opaque, then Resolve.
+// The renderer's schedule, holding the default steps (ADR 0051, 0053, 0054):
+// DepthPrepass, LightClustering, Shadows, Opaque, then Resolve.
 RenderSchedule& renderSchedule();
 
 } // namespace crucible::render

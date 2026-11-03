@@ -71,6 +71,7 @@ add_library(crucible_render_objects OBJECT
     RenderAssets.cpp
     RenderSchedule.cpp
     RenderSteps.cpp
+    Shadows.cpp
     "${CRUCIBLE_GENERATED_DIR}/native/Bindings.g.cpp")
 crucible_set_compile_options(crucible_render_objects)
 target_compile_definitions(crucible_render_objects PRIVATE CRUCIBLE_CORE_EXPORTS)

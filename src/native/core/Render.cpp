@@ -72,6 +72,7 @@ struct Surface
     uint64_t graphFrames = 0;     // frames begun on the graph, for its frame slot
     DrawState* draws = nullptr;   // its transform buffers and instance lists (ADR 0051)
     LightState* lights = nullptr; // its light buffers (ADR 0053)
+    ShadowState* shadows = nullptr; // its shadow views and atlas (ADR 0054)
     uint64_t submitted = 0;       // frames submitted so far
     slag::PresentMode presentMode{};
     uint32_t width = 0;
@@ -192,6 +193,7 @@ void release(Surface& surface)
     slag::rendergraph::destroy(surface.graph);
     destroyDrawState(surface.draws);
     destroyLightState(surface.lights);
+    destroyShadowState(surface.shadows);
     for (slag::Buffer* buffer : surface.viewBuffers)
     {
         if (buffer != nullptr)
@@ -245,7 +247,8 @@ Result<void> createFrameResources(Surface& surface, uint32_t index)
 {
     surface.draws = createDrawState(8 + index * descriptorsPerSurface);
     surface.lights = createLightState(8 + index * descriptorsPerSurface);
-    if (surface.lights == nullptr)
+    surface.shadows = createShadowState(8 + index * descriptorsPerSurface);
+    if (surface.lights == nullptr || surface.shadows == nullptr)
     {
         return Status::OutOfDeviceMemory;
     }
@@ -324,13 +327,23 @@ Result<void> renderWithGraph(Surface& surface, slag::Texture* texture, slag::Att
     slag::Buffer* viewBuffer = surface.viewBuffers[frameSlot];
     const float time = std::chrono::duration<float>(std::chrono::steady_clock::now() - renderer.started).count();
     ViewConstants constants = viewConstants(world, surface.width, surface.height, time);
-    gatherLights(*surface.lights, world, frameSlot, constants);
+    ShadowRequests& requests = shadowRequests(*surface.shadows);
+    gatherLights(*surface.lights, world, frameSlot, constants, requests);
+    auto* lights = static_cast<LightData*>(lightBuffer(*surface.lights, frameSlot)->mappedData());
+    if (Result<void> prepared =
+            prepareShadows(*surface.shadows, world, requests, lights, frameSlot, constants);
+        !prepared)
+    {
+        return prepared;
+    }
     std::memcpy(viewBuffer->mappedData(), &constants, sizeof(constants));
-    Result<DrawList> draws = buildDrawList(*surface.draws, world, constants, surface.height, frameSlot, lastRunVersion);
+    Result<DrawList> draws = buildDrawList(*surface.draws, world, constants, surface.height, frameSlot, lastRunVersion,
+                                           shadowCullViews(*surface.shadows));
     if (!draws)
     {
         return draws.status();
     }
+    const ShadowFrame& shadows = finishShadows(*surface.shadows, *surface.draws, constants, frameSlot);
 
     slag::rendergraph::ImportedTextureDesc desc = import;
     desc.attachmentView = view;
@@ -338,7 +351,7 @@ Result<void> renderWithGraph(Surface& surface, slag::Texture* texture, slag::Att
     if (Result<void> added = addStepPasses({graph, *renderer.device, surface.width, surface.height,
                                             surface.submitted + 1, color, backbuffer, graph.importBuffer(viewBuffer),
                                             graph.importBuffer(lightBuffer(*surface.lights, frameSlot)), constants,
-                                            draws.value(), world, drawDescriptorBase(*surface.draws)});
+                                            draws.value(), world, drawDescriptorBase(*surface.draws), shadows});
         !added)
     {
         return added;
@@ -459,6 +472,7 @@ Result<void> initialize(slag::Backend backend, PresentPreference presentMode)
         shutdown();
         return started;
     }
+    chooseShadowFormat(*device); // before materials make their shadow pipelines
     if (Result<void> started = startMaterials(*device); !started)
     {
         std::fprintf(stderr, "crucible: materials could not start\n");

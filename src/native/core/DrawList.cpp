@@ -1,7 +1,8 @@
 // The frame's draw list (ADR 0051): mesh instances resolved to loaded models,
-// culled against the view on the job system, and grouped into instanced
-// batches; and the GPU copy of their world matrices, updated only where
-// WorldTransform changed.
+// culled against the view (and those that cast shadows against each shadow
+// view, ADR 0054) on the job system, and grouped into instanced batches; and
+// the GPU copy of their world matrices, updated only where WorldTransform
+// changed.
 
 #include "RenderInternal.h"
 
@@ -232,12 +233,6 @@ void expireModels()
 // Culling and batching
 // ---------------------------------------------------------------------------
 
-struct Plane
-{
-    Vector3 normal;
-    float distance;
-};
-
 // One frame slot's GPU data: world matrices by entity index, kept across
 // frames and brought up to date from the chunks that changed since this
 // slot last was; and the visible instances' entity indices.
@@ -254,16 +249,45 @@ struct FrameBuffers
 // What one worker (or the calling thread) found; reused frame to frame.
 struct WorkerOutput
 {
-    Vector<uint64_t> keys{MemoryTag::Render}; // per visible instance: model index, mesh, level
+    Vector<uint64_t> keys{MemoryTag::Render}; // per visible instance: view, model index, mesh, level
     Vector<uint32_t> entities{MemoryTag::Render};
     Vector<ecs::Entity> unresolved{MemoryTag::Render};
+    Vector<uint64_t> casterHashes{MemoryTag::Render}; // per shadow view
+
     uint32_t instances = 0;
     uint32_t sent = 0;
 };
 
-uint64_t batchKey(uint32_t model, uint32_t mesh, uint32_t lod)
+// View 0 is the camera, shadow views follow it. Sorting the keys groups the
+// batches by view, then model, mesh, and level.
+constexpr uint32_t maxViews = 256;
+constexpr uint32_t maxModelIndex = 1u << 24;
+
+uint64_t batchKey(uint32_t view, uint32_t model, uint32_t mesh, uint32_t lod)
 {
-    return (uint64_t{model} << 32) | (uint64_t{mesh} << 8) | lod;
+    return (uint64_t{view} << 56) | (uint64_t{model} << 32) | (uint64_t{mesh} << 8) | lod;
+}
+
+uint64_t mix(uint64_t h)
+{
+    h ^= h >> 31;
+    h *= 0xbf58476d1ce4e5b9ull;
+    return h ^ (h >> 29);
+}
+
+// A caster's share of its view's hash: added up, so the order culling finds
+// casters in doesn't matter. Its world matrix is in it, so a caster that
+// moved changes the hash, whatever else its chunk holds.
+uint64_t casterHash(uint32_t entity, uint64_t key, const Matrix4x4& world)
+{
+    uint64_t h = mix((uint64_t{entity} << 32 ^ key) * 0x9e3779b97f4a7c15ull);
+    for (int row = 0; row < 4; ++row)
+    {
+        uint32_t bits[3];
+        std::memcpy(bits, &world.rows[row], sizeof(bits));
+        h = mix(h ^ (uint64_t{bits[0]} | uint64_t{bits[1]} << 32)) + bits[2];
+    }
+    return mix(h);
 }
 
 } // namespace
@@ -277,6 +301,11 @@ struct DrawState
     Vector<uint64_t> keys{MemoryTag::Render};
     Vector<DrawBatch> batches{MemoryTag::Render};
     Vector<uint32_t> cursors{MemoryTag::Render};
+    // Each view's batches: the first, and one past the last.
+    Vector<uint32_t> viewStarts{MemoryTag::Render};
+    Vector<uint64_t> casterHashes{MemoryTag::Render};
+    uint32_t instanceSlot = 0;
+    uint32_t transformSlot = 0;
 };
 
 namespace {
@@ -291,26 +320,53 @@ struct CullJob
     Vector3 camera;
     bool orthographic;
     float pixelsPerMeter; // at distance 1 for a perspective view
+    std::span<const ShadowCullView> shadows;
     std::atomic<uint32_t> maxIndex{0};
     std::atomic<bool> overflow{false};
 };
 
-// Gribb and Hartmann's planes for row vectors: clip = p * M, so each plane is
-// a sum of M's columns. Reverse-Z: inside is 0 <= z <= w. An infinite
-// perspective's far plane comes out as 0 = near, always inside.
-std::array<Plane, 6> frustumPlanes(const Matrix4x4& m)
+bool overlaps(std::span<const Plane> planes, Vector3 center, Vector3 extent)
 {
-    auto column = [&](int j) {
-        return Vector4{m.rows[0][j], m.rows[1][j], m.rows[2][j], m.rows[3][j]};
-    };
-    const Vector4 x = column(0), y = column(1), z = column(2), w = column(3);
-    const Vector4 sums[6] = {w + x, w - x, w + y, w - y, w - z, z};
-    std::array<Plane, 6> planes{};
-    for (int i = 0; i < 6; ++i)
+    for (const Plane& plane : planes)
     {
-        planes[i] = {{sums[i].x, sums[i].y, sums[i].z}, sums[i].w};
+        const float reach = std::fabs(plane.normal.x) * extent.x + std::fabs(plane.normal.y) * extent.y +
+                            std::fabs(plane.normal.z) * extent.z;
+        if (dot(plane.normal, center) + plane.distance + reach < 0)
+        {
+            return false;
+        }
     }
-    return planes;
+    return true;
+}
+
+// The coarsest level whose error, in pixels (or shadow-map texels), stays
+// under the limit.
+uint32_t levelOf(const MeshData& model, const assets::MeshEntry& mesh, const Matrix4x4& world, Vector3 center,
+                 Vector3 extent, bool orthographic, Vector3 eye, float pixelsPerMeter)
+{
+    uint32_t lod = 0;
+    if (mesh.lodCount <= 1)
+    {
+        return lod;
+    }
+    float scale = 0;
+    for (int axis = 0; axis < 3; ++axis)
+    {
+        const Vector4 row = world.rows[axis];
+        scale = std::max(scale, row.x * row.x + row.y * row.y + row.z * row.z);
+    }
+    scale = std::sqrt(scale);
+    float pixels = pixelsPerMeter * scale;
+    if (!orthographic)
+    {
+        const float radius = length(extent);
+        pixels /= std::max(length(center - eye) - radius, 1e-3f);
+    }
+    while (lod + 1 < mesh.lodCount && model.lods[mesh.lodOffset + lod + 1].error * pixels <= lodPixelError)
+    {
+        ++lod;
+    }
+    return lod;
 }
 
 void writeTransform(InstanceTransform& out, const Matrix4x4& m)
@@ -366,7 +422,7 @@ void cullChunk(const ecs::ChunkView& view, void* data)
             std::atomic_ref<uint64_t>(cache.lastBuild[handle.index]).store(cache.build, std::memory_order_relaxed);
         }
         const int32_t meshIndex = instances[i].mesh;
-        if (meshIndex < 0 || static_cast<size_t>(meshIndex) >= model->meshes.size())
+        if (meshIndex < 0 || static_cast<size_t>(meshIndex) >= model->meshes.size() || handle.index >= maxModelIndex)
         {
             continue;
         }
@@ -388,46 +444,31 @@ void cullChunk(const ecs::ChunkView& view, void* data)
             const float e = localExtent[axis];
             extent = extent + Vector3{std::fabs(row.x) * e, std::fabs(row.y) * e, std::fabs(row.z) * e};
         }
-        bool inside = true;
-        for (const Plane& plane : job.planes)
+        if (overlaps(job.planes, center, extent))
         {
-            const float reach = std::fabs(plane.normal.x) * extent.x + std::fabs(plane.normal.y) * extent.y +
-                                std::fabs(plane.normal.z) * extent.z;
-            if (dot(plane.normal, center) + plane.distance + reach < 0)
-            {
-                inside = false;
-                break;
-            }
+            const uint32_t lod =
+                levelOf(*model, mesh, world, center, extent, job.orthographic, job.camera, job.pixelsPerMeter);
+            out.keys.pushBack(batchKey(0, handle.index, static_cast<uint32_t>(meshIndex), lod));
+            out.entities.pushBack(index);
         }
-        if (!inside)
+        if (instances[i].noShadows)
         {
             continue;
         }
-
-        // The coarsest level whose error, in pixels, stays under the limit.
-        uint32_t lod = 0;
-        if (mesh.lodCount > 1)
+        for (size_t v = 0; v < job.shadows.size(); ++v)
         {
-            float scale = 0;
-            for (int axis = 0; axis < 3; ++axis)
+            const ShadowCullView& shadow = job.shadows[v];
+            if (!overlaps(std::span(shadow.planes.data(), shadow.planeCount), center, extent))
             {
-                const Vector4 row = world.rows[axis];
-                scale = std::max(scale, row.x * row.x + row.y * row.y + row.z * row.z);
+                continue;
             }
-            scale = std::sqrt(scale);
-            float pixels = job.pixelsPerMeter * scale;
-            if (!job.orthographic)
-            {
-                const float radius = length(extent);
-                pixels /= std::max(length(center - job.camera) - radius, 1e-3f);
-            }
-            while (lod + 1 < mesh.lodCount && model->lods[mesh.lodOffset + lod + 1].error * pixels <= lodPixelError)
-            {
-                ++lod;
-            }
+            const uint32_t lod = levelOf(*model, mesh, world, center, extent, shadow.orthographic, shadow.eye,
+                                         shadow.pixelsPerMeter);
+            const uint64_t key = batchKey(static_cast<uint32_t>(v) + 1, handle.index, static_cast<uint32_t>(meshIndex), lod);
+            out.keys.pushBack(key);
+            out.entities.pushBack(index);
+            out.casterHashes[v] += casterHash(index, key & ~(uint64_t{0xff} << 56), world);
         }
-        out.keys.pushBack(batchKey(handle.index, static_cast<uint32_t>(meshIndex), lod));
-        out.entities.pushBack(index);
     }
 }
 
@@ -495,7 +536,8 @@ Result<void> ensureInstances(DrawState& state, uint32_t frameSlot, uint32_t capa
     return {};
 }
 
-Result<void> cull(DrawState& state, ecs::World& world, const ViewConstants& view, uint32_t height, uint32_t frameSlot)
+Result<void> cull(DrawState& state, ecs::World& world, const ViewConstants& view, uint32_t height, uint32_t frameSlot,
+                  std::span<const ShadowCullView> shadows)
 {
     FrameBuffers& frame = state.frames[frameSlot];
     if (Result<void> made = ensureTransforms(state, frameSlot, initialTransformCapacity); !made)
@@ -513,6 +555,8 @@ Result<void> cull(DrawState& state, ecs::World& world, const ViewConstants& view
             out->keys.clear();
             out->entities.clear();
             out->unresolved.clear();
+            out->casterHashes.clear();
+            out->casterHashes.resize(shadows.size());
             out->instances = 0;
             out->sent = 0;
         }
@@ -523,7 +567,8 @@ Result<void> cull(DrawState& state, ecs::World& world, const ViewConstants& view
                     .planes = frustumPlanes(view.viewProjection),
                     .camera = view.cameraPosition,
                     .orthographic = orthographic,
-                    .pixelsPerMeter = view.projection.rows[1].y * static_cast<float>(height) * 0.5f};
+                    .pixelsPerMeter = view.projection.rows[1].y * static_cast<float>(height) * 0.5f,
+                    .shadows = shadows};
         ecs::parallelForEachChunk(*query, cullChunk, &job);
         if (!job.overflow.load())
         {
@@ -540,15 +585,25 @@ Result<void> cull(DrawState& state, ecs::World& world, const ViewConstants& view
     ecs::destroyQuery(query);
     frame.synced = ecs::currentVersion(world);
     frame.valid = true;
+    state.casterHashes.clear();
+    state.casterHashes.resize(shadows.size());
+    for (const WorkerOutput* out : state.workers)
+    {
+        for (size_t v = 0; v < shadows.size(); ++v)
+        {
+            state.casterHashes[v] += out->casterHashes[v];
+        }
+    }
     return {};
 }
 
-Result<void> batch(DrawState& state, uint32_t frameSlot)
+Result<void> batch(DrawState& state, uint32_t frameSlot, uint32_t viewCount)
 {
-    // The distinct keys, in order: batches by model, mesh, then level.
+    // The distinct keys, in order: batches by view, model, mesh, then level.
     state.batchOf.clear();
     state.keys.clear();
-    uint32_t visible = 0;
+    uint32_t total = 0;
+    uint32_t visible = 0; // the camera's
     for (const WorkerOutput* out : state.workers)
     {
         for (uint64_t key : out->keys)
@@ -557,16 +612,20 @@ Result<void> batch(DrawState& state, uint32_t frameSlot)
             {
                 state.keys.pushBack(key);
             }
+            visible += (key >> 56) == 0 ? 1 : 0;
         }
-        visible += static_cast<uint32_t>(out->keys.size());
+        total += static_cast<uint32_t>(out->keys.size());
     }
     std::sort(state.keys.data(), state.keys.data() + state.keys.size());
     state.batches.clear();
     state.cursors.clear();
+    state.viewStarts.clear();
+    state.viewStarts.resize(viewCount + 1);
     for (uint64_t key : state.keys)
     {
         *state.batchOf.find(key) = static_cast<uint32_t>(state.batches.size());
-        const uint32_t modelIndex = static_cast<uint32_t>(key >> 32);
+        ++state.viewStarts[(key >> 56) + 1];
+        const uint32_t modelIndex = static_cast<uint32_t>((key >> 32) & (maxModelIndex - 1));
         state.batches.pushBack({.model = meshDataAt(modelIndex),
                                 .mesh = static_cast<uint32_t>((key >> 8) & 0xffffff),
                                 .lod = static_cast<uint32_t>(key & 0xff),
@@ -580,6 +639,10 @@ Result<void> batch(DrawState& state, uint32_t frameSlot)
             ++state.batches[*state.batchOf.find(key)].instanceCount;
         }
     }
+    for (uint32_t v = 0; v < viewCount; ++v)
+    {
+        state.viewStarts[v + 1] += state.viewStarts[v];
+    }
     uint32_t first = 0;
     for (size_t b = 0; b < state.batches.size(); ++b)
     {
@@ -588,7 +651,7 @@ Result<void> batch(DrawState& state, uint32_t frameSlot)
         first += state.batches[b].instanceCount;
     }
 
-    if (Result<void> made = ensureInstances(state, frameSlot, std::max(visible, initialInstanceCapacity)); !made)
+    if (Result<void> made = ensureInstances(state, frameSlot, std::max(total, initialInstanceCapacity)); !made)
     {
         return made;
     }
@@ -641,13 +704,22 @@ void destroyDrawState(DrawState* state)
 }
 
 Result<DrawList> buildDrawList(DrawState& state, ecs::World* world, const ViewConstants& view, uint32_t height,
-                               uint32_t frameSlot, uint32_t lastRunVersion)
+                               uint32_t frameSlot, uint32_t lastRunVersion,
+                               std::span<const ShadowCullView> shadowViews)
 {
     const Clock::time_point started = Clock::now();
     stats = {};
     state.batches.clear();
+    state.viewStarts.clear();
+    state.casterHashes.clear();
     const uint32_t slots[2] = {state.descriptorBase + instancesDescriptor + frameSlot,
                                state.descriptorBase + transformsDescriptor + frameSlot};
+    state.instanceSlot = slots[0];
+    state.transformSlot = slots[1];
+    if (shadowViews.size() >= maxViews)
+    {
+        shadowViews = shadowViews.first(maxViews - 1);
+    }
     const bool registered = ecs::componentIdOf<MeshInstance> != ecs::invalidComponent &&
                             ecs::componentIdOf<WorldTransform> != ecs::invalidComponent;
     if (world == nullptr || !registered)
@@ -670,11 +742,11 @@ Result<DrawList> buildDrawList(DrawState& state, ecs::World* world, const ViewCo
 
     resolveInstances(*world, lastRunVersion);
     ++cache.build;
-    if (Result<void> culled = cull(state, *world, view, height, frameSlot); !culled)
+    if (Result<void> culled = cull(state, *world, view, height, frameSlot, shadowViews); !culled)
     {
         return culled.status();
     }
-    if (Result<void> batched = batch(state, frameSlot); !batched)
+    if (Result<void> batched = batch(state, frameSlot, static_cast<uint32_t>(shadowViews.size()) + 1); !batched)
     {
         return batched.status();
     }
@@ -692,7 +764,23 @@ Result<DrawList> buildDrawList(DrawState& state, ecs::World* world, const ViewCo
     stats.cachedModels = static_cast<uint32_t>(cache.models.size());
     stats.cpuNs =
         static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now() - started).count());
-    return DrawList{state.batches.span(), slots[0], slots[1]};
+    return DrawList{state.batches.span().first(state.viewStarts[1]), slots[0], slots[1]};
+}
+
+DrawList shadowDrawList(const DrawState& state, uint32_t index)
+{
+    if (size_t{index} + 2 >= state.viewStarts.size())
+    {
+        return DrawList{{}, state.instanceSlot, state.transformSlot};
+    }
+    const uint32_t begin = state.viewStarts[index + 1];
+    const uint32_t end = state.viewStarts[index + 2];
+    return DrawList{state.batches.span().subspan(begin, end - begin), state.instanceSlot, state.transformSlot};
+}
+
+uint64_t shadowCasterHash(const DrawState& state, uint32_t index)
+{
+    return index < state.casterHashes.size() ? state.casterHashes[index] : 0;
 }
 
 void stopDrawing()

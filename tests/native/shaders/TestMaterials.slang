@@ -101,7 +101,7 @@ public struct LambertShading : IShadingModel
 
     public static void light(inout Accumulator a, LightSample light)
     {
-        a.color += a.albedo * light.color * saturate(dot(a.normal, light.direction));
+        a.color += a.albedo * light.color * (saturate(dot(a.normal, light.direction)) * light.shadow);
     }
 
     public static void ambient(inout Accumulator a, AmbientSample ambient)

@@ -79,7 +79,11 @@ public class TransformTests
         world.Set(lamp, new SpotLight
         {
             Color = new Vector3(1, 0.5f, 0.25f), Intensity = 4, Range = 6, InnerConeAngle = 0.3f, OuterConeAngle = 0.6f,
+            CastsShadows = true,
         });
+        Entity sun = world.CreateEntity(Components.Of<LocalTransform>(), Components.Of<DirectionalLight>());
+        world.Set(sun, LocalTransform.Identity);
+        world.Set(sun, new DirectionalLight { Color = Vector3.One, Intensity = 1, CastsShadows = true, ShadowDistance = 60 });
         Entity sky = world.CreateEntity(Components.Of<AmbientLight>());
         world.Set(sky, new AmbientLight { SkyColor = new Vector3(0.4f, 0.5f, 0.7f), GroundColor = new Vector3(0.2f), Intensity = 1 });
 
@@ -87,6 +91,10 @@ public class TransformTests
         SceneLoad load = Scene.Load(loaded, Scene.Save(world, _sceneId));
         Entity spot = load.Roots.Single(root => loaded.Has(root, Components.Of<SpotLight>()));
         await Assert.That(loaded.Read<SpotLight>(spot).OuterConeAngle).IsEqualTo(0.6f);
+        await Assert.That(loaded.Read<SpotLight>(spot).CastsShadows).IsTrue();
+        Entity directional = load.Roots.Single(root => loaded.Has(root, Components.Of<DirectionalLight>()));
+        await Assert.That(loaded.Read<DirectionalLight>(directional).CastsShadows).IsTrue();
+        await Assert.That(loaded.Read<DirectionalLight>(directional).ShadowDistance).IsEqualTo(60f);
         Entity ambient = load.Roots.Single(root => loaded.Has(root, Components.Of<AmbientLight>()));
         await Assert.That(loaded.Read<AmbientLight>(ambient).SkyColor).IsEqualTo(new Vector3(0.4f, 0.5f, 0.7f));
     }

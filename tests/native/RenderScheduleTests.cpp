@@ -61,10 +61,10 @@ TEST_CASE("Render steps are edited by name")
     CHECK(names(schedule) == std::vector<std::string>{"Opaque", "Clouds", "Post"});
 }
 
-TEST_CASE("The renderer starts with DepthPrepass then LightClustering then Opaque then Resolve")
+TEST_CASE("The renderer starts with DepthPrepass then LightClustering then Shadows then Opaque then Resolve")
 {
     CHECK(names(render::renderSchedule()) ==
-          std::vector<std::string>{"DepthPrepass", "LightClustering", "Opaque", "Resolve"});
+          std::vector<std::string>{"DepthPrepass", "LightClustering", "Shadows", "Opaque", "Resolve"});
 }
 
 TEST_CASE("Blackboard keys are registered once by name")

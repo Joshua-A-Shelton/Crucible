@@ -214,6 +214,10 @@ void destroyPipelines(MaterialPipelines& pipelines)
     {
         state.device->destroy(pipelines.forward);
     }
+    if (pipelines.shadow != nullptr)
+    {
+        state.device->destroy(pipelines.shadow);
+    }
     pipelines = {};
 }
 
@@ -276,12 +280,25 @@ std::string_view typeName(const GameShader& shader, uint32_t type, uint32_t* siz
     return {reinterpret_cast<const char*>(types.data()) + info.nameOffset, info.nameLength};
 }
 
+// Shadow maps (ADR 0054): conventional depth, nearer is less. Depth is
+// clamped rather than clipped, so casters between the light and a cascade
+// still cast, and biased by the surface's slope against shadow acne.
+constexpr slag::DepthStencilState shadowDepth{
+    .depthTest = true, .depthWrite = true, .depthCompareOp = slag::CompareOp::LessEqual};
+constexpr float shadowDepthBias = 2.0f;
+constexpr float shadowSlopeBias = 2.0f;
+
 Result<void> createPipelines(const PipelineKey& key, MaterialPipelines& out)
 {
     const uint32_t samples = msaaSamples();
     // Clockwise front faces (ADR 0024); double-sided materials cull nothing.
     const slag::RasterizerState rasterizer{.cullMode = key.doubleSided ? slag::CullMode::None : slag::CullMode::Back,
                                            .frontCounterClockwise = false};
+    slag::RasterizerState shadowRasterizer = rasterizer;
+    shadowRasterizer.depthBias = shadowDepthBias;
+    shadowRasterizer.depthBiasSlopeScale = shadowSlopeBias;
+    shadowRasterizer.depthClip = false;
+    const slag::PixelFormat shadows = shadowFormat();
     if (!isZero(key.shader))
     {
         GameShader* const* found = state.shaders.find(key.shader);
@@ -326,7 +343,27 @@ Result<void> createPipelines(const PipelineKey& key, MaterialPipelines& out)
             state.device->destroy(depth.value());
             return forward.status();
         }
-        out = {depth.value(), forward.value()};
+        out = {depth.value(), forward.value(), nullptr};
+        if (shadows != slag::PixelFormat::Undefined)
+        {
+            Result<slag::Pipeline*> shadow =
+                key.mask ? createGamePipeline(file, "materialVertex", maskEntry,
+                                              {.rasterizer = shadowRasterizer,
+                                               .depthStencil = shadowDepth,
+                                               .depthStencilFormat = shadows,
+                                               .debugName = "Shadows (alpha-tested)"})
+                         : createPipeline("mesh", "depthVertex", nullptr,
+                                          {.rasterizer = shadowRasterizer,
+                                           .depthStencil = shadowDepth,
+                                           .depthStencilFormat = shadows,
+                                           .debugName = "Shadows"});
+            if (!shadow)
+            {
+                destroyPipelines(out);
+                return shadow.status();
+            }
+            out.shadow = shadow.value();
+        }
         return {};
     }
     // Reverse-Z (ADR 0050): nearer is greater.
@@ -368,7 +405,26 @@ Result<void> createPipelines(const PipelineKey& key, MaterialPipelines& out)
         state.device->destroy(depth.value());
         return forward.status();
     }
-    out = {depth.value(), forward.value()};
+    out = {depth.value(), forward.value(), nullptr};
+    if (shadows != slag::PixelFormat::Undefined)
+    {
+        Result<slag::Pipeline*> shadow = key.mask ? createPipeline("default", "materialVertex", "maskPixel",
+                                                                   {.rasterizer = shadowRasterizer,
+                                                                    .depthStencil = shadowDepth,
+                                                                    .depthStencilFormat = shadows,
+                                                                    .debugName = "Shadows (alpha-tested)"})
+                                                  : createPipeline("mesh", "depthVertex", nullptr,
+                                                                   {.rasterizer = shadowRasterizer,
+                                                                    .depthStencil = shadowDepth,
+                                                                    .depthStencilFormat = shadows,
+                                                                    .debugName = "Shadows"});
+        if (!shadow)
+        {
+            destroyPipelines(out);
+            return shadow.status();
+        }
+        out.shadow = shadow.value();
+    }
     return {};
 }
 

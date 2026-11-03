@@ -20,8 +20,8 @@ is, and record which version fixed it.
 ## Needs a decision from the project owner
 
 - Final names of the default phases (the list is ADR 0036's). → 0013, 0036 [M3]
-- Renderer details: shadows; lighting and ambient light; post-processing
-  and the post-tonemap MSAA resolve; outlines. → 0015 [M5]
+- Renderer details: post-processing and the post-tonemap MSAA resolve;
+  outlines. → 0015 [M5]
 - The C# rendering (batched command) API. → 0015 [M6]
 - C++ runtime extension mechanism (not plugins; C++ never extends the
   editor). → 0002 [M7]
@@ -32,6 +32,14 @@ is, and record which version fixed it.
   [when each is added]
 
 ## Revisit once there is a prototype to test against
+
+- Shadows after step 8 (ADR 0054): when the atlas is full, a light goes
+  without shadows that frame (nothing reports it); bias and normal offset
+  are fixed, not per light; the tile cache doesn't notice a material or
+  model changing under the same handle (clear it on hot reload, M7); a
+  debug view of the cascades and the atlas would help tuning; one-sided
+  meshes cast only from their front. Measure the shadow passes on Steam
+  Deck at step 10. → 0054
 
 - Lighting after step 7 (ADR 0053): lights past a cluster's 64 are dropped
   silently (count them in debug, or raise the cap if scenes need it);
