@@ -49,7 +49,8 @@ Project project = Project.Open(Path.Combine(work, Path.GetFileName(source)));
 Console.WriteLine($"Project: {project.Root}");
 
 // 2. Import everything, one asset at a time to time each.
-AssetDatabase database = AssetDatabase.Open(project, [new TextureImporter(), new MeshImporter(), new FbxImporter()]);
+AssetDatabase database =
+    AssetDatabase.Open(project, [new TextureImporter(), new MeshImporter(), new FbxImporter(), new ShaderImporter()]);
 Console.WriteLine();
 Console.WriteLine("Imports:");
 foreach (AssetEntry entry in database.Assets.Where(entry => entry.Importer.Length > 0))

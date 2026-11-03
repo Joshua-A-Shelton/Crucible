@@ -43,14 +43,41 @@ struct SharedField
     uint32_t columns;
 };
 
-struct CompiledShader;
+struct CRUCIBLE_EXPOSE CompiledShader;
+
+// A section of the SHDR file, for C# to write (the Shader importer).
+struct CRUCIBLE_EXPOSE ShaderSectionInfo
+{
+    uint32_t tag;
+    uint32_t version;
+    uint64_t size;
+};
 
 // Compiles one module. InvalidData with Slang's diagnostics in
 // lastImportError() if it doesn't compile, uses a type a shared struct can't
 // hold, or lays a shared struct out differently anywhere.
 Result<CompiledShader*> compileShader(std::string_view path, std::string_view source,
                                       const ShaderCompileOptions& options);
-void destroyCompiledShader(CompiledShader* shader);
+CRUCIBLE_EXPOSE_INTERNAL void destroyCompiledShader(CompiledShader* shader);
+
+// A material shader (ADR 0052): the module, and for every struct it declares
+// that implements IMaterial, entry points specialized for it
+// ("<name>_forward", "<name>_mask", and one "materialVertex") and its
+// parameters' layout and defaults (the file's MTYP section, MaterialFile.h).
+// searchPaths: newline-separated; formats: comma-separated (dxil, spirv).
+CRUCIBLE_EXPOSE_INTERNAL Result<CompiledShader*> compileMaterialShader(std::string_view path, std::string_view source,
+                                                                       std::string_view searchPaths,
+                                                                       std::string_view formats);
+
+// The SHDR file's sections, for writing it elsewhere.
+CRUCIBLE_EXPOSE_INTERNAL uint32_t compiledSectionCount(CompiledShader& shader);
+CRUCIBLE_EXPOSE_INTERNAL ShaderSectionInfo compiledSection(CompiledShader& shader, uint32_t index);
+CRUCIBLE_EXPOSE_INTERNAL void copyCompiledSection(CompiledShader& shader, uint32_t index,
+                                                  std::span<uint8_t> destination);
+
+// The files the module read (its imports), as Slang found them.
+CRUCIBLE_EXPOSE_INTERNAL uint32_t compiledDependencyCount(const CompiledShader& shader);
+CRUCIBLE_EXPOSE_INTERNAL std::string_view compiledDependency(const CompiledShader& shader, uint32_t index);
 
 uint32_t compiledEntryCount(const CompiledShader& shader);
 std::string_view compiledEntryName(const CompiledShader& shader, uint32_t index);
@@ -64,6 +91,6 @@ uint32_t sharedStructSize(const CompiledShader& shader, uint32_t index);
 std::span<const SharedField> sharedStructFields(const CompiledShader& shader, uint32_t index);
 
 // Slang's warnings, if it had any.
-std::string_view compileWarnings(const CompiledShader& shader);
+CRUCIBLE_EXPOSE_INTERNAL std::string_view compileWarnings(const CompiledShader& shader);
 
 } // namespace crucible::importers

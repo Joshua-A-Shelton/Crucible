@@ -76,15 +76,38 @@ public sealed class ImportContext : IDisposable
     private readonly string _assetsFolder;
     private readonly SortedDictionary<string, string> _dependencies = new(StringComparer.Ordinal);
     private readonly Func<string, AssetId> _idOf;
+    private readonly Func<AssetId, (string Path, string Imported, IReadOnlyCollection<string> Dependencies)?> _imported;
     private readonly List<string> _warnings = [];
     private ImportedFileWriter? _output;
 
-    internal ImportContext(AssetId asset, string assetPath, string assetsFolder, Func<string, AssetId> idOf)
+    internal ImportContext(AssetId asset, string assetPath, string assetsFolder, Func<string, AssetId> idOf,
+        Func<AssetId, (string Path, string Imported, IReadOnlyCollection<string> Dependencies)?>? imported = null)
     {
         Asset = asset;
         AssetPath = assetPath;
         _assetsFolder = assetsFolder;
         _idOf = idOf;
+        _imported = imported ?? (_ => null);
+    }
+
+    /// <summary>
+    /// Another asset's imported file (a material's shader), imported first if
+    /// it needs it, or null if there is no such asset or it doesn't import.
+    /// The asset and what it depends on become this import's dependencies:
+    /// changing them reimports this one.
+    /// </summary>
+    public byte[]? ReadImported(AssetId id)
+    {
+        if (_imported(id) is not { } found)
+        {
+            return null;
+        }
+        ReadDependency(found.Path);
+        foreach (string dependency in found.Dependencies)
+        {
+            ReadDependency(dependency);
+        }
+        return File.ReadAllBytes(found.Imported);
     }
 
     /// <summary>
@@ -135,6 +158,28 @@ public sealed class ImportContext : IDisposable
     public string SourcePath => AssetDatabase.FullPath(_assetsFolder, AssetPath);
 
     public byte[] ReadSource() => File.ReadAllBytes(SourcePath);
+
+    /// <summary>The project's <c>Assets/</c> folder, for tools that look beside the source (shader imports).</summary>
+    public string AssetsFolder => _assetsFolder;
+
+    /// <summary>
+    /// Writes C# into the game's code (<c>Code/</c>, at
+    /// <paramref name="codePath"/>, '/' separators), unless it's already
+    /// there unchanged: what the game builds against, checked in like any
+    /// source (the Shader importer's material types, ADR 0052).
+    /// </summary>
+    public void WriteGeneratedSource(string codePath, string text)
+    {
+        string root = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(_assetsFolder))!, "Code");
+        string path = AssetDatabase.FullPath(root, codePath);
+        byte[] bytes = System.Text.Encoding.UTF8.GetBytes(text);
+        if (File.Exists(path) && File.ReadAllBytes(path).AsSpan().SequenceEqual(bytes))
+        {
+            return;
+        }
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        Files.WriteAtomically(path, bytes);
+    }
 
     /// <summary>
     /// Reads another file inside <c>Assets/</c> (a glTF's buffers, say) and

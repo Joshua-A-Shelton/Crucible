@@ -19,6 +19,12 @@
 namespace crucible::assets {
 
 inline constexpr uint32_t meshMaterialsTag = binary::tag("MTLS");
+// A MESH file's slots remapped to authored materials (M5 step 6b): a 16-byte
+// asset ID per slot, all zero for a slot that keeps its generated material.
+inline constexpr uint32_t meshRemappedMaterialsTag = binary::tag("MRMP");
+// A .crmat file: kind MATR, one record in an MTLS section.
+inline constexpr uint32_t materialFileKind = binary::tag("MATR");
+inline constexpr uint32_t materialFileVersion = 1;
 
 enum class CRUCIBLE_EXPOSE AlphaMode : uint32_t
 {
@@ -44,6 +50,44 @@ struct CRUCIBLE_EXPOSE MaterialTexture
 {
     uint32_t offset;     // the TextureSlot's byte offset in the parameters
     uint8_t texture[16]; // the texture's asset ID
+};
+
+// A material shader's types (M5 step 6b): the MTYP section of its .crshader,
+// which the Shader importer writes from Slang's reflection. The section
+// holds a uint32_t type count and parameter count, the MaterialTypeInfos,
+// the MaterialParameters, then each type's default parameter bytes and the
+// names; offsets are from the section's start. A type's entry points are
+// "<name>_forward" and "<name>_mask", beside the shared "materialVertex".
+inline constexpr uint32_t shaderMaterialTypesTag = binary::tag("MTYP");
+
+enum class CRUCIBLE_EXPOSE MaterialParameterKind : uint32_t
+{
+    Float,
+    Int,
+    Uint,
+    Texture, // a TextureSlot: the texture's resource-heap slot
+};
+
+struct CRUCIBLE_EXPOSE MaterialTypeInfo
+{
+    uint32_t nameOffset;
+    uint32_t nameLength;
+    uint32_t size; // the parameters' bytes
+    uint32_t firstParameter;
+    uint32_t parameterCount;
+    uint32_t defaultsOffset; // `size` bytes: field initializers, zero elsewhere
+};
+
+struct CRUCIBLE_EXPOSE MaterialParameter
+{
+    uint32_t nameOffset;
+    uint32_t nameLength;
+    uint32_t offset; // in the parameters
+    MaterialParameterKind kind;
+    uint32_t rows;        // 4 for a float4x4, else 1
+    uint32_t columns;     // 1 for a scalar, 2-4 for a vector, 4 for a float4x4
+    uint32_t arrayLength; // 0: not an array
+    uint32_t arrayStride; // bytes between elements
 };
 
 // The engine's material types, MaterialInfo::type when shader is all zero.

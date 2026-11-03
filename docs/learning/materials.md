@@ -1,6 +1,6 @@
 # Materials
 
-A learning note for M5 step 6a (ADR 0052): how a surface's look is split
+A learning note for M5 step 6 (ADR 0052): how a surface's look is split
 between what it is and how light treats it.
 
 ## Three pieces
@@ -57,3 +57,34 @@ cut them too, or it would write depth where nothing is drawn and hide
 what's behind. So alpha-tested materials run their surface in the prepass
 (`maskPixel`) and discard below the cutoff. Opaque materials keep the
 cheaper positions-only shader.
+
+## A game's own materials
+
+A material shader is a `.slang` file in `Assets/`. Importing it does three
+things:
+
+1. **Finds the materials.** Every struct that implements `IMaterial` is
+   one. Slang's reflection reports their fields, where each sits in memory,
+   and their initializers (the defaults).
+2. **Writes their entry points.** The engine's forward and depth functions
+   are generic (`materialForward<M>`). The importer writes a tiny module
+   that names each material type in them, and Slang compiles one variant
+   per type.
+3. **Writes C#.** Each material type gets a struct with the same fields at
+   the same offsets, so game code can fill one and hand it to the renderer
+   (`RenderAssets.SetMaterial`). It's checked in with the game, so building
+   the game never needs the shader compiler.
+
+A `.crmaterial` file then picks a shader and type and sets values by name.
+Its import lays them out exactly as the GPU will read them, so loading a
+material is a copy. Models point their slots at such files in their
+import settings.
+
+## Changing a material while frames are in flight
+
+The GPU may still be drawing last frame with a material while the CPU
+changes it. Writing over the values in place could give that frame half
+old, half new values. So a change writes a fresh copy elsewhere in the
+material buffer and points the material at it. The old copy is freed only
+once every frame that could read it is done: the same rule as unloading a
+texture.

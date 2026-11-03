@@ -120,7 +120,8 @@ struct MaterialPipelines
 struct MaterialDraw
 {
     const MaterialPipelines* pipelines;
-    uint32_t offset; // the parameters' byte offset in the material buffer
+    uint32_t offset;   // the parameters' byte offset in the material buffer
+    float alphaCutoff; // 0 unless alpha-tested
 };
 Result<void> startMaterials(slag::GraphicsDevice& device);
 void stopMaterials();
@@ -132,6 +133,11 @@ void destroyMaterial(MaterialHandle material);
 MaterialDraw materialDraw(MaterialHandle material);
 // After the sample count changes.
 Result<void> rebuildMaterialPipelines();
+// Record `index` of an MTLS section (MaterialFile.h).
+Result<MaterialHandle> createMaterialFromRecords(std::span<const uint8_t> section, uint32_t index);
+// An asset's bytes through the reader (RenderAssets.cpp): NotFound if it has
+// none, Unsupported without a reader.
+Status readAsset(const assets::AssetId& id, Vector<uint8_t>& out);
 // A loaded model's materials, one per slot, by its handle's index.
 std::span<const MaterialHandle> modelMaterials(uint32_t meshIndex);
 // The last value of the work semaphore signalled (RenderAssets.cpp).

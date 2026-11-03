@@ -19,6 +19,7 @@
 
 #include <cstdint>
 #include <span>
+#include <string_view>
 
 namespace slag {
 class Buffer;
@@ -90,6 +91,21 @@ CRUCIBLE_EXPOSE Result<MeshHandle> loadMesh(std::span<const uint8_t> bytes);
 CRUCIBLE_EXPOSE void unloadMesh(MeshHandle mesh);
 CRUCIBLE_EXPOSE Result<TextureHandle> loadTexture(std::span<const uint8_t> bytes);
 CRUCIBLE_EXPOSE void unloadTexture(TextureHandle texture);
+
+// Authored materials (.crmat, ADR 0052), by asset ID: acquire loads on first
+// use (with its shader and textures) and counts uses; release unloads after
+// the last. NotFound if the reader has no such asset; InvalidData if its
+// bytes aren't a material, or don't match its shader (reimport it).
+CRUCIBLE_EXPOSE Result<MaterialHandle> acquireMaterial(assets::AssetId material);
+CRUCIBLE_EXPOSE void releaseMaterial(MaterialHandle material);
+// Replaces a material's parameters, laid out as its shader's material type
+// (C#: the generated struct). Frames in flight keep the old values.
+// InvalidData if the size differs from the type's.
+CRUCIBLE_EXPOSE Result<void> setMaterialParameters(MaterialHandle material, std::span<const uint8_t> parameters);
+// What a material is, for C#'s check that a struct matches: its shader's
+// asset ID (zero for the engine's) and its type's name.
+CRUCIBLE_EXPOSE_INTERNAL assets::AssetId materialShader(MaterialHandle material);
+CRUCIBLE_EXPOSE_INTERNAL std::string_view materialTypeName(MaterialHandle material);
 
 // The texture's slot in the resource heap, which shaders read it through
 // (ResourceDescriptorHeap[slot]); 0 for a stale handle.

@@ -5,12 +5,14 @@
 #include "RenderInternal.h"
 #include "TestModels.h"
 
+#include <crucible/BinaryFile.h>
 #include <crucible/Camera.h>
 #include <crucible/Ecs.h>
 #include <crucible/MaterialFile.h>
 #include <crucible/MeshInstance.h>
 #include <crucible/Platform.h>
 #include <crucible/Render.h>
+#include <crucible/Shader.h>
 #include <crucible/Transform.h>
 
 #include <doctest/doctest.h>
@@ -18,6 +20,9 @@
 
 #include <cmath>
 #include <cstdlib>
+#include <fstream>
+#include <iterator>
+#include <string>
 #include <vector>
 
 using namespace crucible;
@@ -27,6 +32,11 @@ using crucible::scenes::LocalTransform;
 using crucible::scenes::WorldTransform;
 using crucible::test::Bgra;
 using crucible::test::QuadOptions;
+
+uint32_t shaderFileKind()
+{
+    return render::shaderFileKind;
+}
 
 namespace {
 
@@ -50,6 +60,78 @@ Quaternion tiltFor(float target)
         }
     }
     return Quaternion::fromAxisAngle({1, 0, 0}, best);
+}
+
+std::vector<uint8_t> readFile(const std::string& path)
+{
+    std::ifstream file(path, std::ios::binary);
+    return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+}
+
+// A material shader's first type, from its MTYP section: its defaults and
+// the offsets of its named parameters.
+struct TypeLayout
+{
+    std::vector<uint8_t> defaults;
+    std::vector<std::pair<std::string, uint32_t>> offsets;
+
+    uint32_t offsetOf(const std::string& name) const
+    {
+        for (const auto& [parameter, offset] : offsets)
+        {
+            if (parameter == name)
+            {
+                return offset;
+            }
+        }
+        FAIL("no parameter " << name);
+        return 0;
+    }
+};
+
+TypeLayout firstType(const std::vector<uint8_t>& shader)
+{
+    Result<binary::File*> file = binary::parseFile(shader, shaderFileKind(), 1);
+    REQUIRE(file);
+    const int32_t index = binary::findSection(*file.value(), assets::shaderMaterialTypesTag);
+    REQUIRE(index >= 0);
+    std::vector<uint8_t> types(binary::sectionInfo(*file.value(), static_cast<uint32_t>(index)).size);
+    REQUIRE(binary::readSection(*file.value(), static_cast<uint32_t>(index), types));
+    binary::closeFile(file.value());
+    assets::MaterialTypeInfo type;
+    std::memcpy(&type, types.data() + 8, sizeof(type));
+    uint32_t typeCount;
+    std::memcpy(&typeCount, types.data(), 4);
+    TypeLayout layout;
+    layout.defaults.assign(types.begin() + type.defaultsOffset, types.begin() + type.defaultsOffset + type.size);
+    for (uint32_t p = 0; p < type.parameterCount; ++p)
+    {
+        assets::MaterialParameter parameter;
+        std::memcpy(&parameter,
+                    types.data() + 8 + typeCount * sizeof(assets::MaterialTypeInfo) +
+                        (type.firstParameter + p) * sizeof(parameter),
+                    sizeof(parameter));
+        layout.offsets.emplace_back(
+            std::string(reinterpret_cast<const char*>(types.data()) + parameter.nameOffset, parameter.nameLength),
+            parameter.offset);
+    }
+    return layout;
+}
+
+// A .crmat: one record of the shader's type 0, opaque.
+std::vector<uint8_t> materialFile(const assets::AssetId& shader, const std::vector<uint8_t>& parameters)
+{
+    assets::MaterialInfo info{};
+    std::memcpy(info.shader, shader.bytes, 16);
+    info.parameterOffset = sizeof(info);
+    info.parameterSize = static_cast<uint32_t>(parameters.size());
+    info.textureOffset = (sizeof(info) + info.parameterSize + 3) / 4 * 4;
+    std::vector<uint8_t> record(info.textureOffset);
+    std::memcpy(record.data(), &info, sizeof(info));
+    std::memcpy(record.data() + sizeof(info), parameters.data(), parameters.size());
+    binary::Writer* writer = binary::createWriter(assets::materialFileKind, assets::materialFileVersion);
+    test::addSection(writer, assets::meshMaterialsTag, record);
+    return test::fileBytes(writer);
 }
 
 int difference(Bgra a, Bgra b)
@@ -142,6 +224,74 @@ TEST_SUITE("gpu")
 
                 CHECK(test::pixelOf(pixels, view, {3.5f, -1.5f, 0}).r < 3);
                 CHECK(test::pixelOf(pixels, view, {6.0f, -1.5f, 0}).r > 30);
+            }
+            render::destroySurface(surface.value());
+            render::shutdown();
+        }
+        platform::shutdown();
+        render::setAssetReader(0);
+        test::library.clear();
+    }
+}
+
+TEST_SUITE("gpu")
+{
+    TEST_CASE("Game materials draw with their own shading model on every backend")
+    {
+        scenes::registerTransforms();
+        scenes::registerMeshInstance();
+        render::registerCamera();
+        const assets::AssetId shader = test::idOf(7), flat = test::idOf(8), model = test::idOf(9);
+        const std::vector<uint8_t> shaderBytes = readFile(CRUCIBLE_SHADER_DIR "/TestMaterials.crshader");
+        const TypeLayout layout = firstType(shaderBytes);
+        test::library[7] = shaderBytes;
+        test::library[8] = materialFile(shader, layout.defaults);
+        test::library[9] = test::quadModel({.baseColor = {1, 0, 0, 1}, .remap = &flat});
+        render::setAssetReader(reinterpret_cast<uint64_t>(&test::readTestAsset));
+        REQUIRE(platform::initialize());
+        for (slag::Backend backend : {slag::Backend::D3D12, slag::Backend::Vulkan})
+        {
+            if (!slag::isBackendAvailable(backend) || !render::initialize(backend))
+            {
+                continue;
+            }
+            CAPTURE(static_cast<int>(backend));
+            constexpr uint32_t width = 64, height = 64;
+            Result<render::SurfaceHandle> surface = render::createOffscreenSurface(width, height);
+            REQUIRE(surface);
+            {
+                test::Scene scene;
+                addCamera(scene);
+                scene.quad(model, {0, 0, 0}, 4);
+                scene.render(surface.value());
+                const render::ViewConstants view = render::viewConstants(scene.world, width, height, 0);
+                // The slot draws the authored material, not its generated red:
+                // green * (one light * 0.5 + 0.25 ambient) = 0.75, about 225
+                // in sRGB. Every hook ran: no light, no ambient, or no finish
+                // would come out otherwise.
+                Bgra pixel = test::pixelOf(test::readPixels(surface.value(), width, height), view, {0, 0, 0});
+                CHECK(pixel.r < 5);
+                CHECK(pixel.g > 215);
+                CHECK(pixel.g < 235);
+
+                // Acquired again: the model's, counted.
+                Result<render::MaterialHandle> material = render::acquireMaterial(flat);
+                REQUIRE(material);
+                CHECK(render::materialTypeName(material.value()) == "Flat");
+                CHECK(render::materialShader(material.value()) == shader);
+                // New parameters: red, strength 1 (1.25, clamped to 255).
+                std::vector<uint8_t> parameters = layout.defaults;
+                const float red[4] = {1, 0, 0, 1}, strength = 1;
+                std::memcpy(parameters.data() + layout.offsetOf("color"), red, sizeof(red));
+                std::memcpy(parameters.data() + layout.offsetOf("strength"), &strength, sizeof(strength));
+                REQUIRE(render::setMaterialParameters(material.value(), parameters));
+                CHECK(render::setMaterialParameters(material.value(), {parameters.data(), 4}).status() ==
+                      Status::InvalidData);
+                scene.render(surface.value());
+                pixel = test::pixelOf(test::readPixels(surface.value(), width, height), view, {0, 0, 0});
+                CHECK(pixel.r > 250);
+                CHECK(pixel.g < 5);
+                render::releaseMaterial(material.value());
             }
             render::destroySurface(surface.value());
             render::shutdown();

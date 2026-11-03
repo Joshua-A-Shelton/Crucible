@@ -144,11 +144,29 @@ public class MeshImporterTests
         MaterialInfo[] infos = MemoryMarshal.Cast<byte, MaterialInfo>(section.AsSpan(0, 2 * Unsafe.SizeOf<MaterialInfo>())).ToArray();
         await Assert.That(infos.All(info => info.Type == (uint)DefaultMaterialType.Pbr)).IsTrue();
         await Assert.That((infos[0].AlphaMode, infos[0].DoubleSided, infos[0].TextureCount)).IsEqualTo((AlphaMode.Mask, 1u, 0u));
-        DefaultMaterial first = MemoryMarshal.Read<DefaultMaterial>(section.AsSpan((int)infos[0].ParameterOffset));
-        DefaultMaterial second = MemoryMarshal.Read<DefaultMaterial>(section.AsSpan((int)infos[1].ParameterOffset));
-        // The cutoff reaches the shader only for alpha-tested materials.
-        await Assert.That(first.AlphaCutoff).IsEqualTo(0.3f);
-        await Assert.That(second.AlphaCutoff).IsEqualTo(0f);
+        await Assert.That(infos[0].AlphaCutoff).IsEqualTo(0.3f);
+        await Assert.That(infos[1].AlphaMode).IsEqualTo(AlphaMode.Opaque);
+    }
+
+    [Test]
+    public async Task SlotsRemapToAuthoredMaterials()
+    {
+        using Scratch scratch = new();
+        File.WriteAllBytes(scratch.PathOf("Models/tri.bin"), TriangleBuffer());
+        File.WriteAllText(scratch.PathOf("Models/tri.gltf"), TriangleJson("tri.bin", "../Textures/brick.png"));
+        File.WriteAllBytes(scratch.PathOf("Textures/brick.png"), [1, 2, 3]);
+        AssetDatabase database = scratch.Open();
+        database.ImportAll();
+        string sidecar = scratch.PathOf("Models/tri.gltf.crmeta");
+        await Assert.That(File.ReadAllText(sidecar)).Contains("\"Materials\": []");
+        AssetId wall = AssetId.New();
+        File.WriteAllText(sidecar, File.ReadAllText(sidecar).Replace("\"Materials\": []", $"\"Materials\": [\"{wall}\"]"));
+        database.Refresh();
+        ImportResult result = database.ImportAll().Single(r => r.Path == "Models/tri.gltf");
+        await Assert.That(result.Error).IsNull();
+        using ImportedFile file = ImportedFile.Open(result.OutputPath!, MeshImporter.Kind, MeshImporter.KindVersion);
+        byte[] remap = file.Read(file.Find(MeshImporter.RemappedMaterialsSection));
+        await Assert.That(new Guid(remap.AsSpan(0, 16))).IsEqualTo(wall.Value);
     }
 
     [Test]

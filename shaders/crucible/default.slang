@@ -5,8 +5,8 @@
 import crucible.shared;
 import crucible.material;
 
-// glTF's metallic-roughness material. Textures multiply their factors;
-// alphaCutoff is 0 for opaque materials.
+// glTF's metallic-roughness material. Textures multiply their factors. The
+// alpha cutoff is the record's (MaterialInfo), passed per draw.
 [GpuShared]
 public struct DefaultMaterial
 {
@@ -14,7 +14,6 @@ public struct DefaultMaterial
     public float3 emissive;
     public float metallic;
     public float roughness;
-    public float alphaCutoff;
     public float normalScale;
     public float occlusionStrength;
     public uint baseColorTexture;
@@ -84,28 +83,16 @@ MaterialVertex materialVertex(uint vertex : SV_VertexID, uint instance : SV_Inst
     return materialVertexMain(vertex, firstInstance + instance);
 }
 
-// Opaque, and alpha-tested in Opaque too: what the prepass clipped must not
-// be drawn over what's behind it.
-float4 opaque<M : IMaterial>(MaterialVertex v, bool frontFace, float cutoff)
-{
-    const float4 color = shadeMaterial<M>(v, frontFace);
-    if (color.a < cutoff)
-    {
-        discard;
-    }
-    return float4(color.rgb, 1.0);
-}
-
 [shader("fragment")]
 float4 toonPixel(MaterialVertex v, bool frontFace : SV_IsFrontFace) : SV_Target
 {
-    return opaque<DefaultToon>(v, frontFace, loadMaterial<DefaultToon>().parameters.alphaCutoff);
+    return materialForward<DefaultToon>(v, frontFace);
 }
 
 [shader("fragment")]
 float4 pbrPixel(MaterialVertex v, bool frontFace : SV_IsFrontFace) : SV_Target
 {
-    return opaque<DefaultPbr>(v, frontFace, loadMaterial<DefaultPbr>().parameters.alphaCutoff);
+    return materialForward<DefaultPbr>(v, frontFace);
 }
 
 // DepthPrepass for alpha-tested materials: the two share a surface, so one
@@ -113,5 +100,5 @@ float4 pbrPixel(MaterialVertex v, bool frontFace : SV_IsFrontFace) : SV_Target
 [shader("fragment")]
 void maskPixel(MaterialVertex v, bool frontFace : SV_IsFrontFace)
 {
-    clipMaterial<DefaultToon>(v, frontFace, loadMaterial<DefaultToon>().parameters.alphaCutoff);
+    materialMask<DefaultToon>(v, frontFace);
 }

@@ -199,7 +199,8 @@ public sealed class AssetDatabase
     private void AddAsset(string path, string fullPath)
     {
         if (path.EndsWith(Scene.Extension, StringComparison.OrdinalIgnoreCase) ||
-            path.EndsWith(Prefab.Extension, StringComparison.OrdinalIgnoreCase))
+            path.EndsWith(Prefab.Extension, StringComparison.OrdinalIgnoreCase) ||
+            path.EndsWith(Importers.MaterialImporter.FileExtension, StringComparison.OrdinalIgnoreCase))
         {
             AddOwnFile(path, fullPath);
             return;
@@ -291,7 +292,10 @@ public sealed class AssetDatabase
             _hashes[path] = ContentHash.OfFile(fullPath);
             id = fresh;
         }
-        AssetEntry entry = new(id, path, "") { Hash = _hashes[path] };
+        // An importer that takes the extension imports it, without settings
+        // (materials, ADR 0052); scenes and prefabs are read as they are.
+        Importer? importer = _importersByExtension.GetValueOrDefault(Path.GetExtension(path).ToLowerInvariant());
+        AssetEntry entry = new(id, path, importer?.Name ?? "") { Hash = _hashes[path] };
         _byId[id] = entry;
         _byPath[path] = entry;
     }
@@ -364,7 +368,7 @@ public sealed class AssetDatabase
         }
 
         using ImportContext context = new(entry.Id, entry.Path, Project.AssetsFolder,
-            path => Find(path)?.Id ?? AssetId.None);
+            path => Find(path)?.Id ?? AssetId.None, ImportedFor);
         try
         {
             importer.Run(context, entry.Settings);
@@ -396,6 +400,25 @@ public sealed class AssetDatabase
                 Warnings = [.. context.Warnings],
             };
         }
+    }
+
+    // Another asset's imported file and what it depends on, importing it
+    // first if it needs it (a material's shader), or null.
+    private (string Path, string Imported, IReadOnlyCollection<string> Dependencies)? ImportedFor(AssetId id)
+    {
+        AssetEntry? entry = Find(id);
+        if (entry is null)
+        {
+            return null;
+        }
+        string? output = ImportedFile(id) ?? Import(entry).OutputPath;
+        if (output is null)
+        {
+            return null;
+        }
+        IReadOnlyCollection<string> dependencies =
+            _records.Assets.TryGetValue(id.ToString(), out ImportRecord? record) ? record.Dependencies.Keys : [];
+        return (entry.Path, output, dependencies);
     }
 
     // The key with the dependencies' hashes now, or null if one is gone.

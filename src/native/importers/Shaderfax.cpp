@@ -2,7 +2,10 @@
 // importers' compile path.
 //
 //   shaderfax <source.slang> --output <file.crshader> [--formats dxil,spirv] [--include <dir>]...
-//             [--cpp <file.h> --cpp-namespace <ns>] [--cs <file.cs> --cs-namespace <ns>]
+//             [--cpp <file.h> --cpp-namespace <ns>] [--cs <file.cs> --cs-namespace <ns>] [--materials]
+//
+// --materials compiles it as a material shader (ADR 0052), as the Shader
+// importer does: entry points for each IMaterial type, and their layouts.
 //
 // Writes the .crshader file when the module has entry points, with code in
 // each of --formats, in that order of preference (the target platform's:
@@ -39,6 +42,7 @@ struct Options
     std::string cppNamespace = "crucible::shaders";
     std::string cs;
     std::string csNamespace = "Crucible.Shaders";
+    bool materials = false;
 };
 
 bool parse(int argc, char** argv, Options& options)
@@ -61,7 +65,8 @@ bool parse(int argc, char** argv, Options& options)
                         : argument == "--cpp-namespace" ? value(options.cppNamespace)
                         : argument == "--cs"            ? value(options.cs)
                         : argument == "--cs-namespace"  ? value(options.csNamespace)
-                        : argument == "--include" ? (value(include) && (options.includes.push_back(include), true))
+                        : argument == "--include"   ? (value(include) && (options.includes.push_back(include), true))
+                        : argument == "--materials" ? (options.materials = true, true)
                         : argument.rfind("--", 0) != 0 && options.source.empty() ? (options.source = argument, true)
                                                                                  : false;
         if (!ok)
@@ -188,7 +193,7 @@ int main(int argc, char** argv)
     {
         std::fprintf(stderr, "usage: shaderfax <source.slang> --output <file.crshader> [--formats dxil,spirv] "
                              "[--include <dir>]... [--cpp <file.h> --cpp-namespace <ns>] "
-                             "[--cs <file.cs> --cs-namespace <ns>]\n");
+                             "[--cs <file.cs> --cs-namespace <ns>] [--materials]\n");
         return 2;
     }
     std::ifstream file(options.source, std::ios::binary);
@@ -212,7 +217,14 @@ int main(int argc, char** argv)
         std::fprintf(stderr, "shaderfax: unknown format %s (dxil or spirv)\n", name.c_str());
         return 2;
     }
-    Result<CompiledShader*> compiled = compileShader(options.source, source, {includes, formats});
+    std::string searchPaths;
+    for (const std::string& include : options.includes)
+    {
+        searchPaths += include + "\n";
+    }
+    Result<CompiledShader*> compiled = options.materials
+                                           ? compileMaterialShader(options.source, source, searchPaths, options.formats)
+                                           : compileShader(options.source, source, {includes, formats});
     if (!compiled)
     {
         const std::string_view error = lastImportError();

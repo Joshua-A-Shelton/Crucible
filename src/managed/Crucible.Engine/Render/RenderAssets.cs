@@ -40,6 +40,35 @@ public static unsafe class RenderAssets
 
     public static void ReleaseTexture(TextureHandle texture) => Api.ReleaseTexture(texture);
 
+    /// <summary>
+    /// An authored material (.crmat, ADR 0052), loaded with its shader and
+    /// textures on first use and counted.
+    /// </summary>
+    public static MaterialHandle AcquireMaterial(AssetId material) => Api.AcquireMaterial(material);
+
+    public static void ReleaseMaterial(MaterialHandle material) => Api.ReleaseMaterial(material);
+
+    /// <summary>
+    /// Replaces a material's parameters with <paramref name="parameters"/>,
+    /// the struct the Shader importer generated for its type. Frames already
+    /// submitted keep the old values. Throws if the material is of another
+    /// type (or stale).
+    /// </summary>
+    public static void SetMaterial<T>(MaterialHandle material, in T parameters) where T : unmanaged, IMaterialData
+    {
+        AssetId shader = Api.MaterialShader(material);
+        string type = Api.MaterialTypeName(material);
+        if (shader != T.ShaderId || type != T.TypeName)
+        {
+            throw new ArgumentException(
+                $"The material is a {(type.Length == 0 ? "stale handle" : type)}, not a {T.TypeName}", nameof(parameters));
+        }
+        fixed (T* data = &parameters)
+        {
+            Api.SetMaterialParameters(material, new ReadOnlySpan<byte>(data, sizeof(T)));
+        }
+    }
+
     /// <summary>The texture's slot in the resource heap, for shaders; 0 for a stale handle.</summary>
     public static uint TextureDescriptor(TextureHandle texture) => Api.TextureDescriptor(texture);
 

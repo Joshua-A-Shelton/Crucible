@@ -33,4 +33,11 @@
     <InternalsVisibleTo Include="Crucible.Assets.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Crucible's shader library, for the Shader importer (ADR 0052):
+         shaders/crucible/*.slang beside the assemblies. -->
+    <None Include="../../../shaders/crucible/*.slang" Link="shaders/crucible/%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

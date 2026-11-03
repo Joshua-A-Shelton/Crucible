@@ -60,6 +60,7 @@ struct QuadOptions
     assets::AlphaMode alphaMode = assets::AlphaMode::Opaque;
     float alphaCutoff = 0.5f;
     bool doubleSided = false;
+    const assets::AssetId* remap = nullptr; // an authored material for the slot (MRMP)
 };
 
 // A unit quad in the XY plane facing -Z (clockwise from a camera looking
@@ -102,7 +103,6 @@ inline std::vector<uint8_t> quadModel(const QuadOptions& options = {})
     parameters.roughness = 0.5f;
     parameters.normalScale = 1;
     parameters.occlusionStrength = 1;
-    parameters.alphaCutoff = options.alphaMode == assets::AlphaMode::Mask ? options.alphaCutoff : 0.0f;
     assets::MaterialInfo info{};
     info.type = static_cast<uint32_t>(options.type);
     info.alphaMode = options.alphaMode;
@@ -123,6 +123,11 @@ inline std::vector<uint8_t> quadModel(const QuadOptions& options = {})
         std::memcpy(section.data() + info.textureOffset, &texture, sizeof(texture));
     }
     addSection(writer, assets::meshMaterialsTag, section);
+    if (options.remap != nullptr)
+    {
+        addSection(writer, assets::meshRemappedMaterialsTag,
+                   std::vector<uint8_t>(options.remap->bytes, options.remap->bytes + 16));
+    }
     return fileBytes(writer);
 }
 

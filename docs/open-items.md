@@ -33,6 +33,15 @@ is, and record which version fixed it.
 
 ## Revisit once there is a prototype to test against
 
+- MikkTSpace (third party, tangent generation) shifts a 32-bit value by 32
+  at mikktspace.c line 1667 in the importers' tests; UBSan reports it. Found
+  in M5 step 6b's sanitizer run; look at whether upstream has fixed it, or
+  patch it where it's fetched. → 0043
+- Game materials after 6b (ADR 0052): shader hot reload in the editor
+  (pipelines and shaders are kept until the renderer stops); per-instance
+  material overrides; material type names share one C# namespace
+  (`Crucible.Materials`), so two shaders can't both declare a `Brick`;
+  arrays whose elements are padded can't be mirrored in C#. → 0052
 - Materials after 6a (ADR 0052): the temporary sun and ambient give way to
   step 7's lights; blended materials draw as opaque until step 9's
   transparent pass; specular AA and alpha-to-coverage come in step 9;

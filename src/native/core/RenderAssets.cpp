@@ -47,6 +47,7 @@ struct LoadedMesh
     // One per slot (MeshFileInfo::materialCount), from the MTLS section;
     // none for a file without one, whose slots draw the fallback.
     Vector<MaterialHandle> materials{MemoryTag::Render};
+    Vector<bool> acquiredMaterials{MemoryTag::Render}; // remapped slots' (released, not destroyed)
 };
 
 struct LoadedTexture
@@ -208,42 +209,52 @@ std::span<const T> tableOf(const Vector<uint8_t>& tables, uint64_t offset, uint6
 
 void destroyMesh(LoadedMesh* mesh);
 
-// The model's generated materials (ADR 0052), one per slot.
-Status createMaterials(LoadedMesh& mesh, const Vector<uint8_t>& section)
+// The model's materials (ADR 0052), one per slot: each slot's generated one,
+// or the authored material its import settings remapped it to.
+Status createMaterials(LoadedMesh& mesh, const Vector<uint8_t>& generated, const Vector<uint8_t>& remapped)
 {
-    if (section.empty())
+    if (generated.empty())
     {
         return Status::Ok;
     }
     const uint32_t count = mesh.data.info.materialCount;
-    if (section.size() < uint64_t{count} * sizeof(assets::MaterialInfo))
+    if (!remapped.empty() && remapped.size() != uint64_t{count} * 16)
     {
         return Status::InvalidData;
     }
     for (uint32_t m = 0; m < count; ++m)
     {
-        assets::MaterialInfo info;
-        std::memcpy(&info, section.data() + m * sizeof(info), sizeof(info));
-        const uint64_t textureBytes = uint64_t{info.textureCount} * sizeof(assets::MaterialTexture);
-        if (uint64_t{info.parameterOffset} + info.parameterSize > section.size() ||
-            info.textureOffset + textureBytes > section.size() ||
-            info.textureOffset % alignof(assets::MaterialTexture) != 0)
+        AssetId authored{};
+        if (!remapped.empty())
         {
-            return Status::InvalidData;
+            std::memcpy(authored.bytes, remapped.data() + m * 16, 16);
         }
-        Vector<assets::MaterialTexture> textures(MemoryTag::Render);
-        textures.resize(info.textureCount);
-        if (textureBytes != 0)
+        bool remap = false;
+        for (uint8_t byte : authored.bytes)
         {
-            std::memcpy(textures.data(), section.data() + info.textureOffset, textureBytes);
+            remap = remap || byte != 0;
         }
-        Result<MaterialHandle> material =
-            createMaterial(info, {section.data() + info.parameterOffset, info.parameterSize}, textures.span());
+        if (remap)
+        {
+            Result<MaterialHandle> material = acquireMaterial(authored);
+            if (material)
+            {
+                mesh.materials.pushBack(material.value());
+                mesh.acquiredMaterials.pushBack(true);
+                continue;
+            }
+            // The generated one stands in: a missing material shouldn't
+            // keep the model from loading.
+            std::fprintf(stderr, "crucible: a model's slot %u names a material that can't be loaded (status %d)\n", m,
+                         static_cast<int>(material.status()));
+        }
+        Result<MaterialHandle> material = createMaterialFromRecords(generated.span(), m);
         if (!material)
         {
             return material.status();
         }
         mesh.materials.pushBack(material.value());
+        mesh.acquiredMaterials.pushBack(false);
     }
     return Status::Ok;
 }
@@ -342,10 +353,14 @@ Result<LoadedMesh*> createMesh(std::span<const uint8_t> bytes)
             }
         }
     }
-    Vector<uint8_t> generated(MemoryTag::Render);
-    if (status == Status::Ok && binary::findSection(file, assets::meshMaterialsTag) >= 0)
+    Vector<uint8_t> generated(MemoryTag::Render), remapped(MemoryTag::Render);
+    if (status == Status::Ok)
     {
         status = readSection(file, assets::meshMaterialsTag, generated);
+    }
+    if (status == Status::Ok)
+    {
+        status = readSection(file, assets::meshRemappedMaterialsTag, remapped);
     }
     binary::closeFile(opened.value());
     if (status == Status::Ok && staging != nullptr)
@@ -386,7 +401,7 @@ Result<LoadedMesh*> createMesh(std::span<const uint8_t> bytes)
     mesh->data.ranges = tableOf<assets::MeshRange>(mesh->tables, tableOffsets[3], tableSizes[3]);
     mesh->data.nodes = tableOf<assets::MeshNode>(mesh->tables, tableOffsets[4], tableSizes[4]);
     mesh->data.materials = tableOf<assets::MaterialEntry>(mesh->tables, tableOffsets[5], tableSizes[5]);
-    if (Status made = createMaterials(*mesh, generated); made != Status::Ok)
+    if (Status made = createMaterials(*mesh, generated, remapped); made != Status::Ok)
     {
         destroyMesh(mesh);
         return made;
@@ -396,9 +411,16 @@ Result<LoadedMesh*> createMesh(std::span<const uint8_t> bytes)
 
 void destroyMesh(LoadedMesh* mesh)
 {
-    for (MaterialHandle material : mesh->materials)
+    for (size_t m = 0; m < mesh->materials.size(); ++m)
     {
-        destroyMaterial(material);
+        if (mesh->acquiredMaterials[m])
+        {
+            releaseMaterial(mesh->materials[m]);
+        }
+        else
+        {
+            destroyMaterial(mesh->materials[m]);
+        }
     }
     state.slots->release(mesh->data.descriptor, lastSignaled());
     state.destroyer->destroyAfter(mesh->data.buffer, lastSignaled());
@@ -874,6 +896,19 @@ std::span<const MaterialHandle> modelMaterials(uint32_t meshIndex)
 slag::SemaphoreValue lastWorkSignaled()
 {
     return lastSignaled();
+}
+
+Status readAsset(const AssetId& id, Vector<uint8_t>& out)
+{
+    if (reader == nullptr)
+    {
+        return Status::Unsupported;
+    }
+    auto deliver = [](void* context, const uint8_t* data, uint64_t size) {
+        static_cast<Vector<uint8_t>*>(context)->assign(std::span<const uint8_t>(data, static_cast<size_t>(size)));
+    };
+    out.clear();
+    return reader(&id, &out, deliver) == 0 ? Status::Ok : Status::NotFound;
 }
 
 } // namespace crucible::render

@@ -1,13 +1,15 @@
 # Compiles Slang shaders at build time (ADR 0047) with shaderfax.
 #
 #   crucible_add_shader(<target> SOURCE <file.slang>
-#                       [CPP_NAMESPACE <ns>] [CS_NAMESPACE <ns>] [CS_OUTPUT_DIR <dir>])
+#                       [CPP_NAMESPACE <ns>] [CS_NAMESPACE <ns>] [CS_OUTPUT_DIR <dir>] [MATERIALS])
 #
 # Writes <name>.crshader (a SHDR binary file with code in each of
 # CRUCIBLE_SHADER_FORMATS) and <name>.g.h / <name>.g.cs (the mirrors of its
 # [GpuShared] structs) into ${CMAKE_CURRENT_BINARY_DIR}/shaders, which
 # <target> gets as an include directory and as CRUCIBLE_SHADER_DIR.
 # CS_OUTPUT_DIR puts the C# mirror elsewhere, for a C# project to compile.
+# MATERIALS compiles it as a material shader (ADR 0052), as the Shader
+# importer does.
 # Shaders import Crucible's library from shaders/ in the source tree.
 
 set(CRUCIBLE_SHADER_LIBRARY_DIR "${PROJECT_SOURCE_DIR}/shaders")
@@ -24,7 +26,7 @@ set(CRUCIBLE_SHADER_FORMATS "${_crucible_default_shader_formats}" CACHE STRING
     "Shader formats compiled shaders hold, comma-separated, in order of preference (dxil, spirv)")
 
 function(crucible_add_shader target)
-    cmake_parse_arguments(ARG "" "SOURCE;CPP_NAMESPACE;CS_NAMESPACE;CS_OUTPUT_DIR" "" ${ARGN})
+    cmake_parse_arguments(ARG "MATERIALS" "SOURCE;CPP_NAMESPACE;CS_NAMESPACE;CS_OUTPUT_DIR" "" ${ARGN})
     if(NOT ARG_SOURCE)
         message(FATAL_ERROR "crucible_add_shader: SOURCE is required")
     endif()
@@ -33,6 +35,10 @@ function(crucible_add_shader target)
     endif()
     if(NOT ARG_CS_NAMESPACE)
         set(ARG_CS_NAMESPACE "Crucible.Shaders")
+    endif()
+    set(_materials "")
+    if(ARG_MATERIALS)
+        set(_materials --materials)
     endif()
     get_filename_component(_source "${ARG_SOURCE}" ABSOLUTE)
     get_filename_component(_name "${ARG_SOURCE}" NAME_WE)
@@ -50,6 +56,7 @@ function(crucible_add_shader target)
             --include "${CRUCIBLE_SHADER_LIBRARY_DIR}" --include "${CMAKE_CURRENT_SOURCE_DIR}"
             --cpp "${_dir}/${_name}.g.h" --cpp-namespace "${ARG_CPP_NAMESPACE}"
             --cs "${_cs_dir}/${_name}.g.cs" --cs-namespace "${ARG_CS_NAMESPACE}"
+            ${_materials}
         DEPENDS "${_source}" ${_library} shaderfax
         COMMENT "Slang ${_name}"
         VERBATIM)

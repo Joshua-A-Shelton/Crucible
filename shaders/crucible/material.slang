@@ -15,15 +15,26 @@ import crucible.shared;
 public ConstantBuffer<ViewConstants> view : register(b1);
 [[vk::push_constant]] public ConstantBuffer<DrawConstants> draw;
 
-// A texture's slot in the resource heap; 0 for none.
-public typealias TextureSlot = uint;
+// A texture parameter (ADR 0052): its slot in the resource heap, 0 for
+// none. The importer tells textures from numbers by this type.
+public struct TextureSlot
+{
+    public uint index;
+
+    // The texture at uv with linear filtering and wrapping, or fallback
+    // without a texture.
+    public float4 sample(float2 uv, float4 fallback)
+    {
+        return sampleTexture(index, uv, fallback);
+    }
+}
 
 // The samplers the renderer makes at start-up (ADR 0049).
 public static const uint linearRepeatSampler = 1;
 public static const uint linearClampSampler = 2;
 public static const uint pointClampSampler = 3;
 
-public float4 sampleTexture(TextureSlot texture, float2 uv, float4 fallback)
+public float4 sampleTexture(uint texture, float2 uv, float4 fallback)
 {
     if (texture == 0)
     {
@@ -304,6 +315,24 @@ public float4 shadeMaterial<M : IMaterial>(MaterialVertex v, bool frontFace)
     ambient.color = temporaryAmbient;
     M.Shading.ambient(accumulator, ambient);
     return M.Shading.finish(accumulator, surface, data, input);
+}
+
+// A material's pixel in Opaque. Alpha-tested materials discard there too,
+// or what the prepass clipped would be drawn over what's behind it.
+public float4 materialForward<M : IMaterial>(MaterialVertex v, bool frontFace)
+{
+    const float4 color = shadeMaterial<M>(v, frontFace);
+    if (color.a < draw.alphaCutoff)
+    {
+        discard;
+    }
+    return float4(color.rgb, 1.0);
+}
+
+// A material's pixel in DepthPrepass, for alpha-tested materials.
+public void materialMask<M : IMaterial>(MaterialVertex v, bool frontFace)
+{
+    clipMaterial<M>(v, frontFace, draw.alphaCutoff);
 }
 
 // Alpha-tested depth: the surface's alpha against the cutoff.

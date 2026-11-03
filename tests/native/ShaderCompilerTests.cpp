@@ -3,11 +3,16 @@
 #include <crucible/importers/ShaderCompiler.h>
 #include <crucible/importers/Texture.h>
 
+#include <crucible/MaterialFile.h>
+
 #include <doctest/doctest.h>
 
+#include <algorithm>
+#include <cstring>
 #include <ostream>
 #include <string>
 #include <string_view>
+#include <vector>
 
 using namespace crucible;
 using namespace crucible::importers;
@@ -116,4 +121,122 @@ TEST_CASE("Compile errors carry Slang's diagnostics")
           Status::InvalidData);
     CHECK(error().find("doesn't compile") != std::string::npos);
     CHECK(error().find("undefinedThing") != std::string::npos);
+}
+
+namespace {
+
+// The MTYP section (MaterialFile.h), from the compiled shader's sections.
+std::vector<uint8_t> materialTypes(CompiledShader& shader)
+{
+    for (uint32_t i = 0; i < compiledSectionCount(shader); ++i)
+    {
+        const ShaderSectionInfo info = compiledSection(shader, i);
+        if (info.tag == assets::shaderMaterialTypesTag)
+        {
+            std::vector<uint8_t> bytes(info.size);
+            copyCompiledSection(shader, i, bytes);
+            return bytes;
+        }
+    }
+    return {};
+}
+
+template <class T>
+T at(const std::vector<uint8_t>& bytes, size_t offset)
+{
+    T value;
+    std::memcpy(&value, bytes.data() + offset, sizeof(T));
+    return value;
+}
+
+std::string_view nameAt(const std::vector<uint8_t>& bytes, uint32_t offset, uint32_t length)
+{
+    return {reinterpret_cast<const char*>(bytes.data()) + offset, length};
+}
+
+} // namespace
+
+TEST_CASE("Material shaders describe their materials and get entry points for them")
+{
+    Result<CompiledShader*> shader = compileMaterialShader("Bricks.slang", R"(
+        import crucible.material;
+        public struct Brick : IMaterial
+        {
+            public float4 tint = float4(1, 0.5, 0.25, 1);
+            public TextureSlot albedo;
+            public float roughness = 0.75;
+            public float weights[3] = { 1, 2, 3 };
+            public uint flags;
+            public typealias Shading = ToonShading;
+            public SurfaceData surface(SurfaceInput input)
+            {
+                SurfaceData s = SurfaceData.defaults(input);
+                s.albedo = tint.rgb * albedo.sample(input.uv0, float4(1, 1, 1, 1)).rgb * weights[1];
+                s.roughness = roughness;
+                return s;
+            }
+            public ToonData shading(SurfaceInput input) { return ToonData.defaults(); }
+        }
+        public struct NotAMaterial { float x; }
+    )",
+                                                           CRUCIBLE_SHADER_LIBRARY_DIR, "spirv");
+    INFO(error());
+    REQUIRE(shader);
+
+    std::vector<std::string_view> entries;
+    for (uint32_t i = 0; i < compiledEntryCount(*shader.value()); ++i)
+    {
+        entries.push_back(compiledEntryName(*shader.value(), i));
+    }
+    CHECK(std::find(entries.begin(), entries.end(), "materialVertex") != entries.end());
+    CHECK(std::find(entries.begin(), entries.end(), "Brick_forward") != entries.end());
+    CHECK(std::find(entries.begin(), entries.end(), "Brick_mask") != entries.end());
+
+    const std::vector<uint8_t> types = materialTypes(*shader.value());
+    REQUIRE(types.size() > 8);
+    REQUIRE(at<uint32_t>(types, 0) == 1); // NotAMaterial isn't one
+    REQUIRE(at<uint32_t>(types, 4) == 5);
+    const auto type = at<assets::MaterialTypeInfo>(types, 8);
+    CHECK(nameAt(types, type.nameOffset, type.nameLength) == "Brick");
+    CHECK(type.size == 40); // packed as a structured buffer element
+    const size_t parametersAt = 8 + sizeof(assets::MaterialTypeInfo);
+    auto parameter = [&](uint32_t i) {
+        return at<assets::MaterialParameter>(types, parametersAt + i * sizeof(assets::MaterialParameter));
+    };
+    CHECK(nameAt(types, parameter(0).nameOffset, parameter(0).nameLength) == "tint");
+    CHECK(parameter(0).columns == 4);
+    CHECK(parameter(1).kind == assets::MaterialParameterKind::Texture);
+    CHECK(parameter(1).offset == 16);
+    CHECK(parameter(2).offset == 20);
+    CHECK(parameter(3).arrayLength == 3);
+    CHECK(parameter(3).arrayStride == 4);
+    CHECK(parameter(3).offset == 24);
+    CHECK(parameter(4).kind == assets::MaterialParameterKind::Uint);
+    CHECK(parameter(4).offset == 36);
+
+    // Defaults from the initializers; zero where there is none.
+    const size_t defaults = type.defaultsOffset;
+    CHECK(at<float>(types, defaults + 0) == 1.0f);
+    CHECK(at<float>(types, defaults + 8) == 0.25f);
+    CHECK(at<uint32_t>(types, defaults + 16) == 0); // the texture
+    CHECK(at<float>(types, defaults + 20) == 0.75f);
+    CHECK(at<float>(types, defaults + 24 + 2 * 4) == 3.0f);
+    destroyCompiledShader(shader.value());
+}
+
+TEST_CASE("Material parameters refuse what they can't hold")
+{
+    Result<CompiledShader*> shader = compileMaterialShader("Bad.slang", R"(
+        import crucible.material;
+        public struct Bad : IMaterial
+        {
+            public bool on;
+            public typealias Shading = PbrShading;
+            public SurfaceData surface(SurfaceInput input) { return SurfaceData.defaults(input); }
+            public PbrData shading(SurfaceInput input) { return PbrData.defaults(); }
+        }
+    )",
+                                                           CRUCIBLE_SHADER_LIBRARY_DIR, "spirv");
+    CHECK(shader.status() == Status::InvalidData);
+    CHECK(error().find("Bad.on") != std::string::npos);
 }

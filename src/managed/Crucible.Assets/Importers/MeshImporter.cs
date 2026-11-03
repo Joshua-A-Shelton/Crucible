@@ -23,6 +23,13 @@ public partial class MeshImportSettings
     /// <summary>How the materials generated for the model's slots are lit.</summary>
     public ShadingModel Shading = ShadingModel.Toon;
 
+    /// <summary>
+    /// Authored materials (.crmaterial) for the model's slots, by slot:
+    /// <see cref="AssetId.None"/>, or a slot past the list's end, keeps its
+    /// generated material (ADR 0052).
+    /// </summary>
+    public List<AssetId> Materials = [];
+
     /// <summary>Order triangles for the vertex cache and overdraw, and vertices for fetching.</summary>
     public bool Optimize = true;
 
@@ -56,8 +63,8 @@ public sealed class MeshImporter : Importer<MeshImportSettings>
 
     public override string Name => "Mesh";
 
-    // 2: generated materials (MTLS).
-    public override int Version => 2;
+    // 2: generated materials (MTLS); 3: remapped slots (MRMP).
+    public override int Version => 3;
 
     public override IReadOnlyList<string> Extensions => [".gltf", ".glb"];
 
@@ -153,6 +160,23 @@ public sealed class MeshImporter : Importer<MeshImportSettings>
         }
         output.Add(MaterialSection, 1, MemoryMarshal.AsBytes(materials.AsSpan()));
         output.Add(GeneratedMaterialsSection, 1, GeneratedMaterials(materials, settings.Shading));
+        if (settings.Materials.Any(id => !id.IsNone))
+        {
+            // One asset ID per slot, zero for the generated material.
+            byte[] remap = new byte[16 * materials.Length];
+            for (int slot = 0; slot < Math.Min(materials.Length, settings.Materials.Count); ++slot)
+            {
+                if (!settings.Materials[slot].IsNone)
+                {
+                    settings.Materials[slot].Value.TryWriteBytes(remap.AsSpan(16 * slot, 16));
+                }
+            }
+            if (settings.Materials.Count > materials.Length)
+            {
+                context.Warn($"Materials lists {settings.Materials.Count} slots, but the model has {materials.Length}");
+            }
+            output.Add(RemappedMaterialsSection, 1, remap);
+        }
 
         for (uint i = 0; i < ImportersApi.MeshWarningCount(mesh); ++i)
         {
@@ -182,7 +206,6 @@ public sealed class MeshImporter : Importer<MeshImportSettings>
                 Emissive = new System.Numerics.Vector3(source.Emissive[0], source.Emissive[1], source.Emissive[2]),
                 Metallic = source.Metallic,
                 Roughness = source.Roughness,
-                AlphaCutoff = alphaMode == AlphaMode.Mask ? source.AlphaCutoff : 0,
                 NormalScale = 1,
                 OcclusionStrength = 1,
             };
@@ -217,6 +240,7 @@ public sealed class MeshImporter : Importer<MeshImportSettings>
     }
 
     public static readonly uint GeneratedMaterialsSection = Tag.Of("MTLS");
+    public static readonly uint RemappedMaterialsSection = Tag.Of("MRMP");
 
     // Each texture role's slot in DefaultMaterial, from its generated layout.
     private static readonly (TextureRole Role, int Offset)[] TextureRoles = DefaultTextureSlots();

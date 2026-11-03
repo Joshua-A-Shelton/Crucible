@@ -55,4 +55,5 @@ public struct DrawConstants
     public uint transforms; // DrawList::transforms
     public uint materials;  // the material buffer's slot (a ByteAddressBuffer)
     public uint material;   // this draw's material: its byte offset there
+    public float alphaCutoff; // alpha-tested materials discard below it; 0 otherwise
 };

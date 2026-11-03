@@ -37,6 +37,8 @@ crucible_add_shader(crucible_native_tests SOURCE shaders/LayoutProbe.slang
 add_dependencies(crucible_managed crucible_native_tests_shader_LayoutProbe)
 # The camera's test shader (ADR 0050).
 crucible_add_shader(crucible_native_tests SOURCE shaders/ViewProbe.slang)
+# A game's material shader (ADR 0052), compiled as the Shader importer does.
+crucible_add_shader(crucible_native_tests SOURCE shaders/TestMaterials.slang MATERIALS)
 
 # SDL's offscreen driver makes real windows that are never shown, so the tests
 # need no display (Windows over SSH has none).

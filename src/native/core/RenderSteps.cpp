@@ -64,6 +64,7 @@ struct Draw
     uint32_t submesh;
     slag::Pipeline* pipeline;
     uint32_t material; // byte offset in the material buffer
+    float alphaCutoff;
 };
 
 // Every batch's submeshes, ordered by pipeline so the GPU switches state as
@@ -88,8 +89,8 @@ void gatherDraws(const DrawList& draws, bool depth, Vector<Draw>& out)
                     ? batch.materials[static_cast<size_t>(range.material)]
                     : MaterialHandle{};
             const MaterialDraw material = materialDraw(handle);
-            out.pushBack(
-                {&batch, submesh, depth ? material.pipelines->depth : material.pipelines->forward, material.offset});
+            out.pushBack({&batch, submesh, depth ? material.pipelines->depth : material.pipelines->forward,
+                          material.offset, material.alphaCutoff});
         }
     }
     std::stable_sort(out.data(), out.data() + out.size(),
@@ -130,6 +131,7 @@ void recordDraws(slag::CommandBuffer* commands, const DrawList& draws, const Vec
         constants.transforms = draws.transforms;
         constants.materials = materialBufferDescriptor;
         constants.material = draw.material;
+        constants.alphaCutoff = draw.alphaCutoff;
         commands->pushConstants(&constants, sizeof(constants));
         commands->drawIndexed(range.indexCount, batch.instanceCount, range.indexByteOffset / mesh.indexSize, 0,
                               batch.firstInstance);

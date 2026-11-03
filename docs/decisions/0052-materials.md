@@ -1,6 +1,6 @@
 # 0052 — Materials
 
-**Status:** Accepted (2026-11-02). Names settled by the owner (docs/naming.md).
+**Status:** Accepted (2026-11-02); 6a and 6b built. Names settled by the owner (docs/naming.md).
 
 ## Context
 
@@ -174,3 +174,93 @@ interface IMaterial
 - C#: the mesh importer writes one generated material per slot (toon by
   default, its base-color texture at `DefaultMaterial`'s slot), and
   follows the Shading setting and alpha mode.
+
+## Step 6b: game materials (owner's decisions, 2026-11-02)
+
+- **Texture parameters are `TextureSlot`,** a struct `{ uint index; }`
+  with `sample(uv, fallback)`, so reflection can tell textures from
+  numbers.
+  - Materials aren't `[GpuShared]`, and they're read with
+    `ByteAddressBuffer.Load`, field by field, so the nested-struct refusal
+    of ADR 0047 doesn't apply.
+  - The engine's `DefaultMaterial` keeps `uint` slots, because it is
+    `[GpuShared]`.
+- **Defaults are Slang's own field initializers**
+  (`float roughness = 0.5;`), read with `getDefaultValueBlob`; fields
+  without one are zero.
+  - The owner first chose a `[Default(...)]` attribute, on my wrong claim
+    that reflection couldn't read initializers. A check showed it can,
+    vectors and arrays included, and Slang attributes take a fixed number
+    of arguments.
+- **Parameters** are 32-bit scalars (`float`, `int`, `uint`; `bool` is
+  refused, use `uint`), float vectors, `float4x4`, `TextureSlot`, and
+  fixed-length arrays of them.
+- **`setMaterialParameters` is double-buffered:** each call writes a fresh
+  copy and frees the old one once the frames using it are done.
+
+### As built
+
+- **The compiler:** `compileMaterialShader` finds every struct that
+  implements `IMaterial`.
+  - Its layout is a structured-buffer element's, checked to be the same
+    on Vulkan and D3D12; `Load<T>` reads that layout.
+  - It reflects the parameters and their initializers, and writes the
+    `MTYP` section (`MaterialTypeInfo`, `MaterialParameter`,
+    `MaterialParameterKind`).
+  - It compiles a generated module that specializes the library's
+    `materialForward<M>` / `materialMask<M>` into each type's
+    `<Type>_forward` / `<Type>_mask`, beside one `materialVertex`. No
+    Slang specialization API is needed.
+  - It lists the files the module read, and `shaderfax --materials` uses
+    the same path.
+- **The `Shader` importer** (`.slang` → `.crshader`):
+  - it compiles for the platform's formats, with `Assets/`, the source's
+    folder and the engine's library (copied beside the assemblies) on the
+    search path;
+  - modules it imports from `Assets/` become dependencies;
+  - each material type gets a C# struct in `Code/Generated/Materials/`:
+    explicit offsets, `IMaterialData` (`ShaderId`, `TypeName`), inline
+    arrays (`<Type><Field>Array`), and a static `Defaults`.
+- **`.crmaterial`:**
+  - The file has `$guid` first, as scenes do (the database finds Crucible's
+    own files' GUIDs there), then `Shader`, `Type`, `AlphaMode`,
+    `DoubleSided`, `AlphaCutoff`, `Values` and `Textures`.
+  - The database now lets Crucible's own files have an importer.
+  - The `Material` importer lays the values over the type's defaults and
+    writes a `.crmat` (kind `MATR`, one record in `MTLS`).
+  - It reads the shader's import through `ImportContext.ReadImported`,
+    which makes the shader, and what it depends on, dependencies of the
+    material.
+  - Unknown parameters, wrong shapes, and textures given as values are
+    errors that name the parameter.
+- **Models:** `MeshImportSettings.Materials` holds one asset ID per slot,
+  written as `MRMP`. A remapped slot acquires that material, and falls
+  back to its generated one if the material can't load.
+- **Runtime:**
+  - `acquireMaterial` / `releaseMaterial` load by asset ID and count uses.
+  - A game shader is loaded on first use, and its pipelines are cached
+    per shader, type, alpha mode and sides. They're kept until the
+    renderer stops; hot reload will replace them.
+  - A record must match its type's size, or it's refused (reimport it).
+  - `DrawConstants.alphaCutoff` carries the cutoff per draw, so
+    `DefaultMaterial` dropped its own.
+- **C#:** `RenderAssets.AcquireMaterial`, `ReleaseMaterial`, and
+  `SetMaterial<T>`, which checks that `T` is the material's shader and
+  type.
+- **Tests:**
+  - The compiler test checks a material's entries, its packed layout (an
+    array of 3 at stride 4, the texture kind) and its defaults, and that
+    `bool` is refused.
+  - C#:
+    - the `Shader` importer writes the types and the C# struct, and an
+      imported module change reimports it;
+    - the `Material` importer lays out values, arrays, textures and
+      defaults, names mistakes, and reimports when its shader changes;
+    - a model's slots remap;
+    - acquiring a material needs the renderer, and `SetMaterial` refuses
+      a struct of the wrong type.
+  - On every backend, a quad remapped to a game material with its own
+    shading model shows that every hook ran, that new parameters reach the
+    next frame, and that acquiring it again counts.
+- **Fixed on the way:** `memcpy` from a null pointer when a material has no
+  textures (UBSan).
