@@ -95,10 +95,29 @@ float4 pbrPixel(MaterialVertex v, bool frontFace : SV_IsFrontFace) : SV_Target
     return materialForward<DefaultPbr>(v, frontFace);
 }
 
-// DepthPrepass for alpha-tested materials: the two share a surface, so one
-// entry serves both.
+// Alpha-tested materials' depth: the two share a surface, so one entry
+// serves both. DepthPrepass with alpha-to-coverage, Shadows clipped.
+[shader("fragment")]
+float4 coveragePixel(MaterialVertex v, bool frontFace : SV_IsFrontFace) : SV_Target
+{
+    return materialCoverage<DefaultToon>(v, frontFace);
+}
+
 [shader("fragment")]
 void maskPixel(MaterialVertex v, bool frontFace : SV_IsFrontFace)
 {
     materialMask<DefaultToon>(v, frontFace);
+}
+
+// Blended materials (ADR 0055).
+[shader("fragment")]
+float4 toonTransparentPixel(MaterialVertex v, bool frontFace : SV_IsFrontFace) : SV_Target
+{
+    return materialTransparent<DefaultToon>(v, frontFace);
+}
+
+[shader("fragment")]
+float4 pbrTransparentPixel(MaterialVertex v, bool frontFace : SV_IsFrontFace) : SV_Target
+{
+    return materialTransparent<DefaultPbr>(v, frontFace);
 }

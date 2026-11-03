@@ -168,8 +168,9 @@ private:
     slag::GraphicsDevice* device = nullptr; // while the renderer runs
 };
 
-// The renderer's schedule, holding the default steps (ADR 0051, 0053, 0054):
-// DepthPrepass, LightClustering, Shadows, Opaque, then Resolve.
+// The renderer's schedule, holding the default steps (ADR 0051, 0053, 0054, 0055):
+// DepthPrepass, LightClustering, Shadows, Opaque, Sky, Transparent, then
+// Resolve.
 RenderSchedule& renderSchedule();
 
 } // namespace crucible::render

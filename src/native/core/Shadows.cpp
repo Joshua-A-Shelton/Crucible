@@ -389,8 +389,8 @@ void prepareLocalLights(ShadowState& state, const ShadowRequests& requests, Ligh
         const float tangent =
             (light.point ? 1.0f : std::tan(std::clamp(light.outerConeAngle, 0.1f, 2.96f) * 0.5f)) * widen;
         const float nearPlane = std::max(light.range * 0.01f, 0.02f);
-        const Matrix4x4 projection =
-            Matrix4x4::perspectiveFieldOfView(2 * std::atan(tangent), 1, nearPlane, std::max(light.range, nearPlane * 2));
+        const Matrix4x4 projection = Matrix4x4::perspectiveFieldOfView(2 * std::atan(tangent), 1, nearPlane,
+                                                                       std::max(light.range, nearPlane * 2));
         // The cascades' ShadowViews always come first.
         lights[light.light].shadowView = shadowCascadeCount + atlasViews;
         for (uint32_t face = 0; face < cached.tileCount; ++face)
@@ -611,8 +611,8 @@ void destroyShadowState(ShadowState* state)
     destroy(MemoryTag::Render, state);
 }
 
-Result<void> prepareShadows(ShadowState& state, ecs::World* world, const ShadowRequests& requests,
-                            LightData* lights, uint32_t frameSlot, ViewConstants& view)
+Result<void> prepareShadows(ShadowState& state, ecs::World* world, const ShadowRequests& requests, LightData* lights,
+                            uint32_t frameSlot, ViewConstants& view)
 {
     state.cullViews.clear();
     state.infos.clear();

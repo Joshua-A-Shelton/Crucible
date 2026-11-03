@@ -251,6 +251,7 @@ struct WorkerOutput
 {
     Vector<uint64_t> keys{MemoryTag::Render}; // per visible instance: view, model index, mesh, level
     Vector<uint32_t> entities{MemoryTag::Render};
+    Vector<float> distances{MemoryTag::Render}; // per visible instance: the camera's view depth (0 for shadows)
     Vector<ecs::Entity> unresolved{MemoryTag::Render};
     Vector<uint64_t> casterHashes{MemoryTag::Render}; // per shadow view
 
@@ -304,6 +305,7 @@ struct DrawState
     // Each view's batches: the first, and one past the last.
     Vector<uint32_t> viewStarts{MemoryTag::Render};
     Vector<uint64_t> casterHashes{MemoryTag::Render};
+    Vector<float> distances{MemoryTag::Render}; // by instance-list position
     uint32_t instanceSlot = 0;
     uint32_t transformSlot = 0;
 };
@@ -318,6 +320,7 @@ struct CullJob
     bool sendAll;
     std::array<Plane, 6> planes;
     Vector3 camera;
+    Vector3 forward;
     bool orthographic;
     float pixelsPerMeter; // at distance 1 for a perspective view
     std::span<const ShadowCullView> shadows;
@@ -450,6 +453,7 @@ void cullChunk(const ecs::ChunkView& view, void* data)
                 levelOf(*model, mesh, world, center, extent, job.orthographic, job.camera, job.pixelsPerMeter);
             out.keys.pushBack(batchKey(0, handle.index, static_cast<uint32_t>(meshIndex), lod));
             out.entities.pushBack(index);
+            out.distances.pushBack(dot(center - job.camera, job.forward));
         }
         if (instances[i].noShadows)
         {
@@ -462,11 +466,13 @@ void cullChunk(const ecs::ChunkView& view, void* data)
             {
                 continue;
             }
-            const uint32_t lod = levelOf(*model, mesh, world, center, extent, shadow.orthographic, shadow.eye,
-                                         shadow.pixelsPerMeter);
-            const uint64_t key = batchKey(static_cast<uint32_t>(v) + 1, handle.index, static_cast<uint32_t>(meshIndex), lod);
+            const uint32_t lod =
+                levelOf(*model, mesh, world, center, extent, shadow.orthographic, shadow.eye, shadow.pixelsPerMeter);
+            const uint64_t key =
+                batchKey(static_cast<uint32_t>(v) + 1, handle.index, static_cast<uint32_t>(meshIndex), lod);
             out.keys.pushBack(key);
             out.entities.pushBack(index);
+            out.distances.pushBack(0);
             out.casterHashes[v] += casterHash(index, key & ~(uint64_t{0xff} << 56), world);
         }
     }
@@ -554,6 +560,7 @@ Result<void> cull(DrawState& state, ecs::World& world, const ViewConstants& view
         {
             out->keys.clear();
             out->entities.clear();
+            out->distances.clear();
             out->unresolved.clear();
             out->casterHashes.clear();
             out->casterHashes.resize(shadows.size());
@@ -566,6 +573,7 @@ Result<void> cull(DrawState& state, ecs::World& world, const ViewConstants& view
                     .sendAll = fullUploads || !frame.valid,
                     .planes = frustumPlanes(view.viewProjection),
                     .camera = view.cameraPosition,
+                    .forward = {view.inverseView.rows[2].x, view.inverseView.rows[2].y, view.inverseView.rows[2].z},
                     .orthographic = orthographic,
                     .pixelsPerMeter = view.projection.rows[1].y * static_cast<float>(height) * 0.5f,
                     .shadows = shadows};
@@ -656,11 +664,14 @@ Result<void> batch(DrawState& state, uint32_t frameSlot, uint32_t viewCount)
         return made;
     }
     auto* list = static_cast<uint32_t*>(state.frames[frameSlot].instances->mappedData());
+    state.distances.resize(total);
     for (const WorkerOutput* out : state.workers)
     {
         for (size_t i = 0; i < out->keys.size(); ++i)
         {
-            list[state.cursors[*state.batchOf.find(out->keys[i])]++] = out->entities[i];
+            const uint32_t at = state.cursors[*state.batchOf.find(out->keys[i])]++;
+            list[at] = out->entities[i];
+            state.distances[at] = out->distances[i];
         }
     }
     stats.visible = visible;
@@ -704,14 +715,14 @@ void destroyDrawState(DrawState* state)
 }
 
 Result<DrawList> buildDrawList(DrawState& state, ecs::World* world, const ViewConstants& view, uint32_t height,
-                               uint32_t frameSlot, uint32_t lastRunVersion,
-                               std::span<const ShadowCullView> shadowViews)
+                               uint32_t frameSlot, uint32_t lastRunVersion, std::span<const ShadowCullView> shadowViews)
 {
     const Clock::time_point started = Clock::now();
     stats = {};
     state.batches.clear();
     state.viewStarts.clear();
     state.casterHashes.clear();
+    state.distances.clear();
     const uint32_t slots[2] = {state.descriptorBase + instancesDescriptor + frameSlot,
                                state.descriptorBase + transformsDescriptor + frameSlot};
     state.instanceSlot = slots[0];
@@ -776,6 +787,11 @@ DrawList shadowDrawList(const DrawState& state, uint32_t index)
     const uint32_t begin = state.viewStarts[index + 1];
     const uint32_t end = state.viewStarts[index + 2];
     return DrawList{state.batches.span().subspan(begin, end - begin), state.instanceSlot, state.transformSlot};
+}
+
+std::span<const float> instanceDistances(const DrawState& state)
+{
+    return state.distances.span();
 }
 
 uint64_t shadowCasterHash(const DrawState& state, uint32_t index)

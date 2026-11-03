@@ -49,6 +49,15 @@ public struct ViewConstants
     public uint cascadeMap;
     public uint shadowAtlas;
     public float4 cascadeSplits;
+    // The sky (ADR 0055), intensity applied: its three colors; the cosine
+    // of the sun disk's angular radius, and the disk's brightness over the
+    // sun's color; whether there is a sky (0: renderFrame's clear color).
+    public float3 skyZenith;
+    public float skySunCosine;
+    public float3 skyHorizon;
+    public float skySunIntensity;
+    public float3 skyGround;
+    public uint sky;
 };
 
 // A world matrix as shaders read it (ADR 0051): its first three columns, so

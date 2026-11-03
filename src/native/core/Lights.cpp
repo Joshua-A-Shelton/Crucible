@@ -9,6 +9,7 @@
 #include <crucible/Ecs.h>
 #include <crucible/Jobs.h>
 #include <crucible/Lights.h>
+#include <crucible/Sky.h>
 #include <crucible/Transform.h>
 
 #include <slag/Slag.h>
@@ -26,6 +27,7 @@ void registerLights()
     ecs::registerComponent<PointLight>("Crucible.Render.PointLight");
     ecs::registerComponent<SpotLight>("Crucible.Render.SpotLight");
     ecs::registerComponent<AmbientLight>("Crucible.Render.AmbientLight");
+    ecs::registerComponent<Sky>("Crucible.Render.Sky");
 }
 
 namespace {
@@ -119,6 +121,41 @@ void cullChunk(const ecs::ChunkView& view, void* data)
     }
 }
 
+// The component T on the entity with the lowest index, if any has one.
+template <class T>
+bool lowestEntity(ecs::World& world, T& out)
+{
+    if (ecs::componentIdOf<T> == ecs::invalidComponent)
+    {
+        return false;
+    }
+    const ecs::ComponentId set[] = {ecs::componentIdOf<T>};
+    ecs::Query* query = ecs::createQuery(world, {.required = set});
+    struct Best
+    {
+        uint32_t entity = UINT32_MAX;
+        T value{};
+    } best;
+    ecs::forEachChunk(
+        *query,
+        [](const ecs::ChunkView& view, void* data) {
+            auto& found = *static_cast<Best*>(data);
+            const std::span<const T> values = ecs::readColumn<T>(view);
+            const ecs::Entity* entities = ecs::entitiesOf(view);
+            for (size_t i = 0; i < values.size(); ++i)
+            {
+                if (ecs::indexOf(entities[i]) < found.entity)
+                {
+                    found = {ecs::indexOf(entities[i]), values[i]};
+                }
+            }
+        },
+        &best);
+    ecs::destroyQuery(query);
+    out = best.value;
+    return best.entity != UINT32_MAX;
+}
+
 } // namespace
 
 struct LightState
@@ -181,6 +218,7 @@ void destroyLightState(LightState* state)
 void gatherLights(LightState& state, ecs::World* world, uint32_t frameSlot, ViewConstants& view,
                   ShadowRequests& shadows)
 {
+    view.sky = 0;
     shadows.sun = false;
     shadows.lights.clear();
     // The view's near plane and the depth where its clusters end: past the
@@ -217,8 +255,8 @@ void gatherLights(LightState& state, ecs::World* world, uint32_t frameSlot, View
                     light.direction = -axisOf(worlds[i].matrix);
                     light.color = suns[i].color * suns[i].intensity;
                     light.shadowView = noShadowView;
-                    found.pushBack({ecs::indexOf(entities[i]), light, entities[i], suns[i].castsShadows,
-                                    suns[i].shadowDistance});
+                    found.pushBack(
+                        {ecs::indexOf(entities[i]), light, entities[i], suns[i].castsShadows, suns[i].shadowDistance});
                 }
             },
             &state.all);
@@ -244,8 +282,7 @@ void gatherLights(LightState& state, ecs::World* world, uint32_t frameSlot, View
                 std::swap(lights[0], lights[i]);
                 shadows.sun = true;
                 shadows.sunDirection = lights[0].direction;
-                shadows.sunDistance =
-                    state.all[i].shadowReach > 0 ? state.all[i].shadowReach : defaultShadowDistance;
+                shadows.sunDistance = state.all[i].shadowReach > 0 ? state.all[i].shadowReach : defaultShadowDistance;
                 break;
             }
         }
@@ -295,37 +332,23 @@ void gatherLights(LightState& state, ecs::World* world, uint32_t frameSlot, View
             farthest = std::max(farthest, viewPosition.z + light.range);
         }
 
-        // The ambient light: the one with the lowest entity index.
-        if (ecs::componentIdOf<AmbientLight> != ecs::invalidComponent)
+        // The ambient light and the sky: each the one with the lowest
+        // entity index.
+        AmbientLight ambient{};
+        if (lowestEntity(*world, ambient))
         {
-            const ecs::ComponentId ambientSet[] = {ecs::componentIdOf<AmbientLight>};
-            ecs::Query* ambientQuery = ecs::createQuery(*world, {.required = ambientSet});
-            struct Ambient
-            {
-                uint32_t entity = UINT32_MAX;
-                AmbientLight light{};
-            } ambient;
-            ecs::forEachChunk(
-                *ambientQuery,
-                [](const ecs::ChunkView& view, void* data) {
-                    auto& best = *static_cast<Ambient*>(data);
-                    const std::span<const AmbientLight> lights = ecs::readColumn<AmbientLight>(view);
-                    const ecs::Entity* entities = ecs::entitiesOf(view);
-                    for (size_t i = 0; i < lights.size(); ++i)
-                    {
-                        if (ecs::indexOf(entities[i]) < best.entity)
-                        {
-                            best = {ecs::indexOf(entities[i]), lights[i]};
-                        }
-                    }
-                },
-                &ambient);
-            ecs::destroyQuery(ambientQuery);
-            if (ambient.entity != UINT32_MAX)
-            {
-                sky = ambient.light.skyColor * ambient.light.intensity;
-                ground = ambient.light.groundColor * ambient.light.intensity;
-            }
+            sky = ambient.skyColor * ambient.intensity;
+            ground = ambient.groundColor * ambient.intensity;
+        }
+        Sky gradient{};
+        if (lowestEntity(*world, gradient))
+        {
+            view.sky = 1;
+            view.skyZenith = gradient.zenithColor * gradient.intensity;
+            view.skyHorizon = gradient.horizonColor * gradient.intensity;
+            view.skyGround = gradient.groundColor * gradient.intensity;
+            view.skySunCosine = std::cos(std::clamp(gradient.sunSize, 0.0f, 3.1f) * 0.5f);
+            view.skySunIntensity = gradient.sunSize > 0 ? gradient.sunIntensity : 0.0f;
         }
     }
 

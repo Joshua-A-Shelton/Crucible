@@ -55,10 +55,14 @@ is, and record which version fixed it.
   material overrides; material type names share one C# namespace
   (`Crucible.Materials`), so two shaders can't both declare a `Brick`;
   arrays whose elements are padded can't be mirrored in C#. → 0052
-- Materials after 6a (ADR 0052): blended materials draw as opaque until step 9's
-  transparent pass; specular AA and alpha-to-coverage come in step 9;
-  materials choose samplers (the built-in ones use linear repeat). → 0052
-  [M5 steps 7, 9]
+- Materials after 6a (ADR 0052): materials choose samplers (the built-in
+  ones use linear repeat). → 0052
+- Transparency after 9a (ADR 0055): one draw per transparent instance
+  costs about 0.1 ms of CPU per 1,000 (measured with 4,000); particle
+  systems will want their own path (GPU-sorted, or weighted blended OIT
+  just for them). Objects passing through each other sort as wholes.
+  Transparent surfaces cast no shadows. Painted cubemap skies wait for
+  cubemap import. → 0055
 - Re-measure the incremental transform paths (kept for now, ADR 0051) on
   step 10's imported scene, GPU time included; drop them if they save
   under about 5% there. → 0050, 0051 [M5 step 10]

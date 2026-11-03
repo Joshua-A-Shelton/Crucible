@@ -31,13 +31,12 @@ constexpr uint32_t materialBufferSize = 4u << 20;
 constexpr uint32_t materialAlignment = 16;
 
 // What decides a material's pipelines: its shader (zero for the engine's)
-// and material type, whether it's alpha-tested, and whether both faces are
-// drawn.
+// and material type, its alpha mode, and whether both faces are drawn.
 struct PipelineKey
 {
     assets::AssetId shader;
     uint32_t type;
-    bool mask;
+    AlphaMode alphaMode;
     bool doubleSided;
 
     bool operator==(const PipelineKey&) const = default;
@@ -214,9 +213,12 @@ void destroyPipelines(MaterialPipelines& pipelines)
     {
         state.device->destroy(pipelines.forward);
     }
-    if (pipelines.shadow != nullptr)
+    for (slag::Pipeline* pipeline : {pipelines.shadow, pipelines.transparent})
     {
-        state.device->destroy(pipelines.shadow);
+        if (pipeline != nullptr)
+        {
+            state.device->destroy(pipeline);
+        }
     }
     pipelines = {};
 }
@@ -288,8 +290,48 @@ constexpr slag::DepthStencilState shadowDepth{
 constexpr float shadowDepthBias = 2.0f;
 constexpr float shadowSlopeBias = 2.0f;
 
+// A pipeline from the material's own entry points: a game shader's
+// `materialVertex` and `<Type>_<suffix>`, or default.slang's
+// `materialVertex` and `engineEntry`.
+Result<slag::Pipeline*> materialPipeline(const PipelineKey& key, const char* suffix, const char* engineEntry,
+                                         const slag::GraphicsPipelineDesc& desc)
+{
+    if (isZero(key.shader))
+    {
+        return createPipeline("default", "materialVertex", engineEntry, desc);
+    }
+    GameShader* const* found = state.shaders.find(key.shader);
+    if (found == nullptr)
+    {
+        return Status::InvalidData;
+    }
+    const std::string_view name = typeName(**found, key.type);
+    char entry[256];
+    std::snprintf(entry, sizeof(entry), "%.*s_%s", static_cast<int>(name.size()), name.data(), suffix);
+    return createGamePipeline(*(*found)->file, "materialVertex", entry, desc);
+}
+
+// Positions only: opaque materials' depth (ADR 0051).
+Result<slag::Pipeline*> positionsPipeline(const slag::GraphicsPipelineDesc& desc)
+{
+    return createPipeline("mesh", "depthVertex", nullptr, desc);
+}
+
+// Stores a made pipeline, or reports why it couldn't be.
+bool keep(Result<slag::Pipeline*> made, slag::Pipeline*& out, Status& failed)
+{
+    if (!made)
+    {
+        failed = made.status();
+        return false;
+    }
+    out = made.value();
+    return true;
+}
+
 Result<void> createPipelines(const PipelineKey& key, MaterialPipelines& out)
 {
+    out = {};
     const uint32_t samples = msaaSamples();
     // Clockwise front faces (ADR 0024); double-sided materials cull nothing.
     const slag::RasterizerState rasterizer{.cullMode = key.doubleSided ? slag::CullMode::None : slag::CullMode::Back,
@@ -299,131 +341,76 @@ Result<void> createPipelines(const PipelineKey& key, MaterialPipelines& out)
     shadowRasterizer.depthBiasSlopeScale = shadowSlopeBias;
     shadowRasterizer.depthClip = false;
     const slag::PixelFormat shadows = shadowFormat();
-    if (!isZero(key.shader))
-    {
-        GameShader* const* found = state.shaders.find(key.shader);
-        if (found == nullptr)
-        {
-            return Status::InvalidData;
-        }
-        const ShaderFile& file = *(*found)->file;
-        const std::string_view name = typeName(**found, key.type);
-        char forwardEntry[256], maskEntry[256];
-        std::snprintf(forwardEntry, sizeof(forwardEntry), "%.*s_forward", static_cast<int>(name.size()), name.data());
-        std::snprintf(maskEntry, sizeof(maskEntry), "%.*s_mask", static_cast<int>(name.size()), name.data());
-        const slag::DepthStencilState depthState{
-            .depthTest = true, .depthWrite = true, .depthCompareOp = slag::CompareOp::Greater};
-        Result<slag::Pipeline*> depth = key.mask ? createGamePipeline(file, "materialVertex", maskEntry,
-                                                                      {.rasterizer = rasterizer,
-                                                                       .depthStencil = depthState,
-                                                                       .depthStencilFormat = sceneDepthFormat,
-                                                                       .sampleCount = samples,
-                                                                       .debugName = "DepthPrepass (alpha-tested)"})
-                                                 : createPipeline("mesh", "depthVertex", nullptr,
-                                                                  {.rasterizer = rasterizer,
-                                                                   .depthStencil = depthState,
-                                                                   .depthStencilFormat = sceneDepthFormat,
-                                                                   .sampleCount = samples,
-                                                                   .debugName = "DepthPrepass"});
-        if (!depth)
-        {
-            return depth.status();
-        }
-        const slag::PixelFormat formats[] = {sceneColorFormat};
-        Result<slag::Pipeline*> forward = createGamePipeline(
-            file, "materialVertex", forwardEntry,
-            {.rasterizer = rasterizer,
-             .depthStencil = {.depthTest = true, .depthWrite = false, .depthCompareOp = slag::CompareOp::GreaterEqual},
-             .colorFormats = formats,
-             .depthStencilFormat = sceneDepthFormat,
-             .sampleCount = samples,
-             .debugName = "Opaque"});
-        if (!forward)
-        {
-            state.device->destroy(depth.value());
-            return forward.status();
-        }
-        out = {depth.value(), forward.value(), nullptr};
-        if (shadows != slag::PixelFormat::Undefined)
-        {
-            Result<slag::Pipeline*> shadow =
-                key.mask ? createGamePipeline(file, "materialVertex", maskEntry,
-                                              {.rasterizer = shadowRasterizer,
-                                               .depthStencil = shadowDepth,
-                                               .depthStencilFormat = shadows,
-                                               .debugName = "Shadows (alpha-tested)"})
-                         : createPipeline("mesh", "depthVertex", nullptr,
-                                          {.rasterizer = shadowRasterizer,
-                                           .depthStencil = shadowDepth,
-                                           .depthStencilFormat = shadows,
-                                           .debugName = "Shadows"});
-            if (!shadow)
-            {
-                destroyPipelines(out);
-                return shadow.status();
-            }
-            out.shadow = shadow.value();
-        }
-        return {};
-    }
-    // Reverse-Z (ADR 0050): nearer is greater.
-    Result<slag::Pipeline*> depth =
-        key.mask
-            ? createPipeline(
-                  "default", "materialVertex", "maskPixel",
-                  {.rasterizer = rasterizer,
-                   .depthStencil = {.depthTest = true, .depthWrite = true, .depthCompareOp = slag::CompareOp::Greater},
-                   .depthStencilFormat = sceneDepthFormat,
-                   .sampleCount = samples,
-                   .debugName = "DepthPrepass (alpha-tested)"})
-            : createPipeline(
-                  "mesh", "depthVertex", nullptr,
-                  {.rasterizer = rasterizer,
-                   .depthStencil = {.depthTest = true, .depthWrite = true, .depthCompareOp = slag::CompareOp::Greater},
-                   .depthStencilFormat = sceneDepthFormat,
-                   .sampleCount = samples,
-                   .debugName = "DepthPrepass"});
-    if (!depth)
-    {
-        return depth.status();
-    }
     const slag::PixelFormat formats[] = {sceneColorFormat};
-    const char* pixel = key.type == static_cast<uint32_t>(assets::DefaultMaterialType::Pbr) ? "pbrPixel" : "toonPixel";
+    const bool pbr = isZero(key.shader) && key.type == static_cast<uint32_t>(assets::DefaultMaterialType::Pbr);
+    // Reverse-Z (ADR 0050): nearer is greater.
+    const slag::GraphicsPipelineDesc prepass{
+        .rasterizer = rasterizer,
+        .depthStencil = {.depthTest = true, .depthWrite = true, .depthCompareOp = slag::CompareOp::Greater},
+        .depthStencilFormat = sceneDepthFormat,
+        .sampleCount = samples,
+        .debugName = "DepthPrepass"};
     // The prepass wrote the depth; GreaterEqual rather than Equal, so a
     // last-bit difference between the two pipelines' positions can't drop
     // a pixel.
-    Result<slag::Pipeline*> forward = createPipeline(
-        "default", "materialVertex", pixel,
-        {.rasterizer = rasterizer,
-         .depthStencil = {.depthTest = true, .depthWrite = false, .depthCompareOp = slag::CompareOp::GreaterEqual},
-         .colorFormats = formats,
-         .depthStencilFormat = sceneDepthFormat,
-         .sampleCount = samples,
-         .debugName = "Opaque"});
-    if (!forward)
+    slag::GraphicsPipelineDesc forward{
+        .rasterizer = rasterizer,
+        .depthStencil = {.depthTest = true, .depthWrite = false, .depthCompareOp = slag::CompareOp::GreaterEqual},
+        .colorFormats = formats,
+        .depthStencilFormat = sceneDepthFormat,
+        .sampleCount = samples,
+        .debugName = "Opaque"};
+    const slag::GraphicsPipelineDesc shadow{.rasterizer = shadowRasterizer,
+                                            .depthStencil = shadowDepth,
+                                            .depthStencilFormat = shadows,
+                                            .debugName = "Shadows"};
+    Status failed = Status::Ok;
+    bool made = true;
+    switch (key.alphaMode)
     {
-        state.device->destroy(depth.value());
-        return forward.status();
+    case AlphaMode::Opaque:
+        made = keep(positionsPipeline(prepass), out.depth, failed) &&
+               keep(materialPipeline(key, "forward", pbr ? "pbrPixel" : "toonPixel", forward), out.forward, failed) &&
+               (shadows == slag::PixelFormat::Undefined || keep(positionsPipeline(shadow), out.shadow, failed));
+        break;
+    case AlphaMode::Mask:
+    {
+        // Alpha-to-coverage (ADR 0004): the prepass's coverage decides which
+        // samples the surface covers, and Opaque colors exactly those (the
+        // same vertex shader, so Equal holds).
+        slag::GraphicsPipelineDesc coverage = prepass;
+        coverage.blend.alphaToCoverage = true;
+        coverage.debugName = "DepthPrepass (alpha-to-coverage)";
+        forward.depthStencil.depthCompareOp = slag::CompareOp::Equal;
+        slag::GraphicsPipelineDesc clipped = shadow;
+        clipped.debugName = "Shadows (alpha-tested)";
+        made = keep(materialPipeline(key, "coverage", "coveragePixel", coverage), out.depth, failed) &&
+               keep(materialPipeline(key, "forward", pbr ? "pbrPixel" : "toonPixel", forward), out.forward, failed) &&
+               (shadows == slag::PixelFormat::Undefined ||
+                keep(materialPipeline(key, "mask", "maskPixel", clipped), out.shadow, failed));
+        break;
     }
-    out = {depth.value(), forward.value(), nullptr};
-    if (shadows != slag::PixelFormat::Undefined)
+    case AlphaMode::Blend:
     {
-        Result<slag::Pipeline*> shadow = key.mask ? createPipeline("default", "materialVertex", "maskPixel",
-                                                                   {.rasterizer = shadowRasterizer,
-                                                                    .depthStencil = shadowDepth,
-                                                                    .depthStencilFormat = shadows,
-                                                                    .debugName = "Shadows (alpha-tested)"})
-                                                  : createPipeline("mesh", "depthVertex", nullptr,
-                                                                   {.rasterizer = shadowRasterizer,
-                                                                    .depthStencil = shadowDepth,
-                                                                    .depthStencilFormat = shadows,
-                                                                    .debugName = "Shadows"});
-        if (!shadow)
-        {
-            destroyPipelines(out);
-            return shadow.status();
-        }
-        out.shadow = shadow.value();
+        // Transparent (ADR 0055): premultiplied alpha over what's there,
+        // tested against the scene's depth but not writing it; no shadows.
+        slag::GraphicsPipelineDesc transparent = forward;
+        transparent.blend.targets[0] = {.blendEnable = true,
+                                        .srcColorFactor = slag::BlendFactor::One,
+                                        .destColorFactor = slag::BlendFactor::InvSrcAlpha,
+                                        .srcAlphaFactor = slag::BlendFactor::One,
+                                        .destAlphaFactor = slag::BlendFactor::InvSrcAlpha};
+        transparent.debugName = "Transparent";
+        made = keep(
+            materialPipeline(key, "transparent", pbr ? "pbrTransparentPixel" : "toonTransparentPixel", transparent),
+            out.transparent, failed);
+        break;
+    }
+    }
+    if (!made)
+    {
+        destroyPipelines(out);
+        return failed;
     }
     return {};
 }
@@ -624,8 +611,7 @@ Result<MaterialHandle> createMaterial(const MaterialInfo& info, std::span<const 
             return Status::InvalidData;
         }
     }
-    Result<MaterialPipelines*> pipelines =
-        pipelinesFor({shader, info.type, info.alphaMode == AlphaMode::Mask, info.doubleSided != 0});
+    Result<MaterialPipelines*> pipelines = pipelinesFor({shader, info.type, info.alphaMode, info.doubleSided != 0});
     if (!pipelines)
     {
         return pipelines.status();

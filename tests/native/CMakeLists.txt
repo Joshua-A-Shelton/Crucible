@@ -19,7 +19,8 @@ add_executable(crucible_native_tests
     ShadowTests.cpp
     SimdTests.cpp
     SystemsTests.cpp
-    TransformTests.cpp)
+    TransformTests.cpp
+    TransparencyTests.cpp)
 
 crucible_set_compile_options(crucible_native_tests)
 crucible_use_d3d12_agility(crucible_native_tests)

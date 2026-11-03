@@ -69,7 +69,8 @@ inline constexpr uint32_t maxLightsPerCluster = 64;
 inline constexpr uint32_t shadowCascadeCount = 4;
 inline constexpr uint32_t maxShadowedLights = 16;
 
-// Registers the components. Registering again is harmless.
+// Registers the components, and the sky (crucible/Sky.h). Registering
+// again is harmless.
 CRUCIBLE_EXPOSE_INTERNAL void registerLights();
 
 } // namespace crucible::render

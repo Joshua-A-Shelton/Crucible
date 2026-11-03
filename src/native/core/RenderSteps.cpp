@@ -67,6 +67,8 @@ struct Draw
     slag::Pipeline* pipeline;
     uint32_t material; // byte offset in the material buffer
     float alphaCutoff;
+    uint32_t instance = UINT32_MAX; // one instance (sorted transparency); else the whole batch
+    float distance = 0;             // sorted transparency: the instance's view depth
 };
 
 enum class Pass : uint8_t
@@ -74,6 +76,7 @@ enum class Pass : uint8_t
     Depth,
     Forward,
     Shadow,
+    Transparent,
 };
 
 // Every batch's submeshes, ordered by pipeline so the GPU switches state as
@@ -100,7 +103,8 @@ void gatherDraws(const DrawList& draws, Pass kind, Vector<Draw>& out)
             const MaterialDraw material = materialDraw(handle);
             slag::Pipeline* pipeline = kind == Pass::Depth     ? material.pipelines->depth
                                        : kind == Pass::Forward ? material.pipelines->forward
-                                                               : material.pipelines->shadow;
+                                       : kind == Pass::Shadow  ? material.pipelines->shadow
+                                                               : material.pipelines->transparent;
             if (pipeline != nullptr)
             {
                 out.pushBack({&batch, submesh, pipeline, material.offset, material.alphaCutoff});
@@ -147,8 +151,9 @@ void recordDraws(slag::CommandBuffer* commands, const DrawList& draws, const Vec
         constants.material = draw.material;
         constants.alphaCutoff = draw.alphaCutoff;
         commands->pushConstants(&constants, sizeof(constants));
-        commands->drawIndexed(range.indexCount, batch.instanceCount, range.indexByteOffset / mesh.indexSize, 0,
-                              batch.firstInstance);
+        const bool one = draw.instance != UINT32_MAX;
+        commands->drawIndexed(range.indexCount, one ? 1 : batch.instanceCount, range.indexByteOffset / mesh.indexSize,
+                              0, one ? draw.instance : batch.firstInstance);
     }
 }
 
@@ -346,8 +351,8 @@ void addShadows(RenderStepContext& context, void*)
                 "ShadowCascade", slag::CommandQueueType::Graphics,
                 [&](slag::rendergraph::PassBuilder& builder) {
                     // Conventional depth: far is 1.
-                    builder.depthStencil(cascades, slag::LoadOp::Clear, slag::StoreOp::Store, {.depth = 1.0f}, false,
-                                         0, cascade.layer, 1);
+                    builder.depthStencil(cascades, slag::LoadOp::Clear, slag::StoreOp::Store, {.depth = 1.0f}, false, 0,
+                                         cascade.layer, 1);
                 },
                 [pass, list](slag::rendergraph::PassContext&, slag::CommandBuffer* commands) {
                     commands->setConstantBuffer(pass->constants, viewSize());
@@ -408,6 +413,46 @@ void releaseShadows(slag::GraphicsDevice& device, void* userData)
 // Opaque
 // ---------------------------------------------------------------------------
 
+// What the lighting loop reads (ADR 0053, 0054), for Opaque and Transparent.
+struct Lighting
+{
+    slag::rendergraph::RenderGraphBuffer view;
+    slag::rendergraph::RenderGraphBuffer lights;
+    slag::rendergraph::RenderGraphBuffer clusters;
+    slag::rendergraph::RenderGraphTexture cascades; // when the view says there are any this frame
+    slag::rendergraph::RenderGraphTexture atlas;
+
+    void declare(slag::rendergraph::PassBuilder& pass) const
+    {
+        pass.use(view, slag::rendergraph::Usage::ConstantBuffer);
+        pass.use(lights, slag::rendergraph::Usage::ShaderRead);
+        pass.use(clusters, slag::rendergraph::Usage::ShaderRead);
+        if (cascades.index != UINT32_MAX)
+        {
+            pass.use(cascades, slag::rendergraph::Usage::ShaderRead);
+        }
+        if (atlas.index != UINT32_MAX)
+        {
+            pass.use(atlas, slag::rendergraph::Usage::ShaderRead);
+        }
+    }
+};
+
+Lighting readLighting(RenderStepContext& context)
+{
+    Lighting lighting{
+        context.buffer(viewKey()), context.buffer(lightsKey()), context.buffer(lightClustersKey()), {}, {}};
+    if (context.view.cascadeMap != 0)
+    {
+        lighting.cascades = context.texture(shadowCascadesKey());
+    }
+    if (context.view.shadowAtlas != 0)
+    {
+        lighting.atlas = context.texture(shadowAtlasKey());
+    }
+    return lighting;
+}
+
 Vector<Draw> opaqueDraws{MemoryTag::Render};
 
 void addOpaque(RenderStepContext& context, void*)
@@ -422,18 +467,8 @@ void addOpaque(RenderStepContext& context, void*)
     context.publish(sceneColorKey(), color);
     const slag::rendergraph::RenderGraphTexture depth = context.texture(sceneDepthKey());
     const slag::rendergraph::RenderGraphBuffer view = context.buffer(viewKey());
-    const slag::rendergraph::RenderGraphBuffer lights = context.buffer(lightsKey());
-    const slag::rendergraph::RenderGraphBuffer clusters = context.buffer(lightClustersKey());
-    // The shadow maps, when the view says there are any this frame.
-    slag::rendergraph::RenderGraphTexture cascades{}, atlas{};
-    if (context.view.cascadeMap != 0)
-    {
-        cascades = context.texture(shadowCascadesKey());
-    }
-    if (context.view.shadowAtlas != 0)
-    {
-        atlas = context.texture(shadowAtlasKey());
-    }
+    const Lighting lighting = readLighting(context);
+    const slag::rendergraph::RenderGraphTexture cascades = lighting.cascades;
     const uint32_t cascadeSlot = context.view.cascadeMap;
     slag::GraphicsDevice* device = &context.device;
     slag::ClearValue clear{};
@@ -446,17 +481,7 @@ void addOpaque(RenderStepContext& context, void*)
     context.graph.addPass(
         "Opaque", slag::CommandQueueType::Graphics,
         [&](slag::rendergraph::PassBuilder& pass) {
-            pass.use(view, slag::rendergraph::Usage::ConstantBuffer);
-            pass.use(lights, slag::rendergraph::Usage::ShaderRead);
-            pass.use(clusters, slag::rendergraph::Usage::ShaderRead);
-            if (cascades.index != UINT32_MAX)
-            {
-                pass.use(cascades, slag::rendergraph::Usage::ShaderRead);
-            }
-            if (atlas.index != UINT32_MAX)
-            {
-                pass.use(atlas, slag::rendergraph::Usage::ShaderRead);
-            }
+            lighting.declare(pass);
             pass.renderTarget(color, slag::LoadOp::Clear, slag::StoreOp::Store, clear);
             pass.depthStencil(depth, slag::LoadOp::Load, slag::StoreOp::Store, {}, true);
         },
@@ -472,6 +497,117 @@ void addOpaque(RenderStepContext& context, void*)
             }
             commands->setConstantBuffer(pass.buffer(view)->gpuAddress(), viewSize());
             recordDraws(commands, *draws, opaqueDraws);
+        });
+}
+
+// ---------------------------------------------------------------------------
+// Sky
+// ---------------------------------------------------------------------------
+
+slag::Pipeline* skyPipeline = nullptr;
+
+Result<void> prepareSky(slag::GraphicsDevice& device, void*)
+{
+    const slag::PixelFormat formats[] = {sceneColorFormat};
+    // Reverse-Z: drawn at depth 0, it passes only where the depth is still
+    // the cleared 0.
+    Result<slag::Pipeline*> pipeline = createPipeline(
+        device, "sky", "skyVertex", "skyPixel",
+        {.rasterizer = {.cullMode = slag::CullMode::None},
+         .depthStencil = {.depthTest = true, .depthWrite = false, .depthCompareOp = slag::CompareOp::GreaterEqual},
+         .colorFormats = formats,
+         .depthStencilFormat = sceneDepthFormat,
+         .sampleCount = samples,
+         .debugName = "Sky"});
+    if (!pipeline)
+    {
+        return pipeline.status();
+    }
+    skyPipeline = pipeline.value();
+    return {};
+}
+
+void addSky(RenderStepContext& context, void*)
+{
+    if (context.view.sky == 0)
+    {
+        return; // the clear color shows
+    }
+    const slag::rendergraph::RenderGraphTexture color = context.texture(sceneColorKey());
+    const slag::rendergraph::RenderGraphTexture depth = context.texture(sceneDepthKey());
+    const slag::rendergraph::RenderGraphBuffer view = context.buffer(viewKey());
+    const slag::rendergraph::RenderGraphBuffer lights = context.buffer(lightsKey());
+    context.graph.addPass(
+        "Sky", slag::CommandQueueType::Graphics,
+        [&](slag::rendergraph::PassBuilder& pass) {
+            pass.use(view, slag::rendergraph::Usage::ConstantBuffer);
+            pass.use(lights, slag::rendergraph::Usage::ShaderRead);
+            pass.renderTarget(color, slag::LoadOp::Load, slag::StoreOp::Store);
+            pass.depthStencil(depth, slag::LoadOp::Load, slag::StoreOp::Store, {}, true);
+        },
+        [view](slag::rendergraph::PassContext& pass, slag::CommandBuffer* commands) {
+            commands->bindPipeline(skyPipeline);
+            commands->setConstantBuffer(pass.buffer(view)->gpuAddress(), viewSize());
+            commands->draw(3, 1);
+        });
+}
+
+// ---------------------------------------------------------------------------
+// Transparent
+// ---------------------------------------------------------------------------
+
+Vector<Draw> transparentDraws{MemoryTag::Render};
+
+// Every blended submesh of every visible instance, farthest first, one
+// draw each (ADR 0055).
+void gatherSorted(const DrawList& draws, std::span<const float> distances, Vector<Draw>& out)
+{
+    gatherDraws(draws, Pass::Transparent, out);
+    const size_t batchDraws = out.size();
+    for (size_t d = 0; d < batchDraws; ++d)
+    {
+        const Draw draw = out[d];
+        for (uint32_t i = 0; i < draw.batch->instanceCount; ++i)
+        {
+            Draw one = draw;
+            one.instance = draw.batch->firstInstance + i;
+            one.distance = one.instance < distances.size() ? distances[one.instance] : 0.0f;
+            out.pushBack(one);
+        }
+    }
+    // Keep only the per-instance draws, sorted; equal distances keep their
+    // submeshes in order.
+    for (size_t d = batchDraws; d < out.size(); ++d)
+    {
+        out[d - batchDraws] = out[d];
+    }
+    out.resize(out.size() - batchDraws);
+    std::stable_sort(out.data(), out.data() + out.size(),
+                     [](const Draw& a, const Draw& b) { return a.distance > b.distance; });
+}
+
+void addTransparent(RenderStepContext& context, void*)
+{
+    gatherSorted(context.draws, instanceDistances(frameDrawState(context)), transparentDraws);
+    if (transparentDraws.empty())
+    {
+        return;
+    }
+    const slag::rendergraph::RenderGraphTexture color = context.texture(sceneColorKey());
+    const slag::rendergraph::RenderGraphTexture depth = context.texture(sceneDepthKey());
+    const Lighting lighting = readLighting(context);
+    const slag::rendergraph::RenderGraphBuffer view = lighting.view;
+    const DrawList* draws = &context.draws;
+    context.graph.addPass(
+        "Transparent", slag::CommandQueueType::Graphics,
+        [&](slag::rendergraph::PassBuilder& pass) {
+            lighting.declare(pass);
+            pass.renderTarget(color, slag::LoadOp::Load, slag::StoreOp::Store);
+            pass.depthStencil(depth, slag::LoadOp::Load, slag::StoreOp::Store, {}, true);
+        },
+        [draws, view](slag::rendergraph::PassContext& pass, slag::CommandBuffer* commands) {
+            commands->setConstantBuffer(pass.buffer(view)->gpuAddress(), viewSize());
+            recordDraws(commands, *draws, transparentDraws);
         });
 }
 
@@ -538,6 +674,12 @@ void addDefaultSteps(RenderSchedule& schedule)
                         .prepare = prepareShadowStep,
                         .release = releaseShadows});
     (void)schedule.add({.name = "Opaque", .addPasses = addOpaque});
+    (void)schedule.add({.name = "Sky",
+                        .addPasses = addSky,
+                        .userData = &skyPipeline,
+                        .prepare = prepareSky,
+                        .release = destroyPipeline});
+    (void)schedule.add({.name = "Transparent", .addPasses = addTransparent});
     (void)schedule.add({.name = "Resolve",
                         .addPasses = addResolve,
                         .userData = &resolvePipeline,

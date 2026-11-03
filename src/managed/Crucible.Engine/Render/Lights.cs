@@ -20,3 +20,7 @@ public partial struct SpotLight;
 /// <summary>Light that isn't from a light: sky above, ground below. One per world.</summary>
 [Serialized]
 public partial struct AmbientLight;
+
+/// <summary>The sky drawn behind everything (ADR 0055): a gradient and the sun's disk. One per world.</summary>
+[Serialized]
+public partial struct Sky;

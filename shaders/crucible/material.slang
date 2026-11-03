@@ -46,6 +46,20 @@ public float4 sampleTexture(uint texture, float2 uv, float4 fallback)
     return t.Sample(s, uv);
 }
 
+// Specular AA (ADR 0004, 0055; Tokuyoshi and Kaplanyan, as in Filament):
+// a perceptual roughness widened by how much the normal varies across the
+// pixel, so a highlight smaller than a pixel spreads instead of sparkling.
+// Call it where derivatives are valid (not inside per-light loops).
+public float specularAntialiasing(float3 normal, float roughness)
+{
+    const float3 du = ddx(normal);
+    const float3 dv = ddy(normal);
+    const float variance = 0.15 * (dot(du, du) + dot(dv, dv));
+    const float kernel = min(2.0 * variance, 0.2);
+    const float alpha = roughness * roughness;
+    return sqrt(sqrt(saturate(alpha * alpha + kernel)));
+}
+
 // ---------------------------------------------------------------------------
 // What a material sees, and what it returns
 // ---------------------------------------------------------------------------
@@ -380,22 +394,40 @@ public float4 shadeMaterial<M : IMaterial>(MaterialVertex v, bool frontFace)
     return M.Shading.finish(accumulator, surface, data, input);
 }
 
-// A material's pixel in Opaque. Alpha-tested materials discard there too,
-// or what the prepass clipped would be drawn over what's behind it.
+// A material's pixel in Opaque. For alpha-tested materials, the prepass's
+// coverage already decided which samples it colors (Opaque tests Equal).
 public float4 materialForward<M : IMaterial>(MaterialVertex v, bool frontFace)
 {
     const float4 color = shadeMaterial<M>(v, frontFace);
-    if (color.a < draw.alphaCutoff)
-    {
-        discard;
-    }
     return float4(color.rgb, 1.0);
 }
 
-// A material's pixel in DepthPrepass, for alpha-tested materials.
+// A material's pixel in Shadows, for alpha-tested materials: clipped at the
+// cutoff.
 public void materialMask<M : IMaterial>(MaterialVertex v, bool frontFace)
 {
     clipMaterial<M>(v, frontFace, draw.alphaCutoff);
+}
+
+// A material's pixel in DepthPrepass, for alpha-tested materials, drawn
+// with alpha-to-coverage (ADR 0004, 0055): alpha sharpened around the
+// cutoff to about a pixel's width, so each MSAA sample is in or out and
+// edges are antialiased instead of stair-stepped (Golus's "anti-aliased
+// alpha test"). With one sample it's the plain alpha test.
+public float4 materialCoverage<M : IMaterial>(MaterialVertex v, bool frontFace)
+{
+    const M material = loadMaterial<M>();
+    const float alpha = material.surface(surfaceInput(v, frontFace)).alpha;
+    const float coverage = (alpha - draw.alphaCutoff) / max(fwidth(alpha), 1e-4) + 0.5;
+    return float4(0.0, 0.0, 0.0, saturate(coverage));
+}
+
+// A blended material's pixel in Transparent (ADR 0055): premultiplied, so
+// the same blend also covers additive light (color with alpha 0).
+public float4 materialTransparent<M : IMaterial>(MaterialVertex v, bool frontFace)
+{
+    const float4 color = shadeMaterial<M>(v, frontFace);
+    return float4(color.rgb * color.a, color.a);
 }
 
 // Alpha-tested depth: the surface's alpha against the cutoff.
@@ -449,6 +481,7 @@ public struct ToonShading : IShadingModel
         public float3 lit;     // banded diffuse from lights
         public float3 ambient;
         public float rimLight; // how lit the pixel is, for the rim
+        public float edgeWidth; // how far N·L can change across the pixel
         public ToonData data;
     }
 
@@ -462,16 +495,22 @@ public struct ToonShading : IShadingModel
         a.lit = float3(0.0, 0.0, 0.0);
         a.ambient = float3(0.0, 0.0, 0.0);
         a.rimLight = 0.0;
+        // N·L changes across the pixel by at most the normal's change
+        // (derivatives here, where they're valid, not per light).
+        a.edgeWidth = length(ddx(s.normal)) + length(ddy(s.normal));
         a.data = d;
         return a;
     }
 
-    // The banded response to one light: 0 to 1, in bands steps with soft edges.
-    static float band(float x, uint bands, float softness)
+    // The banded response to one light: 0 to 1, in bands steps with soft
+    // edges, each at least as wide as N·L's change across the pixel, so
+    // distant band edges don't stair-step (ADR 0055).
+    static float band(float x, uint bands, float softness, float edgeWidth)
     {
         const float scaled = saturate(x) * bands;
         const float step = floor(scaled);
-        const float edge = smoothstep(0.5 - softness, 0.5 + softness, scaled - step);
+        const float width = max(softness, edgeWidth * bands * 0.5);
+        const float edge = smoothstep(0.5 - width, 0.5 + width, scaled - step);
         return min((step + edge) / bands, 1.0);
     }
 
@@ -480,7 +519,8 @@ public struct ToonShading : IShadingModel
         // A cast shadow darkens like turning away: into the same bands, and
         // so the same shadow tint.
         const float response =
-            band(saturate(dot(a.normal, light.direction)) * light.shadow, max(a.data.bands, 1u), a.data.softness);
+            band(saturate(dot(a.normal, light.direction)) * light.shadow, max(a.data.bands, 1u), a.data.softness,
+                 a.edgeWidth);
         a.lit += light.color * response;
         a.rimLight = max(a.rimLight, response);
     }
@@ -534,7 +574,7 @@ public struct PbrShading : IShadingModel
         Accumulator a;
         a.diffuseColor = s.albedo * (1.0 - s.metallic);
         a.f0 = lerp(float3(0.04, 0.04, 0.04), s.albedo, s.metallic);
-        const float roughness = clamp(s.roughness, 0.045, 1.0);
+        const float roughness = clamp(specularAntialiasing(s.normal, s.roughness), 0.045, 1.0);
         a.alpha = roughness * roughness;
         a.normal = s.normal;
         a.view = input.view;

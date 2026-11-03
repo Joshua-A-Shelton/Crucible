@@ -69,11 +69,11 @@ struct Surface
     // graph's order of frame slots; beginFrame waits until the GPU is done
     // with the one it hands out.
     std::array<slag::Buffer*, framesInFlight> viewBuffers{};
-    uint64_t graphFrames = 0;     // frames begun on the graph, for its frame slot
-    DrawState* draws = nullptr;   // its transform buffers and instance lists (ADR 0051)
-    LightState* lights = nullptr; // its light buffers (ADR 0053)
+    uint64_t graphFrames = 0;       // frames begun on the graph, for its frame slot
+    DrawState* draws = nullptr;     // its transform buffers and instance lists (ADR 0051)
+    LightState* lights = nullptr;   // its light buffers (ADR 0053)
     ShadowState* shadows = nullptr; // its shadow views and atlas (ADR 0054)
-    uint64_t submitted = 0;       // frames submitted so far
+    uint64_t submitted = 0;         // frames submitted so far
     slag::PresentMode presentMode{};
     uint32_t width = 0;
     uint32_t height = 0;
@@ -330,8 +330,7 @@ Result<void> renderWithGraph(Surface& surface, slag::Texture* texture, slag::Att
     ShadowRequests& requests = shadowRequests(*surface.shadows);
     gatherLights(*surface.lights, world, frameSlot, constants, requests);
     auto* lights = static_cast<LightData*>(lightBuffer(*surface.lights, frameSlot)->mappedData());
-    if (Result<void> prepared =
-            prepareShadows(*surface.shadows, world, requests, lights, frameSlot, constants);
+    if (Result<void> prepared = prepareShadows(*surface.shadows, world, requests, lights, frameSlot, constants);
         !prepared)
     {
         return prepared;
@@ -348,10 +347,10 @@ Result<void> renderWithGraph(Surface& surface, slag::Texture* texture, slag::Att
     slag::rendergraph::ImportedTextureDesc desc = import;
     desc.attachmentView = view;
     const slag::rendergraph::RenderGraphTexture backbuffer = graph.importTexture(texture, desc);
-    if (Result<void> added = addStepPasses({graph, *renderer.device, surface.width, surface.height,
-                                            surface.submitted + 1, color, backbuffer, graph.importBuffer(viewBuffer),
-                                            graph.importBuffer(lightBuffer(*surface.lights, frameSlot)), constants,
-                                            draws.value(), world, drawDescriptorBase(*surface.draws), shadows});
+    if (Result<void> added = addStepPasses(
+            {graph, *renderer.device, surface.width, surface.height, surface.submitted + 1, color, backbuffer,
+             graph.importBuffer(viewBuffer), graph.importBuffer(lightBuffer(*surface.lights, frameSlot)), constants,
+             draws.value(), world, drawDescriptorBase(*surface.draws), shadows, *surface.draws});
         !added)
     {
         return added;

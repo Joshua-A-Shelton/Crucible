@@ -288,7 +288,12 @@ the decision each one needs comes first):
 9. The rest of the frame: sky, the sorted transparent pass, specular AA,
    alpha-to-coverage, tonemapping, the post-tonemap MSAA resolve, and
    outlines. Decides V: the post-processing chain, the resolve, and
-   outlines.
+   outlines. Split in two (owner, 2026-11-02):
+   - 9a: the gradient sky, transparency (sorted, chosen over weighted
+     blended OIT after comparing both), specular AA, toon band AA, and
+     alpha-to-coverage.
+   - 9b: tonemapping, the post-tonemap resolve, bloom, color grading, and
+     outlines.
 10. The demonstration: an imported, lit scene rendered offscreen on D3D12
     and Vulkan, the images compared within a tolerance. Re-measures the
     incremental transform paths on it (docs/open-items.md).

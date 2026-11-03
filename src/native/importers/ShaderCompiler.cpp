@@ -612,13 +612,23 @@ Status compileMaterials(CompiledShader& shader, slang::ISession* session, slang:
         std::snprintf(line, sizeof(line), "[[vk::binding(%u, 0)]] RWStructuredBuffer<%s> crucibleMaterial%u;\n", m,
                       name, m);
         append(probe, line);
-        std::snprintf(line, sizeof(line),
-                      "[shader(\"fragment\")]\nfloat4 %s_forward(MaterialVertex v, bool frontFace : SV_IsFrontFace) "
-                      ": SV_Target\n{\n    return materialForward<%s>(v, frontFace);\n}\n"
-                      "[shader(\"fragment\")]\nvoid %s_mask(MaterialVertex v, bool frontFace : SV_IsFrontFace)\n"
-                      "{\n    materialMask<%s>(v, frontFace);\n}\n",
-                      name, name, name, name);
-        append(entries, line);
+        // Every material's entries (ADR 0052, 0055): Opaque, Shadows'
+        // clipped depth, DepthPrepass's alpha-to-coverage, and Transparent.
+        static constexpr const char* entryTemplates[] = {
+            "[shader(\"fragment\")]\nfloat4 %s_forward(MaterialVertex v, bool frontFace : SV_IsFrontFace) "
+            ": SV_Target\n{\n    return materialForward<%s>(v, frontFace);\n}\n",
+            "[shader(\"fragment\")]\nvoid %s_mask(MaterialVertex v, bool frontFace : SV_IsFrontFace)\n"
+            "{\n    materialMask<%s>(v, frontFace);\n}\n",
+            "[shader(\"fragment\")]\nfloat4 %s_coverage(MaterialVertex v, bool frontFace : SV_IsFrontFace) "
+            ": SV_Target\n{\n    return materialCoverage<%s>(v, frontFace);\n}\n",
+            "[shader(\"fragment\")]\nfloat4 %s_transparent(MaterialVertex v, bool frontFace : SV_IsFrontFace) "
+            ": SV_Target\n{\n    return materialTransparent<%s>(v, frontFace);\n}\n",
+        };
+        for (const char* entryTemplate : entryTemplates)
+        {
+            std::snprintf(line, sizeof(line), entryTemplate, name, name);
+            append(entries, line);
+        }
     }
     probe.pushBack('\0');
     entries.pushBack('\0');

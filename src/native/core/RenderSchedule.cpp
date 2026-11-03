@@ -51,6 +51,7 @@ struct FrameState
     bool failed = false;
     uint32_t descriptorBase = 0; // the surface's reserved resource-heap slots
     const ShadowFrame* shadows = nullptr;
+    const DrawState* drawState = nullptr;
 };
 
 BlackboardKey registerBlackboardKey(std::string_view name)
@@ -213,6 +214,11 @@ struct FrameBuilder
         return *static_cast<const FrameState*>(context.frameState)->shadows;
     }
 
+    static const DrawState& drawState(const RenderStepContext& context)
+    {
+        return *static_cast<const FrameState*>(context.frameState)->drawState;
+    }
+
     static Result<void> run(const FrameInputs& inputs)
     {
         FrameState state;
@@ -220,6 +226,7 @@ struct FrameBuilder
         context.world = inputs.world;
         state.descriptorBase = inputs.descriptorBase;
         state.shadows = &inputs.shadows;
+        state.drawState = &inputs.drawState;
         context.width = inputs.width;
         context.height = inputs.height;
         context.frame = inputs.frame;
@@ -247,6 +254,11 @@ uint32_t surfaceDescriptor(const RenderStepContext& context, uint32_t which)
 const ShadowFrame& shadowFrame(const RenderStepContext& context)
 {
     return FrameBuilder::shadows(context);
+}
+
+const DrawState& frameDrawState(const RenderStepContext& context)
+{
+    return FrameBuilder::drawState(context);
 }
 
 Result<void> addStepPasses(const FrameInputs& inputs)

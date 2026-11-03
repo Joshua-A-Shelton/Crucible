@@ -152,3 +152,13 @@ Settled in a review of M4's and M5's placeholders (ADR 0047's amendment).
 | `ViewConstants`: `shadowViews`, `cascadeMap`, `shadowAtlas`, `cascadeSplits` | The frame's shadows |
 | `LightSample::shadow` | What shading models receive |
 | `shaders/crucible/shadows.slang`: `sunShadow`, `localShadow`, `shadowComparisonSampler`; mesh.slang `clearTileVertex` | Shaders |
+
+## Sky and transparency (2026-11-02, M5 step 9a)
+
+| Name | What it is |
+|---|---|
+| `crucible/Sky.h`: `Sky` (`zenithColor`, `horizonColor`, `groundColor`, `intensity`, `sunSize`, `sunIntensity`); registered by `registerLights` | The sky component, C# `Crucible.Render.Sky` (ADR 0055) |
+| Steps `Sky`, `Transparent` | Render steps |
+| `shaders/crucible/sky.slang` (`skyVertex`, `skyPixel`); `ViewConstants`: `skyZenith`, `skyHorizon`, `skyGround`, `skySunCosine`, `skySunIntensity`, `sky` | The sky's shader and constants |
+| Library `materialTransparent<M>`, `materialCoverage<M>`; entries `<Type>_transparent`, `<Type>_coverage`; default.slang `toonTransparentPixel`, `pbrTransparentPixel`, `coveragePixel`; `MaterialPipelines::transparent` | Transparency and alpha-to-coverage |
+| `specularAntialiasing(normal, roughness)` | Specular AA helper |

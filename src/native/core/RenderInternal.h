@@ -60,6 +60,7 @@ struct Plane
 std::array<Plane, 6> frustumPlanes(const Matrix4x4& viewProjection);
 
 struct ShadowFrame;
+struct DrawState;
 
 struct FrameInputs
 {
@@ -77,16 +78,20 @@ struct FrameInputs
     ecs::World* world;
     uint32_t descriptorBase;
     const ShadowFrame& shadows;
+    const DrawState& drawState;
 };
 
 // Runs every step of the schedule for one frame. InvalidData (already
 // reported) when a step read a blackboard entry no one published.
 Result<void> addStepPasses(const FrameInputs& inputs);
 
-// The frame's shadow passes, for the Shadows step (RenderSchedule.cpp).
+// The frame's shadow passes, for the Shadows step, and its drawing state,
+// for Transparent's sorting (RenderSchedule.cpp).
 const ShadowFrame& shadowFrame(const RenderStepContext& context);
+const DrawState& frameDrawState(const RenderStepContext& context);
 
-// DepthPrepass, LightClustering, Shadows, Opaque, then Resolve
+// DepthPrepass, LightClustering, Shadows, Opaque, Sky, Transparent, then
+// Resolve
 // (RenderSteps.cpp).
 void addDefaultSteps(RenderSchedule& schedule);
 
@@ -121,6 +126,10 @@ Result<DrawList> buildDrawList(DrawState& state, ecs::World* world, const ViewCo
 // same whichever order they were found in: an atlas tile whose hash is the
 // same as when it was drawn still holds the right shadow.
 DrawList shadowDrawList(const DrawState& state, uint32_t index);
+// Each instance's view depth (its bounds' center along the camera's
+// forward), by its position in the instance list, for sorting transparent
+// instances (ADR 0055); 0 for shadow views'.
+std::span<const float> instanceDistances(const DrawState& state);
 uint64_t shadowCasterHash(const DrawState& state, uint32_t index);
 // Releases every cached model; before stopAssets.
 void stopDrawing();
@@ -167,9 +176,10 @@ ViewConstants viewConstants(ecs::World* world, uint32_t width, uint32_t height, 
 // stopped after them (models free their materials as they unload).
 struct MaterialPipelines
 {
-    slag::Pipeline* depth;   // DepthPrepass
-    slag::Pipeline* forward; // Opaque
-    slag::Pipeline* shadow;  // Shadows: depth only, clamped and biased (ADR 0054)
+    slag::Pipeline* depth;       // DepthPrepass
+    slag::Pipeline* forward;     // Opaque
+    slag::Pipeline* shadow;      // Shadows: depth only, clamped and biased (ADR 0054)
+    slag::Pipeline* transparent; // Transparent; blended materials have only this (ADR 0055)
 };
 struct MaterialDraw
 {
@@ -242,9 +252,9 @@ struct ShadowRequests
 // One shadow map's pass: a cascade's layer, or an atlas tile.
 struct ShadowPass
 {
-    uint32_t cullView; // its ShadowCullView, and so its DrawList
-    uint32_t layer;    // cascades
-    slag::Rect rect;   // atlas tiles: where it is, in texels
+    uint32_t cullView;  // its ShadowCullView, and so its DrawList
+    uint32_t layer;     // cascades
+    slag::Rect rect;    // atlas tiles: where it is, in texels
     uint64_t constants; // the GPU address of its ViewConstants (the view replaced by the light's)
     DrawList draws;
 };
@@ -255,8 +265,8 @@ struct ShadowFrame
     std::span<const ShadowPass> cascades;
     std::span<const ShadowPass> tiles;
     uint32_t cascadeSize;
-    uint32_t cascadeSlot;      // the cascades' Texture2DArray slot this frame
-    slag::Texture* atlas;      // null: no light has a tile
+    uint32_t cascadeSlot; // the cascades' Texture2DArray slot this frame
+    slag::Texture* atlas; // null: no light has a tile
     slag::AttachmentView* atlasView;
     slag::TextureLayout atlasLayout; // its layout before the frame
 };
@@ -268,8 +278,8 @@ ShadowRequests& shadowRequests(ShadowState& state);
 // Before culling: fits the cascades, gives lights their tiles, writes the
 // frame's ShadowViews, sets each shadowed light's LightData::shadowView, and
 // fills the view's shadow constants.
-Result<void> prepareShadows(ShadowState& state, ecs::World* world, const ShadowRequests& requests,
-                            LightData* lights, uint32_t frameSlot, ViewConstants& view);
+Result<void> prepareShadows(ShadowState& state, ecs::World* world, const ShadowRequests& requests, LightData* lights,
+                            uint32_t frameSlot, ViewConstants& view);
 std::span<const ShadowCullView> shadowCullViews(const ShadowState& state);
 // After culling: which tiles changed, and each pass's constants.
 const ShadowFrame& finishShadows(ShadowState& state, const DrawState& draws, const ViewConstants& view,
@@ -282,9 +292,9 @@ void fitCascades(ViewConstants& view, Vector3 sunDirection, float sunDistance, u
 // Tests: what the last finishShadows did.
 struct ShadowStats
 {
-    uint32_t cascades;    // drawn
-    uint32_t tilesDrawn;  // atlas tiles drawn again
-    uint32_t tilesKept;   // atlas tiles still right from earlier frames
+    uint32_t cascades;   // drawn
+    uint32_t tilesDrawn; // atlas tiles drawn again
+    uint32_t tilesKept;  // atlas tiles still right from earlier frames
 };
 ShadowStats shadowStats();
 // The shadow-map format: D16Unorm, or D32Float where D16Unorm can't be

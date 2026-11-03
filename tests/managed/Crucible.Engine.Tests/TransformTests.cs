@@ -86,6 +86,8 @@ public class TransformTests
         world.Set(sun, new DirectionalLight { Color = Vector3.One, Intensity = 1, CastsShadows = true, ShadowDistance = 60 });
         Entity sky = world.CreateEntity(Components.Of<AmbientLight>());
         world.Set(sky, new AmbientLight { SkyColor = new Vector3(0.4f, 0.5f, 0.7f), GroundColor = new Vector3(0.2f), Intensity = 1 });
+        Entity backdrop = world.CreateEntity(Components.Of<Sky>());
+        world.Set(backdrop, new Sky { ZenithColor = new Vector3(0, 0, 1), HorizonColor = new Vector3(0.8f), Intensity = 1, SunSize = 0.05f, SunIntensity = 8 });
 
         using World loaded = new();
         SceneLoad load = Scene.Load(loaded, Scene.Save(world, _sceneId));
@@ -97,5 +99,7 @@ public class TransformTests
         await Assert.That(loaded.Read<DirectionalLight>(directional).ShadowDistance).IsEqualTo(60f);
         Entity ambient = load.Roots.Single(root => loaded.Has(root, Components.Of<AmbientLight>()));
         await Assert.That(loaded.Read<AmbientLight>(ambient).SkyColor).IsEqualTo(new Vector3(0.4f, 0.5f, 0.7f));
+        Entity drawn = load.Roots.Single(root => loaded.Has(root, Components.Of<Sky>()));
+        await Assert.That(loaded.Read<Sky>(drawn).SunIntensity).IsEqualTo(8f);
     }
 }

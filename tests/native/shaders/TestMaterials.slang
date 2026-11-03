@@ -124,6 +124,7 @@ public struct Lit : IMaterial
     {
         SurfaceData s = SurfaceData.defaults(input);
         s.albedo = color.rgb;
+        s.alpha = color.a;
         return s;
     }
 

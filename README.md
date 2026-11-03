@@ -45,3 +45,7 @@ Longer explanations of decisions, written to be reread:
   have a range, CPU culling, and hemisphere ambient.
 - [Shadows](docs/learning/shadows.md) (ADR 0054): cascades, snapping
   against shimmer, acne and bias, the tent filter, and the cached atlas.
+- [Sky, transparency, and antialiasing in the shader](docs/learning/sky-and-transparency.md)
+  (ADR 0055): drawing the sky last, sorting against order-independent
+  transparency (with measurements), premultiplied alpha, specular AA, toon
+  band AA, and alpha-to-coverage.

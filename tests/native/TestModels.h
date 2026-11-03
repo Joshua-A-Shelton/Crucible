@@ -68,34 +68,35 @@ struct QuadOptions
     float alphaCutoff = 0.5f;
     bool doubleSided = false;
     const assets::AssetId* remap = nullptr; // an authored material for the slot (MRMP)
+    float roughness = 0.5f;
 };
 
-// A unit quad in the XY plane facing -Z (clockwise from a camera looking
-// along +Z), with normals, half-float UVs (u left to right, v top to
-// bottom), and one generated material.
-inline std::vector<uint8_t> quadModel(const QuadOptions& options = {})
+// A model of one mesh from its streams (normals and half-float UVs), with
+// one generated material as the mesh importer writes it.
+inline std::vector<uint8_t> meshModel(const std::vector<float>& positions, const std::vector<int16_t>& normals,
+                                      const std::vector<uint16_t>& uvs, const std::vector<uint16_t>& indices,
+                                      const float (&boundsMin)[3], const float (&boundsMax)[3],
+                                      const QuadOptions& options)
 {
+    const auto vertexCount = static_cast<uint32_t>(positions.size() / 3);
     binary::Writer* writer = binary::createWriter(assets::meshFileKind, assets::meshFileVersion);
-    addSection(writer, binary::tag("INFO"), std::vector<assets::MeshFileInfo>{{1, 1, 1, 4, 1 | 4, 0}});
+    addSection(writer, binary::tag("INFO"), std::vector<assets::MeshFileInfo>{{1, 1, 1, vertexCount, 1 | 4, 0}});
     assets::MeshEntry entry{};
-    entry.vertexCount = 4;
+    entry.vertexCount = vertexCount;
     entry.indexSize = 2;
     entry.attributes = 1 | 4; // normals, UV0
     entry.lodCount = 1;
     entry.submeshCount = 1;
-    const float boundsMin[3] = {-0.5f, -0.5f, 0}, boundsMax[3] = {0.5f, 0.5f, 0};
     std::memcpy(entry.boundsMin, boundsMin, sizeof(boundsMin));
     std::memcpy(entry.boundsMax, boundsMax, sizeof(boundsMax));
     addSection(writer, binary::tag("MSHS"), std::vector<assets::MeshEntry>{entry});
     addSection(writer, binary::tag("LODS"), std::vector<assets::MeshLod>{{0, 0.0f}});
-    addSection(writer, binary::tag("RNGS"), std::vector<assets::MeshRange>{{0, 6, 0}});
-    addSection(writer, binary::tag("POSN"),
-               std::vector<float>{-0.5f, -0.5f, 0, -0.5f, 0.5f, 0, 0.5f, 0.5f, 0, 0.5f, -0.5f, 0});
-    // (0, 0, -1), octahedral: the fold puts it at the square's corner.
-    addSection(writer, binary::tag("NRML"), std::vector<int16_t>(8, 32767));
-    // Half floats: 0 and 1 (0x3c00).
-    addSection(writer, binary::tag("UV0_"), std::vector<uint16_t>{0, 0x3c00, 0, 0, 0x3c00, 0, 0x3c00, 0x3c00});
-    addSection(writer, binary::tag("INDX"), std::vector<uint16_t>{0, 1, 2, 0, 2, 3});
+    addSection(writer, binary::tag("RNGS"),
+               std::vector<assets::MeshRange>{{0, static_cast<uint32_t>(indices.size()), 0}});
+    addSection(writer, binary::tag("POSN"), positions);
+    addSection(writer, binary::tag("NRML"), normals);
+    addSection(writer, binary::tag("UV0_"), uvs);
+    addSection(writer, binary::tag("INDX"), indices);
     assets::MeshNode node{};
     node.parent = -1;
     node.mesh = 0;
@@ -107,7 +108,7 @@ inline std::vector<uint8_t> quadModel(const QuadOptions& options = {})
     // The generated material, as the mesh importer writes it.
     shaders::DefaultMaterial parameters{};
     parameters.baseColor = {options.baseColor[0], options.baseColor[1], options.baseColor[2], options.baseColor[3]};
-    parameters.roughness = 0.5f;
+    parameters.roughness = options.roughness;
     parameters.normalScale = 1;
     parameters.occlusionStrength = 1;
     assets::MaterialInfo info{};
@@ -136,6 +137,85 @@ inline std::vector<uint8_t> quadModel(const QuadOptions& options = {})
                    std::vector<uint8_t>(options.remap->bytes, options.remap->bytes + 16));
     }
     return fileBytes(writer);
+}
+
+// A unit quad in the XY plane facing -Z (clockwise from a camera looking
+// along +Z), with normals, half-float UVs (u left to right, v top to
+// bottom), and one generated material.
+inline std::vector<uint8_t> quadModel(const QuadOptions& options = {})
+{
+    const float boundsMin[3] = {-0.5f, -0.5f, 0}, boundsMax[3] = {0.5f, 0.5f, 0};
+    // (0, 0, -1), octahedral: the fold puts it at the square's corner.
+    // Half floats: 0 and 1 (0x3c00).
+    return meshModel({-0.5f, -0.5f, 0, -0.5f, 0.5f, 0, 0.5f, 0.5f, 0, 0.5f, -0.5f, 0}, std::vector<int16_t>(8, 32767),
+                     {0, 0x3c00, 0, 0, 0x3c00, 0, 0x3c00, 0x3c00}, {0, 1, 2, 0, 2, 3}, boundsMin, boundsMax, options);
+}
+
+// A sphere of radius 0.5 (24 rings of 48 segments), with smooth normals.
+inline std::vector<uint8_t> sphereModel(const QuadOptions& options = {})
+{
+    constexpr int rings = 24, segments = 48;
+    std::vector<float> positions;
+    std::vector<int16_t> normals;
+    std::vector<uint16_t> uvs, indices;
+    for (int r = 0; r <= rings; ++r)
+    {
+        const float theta = 3.14159265f * static_cast<float>(r) / rings;
+        for (int s = 0; s <= segments; ++s)
+        {
+            const float phi = 6.2831853f * static_cast<float>(s) / segments;
+            const float n[3] = {std::sin(theta) * std::cos(phi), std::cos(theta), std::sin(theta) * std::sin(phi)};
+            for (float c : n)
+            {
+                positions.push_back(c * 0.5f);
+            }
+            // Octahedral, as the importer encodes it.
+            float x = n[0], y = n[1];
+            const float sum = std::fabs(n[0]) + std::fabs(n[1]) + std::fabs(n[2]);
+            x /= sum;
+            y /= sum;
+            if (n[2] < 0)
+            {
+                const float fx = (1 - std::fabs(y)) * (x >= 0 ? 1.0f : -1.0f);
+                const float fy = (1 - std::fabs(x)) * (y >= 0 ? 1.0f : -1.0f);
+                x = fx;
+                y = fy;
+            }
+            normals.push_back(static_cast<int16_t>(std::lround(x * 32767)));
+            normals.push_back(static_cast<int16_t>(std::lround(y * 32767)));
+            uvs.push_back(0);
+            uvs.push_back(0);
+        }
+    }
+    auto vertex = [&](int r, int s) {
+        return static_cast<uint16_t>(r * (segments + 1) + s);
+    };
+    auto triangle = [&](uint16_t a, uint16_t b, uint16_t c) {
+        // Clockwise from outside: (b - a) x (c - a) points outward here.
+        const float* pa = &positions[a * 3];
+        const float* pb = &positions[b * 3];
+        const float* pc = &positions[c * 3];
+        const float u[3] = {pb[0] - pa[0], pb[1] - pa[1], pb[2] - pa[2]};
+        const float v[3] = {pc[0] - pa[0], pc[1] - pa[1], pc[2] - pa[2]};
+        const float cross[3] = {u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]};
+        const float outward = cross[0] * (pa[0] + pb[0] + pc[0]) + cross[1] * (pa[1] + pb[1] + pc[1]) +
+                              cross[2] * (pa[2] + pb[2] + pc[2]);
+        if (std::fabs(outward) < 1e-9f)
+        {
+            return; // degenerate, at a pole
+        }
+        indices.insert(indices.end(), {a, outward > 0 ? b : c, outward > 0 ? c : b});
+    };
+    for (int r = 0; r < rings; ++r)
+    {
+        for (int s = 0; s < segments; ++s)
+        {
+            triangle(vertex(r, s), vertex(r + 1, s), vertex(r + 1, s + 1));
+            triangle(vertex(r, s), vertex(r + 1, s + 1), vertex(r, s + 1));
+        }
+    }
+    const float boundsMin[3] = {-0.5f, -0.5f, -0.5f}, boundsMax[3] = {0.5f, 0.5f, 0.5f};
+    return meshModel(positions, normals, uvs, indices, boundsMin, boundsMax, options);
 }
 
 // An RGBA8 texture of `width` x 1 texels, not sRGB.
@@ -341,11 +421,15 @@ inline TypeLayout typeNamed(const std::vector<uint8_t>& shader, std::string_view
 
 // A .crmat: one opaque record of the shader's type `type`.
 inline std::vector<uint8_t> materialFile(const assets::AssetId& shader, uint32_t type,
-                                         const std::vector<uint8_t>& parameters)
+                                         const std::vector<uint8_t>& parameters,
+                                         assets::AlphaMode alphaMode = assets::AlphaMode::Opaque,
+                                         bool doubleSided = false)
 {
     assets::MaterialInfo info{};
     std::memcpy(info.shader, shader.bytes, 16);
     info.type = type;
+    info.alphaMode = alphaMode;
+    info.doubleSided = doubleSided ? 1 : 0;
     info.parameterOffset = sizeof(info);
     info.parameterSize = static_cast<uint32_t>(parameters.size());
     info.textureOffset = (sizeof(info) + info.parameterSize + 3) / 4 * 4;

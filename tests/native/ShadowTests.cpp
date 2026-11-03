@@ -43,8 +43,8 @@ ecs::Entity addCamera(test::Scene& scene, Vector3 position, float pitch)
     const ecs::ComponentId set[] = {ecs::componentIdOf<LocalTransform>, ecs::componentIdOf<WorldTransform>,
                                     ecs::componentIdOf<Camera>};
     const ecs::Entity camera = ecs::createEntity(*scene.world, set);
-    *ecs::get<LocalTransform>(*scene.world, camera) = {position, Quaternion::fromAxisAngle({1, 0, 0}, pitch),
-                                                       {1, 1, 1}};
+    *ecs::get<LocalTransform>(*scene.world,
+                              camera) = {position, Quaternion::fromAxisAngle({1, 0, 0}, pitch), {1, 1, 1}};
     *ecs::get<Camera>(*scene.world,
                       camera) = {.projection = CameraProjection::Perspective, .fieldOfViewY = 0.9f, .nearPlane = 0.1f};
     return camera;
@@ -79,8 +79,8 @@ TEST_CASE("The sun's cascades are snapped to texels and keep their size as the c
     render::ViewConstants view{};
     auto place = [&](Vector3 position, float yaw) {
         view.projection = Matrix4x4::perspectiveReverseZInfinite(0.9f, 16.0f / 9.0f, 0.1f);
-        view.inverseView = Matrix4x4::rotation(Quaternion::fromAxisAngle({0, 1, 0}, yaw)) *
-                           Matrix4x4::translation(position);
+        view.inverseView =
+            Matrix4x4::rotation(Quaternion::fromAxisAngle({0, 1, 0}, yaw)) * Matrix4x4::translation(position);
         view.cameraPosition = position;
     };
     const Vector3 sun = normalize(Vector3{0.3f, 0.8f, -0.5f});
@@ -212,8 +212,8 @@ TEST_SUITE("gpu")
                 scene.quad(model, {0, 0, 0}, 30, faceUp);
                 const ecs::Entity occluder = scene.quad(model, {0, 2, 0}, 1, faceUp);
                 const ecs::Entity bystander = scene.quad(model, {40, 0, 40}, 1, faceUp);
-                const ecs::Entity spot = light(scene, {0, 4, 0}, test::Scene::facing({0, -1, 0}),
-                                               ecs::componentIdOf<SpotLight>);
+                const ecs::Entity spot =
+                    light(scene, {0, 4, 0}, test::Scene::facing({0, -1, 0}), ecs::componentIdOf<SpotLight>);
                 *ecs::get<SpotLight>(*scene.world, spot) = {{1, 1, 1}, 24, 12, 1.4f, 1.6f, true};
 
                 scene.render(surface.value());

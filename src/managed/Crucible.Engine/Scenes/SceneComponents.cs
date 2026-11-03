@@ -48,6 +48,7 @@ internal static class EngineComponents
         Components.Register<Crucible.Render.PointLight>();
         Components.Register<Crucible.Render.SpotLight>();
         Components.Register<Crucible.Render.AmbientLight>();
+        Components.Register<Crucible.Render.Sky>();
         Components.Register<SceneEntityId>();
         Components.Register<PrefabInstance>();
         SavedComponents.Add<LocalTransform>();
@@ -57,6 +58,7 @@ internal static class EngineComponents
         SavedComponents.Add<Crucible.Render.PointLight>();
         SavedComponents.Add<Crucible.Render.SpotLight>();
         SavedComponents.Add<Crucible.Render.AmbientLight>();
+        SavedComponents.Add<Crucible.Render.Sky>();
         return true;
     });
 

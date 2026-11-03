@@ -138,10 +138,12 @@ interface IMaterial
   - Opaque materials' depth uses the engine's positions-only `depthVertex`;
     alpha-tested ones use `maskPixel`, which discards below the cutoff.
   - The forward pass discards too, so what the prepass clipped isn't drawn
-    over what's behind it.
+    over what's behind it. (Since 9a, the prepass uses alpha-to-coverage
+    and Opaque tests Equal instead; `maskPixel` clips shadows. ADR 0055.)
   - Double-sided materials cull nothing, and their back faces flip the
     normal.
-  - Blended materials draw as opaque until the transparent pass (step 9).
+  - Blended materials draw as opaque until the transparent pass (step 9;
+    built in 9a, ADR 0055).
 - **Runtime (`Materials.cpp`):**
   - a 4 MB material buffer (`Upload` memory) at resource slot 1, with
     first-fit allocation; freed ranges are reused once the frames that may

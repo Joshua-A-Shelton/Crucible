@@ -88,6 +88,7 @@ crucible_embed_shaders(crucible_render_objects
         "${PROJECT_SOURCE_DIR}/shaders/crucible/default.slang"
         "${PROJECT_SOURCE_DIR}/shaders/crucible/resolve.slang"
         "${PROJECT_SOURCE_DIR}/shaders/crucible/clusters.slang"
+        "${PROJECT_SOURCE_DIR}/shaders/crucible/sky.slang"
     # The C# mirrors of their [GpuShared] structs (DefaultMaterial), for
     # Crucible.Engine.
     CS_OUTPUT_DIR "${CRUCIBLE_GENERATED_DIR}/managed/engine-shaders")
