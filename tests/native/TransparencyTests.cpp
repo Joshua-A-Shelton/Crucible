@@ -138,12 +138,12 @@ TEST_SUITE("gpu")
                 // The sun's disk, and not just off it.
                 const Vector3 sun = view.cameraPosition + toSun * 100;
                 const Bgra disk = test::pixelOf(pixels, view, sun);
-                CHECK(disk.r > 250);
-                CHECK(disk.g > 250);
+                CHECK(disk.r > 245);
+                CHECK(disk.g > 245);
                 CHECK(test::pixelOf(pixels, view, sun + Vector3{0, 15, 0}).g < 220);
-                // Geometry keeps its own color.
-                CHECK(test::pixelOf(pixels, view, {0, 0, 0}).b > 250);
-                CHECK(test::pixelOf(pixels, view, {0, 0, 0}).r > 250);
+                // Geometry keeps its own color (white, tonemapped to 240).
+                CHECK(test::pixelOf(pixels, view, {0, 0, 0}).b > 235);
+                CHECK(test::pixelOf(pixels, view, {0, 0, 0}).r > 235);
             }
 
             SUBCASE("Transparent surfaces blend nearest last, whatever order they were made in")
@@ -170,10 +170,10 @@ TEST_SUITE("gpu")
                 CHECK(redOverGreen.g < 120);
                 CHECK(greenOverBlue.g > 200);
                 CHECK(greenOverBlue.b < 120);
-                // In front: the opaque quad alone.
+                // In front: the opaque quad alone (white, tonemapped to 240).
                 const Bgra front = test::pixelOf(pixels, view, {2.2f, 0, -1});
-                CHECK(front.r > 250);
-                CHECK(front.g > 250);
+                CHECK(front.r > 235);
+                CHECK(front.g > 235);
                 // Behind a half-clear blue pane: white tinted blue, not hidden.
                 const Bgra through = test::pixelOf(pixels, view, {-4, 0, 0});
                 CHECK(through.r > 120);

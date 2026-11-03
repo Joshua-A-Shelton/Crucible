@@ -35,13 +35,13 @@ public partial class MaterialImportSettings;
 public sealed class MaterialImporter : Importer<MaterialImportSettings>
 {
     public static readonly uint Kind = Tag.Of("MATR");
-    public const uint KindVersion = 1;
+    public const uint KindVersion = 2;
     public const string FileExtension = ".crmaterial";
     public static readonly uint RecordSection = Tag.Of("MTLS");
 
     public override string Name => "Material";
 
-    public override int Version => 1;
+    public override int Version => 2;
 
     public override IReadOnlyList<string> Extensions => [FileExtension];
 
@@ -128,8 +128,43 @@ public sealed class MaterialImporter : Importer<MaterialImportSettings>
             DoubleSided = root.TryGetProperty("DoubleSided", out JsonElement sides) && sides.GetBoolean() ? 1u : 0u,
             AlphaCutoff = root.TryGetProperty("AlphaCutoff", out JsonElement cutoff) ? cutoff.GetSingle() : 0.5f,
         };
+        if (root.TryGetProperty("Outline", out JsonElement outline))
+        {
+            MeshImporter.Outline(ref info, ReadOutline(outline));
+        }
         shaderId.Value.TryWriteBytes(info.Shader);
         context.CreateOutput(Kind, KindVersion).Add(RecordSection, 1, Record(info, parameters, textures));
+    }
+
+    // "Outline": { "Width": pixels, "Color": [r, g, b], "Tint": 0 to 1 }, each
+    // optional.
+    private static OutlineSettings ReadOutline(JsonElement outline)
+    {
+        if (outline.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidDataException("Outline is an object: { Width, Color, Tint }");
+        }
+        OutlineSettings result = default;
+        foreach (JsonProperty property in outline.EnumerateObject())
+        {
+            switch (property.Name)
+            {
+            case "Width":
+                result.Width = property.Value.GetSingle();
+                break;
+            case "Tint":
+                result.Tint = property.Value.GetSingle();
+                break;
+            case "Color":
+                JsonElement[] channels = Elements(property.Value, 3, "Outline.Color");
+                result.Color = new System.Numerics.Vector3(channels[0].GetSingle(), channels[1].GetSingle(),
+                    channels[2].GetSingle());
+                break;
+            default:
+                throw new InvalidDataException($"Outline has no {property.Name}: it has Width, Color, and Tint");
+            }
+        }
+        return result;
     }
 
     // One record: the info, the parameters, then the textures (4-aligned),

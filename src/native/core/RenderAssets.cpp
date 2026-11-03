@@ -293,12 +293,14 @@ Result<LoadedMesh*> createMesh(std::span<const uint8_t> bytes)
 
     // The streams, in one GPU buffer.
     const uint32_t streamTags[] = {binary::tag("POSN"), binary::tag("NRML"), binary::tag("TNGT"), binary::tag("UV0_"),
-                                   binary::tag("UV1_"), binary::tag("COLR"), binary::tag("INDX")};
-    MeshData::Stream* streams[] = {&mesh->data.positions, &mesh->data.normals, &mesh->data.tangents, &mesh->data.uv0,
-                                   &mesh->data.uv1,       &mesh->data.colors,  &mesh->data.indices};
-    int32_t sectionIndex[7] = {};
+                                   binary::tag("UV1_"), binary::tag("COLR"), binary::tag("ONRM"), binary::tag("INDX")};
+    MeshData::Stream* streams[] = {
+        &mesh->data.positions, &mesh->data.normals, &mesh->data.tangents,       &mesh->data.uv0,
+        &mesh->data.uv1,       &mesh->data.colors,  &mesh->data.outlineNormals, &mesh->data.indices};
+    constexpr int streamCount = static_cast<int>(std::size(streamTags));
+    int32_t sectionIndex[streamCount] = {};
     uint64_t total = 0;
-    for (int s = 0; s < 7 && status == Status::Ok; ++s)
+    for (int s = 0; s < streamCount && status == Status::Ok; ++s)
     {
         sectionIndex[s] = binary::findSection(file, streamTags[s]);
         const uint64_t size =
@@ -342,7 +344,7 @@ Result<LoadedMesh*> createMesh(std::span<const uint8_t> bytes)
             mesh->data.buffer = buffer.value();
             staging = upload.value();
             auto* target = static_cast<uint8_t*>(direct ? mesh->data.buffer->mappedData() : staging->mappedData());
-            for (int s = 0; s < 7 && status == Status::Ok; ++s)
+            for (int s = 0; s < streamCount && status == Status::Ok; ++s)
             {
                 if (sectionIndex[s] >= 0)
                 {

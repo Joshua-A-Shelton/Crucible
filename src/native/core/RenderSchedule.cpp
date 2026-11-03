@@ -113,6 +113,12 @@ BlackboardKey lightClustersKey()
     return key;
 }
 
+BlackboardKey bloomKey()
+{
+    static const BlackboardKey key = registerBlackboardKey("Bloom");
+    return key;
+}
+
 BlackboardKey shadowCascadesKey()
 {
     static const BlackboardKey key = registerBlackboardKey("ShadowCascades");

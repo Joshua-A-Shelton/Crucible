@@ -73,7 +73,8 @@ public class MaterialImporterTests
           "DoubleSided": true,
           "AlphaCutoff": 0.3,
           "Values": { "roughness": 0.25, "weights": [4, 5, 6], "flags": 9 },
-          "Textures": { "albedo": "TEXTURE" }
+          "Textures": { "albedo": "TEXTURE" },
+          "Outline": { "Width": 2.5, "Color": [0.2, 0.1, 0.05], "Tint": 0.5 }
         }
         """;
 
@@ -102,6 +103,8 @@ public class MaterialImporterTests
         MaterialTexture slot = MemoryMarshal.Read<MaterialTexture>(record.AsSpan((int)info.TextureOffset));
         await Assert.That(slot.Offset).IsEqualTo(16u);
         await Assert.That(new Guid(slot.Texture)).IsEqualTo(texture.Value);
+        await Assert.That((info.OutlineWidth, info.OutlineColor[0], info.OutlineColor[1], info.OutlineColor[2],
+            info.OutlineTint)).IsEqualTo((2.5f, 0.2f, 0.1f, 0.05f, 0.5f));
     }
 
     [Test]
@@ -122,6 +125,8 @@ public class MaterialImporterTests
     [Arguments("\"Values\": { \"albedo\": 1 }", "albedo is a texture")]
     [Arguments("\"Values\": { \"flags\": -1 }", "flags takes whole numbers from 0")]
     [Arguments("\"Textures\": { \"roughness\": \"TEXTURE\" }", "roughness isn't a TextureSlot")]
+    [Arguments("\"Outline\": { \"Thickness\": 2 }", "Outline has no Thickness")]
+    [Arguments("\"Outline\": { \"Color\": [0, 0] }", "Outline.Color takes an array of 3")]
     public async Task MistakesAreReportedByName(string body, string message)
     {
         using Scratch scratch = new();

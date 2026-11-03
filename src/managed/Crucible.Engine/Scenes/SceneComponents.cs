@@ -42,6 +42,7 @@ internal static class EngineComponents
         Components.Register<LocalTransform>();
         Components.Register<WorldTransform>();
         Components.Register<Crucible.Render.Camera>();
+        Components.Register<Crucible.Render.PostProcess>();
         Components.Register<MeshInstance>();
         Components.Register<LoadedMesh>();
         Components.Register<Crucible.Render.DirectionalLight>();
@@ -54,6 +55,7 @@ internal static class EngineComponents
         SavedComponents.Add<LocalTransform>();
         SavedComponents.Add<MeshInstance>();
         SavedComponents.Add<Crucible.Render.Camera>();
+        SavedComponents.Add<Crucible.Render.PostProcess>();
         SavedComponents.Add<Crucible.Render.DirectionalLight>();
         SavedComponents.Add<Crucible.Render.PointLight>();
         SavedComponents.Add<Crucible.Render.SpotLight>();

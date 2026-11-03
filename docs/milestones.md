@@ -293,7 +293,8 @@ the decision each one needs comes first):
      blended OIT after comparing both), specular AA, toon band AA, and
      alpha-to-coverage.
    - 9b: tonemapping, the post-tonemap resolve, bloom, color grading, and
-     outlines.
+     outlines (inverted hulls, chosen over edge detection after comparing
+     both).
 10. The demonstration: an imported, lit scene rendered offscreen on D3D12
     and Vulkan, the images compared within a tolerance. Re-measures the
     incremental transform paths on it (docs/open-items.md).

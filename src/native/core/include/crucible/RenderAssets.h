@@ -142,7 +142,8 @@ struct MeshData
     Stream uv0;
     Stream uv1;
     Stream colors;
-    Stream indices; // each MeshRange's indexByteOffset is from here
+    Stream outlineNormals; // ADR 0055
+    Stream indices;        // each MeshRange's indexByteOffset is from here
     std::span<const assets::MeshEntry> meshes;
     std::span<const assets::MeshLod> lods;
     std::span<const assets::MeshRange> ranges;

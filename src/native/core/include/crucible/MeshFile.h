@@ -12,6 +12,8 @@
 //   POSN  float x3            every vertex of every mesh, mesh after mesh
 //   NRML  int16 x2            normal, octahedral
 //   TNGT  int16 x4            tangent, octahedral (x, y), handedness (±32767), 0
+//   ONRM  int16 x2            outline normal, octahedral: the normals of every
+//                             vertex at the same position averaged (ADR 0055)
 //   UV0_, UV1_  half x2, or float x2 when MeshFileInfo::floatUvs says so
 //   COLR  uint8 x4            sRGB colour, linear alpha
 //   INDX  each mesh's indices, 16-bit if it has 65,535 vertices or fewer, else 32-bit
@@ -30,7 +32,7 @@
 namespace crucible::assets {
 
 inline constexpr uint32_t meshFileKind = binary::tag("MESH");
-inline constexpr uint32_t meshFileVersion = 1;
+inline constexpr uint32_t meshFileVersion = 2; // 2: ONRM, and MaterialInfo outlines (ADR 0055)
 
 // Bits of MeshEntry::attributes and MeshFileInfo::streams.
 enum class CRUCIBLE_EXPOSE MeshAttribute : uint32_t
@@ -40,6 +42,7 @@ enum class CRUCIBLE_EXPOSE MeshAttribute : uint32_t
     Uv0 = 4,
     Uv1 = 8,
     Colors = 16,
+    OutlineNormals = 32,
 };
 
 struct CRUCIBLE_EXPOSE MeshFileInfo

@@ -146,6 +146,19 @@ public class MeshImporterTests
         await Assert.That((infos[0].AlphaMode, infos[0].DoubleSided, infos[0].TextureCount)).IsEqualTo((AlphaMode.Mask, 1u, 0u));
         await Assert.That(infos[0].AlphaCutoff).IsEqualTo(0.3f);
         await Assert.That(infos[1].AlphaMode).IsEqualTo(AlphaMode.Opaque);
+        await Assert.That(infos[1].OutlineWidth).IsEqualTo(0f); // none unless asked
+    }
+
+    [Test]
+    public async Task GeneratedMaterialsTakeTheOutlineSetting()
+    {
+        MaterialEntry opaque = new() { AlphaCutoff = 0.5f };
+        OutlineSettings outline = new() { Width = 3, Color = new System.Numerics.Vector3(0.1f, 0.2f, 0.3f), Tint = 2 };
+        byte[] section = MeshImporter.GeneratedMaterials([opaque], ShadingModel.Toon, outline);
+        MaterialInfo info = MemoryMarshal.Read<MaterialInfo>(section);
+        await Assert.That((info.OutlineWidth, info.OutlineColor[0], info.OutlineColor[1], info.OutlineColor[2]))
+            .IsEqualTo((3f, 0.1f, 0.2f, 0.3f));
+        await Assert.That(info.OutlineTint).IsEqualTo(1f); // clamped
     }
 
     [Test]

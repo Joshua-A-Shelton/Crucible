@@ -1,10 +1,13 @@
-// The default render steps (ADR 0048, 0051, 0052, 0053, 0054): DepthPrepass
-// draws the draw list's depth into SceneDepth; LightClustering lists each
-// cluster's lights; Shadows draws the sun's cascades and the atlas tiles that
-// changed; Opaque clears SceneColor to renderFrame's color and draws each
-// submesh with its material, testing against the prepass's depth; Resolve
-// averages SceneColor's samples into the backbuffer. SceneColor and
-// SceneDepth are MSAA transients at msaaSamples().
+// The default render steps (ADR 0048, 0051 to 0055): DepthPrepass draws the
+// draw list's depth into SceneDepth; LightClustering lists each cluster's
+// lights; Shadows draws the sun's cascades and the atlas tiles that changed;
+// Opaque clears SceneColor to renderFrame's color and draws each submesh with
+// its material, testing against the prepass's depth; Outlines draws outlined
+// materials' inverted hulls; Sky fills what's left;
+// Transparent blends what's see-through, farthest first; Bloom filters a glow
+// from SceneColor; Tonemap finishes each sample (exposure, bloom,
+// tonemapping, grading) and averages them into the backbuffer. SceneColor
+// and SceneDepth are MSAA transients at msaaSamples().
 
 #include "RenderInternal.h"
 
@@ -14,6 +17,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstring>
 
 namespace crucible::render {
 
@@ -67,6 +71,7 @@ struct Draw
     slag::Pipeline* pipeline;
     uint32_t material; // byte offset in the material buffer
     float alphaCutoff;
+    MaterialOutline outline;
     uint32_t instance = UINT32_MAX; // one instance (sorted transparency); else the whole batch
     float distance = 0;             // sorted transparency: the instance's view depth
 };
@@ -77,6 +82,7 @@ enum class Pass : uint8_t
     Forward,
     Shadow,
     Transparent,
+    Outline,
 };
 
 // Every batch's submeshes, ordered by pipeline so the GPU switches state as
@@ -101,13 +107,14 @@ void gatherDraws(const DrawList& draws, Pass kind, Vector<Draw>& out)
                     ? batch.materials[static_cast<size_t>(range.material)]
                     : MaterialHandle{};
             const MaterialDraw material = materialDraw(handle);
-            slag::Pipeline* pipeline = kind == Pass::Depth     ? material.pipelines->depth
-                                       : kind == Pass::Forward ? material.pipelines->forward
-                                       : kind == Pass::Shadow  ? material.pipelines->shadow
-                                                               : material.pipelines->transparent;
+            slag::Pipeline* pipeline = kind == Pass::Depth         ? material.pipelines->depth
+                                       : kind == Pass::Forward     ? material.pipelines->forward
+                                       : kind == Pass::Shadow      ? material.pipelines->shadow
+                                       : kind == Pass::Transparent ? material.pipelines->transparent
+                                                                   : material.pipelines->outline;
             if (pipeline != nullptr)
             {
-                out.pushBack({&batch, submesh, pipeline, material.offset, material.alphaCutoff});
+                out.pushBack({&batch, submesh, pipeline, material.offset, material.alphaCutoff, material.outline});
             }
         }
     }
@@ -150,6 +157,10 @@ void recordDraws(slag::CommandBuffer* commands, const DrawList& draws, const Vec
         constants.materials = materialBufferDescriptor;
         constants.material = draw.material;
         constants.alphaCutoff = draw.alphaCutoff;
+        constants.outlineNormals = static_cast<uint32_t>(model.outlineNormals.offset + first * 4);
+        constants.outlineWidth = draw.outline.width;
+        constants.outlineColor = draw.outline.color;
+        constants.outlineTint = draw.outline.tint;
         commands->pushConstants(&constants, sizeof(constants));
         const bool one = draw.instance != UINT32_MAX;
         commands->drawIndexed(range.indexCount, one ? 1 : batch.instanceCount, range.indexByteOffset / mesh.indexSize,
@@ -501,6 +512,38 @@ void addOpaque(RenderStepContext& context, void*)
 }
 
 // ---------------------------------------------------------------------------
+// Outlines
+// ---------------------------------------------------------------------------
+
+Vector<Draw> outlineDraws{MemoryTag::Render};
+
+// Inverted hulls (ADR 0055): every outlined material's submeshes again,
+// pushed out and front faces culled, after Opaque and before Sky.
+void addOutlines(RenderStepContext& context, void*)
+{
+    gatherDraws(context.draws, Pass::Outline, outlineDraws);
+    if (outlineDraws.empty())
+    {
+        return;
+    }
+    const slag::rendergraph::RenderGraphTexture color = context.texture(sceneColorKey());
+    const slag::rendergraph::RenderGraphTexture depth = context.texture(sceneDepthKey());
+    const slag::rendergraph::RenderGraphBuffer view = context.buffer(viewKey());
+    const DrawList* draws = &context.draws;
+    context.graph.addPass(
+        "Outlines", slag::CommandQueueType::Graphics,
+        [&](slag::rendergraph::PassBuilder& pass) {
+            pass.use(view, slag::rendergraph::Usage::ConstantBuffer);
+            pass.renderTarget(color, slag::LoadOp::Load, slag::StoreOp::Store);
+            pass.depthStencil(depth, slag::LoadOp::Load, slag::StoreOp::Store);
+        },
+        [draws, view](slag::rendergraph::PassContext& pass, slag::CommandBuffer* commands) {
+            commands->setConstantBuffer(pass.buffer(view)->gpuAddress(), viewSize());
+            recordDraws(commands, *draws, outlineDraws);
+        });
+}
+
+// ---------------------------------------------------------------------------
 // Sky
 // ---------------------------------------------------------------------------
 
@@ -612,46 +655,201 @@ void addTransparent(RenderStepContext& context, void*)
 }
 
 // ---------------------------------------------------------------------------
-// Resolve
+// Bloom
 // ---------------------------------------------------------------------------
 
-slag::Pipeline* resolvePipeline = nullptr;
+struct BloomPipelines
+{
+    slag::Pipeline* prefilter = nullptr;
+    slag::Pipeline* downsample = nullptr;
+    slag::Pipeline* upsample = nullptr; // added onto the level
+} bloomPipelines;
+slag::PixelFormat bloomFormat = slag::PixelFormat::R16G16B16A16Float;
 
-Result<void> prepareResolve(slag::GraphicsDevice& device, void*)
+Result<void> prepareBloom(slag::GraphicsDevice& device, void*)
+{
+    // R11G11B10Float where it can be drawn, filtered, and blended: half the
+    // bandwidth, and the glow needs no alpha.
+    constexpr slag::FormatSupport needed = slag::FormatSupport::Sampled | slag::FormatSupport::LinearFilter |
+                                           slag::FormatSupport::RenderTarget | slag::FormatSupport::Blend;
+    bloomFormat = (device.formatSupport(slag::PixelFormat::R11G11B10Float) & needed) == needed
+                      ? slag::PixelFormat::R11G11B10Float
+                      : slag::PixelFormat::R16G16B16A16Float;
+    const slag::PixelFormat formats[] = {bloomFormat};
+    slag::GraphicsPipelineDesc desc{
+        .rasterizer = {.cullMode = slag::CullMode::None}, .colorFormats = formats, .debugName = "Bloom"};
+    const char* entries[3] = {"bloomPrefilterPixel", "bloomDownsamplePixel", "bloomUpsamplePixel"};
+    slag::Pipeline** out[3] = {&bloomPipelines.prefilter, &bloomPipelines.downsample, &bloomPipelines.upsample};
+    for (int i = 0; i < 3; ++i)
+    {
+        if (i == 2)
+        {
+            desc.blend.targets[0] = {.blendEnable = true,
+                                     .srcColorFactor = slag::BlendFactor::One,
+                                     .destColorFactor = slag::BlendFactor::One,
+                                     .srcAlphaFactor = slag::BlendFactor::One,
+                                     .destAlphaFactor = slag::BlendFactor::One};
+        }
+        Result<slag::Pipeline*> pipeline = createPipeline(device, "bloom", "bloomVertex", entries[i], desc);
+        if (!pipeline)
+        {
+            return pipeline.status();
+        }
+        *out[i] = pipeline.value();
+    }
+    return {};
+}
+
+void releaseBloom(slag::GraphicsDevice& device, void*)
+{
+    destroyPipeline(device, &bloomPipelines.prefilter);
+    destroyPipeline(device, &bloomPipelines.downsample);
+    destroyPipeline(device, &bloomPipelines.upsample);
+}
+
+struct BloomPass
+{
+    slag::Pipeline* pipeline;
+    uint32_t source; // slot
+    uint32_t samples;
+    float sourceTexel[2];
+};
+
+void addBloom(RenderStepContext& context, void*)
+{
+    const uint32_t levels = context.view.bloomLevels;
+    if (levels == 0)
+    {
+        return;
+    }
+    const uint32_t width = std::max(context.width / 2, 1u);
+    const uint32_t height = std::max(context.height / 2, 1u);
+    const slag::rendergraph::RenderGraphTexture chain =
+        context.graph.createTransientTexture2D({.format = bloomFormat,
+                                                .width = width,
+                                                .height = height,
+                                                .mipCount = levels,
+                                                .usage = slag::TextureUsage::RenderTarget,
+                                                .debugName = "Bloom"});
+    context.publish(bloomKey(), chain);
+    const slag::rendergraph::RenderGraphTexture scene = context.texture(sceneColorKey());
+    const slag::rendergraph::RenderGraphBuffer view = context.buffer(viewKey());
+    const uint32_t sourceSlot = surfaceDescriptor(context, bloomSourceDescriptor);
+    const uint32_t levelSlots = surfaceDescriptor(context, bloomLevelsDescriptor);
+    slag::GraphicsDevice* device = &context.device;
+    auto levelSize = [&](uint32_t level) {
+        return std::array<float, 2>{static_cast<float>(std::max(width >> level, 1u)),
+                                    static_cast<float>(std::max(height >> level, 1u))};
+    };
+
+    // Level 0 from SceneColor; the views of SceneColor and every level are
+    // written here (transients differ from frame to frame).
+    context.graph.addPass(
+        "BloomPrefilter", slag::CommandQueueType::Graphics,
+        [&](slag::rendergraph::PassBuilder& pass) {
+            pass.use(view, slag::rendergraph::Usage::ConstantBuffer);
+            pass.use(scene, slag::rendergraph::Usage::ShaderRead);
+            pass.renderTarget(chain, slag::LoadOp::Discard, slag::StoreOp::Store, {}, 0);
+        },
+        [=](slag::rendergraph::PassContext& pass, slag::CommandBuffer* commands) {
+            const uint32_t slot = pass.frameSlot();
+            device->writeTexture(sourceSlot + slot, {.texture = pass.texture(scene),
+                                                     .viewType = samples > 1 ? slag::TextureViewType::Texture2DMS
+                                                                             : slag::TextureViewType::Texture2D});
+            for (uint32_t level = 0; level < levels; ++level)
+            {
+                device->writeTexture(levelSlots + level * framesInFlight + slot,
+                                     {.texture = pass.texture(chain), .baseMip = level, .mipCount = 1});
+            }
+            const BloomPass constants{nullptr, sourceSlot + slot, samples, {0, 0}};
+            commands->bindPipeline(bloomPipelines.prefilter);
+            commands->setConstantBuffer(pass.buffer(view)->gpuAddress(), viewSize());
+            commands->pushConstants(&constants.source, 16);
+            commands->draw(3, 1);
+        });
+
+    // Down the chain, then back up it, each level reading its neighbour.
+    for (uint32_t step = 0; step + 1 < levels * 2 - 1; ++step)
+    {
+        const bool down = step + 1 < levels;
+        const uint32_t target = down ? step + 1 : levels * 2 - 3 - step;
+        const uint32_t source = down ? target - 1 : target + 1;
+        const std::array<float, 2> size = levelSize(source);
+        const BloomPass constants{down ? bloomPipelines.downsample : bloomPipelines.upsample,
+                                  levelSlots + source * framesInFlight,
+                                  1,
+                                  {1.0f / size[0], 1.0f / size[1]}};
+        context.graph.addPass(
+            down ? "BloomDownsample" : "BloomUpsample", slag::CommandQueueType::Graphics,
+            [&](slag::rendergraph::PassBuilder& pass) {
+                pass.use(chain, slag::rendergraph::Usage::ShaderRead, {.baseMip = source, .mipCount = 1});
+                pass.renderTarget(chain, down ? slag::LoadOp::Discard : slag::LoadOp::Load, slag::StoreOp::Store, {},
+                                  target);
+            },
+            [constants](slag::rendergraph::PassContext& pass, slag::CommandBuffer* commands) {
+                BloomPass shader = constants;
+                shader.source += pass.frameSlot();
+                commands->bindPipeline(shader.pipeline);
+                commands->pushConstants(&shader.source, 16);
+                commands->draw(3, 1);
+            });
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tonemap
+// ---------------------------------------------------------------------------
+
+slag::Pipeline* tonemapPipeline = nullptr;
+
+Result<void> prepareTonemap(slag::GraphicsDevice& device, void*)
 {
     const slag::PixelFormat formats[] = {backbufferFormat};
     Result<slag::Pipeline*> pipeline = createPipeline(
-        device, "resolve", "fullscreenVertex", "resolvePixel",
-        {.rasterizer = {.cullMode = slag::CullMode::None}, .colorFormats = formats, .debugName = "Resolve"});
+        device, "tonemap", "fullscreenVertex", "tonemapPixel",
+        {.rasterizer = {.cullMode = slag::CullMode::None}, .colorFormats = formats, .debugName = "Tonemap"});
     if (!pipeline)
     {
         return pipeline.status();
     }
-    resolvePipeline = pipeline.value();
+    tonemapPipeline = pipeline.value();
     return {};
 }
 
-void addResolve(RenderStepContext& context, void*)
+void addTonemap(RenderStepContext& context, void*)
 {
     const slag::rendergraph::RenderGraphTexture source = context.texture(sceneColorKey());
     const slag::rendergraph::RenderGraphTexture backbuffer = context.texture(backbufferKey());
+    const slag::rendergraph::RenderGraphBuffer view = context.buffer(viewKey());
+    slag::rendergraph::RenderGraphTexture bloom{};
+    if (context.view.bloomLevels > 0)
+    {
+        bloom = context.texture(bloomKey());
+    }
     // The surface's slot for this frame slot: the transient texture differs
     // from frame to frame, so it's written while recording.
-    const uint32_t firstSlot = surfaceDescriptor(context, resolveDescriptor);
+    const uint32_t firstSlot = surfaceDescriptor(context, tonemapDescriptor);
+    const uint32_t bloomSlot = surfaceDescriptor(context, bloomLevelsDescriptor);
     slag::GraphicsDevice* device = &context.device;
     context.graph.addPass(
-        "Resolve", slag::CommandQueueType::Graphics,
+        "Tonemap", slag::CommandQueueType::Graphics,
         [&](slag::rendergraph::PassBuilder& pass) {
+            pass.use(view, slag::rendergraph::Usage::ConstantBuffer);
             pass.use(source, slag::rendergraph::Usage::ShaderRead);
+            if (bloom.index != UINT32_MAX)
+            {
+                pass.use(bloom, slag::rendergraph::Usage::ShaderRead, {.baseMip = 0, .mipCount = 1});
+            }
             pass.renderTarget(backbuffer, slag::LoadOp::Discard, slag::StoreOp::Store);
         },
-        [source, firstSlot, device](slag::rendergraph::PassContext& pass, slag::CommandBuffer* commands) {
+        [=](slag::rendergraph::PassContext& pass, slag::CommandBuffer* commands) {
             const uint32_t slot = firstSlot + pass.frameSlot();
             device->writeTexture(slot, {.texture = pass.texture(source),
                                         .viewType = samples > 1 ? slag::TextureViewType::Texture2DMS
                                                                 : slag::TextureViewType::Texture2D});
-            const uint32_t constants[2] = {slot, samples};
-            commands->bindPipeline(resolvePipeline);
+            const uint32_t constants[3] = {slot, samples, bloomSlot + pass.frameSlot()};
+            commands->bindPipeline(tonemapPipeline);
+            commands->setConstantBuffer(pass.buffer(view)->gpuAddress(), viewSize());
             commands->pushConstants(constants, sizeof(constants));
             commands->draw(3, 1);
         });
@@ -674,16 +872,18 @@ void addDefaultSteps(RenderSchedule& schedule)
                         .prepare = prepareShadowStep,
                         .release = releaseShadows});
     (void)schedule.add({.name = "Opaque", .addPasses = addOpaque});
+    (void)schedule.add({.name = "Outlines", .addPasses = addOutlines});
     (void)schedule.add({.name = "Sky",
                         .addPasses = addSky,
                         .userData = &skyPipeline,
                         .prepare = prepareSky,
                         .release = destroyPipeline});
     (void)schedule.add({.name = "Transparent", .addPasses = addTransparent});
-    (void)schedule.add({.name = "Resolve",
-                        .addPasses = addResolve,
-                        .userData = &resolvePipeline,
-                        .prepare = prepareResolve,
+    (void)schedule.add({.name = "Bloom", .addPasses = addBloom, .prepare = prepareBloom, .release = releaseBloom});
+    (void)schedule.add({.name = "Tonemap",
+                        .addPasses = addTonemap,
+                        .userData = &tonemapPipeline,
+                        .prepare = prepareTonemap,
                         .release = destroyPipeline});
 }
 

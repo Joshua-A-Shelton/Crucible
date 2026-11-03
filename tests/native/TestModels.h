@@ -24,6 +24,7 @@
 
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <fstream>
@@ -69,6 +70,9 @@ struct QuadOptions
     bool doubleSided = false;
     const assets::AssetId* remap = nullptr; // an authored material for the slot (MRMP)
     float roughness = 0.5f;
+    float outlineWidth = 0; // pixels
+    float outlineColor[3] = {0, 0, 0};
+    float outlineTint = 0;
 };
 
 // A model of one mesh from its streams (normals and half-float UVs), with
@@ -116,6 +120,9 @@ inline std::vector<uint8_t> meshModel(const std::vector<float>& positions, const
     info.alphaMode = options.alphaMode;
     info.doubleSided = options.doubleSided ? 1 : 0;
     info.alphaCutoff = options.alphaCutoff;
+    info.outlineWidth = options.outlineWidth;
+    std::memcpy(info.outlineColor, options.outlineColor, sizeof(info.outlineColor));
+    info.outlineTint = options.outlineTint;
     info.parameterOffset = sizeof(info);
     info.parameterSize = sizeof(parameters);
     info.textureOffset = (sizeof(info) + sizeof(parameters) + 3) / 4 * 4;
@@ -151,7 +158,22 @@ inline std::vector<uint8_t> quadModel(const QuadOptions& options = {})
                      {0, 0x3c00, 0, 0, 0x3c00, 0, 0x3c00, 0x3c00}, {0, 1, 2, 0, 2, 3}, boundsMin, boundsMax, options);
 }
 
-// A sphere of radius 0.5 (24 rings of 48 segments), with smooth normals.
+// A float as a half float (normal numbers and zero; enough for UVs).
+inline uint16_t toHalf(float value)
+{
+    uint32_t bits;
+    std::memcpy(&bits, &value, 4);
+    const uint32_t sign = (bits >> 16) & 0x8000;
+    const int exponent = static_cast<int>((bits >> 23) & 0xff) - 127 + 15;
+    if (exponent <= 0)
+    {
+        return static_cast<uint16_t>(sign);
+    }
+    return static_cast<uint16_t>(sign | (static_cast<uint32_t>(exponent) << 10) | ((bits >> 13) & 0x3ff));
+}
+
+// A sphere of radius 0.5 (24 rings of 48 segments), with smooth normals and
+// UVs: u around it (0.75 faces -Z), v from top to bottom.
 inline std::vector<uint8_t> sphereModel(const QuadOptions& options = {})
 {
     constexpr int rings = 24, segments = 48;
@@ -183,8 +205,8 @@ inline std::vector<uint8_t> sphereModel(const QuadOptions& options = {})
             }
             normals.push_back(static_cast<int16_t>(std::lround(x * 32767)));
             normals.push_back(static_cast<int16_t>(std::lround(y * 32767)));
-            uvs.push_back(0);
-            uvs.push_back(0);
+            uvs.push_back(toHalf(static_cast<float>(s) / segments));
+            uvs.push_back(toHalf(static_cast<float>(r) / rings));
         }
     }
     auto vertex = [&](int r, int s) {
@@ -216,6 +238,89 @@ inline std::vector<uint8_t> sphereModel(const QuadOptions& options = {})
     }
     const float boundsMin[3] = {-0.5f, -0.5f, -0.5f}, boundsMax[3] = {0.5f, 0.5f, 0.5f};
     return meshModel(positions, normals, uvs, indices, boundsMin, boundsMax, options);
+}
+
+// Octahedral, as the importer encodes normals.
+inline void octahedralNormal(const float (&n)[3], std::vector<int16_t>& out)
+{
+    float x = n[0], y = n[1];
+    const float sum = std::fabs(n[0]) + std::fabs(n[1]) + std::fabs(n[2]);
+    x /= sum;
+    y /= sum;
+    if (n[2] < 0)
+    {
+        const float fx = (1 - std::fabs(y)) * (x >= 0 ? 1.0f : -1.0f);
+        const float fy = (1 - std::fabs(x)) * (y >= 0 ? 1.0f : -1.0f);
+        x = fx;
+        y = fy;
+    }
+    out.push_back(static_cast<int16_t>(std::lround(x * 32767)));
+    out.push_back(static_cast<int16_t>(std::lround(y * 32767)));
+}
+
+// A unit cube (24 vertices, 4 per face). With `smoothNormals`, each corner's
+// normal points out of the corner, as an outline-normal stream would, so it
+// shades rounded; otherwise each face's normal is flat.
+inline std::vector<uint8_t> cubeModel(bool smoothNormals, const QuadOptions& options = {})
+{
+    std::vector<float> positions;
+    std::vector<int16_t> normals;
+    std::vector<uint16_t> uvs, indices;
+    for (int axis = 0; axis < 3; ++axis)
+    {
+        for (int side = -1; side <= 1; side += 2)
+        {
+            const int u = (axis + 1) % 3, v = (axis + 2) % 3;
+            const auto base = static_cast<uint16_t>(positions.size() / 3);
+            const float corners[4][2] = {{-1, -1}, {1, -1}, {1, 1}, {-1, 1}};
+            for (const auto& corner : corners)
+            {
+                float p[3]{};
+                p[axis] = 0.5f * static_cast<float>(side);
+                p[u] = 0.5f * corner[0];
+                p[v] = 0.5f * corner[1];
+                positions.insert(positions.end(), p, p + 3);
+                float n[3]{};
+                if (smoothNormals)
+                {
+                    const float length = std::sqrt(p[0] * p[0] + p[1] * p[1] + p[2] * p[2]);
+                    n[0] = p[0] / length;
+                    n[1] = p[1] / length;
+                    n[2] = p[2] / length;
+                }
+                else
+                {
+                    n[axis] = static_cast<float>(side);
+                }
+                octahedralNormal(n, normals);
+                uvs.push_back(0);
+                uvs.push_back(0);
+            }
+            // Clockwise from outside: (b - a) x (c - a) points outward.
+            const bool flip = side > 0; // (a, b, c) has (b - a) x (c - a) along +axis
+            const uint16_t quad[6] = {base, static_cast<uint16_t>(base + 1), static_cast<uint16_t>(base + 2),
+                                      base, static_cast<uint16_t>(base + 2), static_cast<uint16_t>(base + 3)};
+            for (int t = 0; t < 2; ++t)
+            {
+                indices.push_back(quad[t * 3]);
+                indices.push_back(flip ? quad[t * 3 + 1] : quad[t * 3 + 2]);
+                indices.push_back(flip ? quad[t * 3 + 2] : quad[t * 3 + 1]);
+            }
+        }
+    }
+    const float boundsMin[3] = {-0.5f, -0.5f, -0.5f}, boundsMax[3] = {0.5f, 0.5f, 0.5f};
+    return meshModel(positions, normals, uvs, indices, boundsMin, boundsMax, options);
+}
+
+// An RGBA8 texture of `width` x `height` texels, not sRGB, rows top to
+// bottom.
+inline std::vector<uint8_t> texture2D(uint32_t width, uint32_t height, const std::vector<uint8_t>& rgba)
+{
+    binary::Writer* writer = binary::createWriter(assets::textureFileKind, assets::textureFileVersion);
+    addSection(writer, binary::tag("INFO"),
+               std::vector<assets::TextureInfo>{{assets::TextureFormat::Rgba8, width, height, 1, 0}});
+    REQUIRE(binary::addSection(*writer, assets::textureMipTag(0), 1, rgba, 16));
+    return fileBytes(writer);
 }
 
 // An RGBA8 texture of `width` x 1 texels, not sRGB.
@@ -253,6 +358,34 @@ struct Bgra
 {
     uint8_t b, g, r, a;
 };
+
+// The default tonemapper (Khronos PBR Neutral, as tonemap.slang), for
+// expected pixel values.
+inline Vector3 pbrNeutral(Vector3 color)
+{
+    constexpr float startCompression = 0.8f - 0.04f, desaturation = 0.15f;
+    const float x = std::min(color.x, std::min(color.y, color.z));
+    const float offset = x < 0.08f ? x - 6.25f * x * x : 0.04f;
+    color = color - Vector3{offset, offset, offset};
+    const float peak = std::max(color.x, std::max(color.y, color.z));
+    if (peak < startCompression)
+    {
+        return color;
+    }
+    constexpr float d = 1.0f - startCompression;
+    const float newPeak = 1.0f - d * d / (peak + d - startCompression);
+    color = color * (newPeak / peak);
+    const float g = 1.0f - 1.0f / (desaturation * (peak - newPeak) + 1.0f);
+    return lerp(color, Vector3{newPeak, newPeak, newPeak}, g);
+}
+
+// A linear value as an sRGB-encoded byte.
+inline uint8_t srgbByte(float linear)
+{
+    const float c = std::clamp(linear, 0.0f, 1.0f);
+    const float encoded = c <= 0.0031308f ? c * 12.92f : 1.055f * std::pow(c, 1.0f / 2.4f) - 0.055f;
+    return static_cast<uint8_t>(std::lround(encoded * 255.0f));
+}
 
 // A world of mesh instances, rendered as the frame loop would.
 struct Scene
@@ -423,7 +556,8 @@ inline TypeLayout typeNamed(const std::vector<uint8_t>& shader, std::string_view
 inline std::vector<uint8_t> materialFile(const assets::AssetId& shader, uint32_t type,
                                          const std::vector<uint8_t>& parameters,
                                          assets::AlphaMode alphaMode = assets::AlphaMode::Opaque,
-                                         bool doubleSided = false)
+                                         bool doubleSided = false,
+                                         const std::vector<assets::MaterialTexture>& textures = {})
 {
     assets::MaterialInfo info{};
     std::memcpy(info.shader, shader.bytes, 16);
@@ -433,9 +567,15 @@ inline std::vector<uint8_t> materialFile(const assets::AssetId& shader, uint32_t
     info.parameterOffset = sizeof(info);
     info.parameterSize = static_cast<uint32_t>(parameters.size());
     info.textureOffset = (sizeof(info) + info.parameterSize + 3) / 4 * 4;
-    std::vector<uint8_t> record(info.textureOffset);
+    info.textureCount = static_cast<uint32_t>(textures.size());
+    std::vector<uint8_t> record(info.textureOffset + textures.size() * sizeof(assets::MaterialTexture));
     std::memcpy(record.data(), &info, sizeof(info));
     std::memcpy(record.data() + sizeof(info), parameters.data(), parameters.size());
+    if (!textures.empty())
+    {
+        std::memcpy(record.data() + info.textureOffset, textures.data(),
+                    textures.size() * sizeof(assets::MaterialTexture));
+    }
     binary::Writer* writer = binary::createWriter(assets::materialFileKind, assets::materialFileVersion);
     addSection(writer, assets::meshMaterialsTag, record);
     return fileBytes(writer);

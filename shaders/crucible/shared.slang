@@ -58,6 +58,21 @@ public struct ViewConstants
     public float skySunIntensity;
     public float3 skyGround;
     public uint sky;
+    // Finishing (ADR 0055), from the camera's PostProcess: white balance as
+    // one matrix (row vectors, applied before tonemapping); lift, gamma,
+    // gain, contrast, and saturation after it; the exposure as a scale; the
+    // bloom's mix and threshold; and the Tonemapper.
+    public float4x4 whiteBalance;
+    public float3 lift;
+    public float contrast;
+    public float3 gamma;
+    public float saturation;
+    public float3 gain;
+    public uint tonemapper;
+    public float exposureScale;
+    public float bloomStrength;
+    public float bloomThreshold;
+    public uint bloomLevels; // the bloom chain's levels this frame; 0 for none
 };
 
 // A world matrix as shaders read it (ADR 0051): its first three columns, so
@@ -90,6 +105,12 @@ public struct DrawConstants
     public uint materials;  // the material buffer's slot (a ByteAddressBuffer)
     public uint material;   // this draw's material: its byte offset there
     public float alphaCutoff; // alpha-tested materials discard below it; 0 otherwise
+    // Outlines (ADR 0055): the outline-normal stream's offset (when
+    // attributes has it), and the material's outline.
+    public uint outlineNormals;
+    public float outlineWidth;
+    public float3 outlineColor;
+    public float outlineTint;
 };
 
 // One light as shaders read it (ADR 0053), in world space. Directional

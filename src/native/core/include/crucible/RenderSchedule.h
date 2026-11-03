@@ -50,7 +50,7 @@ BlackboardKey viewKey();
 
 // The MSAA targets the default steps draw into (ADR 0051), at
 // msaaSamples(): SceneDepth (D32Float, from DepthPrepass) and SceneColor
-// (R16G16B16A16Float, linear, from Opaque). Resolve writes SceneColor to the
+// (R16G16B16A16Float, linear, from Opaque). Tonemap writes SceneColor to the
 // backbuffer.
 BlackboardKey sceneDepthKey();
 BlackboardKey sceneColorKey();
@@ -71,6 +71,11 @@ BlackboardKey lightClustersKey();
 // shadowAtlas slots (0 when not published).
 BlackboardKey shadowCascadesKey();
 BlackboardKey shadowAtlasKey();
+
+// The Bloom step's chain (ADR 0055): half size, one mip per level, the
+// summed glow in mip 0, which Tonemap mixes in. Published only when the
+// camera's PostProcess has bloom.
+BlackboardKey bloomKey();
 
 // What a step sees while it adds its graph passes for one frame.
 class RenderStepContext
@@ -169,8 +174,8 @@ private:
 };
 
 // The renderer's schedule, holding the default steps (ADR 0051, 0053, 0054, 0055):
-// DepthPrepass, LightClustering, Shadows, Opaque, Sky, Transparent, then
-// Resolve.
+// DepthPrepass, LightClustering, Shadows, Opaque, Outlines, Sky, Transparent, Bloom,
+// then Tonemap.
 RenderSchedule& renderSchedule();
 
 } // namespace crucible::render

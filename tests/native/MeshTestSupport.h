@@ -142,6 +142,14 @@ struct Imported
         return decode(e[0], e[1]);
     }
 
+    Vec3 outlineNormal(uint32_t vertex) const
+    {
+        const auto& data = sections.at(binary::tag("ONRM"));
+        int16_t e[2];
+        std::memcpy(e, data.data() + vertex * 4, 4);
+        return decode(e[0], e[1]);
+    }
+
     // Tangent direction and handedness.
     std::pair<Vec3, float> tangent(uint32_t vertex) const
     {

@@ -22,13 +22,13 @@ inline constexpr uint32_t framesInFlight = 2;
 // Each surface's reserved resource-heap slots, below the loaded textures'
 // (which start at 1024): `descriptorsPerSurface` from 8 + surface index *
 // descriptorsPerSurface, one per frame slot for each of these.
-inline constexpr uint32_t descriptorsPerSurface = 24;
+inline constexpr uint32_t descriptorsPerSurface = 48;
 // (LightClustering writes the cluster lists through the RW slots, Opaque
 // reads them through the others. The shadow atlas outlives frames, so it
 // has one slot.)
 inline constexpr uint32_t transformsDescriptor = 0;                       // + frame slot
 inline constexpr uint32_t instancesDescriptor = framesInFlight;           // + frame slot
-inline constexpr uint32_t resolveDescriptor = 2 * framesInFlight;         // + frame slot
+inline constexpr uint32_t tonemapDescriptor = 2 * framesInFlight;         // + frame slot
 inline constexpr uint32_t lightsDescriptor = 3 * framesInFlight;          // + frame slot
 inline constexpr uint32_t clusterRangesDescriptor = 4 * framesInFlight;   // + frame slot
 inline constexpr uint32_t clusterLightsDescriptor = 5 * framesInFlight;   // + frame slot
@@ -37,7 +37,12 @@ inline constexpr uint32_t rwClusterLightsDescriptor = 7 * framesInFlight; // + f
 inline constexpr uint32_t shadowViewsDescriptor = 8 * framesInFlight;     // + frame slot
 inline constexpr uint32_t cascadeMapDescriptor = 9 * framesInFlight;      // + frame slot
 inline constexpr uint32_t shadowAtlasDescriptor = 10 * framesInFlight;
-static_assert(10 * framesInFlight + 1 <= descriptorsPerSurface);
+// The bloom chain (ADR 0055): SceneColor as the prefilter reads it, and
+// each level on its own.
+inline constexpr uint32_t maxBloomLevels = 6;
+inline constexpr uint32_t bloomSourceDescriptor = 11 * framesInFlight; // + frame slot
+inline constexpr uint32_t bloomLevelsDescriptor = 12 * framesInFlight; // + level * framesInFlight + frame slot
+static_assert(12 * framesInFlight + maxBloomLevels * framesInFlight <= descriptorsPerSurface);
 // 8 surfaces from slot 8: they must stay below the loaded textures' 1024.
 static_assert(8 + 8 * descriptorsPerSurface <= 1024);
 
@@ -90,9 +95,8 @@ Result<void> addStepPasses(const FrameInputs& inputs);
 const ShadowFrame& shadowFrame(const RenderStepContext& context);
 const DrawState& frameDrawState(const RenderStepContext& context);
 
-// DepthPrepass, LightClustering, Shadows, Opaque, Sky, Transparent, then
-// Resolve
-// (RenderSteps.cpp).
+// DepthPrepass, LightClustering, Shadows, Opaque, Outlines, Sky, Transparent, Bloom,
+// then Tonemap (RenderSteps.cpp).
 void addDefaultSteps(RenderSchedule& schedule);
 
 // DrawList.cpp (ADR 0051): a surface's drawing state (its transform buffers
@@ -180,12 +184,21 @@ struct MaterialPipelines
     slag::Pipeline* forward;     // Opaque
     slag::Pipeline* shadow;      // Shadows: depth only, clamped and biased (ADR 0054)
     slag::Pipeline* transparent; // Transparent; blended materials have only this (ADR 0055)
+    slag::Pipeline* outline;     // Outlines, when the material has a width (ADR 0055)
+};
+// A material's outline (MaterialInfo's), for DrawConstants.
+struct MaterialOutline
+{
+    float width; // pixels; 0: none
+    Vector3 color;
+    float tint;
 };
 struct MaterialDraw
 {
     const MaterialPipelines* pipelines;
     uint32_t offset;   // the parameters' byte offset in the material buffer
     float alphaCutoff; // 0 unless alpha-tested
+    MaterialOutline outline;
 };
 Result<void> startMaterials(slag::GraphicsDevice& device);
 void stopMaterials();

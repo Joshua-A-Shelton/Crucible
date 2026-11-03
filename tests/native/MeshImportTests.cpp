@@ -379,6 +379,50 @@ TEST_CASE("Corners weld into shared vertices with 16-bit indices")
     CHECK(!imported.has("UV0_"));
 }
 
+TEST_CASE("Outline normals average the normals of every vertex at a position")
+{
+    // Two faces meeting at a right-angled edge, flat-shaded: the edge's
+    // vertices are split, one per face, each with its face's normal.
+    Gltf gltf;
+    const int p = gltf.floats({0, 0, 0, 1, 0, 0,  1, 1, 0,  0, 0, 0, 1, 1, 0,  0, 1, 0,  // facing +Z
+                               1, 0, 0, 1, 0, -1, 1, 1, -1, 1, 0, 0, 1, 1, -1, 1, 1, 0}, // facing +X
+                              3);
+    gltf.primitive("\"POSITION\":" + std::to_string(p));
+    gltf.mesh("corner");
+    const Imported imported(gltf.json());
+    const MeshEntry entry = imported.table<MeshEntry>("MSHS")[0];
+    CHECK((entry.attributes & uint32_t(MeshAttribute::OutlineNormals)) != 0);
+    REQUIRE(imported.has("ONRM"));
+    uint32_t shared = 0;
+    for (uint32_t v = 0; v < entry.vertexCount; ++v)
+    {
+        // The sum of the normals at this vertex's position, normalized.
+        Vec3 sum{0, 0, 0};
+        uint32_t together = 0;
+        for (uint32_t w = 0; w < entry.vertexCount; ++w)
+        {
+            if (imported.position(w) == imported.position(v))
+            {
+                const Vec3 n = imported.normal(w);
+                for (int c = 0; c < 3; ++c)
+                {
+                    sum[c] += n[c];
+                }
+                ++together;
+            }
+        }
+        shared += together > 1 ? 1 : 0;
+        const float length = std::sqrt(sum[0] * sum[0] + sum[1] * sum[1] + sum[2] * sum[2]);
+        const Vec3 outline = imported.outlineNormal(v);
+        CAPTURE(v);
+        for (int c = 0; c < 3; ++c)
+        {
+            CHECK(outline[c] == doctest::Approx(sum[c] / length).epsilon(0.001));
+        }
+    }
+    CHECK(shared == 4); // the edge's two ends, once per face
+}
+
 TEST_CASE("Primitives become submeshes with their materials and textures")
 {
     Gltf gltf;

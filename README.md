@@ -49,3 +49,6 @@ Longer explanations of decisions, written to be reread:
   (ADR 0055): drawing the sky last, sorting against order-independent
   transparency (with measurements), premultiplied alpha, specular AA, toon
   band AA, and alpha-to-coverage.
+- [Finishing the image](docs/learning/finishing-the-image.md) (ADR 0055):
+  exposure and tonemappers, resolving after tonemapping, bloom, grading,
+  and inverted-hull against edge-detected outlines.

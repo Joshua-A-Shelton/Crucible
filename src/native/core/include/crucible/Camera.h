@@ -30,7 +30,8 @@ struct CRUCIBLE_EXPOSE Camera
     int32_t priority;
 };
 
-// Registers the component. Registering again is harmless.
+// Registers the component, and PostProcess (crucible/PostProcess.h).
+// Registering again is harmless.
 CRUCIBLE_EXPOSE_INTERNAL void registerCamera();
 
 } // namespace crucible::render

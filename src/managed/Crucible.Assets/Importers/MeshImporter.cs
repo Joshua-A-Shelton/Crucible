@@ -16,12 +16,29 @@ public enum ShadingModel
     Pbr,
 }
 
+/// <summary>
+/// A material's inverted-hull outline (ADR 0055): <see cref="Width"/> in
+/// pixels (0 for none), thinning past 10 meters; the line is
+/// <see cref="Color"/> times the surface's color as far as
+/// <see cref="Tint"/> says (0 a flat color, 1 fully tinted).
+/// </summary>
+[Serialized]
+public partial struct OutlineSettings
+{
+    public float Width;
+    public System.Numerics.Vector3 Color;
+    public float Tint;
+}
+
 /// <summary>A model's import settings, kept in its sidecar (ADR 0043).</summary>
 [Serialized]
 public partial class MeshImportSettings
 {
     /// <summary>How the materials generated for the model's slots are lit.</summary>
     public ShadingModel Shading = ShadingModel.Toon;
+
+    /// <summary>The outline of every material generated for the model's slots.</summary>
+    public OutlineSettings Outline;
 
     /// <summary>
     /// Authored materials (.crmaterial) for the model's slots, by slot:
@@ -59,12 +76,12 @@ public sealed class MeshImporter : Importer<MeshImportSettings>
 {
     public static readonly uint Kind = Tag.Of("MESH");
     public static readonly uint MaterialSection = Tag.Of("MATL");
-    public const uint KindVersion = 1;
+    public const uint KindVersion = 2;
 
     public override string Name => "Mesh";
 
     // 2: generated materials (MTLS); 3: remapped slots (MRMP).
-    public override int Version => 3;
+    public override int Version => 4;
 
     public override IReadOnlyList<string> Extensions => [".gltf", ".glb"];
 
@@ -159,7 +176,7 @@ public sealed class MeshImporter : Importer<MeshImportSettings>
             materials[m] = material;
         }
         output.Add(MaterialSection, 1, MemoryMarshal.AsBytes(materials.AsSpan()));
-        output.Add(GeneratedMaterialsSection, 1, GeneratedMaterials(materials, settings.Shading));
+        output.Add(GeneratedMaterialsSection, 1, GeneratedMaterials(materials, settings.Shading, settings.Outline));
         if (settings.Materials.Any(id => !id.IsNone))
         {
             // One asset ID per slot, zero for the generated material.
@@ -189,7 +206,8 @@ public sealed class MeshImporter : Importer<MeshImportSettings>
     /// each, then each one's <see cref="DefaultMaterial"/> parameters and
     /// textures, filled from the imported material.
     /// </summary>
-    internal static unsafe byte[] GeneratedMaterials(MaterialEntry[] materials, ShadingModel shading)
+    internal static unsafe byte[] GeneratedMaterials(MaterialEntry[] materials, ShadingModel shading,
+        OutlineSettings outline = default)
     {
         int infoSize = sizeof(MaterialInfo) * materials.Length;
         int recordSize = sizeof(DefaultMaterial) + sizeof(MaterialTexture) * TextureRoles.Length;
@@ -235,8 +253,19 @@ public sealed class MeshImporter : Importer<MeshImportSettings>
                 TextureOffset = (uint)texturesAt,
                 TextureCount = (uint)textureCount,
             };
+            Outline(ref infos[m], outline);
         }
         return section;
+    }
+
+    // The record's outline, from its settings.
+    internal static void Outline(ref MaterialInfo info, OutlineSettings outline)
+    {
+        info.OutlineWidth = Math.Max(outline.Width, 0);
+        info.OutlineColor[0] = outline.Color.X;
+        info.OutlineColor[1] = outline.Color.Y;
+        info.OutlineColor[2] = outline.Color.Z;
+        info.OutlineTint = Math.Clamp(outline.Tint, 0, 1);
     }
 
     public static readonly uint GeneratedMaterialsSection = Tag.Of("MTLS");

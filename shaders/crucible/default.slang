@@ -121,3 +121,23 @@ float4 pbrTransparentPixel(MaterialVertex v, bool frontFace : SV_IsFrontFace) : 
 {
     return materialTransparent<DefaultPbr>(v, frontFace);
 }
+
+// Outlines (ADR 0055).
+[shader("vertex")]
+MaterialVertex outlineVertex(uint vertex : SV_VertexID, uint instance : SV_InstanceID,
+                             uint firstInstance : SV_StartInstanceLocation)
+{
+    return outlineVertexMain(vertex, firstInstance + instance);
+}
+
+[shader("fragment")]
+float4 toonOutlinePixel(MaterialVertex v, bool frontFace : SV_IsFrontFace) : SV_Target
+{
+    return materialOutline<DefaultToon>(v, frontFace);
+}
+
+[shader("fragment")]
+float4 pbrOutlinePixel(MaterialVertex v, bool frontFace : SV_IsFrontFace) : SV_Target
+{
+    return materialOutline<DefaultPbr>(v, frontFace);
+}

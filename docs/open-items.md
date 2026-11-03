@@ -20,8 +20,6 @@ is, and record which version fixed it.
 ## Needs a decision from the project owner
 
 - Final names of the default phases (the list is ADR 0036's). → 0013, 0036 [M3]
-- Renderer details: post-processing and the post-tonemap MSAA resolve;
-  outlines. → 0015 [M5]
 - The C# rendering (batched command) API. → 0015 [M6]
 - C++ runtime extension mechanism (not plugins; C++ never extends the
   editor). → 0002 [M7]
@@ -32,6 +30,18 @@ is, and record which version fixed it.
   [when each is added]
 
 ## Revisit once there is a prototype to test against
+
+- Outlines after 9b (ADR 0055), chosen as hulls but marked by the owner to
+  come back to:
+  - edge-detected outlines (creases and intersections), compared and
+    measured in 0055;
+  - lines drawn by the material from a painted line map (view-dependent
+    strokes like an anime nose's), prototyped in 0055;
+  - hull tints by surface color only through the material's surface, not
+    vertex colors; blended materials have no outlines.
+- Finishing after 9b (ADR 0055): automatic exposure (opt-in, temporal);
+  LUT grading (needs 3D texture import); SMAA (ADR 0004's optional
+  extra); measure bloom and outlines on Steam Deck at step 10. → 0055
 
 - Shadows after step 8 (ADR 0054): when the atlas is full, a light goes
   without shadows that frame (nothing reports it); bias and normal offset

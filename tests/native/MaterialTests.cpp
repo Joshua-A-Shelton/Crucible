@@ -206,7 +206,8 @@ TEST_SUITE("gpu")
                 REQUIRE(material);
                 CHECK(render::materialTypeName(material.value()) == "Flat");
                 CHECK(render::materialShader(material.value()) == shader);
-                // New parameters: red, strength 1 (1.25, clamped to 255).
+                // New parameters: red, strength 1 (1.25, which tonemapping
+                // compresses, desaturating it a little toward white).
                 std::vector<uint8_t> parameters = layout.defaults;
                 const float red[4] = {1, 0, 0, 1}, strength = 1;
                 std::memcpy(parameters.data() + layout.offsetOf("color"), red, sizeof(red));
@@ -216,8 +217,9 @@ TEST_SUITE("gpu")
                       Status::InvalidData);
                 scene.render(surface.value());
                 pixel = test::pixelOf(test::readPixels(surface.value(), width, height), view, {0, 0, 0});
-                CHECK(pixel.r > 250);
-                CHECK(pixel.g < 5);
+                const Vector3 expected = test::pbrNeutral({1.25f, 0, 0});
+                CHECK(std::abs(pixel.r - test::srgbByte(expected.x)) <= 2);
+                CHECK(std::abs(pixel.g - test::srgbByte(expected.y)) <= 3);
                 render::releaseMaterial(material.value());
             }
             render::destroySurface(surface.value());

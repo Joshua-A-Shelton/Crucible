@@ -163,6 +163,7 @@ static const uint tangentsAttribute = 2;
 static const uint uv0Attribute = 4;
 static const uint uv1Attribute = 8;
 static const uint colorsAttribute = 16;
+static const uint outlineNormalsAttribute = 32;
 
 // The importer's octahedral encoding (ADR 0043), two 16-bit numbers.
 float3 octahedral(uint packed)
@@ -231,6 +232,16 @@ public float3 worldPosition(uint vertex, InstanceTransform transform)
     return float3(dot(position, transform.x), dot(position, transform.y), dot(position, transform.z));
 }
 
+// A normal in world space: through the cofactor of the world matrix's 3x3,
+// which keeps it perpendicular under non-uniform scale.
+public float3 worldNormal(float3 normal, InstanceTransform transform)
+{
+    const float3 row0 = float3(transform.x.x, transform.y.x, transform.z.x);
+    const float3 row1 = float3(transform.x.y, transform.y.y, transform.z.y);
+    const float3 row2 = float3(transform.x.z, transform.y.z, transform.z.z);
+    return normalize(normal.x * cross(row1, row2) + normal.y * cross(row2, row0) + normal.z * cross(row0, row1));
+}
+
 // What the material vertex shader hands the pixel shader.
 public struct MaterialVertex
 {
@@ -244,9 +255,7 @@ public struct MaterialVertex
     public nointerpolation uint entity : ENTITY;
 }
 
-// Every stream of a vertex, in world space. Normals go through the
-// cofactor of the world matrix's 3x3, which keeps them perpendicular under
-// non-uniform scale.
+// Every stream of a vertex, in world space.
 public MaterialVertex materialVertexMain(uint vertex, uint instance)
 {
     ByteAddressBuffer model = ResourceDescriptorHeap[draw.model];
@@ -264,7 +273,7 @@ public MaterialVertex materialVertexMain(uint vertex, uint instance)
     {
         normal = octahedral(model.Load(draw.normals + vertex * 4));
     }
-    output.normal = normalize(normal.x * cross(row1, row2) + normal.y * cross(row2, row0) + normal.z * cross(row0, row1));
+    output.normal = worldNormal(normal, transform);
     output.tangent = float4(1.0, 0.0, 0.0, 1.0);
     if ((draw.attributes & tangentsAttribute) != 0)
     {
@@ -285,6 +294,47 @@ public MaterialVertex materialVertexMain(uint vertex, uint instance)
         output.color = float4(srgbToLinear(color.rgb), color.a);
     }
     return output;
+}
+
+// Outlines (ADR 0055): this far from the camera, an outline is its full
+// width in pixels; past it, it thins in proportion, so distant crowds and
+// scenery don't turn into dark blobs.
+public static const float outlineFadeDistance = 10.0;
+
+// A vertex of an inverted hull: pushed out along its outline normal (its
+// normal without that stream) by the material's width, measured on screen.
+public MaterialVertex outlineVertexMain(uint vertex, uint instance)
+{
+    MaterialVertex output = materialVertexMain(vertex, instance);
+    float3 direction = output.normal;
+    if ((draw.attributes & outlineNormalsAttribute) != 0)
+    {
+        ByteAddressBuffer model = ResourceDescriptorHeap[draw.model];
+        direction = worldNormal(octahedral(model.Load(draw.outlineNormals + vertex * 4)), instanceTransform(instance));
+    }
+    const float depth = max(mul(float4(output.world, 1.0), view.view).z, 1e-3);
+    const float width = draw.outlineWidth * min(1.0, outlineFadeDistance / depth);
+    const float2 screen = mul(float4(direction, 0.0), view.viewProjection).xy;
+    output.position.xy += screen / max(length(screen), 1e-6) * width * 2.0 / view.viewportSize * output.position.w;
+    return output;
+}
+
+// A hull's pixel: the outline color, times the surface's color as far as
+// the material's tint says; alpha-tested materials clip their hull too.
+public float4 materialOutline<M : IMaterial>(MaterialVertex v, bool frontFace)
+{
+    float3 color = draw.outlineColor;
+    if (draw.outlineTint > 0.0 || draw.alphaCutoff > 0.0)
+    {
+        const M material = loadMaterial<M>();
+        const SurfaceData surface = material.surface(surfaceInput(v, frontFace));
+        if (surface.alpha < draw.alphaCutoff)
+        {
+            discard;
+        }
+        color *= lerp(float3(1.0, 1.0, 1.0), surface.albedo, draw.outlineTint);
+    }
+    return float4(color, 1.0);
 }
 
 public SurfaceInput surfaceInput(MaterialVertex v, bool frontFace)

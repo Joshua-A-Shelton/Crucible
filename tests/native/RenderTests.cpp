@@ -4,6 +4,8 @@
 // checked by hand: the offscreen video driver has no window Slag can present
 // to.
 
+#include "TestModels.h" // pbrNeutral, srgbByte
+
 #include <crucible/Render.h>
 
 #include <SDL3/SDL.h>
@@ -124,10 +126,10 @@ Bgra pixelAt(const std::vector<uint8_t>& pixels, uint32_t width, uint32_t x, uin
     return {pixels[at], pixels[at + 1], pixels[at + 2], pixels[at + 3]};
 }
 
-// The default render steps' frame without meshes (ADR 0048, 0051): the clear
-// color everywhere (within one step: hardware may round the sRGB encoding
-// either way), resolved from the MSAA scene color. Alpha is always 255: the
-// backbuffer's alpha means nothing to a window.
+// The default render steps' frame without meshes (ADR 0048, 0051, 0055): the
+// clear color, tonemapped, everywhere (within one step: hardware may round
+// the sRGB encoding either way), resolved from the MSAA scene color. Alpha is
+// always 255: the backbuffer's alpha means nothing to a window.
 void checkFrame(const std::vector<uint8_t>& pixels, uint32_t width, uint32_t height, Bgra clear)
 {
     uint32_t wrong = 0;
@@ -164,10 +166,13 @@ TEST_SUITE("gpu")
             std::vector<uint8_t> pixels(width * height * 4);
             CHECK(render::readSurfacePixels(surface.value(), pixels).status() == Status::NotFound); // no frame yet
 
-            // Linear 0.5 is about 188 once sRGB-encoded; alpha isn't encoded.
+            // Tonemapped (PBR Neutral), then sRGB-encoded; alpha isn't
+            // encoded.
             REQUIRE(render::renderFrame(surface.value(), nullptr, 0, 1.0f, 0.0f, 0.5f, 1.0f));
             REQUIRE(render::readSurfacePixels(surface.value(), pixels));
-            checkFrame(pixels, width, height, {188, 0, 255, 255});
+            const Vector3 first = test::pbrNeutral({1, 0, 0.5f});
+            checkFrame(pixels, width, height,
+                       {test::srgbByte(first.z), test::srgbByte(first.y), test::srgbByte(first.x), 255});
 
             // A later frame replaces it, through both frames in flight, paced.
             REQUIRE(render::setGpuTiming(surface.value(), true));
@@ -177,7 +182,9 @@ TEST_SUITE("gpu")
                 REQUIRE(render::renderFrame(surface.value(), nullptr, 0, 0.0f, 1.0f, 0.0f, 0.25f));
             }
             REQUIRE(render::readSurfacePixels(surface.value(), pixels));
-            checkFrame(pixels, width, height, {0, 255, 0, 255});
+            const Vector3 second = test::pbrNeutral({0, 1, 0});
+            checkFrame(pixels, width, height,
+                       {test::srgbByte(second.z), test::srgbByte(second.y), test::srgbByte(second.x), 255});
             CHECK(render::framesSubmitted(surface.value()) == 6);
             // The GPU timing thread stamped the finished frames.
             CHECK(render::gpuFrameDoneNs(surface.value(), 6) != 0);

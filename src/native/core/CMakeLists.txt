@@ -86,9 +86,10 @@ crucible_embed_shaders(crucible_render_objects
     OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/EngineShaders.g.cpp"
     SOURCES "${PROJECT_SOURCE_DIR}/shaders/crucible/mesh.slang"
         "${PROJECT_SOURCE_DIR}/shaders/crucible/default.slang"
-        "${PROJECT_SOURCE_DIR}/shaders/crucible/resolve.slang"
+        "${PROJECT_SOURCE_DIR}/shaders/crucible/tonemap.slang"
         "${PROJECT_SOURCE_DIR}/shaders/crucible/clusters.slang"
         "${PROJECT_SOURCE_DIR}/shaders/crucible/sky.slang"
+        "${PROJECT_SOURCE_DIR}/shaders/crucible/bloom.slang"
     # The C# mirrors of their [GpuShared] structs (DefaultMaterial), for
     # Crucible.Engine.
     CS_OUTPUT_DIR "${CRUCIBLE_GENERATED_DIR}/managed/engine-shaders")

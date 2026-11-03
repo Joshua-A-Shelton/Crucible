@@ -149,7 +149,7 @@ internal static class PrefabIds
 internal static class ModelPrefab
 {
     public static readonly uint Kind = Tag.Of("MESH");
-    public const uint KindVersion = 1;
+    public const uint KindVersion = 2; // as MeshImporter.KindVersion
     public const ulong RootId = 1;
 
     // The MESH file's MeshNode (src/native/importers/include/crucible/importers/Mesh.h).

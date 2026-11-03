@@ -162,3 +162,15 @@ Settled in a review of M4's and M5's placeholders (ADR 0047's amendment).
 | `shaders/crucible/sky.slang` (`skyVertex`, `skyPixel`); `ViewConstants`: `skyZenith`, `skyHorizon`, `skyGround`, `skySunCosine`, `skySunIntensity`, `sky` | The sky's shader and constants |
 | Library `materialTransparent<M>`, `materialCoverage<M>`; entries `<Type>_transparent`, `<Type>_coverage`; default.slang `toonTransparentPixel`, `pbrTransparentPixel`, `coveragePixel`; `MaterialPipelines::transparent` | Transparency and alpha-to-coverage |
 | `specularAntialiasing(normal, roughness)` | Specular AA helper |
+
+## Finishing and outlines (2026-11-03, M5 step 9b)
+
+| Name | What it is |
+|---|---|
+| `crucible/PostProcess.h`: `PostProcess` (`exposure`, `tonemapper`, `bloomStrength`, `bloomThreshold`, `contrast`, `saturation`, `temperature`, `tint`, `lift`, `gamma`, `gain`), `Tonemapper` (`PbrNeutral`, `AgX`, `Aces`); registered by `registerCamera` | The camera's finishing, C# `Crucible.Render.PostProcess` (ADR 0055) |
+| Steps `Bloom`, `Tonemap` (was `Resolve`), `Outlines`; blackboard key `Bloom` (`bloomKey()`); passes `BloomPrefilter`, `BloomDownsample`, `BloomUpsample` | Render steps |
+| `ViewConstants`: `whiteBalance`, `lift`, `contrast`, `gamma`, `saturation`, `gain`, `tonemapper`, `exposureScale`, `bloomStrength`, `bloomThreshold`, `bloomLevels` | The frame's finishing |
+| `bloom.slang` (`bloomVertex`, `bloomPrefilterPixel`, `bloomDownsamplePixel`, `bloomUpsamplePixel`); `tonemap.slang` (`fullscreenVertex`, `tonemapPixel`) | Shaders |
+| `MaterialInfo::outlineWidth`, `outlineColor`, `outlineTint`; `.crmaterial` and `MeshImportSettings` `Outline { Width, Color, Tint }`, C# `OutlineSettings` | A material's outline |
+| `MeshAttribute::OutlineNormals`, stream `ONRM` | Outline normals |
+| Library `outlineVertexMain`, `materialOutline<M>`, `worldNormal`, `outlineFadeDistance`; entries `outlineVertex`, `<Type>_outline`, default.slang `toonOutlinePixel`, `pbrOutlinePixel`; `MaterialPipelines::outline`; `DrawConstants` `outlineNormals`, `outlineWidth`, `outlineColor`, `outlineTint` | Hull rendering |

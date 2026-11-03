@@ -19,6 +19,8 @@ add_executable(crucible_native_tests
     ShadowTests.cpp
     SimdTests.cpp
     SystemsTests.cpp
+    OutlineTests.cpp
+    PostProcessTests.cpp
     TransformTests.cpp
     TransparencyTests.cpp)
 

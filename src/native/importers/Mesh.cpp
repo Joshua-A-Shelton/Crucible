@@ -8,6 +8,7 @@
 #include <mikktspace.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdarg>
 #include <cstdio>
@@ -236,9 +237,9 @@ void buildMesh(SourceMesh& mesh, const char* meshName, const MeshSettings& setti
         }
     }
 
-    built.attributes = bit(MeshAttribute::Normals) | (tangentsWanted ? bit(MeshAttribute::Tangents) : 0) |
-                       (anyUv0 ? bit(MeshAttribute::Uv0) : 0) | (anyUv1 ? bit(MeshAttribute::Uv1) : 0) |
-                       (anyColors ? bit(MeshAttribute::Colors) : 0);
+    built.attributes = bit(MeshAttribute::Normals) | bit(MeshAttribute::OutlineNormals) |
+                       (tangentsWanted ? bit(MeshAttribute::Tangents) : 0) | (anyUv0 ? bit(MeshAttribute::Uv0) : 0) |
+                       (anyUv1 ? bit(MeshAttribute::Uv1) : 0) | (anyColors ? bit(MeshAttribute::Colors) : 0);
     built.submeshCount = static_cast<uint32_t>(submeshes.size());
     const uint32_t cornerCount = corners.count();
     if (cornerCount == 0)
@@ -414,6 +415,49 @@ void buildMesh(SourceMesh& mesh, const char* meshName, const MeshSettings& setti
 // Packing
 // ---------------------------------------------------------------------------
 
+// Outline normals (ADR 0055): every vertex at the same position gets the
+// normalized sum of their normals, so inverted hulls push a hard edge's
+// faces out together instead of splitting at it. Vertices are grouped by
+// sorting on their positions' bits.
+void outlineNormals(const BuiltMesh& mesh, Vector<float>& out)
+{
+    out.resize(size_t{mesh.vertexCount} * 3);
+    Vector<uint32_t> order(MemoryTag::Assets);
+    for (uint32_t v = 0; v < mesh.vertexCount; ++v)
+    {
+        order.pushBack(v);
+    }
+    auto key = [&](uint32_t v) {
+        uint32_t bits[3];
+        std::memcpy(bits, mesh.positions.data() + v * 3, sizeof(bits));
+        return std::array<uint32_t, 3>{bits[0], bits[1], bits[2]};
+    };
+    std::sort(order.data(), order.data() + order.size(), [&](uint32_t a, uint32_t b) { return key(a) < key(b); });
+    for (size_t first = 0; first < order.size();)
+    {
+        size_t last = first;
+        float sum[3] = {0, 0, 0};
+        while (last < order.size() && key(order[last]) == key(order[first]))
+        {
+            for (int c = 0; c < 3; ++c)
+            {
+                sum[c] += mesh.normals[order[last] * 3 + c];
+            }
+            ++last;
+        }
+        const float length = std::sqrt(sum[0] * sum[0] + sum[1] * sum[1] + sum[2] * sum[2]);
+        for (size_t i = first; i < last; ++i)
+        {
+            for (int c = 0; c < 3; ++c)
+            {
+                // Opposite normals that cancel keep the vertex's own.
+                out[order[i] * 3 + c] = length > 1e-4f ? sum[c] / length : mesh.normals[order[i] * 3 + c];
+            }
+        }
+        first = last;
+    }
+}
+
 // Octahedral encoding: the direction's octant folded onto a square, as two
 // 16-bit numbers. Decoding is a few instructions in a shader.
 void octahedral(const float* direction, int16_t* out)
@@ -547,7 +591,7 @@ Result<MeshImport*> buildMeshImport(SourceScene& scene, MeshSettings settings)
         }
     }
 
-    Blob info, entries, lods, ranges, positions, normals, tangents, uv0, uv1, colors, indices, nodes;
+    Blob info, entries, lods, ranges, positions, normals, tangents, uv0, uv1, colors, outline, indices, nodes;
     uint32_t vertexOffset = 0;
     for (uint32_t m = 0; m < built.size(); ++m)
     {
@@ -589,12 +633,18 @@ Result<MeshImport*> buildMeshImport(SourceScene& scene, MeshSettings settings)
             }
         }
 
+        Vector<float> smoothed(MemoryTag::Assets);
+        outlineNormals(mesh, smoothed);
         for (uint32_t v = 0; v < mesh.vertexCount; ++v)
         {
             for (int c = 0; c < 3; ++c)
             {
                 positions.add(mesh.positions[v * 3 + c]);
             }
+            int16_t edge[2];
+            octahedral(smoothed.data() + v * 3, edge);
+            outline.add(edge[0]);
+            outline.add(edge[1]);
             int16_t packed[4] = {0, 0, 0, 0};
             octahedral(mesh.normals.data() + v * 3, packed);
             normals.add(packed[0]);
@@ -682,6 +732,10 @@ Result<MeshImport*> buildMeshImport(SourceScene& scene, MeshSettings settings)
     if ((streams & bit(MeshAttribute::Uv1)) != 0)
     {
         result->addSection(binary::tag("UV1_"), uv1.bytes);
+    }
+    if ((streams & bit(MeshAttribute::OutlineNormals)) != 0)
+    {
+        result->addSection(binary::tag("ONRM"), outline.bytes);
     }
     if ((streams & bit(MeshAttribute::Colors)) != 0)
     {

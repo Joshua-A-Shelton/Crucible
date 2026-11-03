@@ -604,7 +604,11 @@ Status compileMaterials(CompiledShader& shader, slang::ISession* session, slang:
                     "[shader(\"vertex\")]\n"
                     "MaterialVertex materialVertex(uint vertex : SV_VertexID, uint instance : SV_InstanceID,\n"
                     "                              uint firstInstance : SV_StartInstanceLocation)\n"
-                    "{\n    return materialVertexMain(vertex, firstInstance + instance);\n}\n");
+                    "{\n    return materialVertexMain(vertex, firstInstance + instance);\n}\n"
+                    "[shader(\"vertex\")]\n"
+                    "MaterialVertex outlineVertex(uint vertex : SV_VertexID, uint instance : SV_InstanceID,\n"
+                    "                             uint firstInstance : SV_StartInstanceLocation)\n"
+                    "{\n    return outlineVertexMain(vertex, firstInstance + instance);\n}\n");
     for (uint32_t m = 0; m < materials.size(); ++m)
     {
         const char* name = materials[m]->getName();
@@ -613,7 +617,8 @@ Status compileMaterials(CompiledShader& shader, slang::ISession* session, slang:
                       name, m);
         append(probe, line);
         // Every material's entries (ADR 0052, 0055): Opaque, Shadows'
-        // clipped depth, DepthPrepass's alpha-to-coverage, and Transparent.
+        // clipped depth, DepthPrepass's alpha-to-coverage, Transparent, and
+        // Outlines.
         static constexpr const char* entryTemplates[] = {
             "[shader(\"fragment\")]\nfloat4 %s_forward(MaterialVertex v, bool frontFace : SV_IsFrontFace) "
             ": SV_Target\n{\n    return materialForward<%s>(v, frontFace);\n}\n",
@@ -623,6 +628,8 @@ Status compileMaterials(CompiledShader& shader, slang::ISession* session, slang:
             ": SV_Target\n{\n    return materialCoverage<%s>(v, frontFace);\n}\n",
             "[shader(\"fragment\")]\nfloat4 %s_transparent(MaterialVertex v, bool frontFace : SV_IsFrontFace) "
             ": SV_Target\n{\n    return materialTransparent<%s>(v, frontFace);\n}\n",
+            "[shader(\"fragment\")]\nfloat4 %s_outline(MaterialVertex v, bool frontFace : SV_IsFrontFace) "
+            ": SV_Target\n{\n    return materialOutline<%s>(v, frontFace);\n}\n",
         };
         for (const char* entryTemplate : entryTemplates)
         {

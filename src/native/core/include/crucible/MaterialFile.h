@@ -24,13 +24,13 @@ inline constexpr uint32_t meshMaterialsTag = binary::tag("MTLS");
 inline constexpr uint32_t meshRemappedMaterialsTag = binary::tag("MRMP");
 // A .crmat file: kind MATR, one record in an MTLS section.
 inline constexpr uint32_t materialFileKind = binary::tag("MATR");
-inline constexpr uint32_t materialFileVersion = 1;
+inline constexpr uint32_t materialFileVersion = 2; // 2: outlines (ADR 0055)
 
 enum class CRUCIBLE_EXPOSE AlphaMode : uint32_t
 {
     Opaque,
     Mask,  // alpha-tested against alphaCutoff
-    Blend, // drawn as Opaque until the transparent pass (M5 step 9)
+    Blend, // drawn in the transparent pass, sorted (ADR 0055)
 };
 
 struct CRUCIBLE_EXPOSE MaterialInfo
@@ -44,6 +44,12 @@ struct CRUCIBLE_EXPOSE MaterialInfo
     uint32_t parameterSize;
     uint32_t textureOffset; // bytes from the section's start: textureCount MaterialTextures
     uint32_t textureCount;
+    // Inverted-hull outlines (ADR 0055): width in pixels (0: none), thinning
+    // past outlineFadeDistance; color times lerp(1, the surface's color,
+    // outlineTint), so 0 is a flat color and 1 tints it by the surface.
+    float outlineWidth;
+    float outlineColor[3];
+    float outlineTint;
 };
 
 struct CRUCIBLE_EXPOSE MaterialTexture

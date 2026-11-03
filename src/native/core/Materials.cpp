@@ -15,6 +15,7 @@
 
 #include <crucible/HashMap.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 
@@ -31,13 +32,15 @@ constexpr uint32_t materialBufferSize = 4u << 20;
 constexpr uint32_t materialAlignment = 16;
 
 // What decides a material's pipelines: its shader (zero for the engine's)
-// and material type, its alpha mode, and whether both faces are drawn.
+// and material type, its alpha mode, whether both faces are drawn, and
+// whether it's outlined.
 struct PipelineKey
 {
     assets::AssetId shader;
     uint32_t type;
     AlphaMode alphaMode;
     bool doubleSided;
+    bool outlined; // an outline width above 0 (ADR 0055)
 
     bool operator==(const PipelineKey&) const = default;
 };
@@ -74,6 +77,7 @@ struct LoadedMaterial
     uint32_t offset = 0;                    // in the material buffer
     uint32_t size = 0;
     float alphaCutoff = 0;
+    MaterialOutline outline{};
     assets::AssetId shader{}; // zero for the engine's
     uint32_t type = 0;
     // Acquired by asset ID (counted), rather than made for a model.
@@ -213,7 +217,7 @@ void destroyPipelines(MaterialPipelines& pipelines)
     {
         state.device->destroy(pipelines.forward);
     }
-    for (slag::Pipeline* pipeline : {pipelines.shadow, pipelines.transparent})
+    for (slag::Pipeline* pipeline : {pipelines.shadow, pipelines.transparent, pipelines.outline})
     {
         if (pipeline != nullptr)
         {
@@ -311,6 +315,26 @@ Result<slag::Pipeline*> materialPipeline(const PipelineKey& key, const char* suf
     return createGamePipeline(*(*found)->file, "materialVertex", entry, desc);
 }
 
+// The material's outline entries: `outlineVertex` and `<Type>_outline`, or
+// default.slang's `outlineVertex` and `engineEntry`.
+Result<slag::Pipeline*> materialOutlinePipeline(const PipelineKey& key, const char* engineEntry,
+                                                const slag::GraphicsPipelineDesc& desc)
+{
+    if (isZero(key.shader))
+    {
+        return createPipeline("default", "outlineVertex", engineEntry, desc);
+    }
+    GameShader* const* found = state.shaders.find(key.shader);
+    if (found == nullptr)
+    {
+        return Status::InvalidData;
+    }
+    const std::string_view name = typeName(**found, key.type);
+    char entry[256];
+    std::snprintf(entry, sizeof(entry), "%.*s_outline", static_cast<int>(name.size()), name.data());
+    return createGamePipeline(*(*found)->file, "outlineVertex", entry, desc);
+}
+
 // Positions only: opaque materials' depth (ADR 0051).
 Result<slag::Pipeline*> positionsPipeline(const slag::GraphicsPipelineDesc& desc)
 {
@@ -406,6 +430,18 @@ Result<void> createPipelines(const PipelineKey& key, MaterialPipelines& out)
             out.transparent, failed);
         break;
     }
+    }
+    // Inverted-hull outlines (ADR 0055): front faces culled, so only the
+    // pushed-out back faces show around the mesh; depth written, so what's
+    // drawn later stays behind them.
+    if (made && key.outlined)
+    {
+        slag::GraphicsPipelineDesc outline = forward;
+        outline.rasterizer.cullMode = slag::CullMode::Front;
+        outline.depthStencil = {.depthTest = true, .depthWrite = true, .depthCompareOp = slag::CompareOp::GreaterEqual};
+        outline.debugName = "Outlines";
+        made = keep(materialOutlinePipeline(key, pbr ? "pbrOutlinePixel" : "toonOutlinePixel", outline), out.outline,
+                    failed);
     }
     if (!made)
     {
@@ -611,7 +647,8 @@ Result<MaterialHandle> createMaterial(const MaterialInfo& info, std::span<const 
             return Status::InvalidData;
         }
     }
-    Result<MaterialPipelines*> pipelines = pipelinesFor({shader, info.type, info.alphaMode, info.doubleSided != 0});
+    Result<MaterialPipelines*> pipelines = pipelinesFor({shader, info.type, info.alphaMode, info.doubleSided != 0,
+                                                         info.alphaMode != AlphaMode::Blend && info.outlineWidth > 0});
     if (!pipelines)
     {
         return pipelines.status();
@@ -621,6 +658,9 @@ Result<MaterialHandle> createMaterial(const MaterialInfo& info, std::span<const 
     material->pipelines = pipelines.value();
     material->size = static_cast<uint32_t>(parameters.size());
     material->alphaCutoff = info.alphaMode == AlphaMode::Mask ? info.alphaCutoff : 0.0f;
+    material->outline = {std::max(info.outlineWidth, 0.0f),
+                         {info.outlineColor[0], info.outlineColor[1], info.outlineColor[2]},
+                         std::clamp(info.outlineTint, 0.0f, 1.0f)};
     material->shader = shader;
     material->type = info.type;
     material->offset = allocateRange(material->size);
@@ -675,7 +715,7 @@ MaterialDraw materialDraw(MaterialHandle handle)
     {
         material = find(state.fallback);
     }
-    return {material->pipelines, material->offset, material->alphaCutoff};
+    return {material->pipelines, material->offset, material->alphaCutoff, material->outline};
 }
 
 Result<void> rebuildMaterialPipelines()
