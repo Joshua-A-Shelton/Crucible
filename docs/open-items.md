@@ -16,6 +16,15 @@ is, and record which version fixed it.
   outer struct's offset 0 in buffers reached through descriptor heaps.
   Recheck with the repro in ADR 0047 on current NVIDIA drivers (and report
   it to NVIDIA if no one has); allow nesting once it's fixed. → 0047
+- **ThreadSanitizer can't run FreeType's rasterizer:** its
+  setjmp/longjmp (`ftgrays.c`) trips TSan's longjmp check ("can't find
+  longjmp buf", clang 23.1, 2026-11). TSan runs of the text tests cover only
+  the distance-field tests (`-tc="distance fields*"`), which don't
+  rasterize. Recheck with current clang; run the whole suite once it
+  passes. → 0057
+- **GCC's `-Warray-bounds` false positive** in HarfBuzz 11.2.1's USE
+  shaper (`hb-ot-shaper-use.cc`, release builds, GCC 16.2) is silenced for that
+  target. Recheck with each HarfBuzz or GCC update. → 0057
 
 ## Needs a decision from the project owner
 

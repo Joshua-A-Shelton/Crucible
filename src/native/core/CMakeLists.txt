@@ -65,12 +65,15 @@ target_link_libraries(crucible_core_objects PRIVATE libzstd_static)
 add_library(crucible_render_objects OBJECT
     Camera.cpp
     DrawList.cpp
+    Font.cpp
+    GlyphCache.cpp
     Lights.cpp
     Materials.cpp
     Render.cpp
     RenderAssets.cpp
     RenderSchedule.cpp
     RenderSteps.cpp
+    Shaping.cpp
     Shadows.cpp
     "${CRUCIBLE_GENERATED_DIR}/native/Bindings.g.cpp")
 crucible_set_compile_options(crucible_render_objects)
@@ -79,6 +82,8 @@ set_target_properties(crucible_render_objects PROPERTIES
     CXX_VISIBILITY_PRESET hidden
     VISIBILITY_INLINES_HIDDEN ON)
 target_link_libraries(crucible_render_objects PUBLIC crucible_core_objects slag::rendergraph)
+# Text (ADR 0057): never in a public header.
+target_link_libraries(crucible_render_objects PRIVATE freetype crucible_harfbuzz crucible_msdfgen)
 # The C++ mirrors of the shader library's [GpuShared] structs (ViewConstants).
 crucible_add_shader(crucible_render_objects SOURCE "${PROJECT_SOURCE_DIR}/shaders/crucible/shared.slang"
     CPP_NAMESPACE crucible::render CS_NAMESPACE Crucible.Render)

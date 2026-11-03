@@ -17,6 +17,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Noto Sans (SIL Open Font License), shared with the native tests. -->
+    <None Include="../../native/fonts/NotoSans-Regular.ttf" Link="fonts/NotoSans-Regular.ttf"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../../../src/managed/Crucible.Engine/Crucible.Engine.csproj" />
     <!-- The M3 demonstration's sample game, run here under JIT and NativeAOT. -->
     <ProjectReference Include="../../../samples/Particles/Crucible.Samples.Particles.csproj" />

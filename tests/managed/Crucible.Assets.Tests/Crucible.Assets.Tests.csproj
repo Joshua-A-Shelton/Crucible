@@ -11,6 +11,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Noto Sans (SIL Open Font License), shared with the native tests. -->
+    <None Include="../../native/fonts/NotoSans-Regular.ttf" Link="fonts/NotoSans-Regular.ttf"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../../../src/managed/Crucible.Assets/Crucible.Assets.csproj" />
     <!-- The test importers' settings are serialized types. -->
     <ProjectReference Include="../../../tools/Crucible.Generators/Crucible.Generators.csproj"

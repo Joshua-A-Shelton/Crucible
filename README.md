@@ -57,3 +57,5 @@ Longer explanations of decisions, written to be reread:
   and measuring before keeping an optimization.
 - [Exact-size glyphs and distance fields](docs/learning/text-rendering.md)
   (ADR 0020): hinting, MSDF, and why the UI uses both.
+- [Shaping and line breaking](docs/learning/shaping-and-line-breaking.md)
+  (ADR 0057): glyphs and clusters, font units, and where Latin lines break.

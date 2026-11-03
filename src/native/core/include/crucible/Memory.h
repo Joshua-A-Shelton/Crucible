@@ -25,6 +25,7 @@ enum class CRUCIBLE_EXPOSE MemoryTag : uint8_t
     Jobs,
     Ecs,
     Assets, // files being loaded or written, and compression (ADR 0039)
+    Text,   // fonts, layouts, and the glyph cache, FreeType's and HarfBuzz's included (ADR 0057)
     Count,
 };
 

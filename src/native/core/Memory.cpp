@@ -123,6 +123,8 @@ const char* memoryTagName(MemoryTag tag)
         return "Ecs";
     case MemoryTag::Assets:
         return "Assets";
+    case MemoryTag::Text:
+        return "Text";
     default:
         return "General";
     }

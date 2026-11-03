@@ -8,6 +8,7 @@
 #include <crucible/Launch.h>
 #include <crucible/Platform.h>
 #include <crucible/Render.h>
+#include <crucible/Text.h>
 
 #include <slag/Instance.h>
 
@@ -238,6 +239,7 @@ int run(int argc, ArgumentChar** argv)
 
     const crucible::Result<int> result = crucible::launcher::runEngine(managedDirectory, options);
     crucible::render::shutdown();
+    crucible::text::shutdown();
     crucible::jobs::shutdown();
     crucible::platform::shutdown();
     if (!result)

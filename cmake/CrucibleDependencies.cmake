@@ -163,8 +163,8 @@ find_package(slang CONFIG REQUIRED PATHS "${slang_SOURCE_DIR}/lib/cmake/slang" "
 # ---------------------------------------------------------------------------
 # Text (ADR 0020): FreeType (FTL: shipped games credit it) rasterizes glyphs,
 # HarfBuzz ("Old MIT") shapes text. FreeType is built without its optional
-# compression and image libraries; HarfBuzz from its amalgamated source, with
-# FreeType and nothing else.
+# compression and image libraries; HarfBuzz from its amalgamated source, on
+# its own.
 # msdfgen (MIT): multi-channel distance fields for large, scaled, turned, or
 # animated text (ADR 0020's hybrid); its core only, fed outlines from
 # FreeType.
@@ -178,7 +178,12 @@ foreach(_crucible_freetype_off FT_DISABLE_ZLIB FT_DISABLE_BZIP2 FT_DISABLE_PNG F
     set(${_crucible_freetype_off} ON CACHE BOOL "" FORCE)
 endforeach()
 set(SKIP_INSTALL_ALL ON CACHE BOOL "" FORCE)
+# Like zstd's, FreeType's CMake predates policy CMP0091: on, for the static
+# MSVC runtime (ADR 0031).
+set(CMAKE_POLICY_DEFAULT_CMP0091 NEW)
 FetchContent_MakeAvailable(freetype)
+unset(CMAKE_POLICY_DEFAULT_CMP0091)
+set_target_properties(freetype PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 FetchContent_Declare(harfbuzz
     URL https://github.com/harfbuzz/harfbuzz/releases/download/11.2.1/harfbuzz-11.2.1.tar.xz
@@ -187,9 +192,13 @@ FetchContent_Declare(harfbuzz
 FetchContent_MakeAvailable(harfbuzz)
 add_library(crucible_harfbuzz STATIC "${harfbuzz_SOURCE_DIR}/src/harfbuzz.cc")
 target_include_directories(crucible_harfbuzz SYSTEM PUBLIC "${harfbuzz_SOURCE_DIR}/src")
-target_compile_definitions(crucible_harfbuzz PRIVATE HAVE_FREETYPE=1)
-target_link_libraries(crucible_harfbuzz PUBLIC freetype)
+# Allocating through Crucible (Font.cpp defines these, ADR 0057); shaping
+# uses HarfBuzz's own OpenType functions, so it needs no FreeType.
+target_compile_definitions(crucible_harfbuzz PRIVATE hb_malloc_impl=hb_malloc_impl hb_calloc_impl=hb_calloc_impl
+                                                     hb_realloc_impl=hb_realloc_impl hb_free_impl=hb_free_impl)
 set_target_properties(crucible_harfbuzz PROPERTIES POSITION_INDEPENDENT_CODE ON)
+# GCC's release builds see a false out-of-bounds read in its USE shaper's tables.
+target_compile_options(crucible_harfbuzz PRIVATE $<$<CXX_COMPILER_ID:GNU>:-Wno-array-bounds>)
 
 FetchContent_Declare(msdfgen
     URL https://github.com/Chlumsky/msdfgen/archive/refs/tags/v1.12.1.tar.gz

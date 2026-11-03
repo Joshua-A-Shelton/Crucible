@@ -181,3 +181,13 @@ Settled in a review of M4's and M5's placeholders (ADR 0047's amendment).
 |---|---|
 | `samples/Diorama` (`Crucible.Samples.Diorama`), `make_scene.py`, `run_diorama.cmake`; CTest `samples.diorama` | The demonstration (ADR 0056) |
 | `--game-arg` `project`, `frames`, `capture`, `compare`, `measure` | Its options |
+
+## Fonts and text (2026-11-03, M6 step 1)
+
+| Name | What it is |
+|---|---|
+| `FontImporter` (`"Font"`), `.crfont`, kind `FONT` | The font asset (ADR 0057) |
+| `crucible::text` (C# `Crucible.Text`): `FontHandle`, `acquireFont` / `releaseFont`, `loadFont` / `unloadFont`; C# `Fonts.Acquire` / `Fonts.Release` | Fonts |
+| `TextLayout`, `TextLayout.Shape(font, style, text, wrapWidth)`; `TextStyle` (`Size`, `Scale`, `LineHeight`, `Rendering`) | A shaped, broken text |
+| `GlyphRendering` (`Exact`, `DistanceField`) | Which glyph path a style draws with |
+| `GlyphCache` (`GlyphCache.cpp`); `Font.cpp`, `Shaping.cpp` | Native text |
