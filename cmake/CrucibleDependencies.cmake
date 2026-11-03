@@ -161,6 +161,49 @@ endif()
 find_package(slang CONFIG REQUIRED PATHS "${slang_SOURCE_DIR}/lib/cmake/slang" "${slang_SOURCE_DIR}/cmake" NO_DEFAULT_PATH)
 
 # ---------------------------------------------------------------------------
+# Text (ADR 0020): FreeType (FTL: shipped games credit it) rasterizes glyphs,
+# HarfBuzz ("Old MIT") shapes text. FreeType is built without its optional
+# compression and image libraries; HarfBuzz from its amalgamated source, with
+# FreeType and nothing else.
+# msdfgen (MIT): multi-channel distance fields for large, scaled, turned, or
+# animated text (ADR 0020's hybrid); its core only, fed outlines from
+# FreeType.
+# ---------------------------------------------------------------------------
+
+FetchContent_Declare(freetype
+    URL https://download.savannah.gnu.org/releases/freetype/freetype-2.13.3.tar.xz
+    URL_HASH SHA256=0550350666d427c74daeb85d5ac7bb353acba5f76956395995311a9c6f063289)
+foreach(_crucible_freetype_off FT_DISABLE_ZLIB FT_DISABLE_BZIP2 FT_DISABLE_PNG FT_DISABLE_HARFBUZZ
+                               FT_DISABLE_BROTLI)
+    set(${_crucible_freetype_off} ON CACHE BOOL "" FORCE)
+endforeach()
+set(SKIP_INSTALL_ALL ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(freetype)
+
+FetchContent_Declare(harfbuzz
+    URL https://github.com/harfbuzz/harfbuzz/releases/download/11.2.1/harfbuzz-11.2.1.tar.xz
+    URL_HASH SHA256=093714c8548a285094685f0bdc999e202d666b59eeb3df2ff921ab68b8336a49
+    SOURCE_SUBDIR do-not-build)
+FetchContent_MakeAvailable(harfbuzz)
+add_library(crucible_harfbuzz STATIC "${harfbuzz_SOURCE_DIR}/src/harfbuzz.cc")
+target_include_directories(crucible_harfbuzz SYSTEM PUBLIC "${harfbuzz_SOURCE_DIR}/src")
+target_compile_definitions(crucible_harfbuzz PRIVATE HAVE_FREETYPE=1)
+target_link_libraries(crucible_harfbuzz PUBLIC freetype)
+set_target_properties(crucible_harfbuzz PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+FetchContent_Declare(msdfgen
+    URL https://github.com/Chlumsky/msdfgen/archive/refs/tags/v1.12.1.tar.gz
+    URL_HASH SHA256=24541c9fbb459e8c62adeb3eb22cb21fa07a4b5091e2ae1f041d144a4baf08cd
+    SOURCE_SUBDIR do-not-build)
+FetchContent_MakeAvailable(msdfgen)
+file(GLOB _crucible_msdfgen_sources "${msdfgen_SOURCE_DIR}/core/*.cpp")
+add_library(crucible_msdfgen STATIC ${_crucible_msdfgen_sources})
+target_include_directories(crucible_msdfgen SYSTEM PUBLIC "${msdfgen_SOURCE_DIR}")
+# Without the generated config header (the core needs none of its options).
+target_compile_definitions(crucible_msdfgen PUBLIC MSDFGEN_PUBLIC=)
+set_target_properties(crucible_msdfgen PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# ---------------------------------------------------------------------------
 # doctest (MIT): tests only, never linked into the engine (ADR 0029)
 # ---------------------------------------------------------------------------
 

@@ -153,7 +153,8 @@ Stated by the project owner and refined one at a time (2026-10-24).
   or the local checkout through `FETCHCONTENT_SOURCE_DIR_SLAG` during
   development), .NET (MIT; ADR 0001), SDL3
   (zlib; ADR 0018), HarfBuzz (Old MIT; ADR 0020), FreeType (FTL, which
-  asks for a credit in product documentation; ADR 0020), Box3D and Box2D
+  asks for a credit in product documentation; ADR 0020), msdfgen (MIT;
+  ADR 0020, amended), Box3D and Box2D
   v3 (MIT; ADR 0027), stb_vorbis (public domain or MIT; ADR 0028), zstd
   (BSD-3-Clause, accepted by the owner: shipped games include
   `licenses/zstd.txt`; ADR 0039). Editor only

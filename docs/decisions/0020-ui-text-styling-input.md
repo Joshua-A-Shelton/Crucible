@@ -61,3 +61,28 @@ avoids blurry edges on half pixels (goal 5). Directional navigation and
 focus scopes are what gamepad-driven RPG menus need.
 
 Given up: CSS's full power, and distance-field text by default.
+
+## Amended (2026-11-03): exact-size and distance fields together
+
+Before M6 step 1, exact-size atlases were compared against multi-channel
+signed distance fields (MSDF, msdfgen) on the same HarfBuzz-shaped Noto
+Sans text (release, RX 7900 XT, Vulkan):
+
+| | Exact-size (FreeType, light hinting) | MSDF (32 px per em, range 4) |
+|---|---|---|
+| 11–16 px at 1× | crisper: stems and x-height on whole pixels | slightly soft and light |
+| 2× DPI, 24 px and up | the same | the same |
+| Scaled 0.8–1.2× | crisp only by rasterizing every size it passes; scaled bitmaps blur | crisp from one atlas |
+| Turned | soft, slightly jagged | sharp |
+| 95 ASCII glyphs | 5.7 ms for 1,520 (6 sizes × 3 scales); 1,253 KB | 69.5 ms for 95, once; 183 KB |
+| GPU, 10,000 glyphs at 16 px | 0.042 ms | 0.054 ms |
+
+**Decision (owner): both.** Exact-size atlases stay the default, for
+static and small text; distance-field text is used for text that is large,
+scaled, turned, or animated, chosen per style or element. msdfgen (MIT) is
+added, built from its core alone and fed outlines by FreeType.
+
+**Why:** each is clearly better at what the other does poorly, and the
+cost of having both (a second glyph path and pipeline) is small. The
+comparison also showed the exact path needs atlases that grow while the
+game runs, since an unseen size means new glyphs.

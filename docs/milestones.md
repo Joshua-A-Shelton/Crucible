@@ -316,7 +316,9 @@ T (0053), U (0054), V (0055). Signed off by the owner on 2026-11-03; M5 is done.
 
 ## M6 — UI system
 
-- Text: HarfBuzz shaping, FreeType exact-size glyph atlases (ADR 0020).
+- Text: HarfBuzz shaping; FreeType exact-size glyph atlases by default,
+  MSDF (msdfgen) for large, scaled, turned or animated text (ADR 0020,
+  amended).
 - Retained element tree, custom-draw element, panels (ADR 0019).
 - Themes and style classes; transitions and tweens.
 - Event routing, focus, tab order, gamepad directional navigation, focus
@@ -328,6 +330,37 @@ with crisp text at several DPI scales.
 
 **Decides:** the C# rendering (batched command) API, which the UI is the
 first user of.
+
+**Steps** (agreed with the owner, 2026-11-03; one commit each, each step's
+decision made at its start):
+
+1. Fonts and text: HarfBuzz, FreeType and msdfgen, a Font importer, the
+   shaping interface, Latin line breaking, exact-size glyph atlases per
+   font, size and DPI, and MSDF atlases per font. Decides W: the font
+   asset, atlas management, and the text API between C# and native code.
+   Preceded by a comparison of exact-size against MSDF text (ADR 0020,
+   amended): both kept.
+2. The batched command API: C# render steps writing compact commands into
+   native memory, replayed as Slag calls once per step. Decides X: the
+   command set and how C# steps declare resources.
+3. UI drawing: a UI step after Tonemap on the backbuffer, drawing
+   rectangles (rounded corners, borders, antialiased in the shader),
+   images, text and clipping, through step 2's API; the custom-draw
+   element's drawing API. Decides Y: the 2D drawing primitives.
+4. The element tree and layout: elements, measure and arrange, the
+   panels, DPI scaling and pixel snapping, hit testing. Decides Z: the
+   element and panel API.
+5. Styling and animation: themes, style classes, selectors, transitions
+   and tweens, a theme file format. Decides the style format.
+6. Input: pointer, keyboard and gamepad from SDL; routing, capture, focus,
+   tab order, directional navigation, focus scopes.
+7. Controls: label, button, toggle, slider, list or selector, image,
+   scroll view.
+8. The demonstration: a sample menu run headless and checked by scripted
+   mouse, keyboard and gamepad input, with captures at several DPI scales
+   checked for crisp, snapped text.
+
+Text editing (cursor, selection, IME) is left to M7, which needs it.
 
 ## M7 — Editor v0
 

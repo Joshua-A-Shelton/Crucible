@@ -55,3 +55,5 @@ Longer explanations of decisions, written to be reread:
 - [Comparing renders across graphics APIs](docs/learning/comparing-renders.md)
   (ADR 0056): why D3D12 and Vulkan differ, tolerances, difference images,
   and measuring before keeping an optimization.
+- [Exact-size glyphs and distance fields](docs/learning/text-rendering.md)
+  (ADR 0020): hinting, MSDF, and why the UI uses both.
