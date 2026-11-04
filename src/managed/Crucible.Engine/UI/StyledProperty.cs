@@ -3,9 +3,9 @@ using System.Text.Json;
 
 namespace Crucible.UI;
 
-/// <summary>What a property's change makes the element do again.</summary>
+/// <summary>What a styled property's change invalidates: the element's measure, its drawing, or both.</summary>
 [Flags]
-public enum PropertyAffects
+public enum Invalidates
 {
     None = 0,
     Measure = 1, // its size may change
@@ -23,11 +23,11 @@ public abstract class StyledProperty
     private static readonly List<StyledProperty> _all = [];
     private static readonly Dictionary<string, StyledProperty> _byName = new(StringComparer.Ordinal);
 
-    private protected StyledProperty(string name, Type owner, PropertyAffects affects)
+    private protected StyledProperty(string name, Type owner, Invalidates invalidates)
     {
         Name = name;
         Owner = owner;
-        Affects = affects;
+        Invalidates = invalidates;
         lock (_all)
         {
             if (!_byName.TryAdd(name, this))
@@ -45,7 +45,7 @@ public abstract class StyledProperty
     /// <summary>The type that registered it; elements of other types ignore it.</summary>
     public Type Owner { get; }
 
-    public PropertyAffects Affects { get; }
+    public Invalidates Invalidates { get; }
 
     internal int Index { get; }
 
@@ -72,9 +72,9 @@ public sealed class StyledProperty<T> : StyledProperty
 {
     private readonly Func<JsonElement, T> _readJson;
 
-    private StyledProperty(string name, Type owner, T defaultValue, PropertyAffects affects,
+    private StyledProperty(string name, Type owner, T defaultValue, Invalidates invalidates,
         Func<T, T, float, T>? interpolate, Func<JsonElement, T> readJson)
-        : base(name, owner, affects)
+        : base(name, owner, invalidates)
     {
         Default = defaultValue;
         Interpolate = interpolate;
@@ -90,9 +90,9 @@ public sealed class StyledProperty<T> : StyledProperty
     /// Registers a property. <paramref name="readJson"/> reads a theme's
     /// value (the standard types have readers in <see cref="StyleValues"/>).
     /// </summary>
-    public static StyledProperty<T> Register<TOwner>(string name, T defaultValue, PropertyAffects affects,
+    public static StyledProperty<T> Register<TOwner>(string name, T defaultValue, Invalidates invalidates,
         Func<JsonElement, T> readJson, Func<T, T, float, T>? interpolate = null) where TOwner : UIElement =>
-        new(name, typeof(TOwner), defaultValue, affects, interpolate, readJson);
+        new(name, typeof(TOwner), defaultValue, invalidates, interpolate, readJson);
 
     internal override object ReadJson(JsonElement value) => _readJson(value)!;
 

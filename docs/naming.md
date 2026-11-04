@@ -249,3 +249,10 @@ Settled in a review of M4's and M5's placeholders (ADR 0047's amendment).
 | `Theme`, `Style`, `Selector` | Styles for a UI, one style, and what it matches |
 | `.crstyle` | The authored theme file (JSON) |
 | `UIState` (`Hover`, `Pressed`, `Focus`, `Disabled`); `UIElement.Animate` | States selectors match; tweens |
+| `Invalidates` (`None`, `Measure`, `Visual`), `StyledProperty.Invalidates` | What a property's change invalidates (renamed from `PropertyAffects` / `Affects`) |
+| `StyledProperty` members: `Register`, `Find`, `Default`, `Interpolate`, `Owner`; `StyleValues` (`ReadFloat`, `ReadVector2`, `ReadVector4`, `ReadThickness`, `ReadColor`, `ReadAssetId`, `ReadEnum`, `Lerp`, `LerpColor`) | Registering properties; JSON readers and blends |
+| `Classes` (`Add`, `Remove`, `Set`, `Contains`; renamed from `ClassList`), `Transition`, `Easing` (`Linear`, `Ease`, `EaseIn`, `EaseOut`, `EaseInOut`, `Evaluate`) | An element's classes; transitions and easing |
+| `UIElement.GetValue`, `SetValue`, `ClearValue`, `IsSet`, `Classes`, `State`; `BorderWidth`, `BorderColor`, `Opacity`, `Foreground`, `Font`, `FontSize`, `RenderScale`, `RenderRotation`, `RenderOffset`; `…Property` fields | Element styling members |
+| `Theme.Add`, `Clear`, `ReplaceWith`, `Parse`, `Load`, `Version`; `Style.Set`, `Transition`, `Values`, `Transitions`; `Selector.Parse`, `Matches`, `Specificity`; `UIRoot.Theme`, `Now`, `IsAnimating`, `UpdateStyles`; `Canvas.PushOpacity` / `PopOpacity` | Themes, styles, and the root |
+| `.crsty` (kind `STYL`, section `JSON`), `StyleImporter` (`"Style"`), `StyleImportSettings`; JSON keys `Styles`, `Selector`, `Set`, `Transitions`, `Duration`, `Easing`; states `:hover`, `:pressed`, `:focus`, `:disabled` | The theme files |
+| `StyleChecks`, CTest `launcher.jit.styles`, `styles.png`; `docs/learning/styling-and-animation.md` | The styles test and its note |

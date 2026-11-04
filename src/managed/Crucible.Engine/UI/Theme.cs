@@ -340,12 +340,12 @@ public sealed class Theme
 }
 
 /// <summary>An element's classes (ADR 0061); changing them restyles it.</summary>
-public sealed class ClassList : IEnumerable<string>
+public sealed class Classes : IEnumerable<string>
 {
     private readonly UIElement _owner;
     private readonly List<string> _names = [];
 
-    internal ClassList(UIElement owner) => _owner = owner;
+    internal Classes(UIElement owner) => _owner = owner;
 
     public int Count => _names.Count;
 

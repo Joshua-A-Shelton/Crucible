@@ -81,51 +81,51 @@ public class UIElement
 
     // The styled properties every element has (ADR 0061).
     public static readonly StyledProperty<float> WidthProperty =
-        StyledProperty<float>.Register<UIElement>("Width", float.NaN, PropertyAffects.Measure, StyleValues.ReadFloat, StyleValues.Lerp);
+        StyledProperty<float>.Register<UIElement>("Width", float.NaN, Invalidates.Measure, StyleValues.ReadFloat, StyleValues.Lerp);
     public static readonly StyledProperty<float> HeightProperty =
-        StyledProperty<float>.Register<UIElement>("Height", float.NaN, PropertyAffects.Measure, StyleValues.ReadFloat, StyleValues.Lerp);
+        StyledProperty<float>.Register<UIElement>("Height", float.NaN, Invalidates.Measure, StyleValues.ReadFloat, StyleValues.Lerp);
     public static readonly StyledProperty<float> MinWidthProperty =
-        StyledProperty<float>.Register<UIElement>("MinWidth", 0, PropertyAffects.Measure, StyleValues.ReadFloat, StyleValues.Lerp);
+        StyledProperty<float>.Register<UIElement>("MinWidth", 0, Invalidates.Measure, StyleValues.ReadFloat, StyleValues.Lerp);
     public static readonly StyledProperty<float> MinHeightProperty =
-        StyledProperty<float>.Register<UIElement>("MinHeight", 0, PropertyAffects.Measure, StyleValues.ReadFloat, StyleValues.Lerp);
+        StyledProperty<float>.Register<UIElement>("MinHeight", 0, Invalidates.Measure, StyleValues.ReadFloat, StyleValues.Lerp);
     public static readonly StyledProperty<float> MaxWidthProperty = StyledProperty<float>.Register<UIElement>("MaxWidth",
-        float.PositiveInfinity, PropertyAffects.Measure, StyleValues.ReadFloat, StyleValues.Lerp);
+        float.PositiveInfinity, Invalidates.Measure, StyleValues.ReadFloat, StyleValues.Lerp);
     public static readonly StyledProperty<float> MaxHeightProperty = StyledProperty<float>.Register<UIElement>("MaxHeight",
-        float.PositiveInfinity, PropertyAffects.Measure, StyleValues.ReadFloat, StyleValues.Lerp);
+        float.PositiveInfinity, Invalidates.Measure, StyleValues.ReadFloat, StyleValues.Lerp);
     public static readonly StyledProperty<Thickness> MarginProperty = StyledProperty<Thickness>.Register<UIElement>(
-        "Margin", default, PropertyAffects.Measure, StyleValues.ReadThickness, StyleValues.Lerp);
+        "Margin", default, Invalidates.Measure, StyleValues.ReadThickness, StyleValues.Lerp);
     public static readonly StyledProperty<Thickness> PaddingProperty = StyledProperty<Thickness>.Register<UIElement>(
-        "Padding", default, PropertyAffects.Measure, StyleValues.ReadThickness, StyleValues.Lerp);
+        "Padding", default, Invalidates.Measure, StyleValues.ReadThickness, StyleValues.Lerp);
     public static readonly StyledProperty<HorizontalAlignment> HorizontalAlignmentProperty =
         StyledProperty<HorizontalAlignment>.Register<UIElement>("HorizontalAlignment", HorizontalAlignment.Stretch,
-            PropertyAffects.Measure, StyleValues.ReadEnum<HorizontalAlignment>);
+            Invalidates.Measure, StyleValues.ReadEnum<HorizontalAlignment>);
     public static readonly StyledProperty<VerticalAlignment> VerticalAlignmentProperty =
         StyledProperty<VerticalAlignment>.Register<UIElement>("VerticalAlignment", VerticalAlignment.Stretch,
-            PropertyAffects.Measure, StyleValues.ReadEnum<VerticalAlignment>);
+            Invalidates.Measure, StyleValues.ReadEnum<VerticalAlignment>);
     public static readonly StyledProperty<Visibility> VisibilityProperty = StyledProperty<Visibility>.Register<UIElement>(
-        "Visibility", Visibility.Visible, PropertyAffects.Measure | PropertyAffects.Visual, StyleValues.ReadEnum<Visibility>);
+        "Visibility", Visibility.Visible, Invalidates.Measure | Invalidates.Visual, StyleValues.ReadEnum<Visibility>);
     public static readonly StyledProperty<Vector4> BackgroundProperty = StyledProperty<Vector4>.Register<UIElement>(
-        "Background", Vector4.Zero, PropertyAffects.Visual, StyleValues.ReadColor, StyleValues.LerpColor);
+        "Background", Vector4.Zero, Invalidates.Visual, StyleValues.ReadColor, StyleValues.LerpColor);
     public static readonly StyledProperty<Vector4> CornerRadiiProperty = StyledProperty<Vector4>.Register<UIElement>(
-        "CornerRadii", Vector4.Zero, PropertyAffects.Visual, StyleValues.ReadVector4, StyleValues.Lerp);
+        "CornerRadii", Vector4.Zero, Invalidates.Visual, StyleValues.ReadVector4, StyleValues.Lerp);
     public static readonly StyledProperty<float> BorderWidthProperty = StyledProperty<float>.Register<UIElement>(
-        "BorderWidth", 0, PropertyAffects.Visual, StyleValues.ReadFloat, StyleValues.Lerp);
+        "BorderWidth", 0, Invalidates.Visual, StyleValues.ReadFloat, StyleValues.Lerp);
     public static readonly StyledProperty<Vector4> BorderColorProperty = StyledProperty<Vector4>.Register<UIElement>(
-        "BorderColor", Vector4.Zero, PropertyAffects.Visual, StyleValues.ReadColor, StyleValues.LerpColor);
+        "BorderColor", Vector4.Zero, Invalidates.Visual, StyleValues.ReadColor, StyleValues.LerpColor);
     public static readonly StyledProperty<float> OpacityProperty = StyledProperty<float>.Register<UIElement>(
-        "Opacity", 1, PropertyAffects.Visual, StyleValues.ReadFloat, StyleValues.Lerp);
+        "Opacity", 1, Invalidates.Visual, StyleValues.ReadFloat, StyleValues.Lerp);
     public static readonly StyledProperty<Vector4> ForegroundProperty = StyledProperty<Vector4>.Register<UIElement>(
-        "Foreground", new Vector4(0, 0, 0, 1), PropertyAffects.Visual, StyleValues.ReadColor, StyleValues.LerpColor);
+        "Foreground", new Vector4(0, 0, 0, 1), Invalidates.Visual, StyleValues.ReadColor, StyleValues.LerpColor);
     public static readonly StyledProperty<Assets.AssetId> FontProperty = StyledProperty<Assets.AssetId>.Register<UIElement>(
-        "Font", default, PropertyAffects.Measure, StyleValues.ReadAssetId);
+        "Font", default, Invalidates.Measure, StyleValues.ReadAssetId);
     public static readonly StyledProperty<float> FontSizeProperty = StyledProperty<float>.Register<UIElement>(
-        "FontSize", 16, PropertyAffects.Measure, StyleValues.ReadFloat, StyleValues.Lerp);
+        "FontSize", 16, Invalidates.Measure, StyleValues.ReadFloat, StyleValues.Lerp);
     public static readonly StyledProperty<Vector2> RenderScaleProperty = StyledProperty<Vector2>.Register<UIElement>(
-        "RenderScale", Vector2.One, PropertyAffects.Visual, StyleValues.ReadVector2, StyleValues.Lerp);
+        "RenderScale", Vector2.One, Invalidates.Visual, StyleValues.ReadVector2, StyleValues.Lerp);
     public static readonly StyledProperty<float> RenderRotationProperty = StyledProperty<float>.Register<UIElement>(
-        "RenderRotation", 0, PropertyAffects.Visual, StyleValues.ReadFloat, StyleValues.Lerp);
+        "RenderRotation", 0, Invalidates.Visual, StyleValues.ReadFloat, StyleValues.Lerp);
     public static readonly StyledProperty<Vector2> RenderOffsetProperty = StyledProperty<Vector2>.Register<UIElement>(
-        "RenderOffset", Vector2.Zero, PropertyAffects.Visual, StyleValues.ReadVector2, StyleValues.Lerp);
+        "RenderOffset", Vector2.Zero, Invalidates.Visual, StyleValues.ReadVector2, StyleValues.Lerp);
 
     /// <summary>A fixed width in logical units; NaN (the default) sizes it to its content or slot.</summary>
     public float Width { get => GetValue(WidthProperty); set => SetValue(WidthProperty, value); }
@@ -204,7 +204,7 @@ public class UIElement
     public Vector2 RenderOffset { get => GetValue(RenderOffsetProperty); set => SetValue(RenderOffsetProperty, value); }
 
     /// <summary>The classes style selectors match (".primary").</summary>
-    public ClassList Classes => _classes ??= new ClassList(this);
+    public Classes Classes => _classes ??= new Classes(this);
 
     /// <summary>States style selectors match (":hover"); input sets Hover, Pressed, and Focus.</summary>
     public UIState State
@@ -220,7 +220,7 @@ public class UIElement
         }
     }
 
-    private ClassList? _classes;
+    private Classes? _classes;
 
     /// <summary>The size the last measure asked for, margin included.</summary>
     public Vector2 DesiredSize { get; private set; }
@@ -774,11 +774,11 @@ public class UIElement
 
     private void Affect(StyledProperty property)
     {
-        if ((property.Affects & PropertyAffects.Measure) != 0)
+        if ((property.Invalidates & Invalidates.Measure) != 0)
         {
             InvalidateMeasure();
         }
-        if ((property.Affects & PropertyAffects.Visual) != 0)
+        if ((property.Invalidates & Invalidates.Visual) != 0)
         {
             InvalidateVisual();
         }

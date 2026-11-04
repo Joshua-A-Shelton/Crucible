@@ -1,8 +1,7 @@
 # 0061 — Styling and animation
 
 **Status:** Accepted (2026-11-03); built. Names settled by the owner
-(docs/naming.md): `StyledProperty<T>`, `Theme`, `Style`, `Selector`,
-`.crstyle`, `UIState`, and `Animate`; the rest are placeholders.
+(docs/naming.md).
 
 ## Context
 
@@ -31,7 +30,7 @@ or C# only.
 
 1. **`StyledProperty<T>`:** stylable properties are registered once per
    owner type (`UIElement.BackgroundProperty`, …), with a default, what a
-   change affects (measure, visual), a JSON reader, and a blend for
+   change invalidates (`Invalidates`: measure, visual), a JSON reader, and a blend for
    animation. An element's value comes from layers, highest first: an
    animation, a value set in code, the best-matching style, the default.
 2. **Selectors are a type, classes, and states:** `Button.primary:hover`.
@@ -106,8 +105,8 @@ keyframe animations; and animating properties that aren't styled.
 ## As built (M6 step 5)
 
 - C#: `Crucible.UI`'s `StyledProperty` / `StyledProperty<T>`,
-  `PropertyAffects`, `StyleValues`, `Theme`, `Style`, `Selector`,
-  `Transition`, `ClassList`, `UIState`, `Easing`; `UIElement`'s styled
+  `Invalidates`, `StyleValues`, `Theme`, `Style`, `Selector`,
+  `Transition`, `Classes`, `UIState`, `Easing`; `UIElement`'s styled
   properties, `GetValue`, `SetValue`, `ClearValue`, `IsSet`, `Animate`;
   `UIRoot.Theme`, `Now`, `IsAnimating`, `UpdateStyles`;
   `Canvas.PushOpacity` / `PopOpacity`. `Crucible.Assets`'s
