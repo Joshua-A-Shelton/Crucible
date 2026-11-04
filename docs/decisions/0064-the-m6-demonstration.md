@@ -80,7 +80,7 @@ or let each check itself.
   debug preset built:
 
   ```bash
-  build/debug/src/native/launcher/crucible_launcher --managed-dir build/debug/artifacts/bin/Crucible.Engine/debug --game build/debug/artifacts/bin/Crucible.Samples.UiShowcase/debug/Crucible.Samples.UiShowcase.dll --game-arg project=samples/UiShowcase/Project/UiShowcase.crproject --game-arg input=none
+  cd /path/to/Crucible && build/debug/src/native/launcher/crucible_launcher --managed-dir build/debug/artifacts/bin/Crucible.Engine/debug --game build/debug/artifacts/bin/Crucible.Samples.UiShowcase/debug/Crucible.Samples.UiShowcase.dll --game-arg project=samples/UiShowcase/Project/UiShowcase.crproject --game-arg input=none
   ```
 
   (On Windows, the same paths with backslashes and `.exe`.)

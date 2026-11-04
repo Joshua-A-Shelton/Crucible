@@ -54,7 +54,10 @@ when unhandled; or always navigating first.
   and wheel events carry `modifiers` (`KeyModifiers`); `GamepadButton`
   and `GamepadAxis` are numbered as SDL's; `windowDisplayScale`. Gamepads
   are opened when they arrive (SDL sends only open pads' events);
-  without gamepad support the platform starts anyway.
+  without gamepad support the platform starts anyway. (SDL was first
+  built without its joystick subsystem, so no real pad worked, unnoticed
+  because the tests feed synthetic events; found by the M6 demonstration's
+  by-hand run, fixed, and tested: the platform must start it.)
 - **DPI:** a root attached to a window takes the window's display scale
   and follows `DisplayScaleChanged`. Pointer positions are logical units
   (physical pixels divided by the scale).

@@ -148,6 +148,14 @@ TEST_CASE("Wheels modifiers gamepads and display scales come back as Crucible ev
     CHECK(windowDisplayScale({}) == 1);
 }
 
+TEST_CASE("The platform starts gamepad support")
+{
+    // Synthetic gamepad events reach the UI without it; real pads need SDL
+    // built with joystick support and the subsystem started (ADR 0062).
+    PlatformScope platform;
+    CHECK((SDL_WasInit(SDL_INIT_GAMEPAD) & SDL_INIT_GAMEPAD) != 0);
+}
+
 TEST_CASE("Events that don't fit stay queued for the next poll")
 {
     PlatformScope platform;
