@@ -140,6 +140,11 @@ public sealed partial class UIRoot
         UpdateHover(position, modifiers);
         if (down)
         {
+            if (_capture is null && DismissPopups(position))
+            {
+                HandledPointer = true;
+                return;
+            }
             UIElement? target = HitEnabled(position);
             // Focus goes to the nearest focusable element pressed, or nowhere.
             UIElement? focusable = target;

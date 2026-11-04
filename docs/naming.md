@@ -274,5 +274,5 @@ Settled in a review of M4's and M5's placeholders (ADR 0047's amendment).
 
 | Name | What it is |
 |---|---|
-| `Label`, `Button`, `Toggle`, `Slider`, `Image`, `ScrollView`, `ListBox`, `Selector`, `ComboBox`, `Popup` | The controls (ADR 0063) |
-| `SliderTrack`, `SliderThumb`, `ToggleBox`, `ToggleMark`, `ScrollBar`, `ScrollThumb`, `ListItem`, `SelectorArrow`, `ComboBoxArrow` | Their parts |
+| `Label`, `Button`, `Toggle`, `Slider`, `Image`, `ScrollView`, `ListBox`, `Spinner` (renamed from `Selector`, which the style's `Selector` uses), `ComboBox`, `Popup` | The controls (ADR 0063) |
+| `SliderTrack`, `SliderThumb`, `ToggleBox`, `ToggleMark`, `ScrollBar`, `ScrollThumb`, `ListItem`, `SpinnerArrow`, `ComboBoxArrow` | Their parts |

@@ -1,11 +1,12 @@
 # 0063 — Controls
 
-**Status:** Accepted (2026-11-03); part 7a built, part 7b to come. Names
-settled by the owner (docs/naming.md): `Label`, `Button`, `Toggle`,
-`Slider`, `Image`, `ScrollView`, `ListBox`, `Selector`, `ComboBox`,
-`Popup`, and the parts `SliderTrack`, `SliderThumb`, `ToggleBox`,
-`ToggleMark`, `ScrollBar`, `ScrollThumb`, `ListItem`, `SelectorArrow`,
-`ComboBoxArrow`; the rest are placeholders.
+**Status:** Accepted (2026-11-03); built (7a and 7b). Names settled by
+the owner (docs/naming.md): `Label`, `Button`, `Toggle`, `Slider`,
+`Image`, `ScrollView`, `ListBox`, `Spinner` (first named `Selector`,
+which clashed with the style's `Selector`), `ComboBox`, `Popup`, and the
+parts `SliderTrack`, `SliderThumb`, `ToggleBox`, `ToggleMark`,
+`ScrollBar`, `ScrollThumb`, `ListItem`, `SpinnerArrow`, `ComboBoxArrow`;
+the rest are placeholders.
 
 ## Context
 
@@ -13,14 +14,14 @@ M6 step 7 builds the controls a menu needs on ADR 0060's tree, ADR
 0061's styles, and ADR 0062's input: label, button, toggle, slider,
 list or selector, image, scroll view. Built in two parts at the owner's
 choice: 7a the controls below, 7b the popup layer, the virtualized
-`ListBox`, `Selector`, and `ComboBox`.
+`ListBox`, `Spinner`, and `ComboBox`.
 
 ## Options
 
 **Styling parts** (a slider's thumb, a toggle's box): parts as typed
 child elements; or styled properties per part.
 
-**List-like controls:** a `ListBox` and a `Selector` (a menu cycler);
+**List-like controls:** a `ListBox` and a menu cycler (built as `Spinner`);
 the `ListBox` alone; or also a dropdown (`ComboBox`), which needs popups.
 
 **A default theme:** a plain one built in; or none.
@@ -33,16 +34,16 @@ the `ListBox` alone; or also a dropdown (`ComboBox`), which needs popups.
    (`SliderThumb:hover`), with their own hover and pressed states. A
    control and its parts have the class `on` (and the like) for states
    the selector set lacks.
-2. **`ListBox`, `Selector`, and `ComboBox`,** the dropdown's list in a
+2. **`ListBox`, `Spinner` (the cycler), and `ComboBox`,** the dropdown's list in a
    **popup layer** on the root: drawn and hit-tested above the content,
    placed by an anchor element (below it, flipping above when there's no
    room), a focus scope, closed by a click outside or Cancel, giving focus
-   back. (7b.)
+   back.
 3. **A plain default theme** (`Theme.CreateDefault`), which a root uses
    until given another.
 4. **`ListBox` is virtualized with measured rows:** elements exist only
    for visible rows, recycled while scrolling; rows are measured as they
-   come into view, others estimated. (7b.)
+   come into view, others estimated.
 
 ## Details (7a)
 
@@ -119,3 +120,67 @@ themes.
   - `launcher.jit.controls`: the controls drawn at 1.25x with synthetic
     hover, click and wheel, checked at pixels once transitions have run,
     saved as `controls.png`.
+
+## Details (7b)
+
+- **The popup layer:** `UIRoot.Popups`, laid out after the content (each
+  measured against the root, placed by `Popup.Place`: below its
+  `Anchor`, flipping above when it doesn't fit below but does above, at
+  least as wide as the anchor, kept on the root), drawn after it, and hit
+  tested first, newest on top. `Popup.Open` / `Close` / `Closed`;
+  opening lays it out at once and focuses its first focusable element;
+  closing gives focus back to what had it and closes popups opened after
+  it. A press outside the newest popup closes it and is used up
+  (`HandledPointer`); Cancel inside closes it.
+- **`ListBox`:**
+  - `ItemCount`, `CreateItem`, `BindItem`, `EstimatedItemHeight`,
+    `SelectedIndex`, `SelectionChanged`, `ItemActivated`,
+    `ItemsChanged`, `ScrollIntoView`, `FocusItem`, `RealizedCount`;
+  - a `ScrollView` of an internal row panel; rows (`ListItem`s, wrapping
+    what `CreateItem` made) exist for the items in view and one each
+    side, are pooled when they scroll out (except the focused one), and
+    are bound again only when they show a different item;
+  - each row is measured as it's realized; unmeasured items count as the
+    average measured height, so the extent settles as rows are seen;
+    when a row above the view turns out a different height, the offset
+    moves with it so the view stays still;
+  - rows are added during the panel's measure without invalidating it,
+    and styled at once (`StyleNow`), so they're measured with their
+    style; the root runs up to three layout passes in an update, so a
+    list learning its viewport settles in the same frame;
+  - Up and Down move focus row by row, scrolling and realizing as needed;
+    past either end they're left unhandled, so focus leaves the list;
+  - positions are prefix sums over the heights, linear in the item count:
+    fine for thousands of items; a tree of sums would serve millions.
+- **`Spinner`:** `Options`, `SelectedIndex`, `SelectedOption`, `Wraps`,
+  `SelectionChanged`, `Step`; two `SpinnerArrow`s (classes `previous`,
+  `next`) around a label; left and right (keys, D-pad, stick) step it.
+- **`ComboBox`:** a button showing the selected option and a
+  `ComboBoxArrow`; activated, it opens a `Popup` holding a `ListBox`
+  (class `dropdown`) of its `Options`, focused on the selection;
+  activating an option selects it and closes the list, Cancel or a press
+  outside closes it unchanged.
+- **The arrows** are custom-drawn chevrons in their `Foreground`.
+- **The default theme** styles the list, its rows (hover, `selected`,
+  focus), popups, spinners and their arrows, and combo boxes; dropdown
+  lists are at most 240 units high.
+
+## As built (7b)
+
+- C#: `Crucible.UI`'s `Popup`, `ListBox`, `ListItem`, `Spinner`,
+  `SpinnerArrow`, `ComboBox`, `ComboBoxArrow`; `UIRoot.Popups`; the
+  scroll view's internal hooks for virtualizing.
+- Tests:
+  - C# (`ControlsTests.cs`, JIT and NativeAOT): a 1000-item list making
+    fewer than 20 rows and reusing them to the end, its extent settling
+    as rows are measured; row-by-row navigation that scrolls, selection
+    on activate, and leaving past the top; popups placed below an anchor
+    or flipped above, focused inside, closed by Cancel or a press outside
+    with focus given back; spinners stepping and wrapping; combo boxes
+    picking from their list by pointer and keys, and closing unchanged;
+  - `launcher.jit.controls`: a spinner, a dropdown opened by a synthetic
+    click (placed below its box, at its width), and a 500-item list,
+    added to the check and the capture.
+- Found by the capture: a list measured as wide as its space, so a
+  dropdown's popup filled the window; it now measures as wide as its
+  widest row in view.

@@ -186,9 +186,17 @@ public class ScrollView : UIElement
             {
                 _offset = clamped;
                 InvalidateArrange();
+                ScrollChanged?.Invoke();
             }
         }
     }
+
+    // The offset or the viewport changed: a virtualizing list realizes again.
+    internal event Action? ScrollChanged;
+
+    // Moves the offset without arranging again: a list keeping its rows
+    // still while rows above it change size, mid-measure.
+    internal void ShiftOffset(float dy) => _offset.Y = MathF.Max(_offset.Y + dy, 0);
 
     /// <summary>The content's size, as last measured.</summary>
     public Vector2 Extent { get; private set; }
@@ -253,7 +261,12 @@ public class ScrollView : UIElement
 
     protected override void ArrangeCore(RectangleF content)
     {
-        Viewport = new Vector2(content.Width, content.Height);
+        Vector2 viewport = new(content.Width, content.Height);
+        if (viewport != Viewport)
+        {
+            Viewport = viewport;
+            ScrollChanged?.Invoke();
+        }
         Vector2 extent = Vector2.Max(Extent, Viewport);
         _offset = Vector2.Clamp(_offset, Vector2.Zero, extent - Viewport);
         _content?.Arrange(new RectangleF(content.X - _offset.X, content.Y - _offset.Y,

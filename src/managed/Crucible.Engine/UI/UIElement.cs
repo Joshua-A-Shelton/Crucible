@@ -377,6 +377,27 @@ public partial class UIElement
         InvalidateMeasure();
     }
 
+    // A child added or removed while its parent measures (a virtualizing
+    // list realizing rows): no invalidation, and styled at once, so it's
+    // measured with its style.
+    internal void AddChildDuringLayout(UIElement child)
+    {
+        _children.Add(child);
+        child.Parent = this;
+        child.Attach(Root);
+        Root?.StyleNow(child);
+    }
+
+    internal void RemoveChildDuringLayout(UIElement child)
+    {
+        if (_children.Remove(child))
+        {
+            Root?.Detached(child);
+            child.Parent = null;
+            child.Attach(null);
+        }
+    }
+
     protected void RemoveChild(UIElement child)
     {
         if (_children.Contains(child))

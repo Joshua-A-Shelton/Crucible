@@ -27,6 +27,9 @@ public sealed class ControlsChecks : GameSystem
     private Toggle? _toggle;
     private Slider? _slider;
     private ScrollView? _scroll;
+    private ComboBox? _combo;
+    private Spinner? _spinner;
+    private ListBox? _list;
     private int _frame;
     private double _actedAt = double.NaN;
     private int _checks;
@@ -59,7 +62,27 @@ public sealed class ControlsChecks : GameSystem
         {
             column.Add(element);
         }
-        _root.Content = column;
+        // A second column: a spinner, a dropdown (opened on frame 3), and a long list.
+        StackPanel second = new() { Spacing = 16, Padding = new Thickness(24), Width = 300 };
+        _spinner = new Spinner { Options = ["Easy", "Normal", "Hard"], SelectedIndex = 1, HorizontalAlignment = HorizontalAlignment.Start };
+        _combo = new ComboBox { Options = ["Low", "Medium", "High", "Ultra"], SelectedIndex = 2, HorizontalAlignment = HorizontalAlignment.Start };
+        _list = new ListBox
+        {
+            ItemCount = 500,
+            Height = 200,
+            CreateItem = () => new Label(),
+            BindItem = (element, index) => ((Label)element).Text = $"Save slot {index + 1}",
+            SelectedIndex = 1,
+        };
+        second.Add(_spinner);
+        second.Add(_combo);
+        second.Add(_list);
+        DockPanel page = new() { Background = new Vector4(0.12f, 0.13f, 0.15f, 1) };
+        column.Background = default;
+        DockPanel.SetDock(column, Dock.Left);
+        page.Add(column);
+        page.Add(second);
+        _root.Content = page;
         RenderSchedule.InsertAfter("Tonemap", "UI", _root);
     }
 
@@ -71,11 +94,15 @@ public sealed class ControlsChecks : GameSystem
             // Hover the button, click the toggle, wheel the scroll view (physical pixels).
             Vector2 Physical(UIElement e) => new Vector2(e.Bounds.X + e.Bounds.Width / 2, e.Bounds.Y + e.Bounds.Height / 2) * Scale;
             Vector2 toggleAt = Physical(_toggle!), buttonAt = Physical(_button!), scrollAt = Physical(_scroll!);
+            Vector2 comboAt = Physical(_combo!);
             _root.ProcessInput([
                 new InputEvent { Type = InputEventType.MouseMotion, X = toggleAt.X, Y = toggleAt.Y },
                 new InputEvent { Type = InputEventType.MouseButtonDown, X = toggleAt.X, Y = toggleAt.Y, Code = 1 },
                 new InputEvent { Type = InputEventType.MouseButtonUp, X = toggleAt.X, Y = toggleAt.Y, Code = 1 },
                 new InputEvent { Type = InputEventType.MouseWheel, X = scrollAt.X, Y = scrollAt.Y, Dy = -1 },
+                new InputEvent { Type = InputEventType.MouseMotion, X = buttonAt.X, Y = buttonAt.Y },
+                new InputEvent { Type = InputEventType.MouseButtonDown, X = comboAt.X, Y = comboAt.Y, Code = 1 },
+                new InputEvent { Type = InputEventType.MouseButtonUp, X = comboAt.X, Y = comboAt.Y, Code = 1 },
                 new InputEvent { Type = InputEventType.MouseMotion, X = buttonAt.X, Y = buttonAt.Y },
             ]);
             _actedAt = _root.Now;
@@ -115,6 +142,14 @@ public sealed class ControlsChecks : GameSystem
         Check(_scroll!.Offset.Y == 48, "the wheel scrolled the list a notch", _scroll.Offset.ToString());
         System.Drawing.RectangleF bar = _scroll.VerticalBar.Thumb.Bounds;
         Check(bar.Height > 20 && bar.Y > _scroll.Bounds.Y, "its scrollbar shows where it is", bar.ToString());
+        Check(_combo!.IsOpen, "a click opened the dropdown");
+        System.Drawing.RectangleF popup = _combo.Popup.Bounds;
+        Check(MathF.Abs(popup.Top - _combo.Bounds.Bottom) < 0.01f, "its list opened below it", popup.ToString());
+        At(new Vector2(popup.X + 2, popup.Y + popup.Height / 2), (0x35, 0x3a, 0x42), "the popup's background over the page");
+        Check(CountLight(Pixel, popup, 0xc0) > 40, "its options are drawn");
+        Check(_list!.RealizedCount < 20, "the long list made only the rows in view", _list.RealizedCount.ToString());
+        Check(CountLight(Pixel, _list.Bounds, 0xc0) > 100, "and drew them");
+        Check(CountLight(Pixel, _spinner!.Bounds, 0xc0) > 20, "the spinner shows its option");
 
         if (context.GameArguments.TryGetValue("capture", out string? capture))
         {
@@ -127,6 +162,7 @@ public sealed class ControlsChecks : GameSystem
             }
             Png.Write(capture, Width, Height, rgb);
         }
+        _combo.Popup.Close();
         RenderSchedule.Remove("UI");
         _root.Content = null;
         Fonts.Unload(_font);

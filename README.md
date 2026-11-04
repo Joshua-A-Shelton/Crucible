@@ -72,3 +72,5 @@ Longer explanations of decisions, written to be reread:
   real time.
 - [UI input](docs/learning/ui-input.md) (ADR 0062): bubbling, capture,
   focus and scopes, spatial navigation, and stick hysteresis.
+- [Controls](docs/learning/controls.md) (ADR 0063): controls made of parts,
+  the popup layer, and virtualized lists with measured rows.

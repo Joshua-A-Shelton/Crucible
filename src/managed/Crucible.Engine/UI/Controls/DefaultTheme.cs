@@ -83,6 +83,56 @@ public sealed partial class Theme
             .Set(UIElement.BackgroundProperty, muted with { W = 0.5f })
             .Transition(UIElement.BackgroundProperty, quick.Duration, quick.Easing));
         theme.Add(new Style("ScrollThumb:hover").Set(UIElement.BackgroundProperty, muted with { W = 0.85f }));
+
+        theme.Add(new Style("ListBox")
+            .Set(UIElement.BackgroundProperty, well)
+            .Set(UIElement.CornerRadiiProperty, new Vector4(4))
+            .Set(UIElement.PaddingProperty, new Thickness(2)));
+        theme.Add(new Style("ListItem")
+            .Set(UIElement.PaddingProperty, new Thickness(10, 6, 10, 6))
+            .Set(UIElement.CornerRadiiProperty, new Vector4(3))
+            .Set(UIElement.BorderColorProperty, accent)
+            .Transition(UIElement.BackgroundProperty, quick.Duration, quick.Easing));
+        theme.Add(new Style("ListItem:hover").Set(UIElement.BackgroundProperty, hover));
+        theme.Add(new Style("ListItem.selected").Set(UIElement.BackgroundProperty, accent with { W = 0.35f }));
+        theme.Add(new Style("ListItem:focus").Set(UIElement.BorderWidthProperty, 1.5f));
+        theme.Add(new Style("Popup")
+            .Set(UIElement.BackgroundProperty, control)
+            .Set(UIElement.CornerRadiiProperty, new Vector4(6))
+            .Set(UIElement.BorderWidthProperty, 1f)
+            .Set(UIElement.BorderColorProperty, edge)
+            .Set(UIElement.PaddingProperty, new Thickness(4)));
+        theme.Add(new Style("ListBox.dropdown").Set(UIElement.MaxHeightProperty, 240f));
+
+        theme.Add(new Style("Spinner")
+            .Set(UIElement.PaddingProperty, new Thickness(4))
+            .Set(UIElement.CornerRadiiProperty, new Vector4(4))
+            .Set(UIElement.BackgroundProperty, well)
+            .Set(UIElement.BorderColorProperty, accent));
+        theme.Add(new Style("Spinner:focus").Set(UIElement.BorderWidthProperty, 2f));
+        theme.Add(new Style("SpinnerArrow")
+            .Set(UIElement.WidthProperty, 24f)
+            .Set(UIElement.HeightProperty, 24f)
+            .Set(UIElement.CornerRadiiProperty, new Vector4(4))
+            .Set(UIElement.ForegroundProperty, muted)
+            .Transition(UIElement.BackgroundProperty, quick.Duration, quick.Easing));
+        theme.Add(new Style("SpinnerArrow:hover").Set(UIElement.BackgroundProperty, hover).Set(UIElement.ForegroundProperty, text));
+        theme.Add(new Style("SpinnerArrow:pressed").Set(UIElement.BackgroundProperty, pressed));
+
+        theme.Add(new Style("ComboBox")
+            .Set(UIElement.BackgroundProperty, control)
+            .Set(UIElement.CornerRadiiProperty, new Vector4(4))
+            .Set(UIElement.PaddingProperty, new Thickness(12, 7, 8, 7))
+            .Set(UIElement.MinWidthProperty, 160f)
+            .Set(UIElement.BorderColorProperty, accent)
+            .Transition(UIElement.BackgroundProperty, quick.Duration, quick.Easing));
+        theme.Add(new Style("ComboBox:hover").Set(UIElement.BackgroundProperty, hover));
+        theme.Add(new Style("ComboBox:focus").Set(UIElement.BorderWidthProperty, 2f));
+        theme.Add(new Style("ComboBoxArrow")
+            .Set(UIElement.WidthProperty, 16f)
+            .Set(UIElement.HeightProperty, 16f)
+            .Set(UIElement.MarginProperty, new Thickness(8, 0, 0, 0))
+            .Set(UIElement.ForegroundProperty, muted));
         return theme;
     }
 

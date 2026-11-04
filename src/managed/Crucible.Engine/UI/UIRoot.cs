@@ -61,10 +61,7 @@ public sealed partial class UIRoot : IRenderStep
         set
         {
             _defaultFont = value;
-            if (_content is not null)
-            {
-                MarkAll(_content);
-            }
+            MarkEverything();
             InvalidateLayout();
         }
     }
@@ -85,10 +82,7 @@ public sealed partial class UIRoot : IRenderStep
             {
                 _scale = value;
                 _canvas.Scale = value;
-                if (_content is not null)
-                {
-                    MarkAll(_content);
-                }
+                MarkEverything();
                 InvalidateLayout();
             }
         }
@@ -102,10 +96,7 @@ public sealed partial class UIRoot : IRenderStep
         {
             _theme = value;
             _themeVersion = value?.Version ?? 0;
-            if (_content is not null)
-            {
-                RestyleAll(_content);
-            }
+            RestyleEverything();
         }
     }
 
@@ -135,18 +126,24 @@ public sealed partial class UIRoot : IRenderStep
             _size = size;
             _layoutDirty = true;
         }
-        if (!_layoutDirty || _content is null)
+        if (!_layoutDirty || (_content is null && _popups.Count == 0))
         {
             return;
         }
-        _layoutDirty = false;
-        _content.Measure(size);
-        _content.Arrange(new RectangleF(0, 0, size.X, size.Y));
+        // Up to three passes: arranging can ask for another (a virtualizing
+        // list learning its viewport), settled within the frame.
+        for (int pass = 0; pass < 3 && _layoutDirty; ++pass)
+        {
+            _layoutDirty = false;
+            _content?.Measure(size);
+            _content?.Arrange(new RectangleF(0, 0, size.X, size.Y));
+            LayoutPopups();
+        }
         _drawingDirty = true;
     }
 
     /// <summary>The topmost element at a point in logical units, as last laid out; null if none.</summary>
-    public UIElement? HitTest(Vector2 point) => _content?.HitTest(point);
+    public UIElement? HitTest(Vector2 point) => HitLayers(point);
 
     internal void InvalidateLayout()
     {
@@ -158,6 +155,17 @@ public sealed partial class UIRoot : IRenderStep
 
     internal void Restyle(UIElement element) => _restyle.Add(element);
 
+    // Styles an element and its children now, mid-layout.
+    internal void StyleNow(UIElement element)
+    {
+        _restyle.Remove(element);
+        element.ApplyStyle(_theme, Now);
+        foreach (UIElement child in element.Children)
+        {
+            StyleNow(child);
+        }
+    }
+
     internal void Animating(UIElement element) => _animating.Add(element);
 
     /// <summary>
@@ -167,10 +175,10 @@ public sealed partial class UIRoot : IRenderStep
     public void UpdateStyles()
     {
         double now = Now;
-        if (_theme is not null && _theme.Version != _themeVersion && _content is not null)
+        if (_theme is not null && _theme.Version != _themeVersion)
         {
             _themeVersion = _theme.Version;
-            RestyleAll(_content);
+            RestyleEverything();
         }
         if (_restyle.Count > 0)
         {
@@ -187,6 +195,18 @@ public sealed partial class UIRoot : IRenderStep
         if (_animating.Count > 0)
         {
             _animating.RemoveWhere(element => element.Root != this || !element.UpdateAnimations(now));
+        }
+    }
+
+    private void RestyleEverything()
+    {
+        if (_content is not null)
+        {
+            RestyleAll(_content);
+        }
+        foreach (Popup popup in _popups)
+        {
+            RestyleAll(popup);
         }
     }
 
@@ -211,8 +231,21 @@ public sealed partial class UIRoot : IRenderStep
             _drawingDirty = false;
             _canvas.Clear();
             _content?.Draw(_canvas);
+            DrawPopups();
         }
         ((IRenderStep)_canvas).AddPasses(context);
+    }
+
+    private void MarkEverything()
+    {
+        if (_content is not null)
+        {
+            MarkAll(_content);
+        }
+        foreach (Popup popup in _popups)
+        {
+            MarkAll(popup);
+        }
     }
 
     private static void MarkAll(UIElement element)

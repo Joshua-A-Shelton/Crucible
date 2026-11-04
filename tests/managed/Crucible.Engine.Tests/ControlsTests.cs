@@ -12,7 +12,7 @@ namespace Crucible.Tests;
 [NotInParallel("text")]
 public class ControlsTests
 {
-    private const int Return = 40, Right = 79, Left = 80, Down = 81, Up = 82;
+    private const int Return = 40, Escape = 41, Right = 79, Left = 80, Down = 81, Up = 82;
 
     private static FontHandle LoadNotoSans()
     {
@@ -231,5 +231,157 @@ public class ControlsTests
         await Assert.That(Image.Fit(Stretch.Uniform, natural, new Vector2(float.PositiveInfinity, 50)).Size)
             .IsEqualTo(new Vector2(100, 50));
         await Assert.That(new Image().NaturalSize).IsEqualTo(Vector2.Zero); // no texture
+    }
+
+    // A list of numbered labels, the tallest every tenth.
+    private static ListBox Numbers(int count) => new()
+    {
+        ItemCount = count,
+        Height = 200,
+        CreateItem = () => new Label(),
+        BindItem = (element, index) =>
+        {
+            var label = (Label)element;
+            label.Text = $"Item {index}";
+            label.FontSize = index % 10 == 0 ? 40 : 16;
+        },
+    };
+
+    [Test]
+    public async Task ListBoxesMakeRowsOnlyForWhatsInView()
+    {
+        using Rig rig = new();
+        ListBox list = rig.Add(Numbers(1000));
+        await Assert.That(list.RealizedCount).IsLessThan(20);
+        await Assert.That(list.RealizedCount).IsGreaterThan(3);
+        float extent = list.ScrollView.Extent.Y;
+        await Assert.That(extent).IsGreaterThan(1000 * 20f);
+
+        // Down to the end: rows are reused, not added.
+        list.ScrollView.Offset = new Vector2(0, float.MaxValue);
+        rig.Layout();
+        rig.Layout();
+        await Assert.That(list.RealizedCount).IsLessThan(20);
+        list.FocusItem(999);
+        await Assert.That(rig.Root.FocusedElement is ListItem { Index: 999 }).IsTrue();
+        // More rows measured: the estimate (and so the extent) settled.
+        await Assert.That(list.ScrollView.Extent.Y).IsNotEqualTo(extent);
+    }
+
+    [Test]
+    public async Task ListBoxesNavigateRowByRowAndSelectOnActivate()
+    {
+        using Rig rig = new();
+        Button above = rig.Add(new Button("Above"));
+        ListBox list = rig.Add(Numbers(50));
+        int activated = -1;
+        list.ItemActivated += (_, index) => activated = index;
+        list.FocusItem(0);
+        for (int i = 0; i < 25; ++i)
+        {
+            rig.Send(Key(Down));
+        }
+        await Assert.That(rig.Root.FocusedElement is ListItem { Index: 25 }).IsTrue();
+        RectangleF row = rig.Root.FocusedElement!.Bounds;
+        await Assert.That(row.Top).IsGreaterThanOrEqualTo(list.ScrollView.Bounds.Top - 0.01f);
+        await Assert.That(row.Bottom).IsLessThanOrEqualTo(list.ScrollView.Bounds.Bottom + 0.01f);
+
+        rig.Send(Key(Return));
+        await Assert.That(list.SelectedIndex).IsEqualTo(25);
+        await Assert.That(activated).IsEqualTo(25);
+        await Assert.That(rig.Root.FocusedElement!.Classes.Contains("selected")).IsTrue();
+
+        list.FocusItem(0);
+        rig.Send(Key(Up)); // past the top: focus leaves the list
+        await Assert.That(rig.Root.FocusedElement).IsSameReferenceAs(above);
+    }
+
+    [Test]
+    public async Task PopupsOpenBesideTheirAnchorAndCloseOnAPressOutside()
+    {
+        using Rig rig = new();
+        Button anchor = rig.Add(new Button("Menu"));
+        anchor.Focus();
+        Button inside = new("Inside");
+        Popup popup = new() { Anchor = anchor, Content = inside };
+        int closed = 0;
+        popup.Closed += _ => ++closed;
+        popup.Open();
+        await Assert.That(popup.IsOpen).IsTrue();
+        await Assert.That(popup.Bounds.Top).IsEqualTo(anchor.Bounds.Bottom);
+        await Assert.That(popup.Bounds.Width).IsGreaterThanOrEqualTo(anchor.Bounds.Width);
+        await Assert.That(rig.Root.FocusedElement).IsSameReferenceAs(inside);
+        // Hits go to the popup first.
+        await Assert.That(rig.Root.HitTest(Center(inside))).IsSameReferenceAs(inside.Content);
+
+        rig.Send(Key(Escape));
+        await Assert.That(popup.IsOpen).IsFalse();
+        await Assert.That(rig.Root.FocusedElement).IsSameReferenceAs(anchor); // focus came back
+
+        popup.Open();
+        Vector2 outside = new(390, 290);
+        rig.Send(Motion(outside), Button(outside, true), Button(outside, false));
+        await Assert.That(popup.IsOpen).IsFalse();
+        await Assert.That(rig.Root.HandledPointer).IsTrue(); // used up closing it
+        await Assert.That(closed).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task PopupsFlipAboveWhenThereIsNoRoomBelow()
+    {
+        using Rig rig = new();
+        AnchorPanel panel = new();
+        rig.Root.Content = panel;
+        Button anchor = new("Bottom") { Height = 30 };
+        AnchorPanel.SetAnchors(anchor, Anchors.At(new Vector2(0, 1), new Vector2(10, -10)));
+        panel.Add(anchor);
+        rig.Layout();
+        Popup popup = new() { Anchor = anchor, Content = new UIElement { Width = 100, Height = 120 } };
+        popup.Open();
+        await Assert.That(popup.Bounds.Bottom).IsEqualTo(anchor.Bounds.Top);
+    }
+
+    [Test]
+    public async Task SpinnersStepAndWrap()
+    {
+        using Rig rig = new();
+        Spinner spinner = rig.Add(new Spinner { Options = ["Easy", "Normal", "Hard"] });
+        await Assert.That(spinner.SelectedOption).IsEqualTo("Easy");
+        spinner.Focus();
+        rig.Send(Key(Left));
+        await Assert.That(spinner.SelectedOption).IsEqualTo("Hard"); // wrapped
+        rig.Send(Key(Right), Key(Right));
+        await Assert.That(spinner.SelectedOption).IsEqualTo("Normal");
+        await Assert.That(rig.Root.FocusedElement).IsSameReferenceAs(spinner);
+        spinner.Wraps = false;
+        spinner.Step(5);
+        await Assert.That(spinner.SelectedOption).IsEqualTo("Hard");
+        // The arrows click.
+        rig.Click(spinner.Children[0].Children[0]);
+        await Assert.That(spinner.SelectedOption).IsEqualTo("Normal");
+        await Assert.That(spinner.ValueLabel.Text).IsEqualTo("Normal");
+    }
+
+    [Test]
+    public async Task ComboBoxesPickFromAListInAPopup()
+    {
+        using Rig rig = new();
+        ComboBox combo = rig.Add(new ComboBox { Options = ["Low", "Medium", "High", "Ultra"], SelectedIndex = 1 });
+        int changes = 0;
+        combo.SelectionChanged += _ => ++changes;
+        rig.Click(combo);
+        await Assert.That(combo.IsOpen).IsTrue();
+        await Assert.That(rig.Root.FocusedElement is ListItem { Index: 1 }).IsTrue(); // on the selection
+        rig.Send(Key(Down), Key(Return));
+        await Assert.That(combo.IsOpen).IsFalse();
+        await Assert.That(combo.SelectedOption).IsEqualTo("High");
+        await Assert.That(rig.Root.FocusedElement).IsSameReferenceAs(combo);
+        await Assert.That(changes).IsEqualTo(1);
+
+        rig.Send(Key(Return)); // opens again from the keyboard
+        await Assert.That(combo.IsOpen).IsTrue();
+        rig.Send(Key(Down), Key(Escape)); // closed unchanged
+        await Assert.That(combo.IsOpen).IsFalse();
+        await Assert.That(combo.SelectedOption).IsEqualTo("High");
     }
 }
