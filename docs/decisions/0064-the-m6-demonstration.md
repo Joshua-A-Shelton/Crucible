@@ -1,9 +1,7 @@
 # 0064 — The M6 demonstration
 
 **Status:** Accepted (2026-11-03); built. Names settled by the owner
-(docs/naming.md): `samples/UiShowcase` (`Crucible.Samples.UiShowcase`),
-CTest `samples.ui`, and the options `project`, `input`, `capture`,
-`compare`; the rest are placeholders.
+(docs/naming.md). M6 signed off by the owner on 2026-11-03.
 
 ## Context
 

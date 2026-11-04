@@ -290,3 +290,6 @@ Settled in a review of M4's and M5's placeholders (ADR 0047's amendment).
 |---|---|
 | `samples/UiShowcase` (`Crucible.Samples.UiShowcase`), CTest `samples.ui` | The demonstration (ADR 0064) |
 | `--game-arg` `project`, `input`, `capture`, `compare` | Its options |
+| `input=none`; `Menu`, `ShowcaseSystem`, `ShowcaseSettings`, `run_ui.cmake`; captures `scale-<s>.png`, `options-<s>.png`; class `probe`, `Showcase.crstyle` | The sample's parts |
+| `UIElement.Root` (public) | The root an element is in |
+| `docs/learning/testing-a-ui.md` | The demonstration's note |

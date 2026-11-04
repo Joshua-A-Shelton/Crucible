@@ -374,7 +374,7 @@ D3D12's captures equal Vulkan's exactly. Decided: W (0057), X (0058), Y
 (0063). Tried by hand by the owner in a window on Linux (`input=none`,
 ADR 0064) with mouse, keyboard, and a real gamepad, which first showed SDL
 had been built without gamepad support (fixed); everything looked and felt
-right. Not yet done: the owner's sign-off.
+right. Signed off by the owner on 2026-11-03; M6 is done.
 
 ## M7 — Editor v0
 
