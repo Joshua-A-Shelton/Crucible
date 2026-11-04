@@ -191,3 +191,9 @@ Settled in a review of M4's and M5's placeholders (ADR 0047's amendment).
 | `TextLayout`, `TextLayout.Shape(font, style, text, wrapWidth)`; `TextStyle` (`Size`, `Scale`, `LineHeight`, `Rendering`) | A shaped, broken text |
 | `GlyphRendering` (`Exact`, `DistanceField`) | Which glyph path a style draws with |
 | `GlyphCache` (`GlyphCache.cpp`); `Font.cpp`, `Shaping.cpp` | Native text |
+| `FontImportSettings`; section `DATA` | The importer's settings and the font file's one section |
+| `shapeText`, `destroyTextLayout`, `TextLayoutHandle` | Native layouts |
+| `textMetrics` → `TextMetrics` (`width`, `height`, `lineCount`); `textLine` → `TextLine` (`start`, `end`, `width`, `top`, `baseline`, `height`); `hitTestText`; `textCaret` → `TextCaret` (`x`, `top`, `height`, `line`) | Layout queries |
+| `textGlyphs` → `PositionedGlyph` (`glyph`, `x`, `y`, `offset`) | Glyphs for drawing (C++ only) |
+| `text::shutdown`, `MemoryTag::Text` | Lifetime and memory accounting |
+| C# `Fonts.Load` / `Fonts.Unload`; `TextLayout.Size`, `LineCount`, `Line(index)`, `HitTest(point)`, `Caret(index)`, `Handle` | C# API |
