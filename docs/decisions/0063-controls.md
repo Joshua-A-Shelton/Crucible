@@ -5,8 +5,8 @@ the owner (docs/naming.md): `Label`, `Button`, `Toggle`, `Slider`,
 `Image`, `ScrollView`, `ListBox`, `Spinner` (first named `Selector`,
 which clashed with the style's `Selector`), `ComboBox`, `Popup`, and the
 parts `SliderTrack`, `SliderThumb`, `ToggleBox`, `ToggleMark`,
-`ScrollBar`, `ScrollThumb`, `ListItem`, `SpinnerArrow`, `ComboBoxArrow`;
-the rest are placeholders.
+`ScrollBar`, `ScrollThumb`, `ListItem`, `SpinnerArrow`, `ComboBoxArrow`,
+and the rest as drafted.
 
 ## Context
 

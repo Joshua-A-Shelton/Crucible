@@ -276,3 +276,10 @@ Settled in a review of M4's and M5's placeholders (ADR 0047's amendment).
 |---|---|
 | `Label`, `Button`, `Toggle`, `Slider`, `Image`, `ScrollView`, `ListBox`, `Spinner` (renamed from `Selector`, which the style's `Selector` uses), `ComboBox`, `Popup` | The controls (ADR 0063) |
 | `SliderTrack`, `SliderThumb`, `ToggleBox`, `ToggleMark`, `ScrollBar`, `ScrollThumb`, `ListItem`, `SpinnerArrow`, `ComboBoxArrow` | Their parts |
+| `ButtonBase` (`Content`, `Text`, `Clicked`, `OnClicked`); `Label` (`Text`, `Wrap`, `TextRendering`, `Layout`); `Toggle` (`IsOn`, `Changed`, `Box`, `Mark`; class `on`) | Text and buttons |
+| `Slider` (`Minimum`, `Maximum`, `Value`, `Step`, `ValueChanged`, `Track`, `Thumb`); `Image` (`Texture`, `Stretch`, `SliceInsets`, `SourceSlice`, `Tint`, `NaturalSize`, `Fit`); `Stretch` (`None`, `Fill`, `Uniform`, `UniformToFill`) | Sliders and images |
+| `ScrollView` (`Content`, `ScrollsHorizontally`, `ScrollsVertically`, `WheelStep`, `Offset`, `Extent`, `Viewport`, `ScrollTo`, `ScrollBy`, `ScrollIntoView`, `VerticalBar`, `HorizontalBar`; bar classes `vertical`, `horizontal`) | Scrolling |
+| `UIRoot.DefaultFont`, `UIRoot.Popups`, `Theme.CreateDefault`, `UIElement.OnAttached` / `OnDetached`; native `textureSize`, `TextureSize` | Support |
+| `Popup` (`Content`, `Anchor`, `Open`, `Close`, `Closed`, `IsOpen`); `ListBox` (`ItemCount`, `CreateItem`, `BindItem`, `EstimatedItemHeight`, `SelectedIndex`, `SelectionChanged`, `ItemActivated`, `ItemsChanged`, `ScrollIntoView`, `FocusItem`, `RealizedCount`); `ListItem` (`Index`, `Content`, `List`; class `selected`) | Popups and lists |
+| `Spinner` (`Options`, `SelectedIndex`, `SelectedOption`, `Wraps`, `Step`, `SelectionChanged`, `ValueLabel`; arrow classes `previous`, `next`); `ComboBox` (`Options`, `SelectedIndex`, `SelectedOption`, `SelectionChanged`, `Popup`, `List`, `IsOpen`; list class `dropdown`) | Choices |
+| `ControlsChecks`, CTest `launcher.jit.controls`, `controls.png`; `docs/learning/controls.md` | The controls test and its note |
