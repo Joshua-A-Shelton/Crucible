@@ -1,9 +1,7 @@
 # 0062 — UI input
 
 **Status:** Accepted (2026-11-03); built. Names settled by the owner
-(docs/naming.md): `PointerEvent`, `KeyEvent`, `NavigationEvent`,
-`Activate` / `Cancel`, `IsFocusScope`, `NavigateUp` …, `UIInputMap`, and
-`UIInputSystem`; the rest are placeholders.
+(docs/naming.md).
 
 ## Context
 
