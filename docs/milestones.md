@@ -389,6 +389,38 @@ press Play, edit C# and see it hot-reload, and launch a standalone run.
 **Decides:** the C++ runtime extension mechanism, if needed by then;
 interfaces for the replaceable subsystems built so far.
 
+**Steps** (agreed with the owner, 2026-11-04; one commit each, each step's
+decision made at its start):
+
+1. Text editing: single- and multi-line text boxes (caret, selection,
+   clipboard, undo, SDL text input) and numeric fields; Latin text, no IME
+   composition (with non-Latin text after v1, ADR 0019). Decides the text
+   input model.
+2. The editor shell: the editor launcher, opening a project, the main
+   window, a menu bar and context menus, docking (tabbed panels,
+   splitters, a saved layout), and floating windows: panels torn off into
+   their own OS windows (owner, 2026-11-04). Decides the docking and
+   windowing model.
+3. The scene viewport: the world rendered into a texture inside the UI,
+   an editor camera (orbit, fly), picking, and move, rotate, and scale
+   handles. Decides viewport rendering and picking.
+4. Hierarchy and inspector: a tree view, selection, property editors from
+   the generated metadata, undo and redo across the editor, saving the
+   scene. Decides the editor metadata and undo model.
+5. The asset browser: folders and assets with icons by kind (textures
+   show themselves; rendered thumbnails later), reimport when files
+   change, and dragging a model into the viewport or hierarchy to place
+   it. Decides drag and drop, and file watching.
+6. Play and hot reload: Play and Stop on a copy of the world, C# edits
+   rebuilt and hot-reloaded while playing, shader hot reload, render
+   caches cleared on reload. Decides play-mode world handling and how the
+   editor builds games.
+7. Run standalone (the game as its own process) and the deferred
+   decisions: the C++ runtime extension mechanism if needed, interfaces
+   for the replaceable subsystems.
+8. The demonstration: the "done when" session scripted and checked
+   headless, then tried by hand.
+
 ## M8 — Animation and audio
 
 - Skeletal runtime: sampling, blending, hierarchy pass, IK; compute
