@@ -70,3 +70,5 @@ Longer explanations of decisions, written to be reread:
 - [Styling and animation](docs/learning/styling-and-animation.md) (ADR 0061):
   value layers, specificity, transitions and tweens, easing curves, and
   real time.
+- [UI input](docs/learning/ui-input.md) (ADR 0062): bubbling, capture,
+  focus and scopes, spatial navigation, and stick hysteresis.

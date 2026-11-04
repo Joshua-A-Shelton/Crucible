@@ -41,12 +41,61 @@ enum class CRUCIBLE_EXPOSE InputEventType : uint32_t
     QuitRequested,        // the OS asked the application to quit
     WindowCloseRequested, // the user closed a window (window)
     WindowResized,        // pixel size changed (window, code = width, value = height)
-    KeyDown,              // code = scancode, value = 1 if a key repeat
-    KeyUp,                // code = scancode
+    KeyDown,              // code = scancode, value = 1 if a key repeat; modifiers
+    KeyUp,                // code = scancode; modifiers
     MouseMotion,          // x, y = position; dx, dy = relative motion
     MouseButtonDown,      // code = button, x, y = position
     MouseButtonUp,        // code = button, x, y = position
     LatencyMarker,        // synthetic input for the latency harness; code = sequence number
+    // Added for the UI (ADR 0062):
+    MouseWheel,          // x, y = position; dx, dy = scrolled (y up, in notches); modifiers
+    GamepadAdded,        // value = the gamepad's ID
+    GamepadRemoved,      // value = the gamepad's ID
+    GamepadButtonDown,   // code = GamepadButton, value = the gamepad's ID
+    GamepadButtonUp,     // code = GamepadButton, value = the gamepad's ID
+    GamepadAxis,         // code = GamepadAxis, value = the gamepad's ID, x = -1 to 1 (triggers 0 to 1)
+    DisplayScaleChanged, // (window), x = its new display scale
+};
+
+// Held modifier keys, as InputEvent::modifiers bits.
+enum class CRUCIBLE_EXPOSE KeyModifiers : uint32_t
+{
+    None = 0,
+    Shift = 1,
+    Ctrl = 2,
+    Alt = 4,
+    Gui = 8, // the Windows or Command key
+};
+
+// Numbered as SDL's, by position: South is A on Xbox pads, Cross on
+// PlayStation ones, B on Nintendo ones.
+enum class CRUCIBLE_EXPOSE GamepadButton : uint32_t
+{
+    South,
+    East,
+    West,
+    North,
+    Back,
+    Guide,
+    Start,
+    LeftStick,
+    RightStick,
+    LeftShoulder,
+    RightShoulder,
+    DpadUp,
+    DpadDown,
+    DpadLeft,
+    DpadRight,
+};
+
+enum class CRUCIBLE_EXPOSE GamepadAxis : uint32_t
+{
+    LeftX,
+    LeftY, // down is positive
+    RightX,
+    RightY,
+    LeftTrigger,
+    RightTrigger,
 };
 
 // One input or window event. Flat plain data, so a frame's events cross the
@@ -65,6 +114,7 @@ struct CRUCIBLE_EXPOSE InputEvent
     float y;
     float dx;
     float dy;
+    uint32_t modifiers; // KeyModifiers bits, for key and wheel events
 };
 
 // Called by the launcher before the engine starts and after it returns (ADR
@@ -81,6 +131,9 @@ CRUCIBLE_EXPOSE WindowSize windowPixelSize(WindowHandle window);
 
 // Whether the window is minimized; the renderer skips frames meanwhile.
 CRUCIBLE_EXPOSE bool windowMinimized(WindowHandle window);
+// Physical pixels per logical one the OS asks for on the window's display
+// (its DPI scale); 1 for a window that doesn't exist.
+CRUCIBLE_EXPOSE float windowDisplayScale(WindowHandle window);
 
 // Fills events with pending events and returns how many it wrote. Events that
 // don't fit stay queued for the next call.

@@ -87,6 +87,67 @@ TEST_CASE("SDL events come back as Crucible events with their timestamps")
     CHECK(events[1].timestampNs == 5678);
 }
 
+TEST_CASE("Wheels modifiers gamepads and display scales come back as Crucible events")
+{
+    PlatformScope platform;
+    drain();
+
+    SDL_Event key{};
+    key.type = SDL_EVENT_KEY_DOWN;
+    key.key.scancode = SDL_SCANCODE_TAB;
+    key.key.mod = SDL_KMOD_LSHIFT | SDL_KMOD_RCTRL;
+    REQUIRE(SDL_PushEvent(&key));
+    SDL_Event wheel{};
+    wheel.type = SDL_EVENT_MOUSE_WHEEL;
+    wheel.wheel.windowID = 3;
+    wheel.wheel.y = 2;
+    wheel.wheel.direction = SDL_MOUSEWHEEL_FLIPPED;
+    wheel.wheel.mouse_x = 10;
+    wheel.wheel.mouse_y = 20;
+    REQUIRE(SDL_PushEvent(&wheel));
+    SDL_Event button{};
+    button.type = SDL_EVENT_GAMEPAD_BUTTON_DOWN;
+    button.gbutton.which = 42;
+    button.gbutton.button = SDL_GAMEPAD_BUTTON_EAST;
+    REQUIRE(SDL_PushEvent(&button));
+    SDL_Event axis{};
+    axis.type = SDL_EVENT_GAMEPAD_AXIS_MOTION;
+    axis.gaxis.which = 42;
+    axis.gaxis.axis = SDL_GAMEPAD_AXIS_LEFTY;
+    axis.gaxis.value = -32768;
+    REQUIRE(SDL_PushEvent(&axis));
+    SDL_Event paddle{};
+    paddle.type = SDL_EVENT_GAMEPAD_BUTTON_DOWN;
+    paddle.gbutton.button = SDL_GAMEPAD_BUTTON_RIGHT_PADDLE1; // not mapped: dropped
+    REQUIRE(SDL_PushEvent(&paddle));
+    SDL_Event added{};
+    added.type = SDL_EVENT_GAMEPAD_ADDED;
+    added.gdevice.which = 99; // no such pad: opening it fails quietly
+    REQUIRE(SDL_PushEvent(&added));
+
+    std::array<InputEvent, 8> events;
+    REQUIRE(pollEvents(events) == 5);
+    CHECK(events[0].modifiers ==
+          (static_cast<uint32_t>(KeyModifiers::Shift) | static_cast<uint32_t>(KeyModifiers::Ctrl)));
+    CHECK(events[1].type == InputEventType::MouseWheel);
+    CHECK(events[1].window.value == 3);
+    CHECK(events[1].dy == -2); // flipped back
+    CHECK(events[1].x == 10);
+    CHECK(events[2].type == InputEventType::GamepadButtonDown);
+    CHECK(events[2].code == static_cast<int32_t>(GamepadButton::East));
+    CHECK(events[2].value == 42);
+    CHECK(events[3].type == InputEventType::GamepadAxis);
+    CHECK(events[3].code == static_cast<int32_t>(GamepadAxis::LeftY));
+    CHECK(events[3].x == -1);
+    CHECK(events[4].type == InputEventType::GamepadAdded);
+    CHECK(events[4].value == 99);
+
+    // SDL's numbering is Crucible's.
+    static_assert(static_cast<int>(GamepadButton::DpadRight) == SDL_GAMEPAD_BUTTON_DPAD_RIGHT);
+    static_assert(static_cast<int>(GamepadAxis::RightTrigger) == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
+    CHECK(windowDisplayScale({}) == 1);
+}
+
 TEST_CASE("Events that don't fit stay queued for the next poll")
 {
     PlatformScope platform;

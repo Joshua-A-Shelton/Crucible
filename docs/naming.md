@@ -256,3 +256,12 @@ Settled in a review of M4's and M5's placeholders (ADR 0047's amendment).
 | `Theme.Add`, `Clear`, `ReplaceWith`, `Parse`, `Load`, `Version`; `Style.Set`, `Transition`, `Values`, `Transitions`; `Selector.Parse`, `Matches`, `Specificity`; `UIRoot.Theme`, `Now`, `IsAnimating`, `UpdateStyles`; `Canvas.PushOpacity` / `PopOpacity` | Themes, styles, and the root |
 | `.crsty` (kind `STYL`, section `JSON`), `StyleImporter` (`"Style"`), `StyleImportSettings`; JSON keys `Styles`, `Selector`, `Set`, `Transitions`, `Duration`, `Easing`; states `:hover`, `:pressed`, `:focus`, `:disabled` | The theme files |
 | `StyleChecks`, CTest `launcher.jit.styles`, `styles.png`; `docs/learning/styling-and-animation.md` | The styles test and its note |
+
+## UI input (2026-11-03, M6 step 6)
+
+| Name | What it is |
+|---|---|
+| `PointerEvent`, `KeyEvent`, `NavigationEvent` | UI event arguments (ADR 0062) |
+| `Activate` / `Cancel` (`OnActivate` / `Activated`, `OnCancel` / `Canceled`) | Device-neutral actions |
+| `IsFocusScope`, `NavigateUp` / `NavigateDown` / `NavigateLeft` / `NavigateRight`, `UIRoot.FocusedElement`, `UIElement.Focus()` | Focus |
+| `UIInputMap`, `UIInputSystem` | Gamepad mapping; the engine system feeding roots |

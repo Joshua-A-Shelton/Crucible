@@ -57,7 +57,8 @@ public class SystemAttributeTests
 
         string Order(string phase) =>
             string.Join(" ", schedule.Phases.Single(candidate => candidate.Name == phase).Systems.Select(system => system.Name));
-        await Assert.That(Order(Phases.Input)).IsEqualTo("Crucible.Loop.InputSystem Crucible.Tests.ReadInputSystem");
+        await Assert.That(Order(Phases.Input)).IsEqualTo(
+            "Crucible.Loop.InputSystem Crucible.Tests.ReadInputSystem Crucible.UI.UIInputSystem");
         await Assert.That(Order(Phases.Update)).IsEqualTo(
             "Crucible.Tests.GeneratedSystems+Plan Crucible.Tests.MoveSystem test.HandWritten");
     }

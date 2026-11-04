@@ -54,6 +54,10 @@ public sealed class ScheduleBuilder
         }
         builder.AddSystem(Phases.BeginFrame, new PacingSystem());
         builder.AddSystem(Phases.Input, new InputSystem());
+        // After the events are read (by insertion order: games may replace
+        // InputSystem). Game systems in Input that read what the UI used
+        // order themselves after it; those in later phases see it anyway.
+        builder.AddSystem(Phases.Input, new UI.UIInputSystem());
         // C++, but not in the C++ registry, which every schedule includes.
         builder.AddSystem(Phases.RenderPrepare, new NativeSystem("crucible.TransformPropagation",
             Crucible.Scenes.Api.TransformPropagationFunction(), 0));

@@ -4,6 +4,7 @@
 #include <SDL3/SDL.h>
 #include <slag/Swapchain.h>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cstdio>
@@ -24,6 +25,43 @@ struct LatencyMarkers
 };
 
 LatencyMarkers markers;
+
+// The gamepads opened (SDL sends a pad's events only once it's open).
+SDL_Gamepad* gamepads[16] = {};
+
+uint32_t modifiersOf(SDL_Keymod mods)
+{
+    uint32_t bits = 0;
+    bits |= (mods & SDL_KMOD_SHIFT) != 0 ? static_cast<uint32_t>(KeyModifiers::Shift) : 0;
+    bits |= (mods & SDL_KMOD_CTRL) != 0 ? static_cast<uint32_t>(KeyModifiers::Ctrl) : 0;
+    bits |= (mods & SDL_KMOD_ALT) != 0 ? static_cast<uint32_t>(KeyModifiers::Alt) : 0;
+    bits |= (mods & SDL_KMOD_GUI) != 0 ? static_cast<uint32_t>(KeyModifiers::Gui) : 0;
+    return bits;
+}
+
+void openGamepad(SDL_JoystickID id)
+{
+    for (SDL_Gamepad*& slot : gamepads)
+    {
+        if (slot == nullptr)
+        {
+            slot = SDL_OpenGamepad(id); // null for a pad that's already gone
+            return;
+        }
+    }
+}
+
+void closeGamepad(SDL_JoystickID id)
+{
+    for (SDL_Gamepad*& slot : gamepads)
+    {
+        if (slot != nullptr && SDL_GetGamepadID(slot) == id)
+        {
+            SDL_CloseGamepad(slot);
+            slot = nullptr;
+        }
+    }
+}
 
 SDL_Window* find(WindowHandle window)
 {
@@ -56,6 +94,7 @@ bool translate(const SDL_Event& event, InputEvent& out)
         out.window.value = event.key.windowID;
         out.code = static_cast<int32_t>(event.key.scancode);
         out.value = event.key.repeat ? 1 : 0;
+        out.modifiers = modifiersOf(event.key.mod);
         return true;
     case SDL_EVENT_MOUSE_MOTION:
         out.type = InputEventType::MouseMotion;
@@ -73,6 +112,51 @@ bool translate(const SDL_Event& event, InputEvent& out)
         out.code = event.button.button;
         out.x = event.button.x;
         out.y = event.button.y;
+        return true;
+    case SDL_EVENT_MOUSE_WHEEL:
+    {
+        out.type = InputEventType::MouseWheel;
+        out.window.value = event.wheel.windowID;
+        out.x = event.wheel.mouse_x;
+        out.y = event.wheel.mouse_y;
+        const float flip = event.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -1.0f : 1.0f;
+        out.dx = event.wheel.x * flip;
+        out.dy = event.wheel.y * flip;
+        out.modifiers = modifiersOf(SDL_GetModState());
+        return true;
+    }
+    case SDL_EVENT_GAMEPAD_ADDED:
+        openGamepad(event.gdevice.which);
+        out.type = InputEventType::GamepadAdded;
+        out.value = static_cast<int32_t>(event.gdevice.which);
+        return true;
+    case SDL_EVENT_GAMEPAD_REMOVED:
+        closeGamepad(event.gdevice.which);
+        out.type = InputEventType::GamepadRemoved;
+        out.value = static_cast<int32_t>(event.gdevice.which);
+        return true;
+    case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+    case SDL_EVENT_GAMEPAD_BUTTON_UP:
+        if (event.gbutton.button > SDL_GAMEPAD_BUTTON_DPAD_RIGHT)
+        {
+            return false; // paddles, touchpads, and the like: not mapped
+        }
+        out.type = event.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN ? InputEventType::GamepadButtonDown
+                                                               : InputEventType::GamepadButtonUp;
+        out.code = event.gbutton.button;
+        out.value = static_cast<int32_t>(event.gbutton.which);
+        return true;
+    case SDL_EVENT_GAMEPAD_AXIS_MOTION:
+        out.type = InputEventType::GamepadAxis;
+        out.code = event.gaxis.axis;
+        out.value = static_cast<int32_t>(event.gaxis.which);
+        // Sticks -32768 to 32767, triggers 0 to 32767.
+        out.x = std::max(static_cast<float>(event.gaxis.value) / 32767.0f, -1.0f);
+        return true;
+    case SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED:
+        out.type = InputEventType::DisplayScaleChanged;
+        out.window.value = event.window.windowID;
+        out.x = SDL_GetWindowDisplayScale(SDL_GetWindowFromID(event.window.windowID));
         return true;
     default:
         if (markers.eventType != 0 && event.type == markers.eventType)
@@ -100,6 +184,11 @@ Result<void> initialize()
         std::fprintf(stderr, "crucible: SDL_Init failed: %s\n", SDL_GetError());
         return Status::Unsupported;
     }
+    // Gamepads are optional: without them the UI works by mouse and keyboard.
+    if (!SDL_InitSubSystem(SDL_INIT_GAMEPAD))
+    {
+        std::fprintf(stderr, "crucible: no gamepad support: %s\n", SDL_GetError());
+    }
     return {};
 }
 
@@ -107,6 +196,14 @@ void shutdown()
 {
     stopLatencyMarkers();
     markers.eventType = 0;
+    for (SDL_Gamepad*& slot : gamepads)
+    {
+        if (slot != nullptr)
+        {
+            SDL_CloseGamepad(slot);
+            slot = nullptr;
+        }
+    }
     SDL_Quit();
 }
 
@@ -149,6 +246,13 @@ bool windowMinimized(WindowHandle window)
 {
     SDL_Window* sdlWindow = find(window);
     return sdlWindow != nullptr && (SDL_GetWindowFlags(sdlWindow) & SDL_WINDOW_MINIMIZED) != 0;
+}
+
+float windowDisplayScale(WindowHandle window)
+{
+    SDL_Window* sdlWindow = find(window);
+    const float scale = sdlWindow != nullptr ? SDL_GetWindowDisplayScale(sdlWindow) : 0.0f;
+    return scale > 0 ? scale : 1.0f;
 }
 
 uint32_t pollEvents(std::span<InputEvent> events)

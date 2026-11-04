@@ -47,7 +47,7 @@ public readonly record struct Thickness(float Left, float Top, float Right, floa
 /// that overrides <see cref="OnDraw"/>. Positions are logical units; each
 /// element's edges are snapped to whole physical pixels. Main thread only.
 /// </summary>
-public class UIElement
+public partial class UIElement
 {
     private readonly List<UIElement> _children = [];
     private Vector2 _lastAvailable = new(float.NaN);
@@ -379,8 +379,10 @@ public class UIElement
 
     protected void RemoveChild(UIElement child)
     {
-        if (_children.Remove(child))
+        if (_children.Contains(child))
         {
+            Root?.Detached(child);
+            _children.Remove(child);
             child.Parent = null;
             child.Attach(null);
             InvalidateMeasure();
@@ -391,6 +393,7 @@ public class UIElement
     {
         foreach (UIElement child in _children)
         {
+            Root?.Detached(child);
             child.Parent = null;
             child.Attach(null);
         }

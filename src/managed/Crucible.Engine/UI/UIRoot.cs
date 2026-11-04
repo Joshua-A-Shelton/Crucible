@@ -11,7 +11,7 @@ namespace Crucible.UI;
 /// lays out what changed, to the surface's size in logical units, and
 /// redraws the canvas only if something changed. Main thread only.
 /// </summary>
-public sealed class UIRoot : IRenderStep
+public sealed partial class UIRoot : IRenderStep
 {
     private readonly Canvas _canvas = new();
     private UIElement? _content;
@@ -39,7 +39,11 @@ public sealed class UIRoot : IRenderStep
             {
                 throw new InvalidOperationException("The element already belongs to a tree");
             }
-            _content?.Attach(null);
+            if (_content is not null)
+            {
+                Detached(_content);
+                _content.Attach(null);
+            }
             _content = value;
             if (value is not null)
             {
