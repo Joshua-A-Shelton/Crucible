@@ -148,6 +148,16 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "LayoutChecks: all [0-9]+ checks passed")
 
+    # Styles and animation (ADR 0061): a themed tree, and a hover transition
+    # waited out in real time; the frame is saved as styles.png. Frames
+    # aren't capped here: the transition needs wall-clock time.
+    add_test(NAME launcher.jit.styles
+        COMMAND crucible_launcher --managed-dir "${engineDirectory}" --headless --frames 100000 --game "${renderStepGame}"
+            --game-arg test=styles --game-arg "capture=${CMAKE_CURRENT_BINARY_DIR}/styles.png")
+    set_tests_properties(launcher.jit.styles PROPERTIES LABELS "integration;gpu" TIMEOUT 60
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "StyleChecks: all [0-9]+ checks passed")
+
     # A game option needs a key and a value.
     add_test(NAME launcher.bad-game-arg COMMAND crucible_launcher --game-arg particles)
     set_tests_properties(launcher.bad-game-arg PROPERTIES LABELS integration WILL_FAIL TRUE)

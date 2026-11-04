@@ -67,3 +67,6 @@ Longer explanations of decisions, written to be reread:
   light, and placing exact glyphs.
 - [UI layout](docs/learning/ui-layout.md) (ADR 0060): measure and arrange,
   star sizing, dirty flags, snapping edges to pixels, and anchors.
+- [Styling and animation](docs/learning/styling-and-animation.md) (ADR 0061):
+  value layers, specificity, transitions and tweens, easing curves, and
+  real time.

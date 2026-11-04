@@ -240,3 +240,12 @@ Settled in a review of M4's and M5's placeholders (ADR 0047's amendment).
 | `Dock`, `DockPanel.SetDock`, `LastChildFill`; `Anchors` (`Fill`, `TopLeft` … `BottomRight`, `Center`, `At`, `Inset`), `AnchorPanel.SetAnchors` | Docking and anchors |
 | `UIRoot.Content`, `Scale`, `Size`, `UpdateLayout`, `HitTest` | The root |
 | `LayoutChecks`, CTest `launcher.jit.layout`, `layout.png`; `docs/learning/ui-layout.md` | The layout test and its note |
+
+## Styling and animation (2026-11-03, M6 step 5)
+
+| Name | What it is |
+|---|---|
+| `StyledProperty<T>` | A stylable, animatable property (ADR 0061) |
+| `Theme`, `Style`, `Selector` | Styles for a UI, one style, and what it matches |
+| `.crstyle` | The authored theme file (JSON) |
+| `UIState` (`Hover`, `Pressed`, `Focus`, `Disabled`); `UIElement.Animate` | States selectors match; tweens |

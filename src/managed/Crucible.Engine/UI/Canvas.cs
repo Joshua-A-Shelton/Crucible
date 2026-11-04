@@ -49,6 +49,8 @@ public sealed class Canvas : IRenderStep
     private int _transformDepth;
     private Vector4[] _clips = new Vector4[8];
     private int _clipDepth;
+    private float[] _opacities = new float[8];
+    private int _opacityDepth;
     private PipelineHandle _pipeline;
 
     /// <summary>Physical pixels per logical unit: the DPI scale.</summary>
@@ -65,7 +67,16 @@ public sealed class Canvas : IRenderStep
         _textCount = 0;
         _transformDepth = 0;
         _clipDepth = 0;
+        _opacityDepth = 0;
     }
+
+    /// <summary>Fades later drawing by <paramref name="opacity"/> (0 to 1), times any pushed before.</summary>
+    public void PushOpacity(float opacity) =>
+        Push(ref _opacities, ref _opacityDepth, Math.Clamp(opacity, 0, 1) * CurrentOpacity());
+
+    public void PopOpacity() => Pop(ref _opacityDepth, "PopOpacity");
+
+    private float CurrentOpacity() => _opacityDepth == 0 ? 1 : _opacities[_opacityDepth - 1];
 
     /// <summary>Later drawing goes through <paramref name="transform"/> too, before the transforms pushed earlier.</summary>
     public void PushTransform(in Matrix3x2 transform)
@@ -327,11 +338,12 @@ public sealed class Canvas : IRenderStep
         --depth;
     }
 
-    // sRGB with straight alpha to linear, premultiplied.
-    private static Vector4 Linear(Vector4 srgb)
+    // sRGB with straight alpha to linear, premultiplied, faded by the opacity pushed.
+    private Vector4 Linear(Vector4 srgb)
     {
         static float Decode(float c) => c <= 0.04045f ? c / 12.92f : MathF.Pow((c + 0.055f) / 1.055f, 2.4f);
-        return new Vector4(Decode(srgb.X) * srgb.W, Decode(srgb.Y) * srgb.W, Decode(srgb.Z) * srgb.W, srgb.W);
+        float alpha = srgb.W * CurrentOpacity();
+        return new Vector4(Decode(srgb.X) * alpha, Decode(srgb.Y) * alpha, Decode(srgb.Z) * alpha, alpha);
     }
 }
 

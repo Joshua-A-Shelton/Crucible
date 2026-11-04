@@ -19,6 +19,11 @@ public sealed class UIRoot : IRenderStep
     private Vector2 _size;
     private bool _layoutDirty = true;
     private bool _drawingDirty = true;
+    private Theme? _theme;
+    private int _themeVersion;
+    private readonly HashSet<UIElement> _restyle = [];
+    private readonly HashSet<UIElement> _animating = [];
+    private readonly System.Diagnostics.Stopwatch _clock = System.Diagnostics.Stopwatch.StartNew();
 
     /// <summary>The top element, laid out to fill the surface.</summary>
     public UIElement? Content
@@ -68,6 +73,30 @@ public sealed class UIRoot : IRenderStep
         }
     }
 
+    /// <summary>The styles for this tree (ADR 0061). Changing it, or the theme itself, restyles the tree.</summary>
+    public Theme? Theme
+    {
+        get => _theme;
+        set
+        {
+            _theme = value;
+            _themeVersion = value?.Version ?? 0;
+            if (_content is not null)
+            {
+                RestyleAll(_content);
+            }
+        }
+    }
+
+    /// <summary>Real time in seconds, which transitions and tweens run on.</summary>
+    public double Now => TestClock?.Invoke() ?? _clock.Elapsed.TotalSeconds;
+
+    // Tests: a clock of their own.
+    internal Func<double>? TestClock { get; set; }
+
+    /// <summary>Whether a transition or tween is running.</summary>
+    public bool IsAnimating => _animating.Count > 0;
+
     /// <summary>The surface's size in logical units, as of the last layout.</summary>
     public Vector2 Size => _size;
 
@@ -78,6 +107,7 @@ public sealed class UIRoot : IRenderStep
     /// </summary>
     public void UpdateLayout(Vector2 physicalSize)
     {
+        UpdateStyles();
         Vector2 size = physicalSize / _scale;
         if (size != _size)
         {
@@ -104,6 +134,49 @@ public sealed class UIRoot : IRenderStep
     }
 
     internal void InvalidateDrawing() => _drawingDirty = true;
+
+    internal void Restyle(UIElement element) => _restyle.Add(element);
+
+    internal void Animating(UIElement element) => _animating.Add(element);
+
+    /// <summary>
+    /// Applies changed classes, states, and themes, then advances animations
+    /// to now. <see cref="UpdateLayout"/> does it first.
+    /// </summary>
+    public void UpdateStyles()
+    {
+        double now = Now;
+        if (_theme is not null && _theme.Version != _themeVersion && _content is not null)
+        {
+            _themeVersion = _theme.Version;
+            RestyleAll(_content);
+        }
+        if (_restyle.Count > 0)
+        {
+            UIElement[] pending = [.. _restyle];
+            _restyle.Clear();
+            foreach (UIElement element in pending)
+            {
+                if (element.Root == this)
+                {
+                    element.ApplyStyle(_theme, now);
+                }
+            }
+        }
+        if (_animating.Count > 0)
+        {
+            _animating.RemoveWhere(element => element.Root != this || !element.UpdateAnimations(now));
+        }
+    }
+
+    private void RestyleAll(UIElement element)
+    {
+        _restyle.Add(element);
+        foreach (UIElement child in element.Children)
+        {
+            RestyleAll(child);
+        }
+    }
 
     void IRenderStep.Prepare() => ((IRenderStep)_canvas).Prepare();
 
