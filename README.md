@@ -65,3 +65,5 @@ Longer explanations of decisions, written to be reread:
 - [Drawing 2D with distance fields](docs/learning/drawing-2d.md) (ADR 0059):
   one quad per shape, antialiasing from the distance, blending in linear
   light, and placing exact glyphs.
+- [UI layout](docs/learning/ui-layout.md) (ADR 0060): measure and arrange,
+  star sizing, dirty flags, snapping edges to pixels, and anchors.

@@ -226,3 +226,11 @@ Settled in a review of M4's and M5's placeholders (ADR 0047's amendment).
 | `GlyphUpload.cpp`: `glyphPageDescriptor`, `glyphPageDescriptors`, `beginGlyphUpload`, `finishGlyphUpload`, `stopGlyphUpload`; `destroyAfterFrame` | The glyph pages on the GPU |
 | `createEngineGraphicsPipeline`, `textGlyphCount` | Engine pipelines; a layout's glyph count |
 | `CanvasChecks`, CTest `launcher.jit.canvas`, `canvas.png`; `docs/learning/drawing-2d.md` | The canvas test and its note |
+
+## Elements and layout (2026-11-03, M6 step 4)
+
+| Name | What it is |
+|---|---|
+| `UIElement` (`Measure`, `Arrange`, `MeasureCore`, `ArrangeCore`, `OnDraw`) | An element of the UI tree (ADR 0060) |
+| `UIRoot` | A surface's UI, and the `UI` step that draws it |
+| `StackPanel`, `Grid`, `DockPanel`, `AnchorPanel` | The panels |

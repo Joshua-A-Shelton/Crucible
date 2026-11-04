@@ -101,10 +101,12 @@ float roundedBox(float2 p, float2 halfSize, float4 radii)
     return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
 }
 
-float coverageOf(float distance)
+// `pixel`: a screen pixel's size in local units. From the local position's
+// derivatives, not the distance's: those jump at a corner, where two edges
+// meet, and would soften it.
+float coverageOf(float distance, float pixel)
 {
-    const float width = max(fwidth(distance), 1e-5);
-    return saturate(0.5 - distance / width);
+    return saturate(0.5 - distance / max(pixel, 1e-5));
 }
 
 // Text coverage, corrected for blending in linear light: dark text is
@@ -191,6 +193,8 @@ float median(float3 v)
 
 float4 shade(UiInstance item, float2 local)
 {
+    const float2 dx = ddx(local), dy = ddy(local);
+    const float pixel = sqrt(abs(dx.x * dy.y - dx.y * dy.x));
     const float2 halfSize = item.rect.zw * 0.5;
     const float2 centered = local - item.rect.xy - halfSize;
     const float2 unit = (local - item.rect.xy) / max(item.rect.zw, 1e-5);
@@ -199,20 +203,20 @@ float4 shade(UiInstance item, float2 local)
     {
     case uiRect: {
         const float distance = roundedBox(centered, halfSize, item.radii);
-        const float outer = coverageOf(distance);
+        const float outer = coverageOf(distance, pixel);
         const float border = item.extra.x;
         if (border <= 0)
         {
             return fillColor(item, local) * outer;
         }
-        const float inner = coverageOf(distance + border);
+        const float inner = coverageOf(distance + border, pixel);
         return fillColor(item, local) * inner + item.extra2 * (outer - inner);
     }
     case uiImage: {
         Texture2D texture = ResourceDescriptorHeap[item.texture];
         SamplerState s = SamplerDescriptorHeap[linearClampSampler];
         const float4 texel = texture.Sample(s, lerp(item.uv.xy, item.uv.zw, unit));
-        const float alpha = coverageOf(roundedBox(centered, halfSize, item.radii));
+        const float alpha = coverageOf(roundedBox(centered, halfSize, item.radii), pixel);
         return float4(texel.rgb * texel.a, texel.a) * item.color * alpha;
     }
     case uiNineSlice: {
@@ -224,7 +228,7 @@ float4 shade(UiInstance item, float2 local)
                                  nineSlice(p.y, item.rect.w, item.extra.y, item.extra.w, item.uv.y, item.uv.w,
                                            item.extra2.y, item.extra2.w));
         const float4 texel = texture.SampleGrad(s, uv, ddx(uv), ddy(uv));
-        const float alpha = coverageOf(roundedBox(centered, halfSize, item.radii));
+        const float alpha = coverageOf(roundedBox(centered, halfSize, item.radii), pixel);
         return float4(texel.rgb * texel.a, texel.a) * item.color * alpha;
     }
     case uiGlyph: {
@@ -248,7 +252,7 @@ float4 shade(UiInstance item, float2 local)
         const float2 a = item.uv.xy, b = item.uv.zw;
         const float2 pa = local - a, ba = b - a;
         const float h = saturate(dot(pa, ba) / max(dot(ba, ba), 1e-8));
-        return item.color * coverageOf(length(pa - ba * h) - item.extra.x * 0.5);
+        return item.color * coverageOf(length(pa - ba * h) - item.extra.x * 0.5, pixel);
     }
     case uiShadow: {
         const float sigma = max(item.extra.x, 1e-3);

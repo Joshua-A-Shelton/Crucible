@@ -24,10 +24,15 @@ blurred box, which also has a closed form along one axis.
 
 If a pixel's distance is −0.5 pixels, its center is half a pixel inside:
 the pixel is fully covered. At +0.5 it's fully outside. In between, the
-coverage is `0.5 − distance / pixelSize`. `fwidth(distance)` tells the
-shader how much the distance changes from one pixel to the next, so the
-same formula works when the shape is scaled or rotated: the edge is
-always one pixel wide on screen.
+coverage is `0.5 − distance / pixelSize`. The pixel's size in the shape's
+own units comes from how fast the local position changes from one pixel
+to the next (`ddx`, `ddy`), so the same formula works when the shape is
+scaled or rotated: the edge is always one pixel wide on screen.
+
+A tempting shortcut is `fwidth(distance)`, how fast the distance itself
+changes. It's right along an edge but wrong at a square corner, where the
+distance's slope jumps from one edge's direction to the other's: the
+corner pixel comes out soft, a visibly nicked corner.
 
 ## Why blending space matters
 

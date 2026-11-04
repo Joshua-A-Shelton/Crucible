@@ -139,6 +139,15 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "CanvasChecks: all [0-9]+ checks passed")
 
+    # The UI's element tree (ADR 0060): every panel kind at a DPI scale of
+    # 1.25, checked at chosen pixels; the frame is saved as layout.png.
+    add_test(NAME launcher.jit.layout
+        COMMAND crucible_launcher --managed-dir "${engineDirectory}" --headless --frames 100 --game "${renderStepGame}"
+            --game-arg test=layout --game-arg "capture=${CMAKE_CURRENT_BINARY_DIR}/layout.png")
+    set_tests_properties(launcher.jit.layout PROPERTIES LABELS "integration;gpu"
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "LayoutChecks: all [0-9]+ checks passed")
+
     # A game option needs a key and a value.
     add_test(NAME launcher.bad-game-arg COMMAND crucible_launcher --game-arg particles)
     set_tests_properties(launcher.bad-game-arg PROPERTIES LABELS integration WILL_FAIL TRUE)

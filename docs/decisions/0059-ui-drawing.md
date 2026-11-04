@@ -56,9 +56,12 @@ lines and polylines, gradients, drop shadows, nine-slice images.
   kind, texture slot, corner radii, two colors, a uv rect, two parameter
   vectors, and the clip in physical pixels. C# writes them as the
   generated `UiInstance` mirror (shaderfax), so layouts can't disagree.
-- **Antialiasing:** coverage is `0.5 − distance / fwidth(distance)`, so an
-  edge is one pixel wide whatever the transform; quads grow by a pixel (in
-  local units) to make room. An edge on a pixel boundary is crisp; one half
+- **Antialiasing:** coverage is `0.5 − distance / pixel`, where `pixel` is
+  a screen pixel's size in local units (the square root of the local
+  position's derivative determinant), so an edge is one pixel wide whatever
+  the transform; quads grow by a pixel (in local units) to make room.
+  (Built first with `fwidth(distance)`, which softened square corners: the
+  distance's slope jumps where two edges meet. Changed in M6 step 4.) An edge on a pixel boundary is crisp; one half
   a pixel in is half covered.
 - **Shadows:** Evan Wallace's closed form for a blurred rounded box (erf
   along x, four samples along y); `blur` is CSS's blur radius, twice the
