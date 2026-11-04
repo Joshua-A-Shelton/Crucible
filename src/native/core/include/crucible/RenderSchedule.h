@@ -4,13 +4,15 @@
 // render steps, built on slag::rendergraph. Every frame each step adds its
 // graph passes, sharing resources through the blackboard; the graph works out
 // barriers, semaphores between queues, and transient memory, and never
-// reorders passes. C++ only; C# steps come with the batched command API (M6).
+// reorders passes. C# steps go through the batched command API
+// (crucible/RenderCommands.h, ADR 0058); the blackboard's keys are shared.
 //
 // Threading: like the renderer, the schedule is used on the launcher's main
 // thread. Graph passes record on job threads (their record functions may run
 // concurrently with each other).
 
 #include <crucible/DrawList.h>
+#include <crucible/Expose.h>
 #include <crucible/Memory.h>
 #include <crucible/Result.h>
 #include <crucible/Vector.h>
@@ -30,38 +32,38 @@ namespace crucible::render {
 struct ViewConstants;
 
 // A blackboard entry's name, registered once and used as a small ID.
-struct BlackboardKey
+struct CRUCIBLE_EXPOSE BlackboardKey
 {
-    uint32_t value = UINT32_MAX;
+    uint32_t value; // UINT32_MAX: none
 };
 
 // The same name always gives the same key.
-BlackboardKey registerBlackboardKey(std::string_view name);
-std::string_view blackboardKeyName(BlackboardKey key);
+CRUCIBLE_EXPOSE BlackboardKey registerBlackboardKey(std::string_view name);
+CRUCIBLE_EXPOSE std::string_view blackboardKeyName(BlackboardKey key);
 
 // The surface's image, published before the first step runs.
-BlackboardKey backbufferKey();
+CRUCIBLE_EXPOSE BlackboardKey backbufferKey();
 
 // The frame's ViewConstants (shaders/crucible/shared.slang, ADR 0050), in an
 // upload buffer published before the first step runs. Read it as a constant
 // buffer: setConstantBuffer(address, size) with the size of ViewConstants
 // rounded up to slag::alignment::constantBuffer.
-BlackboardKey viewKey();
+CRUCIBLE_EXPOSE BlackboardKey viewKey();
 
 // The MSAA targets the default steps draw into (ADR 0051), at
 // msaaSamples(): SceneDepth (D32Float, from DepthPrepass) and SceneColor
 // (R16G16B16A16Float, linear, from Opaque). Tonemap writes SceneColor to the
 // backbuffer.
-BlackboardKey sceneDepthKey();
-BlackboardKey sceneColorKey();
+CRUCIBLE_EXPOSE BlackboardKey sceneDepthKey();
+CRUCIBLE_EXPOSE BlackboardKey sceneColorKey();
 
 // The frame's lights (ADR 0053), published before the first step runs: the
 // visible lights' LightData (an upload buffer, under Lights), and
 // LightClustering's output (LightClusters: each cluster's light count, then
 // each cluster's list of light indices). Shaders find them through
 // ViewConstants' lights, clusterRanges, and clusterLights slots.
-BlackboardKey lightsKey();
-BlackboardKey lightClustersKey();
+CRUCIBLE_EXPOSE BlackboardKey lightsKey();
+CRUCIBLE_EXPOSE BlackboardKey lightClustersKey();
 
 // The Shadows step's maps (ADR 0054), in the shadow-map depth format:
 // ShadowCascades, the sun's cascades as a 4-layer array, made each frame and
@@ -69,13 +71,13 @@ BlackboardKey lightClustersKey();
 // spot lights' tiles, kept across frames, published only while a light has
 // a tile. Shaders find them through ViewConstants' cascadeMap and
 // shadowAtlas slots (0 when not published).
-BlackboardKey shadowCascadesKey();
-BlackboardKey shadowAtlasKey();
+CRUCIBLE_EXPOSE BlackboardKey shadowCascadesKey();
+CRUCIBLE_EXPOSE BlackboardKey shadowAtlasKey();
 
 // The Bloom step's chain (ADR 0055): half size, one mip per level, the
 // summed glow in mip 0, which Tonemap mixes in. Published only when the
 // camera's PostProcess has bloom.
-BlackboardKey bloomKey();
+CRUCIBLE_EXPOSE BlackboardKey bloomKey();
 
 // What a step sees while it adds its graph passes for one frame.
 class RenderStepContext

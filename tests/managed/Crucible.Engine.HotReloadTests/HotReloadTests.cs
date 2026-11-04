@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using Crucible.Ecs;
 using Crucible.Hosting;
 using Crucible.Loop;
+using Crucible.Render;
 
 namespace Crucible.Tests.HotReload;
 
@@ -107,6 +108,26 @@ public class HotReloadTests
         (string saved, WeakReference context) = RegisterAndUnload(TestGame("v1"));
         await Assert.That(saved).Contains("\"Crucible.TestGame.Garage\"");
         await Assert.That(GameLoader.WaitForUnload(context)).IsTrue();
+    }
+
+    [Test]
+    public async Task ARenderStepLeftInTheScheduleDoesntKeepTheGameLoaded()
+    {
+        WeakReference context = AddStepAndUnload(TestGame("v1"));
+        await Assert.That(RenderSchedule.StepNames).DoesNotContain("TestGame.Step");
+        await Assert.That(GameLoader.WaitForUnload(context)).IsTrue();
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static WeakReference AddStepAndUnload(string path)
+    {
+        LoadedGame game = GameLoader.Load(path);
+        Call(game.Entry, "AddRenderStep");
+        if (!RenderSchedule.StepNames.Contains("TestGame.Step"))
+        {
+            throw new InvalidOperationException("The game's step isn't in the schedule");
+        }
+        return game.Unload();
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]

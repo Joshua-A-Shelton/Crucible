@@ -71,6 +71,7 @@ add_library(crucible_render_objects OBJECT
     Materials.cpp
     Render.cpp
     RenderAssets.cpp
+    RenderCommands.cpp
     RenderSchedule.cpp
     RenderSteps.cpp
     Shaping.cpp

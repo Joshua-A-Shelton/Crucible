@@ -909,6 +909,11 @@ slag::SemaphoreValue lastWorkSignaled()
     return lastSignaled();
 }
 
+void destroyAfterWork(slag::Pipeline* pipeline)
+{
+    state.destroyer->destroyAfter(pipeline, lastSignaled());
+}
+
 Status readAsset(const AssetId& id, Vector<uint8_t>& out)
 {
     if (reader == nullptr)

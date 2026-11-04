@@ -136,6 +136,8 @@ public static class Host
             {
                 Platform.Api.StopLatencyMarkers();
             }
+            // The renderer outlives C#'s steps: they're released while C# runs.
+            RenderSchedule.RemoveAll();
         }
 
         if (context.Latency is not null && latencyLog is not null)

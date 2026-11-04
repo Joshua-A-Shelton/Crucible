@@ -69,6 +69,9 @@ public sealed class RenderSystem : GameSystem
             0.02f, 0.02f + 0.08f * pulse, 0.1f, 1.0f);
         if (status < 0)
         {
+            // A C# step that threw failed only this frame: rethrown, it's
+            // reported and the next frame runs (ADR 0058).
+            Render.RenderSchedule.ThrowFailure();
             context.Fail(status, Name);
             return;
         }

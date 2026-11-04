@@ -22,7 +22,7 @@ inline constexpr uint32_t framesInFlight = 2;
 // Each surface's reserved resource-heap slots, below the loaded textures'
 // (which start at 1024): `descriptorsPerSurface` from 8 + surface index *
 // descriptorsPerSurface, one per frame slot for each of these.
-inline constexpr uint32_t descriptorsPerSurface = 48;
+inline constexpr uint32_t descriptorsPerSurface = 120;
 // (LightClustering writes the cluster lists through the RW slots, Opaque
 // reads them through the others. The shadow atlas outlives frames, so it
 // has one slot.)
@@ -42,7 +42,13 @@ inline constexpr uint32_t shadowAtlasDescriptor = 10 * framesInFlight;
 inline constexpr uint32_t maxBloomLevels = 6;
 inline constexpr uint32_t bloomSourceDescriptor = 11 * framesInFlight; // + frame slot
 inline constexpr uint32_t bloomLevelsDescriptor = 12 * framesInFlight; // + level * framesInFlight + frame slot
-static_assert(12 * framesInFlight + maxBloomLevels * framesInFlight <= descriptorsPerSurface);
+// C# steps (ADR 0058): the frame data's ByteAddressBuffer, and the slots
+// their passes read and write graph resources through, handed out in order
+// each frame.
+inline constexpr uint32_t frameDataDescriptor = (12 + maxBloomLevels) * framesInFlight; // + frame slot
+inline constexpr uint32_t stepDescriptorsPerFrame = 40;
+inline constexpr uint32_t stepDescriptors = frameDataDescriptor + framesInFlight; // + frame slot * per frame
+static_assert(stepDescriptors + stepDescriptorsPerFrame * framesInFlight <= descriptorsPerSurface);
 // 8 surfaces from slot 8: they must stay below the loaded textures' 1024.
 static_assert(8 + 8 * descriptorsPerSurface <= 1024);
 
@@ -66,6 +72,7 @@ std::array<Plane, 6> frustumPlanes(const Matrix4x4& viewProjection);
 
 struct ShadowFrame;
 struct DrawState;
+struct ManagedState;
 
 struct FrameInputs
 {
@@ -84,6 +91,8 @@ struct FrameInputs
     uint32_t descriptorBase;
     const ShadowFrame& shadows;
     const DrawState& drawState;
+    ManagedState& managed;
+    uint32_t frameSlot;
 };
 
 // Runs every step of the schedule for one frame. InvalidData (already
@@ -94,6 +103,23 @@ Result<void> addStepPasses(const FrameInputs& inputs);
 // for Transparent's sorting (RenderSchedule.cpp).
 const ShadowFrame& shadowFrame(const RenderStepContext& context);
 const DrawState& frameDrawState(const RenderStepContext& context);
+// For C# steps (RenderCommands.cpp): the surface's state for them, the graph's
+// frame slot, and failing the frame (no later step runs; renderFrame returns
+// InvalidData).
+ManagedState& managedState(const RenderStepContext& context);
+uint32_t frameSlotOf(const RenderStepContext& context);
+void failFrame(RenderStepContext& context);
+
+// RenderCommands.cpp (ADR 0058): a surface's state for C# steps (their
+// passes' commands and descriptors, and the frame data's buffers), begun
+// before the steps run and finished before the graph compiles, which copies
+// the frame data into the frame slot's upload buffer.
+ManagedState* createManagedState(uint32_t descriptorBase);
+void destroyManagedState(ManagedState* state); // the GPU must be done with it
+void beginManagedFrame(ManagedState& state, uint32_t frameSlot);
+Result<void> finishManagedFrame(ManagedState& state, uint32_t frameSlot);
+// Destroys the pipelines C# left behind; before stopAssets.
+void stopPipelines();
 
 // DepthPrepass, LightClustering, Shadows, Opaque, Outlines, Sky, Transparent, Bloom,
 // then Tonemap (RenderSteps.cpp).
@@ -215,6 +241,8 @@ Status readAsset(const assets::AssetId& id, Vector<uint8_t>& out);
 std::span<const MaterialHandle> modelMaterials(uint32_t meshIndex);
 // The last value of the work semaphore signalled (RenderAssets.cpp).
 slag::SemaphoreValue lastWorkSignaled();
+// Destroyed once the GPU passes the last work signalled (RenderAssets.cpp).
+void destroyAfterWork(slag::Pipeline* pipeline);
 
 // Lights.cpp (ADR 0053): a surface's light buffers, one per frame slot, and
 // the frame's lights gathered into them: the counts, ambient light, light

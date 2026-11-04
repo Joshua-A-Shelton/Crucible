@@ -52,6 +52,8 @@ struct FrameState
     uint32_t descriptorBase = 0; // the surface's reserved resource-heap slots
     const ShadowFrame* shadows = nullptr;
     const DrawState* drawState = nullptr;
+    ManagedState* managed = nullptr;
+    uint32_t frameSlot = 0;
 };
 
 BlackboardKey registerBlackboardKey(std::string_view name)
@@ -225,6 +227,11 @@ struct FrameBuilder
         return *static_cast<const FrameState*>(context.frameState)->drawState;
     }
 
+    static FrameState& state(const RenderStepContext& context)
+    {
+        return *static_cast<FrameState*>(context.frameState);
+    }
+
     static Result<void> run(const FrameInputs& inputs)
     {
         FrameState state;
@@ -233,6 +240,8 @@ struct FrameBuilder
         state.descriptorBase = inputs.descriptorBase;
         state.shadows = &inputs.shadows;
         state.drawState = &inputs.drawState;
+        state.managed = &inputs.managed;
+        state.frameSlot = inputs.frameSlot;
         context.width = inputs.width;
         context.height = inputs.height;
         context.frame = inputs.frame;
@@ -265,6 +274,21 @@ const ShadowFrame& shadowFrame(const RenderStepContext& context)
 const DrawState& frameDrawState(const RenderStepContext& context)
 {
     return FrameBuilder::drawState(context);
+}
+
+ManagedState& managedState(const RenderStepContext& context)
+{
+    return *FrameBuilder::state(context).managed;
+}
+
+uint32_t frameSlotOf(const RenderStepContext& context)
+{
+    return FrameBuilder::state(context).frameSlot;
+}
+
+void failFrame(RenderStepContext& context)
+{
+    FrameBuilder::state(context).failed = true;
 }
 
 Result<void> addStepPasses(const FrameInputs& inputs)

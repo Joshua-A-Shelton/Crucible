@@ -116,6 +116,18 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         ENVIRONMENT_MODIFICATION "${_libraryPath}=path_list_prepend:$<TARGET_FILE_DIR:crucible_core>")
 
+    # The batched command API from C# (ADR 0058): a game whose C# render step
+    # draws through command records, checked by reading the frame back. It
+    # draws with the native tests' probe shader.
+    set(renderStepGame
+        "${CRUCIBLE_DOTNET_ARTIFACTS_DIR}/bin/Crucible.RenderStepGame/${CRUCIBLE_DOTNET_CONFIGURATION_DIR}/Crucible.RenderStepGame.dll")
+    add_test(NAME launcher.jit.render-steps
+        COMMAND crucible_launcher --managed-dir "${engineDirectory}" --headless --game "${renderStepGame}"
+            --game-arg "shader=${PROJECT_BINARY_DIR}/tests/native/shaders/StepProbe.crshader")
+    set_tests_properties(launcher.jit.render-steps PROPERTIES LABELS "integration;gpu"
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "RenderStepGame: all [0-9]+ checks passed")
+
     # A game option needs a key and a value.
     add_test(NAME launcher.bad-game-arg COMMAND crucible_launcher --game-arg particles)
     set_tests_properties(launcher.bad-game-arg PROPERTIES LABELS integration WILL_FAIL TRUE)

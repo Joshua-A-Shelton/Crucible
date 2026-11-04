@@ -12,6 +12,7 @@ add_executable(crucible_native_tests
     MemoryTests.cpp
     PlatformTests.cpp
     RenderAssetsTests.cpp
+    RenderCommandsTests.cpp
     RenderScheduleTests.cpp
     RenderTests.cpp
     ResultTests.cpp
@@ -43,6 +44,8 @@ crucible_add_shader(crucible_native_tests SOURCE shaders/LayoutProbe.slang
 add_dependencies(crucible_managed crucible_native_tests_shader_LayoutProbe)
 # The camera's test shader (ADR 0050).
 crucible_add_shader(crucible_native_tests SOURCE shaders/ViewProbe.slang)
+# The batched command API's test shader (ADR 0058).
+crucible_add_shader(crucible_native_tests SOURCE shaders/StepProbe.slang)
 # Noto Sans (SIL Open Font License, fonts/OFL.txt), for the text tests.
 target_compile_definitions(crucible_native_tests PRIVATE CRUCIBLE_TEST_FONT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fonts")
 # A game's material shader (ADR 0052), compiled as the Shader importer does.

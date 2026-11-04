@@ -2,6 +2,7 @@ using System.Numerics;
 using Crucible.Ecs;
 using Crucible.Hosting;
 using Crucible.Jobs;
+using Crucible.Render;
 
 [assembly: GameEntry(typeof(Crucible.TestGame.TestGameEntry))]
 
@@ -119,6 +120,17 @@ public sealed class TestGameEntry : IGameEntry
             Interlocked.Add(ref total[0], sum);
         }
     }
+
+    // A render step of the game's own (ADR 0058): left in the schedule, it
+    // must not keep the game loaded.
+    private sealed class GameStep : IRenderStep
+    {
+        public void AddPasses(RenderStepContext context)
+        {
+        }
+    }
+
+    public void AddRenderStep() => RenderSchedule.Add("TestGame.Step", new GameStep());
 
     // The version, if the parallel sum of i² for i < 1000 is right, both as
     // a job and through ECS chunks.

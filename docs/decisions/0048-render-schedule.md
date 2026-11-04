@@ -125,3 +125,8 @@ and C# render steps (the batched command API, M6).
 
 The temporary Clear and Triangle steps are replaced by `DepthPrepass`,
 `Opaque`, and `Resolve`, and `triangle.slang` is gone.
+
+## Amendment (2026-11-03, ADR 0058)
+
+C# steps join the schedule through the batched command API, and the
+blackboard's keys are exposed to C#.

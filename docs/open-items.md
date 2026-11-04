@@ -29,7 +29,6 @@ is, and record which version fixed it.
 ## Needs a decision from the project owner
 
 - Final names of the default phases (the list is ADR 0036's). → 0013, 0036 [M3]
-- The C# rendering (batched command) API. → 0015 [M6]
 - C++ runtime extension mechanism (not plugins; C++ never extends the
   editor). → 0002 [M7]
 - Interfaces for replaceable subsystems. → 0006 [M7, then as each

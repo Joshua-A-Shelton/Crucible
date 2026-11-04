@@ -69,11 +69,12 @@ struct Surface
     // graph's order of frame slots; beginFrame waits until the GPU is done
     // with the one it hands out.
     std::array<slag::Buffer*, framesInFlight> viewBuffers{};
-    uint64_t graphFrames = 0;       // frames begun on the graph, for its frame slot
-    DrawState* draws = nullptr;     // its transform buffers and instance lists (ADR 0051)
-    LightState* lights = nullptr;   // its light buffers (ADR 0053)
-    ShadowState* shadows = nullptr; // its shadow views and atlas (ADR 0054)
-    uint64_t submitted = 0;         // frames submitted so far
+    uint64_t graphFrames = 0;        // frames begun on the graph, for its frame slot
+    DrawState* draws = nullptr;      // its transform buffers and instance lists (ADR 0051)
+    LightState* lights = nullptr;    // its light buffers (ADR 0053)
+    ShadowState* shadows = nullptr;  // its shadow views and atlas (ADR 0054)
+    ManagedState* managed = nullptr; // its C# steps' passes and frame data (ADR 0058)
+    uint64_t submitted = 0;          // frames submitted so far
     slag::PresentMode presentMode{};
     uint32_t width = 0;
     uint32_t height = 0;
@@ -194,6 +195,7 @@ void release(Surface& surface)
     destroyDrawState(surface.draws);
     destroyLightState(surface.lights);
     destroyShadowState(surface.shadows);
+    destroyManagedState(surface.managed);
     for (slag::Buffer* buffer : surface.viewBuffers)
     {
         if (buffer != nullptr)
@@ -248,6 +250,7 @@ Result<void> createFrameResources(Surface& surface, uint32_t index)
     surface.draws = createDrawState(8 + index * descriptorsPerSurface);
     surface.lights = createLightState(8 + index * descriptorsPerSurface);
     surface.shadows = createShadowState(8 + index * descriptorsPerSurface);
+    surface.managed = createManagedState(8 + index * descriptorsPerSurface);
     if (surface.lights == nullptr || surface.shadows == nullptr)
     {
         return Status::OutOfDeviceMemory;
@@ -347,13 +350,19 @@ Result<void> renderWithGraph(Surface& surface, slag::Texture* texture, slag::Att
     slag::rendergraph::ImportedTextureDesc desc = import;
     desc.attachmentView = view;
     const slag::rendergraph::RenderGraphTexture backbuffer = graph.importTexture(texture, desc);
-    if (Result<void> added = addStepPasses(
-            {graph, *renderer.device, surface.width, surface.height, surface.submitted + 1, color, backbuffer,
-             graph.importBuffer(viewBuffer), graph.importBuffer(lightBuffer(*surface.lights, frameSlot)), constants,
-             draws.value(), world, drawDescriptorBase(*surface.draws), shadows, *surface.draws});
+    beginManagedFrame(*surface.managed, frameSlot);
+    if (Result<void> added =
+            addStepPasses({graph, *renderer.device, surface.width, surface.height, surface.submitted + 1, color,
+                           backbuffer, graph.importBuffer(viewBuffer),
+                           graph.importBuffer(lightBuffer(*surface.lights, frameSlot)), constants, draws.value(), world,
+                           drawDescriptorBase(*surface.draws), shadows, *surface.draws, *surface.managed, frameSlot});
         !added)
     {
         return added;
+    }
+    if (Result<void> finished = finishManagedFrame(*surface.managed, frameSlot); !finished)
+    {
+        return finished;
     }
     if (slag::Result<void> compiled = graph.compile(); !compiled)
     {
@@ -506,6 +515,7 @@ void shutdown()
             }
         }
         stopDrawing();
+        stopPipelines();
         stopAssets();
         stopMaterials();
         renderSchedule().releaseAll();

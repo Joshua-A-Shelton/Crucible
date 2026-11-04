@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.Loader;
 using Crucible.Ecs;
 using Crucible.Loop;
+using Crucible.Render;
 
 namespace Crucible.Hosting;
 
@@ -167,6 +168,8 @@ public sealed class LoadedGame
         _context = null;
         // The saved-component table would otherwise keep the game's types.
         SavedComponents.Forget(context);
+        // So would the render schedule's C# steps.
+        RenderSchedule.Forget(context);
         context.Unload();
         return weak;
     }
