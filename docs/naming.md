@@ -296,8 +296,8 @@ Settled in a review of M4's and M5's placeholders (ADR 0047's amendment).
 
 ## Text editing (2026-11-04, M7 step 1)
 
-Settled: `TextField`, `NumberField`, `TextChanged`, `Committed`, `TextInput`,
-`polledText`, and the clipboard functions. The rest are placeholders.
+All settled by the owner (2026-11-04): the fields and their events first,
+the rest as drafted.
 
 | Name | What it is |
 |---|---|

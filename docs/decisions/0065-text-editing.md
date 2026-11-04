@@ -1,9 +1,9 @@
 # 0065 — Text editing
 
-**Status:** Accepted (2026-11-04); built. Names settled by the owner:
-`TextField`, `NumberField`, `TextChanged`, `Committed`, the platform's
-`TextInput` event, `polledText`, and the clipboard functions; the rest are
-placeholders (docs/naming.md).
+**Status:** Accepted (2026-11-04); built. Names settled by the owner
+(docs/naming.md): `TextField`, `NumberField`, `TextChanged`, `Committed`,
+the platform's `TextInput` event, `polledText`, and the clipboard
+functions first, the rest as drafted.
 
 ## Context
 
