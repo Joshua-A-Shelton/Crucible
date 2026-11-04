@@ -1,5 +1,4 @@
 using System.Numerics;
-using Crucible.Assets;
 using Crucible.Text;
 
 namespace Crucible.UI;
@@ -19,10 +18,7 @@ public class Label : UIElement
 
     private string _text = "";
     private bool _wrap;
-    private TextLayout? _layout;
-    private (ulong Font, float Size, float Scale, GlyphRendering Rendering, float WrapWidth, string Text) _shaped;
-    private AssetId _fontId;
-    private FontHandle _acquired;
+    private readonly ShapedText _shaped = new();
 
     public Label()
     {
@@ -61,88 +57,21 @@ public class Label : UIElement
     }
 
     /// <summary>The shaped text, as last measured; null without a font.</summary>
-    public TextLayout? Layout => _layout;
+    public TextLayout? Layout => _shaped.Layout;
 
     protected override Vector2 MeasureCore(Vector2 available)
     {
-        FontHandle font = ResolveFont();
-        if (font.Generation == 0)
-        {
-            DropLayout();
-            return Vector2.Zero;
-        }
         float wrapWidth = _wrap && float.IsFinite(available.X) ? MathF.Max(available.X, 1) : 0;
-        var wanted = (((ulong)font.Index << 32) | font.Generation, FontSize, Root?.Scale ?? 1, TextRendering, wrapWidth, _text);
-        if (_layout is null || wanted != _shaped)
-        {
-            DropLayout();
-            _layout = TextLayout.Shape(font, new TextStyle
-            {
-                Size = wanted.Item2,
-                Scale = wanted.Item3,
-                Rendering = wanted.Item4,
-            }, _text, wrapWidth);
-            _shaped = wanted;
-        }
-        return _layout.Size;
+        return _shaped.Shape(this, TextRendering, _text, wrapWidth)?.Size ?? Vector2.Zero;
     }
 
     protected override void OnDraw(Canvas canvas)
     {
-        if (_layout is not null)
+        if (_shaped.Layout is { } layout)
         {
-            canvas.DrawText(_layout, Vector2.Zero, Foreground);
+            canvas.DrawText(layout, Vector2.Zero, Foreground);
         }
     }
 
-    protected override void OnDetached(UIRoot root)
-    {
-        DropLayout();
-        ReleaseFont();
-    }
-
-    // The style's font asset (acquired once, released when it changes), or the root's default.
-    private FontHandle ResolveFont()
-    {
-        AssetId id = Font;
-        if (id != _fontId)
-        {
-            ReleaseFont();
-            if (!id.IsNone)
-            {
-                // A missing or broken font draws no text rather than failing
-                // the frame's layout; it's reported once.
-                try
-                {
-                    _acquired = Fonts.Acquire(id);
-                }
-                catch (CrucibleException exception)
-                {
-                    Console.Error.WriteLine($"Crucible.UI: font {id} can't be used: {exception.Message}");
-                    _acquired = default;
-                }
-                _fontId = id;
-            }
-        }
-        return !_fontId.IsNone ? _acquired : Root?.DefaultFont ?? default;
-    }
-
-    private void ReleaseFont()
-    {
-        if (!_fontId.IsNone)
-        {
-            if (_acquired.Generation != 0)
-            {
-                Fonts.Release(_acquired);
-            }
-            _acquired = default;
-            _fontId = default;
-        }
-    }
-
-    private void DropLayout()
-    {
-        _layout?.Dispose();
-        _layout = null;
-    }
+    protected override void OnDetached(UIRoot root) => _shaped.Detach();
 }

@@ -293,3 +293,20 @@ Settled in a review of M4's and M5's placeholders (ADR 0047's amendment).
 | `input=none`; `Menu`, `ShowcaseSystem`, `ShowcaseSettings`, `run_ui.cmake`; captures `scale-<s>.png`, `options-<s>.png`; class `probe`, `Showcase.crstyle` | The sample's parts |
 | `UIElement.Root` (public) | The root an element is in |
 | `docs/learning/testing-a-ui.md` | The demonstration's note |
+
+## Text editing (2026-11-04, M7 step 1)
+
+Settled: `TextField`, `NumberField`, `TextChanged`, `Committed`, `TextInput`,
+`polledText`, and the clipboard functions. The rest are placeholders.
+
+| Name | What it is |
+|---|---|
+| `TextField`, `NumberField` | The fields (ADR 0065) |
+| `TextChanged`, `Committed` | Every change; an edit done |
+| Platform event `TextInput`; `polledText`, `startTextInput` / `stopTextInput`, `clipboardText` / `setClipboardText` | Platform text input and the clipboard |
+| `FrameContext.PolledText`; `UIRoot.ProcessInput(events, text)`, `TextTyped`, `DoubleClickTime`, `DoubleClickDistance` | The frame's typed text; the root |
+| `TextInputEvent` (`Text`); `UIElement.OnTextInput` / `TextInput`, `AcceptsTextInput`, `OnFocusedTick`; `PointerEvent.ClickCount` | Elements and events |
+| `Clipboard` (`Text`) | The UI's clipboard |
+| `TextField` (`Text`, `Multiline`, `CaretColor`, `SelectionColor`, `CaretIndex`, `SelectionStart`, `SelectionLength`, `SelectedText`, `Select`, `SelectAll`, `Undo`, `Redo`, `Layout`, `Commit`, `IsEdited`, `OnTextChanged`) | The text field's members |
+| `NumberField` (`Value`, `Minimum`, `Maximum`, `Step`, `ValueChanged`, `Format`) | The number field's members |
+| `TextFieldChecks`, CTest `launcher.jit.textfields`, `textfields.png`; `docs/learning/text-editing.md` | The test and the note |

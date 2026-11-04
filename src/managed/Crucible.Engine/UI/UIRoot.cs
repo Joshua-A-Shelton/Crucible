@@ -196,6 +196,7 @@ public sealed partial class UIRoot : IRenderStep
         {
             _animating.RemoveWhere(element => element.Root != this || !element.UpdateAnimations(now));
         }
+        _focused?.OnFocusedTick(now);
     }
 
     private void RestyleEverything()

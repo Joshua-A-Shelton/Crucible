@@ -77,3 +77,6 @@ Longer explanations of decisions, written to be reread:
 - [Testing a UI headless](docs/learning/testing-a-ui.md) (ADR 0064):
   scripted journeys, a testable meaning of "crisp", making sure a check can
   fail, and why captures belong in the loop.
+- [Text editing](docs/learning/text-editing.md) (ADR 0065): keys versus
+  typed text, carets between characters, anchors and goal columns, undo in
+  groups, and scrubbing numbers.

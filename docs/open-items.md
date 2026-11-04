@@ -39,6 +39,12 @@ is, and record which version fixed it.
 
 ## Revisit once there is a prototype to test against
 
+- **Shortcuts by key position:** keys reach the UI as scancodes, so the
+  text fields' Ctrl+Z, C, X, V, A, and Y sit where QWERTY has them on any
+  layout (on AZERTY, Ctrl+Z is the key marked W). Send SDL's keycodes in
+  `InputEvent` too and match shortcuts by them; decide before the editor's
+  own shortcuts (M7 step 2). → 0065
+
 - **`launcher.jit.particles` failed twice on Windows** (debug, in full
   parallel runs, 2026-11-03: during M6 steps 3 and 8), each time with its
   output lost, and passed in every rerun since (dozens alone and in full

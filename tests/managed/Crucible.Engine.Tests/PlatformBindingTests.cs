@@ -24,6 +24,14 @@ public class PlatformBindingTests
     }
 
     [Test]
+    public async Task NothingPolledMeansNoText()
+    {
+        Platform.Api.PollEvents([]);
+
+        await Assert.That(Platform.Api.PolledText(new byte[8])).IsEqualTo(0u);
+    }
+
+    [Test]
     public async Task MissingWindowHasNoSize()
     {
         Platform.WindowSize size = Platform.Api.WindowPixelSize(default);

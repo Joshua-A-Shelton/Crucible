@@ -148,6 +148,68 @@ TEST_CASE("Wheels modifiers gamepads and display scales come back as Crucible ev
     CHECK(windowDisplayScale({}) == 1);
 }
 
+TEST_CASE("Typed text comes back as TextInput events pointing into the polled text")
+{
+    PlatformScope platform;
+    drain();
+
+    // SDL owns an event's text; these literals outlive the poll.
+    SDL_Event first{};
+    first.type = SDL_EVENT_TEXT_INPUT;
+    first.text.windowID = 5;
+    first.text.text = "h\xC3\xA9";
+    REQUIRE(SDL_PushEvent(&first));
+    SDL_Event second{};
+    second.type = SDL_EVENT_TEXT_INPUT;
+    second.text.windowID = 5;
+    second.text.text = "llo";
+    REQUIRE(SDL_PushEvent(&second));
+
+    std::array<InputEvent, 8> events;
+    REQUIRE(pollEvents(events) == 2);
+    CHECK(events[0].type == InputEventType::TextInput);
+    CHECK(events[0].window.value == 5);
+    CHECK(events[0].code == 0);
+    CHECK(events[0].value == 3); // é is two bytes
+    CHECK(events[1].code == 3);
+    CHECK(events[1].value == 3);
+
+    std::array<uint8_t, 16> text{};
+    REQUIRE(polledText(text) == 6);
+    CHECK(std::string_view(reinterpret_cast<const char*>(text.data()), 6) == "h\xC3\xA9llo");
+    // A short buffer gets what fits; the length is still the whole.
+    std::array<uint8_t, 2> part{};
+    CHECK(polledText(part) == 6);
+    CHECK(part[0] == 'h');
+
+    // The next poll starts afresh.
+    CHECK(pollEvents(events) == 0);
+    CHECK(polledText(text) == 0);
+}
+
+TEST_CASE("Text input turns on and off for a window and the clipboard holds text")
+{
+    PlatformScope platform;
+    crucible::Result<WindowHandle> window = createWindow(64, 64, "Crucible text input");
+    REQUIRE(static_cast<bool>(window));
+    SDL_Window* sdlWindow = SDL_GetWindowFromID(window.value().value);
+    REQUIRE(sdlWindow != nullptr);
+
+    startTextInput(window.value());
+    CHECK(SDL_TextInputActive(sdlWindow));
+    stopTextInput(window.value());
+    CHECK_FALSE(SDL_TextInputActive(sdlWindow));
+    startTextInput(WindowHandle{}); // no window: nothing happens
+
+    // The offscreen driver keeps SDL's own clipboard.
+    REQUIRE(setClipboardText("copied \xC3\xA9"));
+    CHECK(clipboardText() == "copied \xC3\xA9");
+    REQUIRE(setClipboardText(""));
+    CHECK(clipboardText().empty());
+
+    destroyWindow(window.value());
+}
+
 TEST_CASE("The platform starts gamepad support")
 {
     // Synthetic gamepad events reach the UI without it; real pads need SDL

@@ -20,6 +20,7 @@ public partial class UIElement
         Cancel,
         GotFocus,
         LostFocus,
+        TextInput,
     }
 
     /// <summary>Whether it can hold focus: Tab, navigation, and clicks give it focus.</summary>
@@ -41,6 +42,12 @@ public partial class UIElement
     public UIElement? NavigateRight { get; set; }
 
     public bool IsFocused => (State & UIState.Focus) != 0;
+
+    /// <summary>
+    /// Takes typed text: while it has focus, the root turns the platform's
+    /// text input on (showing an on-screen keyboard where there is one).
+    /// </summary>
+    protected internal virtual bool AcceptsTextInput => false;
 
     /// <summary>Not disabled, nor inside a disabled element: input reaches it.</summary>
     public bool IsEnabled
@@ -74,6 +81,7 @@ public partial class UIElement
     public event Action<UIElement, UIEvent>? Canceled;
     public event Action<UIElement, UIEvent>? GotFocus;
     public event Action<UIElement, UIEvent>? LostFocus;
+    public event Action<UIElement, TextInputEvent>? TextInput;
 
     /// <summary>The pointer came over it or one of its children (doesn't bubble).</summary>
     protected virtual void OnPointerEnter(PointerEvent e)
@@ -132,6 +140,19 @@ public partial class UIElement
     {
     }
 
+    /// <summary>Typed text, while it (or a child) has focus.</summary>
+    protected virtual void OnTextInput(TextInputEvent e)
+    {
+    }
+
+    /// <summary>
+    /// Every UI update while it has focus, with the root's clock: for what
+    /// changes with time alone, such as a blinking caret.
+    /// </summary>
+    protected internal virtual void OnFocusedTick(double now)
+    {
+    }
+
     internal void Raise(EventKind kind, UIEvent e)
     {
         switch (kind)
@@ -187,6 +208,10 @@ public partial class UIElement
             case EventKind.LostFocus:
                 OnLostFocus(e);
                 LostFocus?.Invoke(this, e);
+                break;
+            case EventKind.TextInput:
+                OnTextInput((TextInputEvent)e);
+                TextInput?.Invoke(this, (TextInputEvent)e);
                 break;
         }
     }

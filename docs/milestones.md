@@ -421,6 +421,10 @@ decision made at its start):
 8. The demonstration: the "done when" session scripted and checked
    headless, then tried by hand.
 
+**Status (2026-11-04):** step 1 done (ADR 0065): `TextField` and
+`NumberField`, with SDL text input, the clipboard, grouped undo, and
+scrubbing.
+
 ## M8 — Animation and audio
 
 - Skeletal runtime: sampling, blending, hierarchy pass, IK; compute

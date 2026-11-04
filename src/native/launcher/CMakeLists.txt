@@ -169,6 +169,14 @@ if(CRUCIBLE_BUILD_TESTS)
     set_tests_properties(launcher.jit.controls PROPERTIES LABELS "integration;gpu" TIMEOUT 60
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "ControlsChecks: all [0-9]+ checks passed")
+    add_test(NAME launcher.jit.textfields
+        COMMAND crucible_launcher --managed-dir "${engineDirectory}" --headless --frames 100000 --game "${renderStepGame}"
+            --game-arg test=textfields
+            --game-arg "font=${PROJECT_SOURCE_DIR}/tests/native/fonts/NotoSans-Regular.ttf"
+            --game-arg "capture=${CMAKE_CURRENT_BINARY_DIR}/textfields.png")
+    set_tests_properties(launcher.jit.textfields PROPERTIES LABELS "integration;gpu" TIMEOUT 60
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "TextFieldChecks: all [0-9]+ checks passed")
 
     # The M6 demonstration (ADR 0064): the UI showcase's menu driven by mouse,
     # keyboard, and gamepad scripts, and captured at four DPI scales; on

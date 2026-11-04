@@ -24,6 +24,13 @@ public sealed partial class UIRoot
     private readonly PointerEvent _pointerEvent = new();
     private readonly KeyEvent _keyEvent = new();
     private readonly NavigationEvent _navigationEvent = new();
+    private readonly TextInputEvent _textEvent = new();
+    // The last press, for click counts: when, where, which button, and its count.
+    private double _lastPressTime = double.NegativeInfinity;
+    private Vector2 _lastPressAt;
+    private PointerButton _lastPressButton;
+    private int _clickCount;
+    private bool _textInputOn;
     private readonly UIEvent _event = new();
     // A held gamepad direction, and when it repeats next.
     private NavigationDirection? _held;
@@ -42,6 +49,11 @@ public sealed partial class UIRoot
         get => _window;
         set
         {
+            if (_textInputOn)
+            {
+                Platform.Api.StopTextInput(_window);
+                _textInputOn = false;
+            }
             _window = value;
             _attached.Remove(this);
             if (value.Value != 0)
@@ -49,6 +61,7 @@ public sealed partial class UIRoot
                 _attached.Add(this);
                 Scale = Platform.Api.WindowDisplayScale(value);
             }
+            UpdateTextInput();
         }
     }
 
@@ -63,12 +76,19 @@ public sealed partial class UIRoot
     /// <summary>Whether the UI handled key or gamepad input in the last <see cref="ProcessInput"/>.</summary>
     public bool HandledKeyboard { get; private set; }
 
+    /// <summary>Seconds between presses that count as a double-click (and a triple).</summary>
+    public double DoubleClickTime { get; set; } = 0.5;
+
+    /// <summary>How far apart, in logical units, presses of a double-click may be.</summary>
+    public float DoubleClickDistance { get; set; } = 4;
+
     /// <summary>
     /// Routes a frame's events (the window's, if it has one; gamepads'
     /// always) through the tree as last laid out, then repeats held
-    /// gamepad directions.
+    /// gamepad directions. <paramref name="text"/> is the polled text
+    /// TextInput events point into (<see cref="Loop.FrameContext.PolledText"/>).
     /// </summary>
-    public void ProcessInput(ReadOnlySpan<InputEvent> events)
+    public void ProcessInput(ReadOnlySpan<InputEvent> events, ReadOnlySpan<byte> text = default)
     {
         HandledPointer = false;
         HandledKeyboard = false;
@@ -103,6 +123,12 @@ public sealed partial class UIRoot
                     break;
                 case InputEventType.GamepadAxis:
                     GamepadAxisMoved((GamepadAxis)input.Code, input.X);
+                    break;
+                case InputEventType.TextInput:
+                    if (input.Code >= 0 && input.Value > 0 && input.Code + input.Value <= text.Length)
+                    {
+                        TextTyped(System.Text.Encoding.UTF8.GetString(text.Slice(input.Code, input.Value)));
+                    }
                     break;
                 case InputEventType.DisplayScaleChanged:
                     if (input.X > 0)
@@ -140,6 +166,7 @@ public sealed partial class UIRoot
         UpdateHover(position, modifiers);
         if (down)
         {
+            CountClick(position, button);
             if (_capture is null && DismissPopups(position))
             {
                 HandledPointer = true;
@@ -190,6 +217,18 @@ public sealed partial class UIRoot
                 HandledPointer |= Bubble(captured, UIElement.EventKind.Activate, Plain(captured));
             }
         }
+    }
+
+    // A press soon after the last, near it, with the same button, counts one more.
+    private void CountClick(Vector2 position, PointerButton button)
+    {
+        double now = Now;
+        bool follows = button == _lastPressButton && now - _lastPressTime <= DoubleClickTime &&
+                       Vector2.Distance(position, _lastPressAt) <= DoubleClickDistance;
+        _clickCount = follows ? _clickCount + 1 : 1;
+        _lastPressTime = now;
+        _lastPressAt = position;
+        _lastPressButton = button;
     }
 
     private void PointerWheeled(Vector2 position, Vector2 wheel, KeyModifiers modifiers)
@@ -291,6 +330,19 @@ public sealed partial class UIRoot
             }
         }
         HandledKeyboard |= handled;
+    }
+
+    /// <summary>Typed text, as from the platform: raised on the focused element (bubbling).</summary>
+    public void TextTyped(string text)
+    {
+        UIElement? target = _focused;
+        if (target is null || string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+        _textEvent.Reset(target);
+        _textEvent.Text = text;
+        HandledKeyboard |= Bubble(target, UIElement.EventKind.TextInput, _textEvent);
     }
 
     private void GamepadButtonChanged(GamepadButton button, bool down)
@@ -412,6 +464,7 @@ public sealed partial class UIRoot
         ClearFocus();
         _focused = element;
         element.State |= UIState.Focus;
+        UpdateTextInput();
         element.Raise(UIElement.EventKind.GotFocus, Plain(element));
         // Scroll views around it show it.
         for (UIElement? at = element.Parent; at is not null; at = at.Parent)
@@ -433,7 +486,27 @@ public sealed partial class UIRoot
         }
         _focused = null;
         old.State &= ~UIState.Focus;
+        UpdateTextInput();
         old.Raise(UIElement.EventKind.LostFocus, Plain(old));
+    }
+
+    // The platform's text input is on while an element taking text has
+    // focus, in a root with a window.
+    private void UpdateTextInput()
+    {
+        bool wanted = _focused is { AcceptsTextInput: true } && _window.Value != 0;
+        if (wanted != _textInputOn)
+        {
+            _textInputOn = wanted;
+            if (wanted)
+            {
+                Platform.Api.StartTextInput(_window);
+            }
+            else
+            {
+                Platform.Api.StopTextInput(_window);
+            }
+        }
     }
 
     /// <summary>
@@ -618,6 +691,7 @@ public sealed partial class UIRoot
         _pointerEvent.Button = button;
         _pointerEvent.Wheel = wheel;
         _pointerEvent.Modifiers = modifiers;
+        _pointerEvent.ClickCount = button != PointerButton.None ? _clickCount : 0;
         return _pointerEvent;
     }
 

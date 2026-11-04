@@ -14,6 +14,9 @@ public sealed unsafe class FrameContext
     // SDL for the next frame.
     private readonly InputEvent[] _events = new InputEvent[256];
     private int _eventCount;
+    // The typed text TextInput events point into (ADR 0065), grown as needed.
+    private byte[] _text = new byte[1024];
+    private int _textLength;
 
     /// <summary>The main window, or default when headless.</summary>
     public WindowHandle Window { get; init; }
@@ -228,6 +231,12 @@ public sealed unsafe class FrameContext
     /// <summary>This frame's input and window events, in arrival order.</summary>
     public ReadOnlySpan<InputEvent> Events => _events.AsSpan(0, _eventCount);
 
+    /// <summary>
+    /// This frame's typed text, UTF-8: each TextInput event's
+    /// <c>Code</c> is where its text starts here and <c>Value</c> its length.
+    /// </summary>
+    public ReadOnlySpan<byte> PolledText => _text.AsSpan(0, _textLength);
+
     /// <summary>Ends the frame here, and the loop with it, with an error status.</summary>
     public void Fail(Status status, string system)
     {
@@ -242,4 +251,16 @@ public sealed unsafe class FrameContext
     internal Span<InputEvent> EventBuffer => _events;
 
     internal void SetEventCount(int count) => _eventCount = count;
+
+    // Copies the platform's polled text, growing the buffer if it's longer.
+    internal void ReadPolledText()
+    {
+        int length = (int)Platform.Api.PolledText(_text);
+        if (length > _text.Length)
+        {
+            _text = new byte[Math.Max(length, _text.Length * 2)];
+            length = (int)Platform.Api.PolledText(_text);
+        }
+        _textLength = length;
+    }
 }

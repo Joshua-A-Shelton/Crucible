@@ -55,6 +55,8 @@ enum class CRUCIBLE_EXPOSE InputEventType : uint32_t
     GamepadButtonUp,     // code = GamepadButton, value = the gamepad's ID
     GamepadAxis,         // code = GamepadAxis, value = the gamepad's ID, x = -1 to 1 (triggers 0 to 1)
     DisplayScaleChanged, // (window), x = its new display scale
+    // Added for text editing (ADR 0065):
+    TextInput, // (window), code = offset, value = length of its UTF-8 in polledText()
 };
 
 // Held modifier keys, as InputEvent::modifiers bits.
@@ -138,6 +140,21 @@ CRUCIBLE_EXPOSE float windowDisplayScale(WindowHandle window);
 // Fills events with pending events and returns how many it wrote. Events that
 // don't fit stay queued for the next call.
 CRUCIBLE_EXPOSE uint32_t pollEvents(std::span<InputEvent> events);
+
+// The UTF-8 text of the last pollEvents' TextInput events, which point into
+// it: copied into `out` (as much as fits); returns its whole length.
+CRUCIBLE_EXPOSE uint32_t polledText(std::span<uint8_t> out);
+
+// Typed text arrives as TextInput events while text input is on for the
+// window (on-screen keyboards show; ADR 0065); the UI turns it on while a
+// text field has focus.
+CRUCIBLE_EXPOSE void startTextInput(WindowHandle window);
+CRUCIBLE_EXPOSE void stopTextInput(WindowHandle window);
+
+// The system clipboard's text ("" when empty or unavailable), and setting
+// it; false if the platform couldn't.
+CRUCIBLE_EXPOSE std::string_view clipboardText();
+CRUCIBLE_EXPOSE bool setClipboardText(std::string_view text);
 
 // Now, on the same clock as InputEvent::timestampNs.
 CRUCIBLE_EXPOSE uint64_t timestampNow();

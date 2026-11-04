@@ -34,6 +34,7 @@ public sealed class InputSystem : GameSystem
     {
         int count = (int)Platform.Api.PollEvents(context.EventBuffer);
         context.SetEventCount(count);
+        context.ReadPolledText();
         context.Latency?.InputRead(context, Platform.Api.TimestampNow());
         foreach (ref readonly InputEvent inputEvent in context.Events)
         {

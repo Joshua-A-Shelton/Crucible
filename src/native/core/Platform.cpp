@@ -1,5 +1,6 @@
 #include <crucible/Platform.h>
 #include <crucible/SmallVector.h>
+#include <crucible/Vector.h>
 
 #include <SDL3/SDL.h>
 #include <slag/Swapchain.h>
@@ -25,6 +26,20 @@ struct LatencyMarkers
 };
 
 LatencyMarkers markers;
+
+// The last pollEvents' typed text, which its TextInput events point into.
+Vector<char>& polled()
+{
+    static Vector<char> text(MemoryTag::Platform);
+    return text;
+}
+
+// clipboardText's copy of SDL's.
+Vector<char>& clipboard()
+{
+    static Vector<char> text(MemoryTag::Platform);
+    return text;
+}
 
 // The gamepads opened (SDL sends a pad's events only once it's open).
 SDL_Gamepad* gamepads[16] = {};
@@ -153,6 +168,19 @@ bool translate(const SDL_Event& event, InputEvent& out)
         // Sticks -32768 to 32767, triggers 0 to 32767.
         out.x = std::max(static_cast<float>(event.gaxis.value) / 32767.0f, -1.0f);
         return true;
+    case SDL_EVENT_TEXT_INPUT:
+    {
+        out.type = InputEventType::TextInput;
+        out.window.value = event.text.windowID;
+        const size_t length = event.text.text != nullptr ? std::strlen(event.text.text) : 0;
+        out.code = static_cast<int32_t>(polled().size());
+        out.value = static_cast<int32_t>(length);
+        for (size_t i = 0; i < length; ++i)
+        {
+            polled().pushBack(event.text.text[i]);
+        }
+        return true;
+    }
     case SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED:
         out.type = InputEventType::DisplayScaleChanged;
         out.window.value = event.window.windowID;
@@ -204,6 +232,9 @@ void shutdown()
             slot = nullptr;
         }
     }
+    // Their memory goes back with the platform's, not at exit.
+    polled() = Vector<char>(MemoryTag::Platform);
+    clipboard() = Vector<char>(MemoryTag::Platform);
     SDL_Quit();
 }
 
@@ -257,6 +288,7 @@ float windowDisplayScale(WindowHandle window)
 
 uint32_t pollEvents(std::span<InputEvent> events)
 {
+    polled().clear();
     uint32_t count = 0;
     SDL_Event event;
     while (count < events.size() && SDL_PollEvent(&event))
@@ -267,6 +299,49 @@ uint32_t pollEvents(std::span<InputEvent> events)
         }
     }
     return count;
+}
+
+uint32_t polledText(std::span<uint8_t> out)
+{
+    const Vector<char>& text = polled();
+    std::memcpy(out.data(), text.data(), std::min(out.size(), text.size()));
+    return static_cast<uint32_t>(text.size());
+}
+
+void startTextInput(WindowHandle window)
+{
+    if (SDL_Window* sdlWindow = find(window))
+    {
+        SDL_StartTextInput(sdlWindow);
+    }
+}
+
+void stopTextInput(WindowHandle window)
+{
+    if (SDL_Window* sdlWindow = find(window))
+    {
+        SDL_StopTextInput(sdlWindow);
+    }
+}
+
+std::string_view clipboardText()
+{
+    Vector<char>& copy = clipboard();
+    copy.clear();
+    if (char* text = SDL_GetClipboardText())
+    {
+        copy.assign(std::span<const char>(text, std::strlen(text)));
+        SDL_free(text);
+    }
+    return {copy.data(), copy.size()};
+}
+
+bool setClipboardText(std::string_view text)
+{
+    SmallVector<char, 256> terminated(MemoryTag::Platform);
+    terminated.assign(std::span<const char>(text.data(), text.size()));
+    terminated.pushBack('\0');
+    return SDL_SetClipboardText(terminated.data());
 }
 
 uint64_t timestampNow()

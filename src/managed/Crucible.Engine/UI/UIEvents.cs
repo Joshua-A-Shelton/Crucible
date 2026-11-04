@@ -46,6 +46,18 @@ public sealed class PointerEvent : UIEvent
     public Vector2 Wheel { get; internal set; }
 
     public KeyModifiers Modifiers { get; internal set; }
+
+    /// <summary>
+    /// For a press: 1, or 2 and 3 for presses quickly following one another
+    /// in the same place (double- and triple-clicks), and so on (ADR 0065).
+    /// </summary>
+    public int ClickCount { get; internal set; }
+}
+
+/// <summary>Typed text, for the focused element (ADR 0065): a character, or several (a paste from an input method).</summary>
+public sealed class TextInputEvent : UIEvent
+{
+    public string Text { get; internal set; } = "";
 }
 
 public sealed class KeyEvent : UIEvent
@@ -135,7 +147,7 @@ public sealed class UIInputSystem : GameSystem
         IReadOnlyList<UIRoot> roots = UIRoot.Attached;
         for (int i = 0; i < roots.Count; ++i)
         {
-            roots[i].ProcessInput(context.Events);
+            roots[i].ProcessInput(context.Events, context.PolledText);
         }
     }
 }

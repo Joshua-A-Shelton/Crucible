@@ -133,6 +133,23 @@ public sealed partial class Theme
             .Set(UIElement.HeightProperty, 16f)
             .Set(UIElement.MarginProperty, new Thickness(8, 0, 0, 0))
             .Set(UIElement.ForegroundProperty, muted));
+
+        // Text fields (ADR 0065): a sunken well, an accent outline while editing.
+        theme.Add(new Style("TextField")
+            .Set(UIElement.BackgroundProperty, well)
+            .Set(UIElement.ForegroundProperty, text)
+            .Set(UIElement.CornerRadiiProperty, new Vector4(4))
+            .Set(UIElement.PaddingProperty, new Thickness(8, 6, 8, 6))
+            .Set(UIElement.MinWidthProperty, 160f)
+            .Set(UIElement.BorderWidthProperty, 1f)
+            .Set(UIElement.BorderColorProperty, edge)
+            .Set(TextField.CaretColorProperty, text)
+            .Set(TextField.SelectionColorProperty, accent with { W = 0.45f })
+            .Transition(UIElement.BorderColorProperty, quick.Duration, quick.Easing));
+        theme.Add(new Style("TextField:hover").Set(UIElement.BorderColorProperty, muted));
+        theme.Add(new Style("TextField:focus").Set(UIElement.BorderColorProperty, accent).Set(UIElement.BorderWidthProperty, 2f));
+        theme.Add(new Style("TextField:disabled").Set(UIElement.OpacityProperty, 0.45f));
+        theme.Add(new Style("NumberField").Set(UIElement.MinWidthProperty, 80f));
         return theme;
     }
 
