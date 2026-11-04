@@ -39,6 +39,17 @@ is, and record which version fixed it.
 
 ## Revisit once there is a prototype to test against
 
+- **Stray KB in NativeAOT's allocation counter:** the "allocates nothing"
+  tests (frames, ECS iteration, `ParallelFor`, the latency recorder) saw
+  about 8 KB (8112 bytes) more on their own thread in some NativeAOT
+  release runs (6 in 25), when `ControlsTests` ran beside them: never
+  with those classes alone (0 in 25), not under the JIT, not from any
+  frame-loop system (a per-system probe found none), and not a
+  collection moving the counter (probed, idle and busy). They now measure
+  several windows and pass if one allocated nothing (`AllocationWindows`),
+  which still fails code that allocates every frame (tested). Find what
+  lands on that thread, then measure in one window again. → 0063
+
 - Games bringing assemblies (ADR 0056): the launcher loads a game alone
   into its own load context, and nothing resolves the assemblies beside it
   (the Diorama sample resolves its own). Packages a game uses will need

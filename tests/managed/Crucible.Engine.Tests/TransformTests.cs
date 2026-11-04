@@ -78,7 +78,11 @@ public class TransformTests
         world.Set(lamp, LocalTransform.Identity);
         world.Set(lamp, new SpotLight
         {
-            Color = new Vector3(1, 0.5f, 0.25f), Intensity = 4, Range = 6, InnerConeAngle = 0.3f, OuterConeAngle = 0.6f,
+            Color = new Vector3(1, 0.5f, 0.25f),
+            Intensity = 4,
+            Range = 6,
+            InnerConeAngle = 0.3f,
+            OuterConeAngle = 0.6f,
             CastsShadows = true,
         });
         Entity sun = world.CreateEntity(Components.Of<LocalTransform>(), Components.Of<DirectionalLight>());

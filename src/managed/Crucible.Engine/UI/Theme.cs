@@ -185,7 +185,7 @@ public sealed class Style(Selector selector)
 /// </code>
 /// Easings are Linear, Ease, EaseIn, EaseOut, EaseInOut, or [x1, y1, x2, y2].
 /// </remarks>
-public sealed class Theme
+public sealed partial class Theme
 {
     public static readonly uint Kind = Tag.Of("STYL");
     public static readonly uint JsonSection = Tag.Of("JSON");

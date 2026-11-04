@@ -874,6 +874,12 @@ uint32_t textureDescriptor(TextureHandle texture)
     return slot != nullptr ? slot->value->slot : 0;
 }
 
+TextureSize textureSize(TextureHandle texture)
+{
+    const slag::Texture* loaded = textureOf(texture);
+    return loaded != nullptr ? TextureSize{loaded->width(), loaded->height()} : TextureSize{};
+}
+
 uint32_t samplerDescriptor(Sampler sampler)
 {
     return firstSamplerSlot + static_cast<uint32_t>(sampler);

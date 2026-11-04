@@ -19,7 +19,7 @@ public sealed partial class UIRoot : IRenderStep
     private Vector2 _size;
     private bool _layoutDirty = true;
     private bool _drawingDirty = true;
-    private Theme? _theme;
+    private Theme? _theme = Theme.CreateDefault();
     private int _themeVersion;
     private readonly HashSet<UIElement> _restyle = [];
     private readonly HashSet<UIElement> _animating = [];
@@ -53,6 +53,23 @@ public sealed partial class UIRoot : IRenderStep
             InvalidateLayout();
         }
     }
+
+    /// <summary>The font text elements use when no style gives them one (ADR 0063).</summary>
+    public Text.FontHandle DefaultFont
+    {
+        get => _defaultFont;
+        set
+        {
+            _defaultFont = value;
+            if (_content is not null)
+            {
+                MarkAll(_content);
+            }
+            InvalidateLayout();
+        }
+    }
+
+    private Text.FontHandle _defaultFont;
 
     /// <summary>Physical pixels per logical unit: the DPI scale. Changing it lays everything out again.</summary>
     public float Scale

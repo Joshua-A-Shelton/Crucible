@@ -1,0 +1,90 @@
+using System.Numerics;
+
+namespace Crucible.UI;
+
+public sealed partial class Theme
+{
+    /// <summary>
+    /// The engine's plain default look (ADR 0063), which a root uses until
+    /// given another: dark neutral grays, one blue accent, focus outlines,
+    /// short hover and press transitions. A new theme each call, so a game
+    /// can add its own styles after these (later styles win ties).
+    /// </summary>
+    public static Theme CreateDefault()
+    {
+        Vector4 text = Color(0xe8e8ec), muted = Color(0x9aa0aa), accent = Color(0x4c8bf5);
+        Vector4 control = Color(0x353a42), hover = Color(0x434954), pressed = Color(0x2a2e35);
+        Vector4 well = Color(0x24272d), edge = Color(0x5b616b);
+        Transition quick = new(0.12f, Easing.EaseOut);
+        Theme theme = new();
+        theme.Add(new Style("Label").Set(UIElement.ForegroundProperty, text));
+        theme.Add(new Style("Button")
+            .Set(UIElement.BackgroundProperty, control)
+            .Set(UIElement.CornerRadiiProperty, new Vector4(4))
+            .Set(UIElement.PaddingProperty, new Thickness(14, 7, 14, 7))
+            .Set(UIElement.BorderColorProperty, accent)
+            .Transition(UIElement.BackgroundProperty, quick.Duration, quick.Easing)
+            .Transition(UIElement.BorderWidthProperty, quick.Duration, quick.Easing));
+        theme.Add(new Style("Button:hover").Set(UIElement.BackgroundProperty, hover));
+        theme.Add(new Style("Button:pressed").Set(UIElement.BackgroundProperty, pressed));
+        theme.Add(new Style("Button:focus").Set(UIElement.BorderWidthProperty, 2f));
+        theme.Add(new Style("Button:disabled").Set(UIElement.OpacityProperty, 0.45f));
+
+        theme.Add(new Style("Toggle")
+            .Set(UIElement.PaddingProperty, new Thickness(4))
+            .Set(UIElement.CornerRadiiProperty, new Vector4(4))
+            .Set(UIElement.BorderColorProperty, accent));
+        theme.Add(new Style("Toggle:focus").Set(UIElement.BorderWidthProperty, 2f));
+        theme.Add(new Style("Toggle:disabled").Set(UIElement.OpacityProperty, 0.45f));
+        theme.Add(new Style("ToggleBox")
+            .Set(UIElement.WidthProperty, 18f)
+            .Set(UIElement.HeightProperty, 18f)
+            .Set(UIElement.CornerRadiiProperty, new Vector4(4))
+            .Set(UIElement.BackgroundProperty, well)
+            .Set(UIElement.BorderWidthProperty, 1.5f)
+            .Set(UIElement.BorderColorProperty, edge)
+            .Transition(UIElement.BackgroundProperty, quick.Duration, quick.Easing));
+        theme.Add(new Style("ToggleBox.on").Set(UIElement.BackgroundProperty, accent).Set(UIElement.BorderColorProperty, accent));
+        theme.Add(new Style("ToggleMark")
+            .Set(UIElement.WidthProperty, 8f)
+            .Set(UIElement.HeightProperty, 8f)
+            .Set(UIElement.CornerRadiiProperty, new Vector4(2))
+            .Set(UIElement.BackgroundProperty, text)
+            .Set(UIElement.OpacityProperty, 0f)
+            .Set(UIElement.RenderScaleProperty, new Vector2(0.5f))
+            .Transition(UIElement.OpacityProperty, quick.Duration, quick.Easing)
+            .Transition(UIElement.RenderScaleProperty, quick.Duration, quick.Easing));
+        theme.Add(new Style("ToggleMark.on").Set(UIElement.OpacityProperty, 1f).Set(UIElement.RenderScaleProperty, Vector2.One));
+
+        theme.Add(new Style("Slider")
+            .Set(UIElement.WidthProperty, 200f)
+            .Set(UIElement.HeightProperty, 24f)
+            .Set(UIElement.CornerRadiiProperty, new Vector4(6))
+            .Set(UIElement.BorderColorProperty, accent));
+        theme.Add(new Style("Slider:focus").Set(UIElement.BorderWidthProperty, 2f));
+        theme.Add(new Style("SliderTrack")
+            .Set(UIElement.HeightProperty, 4f)
+            .Set(UIElement.MarginProperty, new Thickness(8, 0, 8, 0))
+            .Set(UIElement.CornerRadiiProperty, new Vector4(2))
+            .Set(UIElement.BackgroundProperty, edge));
+        theme.Add(new Style("SliderThumb")
+            .Set(UIElement.WidthProperty, 16f)
+            .Set(UIElement.HeightProperty, 16f)
+            .Set(UIElement.CornerRadiiProperty, new Vector4(8))
+            .Set(UIElement.BackgroundProperty, text)
+            .Transition(UIElement.RenderScaleProperty, quick.Duration, quick.Easing));
+        theme.Add(new Style("SliderThumb:hover").Set(UIElement.RenderScaleProperty, new Vector2(1.15f)));
+        theme.Add(new Style("SliderThumb:pressed").Set(UIElement.BackgroundProperty, accent));
+
+        theme.Add(new Style("ScrollBar.vertical").Set(UIElement.WidthProperty, 8f).Set(UIElement.PaddingProperty, new Thickness(2)));
+        theme.Add(new Style("ScrollBar.horizontal").Set(UIElement.HeightProperty, 8f).Set(UIElement.PaddingProperty, new Thickness(2)));
+        theme.Add(new Style("ScrollThumb")
+            .Set(UIElement.CornerRadiiProperty, new Vector4(2))
+            .Set(UIElement.BackgroundProperty, muted with { W = 0.5f })
+            .Transition(UIElement.BackgroundProperty, quick.Duration, quick.Easing));
+        theme.Add(new Style("ScrollThumb:hover").Set(UIElement.BackgroundProperty, muted with { W = 0.85f }));
+        return theme;
+    }
+
+    private static Vector4 Color(uint rgb) => new((rgb >> 16) / 255f, ((rgb >> 8) & 255) / 255f, (rgb & 255) / 255f, 1);
+}

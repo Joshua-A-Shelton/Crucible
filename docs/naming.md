@@ -269,3 +269,10 @@ Settled in a review of M4's and M5's placeholders (ADR 0047's amendment).
 | `UIEvent` (`Handled`, `Source`), `PointerButton`, `PointerEvent` (`Position`, `Button`, `Wheel`, `Modifiers`), `KeyEvent` (`Scancode`, `Modifiers`, `IsRepeat`), `NavigationDirection` (`Up`, `Down`, `Left`, `Right`, `Next`, `Previous`), `UIAction`; `UIInputMap` (`Buttons`, `StickThreshold`, `RepeatDelay`, `RepeatInterval`) | Event types and the gamepad map |
 | `UIElement` input: `IsFocusable`, `TabIndex`, `IsFocused`, `IsEnabled`; `OnPointerEnter` / `Leave` / `Move` / `Down` / `Up` / `Wheel`, `OnKeyDown` / `Up`, `OnNavigate`, `OnGotFocus` / `OnLostFocus`; events `PointerEnter` … `PointerWheel`, `KeyDown`, `KeyUp`, `Navigate`, `GotFocus`, `LostFocus` | Element handlers |
 | `UIRoot.Window`, `Attached`, `InputMap`, `HandledPointer`, `HandledKeyboard`, `ProcessInput`, `ClearFocus`, `MoveOrNavigate`, `MoveFocus`; `docs/learning/ui-input.md` | Root input; the note |
+
+## Controls (2026-11-03, M6 step 7)
+
+| Name | What it is |
+|---|---|
+| `Label`, `Button`, `Toggle`, `Slider`, `Image`, `ScrollView`, `ListBox`, `Selector`, `ComboBox`, `Popup` | The controls (ADR 0063) |
+| `SliderTrack`, `SliderThumb`, `ToggleBox`, `ToggleMark`, `ScrollBar`, `ScrollThumb`, `ListItem`, `SelectorArrow`, `ComboBoxArrow` | Their parts |

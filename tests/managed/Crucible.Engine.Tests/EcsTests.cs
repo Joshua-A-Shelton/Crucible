@@ -305,13 +305,14 @@ public class EcsTests
         query.ForEachChunk(ref job);
         query.ParallelForEachChunk(ref job);
 
-        long before = GC.GetAllocatedBytesForCurrentThread();
-        for (int i = 0; i < 50; ++i)
+        long allocated = AllocationWindows.FewestOf(4, () =>
         {
-            query.ForEachChunk(ref job);
-            query.ParallelForEachChunk(ref job);
-        }
-        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            for (int i = 0; i < 50; ++i)
+            {
+                query.ForEachChunk(ref job);
+                query.ParallelForEachChunk(ref job);
+            }
+        });
 
         await Assert.That(allocated).IsEqualTo(0L);
     }

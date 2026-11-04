@@ -368,10 +368,9 @@ public class FrameLoopTests
         FrameLoop loop = FrameLoop.CreateDefault();
         loop.Run(new FrameContext(), frameLimit: 10);
 
-        FrameContext context = new();
-        long before = GC.GetAllocatedBytesForCurrentThread();
-        loop.Run(context, frameLimit: 1000);
-        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        FrameContext[] contexts = [new(), new(), new(), new()];
+        int run = 0;
+        long allocated = AllocationWindows.FewestOf(contexts.Length, () => loop.Run(contexts[run++], frameLimit: 250));
 
         await Assert.That(allocated).IsEqualTo(0L);
     }
@@ -381,24 +380,18 @@ public class FrameLoopTests
     {
         // Measured inside the loop: starting it creates the command buffers.
         using World world = new();
-        long[] allocated = new long[2];
+        AllocationWindows windows = new(10, 250, 4);
         ulong now = 0;
         Schedule schedule = Builder(ScheduleBuilder.FixedTick, "Update")
             .AddFixedPhase("Physics")
             .AddSystem("Physics", new ActionSystem("spawn", c => c.Commands.RecordCreate()))
-            .AddSystem("Update", new ActionSystem("measure", c =>
-            {
-                if (c.FrameNumber is 10 or 1010)
-                {
-                    allocated[c.FrameNumber == 10 ? 0 : 1] = GC.GetAllocatedBytesForCurrentThread();
-                }
-            }))
+            .AddSystem("Update", new ActionSystem("measure", c => windows.At(c.FrameNumber)))
             .Build();
         FrameLoop loop = new(schedule) { Clock = () => now += 16_666_667 };
 
         loop.Run(new FrameContext { World = world }, frameLimit: 1011);
 
-        await Assert.That(allocated[1] - allocated[0]).IsEqualTo(0L);
+        await Assert.That(windows.Fewest).IsEqualTo(0L);
     }
 }
 

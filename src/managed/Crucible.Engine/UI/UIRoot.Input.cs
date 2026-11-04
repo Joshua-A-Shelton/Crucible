@@ -408,6 +408,14 @@ public sealed partial class UIRoot
         _focused = element;
         element.State |= UIState.Focus;
         element.Raise(UIElement.EventKind.GotFocus, Plain(element));
+        // Scroll views around it show it.
+        for (UIElement? at = element.Parent; at is not null; at = at.Parent)
+        {
+            if (at is ScrollView view)
+            {
+                view.ScrollIntoView(element.Bounds);
+            }
+        }
         return true;
     }
 

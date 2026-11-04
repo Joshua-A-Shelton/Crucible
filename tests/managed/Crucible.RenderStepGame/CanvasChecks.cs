@@ -163,7 +163,7 @@ public sealed class CanvasChecks : GameSystem
     }
 
     // An imported file of one kind, written and read back.
-    private static byte[] ImportedFile(string kind, params (string Tag, byte[] Data)[] sections)
+    internal static byte[] ImportedFile(string kind, params (string Tag, byte[] Data)[] sections)
     {
         string path = Path.Combine(Path.GetTempPath(), "crucible-canvas-" + Guid.NewGuid().ToString("N"));
         try
@@ -183,7 +183,7 @@ public sealed class CanvasChecks : GameSystem
     }
 
     // A .crtexture of RGBA8 sRGB pixels, one mip.
-    private static byte[] TextureFile(uint width, uint height, byte[] rgba)
+    internal static byte[] TextureFile(uint width, uint height, byte[] rgba)
     {
         TextureInfo info = new() { Format = TextureFormat.Rgba8, Width = width, Height = height, MipCount = 1, Srgb = 1 };
         return ImportedFile("TXTR", ("INFO", MemoryMarshal.AsBytes(new ReadOnlySpan<TextureInfo>(ref info)).ToArray()),

@@ -110,6 +110,14 @@ CRUCIBLE_EXPOSE_INTERNAL std::string_view materialTypeName(MaterialHandle materi
 // The texture's slot in the resource heap, which shaders read it through
 // (ResourceDescriptorHeap[slot]); 0 for a stale handle.
 CRUCIBLE_EXPOSE uint32_t textureDescriptor(TextureHandle texture);
+
+// A loaded texture's top-level size in texels; zero for a stale handle.
+struct CRUCIBLE_EXPOSE TextureSize
+{
+    uint32_t width;
+    uint32_t height;
+};
+CRUCIBLE_EXPOSE TextureSize textureSize(TextureHandle texture);
 // The sampler's slot in the sampler heap.
 CRUCIBLE_EXPOSE uint32_t samplerDescriptor(Sampler sampler);
 

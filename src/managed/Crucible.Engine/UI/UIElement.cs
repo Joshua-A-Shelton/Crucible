@@ -403,6 +403,7 @@ public partial class UIElement
 
     internal void Attach(UIRoot? root)
     {
+        UIRoot? before = Root;
         if (root is null)
         {
             StopAllAnimations();
@@ -414,6 +415,24 @@ public partial class UIElement
         {
             child.Attach(root);
         }
+        if (before is not null && before != root)
+        {
+            OnDetached(before);
+        }
+        if (root is not null && before != root)
+        {
+            OnAttached(root);
+        }
+    }
+
+    /// <summary>The element joined a root's tree.</summary>
+    protected virtual void OnAttached(UIRoot root)
+    {
+    }
+
+    /// <summary>The element left a root's tree: release what it holds for drawing (fonts, layouts).</summary>
+    protected virtual void OnDetached(UIRoot root)
+    {
     }
 
     // Drawing order: background, OnDraw, children; clipped and transformed.
@@ -503,6 +522,10 @@ public partial class UIElement
         }
         return inside && IsHitTestVisible ? this : null;
     }
+
+    // Arranged again at its next Arrange, even in the same slot, without
+    // asking its ancestors (a parent about to arrange it).
+    internal void ArrangeAgain() => _arrangeDirty = true;
 
     internal void MarkDirty()
     {

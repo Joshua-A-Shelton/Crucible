@@ -137,21 +137,10 @@ public class ParticleDemoTests
     [Test]
     public async Task FramesAllocateNothingOnceRunning()
     {
-        long before = 0;
-        long after = 0;
+        // Measured inside the loop, in windows, as the latency test does.
+        AllocationWindows windows = new(10, 33, 3);
         ScheduleBuilder builder = SampleBuilder()
-            .AddSystem(Phases.EndFrame, new CheckSystem("check.Allocations", context =>
-            {
-                // Measured inside the loop, as the latency test does.
-                if (context.FrameNumber == 10)
-                {
-                    before = GC.GetAllocatedBytesForCurrentThread();
-                }
-                else if (context.FrameNumber == 109)
-                {
-                    after = GC.GetAllocatedBytesForCurrentThread();
-                }
-            }));
+            .AddSystem(Phases.EndFrame, new CheckSystem("check.Allocations", context => windows.At(context.FrameNumber)));
         using (World world = new())
         {
             FrameContext context = new()
@@ -163,7 +152,7 @@ public class ParticleDemoTests
             FrameLoop loop = new(builder.Build()) { Clock = () => (ulong)(now += 16_666_667) };
             loop.Run(context, 110);
         }
-        await Assert.That(after - before).IsEqualTo(0);
+        await Assert.That(windows.Fewest).IsEqualTo(0);
     }
 
     [Test]

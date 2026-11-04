@@ -158,6 +158,18 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "StyleChecks: all [0-9]+ checks passed")
 
+    # The controls (ADR 0063) with the default theme, driven by synthetic
+    # input, checked at pixels once their transitions have run (real time);
+    # the frame is saved as controls.png.
+    add_test(NAME launcher.jit.controls
+        COMMAND crucible_launcher --managed-dir "${engineDirectory}" --headless --frames 100000 --game "${renderStepGame}"
+            --game-arg test=controls
+            --game-arg "font=${PROJECT_SOURCE_DIR}/tests/native/fonts/NotoSans-Regular.ttf"
+            --game-arg "capture=${CMAKE_CURRENT_BINARY_DIR}/controls.png")
+    set_tests_properties(launcher.jit.controls PROPERTIES LABELS "integration;gpu" TIMEOUT 60
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "ControlsChecks: all [0-9]+ checks passed")
+
     # A game option needs a key and a value.
     add_test(NAME launcher.bad-game-arg COMMAND crucible_launcher --game-arg particles)
     set_tests_properties(launcher.bad-game-arg PROPERTIES LABELS integration WILL_FAIL TRUE)

@@ -79,28 +79,20 @@ public class LatencyRecorderTests
     [Test]
     public async Task RecordingAllocatesNothingPerFrame()
     {
-        // Measured inside the loop, from frame 10 to 1010: under NativeAOT the
-        // thread's allocation counter, read just after creating the recorder
-        // (megabytes of arrays), could pick up a few stray KB that a separate
-        // 1000-frame run showed weren't the loop's.
-        long[] allocated = new long[2];
+        // Measured inside the loop, from frame 10, in windows (see
+        // AllocationWindows: NativeAOT's counter picks up stray KB).
+        AllocationWindows windows = new(10, 250, 4);
         ScheduleBuilder builder = ScheduleBuilder.CreateDefault();
-        builder.AddSystem("EndFrame", new MeasureSystem(allocated));
+        builder.AddSystem("EndFrame", new MeasureSystem(windows));
         FrameLoop loop = new(builder.Build());
 
         loop.Run(new FrameContext { Latency = new LatencyRecorder() }, frameLimit: 1011);
 
-        await Assert.That(allocated[1] - allocated[0]).IsEqualTo(0L);
+        await Assert.That(windows.Fewest).IsEqualTo(0L);
     }
 
-    private sealed class MeasureSystem(long[] allocated) : GameSystem
+    private sealed class MeasureSystem(AllocationWindows windows) : GameSystem
     {
-        public override void Run(FrameContext context)
-        {
-            if (context.FrameNumber is 10 or 1010)
-            {
-                allocated[context.FrameNumber == 10 ? 0 : 1] = GC.GetAllocatedBytesForCurrentThread();
-            }
-        }
+        public override void Run(FrameContext context) => windows.At(context.FrameNumber);
     }
 }
