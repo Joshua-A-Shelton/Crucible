@@ -234,3 +234,9 @@ Settled in a review of M4's and M5's placeholders (ADR 0047's amendment).
 | `UIElement` (`Measure`, `Arrange`, `MeasureCore`, `ArrangeCore`, `OnDraw`) | An element of the UI tree (ADR 0060) |
 | `UIRoot` | A surface's UI, and the `UI` step that draws it |
 | `StackPanel`, `Grid`, `DockPanel`, `AnchorPanel` | The panels |
+| `UIElement` members: `Width`, `Height`, `MinWidth`, `MinHeight`, `MaxWidth`, `MaxHeight`, `Margin`, `Padding`, `HorizontalAlignment`, `VerticalAlignment`, `Visibility`, `IsHitTestVisible`, `ClipToBounds`, `RenderTransform`, `TransformOrigin`, `Background`, `CornerRadii`, `DesiredSize`, `Bounds`, `ActualSize`, `InvalidateMeasure`, `InvalidateArrange`, `InvalidateVisual`; `Panel` (`Add`, `Insert`, `Remove`, `Clear`) | Element settings and children |
+| `Thickness`, `HorizontalAlignment` / `VerticalAlignment` (`Stretch`, `Start`, `Center`, `End`), `Visibility` (`Visible`, `Hidden`, `Collapsed`), `Orientation` | Layout types |
+| `GridLength` (`Auto`, `Pixels`, `Star`), `GridUnit`; `Grid.Columns`, `Rows`, `ColumnSpacing`, `RowSpacing`, `DefinitionsChanged`, `SetRow`, `SetColumn`, `SetRowSpan`, `SetColumnSpan`; `StackPanel.Spacing` | Stacks and grids |
+| `Dock`, `DockPanel.SetDock`, `LastChildFill`; `Anchors` (`Fill`, `TopLeft` … `BottomRight`, `Center`, `At`, `Inset`), `AnchorPanel.SetAnchors` | Docking and anchors |
+| `UIRoot.Content`, `Scale`, `Size`, `UpdateLayout`, `HitTest` | The root |
+| `LayoutChecks`, CTest `launcher.jit.layout`, `layout.png`; `docs/learning/ui-layout.md` | The layout test and its note |

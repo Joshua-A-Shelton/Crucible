@@ -1,9 +1,7 @@
 # 0060 — Elements and layout
 
 **Status:** Accepted (2026-11-03); built. Names settled by the owner
-(docs/naming.md): `UIElement`, `UIRoot`, `StackPanel`, `Grid`,
-`DockPanel`, `AnchorPanel`, `Measure` / `Arrange` and `OnDraw`; the rest
-are placeholders.
+(docs/naming.md).
 
 ## Context
 
