@@ -107,6 +107,11 @@ public sealed class RenderStepChecks : GameSystem
 
     public override void Start(FrameContext context)
     {
+        if (context.GameArguments.ContainsKey("test"))
+        {
+            Enabled = false; // another test's run
+            return;
+        }
         _shader = File.ReadAllBytes(context.GameArguments["shader"]);
         RenderAssets.SetReader(id => id == ProbeStep.Shader ? _shader : null);
         RenderSchedule.InsertAfter("Tonemap", "Test.Probe", _step);

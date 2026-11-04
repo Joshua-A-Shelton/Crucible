@@ -1,4 +1,5 @@
 #include "RenderInternal.h"
+#include "TextInternal.h" // updateGlyphCache
 
 #include <crucible/Jobs.h>
 #include <crucible/Memory.h>
@@ -324,6 +325,7 @@ Result<void> renderWithGraph(Surface& surface, slag::Texture* texture, slag::Att
 {
     slag::rendergraph::RenderGraph& graph = *surface.graph;
     collectAssets();
+    text::updateGlyphCache();
     if (slag::Result<void> begun = graph.beginFrame(); !begun)
     {
         return toStatus(begun.status());
@@ -354,6 +356,10 @@ Result<void> renderWithGraph(Surface& surface, slag::Texture* texture, slag::Att
     desc.attachmentView = view;
     const slag::rendergraph::RenderGraphTexture backbuffer = graph.importTexture(texture, desc);
     beginManagedFrame(*surface.managed, frameSlot);
+    if (Result<void> begun = beginGlyphUpload(graph); !begun)
+    {
+        return begun;
+    }
     if (Result<void> added =
             addStepPasses({graph, *renderer.device, surface.width, surface.height, surface.submitted + 1, color,
                            backbuffer, graph.importBuffer(viewBuffer),
@@ -364,6 +370,10 @@ Result<void> renderWithGraph(Surface& surface, slag::Texture* texture, slag::Att
         return added;
     }
     if (Result<void> finished = finishManagedFrame(*surface.managed, frameSlot); !finished)
+    {
+        return finished;
+    }
+    if (Result<void> finished = finishGlyphUpload(); !finished)
     {
         return finished;
     }
@@ -519,6 +529,7 @@ void shutdown()
         }
         stopDrawing();
         stopPipelines();
+        stopGlyphUpload();
         stopAssets();
         stopMaterials();
         renderSchedule().releaseAll();

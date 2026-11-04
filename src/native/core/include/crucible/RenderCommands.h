@@ -114,6 +114,11 @@ struct CRUCIBLE_EXPOSE GraphicsPipelineState
 CRUCIBLE_EXPOSE Result<PipelineHandle> createGraphicsPipeline(assets::AssetId shader, std::string_view vertexEntry,
                                                               std::string_view pixelEntry, GraphicsPipelineState state);
 CRUCIBLE_EXPOSE Result<PipelineHandle> createComputePipeline(assets::AssetId shader, std::string_view entry);
+// From one of the engine's embedded shaders ("ui"), for the engine's C#.
+CRUCIBLE_EXPOSE_INTERNAL Result<PipelineHandle> createEngineGraphicsPipeline(std::string_view shader,
+                                                                             std::string_view vertexEntry,
+                                                                             std::string_view pixelEntry,
+                                                                             GraphicsPipelineState state);
 // Destroyed once the GPU has finished every frame that could use it.
 CRUCIBLE_EXPOSE void destroyPipeline(PipelineHandle pipeline);
 // Pipelines alive, for tests.

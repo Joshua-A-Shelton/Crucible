@@ -62,3 +62,6 @@ Longer explanations of decisions, written to be reread:
 - [Batched commands](docs/learning/batched-commands.md) (ADR 0058): C# render
   steps writing records that native code plays back, checking them once,
   and write-combined upload memory.
+- [Drawing 2D with distance fields](docs/learning/drawing-2d.md) (ADR 0059):
+  one quad per shape, antialiasing from the distance, blending in linear
+  light, and placing exact glyphs.

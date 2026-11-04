@@ -14,6 +14,7 @@
     <Compile Include="$(CrucibleGeneratedDir)/managed/Bindings.g.cs" />
     <!-- The engine shaders' [GpuShared] structs (DefaultMaterial), from shaderfax. -->
     <Compile Include="$(CrucibleGeneratedDir)/managed/engine-shaders/default.g.cs" />
+    <Compile Include="$(CrucibleGeneratedDir)/managed/engine-shaders/ui.g.cs" />
   </ItemGroup>
 
   <ItemGroup>

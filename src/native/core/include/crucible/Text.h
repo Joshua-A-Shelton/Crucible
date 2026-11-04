@@ -15,6 +15,7 @@
 
 #include <crucible/Export.h>
 #include <crucible/Expose.h>
+#include <crucible/Math.h>
 #include <crucible/RenderAssets.h>
 #include <crucible/Result.h>
 
@@ -105,6 +106,21 @@ CRUCIBLE_EXPOSE uint32_t hitTestText(TextLayoutHandle layout, float x, float y);
 // An offset inside a ligature or a multi-byte character goes to the start
 // of its cluster; past the end, to the end.
 CRUCIBLE_EXPOSE TextCaret textCaret(TextLayoutHandle layout, uint32_t offset);
+
+// Drawing (ADR 0059), for the engine's Canvas: the layout's glyphs, an upper
+// bound on the quads writeTextQuads writes.
+CRUCIBLE_EXPOSE_INTERNAL uint32_t textGlyphCount(TextLayoutHandle layout);
+// Writes the layout's glyphs as UiInstances (shaders/crucible/ui.slang) into
+// `out`, and returns how many: glyphs without an image yet (a distance field
+// still generating, a page without its GPU texture) are left out, and appear
+// on a later frame. The layout's top left goes to `origin`, in local units
+// mapped to physical pixels by `transform` (m11, m12, m21, m22) and
+// `translation`. When that mapping is the layout's DPI scale and a
+// translation, exact glyphs land texel for texel on whole pixels. `color` is
+// linear and premultiplied; `clip` is in physical pixels.
+CRUCIBLE_EXPOSE_INTERNAL uint32_t writeTextQuads(TextLayoutHandle layout, Vector2 origin, Vector4 transform,
+                                                 Vector2 translation, Vector4 color, Vector4 clip,
+                                                 std::span<uint8_t> out);
 
 // Destroys every layout, font, and cached glyph, waiting for distance
 // fields still generating. Called by the launcher after the renderer and

@@ -6,6 +6,7 @@
 #include <crucible/MaterialFile.h>
 #include <crucible/RenderAssets.h>
 #include <crucible/RenderSchedule.h>
+#include <crucible/Text.h>
 
 #include "shared.g.h" // ViewConstants, generated from shaders/crucible/shared.slang
 
@@ -51,6 +52,10 @@ inline constexpr uint32_t stepDescriptors = frameDataDescriptor + framesInFlight
 static_assert(stepDescriptors + stepDescriptorsPerFrame * framesInFlight <= descriptorsPerSurface);
 // 8 surfaces from slot 8: they must stay below the loaded textures' 1024.
 static_assert(8 + 8 * descriptorsPerSurface <= 1024);
+// The glyph cache's pages on the GPU (ADR 0059), after the surfaces': the
+// exact pages, then the distance-field pages.
+inline constexpr uint32_t glyphPageDescriptors = 8 + 8 * descriptorsPerSurface;
+static_assert(glyphPageDescriptors + 8 + 4 <= 1024);
 
 // The material buffer's slot (a ByteAddressBuffer), below the surfaces'.
 inline constexpr uint32_t materialBufferDescriptor = 1;
@@ -120,6 +125,16 @@ void beginManagedFrame(ManagedState& state, uint32_t frameSlot);
 Result<void> finishManagedFrame(ManagedState& state, uint32_t frameSlot);
 // Destroys the pipelines C# left behind; before stopAssets.
 void stopPipelines();
+
+// GlyphUpload.cpp (ADR 0059): the glyph cache's pages as GPU textures. Begun
+// before the steps run (a texture for every page then, imported, and the
+// GlyphUpload pass declared), finished after them (the changed rectangles
+// staged for the pass to copy).
+Result<void> beginGlyphUpload(slag::rendergraph::RenderGraph& graph);
+Result<void> finishGlyphUpload();
+void stopGlyphUpload(); // the GPU must be idle
+// A page's resource-heap slot, or 0 if it has no GPU texture yet.
+uint32_t glyphPageDescriptor(text::GlyphRendering rendering, uint32_t page);
 
 // DepthPrepass, LightClustering, Shadows, Opaque, Outlines, Sky, Transparent, Bloom,
 // then Tonemap (RenderSteps.cpp).
@@ -243,6 +258,8 @@ std::span<const MaterialHandle> modelMaterials(uint32_t meshIndex);
 slag::SemaphoreValue lastWorkSignaled();
 // Destroyed once the GPU passes the last work signalled (RenderAssets.cpp).
 void destroyAfterWork(slag::Pipeline* pipeline);
+// Destroyed once the GPU finishes the frame being built.
+void destroyAfterFrame(slag::Buffer* buffer);
 
 // Lights.cpp (ADR 0053): a surface's light buffers, one per frame slot, and
 // the frame's lights gathered into them: the counts, ambient light, light

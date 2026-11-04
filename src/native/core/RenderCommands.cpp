@@ -669,26 +669,19 @@ void addManagedPasses(RenderStepContext& context, void* userData)
 // Pipelines
 // ---------------------------------------------------------------------------
 
-Result<PipelineHandle> createGraphicsPipeline(assets::AssetId shader, std::string_view vertexEntry,
-                                              std::string_view pixelEntry, GraphicsPipelineState state)
+namespace {
+
+Result<PipelineHandle> graphicsPipeline(const ShaderFile& file, std::string_view vertexEntry,
+                                        std::string_view pixelEntry, const GraphicsPipelineState& state)
 {
     slag::GraphicsDevice* device = renderDevice();
-    if (device == nullptr)
-    {
-        return Status::Unsupported;
-    }
     const uint32_t samples = state.sampleCount == 0 ? 1 : state.sampleCount;
     if (state.colorCount > 4 || !validSampleCount(samples))
     {
         return Status::InvalidData;
     }
-    LoadedShader loaded;
-    if (Result<void> read = loadShader(shader, loaded); !read)
-    {
-        return read.status();
-    }
-    const int32_t vertex = findEntry(*loaded.file, vertexEntry, ShaderStageKind::Vertex);
-    const int32_t pixel = pixelEntry.empty() ? -1 : findEntry(*loaded.file, pixelEntry, ShaderStageKind::Pixel);
+    const int32_t vertex = findEntry(file, vertexEntry, ShaderStageKind::Vertex);
+    const int32_t pixel = pixelEntry.empty() ? -1 : findEntry(file, pixelEntry, ShaderStageKind::Pixel);
     if (vertex < 0 || (!pixelEntry.empty() && pixel < 0))
     {
         return Status::InvalidData;
@@ -704,10 +697,10 @@ Result<PipelineHandle> createGraphicsPipeline(assets::AssetId shader, std::strin
         }
         desc.blend.targets[i] = blendOf(state.blend);
     }
-    shaderStage(*loaded.file, static_cast<uint32_t>(vertex), desc.vertex);
+    shaderStage(file, static_cast<uint32_t>(vertex), desc.vertex);
     if (pixel >= 0)
     {
-        shaderStage(*loaded.file, static_cast<uint32_t>(pixel), desc.pixel);
+        shaderStage(file, static_cast<uint32_t>(pixel), desc.pixel);
     }
     Vector<char> name{MemoryTag::Render};
     terminated(vertexEntry, name);
@@ -727,6 +720,40 @@ Result<PipelineHandle> createGraphicsPipeline(assets::AssetId shader, std::strin
         return Status::Unsupported;
     }
     return addPipeline(pipeline.value(), false);
+}
+
+} // namespace
+
+Result<PipelineHandle> createGraphicsPipeline(assets::AssetId shader, std::string_view vertexEntry,
+                                              std::string_view pixelEntry, GraphicsPipelineState state)
+{
+    if (renderDevice() == nullptr)
+    {
+        return Status::Unsupported;
+    }
+    LoadedShader loaded;
+    if (Result<void> read = loadShader(shader, loaded); !read)
+    {
+        return read.status();
+    }
+    return graphicsPipeline(*loaded.file, vertexEntry, pixelEntry, state);
+}
+
+Result<PipelineHandle> createEngineGraphicsPipeline(std::string_view shader, std::string_view vertexEntry,
+                                                    std::string_view pixelEntry, GraphicsPipelineState state)
+{
+    if (renderDevice() == nullptr)
+    {
+        return Status::Unsupported;
+    }
+    Result<ShaderFile*> file = loadShaderFile(engineShader(shader));
+    if (!file)
+    {
+        return file.status();
+    }
+    LoadedShader loaded;
+    loaded.file = file.value();
+    return graphicsPipeline(*loaded.file, vertexEntry, pixelEntry, state);
 }
 
 Result<PipelineHandle> createComputePipeline(assets::AssetId shader, std::string_view entry)

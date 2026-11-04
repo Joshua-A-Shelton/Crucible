@@ -7,9 +7,14 @@
 #include <crucible/BinaryFile.h>
 #include <crucible/Jobs.h>
 #include <crucible/Memory.h>
+#include <crucible/Platform.h>
+#include <crucible/Render.h>
 #include <crucible/Text.h>
 
 #include <doctest/doctest.h>
+#include <slag/Instance.h>
+
+#include "ui.g.h" // UiInstance
 
 #include <cmath>
 #include <fstream>
@@ -422,5 +427,82 @@ TEST_SUITE("text")
         }
         CHECK(memoryUsage(MemoryTag::Text).bytes == before.bytes);
         CHECK(memoryUsage(MemoryTag::Text).allocations == before.allocations);
+    }
+}
+
+namespace {
+
+std::vector<shaders::UiInstance> quads(TextLayoutHandle layout, Vector2 origin, Vector4 transform, Vector2 translation)
+{
+    std::vector<shaders::UiInstance> out(textGlyphCount(layout));
+    const uint32_t count =
+        writeTextQuads(layout, origin, transform, translation, {0, 0, 0, 1}, {0, 0, 1e9f, 1e9f},
+                       {reinterpret_cast<uint8_t*>(out.data()), out.size() * sizeof(shaders::UiInstance)});
+    out.resize(count);
+    return out;
+}
+
+} // namespace
+
+TEST_CASE("Text quads wait for the glyph pages to be on the GPU")
+{
+    Loaded loaded;
+    const TextLayoutHandle layout = loaded.shape("Hxg");
+    CHECK(textGlyphCount(layout) == 3);
+    CHECK(quads(layout, {0, 0}, {1, 0, 0, 1}, {0, 0}).empty()); // no renderer: no page textures
+    CHECK(textGlyphCount({}) == 0);
+}
+
+TEST_SUITE("gpu")
+{
+    TEST_CASE("Text quads land exact glyphs on whole pixels on every backend")
+    {
+        REQUIRE(platform::initialize());
+        for (slag::Backend backend : {slag::Backend::D3D12, slag::Backend::Vulkan})
+        {
+            if (!slag::isBackendAvailable(backend) || !render::initialize(backend))
+            {
+                continue;
+            }
+            Result<render::SurfaceHandle> surface = render::createOffscreenSurface(16, 16);
+            REQUIRE(surface);
+            {
+                Loaded loaded;
+                const TextLayoutHandle exact = loaded.shape("H x g", 0, {.size = 16, .scale = 1.5f});
+                const TextLayoutHandle field =
+                    loaded.shape("Hg", 0, {.size = 40, .rendering = GlyphRendering::DistanceField});
+                (void)quads(field, {0, 0}, {1, 0, 0, 1}, {0, 0}); // queues the fields
+                finishGlyphs();
+                REQUIRE(render::renderFrame(surface.value(), nullptr, 0, 0, 0, 0, 1)); // pages to the GPU
+
+                // At the layout's scale, moved by fractions: whole pixels,
+                // untransformed. The spaces have no quads.
+                const std::vector<shaders::UiInstance> snapped =
+                    quads(exact, {10.3f, 20.7f}, {1.5f, 0, 0, 1.5f}, {0.25f, 0});
+                REQUIRE(snapped.size() == 3);
+                for (const shaders::UiInstance& quad : snapped)
+                {
+                    CHECK(quad.kind == 3);
+                    CHECK(quad.texture != 0);
+                    CHECK((whole(quad.rect.x) && whole(quad.rect.y) && whole(quad.rect.z) && whole(quad.rect.w)));
+                    CHECK(quad.transform.x == 1);
+                    CHECK(quad.uv.z > quad.uv.x);
+                }
+                // Turned: left to the transform, in local units.
+                const std::vector<shaders::UiInstance> turned =
+                    quads(exact, {10.3f, 20.7f}, {0, 1.5f, -1.5f, 0}, {100, 0});
+                REQUIRE(turned.size() == 3);
+                CHECK(turned[0].transform.y == 1.5f);
+                CHECK(turned[0].rect.z == doctest::Approx(snapped[0].rect.z / 1.5f));
+
+                const std::vector<shaders::UiInstance> fields = quads(field, {0, 0}, {1, 0, 0, 1}, {0, 0});
+                REQUIRE(fields.size() == 2);
+                CHECK(fields[0].kind == 4);
+                CHECK(fields[0].texture != snapped[0].texture);
+            }
+            render::destroySurface(surface.value());
+            render::shutdown();
+        }
+        platform::shutdown();
     }
 }

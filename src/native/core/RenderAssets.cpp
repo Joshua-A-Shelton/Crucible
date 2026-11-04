@@ -914,6 +914,12 @@ void destroyAfterWork(slag::Pipeline* pipeline)
     state.destroyer->destroyAfter(pipeline, lastSignaled());
 }
 
+void destroyAfterFrame(slag::Buffer* buffer)
+{
+    // The frame's submit signals the next value.
+    state.destroyer->destroyAfter(buffer, {state.work, state.workSignaled + 1});
+}
+
 Status readAsset(const AssetId& id, Vector<uint8_t>& out)
 {
     if (reader == nullptr)

@@ -213,3 +213,11 @@ Settled in a review of M4's and M5's placeholders (ADR 0047's amendment).
 | `StepFrame`, `StepFrameInfo`, `StepMemory`, `StepPlacement`, `StepCall`; `setStepTrampoline`, `insertManagedStep`, `removeStep`, `stepCount`, `stepName`, `stepFrameInfo`, `stepTexture`, `stepBuffer`, `publishTexture`, `publishBuffer`, `createStepTexture`, `createStepBuffer`, `addStepPass`, `useTexture`, `useBuffer`, `passRenderTarget`, `passDepthTarget`, `passCommands`, `uploadFrameData` | The engine's internal step functions |
 | `RenderCommandType`, `RenderCommandHeader`; `SetPipelineCommand`, `PushConstantsCommand`, `SetConstantBufferCommand`, `SetViewportCommand`, `SetScissorCommand`, `DrawCommand`, `DispatchCommand`, `BeginLabelCommand` | Command records |
 | `Crucible.RenderStepGame`; CTest `launcher.jit.render-steps` | The C# GPU test |
+
+## UI drawing (2026-11-03, M6 step 3)
+
+| Name | What it is |
+|---|---|
+| `Crucible.UI.Canvas` (`Scale`, `Count`, `Clear`, `FillRect`, `StrokeRect`, `DrawImage`, `DrawNineSlice`, `DrawText`, `DrawLine`, `DrawPolyline`, `DrawShadow`, `PushClip` / `PopClip`, `PushTransform` / `PopTransform`) | The 2D drawing API (ADR 0059), and the step that draws it |
+| Step `UI`; pass `GlyphUpload` | The UI's render step, and the glyph pages' copy |
+| `text::writeTextQuads` | A layout's glyphs as UI instances |

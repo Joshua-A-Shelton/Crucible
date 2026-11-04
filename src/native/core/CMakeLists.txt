@@ -67,6 +67,7 @@ add_library(crucible_render_objects OBJECT
     DrawList.cpp
     Font.cpp
     GlyphCache.cpp
+    GlyphUpload.cpp
     Lights.cpp
     Materials.cpp
     Render.cpp
@@ -96,6 +97,7 @@ crucible_embed_shaders(crucible_render_objects
         "${PROJECT_SOURCE_DIR}/shaders/crucible/clusters.slang"
         "${PROJECT_SOURCE_DIR}/shaders/crucible/sky.slang"
         "${PROJECT_SOURCE_DIR}/shaders/crucible/bloom.slang"
+        "${PROJECT_SOURCE_DIR}/shaders/crucible/ui.slang"
     # The C# mirrors of their [GpuShared] structs (DefaultMaterial), for
     # Crucible.Engine.
     CS_OUTPUT_DIR "${CRUCIBLE_GENERATED_DIR}/managed/engine-shaders")

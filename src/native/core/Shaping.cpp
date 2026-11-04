@@ -4,11 +4,15 @@
 // exact glyphs. HarfBuzz appears only in this file: the shaping interface
 // ADR 0019 asks for.
 
+#include "RenderInternal.h" // glyphPageDescriptor
 #include "TextInternal.h"
+
+#include "ui.g.h" // UiInstance
 
 #include <hb.h>
 
 #include <cmath>
+#include <cstring>
 
 namespace crucible::text {
 
@@ -523,6 +527,84 @@ std::span<const PositionedGlyph> textGlyphs(TextLayoutHandle handle)
 {
     const Layout* layout = layoutOf(handle);
     return layout != nullptr ? layout->glyphs.span() : std::span<const PositionedGlyph>{};
+}
+
+uint32_t textGlyphCount(TextLayoutHandle handle)
+{
+    const Layout* layout = layoutOf(handle);
+    return layout != nullptr ? static_cast<uint32_t>(layout->glyphs.size()) : 0;
+}
+
+uint32_t writeTextQuads(TextLayoutHandle handle, Vector2 origin, Vector4 transform, Vector2 translation, Vector4 color,
+                        Vector4 clip, std::span<uint8_t> out)
+{
+    Layout* layout = layoutOf(handle);
+    if (layout == nullptr)
+    {
+        return 0;
+    }
+    using shaders::UiInstance;
+    const size_t capacity = out.size() / sizeof(UiInstance);
+    const TextStyle& style = layout->style;
+    const float scale = style.scale > 0 ? style.scale : 1.0f;
+    const bool exact = style.rendering == GlyphRendering::Exact;
+    const float tolerance = 1e-4f * scale;
+    const bool snapped = exact && transform.y == 0 && transform.z == 0 && std::abs(transform.x - scale) < tolerance &&
+                         std::abs(transform.w - scale) < tolerance;
+    // The layout's origin on a whole pixel; its glyphs' offsets already are.
+    const float baseX = std::round(origin.x * scale + translation.x);
+    const float baseY = std::round(origin.y * scale + translation.y);
+    const float texel = 1.0f / static_cast<float>(glyphPageSize);
+    const auto em = static_cast<float>(style.size / distanceFieldEm); // logical units per field texel
+    uint32_t written = 0;
+    for (const PositionedGlyph& glyph : layout->glyphs)
+    {
+        if (written == capacity)
+        {
+            break;
+        }
+        const CachedGlyph* cached = cachedGlyph(*layout->font, glyph.glyph, style.rendering, style.size * scale);
+        if (cached == nullptr || cached->width == 0)
+        {
+            continue;
+        }
+        const uint32_t slot = render::glyphPageDescriptor(style.rendering, cached->page);
+        if (slot == 0)
+        {
+            continue;
+        }
+        UiInstance instance{};
+        instance.kind = exact ? 3u : 4u; // uiGlyph, uiFieldGlyph
+        instance.texture = slot;
+        instance.color = color;
+        instance.clip = clip;
+        instance.uv = {cached->x * texel, cached->y * texel, (cached->x + cached->width) * texel,
+                       (cached->y + cached->height) * texel};
+        instance.transform = transform;
+        instance.translation = translation;
+        if (snapped)
+        {
+            // In physical pixels, untransformed.
+            instance.rect = {baseX + std::round(glyph.x * scale) + cached->left,
+                             baseY + std::round(glyph.y * scale) + cached->top, static_cast<float>(cached->width),
+                             static_cast<float>(cached->height)};
+            instance.transform = {1, 0, 0, 1};
+            instance.translation = {0, 0};
+        }
+        else if (exact)
+        {
+            instance.rect = {origin.x + glyph.x + cached->left / scale, origin.y + glyph.y + cached->top / scale,
+                             cached->width / scale, cached->height / scale};
+        }
+        else
+        {
+            instance.rect = {origin.x + glyph.x + cached->left * style.size,
+                             origin.y + glyph.y + cached->top * style.size, cached->width * em, cached->height * em};
+        }
+        std::memcpy(out.data() + written * sizeof(UiInstance), &instance, sizeof(instance));
+        ++written;
+    }
+    return written;
 }
 
 } // namespace crucible::text
