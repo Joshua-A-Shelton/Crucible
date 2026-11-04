@@ -186,8 +186,18 @@ TEST_SUITE("gpu")
             checkFrame(pixels, width, height,
                        {test::srgbByte(second.z), test::srgbByte(second.y), test::srgbByte(second.x), 255});
             CHECK(render::framesSubmitted(surface.value()) == 6);
-            // The GPU timing thread stamped the finished frames.
-            CHECK(render::gpuFrameDoneNs(surface.value(), 6) != 0);
+            // The GPU timing thread stamps finished frames on its own
+            // schedule, so a loaded machine may need a moment.
+            uint64_t done = 0;
+            for (int attempt = 0; attempt < 200 && done == 0; ++attempt)
+            {
+                done = render::gpuFrameDoneNs(surface.value(), 6);
+                if (done == 0)
+                {
+                    SDL_Delay(10);
+                }
+            }
+            CHECK(done != 0);
 
             std::vector<uint8_t> tooSmall(16);
             CHECK(render::readSurfacePixels(surface.value(), tooSmall).status() == Status::InvalidData);

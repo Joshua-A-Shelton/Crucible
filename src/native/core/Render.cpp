@@ -168,8 +168,11 @@ void startGpuTimer(Surface& surface)
     surface.gpuTimer = create<GpuTimer>(MemoryTag::Render);
     GpuTimer* timer = surface.gpuTimer;
     slag::Semaphore* frames = surface.frames;
-    timer->thread = std::thread([timer, frames] {
-        uint64_t next = frames->value() + 1;
+    // Read now, not when the thread first runs: under load it can start after
+    // later frames finished, and would never stamp them.
+    const uint64_t first = frames->value() + 1;
+    timer->thread = std::thread([timer, frames, first] {
+        uint64_t next = first;
         while (timer->running)
         {
             // Timeout (nothing submitted yet) is a success status; only Ok

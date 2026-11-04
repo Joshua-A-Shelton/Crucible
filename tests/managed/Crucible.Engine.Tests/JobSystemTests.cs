@@ -150,12 +150,19 @@ public class JobSystemTests
         Sum job = new(values, partials);
         JobSystem.ParallelFor(ref job, values.Length, 1024); // warm-up
 
-        long before = GC.GetAllocatedBytesForCurrentThread();
-        for (int i = 0; i < 100; ++i)
+        // While it waits, this thread also runs batches of other tests' jobs,
+        // and their allocations count as its own; a real allocation per call
+        // shows in every attempt.
+        long allocated = long.MaxValue;
+        for (int attempt = 0; attempt < 5 && allocated != 0; ++attempt)
         {
-            JobSystem.ParallelFor(ref job, values.Length, 1024);
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            for (int i = 0; i < 100; ++i)
+            {
+                JobSystem.ParallelFor(ref job, values.Length, 1024);
+            }
+            allocated = Math.Min(allocated, GC.GetAllocatedBytesForCurrentThread() - before);
         }
-        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
 
         await Assert.That(allocated).IsEqualTo(0L);
     }
