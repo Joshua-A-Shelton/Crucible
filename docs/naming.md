@@ -283,3 +283,10 @@ Settled in a review of M4's and M5's placeholders (ADR 0047's amendment).
 | `Popup` (`Content`, `Anchor`, `Open`, `Close`, `Closed`, `IsOpen`); `ListBox` (`ItemCount`, `CreateItem`, `BindItem`, `EstimatedItemHeight`, `SelectedIndex`, `SelectionChanged`, `ItemActivated`, `ItemsChanged`, `ScrollIntoView`, `FocusItem`, `RealizedCount`); `ListItem` (`Index`, `Content`, `List`; class `selected`) | Popups and lists |
 | `Spinner` (`Options`, `SelectedIndex`, `SelectedOption`, `Wraps`, `Step`, `SelectionChanged`, `ValueLabel`; arrow classes `previous`, `next`); `ComboBox` (`Options`, `SelectedIndex`, `SelectedOption`, `SelectionChanged`, `Popup`, `List`, `IsOpen`; list class `dropdown`) | Choices |
 | `ControlsChecks`, CTest `launcher.jit.controls`, `controls.png`; `docs/learning/controls.md` | The controls test and its note |
+
+## The M6 demonstration (2026-11-03, M6 step 8)
+
+| Name | What it is |
+|---|---|
+| `samples/UiShowcase` (`Crucible.Samples.UiShowcase`), CTest `samples.ui` | The demonstration (ADR 0064) |
+| `--game-arg` `project`, `input`, `capture`, `compare` | Its options |

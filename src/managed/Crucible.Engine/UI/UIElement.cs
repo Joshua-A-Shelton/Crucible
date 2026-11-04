@@ -74,7 +74,8 @@ public partial class UIElement
 
     public UIElement? Parent { get; private set; }
 
-    internal UIRoot? Root { get; private set; }
+    /// <summary>The root whose tree (or popup layer) it is in, or null.</summary>
+    public UIRoot? Root { get; private set; }
 
     /// <summary>The element's own children, in drawing order (back to front).</summary>
     public IReadOnlyList<UIElement> Children => _children;

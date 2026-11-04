@@ -7,6 +7,7 @@
     <Project Path="samples/Diorama/Crucible.Samples.Diorama.csproj" />
     <Project Path="samples/Particles/Crucible.Samples.Particles.csproj" />
     <Project Path="samples/SceneRoundTrip/Crucible.Samples.SceneRoundTrip.csproj" />
+    <Project Path="samples/UiShowcase/Crucible.Samples.UiShowcase.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/managed/Crucible.Engine.Tests/Crucible.Engine.Tests.csproj" />

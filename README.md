@@ -74,3 +74,6 @@ Longer explanations of decisions, written to be reread:
   focus and scopes, spatial navigation, and stick hysteresis.
 - [Controls](docs/learning/controls.md) (ADR 0063): controls made of parts,
   the popup layer, and virtualized lists with measured rows.
+- [Testing a UI headless](docs/learning/testing-a-ui.md) (ADR 0064):
+  scripted journeys, a testable meaning of "crisp", making sure a check can
+  fail, and why captures belong in the loop.

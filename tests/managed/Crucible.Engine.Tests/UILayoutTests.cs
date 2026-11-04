@@ -239,4 +239,24 @@ public class UILayoutTests
         b.Add(box);
         await Assert.That(box.Parent).IsSameReferenceAs(b);
     }
+
+    [Test]
+    public async Task AStarColumnsCellGrowsItsAutoRow()
+    {
+        // A form: captions in a fixed column, controls in a star column, auto rows.
+        Grid grid = new() { HorizontalAlignment = HorizontalAlignment.Start, VerticalAlignment = VerticalAlignment.Start };
+        grid.Columns.AddRange([GridLength.Pixels(100), GridLength.Star()]);
+        grid.Rows.AddRange([GridLength.Auto, GridLength.Auto]);
+        Box caption = new(50, 20), tall = new(80, 60), next = new(80, 10);
+        Grid.SetColumn(tall, 1);
+        Grid.SetRow(next, 1);
+        Grid.SetColumn(next, 1);
+        grid.Add(caption);
+        grid.Add(tall);
+        grid.Add(next);
+        Root(grid);
+        await Assert.That(tall.Bounds.Height).IsEqualTo(60f);
+        await Assert.That(next.Bounds.Y).IsEqualTo(60f);
+        await Assert.That(grid.DesiredSize.Y).IsEqualTo(70f);
+    }
 }

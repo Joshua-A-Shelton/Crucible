@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The M6 demonstration (docs/milestones.md, ADR 0064): a game assembly
+       the launcher loads by path. It imports the project beside it (a font
+       and a theme), builds a menu, drives it with scripted mouse, keyboard,
+       and gamepad input, and captures it at several DPI scales, checking
+       that text and edges stay crisp. It runs the asset pipeline itself,
+       which is editor code, so JIT only, like the Diorama. -->
+
+  <PropertyGroup>
+    <RootNamespace>Crucible.Samples.UiShowcase</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <!-- The asset pipeline's packages beside the game (Dependencies.cs). -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The Diorama's PNG writer and reader, for the captures. -->
+    <Compile Include="../Diorama/Png.cs" Link="Png.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/managed/Crucible.Engine/Crucible.Engine.csproj" Private="false" />
+    <ProjectReference Include="../../src/managed/Crucible.Assets/Crucible.Assets.csproj" />
+    <ProjectReference Include="../../tools/Crucible.Generators/Crucible.Generators.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>

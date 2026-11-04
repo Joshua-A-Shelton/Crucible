@@ -175,9 +175,17 @@ public sealed class Grid : Panel
             {
                 continue;
             }
-            child.Measure(new Vector2(Span(child.GridColumn, child.GridColumnSpan, _columnSizes, ColumnSpacing),
-                Span(child.GridRow, child.GridRowSpan, _rowSizes, RowSpacing)));
-            // Unbounded: star tracks size to their content, like auto ones.
+            // Its star tracks' shares; unbounded along an axis where it's in
+            // an auto track (a star column's cell in an auto row).
+            child.Measure(new Vector2(
+                SpansUnit(child.GridColumn, child.GridColumnSpan, columns, GridUnit.Auto) ? float.PositiveInfinity
+                    : Span(child.GridColumn, child.GridColumnSpan, _columnSizes, ColumnSpacing),
+                SpansUnit(child.GridRow, child.GridRowSpan, rows, GridUnit.Auto) ? float.PositiveInfinity
+                    : Span(child.GridRow, child.GridRowSpan, _rowSizes, RowSpacing)));
+            // It grows the auto tracks it's in, and, unbounded, star tracks
+            // size to their content like auto ones.
+            Grow(child.GridColumn, child.GridColumnSpan, columns, _columnSizes, child.DesiredSize.X);
+            Grow(child.GridRow, child.GridRowSpan, rows, _rowSizes, child.DesiredSize.Y);
             if (float.IsInfinity(available.X))
             {
                 Grow(child.GridColumn, child.GridColumnSpan, columns, _columnSizes, child.DesiredSize.X, GridUnit.Star);
@@ -187,6 +195,9 @@ public sealed class Grid : Panel
                 Grow(child.GridRow, child.GridRowSpan, rows, _rowSizes, child.DesiredSize.Y, GridUnit.Star);
             }
         }
+        // Auto tracks may have grown: share what's left again.
+        ShareStars(columns, _columnSizes, available.X, ColumnSpacing);
+        ShareStars(rows, _rowSizes, available.Y, RowSpacing);
         return new Vector2(Total(_columnSizes, ColumnSpacing), Total(_rowSizes, RowSpacing));
     }
 
@@ -218,6 +229,18 @@ public sealed class Grid : Panel
         {
             sizes[i] = tracks[i].Unit == GridUnit.Pixels ? tracks[i].Value : 0;
         }
+    }
+
+    private static bool SpansUnit(int first, int span, List<GridLength> tracks, GridUnit unit)
+    {
+        for (int i = Math.Max(first, 0); i < Math.Min(first + span, tracks.Count); ++i)
+        {
+            if (tracks[i].Unit == unit)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static bool Spans(UIElement child, List<GridLength> columns, List<GridLength> rows, GridUnit unit)

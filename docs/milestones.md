@@ -362,6 +362,18 @@ decision made at its start):
 
 Text editing (cursor, selection, IME) is left to M7, which needs it.
 
+**Status (2026-11-03):** steps 1–8 done and verified on Linux (GCC, debug
+and release; Vulkan on RADV) and Windows (MSVC, debug and release; D3D12
+and Vulkan on NVIDIA). The demonstration is `samples/UiShowcase` (ADR
+0064): a menu whose font and theme come through the asset pipeline, driven
+through the same journey by scripted mouse, keyboard, and gamepad input
+with every step checked, and captured at 1, 1.25, 1.5, and 2, where text
+moved between pixels must land pixel-identical and panel edges unblended;
+D3D12's captures equal Vulkan's exactly. Decided: W (0057), X (0058), Y
+(0059), Z (0060), the style format (0061), input (0062), the controls
+(0063). Not yet done: trying the menu by hand in a window with a real
+gamepad (`input=none`, ADR 0064), and the owner's sign-off.
+
 ## M7 — Editor v0
 
 - Editor launcher (ADR 0016), docking, a scene viewport, hierarchy, an

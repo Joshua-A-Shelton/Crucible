@@ -170,6 +170,19 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "ControlsChecks: all [0-9]+ checks passed")
 
+    # The M6 demonstration (ADR 0064): the UI showcase's menu driven by mouse,
+    # keyboard, and gamepad scripts, and captured at four DPI scales; on
+    # Windows, on D3D12 too, the captures compared.
+    set(uiShowcaseGame
+        "${CRUCIBLE_DOTNET_ARTIFACTS_DIR}/bin/Crucible.Samples.UiShowcase/${CRUCIBLE_DOTNET_CONFIGURATION_DIR}/Crucible.Samples.UiShowcase.dll")
+    add_test(NAME samples.ui
+        COMMAND "${CMAKE_COMMAND}" "-DLAUNCHER=$<TARGET_FILE:crucible_launcher>" "-DENGINE=${engineDirectory}"
+            "-DGAME=${uiShowcaseGame}" "-DPROJECT=${PROJECT_SOURCE_DIR}/samples/UiShowcase/Project/UiShowcase.crproject"
+            "-DOUT=${CMAKE_CURRENT_BINARY_DIR}/ui" -P "${PROJECT_SOURCE_DIR}/samples/UiShowcase/run_ui.cmake")
+    set_tests_properties(samples.ui PROPERTIES LABELS "integration;gpu" TIMEOUT 180
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        ENVIRONMENT_MODIFICATION "${_libraryPath}=path_list_prepend:$<TARGET_FILE_DIR:crucible_core>")
+
     # A game option needs a key and a value.
     add_test(NAME launcher.bad-game-arg COMMAND crucible_launcher --game-arg particles)
     set_tests_properties(launcher.bad-game-arg PROPERTIES LABELS integration WILL_FAIL TRUE)

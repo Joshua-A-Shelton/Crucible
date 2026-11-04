@@ -1,0 +1,20 @@
+{
+  "$guid": "3f6a1c2e-8b4d-4e7a-9c1f-5d2b8a7e4c02",
+  "Styles": [
+    { "Selector": "Label", "Set": { "Font": "3f6a1c2e-8b4d-4e7a-9c1f-5d2b8a7e4c01", "FontSize": 18 } },
+    { "Selector": "AnchorPanel.backdrop", "Set": { "Background": "#1b1e24" } },
+    {
+      "Selector": ".panel",
+      "Set": { "Background": "#262a32", "CornerRadii": 10, "Padding": 24, "BorderWidth": 1, "BorderColor": "#3a404b" }
+    },
+    { "Selector": "Label.title", "Set": { "FontSize": 40, "Foreground": "#ffffff", "Margin": [0, 0, 0, 12] } },
+    { "Selector": "Label.caption", "Set": { "Foreground": "#9aa0aa", "FontSize": 16 } },
+    { "Selector": "Label.probe", "Set": { "Foreground": "#ffffff", "FontSize": 16 } },
+    {
+      "Selector": "Button.primary",
+      "Set": { "Background": "#2f6fdb" },
+      "Transitions": { "Background": { "Duration": 0.12, "Easing": "EaseOut" } }
+    },
+    { "Selector": "Button.primary:hover", "Set": { "Background": "#4c8bf5" } }
+  ]
+}
