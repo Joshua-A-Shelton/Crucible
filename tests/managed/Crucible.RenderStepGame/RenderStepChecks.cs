@@ -114,12 +114,12 @@ public sealed class RenderStepChecks : GameSystem
         }
         _shader = File.ReadAllBytes(context.GameArguments["shader"]);
         RenderAssets.SetReader(id => id == ProbeStep.Shader ? _shader : null);
-        RenderSchedule.InsertAfter("Tonemap", "Test.Probe", _step);
+        RenderSchedule.Default.InsertAfter("Tonemap", "Test.Probe", _step);
         Check(_step.Prepares == 1, "the step is prepared when it joins a running renderer");
-        IReadOnlyList<string> names = RenderSchedule.StepNames;
+        IReadOnlyList<string> names = RenderSchedule.Default.StepNames;
         Check(names.Count > 1 && names[^1] == "Test.Probe", "the step comes after Tonemap");
-        Check(Throws<CrucibleException>(() => RenderSchedule.Add("Test.Probe", _step)), "names are unique");
-        Check(Throws<CrucibleException>(() => RenderSchedule.Remove("Test.Nowhere")), "removing needs a step");
+        Check(Throws<CrucibleException>(() => RenderSchedule.Default.Add("Test.Probe", _step)), "names are unique");
+        Check(Throws<CrucibleException>(() => RenderSchedule.Default.Remove("Test.Nowhere")), "removing needs a step");
     }
 
     public override void Run(FrameContext context)
@@ -142,9 +142,9 @@ public sealed class RenderStepChecks : GameSystem
         else if (_frame == 6)
         {
             CheckFrame(context);
-            RenderSchedule.Remove("Test.Probe");
+            RenderSchedule.Default.Remove("Test.Probe");
             Check(_step.Releases == 1, "the step is released when it leaves");
-            Check(!RenderSchedule.StepNames.Contains("Test.Probe"), "it's gone from the schedule");
+            Check(!RenderSchedule.Default.StepNames.Contains("Test.Probe"), "it's gone from the schedule");
             RenderAssets.SetReader(null);
             Console.WriteLine(_failures == 0
                 ? $"RenderStepGame: all {_checks} checks passed"

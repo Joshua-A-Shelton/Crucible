@@ -423,7 +423,11 @@ decision made at its start):
 
 **Status (2026-11-04):** step 1 done (ADR 0065): `TextField` and
 `NumberField`, with SDL text input, the clipboard, grouped undo, and
-scrubbing.
+scrubbing. Step 2 built (ADR 0066): `crucible_editor`, menus and
+commands, docking, floating windows dragged between windows on every
+platform (Wayland through `xdg-toplevel-drag`), per-surface render
+schedules, and keycodes for shortcuts; to be tried by hand on Wayland
+and Windows.
 
 ## M8 — Animation and audio
 

@@ -37,8 +37,19 @@ public class Popup : UIElement
         }
     }
 
-    /// <summary>What it opens beside; without one, centered on the root.</summary>
+    /// <summary>What it opens beside; without one, at <see cref="Position"/>, or centered on the root.</summary>
     public UIElement? Anchor { get; set; }
+
+    /// <summary>
+    /// Where its top left goes without an anchor (ADR 0066: a context menu at
+    /// the pointer, a submenu beside its item), in the root's units; moved
+    /// to stay on the root.
+    /// </summary>
+    public Vector2? Position { get; set; }
+
+    // A menu's popup (ADR 0066): a press in a menu below it closes it and
+    // acts there, and a press outside every menu closes them all.
+    internal virtual bool IsMenu => false;
 
     public bool IsOpen => Owner is not null;
 
@@ -71,6 +82,11 @@ public class Popup : UIElement
         Vector2 size = DesiredSize;
         if (Anchor is not { } anchor)
         {
+            if (Position is { } at)
+            {
+                return new RectangleF(Math.Clamp(at.X, 0, MathF.Max(rootSize.X - size.X, 0)),
+                    Math.Clamp(at.Y, 0, MathF.Max(rootSize.Y - size.Y, 0)), size.X, size.Y);
+            }
             return new RectangleF((rootSize.X - size.X) * 0.5f, (rootSize.Y - size.Y) * 0.5f, size.X, size.Y);
         }
         RectangleF a = anchor.Bounds;

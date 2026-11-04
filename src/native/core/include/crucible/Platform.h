@@ -9,6 +9,7 @@
 
 #include <crucible/Export.h>
 #include <crucible/Expose.h>
+#include <crucible/Math.h>
 #include <crucible/Result.h>
 
 #include <cstddef>
@@ -41,9 +42,9 @@ enum class CRUCIBLE_EXPOSE InputEventType : uint32_t
     QuitRequested,        // the OS asked the application to quit
     WindowCloseRequested, // the user closed a window (window)
     WindowResized,        // pixel size changed (window, code = width, value = height)
-    KeyDown,              // code = scancode, value = 1 if a key repeat; modifiers
-    KeyUp,                // code = scancode; modifiers
-    MouseMotion,          // x, y = position; dx, dy = relative motion
+    KeyDown,              // code = scancode, value = 1 if a key repeat; keycode; modifiers
+    KeyUp,                // code = scancode; keycode; modifiers
+    MouseMotion,          // x, y = position; dx, dy = relative motion (pointer positions in pixels)
     MouseButtonDown,      // code = button, x, y = position
     MouseButtonUp,        // code = button, x, y = position
     LatencyMarker,        // synthetic input for the latency harness; code = sequence number
@@ -57,6 +58,19 @@ enum class CRUCIBLE_EXPOSE InputEventType : uint32_t
     DisplayScaleChanged, // (window), x = its new display scale
     // Added for text editing (ADR 0065):
     TextInput, // (window), code = offset, value = length of its UTF-8 in polledText()
+    // Added for the editor (ADR 0066):
+    DragMoved,        // a window drag over (window), 0 for none of ours; x, y = position in it
+    DragDropped,      // released over (window); x, y = position in it
+    DragCanceled,     // released elsewhere, or ended by the system
+    FileDialogResult, // code = offset, value = length (0: none chosen) of the path's UTF-8 in polledText()
+};
+
+// What startWindowDrag can do here (ADR 0066).
+enum class CRUCIBLE_EXPOSE WindowDragSupport : uint32_t
+{
+    None,     // no drags between windows (a platform without them, or headless)
+    DropOnly, // drags reach our windows, but the dragged window doesn't move with them
+    Full,     // and the dragged window follows the pointer
 };
 
 // Held modifier keys, as InputEvent::modifiers bits.
@@ -117,6 +131,11 @@ struct CRUCIBLE_EXPOSE InputEvent
     float dx;
     float dy;
     uint32_t modifiers; // KeyModifiers bits, for key and wheel events
+    // Added for shortcuts (ADR 0066): the key as the user's layout labels it
+    // (SDL's keycode: the character for printable keys, else the scancode
+    // with bit 30 set), for key events. Shortcuts match it; navigation keys
+    // keep to scancodes, which don't move between layouts.
+    uint32_t keycode;
 };
 
 // Called by the launcher before the engine starts and after it returns (ADR
@@ -155,6 +174,39 @@ CRUCIBLE_EXPOSE void stopTextInput(WindowHandle window);
 // it; false if the platform couldn't.
 CRUCIBLE_EXPOSE std::string_view clipboardText();
 CRUCIBLE_EXPOSE bool setClipboardText(std::string_view text);
+
+// Window placement, in the desktop's coordinates (Windows and X11). Wayland
+// doesn't let apps place their windows or know where they are: windowPosition
+// is (0, 0) there, and setWindowPosition does nothing.
+CRUCIBLE_EXPOSE Vector2 windowPosition(WindowHandle window);
+CRUCIBLE_EXPOSE void setWindowPosition(WindowHandle window, Vector2 position);
+// The pointer on the desktop, in the same coordinates; (0, 0) on Wayland.
+CRUCIBLE_EXPOSE Vector2 pointerScreenPosition();
+
+// Window drags (ADR 0066): a drag of something between our windows, such
+// as a panel torn off one window and docked in another. Started while a
+// mouse button pressed in `window` is held; the platform then sends
+// DragMoved as the pointer moves over our windows, and DragDropped or
+// DragCanceled when it's released. Where windowDragSupport() is Full,
+// `draggedWindow` (0 for none) moves with the pointer, `offset` (pixels from
+// its top left) under it; give a new window before its first frame is
+// drawn. False if no drag could start (no press held, or None).
+CRUCIBLE_EXPOSE WindowDragSupport windowDragSupport();
+CRUCIBLE_EXPOSE bool startWindowDrag(WindowHandle window, WindowHandle draggedWindow, Vector2 offset);
+// Cancels a drag in progress (DragCanceled follows), where the platform
+// lets apps; on Wayland the compositor ends it (Escape, or the release).
+CRUCIBLE_EXPOSE void stopWindowDrag();
+
+// The system's open-file dialog (ADR 0066), over `window` (0 for none),
+// showing files matching `pattern` (extensions without dots, separated by
+// ';', such as "crproject"; empty for all) under `filterName`. The choice
+// arrives later as a FileDialogResult event.
+CRUCIBLE_EXPOSE void showOpenFileDialog(WindowHandle window, std::string_view filterName, std::string_view pattern);
+
+// The folder for the user's settings (ADR 0066), created if needed and
+// ending in a separator: ~/.local/share/Crucible/ on Linux,
+// %APPDATA%\Crucible\ on Windows. Empty if there's none.
+CRUCIBLE_EXPOSE std::string_view preferencesPath();
 
 // Now, on the same clock as InputEvent::timestampNs.
 CRUCIBLE_EXPOSE uint64_t timestampNow();

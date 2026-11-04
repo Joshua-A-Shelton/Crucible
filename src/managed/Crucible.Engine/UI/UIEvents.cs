@@ -65,6 +65,9 @@ public sealed class KeyEvent : UIEvent
     /// <summary>The key's position on the keyboard (SDL's scancode), whatever the layout.</summary>
     public int Scancode { get; internal set; }
 
+    /// <summary>The key as the user's layout labels it (SDL's keycode; see <see cref="Platform.Keycode"/>), for shortcuts.</summary>
+    public uint Keycode { get; internal set; }
+
     public KeyModifiers Modifiers { get; internal set; }
 
     /// <summary>A key held down, repeating.</summary>

@@ -9,6 +9,9 @@ crucible_add_dotnet_test(Crucible.Assets.Tests)
 # ufbx's sample files (ADR 0044), for the FBX importer's tests.
 set_property(TEST Crucible.Assets.Tests APPEND PROPERTY ENVIRONMENT "CRUCIBLE_UFBX_DATA=${ufbx_SOURCE_DIR}/data")
 
+# The editor's tests (ADR 0066): the editor runs on a JIT (ADR 0016).
+crucible_add_dotnet_test(Crucible.Editor.Tests)
+
 # The source generator's tests run the C# compiler, which needs a JIT.
 crucible_add_dotnet_test(Crucible.Generators.Tests)
 

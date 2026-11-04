@@ -104,8 +104,14 @@ public class TextFieldTests
         Modifiers = (uint)modifiers,
     };
 
-    private static InputEvent Key(int scancode, KeyModifiers modifiers = KeyModifiers.None) =>
-        new() { Type = InputEventType.KeyDown, Code = scancode, Modifiers = (uint)modifiers };
+    // Letters' keycodes as on QWERTY (scancodes 4 to 29 are A to Z).
+    private static InputEvent Key(int scancode, KeyModifiers modifiers = KeyModifiers.None) => new()
+    {
+        Type = InputEventType.KeyDown,
+        Code = scancode,
+        Keycode = scancode is >= 4 and <= 29 ? (uint)('a' + scancode - 4) : 0,
+        Modifiers = (uint)modifiers,
+    };
 
     private static InputEvent Wheel(Vector2 at, float notches) =>
         new() { Type = InputEventType.MouseWheel, X = at.X, Y = at.Y, Dy = notches };
@@ -241,6 +247,24 @@ public class TextFieldTests
         // Other shortcuts are left to the game.
         rig.Send(Key(19, KeyModifiers.Ctrl)); // Ctrl+P
         await Assert.That(rig.Root.HandledKeyboard).IsFalse();
+    }
+
+    [Test]
+    public async Task ShortcutsFollowTheLayoutsLabels()
+    {
+        using Rig rig = new();
+        TextField field = rig.Add(new TextField());
+        field.Focus();
+        rig.Type("abc");
+        // On AZERTY the key marked Z sits where QWERTY has W (scancode 26).
+        rig.Send(new InputEvent
+        {
+            Type = InputEventType.KeyDown,
+            Code = 26,
+            Keycode = Keycode.Z,
+            Modifiers = (uint)KeyModifiers.Ctrl,
+        });
+        await Assert.That(field.Text).IsEqualTo("");
     }
 
     [Test]

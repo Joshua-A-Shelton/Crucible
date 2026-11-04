@@ -78,7 +78,7 @@ public sealed class LayoutChecks : GameSystem
         dock.Add(sidebar);
         dock.Add(area);
         _root.Content = dock;
-        RenderSchedule.InsertAfter("Tonemap", "UI", _root);
+        RenderSchedule.Default.InsertAfter("Tonemap", "UI", _root);
     }
 
     public override void Run(FrameContext context)
@@ -137,7 +137,7 @@ public sealed class LayoutChecks : GameSystem
             }
             Png.Write(capture, Width, Height, rgb);
         }
-        RenderSchedule.Remove("UI");
+        RenderSchedule.Default.Remove("UI");
         Console.WriteLine(_failures == 0
             ? $"LayoutChecks: all {_checks} checks passed"
             : $"LayoutChecks: {_failures} of {_checks} checks failed");

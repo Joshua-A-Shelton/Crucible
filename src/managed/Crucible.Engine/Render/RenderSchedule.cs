@@ -5,34 +5,61 @@ using System.Runtime.Loader;
 namespace Crucible.Render;
 
 /// <summary>
-/// The renderer's ordered steps (ADR 0048), edited by name like frame
-/// phases: the engine's C++ steps and C# <see cref="IRenderStep"/>s together
-/// (ADR 0058). Native code calls C# steps through one engine trampoline with
-/// a step ID, so it never holds a pointer into a game assembly. Main thread
-/// only, like the renderer.
+/// A render schedule (ADR 0048): steps edited by name like frame phases,
+/// the engine's C++ steps and C# <see cref="IRenderStep"/>s together (ADR
+/// 0058). Surfaces render <see cref="Default"/>, which holds the scene's
+/// steps, unless given another (ADR 0066): a new schedule holds only Clear,
+/// for surfaces that draw just their own steps, such as an editor window's
+/// UI. Native code calls C# steps through one engine trampoline with a step
+/// ID, so it never holds a pointer into a game assembly. Main thread only,
+/// like the renderer.
 /// </summary>
-public static unsafe class RenderSchedule
+public sealed unsafe class RenderSchedule : IDisposable
 {
-    private sealed record Entry(string Name, IRenderStep Step);
+    private sealed record Entry(RenderSchedule Schedule, string Name, IRenderStep Step);
 
+    // Every schedule's C# steps, by the ID native code calls them with.
     private static readonly Dictionary<ulong, Entry> _steps = [];
-    private static readonly Dictionary<string, ulong> _ids = new(StringComparer.Ordinal);
+    private static readonly List<RenderSchedule> _schedules = [];
     private static readonly RenderStepContext _context = new();
     private static ulong _nextId = 1;
     private static bool _trampolineSet;
     private static ExceptionDispatchInfo? _failure;
 
-    /// <summary>Adds the step after every other.</summary>
-    public static void Add(string name, IRenderStep step) => Insert(name, step, StepPlacement.Last, "");
+    private readonly Dictionary<string, ulong> _ids = new(StringComparer.Ordinal);
+    private uint _id;
+    private bool _disposed;
 
-    public static void InsertBefore(string existing, string name, IRenderStep step) =>
+    private RenderSchedule(uint id)
+    {
+        _id = id;
+        _schedules.Add(this);
+    }
+
+    /// <summary>The scene's steps (DepthPrepass … Tonemap), which surfaces render unless given another.</summary>
+    public static RenderSchedule Default { get; } = new(0);
+
+    /// <summary>A new schedule holding one step, Clear (the surface cleared to the frame's clear color).</summary>
+    public static RenderSchedule Create() => new(Api.CreateRenderSchedule());
+
+    /// <summary>Has a surface render a schedule; <see cref="Default"/> puts it back.</summary>
+    public static void SetSurfaceSchedule(SurfaceHandle surface, RenderSchedule schedule)
+    {
+        ArgumentNullException.ThrowIfNull(schedule);
+        Api.SetSurfaceSchedule(surface, schedule.Id);
+    }
+
+    /// <summary>Adds the step after every other.</summary>
+    public void Add(string name, IRenderStep step) => Insert(name, step, StepPlacement.Last, "");
+
+    public void InsertBefore(string existing, string name, IRenderStep step) =>
         Insert(name, step, StepPlacement.Before, existing);
 
-    public static void InsertAfter(string existing, string name, IRenderStep step) =>
+    public void InsertAfter(string existing, string name, IRenderStep step) =>
         Insert(name, step, StepPlacement.After, existing);
 
     /// <summary>Puts the step where <paramref name="existing"/> was; that one is released.</summary>
-    public static void Replace(string existing, string name, IRenderStep step)
+    public void Replace(string existing, string name, IRenderStep step)
     {
         Insert(name, step, StepPlacement.Replacing, existing);
         if (existing != name)
@@ -43,26 +70,50 @@ public static unsafe class RenderSchedule
     }
 
     /// <summary>Removes a step, C++ or C#; a C# step is released first. Throws if there is none of that name.</summary>
-    public static void Remove(string name)
+    public void Remove(string name)
     {
-        Api.RemoveStep(name);
+        Api.RemoveStep(Id, name);
         Forget(name);
         ThrowFailure();
     }
 
     /// <summary>The steps' names, in order.</summary>
-    public static IReadOnlyList<string> StepNames
+    public IReadOnlyList<string> StepNames
     {
         get
         {
-            string[] names = new string[Api.StepCount()];
+            uint id = Id;
+            string[] names = new string[Api.StepCount(id)];
             for (int i = 0; i < names.Length; ++i)
             {
-                names[i] = Api.StepName((uint)i);
+                names[i] = Api.StepName(id, (uint)i);
             }
             return names;
         }
     }
+
+    /// <summary>
+    /// Releases its steps and destroys it; surfaces rendering it go back to
+    /// <see cref="Default"/>. The default can't be disposed.
+    /// </summary>
+    public void Dispose()
+    {
+        if (_id == 0 || _disposed)
+        {
+            return;
+        }
+        _disposed = true;
+        Api.DestroyRenderSchedule(_id);
+        foreach (ulong stepId in _ids.Values)
+        {
+            _steps.Remove(stepId);
+        }
+        _ids.Clear();
+        _schedules.Remove(this);
+        ThrowFailure();
+    }
+
+    private uint Id => _disposed ? throw new ObjectDisposedException(nameof(RenderSchedule)) : _id;
 
     /// <summary>
     /// Rethrows what a C# step threw during the last native call that ran
@@ -75,20 +126,23 @@ public static unsafe class RenderSchedule
         failure?.Throw();
     }
 
-    /// <summary>Removes every C# step, before the renderer stops.</summary>
+    /// <summary>Removes every schedule's C# steps, before the renderer stops.</summary>
     internal static void RemoveAll()
     {
-        foreach (string name in _ids.Keys.ToArray())
+        foreach (RenderSchedule schedule in _schedules.ToArray())
         {
-            Api.RemoveStep(name);
-            Forget(name);
+            foreach (string name in schedule._ids.Keys.ToArray())
+            {
+                Api.RemoveStep(schedule._id, name);
+                schedule.Forget(name);
+            }
         }
         _failure = null;
     }
 
     /// <summary>
-    /// Removes the steps whose types a game's load context holds, so the
-    /// schedule doesn't keep an unloading game alive (ADR 0011).
+    /// Removes the steps whose types a game's load context holds, from every
+    /// schedule, so none keeps an unloading game alive (ADR 0011).
     /// </summary>
     internal static void Forget(AssemblyLoadContext context)
     {
@@ -96,15 +150,15 @@ public static unsafe class RenderSchedule
         {
             if (AssemblyLoadContext.GetLoadContext(entry.Step.GetType().Assembly) == context)
             {
-                Api.RemoveStep(entry.Name);
-                _ids.Remove(entry.Name);
+                Api.RemoveStep(entry.Schedule._id, entry.Name);
+                entry.Schedule._ids.Remove(entry.Name);
                 _steps.Remove(id);
             }
         }
         _failure = null;
     }
 
-    private static void Insert(string name, IRenderStep step, StepPlacement placement, string anchor)
+    private void Insert(string name, IRenderStep step, StepPlacement placement, string anchor)
     {
         ArgumentNullException.ThrowIfNull(step);
         if (!_trampolineSet)
@@ -114,10 +168,10 @@ public static unsafe class RenderSchedule
         }
         // Known before the native insert, which prepares the step.
         ulong id = _nextId++;
-        _steps[id] = new Entry(name, step);
+        _steps[id] = new Entry(this, name, step);
         try
         {
-            Api.InsertManagedStep(name, id, placement, anchor);
+            Api.InsertManagedStep(Id, name, id, placement, anchor);
         }
         catch (CrucibleException)
         {
@@ -128,7 +182,7 @@ public static unsafe class RenderSchedule
         _ids[name] = id;
     }
 
-    private static void Forget(string name)
+    private void Forget(string name)
     {
         if (_ids.Remove(name, out ulong id))
         {

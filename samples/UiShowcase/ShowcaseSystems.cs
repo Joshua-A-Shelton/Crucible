@@ -41,7 +41,7 @@ public sealed class ShowcaseSystem : GameSystem
             _settings = ShowcaseSettings.Parse(context.GameArguments);
             Theme theme = Import();
             _root.Theme = theme;
-            RenderSchedule.InsertAfter("Tonemap", "UI", _root);
+            RenderSchedule.Default.InsertAfter("Tonemap", "UI", _root);
             _script = Script().GetEnumerator();
         }
         catch (Exception exception)
@@ -70,9 +70,9 @@ public sealed class ShowcaseSystem : GameSystem
 
     public override void Stop(FrameContext context)
     {
-        if (RenderSchedule.StepNames.Contains("UI"))
+        if (RenderSchedule.Default.StepNames.Contains("UI"))
         {
-            RenderSchedule.Remove("UI");
+            RenderSchedule.Default.Remove("UI");
         }
         _root.Content = null;
         RenderAssets.SetReader(null);

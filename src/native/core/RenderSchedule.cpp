@@ -250,7 +250,7 @@ struct FrameBuilder
         context.publish(backbufferKey(), inputs.backbuffer);
         context.publish(viewKey(), inputs.view);
         context.publish(lightsKey(), inputs.lights);
-        const RenderSchedule& schedule = renderSchedule();
+        const RenderSchedule& schedule = inputs.schedule;
         for (uint32_t i = 0; i < schedule.stepCount() && !state.failed; ++i)
         {
             const RenderStep& step = schedule.step(i);
@@ -487,6 +487,82 @@ RenderSchedule& renderSchedule()
     }();
     (void)defaults;
     return schedule;
+}
+
+namespace {
+
+// The schedules made with createSchedule: ID i at index i - 1, null once
+// destroyed (IDs aren't reused, so a stale one finds nothing).
+Vector<RenderSchedule*>& createdSchedules()
+{
+    static Vector<RenderSchedule*> schedules{MemoryTag::Render};
+    return schedules;
+}
+
+} // namespace
+
+uint32_t createSchedule()
+{
+    RenderSchedule* schedule = create<RenderSchedule>(MemoryTag::Render);
+    addClearStep(*schedule);
+    if (slag::GraphicsDevice* device = renderDevice())
+    {
+        (void)schedule->prepareAll(*device); // Clear has nothing to prepare
+    }
+    createdSchedules().pushBack(schedule);
+    return static_cast<uint32_t>(createdSchedules().size());
+}
+
+void destroySchedule(uint32_t id)
+{
+    if (RenderSchedule* schedule = id == 0 ? nullptr : scheduleById(id))
+    {
+        schedule->releaseAll();
+        destroy(MemoryTag::Render, schedule);
+        createdSchedules()[id - 1] = nullptr;
+    }
+}
+
+RenderSchedule* scheduleById(uint32_t id)
+{
+    if (id == 0)
+    {
+        return &renderSchedule();
+    }
+    Vector<RenderSchedule*>& schedules = createdSchedules();
+    return id <= schedules.size() ? schedules[id - 1] : nullptr;
+}
+
+Result<void> prepareSchedules(slag::GraphicsDevice& device)
+{
+    if (Result<void> prepared = renderSchedule().prepareAll(device); !prepared)
+    {
+        return prepared;
+    }
+    for (RenderSchedule* schedule : createdSchedules())
+    {
+        if (schedule != nullptr)
+        {
+            if (Result<void> prepared = schedule->prepareAll(device); !prepared)
+            {
+                releaseSchedules();
+                return prepared;
+            }
+        }
+    }
+    return {};
+}
+
+void releaseSchedules()
+{
+    renderSchedule().releaseAll();
+    for (RenderSchedule* schedule : createdSchedules())
+    {
+        if (schedule != nullptr)
+        {
+            schedule->releaseAll();
+        }
+    }
 }
 
 } // namespace crucible::render

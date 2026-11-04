@@ -115,7 +115,8 @@ public sealed partial class UIRoot
                     break;
                 case InputEventType.KeyDown:
                 case InputEventType.KeyUp:
-                    KeyChanged(input.Code, input.Type == InputEventType.KeyDown, input.Value != 0, (KeyModifiers)input.Modifiers);
+                    KeyChanged(input.Code, input.Keycode, input.Type == InputEventType.KeyDown, input.Value != 0,
+                        (KeyModifiers)input.Modifiers);
                     break;
                 case InputEventType.GamepadButtonDown:
                 case InputEventType.GamepadButtonUp:
@@ -297,11 +298,12 @@ public sealed partial class UIRoot
     // Keys and gamepads
     // -----------------------------------------------------------------------
 
-    private void KeyChanged(int scancode, bool down, bool repeat, KeyModifiers modifiers)
+    private void KeyChanged(int scancode, uint keycode, bool down, bool repeat, KeyModifiers modifiers)
     {
         UIElement? target = KeyTarget();
         _keyEvent.Reset(target);
         _keyEvent.Scancode = scancode;
+        _keyEvent.Keycode = keycode;
         _keyEvent.Modifiers = modifiers;
         _keyEvent.IsRepeat = repeat;
         bool handled = target is not null && Bubble(target, down ? UIElement.EventKind.KeyDown : UIElement.EventKind.KeyUp, _keyEvent);

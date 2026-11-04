@@ -34,6 +34,24 @@ if(WIN32)
         VERBATIM)
 endif()
 
+# The editor launcher (ADR 0016, 0066): the JIT launcher loading the editor's
+# assembly as its game. The editor is JIT only, like games in development.
+add_executable(crucible_editor
+    CpuCheck.cpp
+    Main.cpp
+    JitHost.cpp)
+crucible_set_compile_options(crucible_editor)
+target_compile_definitions(crucible_editor PRIVATE CRUCIBLE_EDITOR_LAUNCHER=1)
+target_link_libraries(crucible_editor PRIVATE crucible::core crucible::nethost)
+crucible_copy_nethost(crucible_editor)
+crucible_use_d3d12_agility(crucible_editor)
+if(WIN32)
+    add_custom_command(TARGET crucible_editor POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            "$<TARGET_FILE:crucible_core>" "$<TARGET_FILE_DIR:crucible_editor>"
+        VERBATIM)
+endif()
+
 if(CRUCIBLE_BUILD_AOT)
     add_executable(crucible_launcher_aot
         CpuCheck.cpp
@@ -177,6 +195,17 @@ if(CRUCIBLE_BUILD_TESTS)
     set_tests_properties(launcher.jit.textfields PROPERTIES LABELS "integration;gpu" TIMEOUT 60
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "TextFieldChecks: all [0-9]+ checks passed")
+
+    # The editor checking itself (ADR 0066): menus, tab drags with the drop
+    # preview, a panel torn off into a floating window and docked back,
+    # checked at pixels; its settings kept in the build tree.
+    add_test(NAME launcher.jit.editor
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 600
+            --game-arg "check=${CMAKE_CURRENT_BINARY_DIR}/editor.png"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/editor-settings.json")
+    set_tests_properties(launcher.jit.editor PROPERTIES LABELS "integration;gpu" TIMEOUT 60
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "EditorChecks: all [0-9]+ checks passed")
 
     # The M6 demonstration (ADR 0064): the UI showcase's menu driven by mouse,
     # keyboard, and gamepad scripts, and captured at four DPI scales; on

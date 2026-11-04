@@ -39,25 +39,29 @@ endfunction()
 # ---------------------------------------------------------------------------
 # SDL3 (zlib): the platform layer (ADR 0018), linked into the core behind
 # Crucible's own platform API. Same version and hash as Slag's samples.
-# Built static, with only the subsystems in use so far: video, events, and
-# gamepads (joystick and HIDAPI, for UI navigation, ADR 0062). Haptics come
-# when something rumbles, audio in M8, dialogs with the editor in M7. Slag
-# creates the Vulkan surface itself, so SDL's Vulkan support stays off.
+# Built static, with only the subsystems in use so far: video, events,
+# gamepads (joystick and HIDAPI, for UI navigation, ADR 0062), and dialogs
+# (the editor's File > Open, ADR 0066). Haptics come when something rumbles,
+# audio in M8. Slag creates the Vulkan surface itself, so SDL's Vulkan
+# support stays off. Patched so its Wayland data device leaves Crucible's
+# window drags alone (cmake/PatchSdl.cmake, ADR 0066).
 # ---------------------------------------------------------------------------
 
 FetchContent_Declare(SDL3
     URL https://github.com/libsdl-org/SDL/releases/download/release-3.4.18/SDL3-3.4.18.tar.gz
-    URL_HASH SHA256=9c75cf16330322c217dedd2e0609f1124f1b54b8633e763467b4684d0f4334a3)
+    URL_HASH SHA256=9c75cf16330322c217dedd2e0609f1124f1b54b8633e763467b4684d0f4334a3
+    PATCH_COMMAND "${CMAKE_COMMAND}" -DFILE=src/video/wayland/SDL_waylandevents.c
+                  -P "${CMAKE_CURRENT_LIST_DIR}/PatchSdl.cmake")
 set(SDL_SHARED OFF CACHE BOOL "" FORCE)
 set(SDL_STATIC ON CACHE BOOL "" FORCE)
 set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
 set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(SDL_INSTALL OFF CACHE BOOL "" FORCE)
 foreach(_crucible_sdl_off SDL_AUDIO SDL_CAMERA SDL_GPU SDL_RENDER SDL_HAPTIC SDL_SENSOR
-                          SDL_POWER SDL_DIALOG SDL_OPENGL SDL_OPENGLES SDL_VULKAN)
+                          SDL_POWER SDL_OPENGL SDL_OPENGLES SDL_VULKAN)
     set(${_crucible_sdl_off} OFF CACHE BOOL "" FORCE)
 endforeach()
-foreach(_crucible_sdl_on SDL_JOYSTICK SDL_HIDAPI)
+foreach(_crucible_sdl_on SDL_JOYSTICK SDL_HIDAPI SDL_DIALOG)
     set(${_crucible_sdl_on} ON CACHE BOOL "" FORCE)
 endforeach()
 FetchContent_MakeAvailable(SDL3)

@@ -165,7 +165,13 @@ Stated by the project owner and refined one at a time (2026-10-24).
   Illinois/NCSA, accepted by the owner for build time and the editor; ADR
   0047);
   dr_wav, dr_flac (public domain or MIT-0; ADR 0028); System.IO.Hashing
-  (MIT; XXH128 for the import cache, ADR 0040).
+  (MIT; XXH128 for the import cache, ADR 0040). Noto Sans (SIL Open Font
+  License), the editor's and the UI samples' font.
+  Linux, for window drags on Wayland (ADR 0066): libwayland-client (MIT),
+  loaded at run time; wayland-scanner (MIT), at build time; the
+  xdg-toplevel-drag protocol XML (MIT, vendored in `third_party/wayland`).
+  SDL is patched at fetch time (`cmake/PatchSdl.cmake`) to leave
+  Crucible's drags to the platform layer.
   Build-time only: the system's libclang (Apache 2.0 with LLVM exception),
   through Crucible's own bindings (ADR 0017); Microsoft.CodeAnalysis.CSharp
   (MIT), the Roslyn API for Crucible's source generators (ADR 0036). Tests only: TUnit (MIT),
@@ -182,7 +188,9 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   managed entry point in the engine's C# layer, which drives the frame
   loop. Plugins register through source-generated entry points in every
   mode. JIT/editor builds load the core as a shared library; AOT builds
-  link everything into one `<GameName>.exe`.
+  link everything into one `<GameName>.exe`. The editor launcher
+  (`crucible_editor`, ADR 0066) is the JIT launcher loading the editor's
+  assembly (`src/managed/Crucible.Editor`) as its game.
 - **Hot-reload rule** (ADR 0011): native code holds references only into
   the engine's C# layer, never into game or plugin assemblies. Native code
   identifies game objects by IDs, not `GCHandle`s.

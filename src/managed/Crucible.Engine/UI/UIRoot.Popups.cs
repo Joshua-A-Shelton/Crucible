@@ -93,6 +93,8 @@ public sealed partial class UIRoot
     }
 
     // A press outside the newest popup closes it, and is used up doing so.
+    // Menus (ADR 0066) close as a chain: the menus above the one pressed in
+    // close and the press acts there; outside every menu, they all close.
     private bool DismissPopups(Vector2 point)
     {
         if (_popups.Count == 0)
@@ -104,8 +106,18 @@ public sealed partial class UIRoot
         {
             return false;
         }
-        ClosePopup(top);
-        return true;
+        if (!top.IsMenu)
+        {
+            ClosePopup(top);
+            return true;
+        }
+        int at = _popups.Count - 1;
+        while (at >= 0 && _popups[at].IsMenu && !_popups[at].Bounds.Contains(point.X, point.Y))
+        {
+            --at;
+        }
+        ClosePopup(_popups[at + 1]); // and every popup above it
+        return at < 0 || !_popups[at].Bounds.Contains(point.X, point.Y);
     }
 
     private bool MoveFocusInto(UIElement scope)

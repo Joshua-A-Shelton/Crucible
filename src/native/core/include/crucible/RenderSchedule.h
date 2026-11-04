@@ -177,7 +177,16 @@ private:
 
 // The renderer's schedule, holding the default steps (ADR 0051, 0053, 0054, 0055):
 // DepthPrepass, LightClustering, Shadows, Opaque, Outlines, Sky, Transparent, Bloom,
-// then Tonemap.
+// then Tonemap. Surfaces render it unless given another (ADR 0066).
 RenderSchedule& renderSchedule();
+
+// Schedules besides the default, by ID (ADR 0066): 0 is renderSchedule().
+// A new one holds one step, Clear (the backbuffer cleared to renderFrame's
+// color), for surfaces that draw only what their own steps draw, such as an
+// editor window's UI. Prepared while the renderer runs, like the default.
+uint32_t createSchedule();
+void destroySchedule(uint32_t id);
+// Null for an ID that was destroyed or never made.
+RenderSchedule* scheduleById(uint32_t id);
 
 } // namespace crucible::render

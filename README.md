@@ -80,3 +80,6 @@ Longer explanations of decisions, written to be reread:
 - [Text editing](docs/learning/text-editing.md) (ADR 0065): keys versus
   typed text, carets between characters, anchors and goal columns, undo in
   groups, and scrubbing numbers.
+- [Docking and windows](docs/learning/docking-and-windows.md) (ADR 0066):
+  layouts as trees, drop targets, why Wayland drags windows differently,
+  a Wayland connection beside SDL's, and pixels versus points.

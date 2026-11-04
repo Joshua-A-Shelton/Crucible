@@ -61,7 +61,7 @@ public sealed class TextFieldChecks : GameSystem
             column.Add(element);
         }
         _root.Content = column;
-        RenderSchedule.InsertAfter("Tonemap", "UI", _root);
+        RenderSchedule.Default.InsertAfter("Tonemap", "UI", _root);
     }
 
     public override void Run(FrameContext context)
@@ -159,7 +159,7 @@ public sealed class TextFieldChecks : GameSystem
             }
             Png.Write(capture, Width, Height, rgb);
         }
-        RenderSchedule.Remove("UI");
+        RenderSchedule.Default.Remove("UI");
         _root.Content = null;
         Fonts.Unload(_font);
         Console.WriteLine(_failures == 0

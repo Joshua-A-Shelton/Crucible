@@ -2,6 +2,8 @@
 // (tests/native/CMakeLists.txt), so they need no display: real SDL windows
 // that are never shown.
 
+#include "../../src/native/core/PlatformInternal.h"
+
 #include <crucible/Platform.h>
 
 #include <SDL3/SDL.h>
@@ -10,6 +12,8 @@
 
 #include <array>
 #include <chrono>
+#include <cstdio>
+#include <cstdlib>
 #include <string_view>
 #include <thread>
 
@@ -208,6 +212,75 @@ TEST_CASE("Text input turns on and off for a window and the clipboard holds text
     CHECK(clipboardText().empty());
 
     destroyWindow(window.value());
+}
+
+TEST_CASE("Keys carry their keycodes and pointer positions are pixels")
+{
+    PlatformScope platform;
+    drain();
+    SDL_Event key{};
+    key.type = SDL_EVENT_KEY_DOWN;
+    key.key.scancode = SDL_SCANCODE_W;
+    key.key.key = SDLK_Z; // AZERTY's Z, where QWERTY has W
+    REQUIRE(SDL_PushEvent(&key));
+    std::array<InputEvent, 4> events;
+    REQUIRE(pollEvents(events) == 1);
+    CHECK(events[0].code == SDL_SCANCODE_W);
+    CHECK(events[0].keycode == 'z');
+}
+
+TEST_CASE("Window drags need a platform that has them")
+{
+    PlatformScope platform;
+    // The offscreen driver has no desktop to drag across.
+    CHECK(windowDragSupport() == WindowDragSupport::None);
+    crucible::Result<WindowHandle> window = createWindow(64, 64, "Crucible drags");
+    REQUIRE(static_cast<bool>(window));
+    CHECK_FALSE(startWindowDrag(window.value(), {}, {}));
+    CHECK(windowPosition(window.value()).x == 0);
+    CHECK(pointerScreenPosition().x == 0);
+    stopWindowDrag(); // nothing to stop
+    destroyWindow(window.value());
+}
+
+TEST_CASE("Drag events come back in order with their positions")
+{
+    PlatformScope platform;
+    drain();
+    pushDragEvent(InputEventType::DragMoved, 4, 12.5f, -3.0f);
+    pushDragEvent(InputEventType::DragMoved, 0, 0.0f, 0.0f);
+    pushDragEvent(InputEventType::DragDropped, 9, 1.0f, 2.0f);
+    pushDragEvent(InputEventType::DragCanceled, 0, 0.0f, 0.0f);
+    std::array<InputEvent, 8> events;
+    REQUIRE(pollEvents(events) == 4);
+    CHECK(events[0].type == InputEventType::DragMoved);
+    CHECK(events[0].window.value == 4);
+    CHECK(events[0].x == 12.5f);
+    CHECK(events[0].y == -3.0f);
+    CHECK(events[1].window.value == 0);
+    CHECK(events[2].type == InputEventType::DragDropped);
+    CHECK(events[2].window.value == 9);
+    CHECK(events[2].y == 2.0f);
+    CHECK(events[3].type == InputEventType::DragCanceled);
+}
+
+// By hand, on a Wayland desktop (CRUCIBLE_TEST_WAYLAND=1, and SDL's own
+// driver choice): the platform's connection binds what the compositor has.
+// No window is opened.
+TEST_CASE("Wayland window drags are found on a Wayland desktop")
+{
+    const char* wanted = std::getenv("CRUCIBLE_TEST_WAYLAND");
+    if (wanted == nullptr || std::string_view(wanted) != "1")
+    {
+        return;
+    }
+    SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "wayland");
+    PlatformScope platform;
+    const WindowDragSupport support = windowDragSupport();
+    const char* names[] = {"None", "DropOnly", "Full"};
+    std::printf("window drag support: %s\n", names[static_cast<int>(support)]);
+    CHECK(support != WindowDragSupport::None);
+    SDL_ResetHint(SDL_HINT_VIDEO_DRIVER);
 }
 
 TEST_CASE("The platform starts gamepad support")

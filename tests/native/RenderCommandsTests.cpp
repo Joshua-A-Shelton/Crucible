@@ -35,9 +35,9 @@ int32_t trampoline(uint64_t id, uint32_t call, StepFrame* frame)
 std::vector<std::string> scheduleNames()
 {
     std::vector<std::string> names;
-    for (uint32_t i = 0; i < stepCount(); ++i)
+    for (uint32_t i = 0; i < stepCount(0); ++i)
     {
-        names.emplace_back(stepName(i));
+        names.emplace_back(stepName(0, i));
     }
     return names;
 }
@@ -232,12 +232,12 @@ TEST_CASE("C# steps go into the schedule by name")
         return 0;
     };
     const std::vector<std::string> before = scheduleNames();
-    REQUIRE(insertManagedStep("Test.Last", 1, StepPlacement::Last, ""));
-    REQUIRE(insertManagedStep("Test.Before", 1, StepPlacement::Before, "Opaque"));
-    REQUIRE(insertManagedStep("Test.After", 1, StepPlacement::After, "Opaque"));
-    REQUIRE(insertManagedStep("Test.Replacement", 1, StepPlacement::Replacing, "Test.Last"));
-    CHECK(insertManagedStep("Test.Missing", 1, StepPlacement::After, "Nowhere").status() == Status::NotFound);
-    CHECK(insertManagedStep("Opaque", 1, StepPlacement::Last, "").status() == Status::InvalidData);
+    REQUIRE(insertManagedStep(0, "Test.Last", 1, StepPlacement::Last, ""));
+    REQUIRE(insertManagedStep(0, "Test.Before", 1, StepPlacement::Before, "Opaque"));
+    REQUIRE(insertManagedStep(0, "Test.After", 1, StepPlacement::After, "Opaque"));
+    REQUIRE(insertManagedStep(0, "Test.Replacement", 1, StepPlacement::Replacing, "Test.Last"));
+    CHECK(insertManagedStep(0, "Test.Missing", 1, StepPlacement::After, "Nowhere").status() == Status::NotFound);
+    CHECK(insertManagedStep(0, "Opaque", 1, StepPlacement::Last, "").status() == Status::InvalidData);
     std::vector<std::string> names = scheduleNames();
     const auto at = [&](const char* name) {
         return std::find(names.begin(), names.end(), name) - names.begin();
@@ -248,11 +248,35 @@ TEST_CASE("C# steps go into the schedule by name")
     CHECK(calls.empty()); // no renderer: prepared when it starts
     for (const char* name : {"Test.Before", "Test.After", "Test.Replacement"})
     {
-        REQUIRE(removeStep(name));
+        REQUIRE(removeStep(0, name));
     }
-    CHECK(removeStep("Test.Before").status() == Status::NotFound);
+    CHECK(removeStep(0, "Test.Before").status() == Status::NotFound);
     CHECK(scheduleNames() == before);
-    CHECK(stepName(stepCount()).empty());
+    CHECK(stepName(0, stepCount(0)).empty());
+    setStepTrampoline(0);
+}
+
+TEST_CASE("New schedules start with Clear and keep their own steps")
+{
+    setStepTrampoline(reinterpret_cast<uint64_t>(&trampoline));
+    bodies[2] = [](StepCall, StepFrame*) {
+        return 0;
+    };
+    const uint32_t schedule = createRenderSchedule();
+    REQUIRE(schedule != 0);
+    REQUIRE(stepCount(schedule) == 1);
+    CHECK(stepName(schedule, 0) == "Clear");
+    REQUIRE(insertManagedStep(schedule, "Test.UI", 2, StepPlacement::After, "Clear"));
+    CHECK(stepName(schedule, 1) == "Test.UI");
+    // The default's steps aren't there, and it doesn't have this one.
+    CHECK(insertManagedStep(schedule, "Test.Missing", 2, StepPlacement::After, "Opaque").status() == Status::NotFound);
+    const std::vector<std::string> defaults = scheduleNames();
+    CHECK(std::find(defaults.begin(), defaults.end(), "Test.UI") == defaults.end());
+
+    destroyRenderSchedule(schedule);
+    CHECK(stepCount(schedule) == 0); // stale: nothing
+    CHECK(insertManagedStep(schedule, "Test.UI", 2, StepPlacement::Last, "").status() == Status::NotFound);
+    CHECK(setSurfaceSchedule({}, 0).status() == Status::NotFound); // no such surface
     setStepTrampoline(0);
 }
 
@@ -292,7 +316,7 @@ TEST_SUITE("gpu")
 
             calls.clear();
             mistake = Mistake::None;
-            REQUIRE(insertManagedStep("Test.Probe", 1, StepPlacement::After, "Tonemap"));
+            REQUIRE(insertManagedStep(0, "Test.Probe", 1, StepPlacement::After, "Tonemap"));
             CHECK(calls == std::vector<std::string>{"Prepare"});
             CHECK(pipelineCount() == 2);
 
@@ -334,7 +358,7 @@ TEST_SUITE("gpu")
             CHECK(calls == std::vector<std::string>{"Release", "Prepare", "Release", "Prepare"});
 
             calls.clear();
-            REQUIRE(removeStep("Test.Probe"));
+            REQUIRE(removeStep(0, "Test.Probe"));
             CHECK(calls == std::vector<std::string>{"Release"});
             CHECK(pipelineCount() == 0);
 

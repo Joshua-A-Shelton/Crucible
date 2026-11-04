@@ -152,14 +152,20 @@ enum class CRUCIBLE_EXPOSE StepCall : uint32_t
 // The engine's C# entry for its steps: an [UnmanagedCallersOnly] method
 // taking (step ID, StepCall, StepFrame*) and returning an int32.
 CRUCIBLE_EXPOSE_INTERNAL void setStepTrampoline(uint64_t trampolineAddress);
-// Adds a C# step to the renderer's schedule, as RenderSchedule's add,
-// insertBefore, insertAfter, or replace; prepared now when the renderer runs.
-CRUCIBLE_EXPOSE_INTERNAL Result<void> insertManagedStep(std::string_view name, uint64_t id, StepPlacement placement,
-                                                        std::string_view anchor);
+// Schedules by ID (ADR 0066; RenderSchedule.h): 0 is the default. A new
+// one holds Clear only; destroying one releases its steps, and its surfaces
+// go back to the default.
+CRUCIBLE_EXPOSE_INTERNAL uint32_t createRenderSchedule();
+CRUCIBLE_EXPOSE_INTERNAL void destroyRenderSchedule(uint32_t schedule);
+// Adds a C# step to a schedule, as RenderSchedule's add, insertBefore,
+// insertAfter, or replace; prepared now when the renderer runs. NotFound for
+// an unknown schedule.
+CRUCIBLE_EXPOSE_INTERNAL Result<void> insertManagedStep(uint32_t schedule, std::string_view name, uint64_t id,
+                                                        StepPlacement placement, std::string_view anchor);
 // Any step, C++ or C#; a C# step's Release is called first.
-CRUCIBLE_EXPOSE_INTERNAL Result<void> removeStep(std::string_view name);
-CRUCIBLE_EXPOSE_INTERNAL uint32_t stepCount();
-CRUCIBLE_EXPOSE_INTERNAL std::string_view stepName(uint32_t index);
+CRUCIBLE_EXPOSE_INTERNAL Result<void> removeStep(uint32_t schedule, std::string_view name);
+CRUCIBLE_EXPOSE_INTERNAL uint32_t stepCount(uint32_t schedule);
+CRUCIBLE_EXPOSE_INTERNAL std::string_view stepName(uint32_t schedule, uint32_t index);
 
 // ---------------------------------------------------------------------------
 // One frame of a step (internal: RenderStepContext wraps these)

@@ -60,6 +60,11 @@ CRUCIBLE_EXPOSE Result<SurfaceHandle> createOffscreenSurface(uint32_t width, uin
 
 CRUCIBLE_EXPOSE void destroySurface(SurfaceHandle surface);
 
+// The render schedule the surface renders (ADR 0066), by ID
+// (RenderCommands.h's createSchedule; 0 for the default). NotFound for a
+// stale surface or an unknown schedule.
+CRUCIBLE_EXPOSE_INTERNAL Result<void> setSurfaceSchedule(SurfaceHandle surface, uint32_t schedule);
+
 // Copies an offscreen surface's last frame into `pixels`: rows top to bottom,
 // 4 bytes per pixel in B8G8R8A8 order, sRGB-encoded, tightly packed (width * 4
 // bytes per row). Waits for the GPU. InvalidData if `pixels` is too small,

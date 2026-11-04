@@ -25,45 +25,45 @@ public class RenderScheduleTests
     [Test]
     public async Task CSharpStepsAreEditedByNameAmongTheEnginesSteps()
     {
-        IReadOnlyList<string> before = RenderSchedule.StepNames;
+        IReadOnlyList<string> before = RenderSchedule.Default.StepNames;
         await Assert.That(before).Contains("Opaque");
         CountingStep step = new();
-        RenderSchedule.InsertBefore("Opaque", "Test.Before", step);
-        RenderSchedule.InsertAfter("Opaque", "Test.After", step);
-        RenderSchedule.Add("Test.Last", step);
-        RenderSchedule.Replace("Test.Last", "Test.Replacement", step);
+        RenderSchedule.Default.InsertBefore("Opaque", "Test.Before", step);
+        RenderSchedule.Default.InsertAfter("Opaque", "Test.After", step);
+        RenderSchedule.Default.Add("Test.Last", step);
+        RenderSchedule.Default.Replace("Test.Last", "Test.Replacement", step);
 
-        List<string> names = [.. RenderSchedule.StepNames];
+        List<string> names = [.. RenderSchedule.Default.StepNames];
         await Assert.That(names.IndexOf("Test.Before") + 1).IsEqualTo(names.IndexOf("Opaque"));
         await Assert.That(names.IndexOf("Test.After")).IsEqualTo(names.IndexOf("Opaque") + 1);
         await Assert.That(names[^1]).IsEqualTo("Test.Replacement");
         // No renderer: prepared when it starts.
         await Assert.That(step.Prepares).IsEqualTo(0);
 
-        CrucibleException duplicate = Assert.Throws<CrucibleException>(() => RenderSchedule.Add("Opaque", step));
+        CrucibleException duplicate = Assert.Throws<CrucibleException>(() => RenderSchedule.Default.Add("Opaque", step));
         await Assert.That(duplicate.Status).IsEqualTo(Status.InvalidData);
         CrucibleException missing =
-            Assert.Throws<CrucibleException>(() => RenderSchedule.InsertAfter("Nowhere", "Test.Lost", step));
+            Assert.Throws<CrucibleException>(() => RenderSchedule.Default.InsertAfter("Nowhere", "Test.Lost", step));
         await Assert.That(missing.Status).IsEqualTo(Status.NotFound);
 
         foreach (string name in new[] { "Test.Before", "Test.After", "Test.Replacement" })
         {
-            RenderSchedule.Remove(name);
+            RenderSchedule.Default.Remove(name);
         }
         await Assert.That(step.Releases).IsEqualTo(0);
-        CrucibleException gone = Assert.Throws<CrucibleException>(() => RenderSchedule.Remove("Test.Before"));
+        CrucibleException gone = Assert.Throws<CrucibleException>(() => RenderSchedule.Default.Remove("Test.Before"));
         await Assert.That(gone.Status).IsEqualTo(Status.NotFound);
-        await Assert.That(string.Join(",", RenderSchedule.StepNames)).IsEqualTo(string.Join(",", before));
+        await Assert.That(string.Join(",", RenderSchedule.Default.StepNames)).IsEqualTo(string.Join(",", before));
     }
 
     [Test]
     public async Task RemovingEveryCSharpStepLeavesTheEnginesSteps()
     {
-        IReadOnlyList<string> before = RenderSchedule.StepNames;
-        RenderSchedule.Add("Test.One", new CountingStep());
-        RenderSchedule.Add("Test.Two", new CountingStep());
+        IReadOnlyList<string> before = RenderSchedule.Default.StepNames;
+        RenderSchedule.Default.Add("Test.One", new CountingStep());
+        RenderSchedule.Default.Add("Test.Two", new CountingStep());
         RenderSchedule.RemoveAll();
-        await Assert.That(string.Join(",", RenderSchedule.StepNames)).IsEqualTo(string.Join(",", before));
+        await Assert.That(string.Join(",", RenderSchedule.Default.StepNames)).IsEqualTo(string.Join(",", before));
     }
 
     [Test]

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The editor's tests (ADR 0066). The editor runs on a JIT (ADR 0016),
+       so these do too; no NativeAOT variant. -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Crucible.Editor.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TUnit" Version="1.76.28" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../../src/managed/Crucible.Engine/Crucible.Engine.csproj" />
+    <ProjectReference Include="../../../src/managed/Crucible.Editor/Crucible.Editor.csproj" />
+    <ProjectReference Include="../../../tools/Crucible.Generators/Crucible.Generators.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>

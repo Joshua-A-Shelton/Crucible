@@ -58,7 +58,7 @@ public sealed class StyleChecks : GameSystem
         _root.Theme = Theme.Parse(ThemeJson);
         _root.Content = panel;
         _ = card;
-        RenderSchedule.InsertAfter("Tonemap", "UI", _root);
+        RenderSchedule.Default.InsertAfter("Tonemap", "UI", _root);
     }
 
     private static UIElement Box(AnchorPanel panel, string className, Vector2 position, Vector2 size)
@@ -119,7 +119,7 @@ public sealed class StyleChecks : GameSystem
             }
             Png.Write(capture, Width, Height, rgb);
         }
-        RenderSchedule.Remove("UI");
+        RenderSchedule.Default.Remove("UI");
         Console.WriteLine(_failures == 0
             ? $"StyleChecks: all {_checks} checks passed"
             : $"StyleChecks: {_failures} of {_checks} checks failed");

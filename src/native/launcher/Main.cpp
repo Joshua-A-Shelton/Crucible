@@ -1,5 +1,7 @@
 // The launcher: owns main(), platform and renderer setup, and shutdown, and
-// hands the frame to the engine's C# layer (ADR 0011).
+// hands the frame to the engine's C# layer (ADR 0011). Built twice: as the
+// game launcher, and as the editor launcher (CRUCIBLE_EDITOR_LAUNCHER, ADR
+// 0016, 0066), which loads the editor's assembly as its game.
 
 #include "CpuCheck.h"
 #include "EngineHost.h"
@@ -101,8 +103,10 @@ int run(int argc, ArgumentChar** argv)
     // --present-mode fifo|mailbox overrides ADR 0003's default, both for
     // measuring. --msaa 1|2|4|8 sets the MSAA sample count (ADR 0051);
     // --shadow-map-size N and --shadow-atlas-size N the shadow maps' sizes
-    // (ADR 0054).
+    // (ADR 0054). The editor launcher also takes --project <file>, the
+    // project to open (the editor's game argument project=).
     std::filesystem::path managedDirectory = executableDirectory();
+    bool gameGiven = false;
     slag::Backend backend = slag::InstanceDesc{}.backend;
     crucible::LaunchOptions options{};
     crucible::render::PresentPreference presentMode = crucible::render::PresentPreference::Default;
@@ -172,7 +176,17 @@ int run(int argc, ArgumentChar** argv)
             std::filesystem::path path = std::filesystem::absolute(std::filesystem::path(value), error);
             const std::u8string utf8 = (error ? std::filesystem::path(value) : path).u8string();
             crucible::setGamePath({reinterpret_cast<const char*>(utf8.data()), utf8.size()});
+            gameGiven = true;
         }
+#if defined(CRUCIBLE_EDITOR_LAUNCHER)
+        else if (option == CRUCIBLE_ARGUMENT("--project"))
+        {
+            std::error_code error;
+            const std::filesystem::path path = std::filesystem::absolute(std::filesystem::path(value), error);
+            const std::u8string utf8 = u8"project=" + (error ? std::filesystem::path(value) : path).u8string();
+            crucible::addGameArgument({reinterpret_cast<const char*>(utf8.data()), utf8.size()});
+        }
+#endif
         else if (option == CRUCIBLE_ARGUMENT("--game-arg"))
         {
             const std::u8string utf8 = std::filesystem::path(value).u8string();
@@ -207,6 +221,27 @@ int run(int argc, ArgumentChar** argv)
     {
         managedDirectory = absoluteDirectory;
     }
+#if defined(CRUCIBLE_EDITOR_LAUNCHER)
+    // The editor is the game: beside the engine's assemblies when shipped,
+    // else in the build tree's artifacts beside the engine's folder
+    // (bin/Crucible.Editor/<configuration>/).
+    if (!gameGiven)
+    {
+        const std::filesystem::path shipped = managedDirectory / "Crucible.Editor.dll";
+        const std::filesystem::path built = managedDirectory.parent_path().parent_path() / "Crucible.Editor" /
+                                            managedDirectory.filename() / "Crucible.Editor.dll";
+        const std::filesystem::path editor = std::filesystem::exists(shipped, error) ? shipped : built;
+        if (!std::filesystem::exists(editor, error))
+        {
+            std::fprintf(stderr, "crucible: the editor's assembly isn't beside the engine's (Crucible.Editor.dll)\n");
+            return 1;
+        }
+        const std::u8string utf8 = editor.u8string();
+        crucible::setGamePath({reinterpret_cast<const char*>(utf8.data()), utf8.size()});
+    }
+#else
+    (void)gameGiven;
+#endif
 
     // Platform, job system, and renderer setup and shutdown belong to the
     // launcher (ADR 0011), in that order and in reverse.

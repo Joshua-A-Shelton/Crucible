@@ -42,7 +42,7 @@ public sealed class CanvasChecks : GameSystem
         // 2x2 sRGB: red, green / blue, white.
         _texture = Render.Api.LoadTexture(TextureFile(2, 2, [255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 255, 255]));
         Draw();
-        RenderSchedule.InsertAfter("Tonemap", "UI", _canvas);
+        RenderSchedule.Default.InsertAfter("Tonemap", "UI", _canvas);
     }
 
     private void Draw()
@@ -134,7 +134,7 @@ public sealed class CanvasChecks : GameSystem
             }
             Png.Write(capture, Width, Height, rgb);
         }
-        RenderSchedule.Remove("UI");
+        RenderSchedule.Default.Remove("UI");
         _exact?.Dispose();
         _field?.Dispose();
         Fonts.Unload(_font);

@@ -84,6 +84,7 @@ struct Surface
     // after a skipped frame there's nothing to wait for.
     bool presentedLastFrame = false;
     GpuTimer* gpuTimer = nullptr; // only while the latency harness runs
+    uint32_t schedule = 0;        // its render schedule's ID (ADR 0066); 0 the default
 };
 
 struct Renderer
@@ -360,11 +361,13 @@ Result<void> renderWithGraph(Surface& surface, slag::Texture* texture, slag::Att
     {
         return begun;
     }
-    if (Result<void> added =
-            addStepPasses({graph, *renderer.device, surface.width, surface.height, surface.submitted + 1, color,
-                           backbuffer, graph.importBuffer(viewBuffer),
-                           graph.importBuffer(lightBuffer(*surface.lights, frameSlot)), constants, draws.value(), world,
-                           drawDescriptorBase(*surface.draws), shadows, *surface.draws, *surface.managed, frameSlot});
+    // A destroyed schedule leaves its surfaces on the default.
+    const RenderSchedule* schedule = scheduleById(surface.schedule);
+    if (Result<void> added = addStepPasses(
+            {graph, *renderer.device, surface.width, surface.height, surface.submitted + 1, color, backbuffer,
+             graph.importBuffer(viewBuffer), graph.importBuffer(lightBuffer(*surface.lights, frameSlot)), constants,
+             draws.value(), world, drawDescriptorBase(*surface.draws), shadows, *surface.draws, *surface.managed,
+             frameSlot, schedule != nullptr ? *schedule : renderSchedule()});
         !added)
     {
         return added;
@@ -501,7 +504,7 @@ Result<void> initialize(slag::Backend backend, PresentPreference presentMode)
         return started;
     }
     // The render steps' pipelines, created now, never during frames (ADR 0025).
-    if (Result<void> prepared = renderSchedule().prepareAll(*device); !prepared)
+    if (Result<void> prepared = prepareSchedules(*device); !prepared)
     {
         std::fprintf(stderr, "crucible: the render steps could not be prepared\n");
         shutdown();
@@ -532,7 +535,7 @@ void shutdown()
         stopGlyphUpload();
         stopAssets();
         stopMaterials();
-        renderSchedule().releaseAll();
+        releaseSchedules();
         renderer.device->shutdown();
     }
     if (renderer.instance != nullptr)
@@ -657,6 +660,17 @@ Result<SurfaceHandle> createOffscreenSurface(uint32_t width, uint32_t height)
 
     *slot = surface;
     return handleOf(slot);
+}
+
+Result<void> setSurfaceSchedule(SurfaceHandle surface, uint32_t schedule)
+{
+    Surface* slot = find(surface);
+    if (slot == nullptr || scheduleById(schedule) == nullptr)
+    {
+        return Status::NotFound;
+    }
+    slot->schedule = schedule;
+    return {};
 }
 
 void destroySurface(SurfaceHandle surface)

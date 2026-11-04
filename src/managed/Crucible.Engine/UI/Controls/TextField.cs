@@ -23,9 +23,8 @@ public class TextField : UIElement
         "SelectionColor", new Vector4(0.3f, 0.55f, 0.95f, 0.45f), Invalidates.Visual, StyleValues.ReadColor,
         StyleValues.LerpColor);
 
-    // SDL scancodes (SDL_scancode.h): by position, so shortcuts sit where
-    // QWERTY has them on any layout.
-    private const int ScancodeA = 4, ScancodeC = 6, ScancodeV = 25, ScancodeX = 27, ScancodeY = 28, ScancodeZ = 29;
+    // SDL scancodes (SDL_scancode.h) for the editing keys, which stay put
+    // between layouts; shortcuts go by keycode (ADR 0066).
     private const int ScancodeReturn = 40, ScancodeEscape = 41, ScancodeBackspace = 42, ScancodeTab = 43;
     private const int ScancodeHome = 74, ScancodeDelete = 76, ScancodeEnd = 77;
     private const int ScancodeRight = 79, ScancodeLeft = 80, ScancodeDown = 81, ScancodeUp = 82, ScancodeKeypadEnter = 88;
@@ -356,6 +355,11 @@ public class TextField : UIElement
     protected override void OnKeyDown(KeyEvent e)
     {
         bool ctrl = (e.Modifiers & KeyModifiers.Ctrl) != 0, shift = (e.Modifiers & KeyModifiers.Shift) != 0;
+        if (ctrl && Shortcut(e.Keycode, shift))
+        {
+            e.Handled = true;
+            return;
+        }
         switch (e.Scancode)
         {
             case ScancodeLeft:
@@ -414,36 +418,6 @@ public class TextField : UIElement
                 break;
             case ScancodeTab:
                 return;
-            case ScancodeA when ctrl:
-                SelectAll();
-                break;
-            case ScancodeC when ctrl:
-            case ScancodeX when ctrl:
-                if (_caret != _anchor)
-                {
-                    Clipboard.Text = SelectedText;
-                    if (e.Scancode == ScancodeX)
-                    {
-                        Insert("", EditKind.Other);
-                    }
-                }
-                break;
-            case ScancodeV when ctrl:
-                Insert(Clipboard.Text, EditKind.Other);
-                break;
-            case ScancodeZ when ctrl:
-                if (shift)
-                {
-                    Redo();
-                }
-                else
-                {
-                    Undo();
-                }
-                break;
-            case ScancodeY when ctrl:
-                Redo();
-                break;
             default:
                 if ((e.Modifiers & (KeyModifiers.Ctrl | KeyModifiers.Alt | KeyModifiers.Gui)) != 0)
                 {
@@ -454,6 +428,40 @@ public class TextField : UIElement
         // Every other key is the field's too: its characters arrive as text,
         // and Space mustn't activate anything.
         e.Handled = true;
+    }
+
+    // Ctrl+A, C, X, V, Z, Shift+Z, and Y, by the keys' labels; false for others.
+    private bool Shortcut(uint keycode, bool shift)
+    {
+        switch (keycode)
+        {
+            case Keycode.A:
+                SelectAll();
+                return true;
+            case Keycode.C:
+            case Keycode.X:
+                if (_caret != _anchor)
+                {
+                    Clipboard.Text = SelectedText;
+                    if (keycode == Keycode.X)
+                    {
+                        Insert("", EditKind.Other);
+                    }
+                }
+                return true;
+            case Keycode.V:
+                Insert(Clipboard.Text, EditKind.Other);
+                return true;
+            case Keycode.Z when shift:
+            case Keycode.Y:
+                Redo();
+                return true;
+            case Keycode.Z:
+                Undo();
+                return true;
+            default:
+                return false;
+        }
     }
 
     // -----------------------------------------------------------------------

@@ -855,7 +855,30 @@ void addTonemap(RenderStepContext& context, void*)
         });
 }
 
+// A new schedule's first step (ADR 0066): the backbuffer cleared to
+// renderFrame's color, for schedules without the scene's steps.
+void addClear(RenderStepContext& context, void*)
+{
+    const slag::rendergraph::RenderGraphTexture backbuffer = context.texture(backbufferKey());
+    slag::ClearValue clear{};
+    for (int c = 0; c < 4; ++c)
+    {
+        clear.color[c] = context.clearColor[c];
+    }
+    context.graph.addPass(
+        "Clear", slag::CommandQueueType::Graphics,
+        [&](slag::rendergraph::PassBuilder& pass) {
+            pass.renderTarget(backbuffer, slag::LoadOp::Clear, slag::StoreOp::Store, clear);
+        },
+        [](slag::rendergraph::PassContext&, slag::CommandBuffer*) {});
+}
+
 } // namespace
+
+void addClearStep(RenderSchedule& schedule)
+{
+    (void)schedule.add({.name = "Clear", .addPasses = addClear});
+}
 
 void addDefaultSteps(RenderSchedule& schedule)
 {

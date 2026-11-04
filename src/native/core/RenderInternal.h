@@ -98,7 +98,16 @@ struct FrameInputs
     const DrawState& drawState;
     ManagedState& managed;
     uint32_t frameSlot;
+    const RenderSchedule& schedule; // the surface's (ADR 0066)
 };
+
+// Every schedule's steps, prepared when the renderer starts and released when
+// it stops (RenderSchedule.cpp).
+Result<void> prepareSchedules(slag::GraphicsDevice& device);
+void releaseSchedules();
+
+// The Clear step every new schedule starts with (RenderSteps.cpp).
+void addClearStep(RenderSchedule& schedule);
 
 // Runs every step of the schedule for one frame. InvalidData (already
 // reported) when a step read a blackboard entry no one published.

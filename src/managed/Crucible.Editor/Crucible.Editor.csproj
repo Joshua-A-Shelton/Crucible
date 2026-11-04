@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The editor (ADR 0016, 0066): C#, loaded by crucible_editor as the
+       launcher loads a game, so JIT only. An editor assembly (ADR 0002): it
+       references the engine and the asset pipeline, never the reverse. -->
+
+  <PropertyGroup>
+    <RootNamespace>Crucible.Editor</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <!-- The asset pipeline's packages beside the editor (Dependencies.cs). -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Crucible.Editor.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The editor's font: Noto Sans (SIL Open Font License, Fonts/OFL.txt). -->
+    <None Include="Fonts/NotoSans-Regular.ttf;Fonts/OFL.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The Diorama's PNG writer, for the editor check's capture. -->
+    <Compile Include="../../../samples/Diorama/Png.cs" Link="Png.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Crucible.Engine/Crucible.Engine.csproj" Private="false" />
+    <ProjectReference Include="../Crucible.Assets/Crucible.Assets.csproj" />
+    <ProjectReference Include="../../../tools/Crucible.Generators/Crucible.Generators.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>

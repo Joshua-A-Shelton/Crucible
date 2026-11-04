@@ -83,7 +83,7 @@ public sealed class ControlsChecks : GameSystem
         page.Add(column);
         page.Add(second);
         _root.Content = page;
-        RenderSchedule.InsertAfter("Tonemap", "UI", _root);
+        RenderSchedule.Default.InsertAfter("Tonemap", "UI", _root);
     }
 
     public override void Run(FrameContext context)
@@ -163,7 +163,7 @@ public sealed class ControlsChecks : GameSystem
             Png.Write(capture, Width, Height, rgb);
         }
         _combo.Popup.Close();
-        RenderSchedule.Remove("UI");
+        RenderSchedule.Default.Remove("UI");
         _root.Content = null;
         Fonts.Unload(_font);
         Render.Api.UnloadTexture(_texture);

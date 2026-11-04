@@ -26,6 +26,17 @@ is, and record which version fixed it.
   shaper (`hb-ot-shaper-use.cc`, release builds, GCC 16.2) is silenced for that
   target. Recheck with each HarfBuzz or GCC update. → 0057
 
+- **SDL's Wayland data device is patched** (`cmake/PatchSdl.cmake`) to
+  leave Crucible's window drags alone; without it, its decline cancels
+  our drops (the compositor takes the last answer from an app's data
+  devices). On each SDL update, check the patch still applies and is
+  still needed (an SDL hook for app-defined drag types would replace it),
+  and try a tear-off and dock-back on Wayland by hand. → 0066
+- **`xdg-toplevel-drag-v1` is a staging protocol** (wayland-protocols
+  1.45, vendored): check for a stable version, and that KWin, GNOME, and
+  wlroots compositors still offer it (`CRUCIBLE_TEST_WAYLAND=1` native
+  test prints what the desktop has). → 0066
+
 ## Needs a decision from the project owner
 
 - Final names of the default phases (the list is ADR 0036's). → 0013, 0036 [M3]
@@ -39,11 +50,6 @@ is, and record which version fixed it.
 
 ## Revisit once there is a prototype to test against
 
-- **Shortcuts by key position:** keys reach the UI as scancodes, so the
-  text fields' Ctrl+Z, C, X, V, A, and Y sit where QWERTY has them on any
-  layout (on AZERTY, Ctrl+Z is the key marked W). Send SDL's keycodes in
-  `InputEvent` too and match shortcuts by them; decide before the editor's
-  own shortcuts (M7 step 2). → 0065
 
 - **`launcher.jit.particles` failed twice on Windows** (debug, in full
   parallel runs, 2026-11-03: during M6 steps 3 and 8), each time with its

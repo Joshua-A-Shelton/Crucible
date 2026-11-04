@@ -150,6 +150,27 @@ public sealed partial class Theme
         theme.Add(new Style("TextField:focus").Set(UIElement.BorderColorProperty, accent).Set(UIElement.BorderWidthProperty, 2f));
         theme.Add(new Style("TextField:disabled").Set(UIElement.OpacityProperty, 0.45f));
         theme.Add(new Style("NumberField").Set(UIElement.MinWidthProperty, 80f));
+
+        // Menus (ADR 0066): rows that light up under the pointer, a muted
+        // shortcut column, the bar a strip of plain titles.
+        theme.Add(new Style("MenuBar")
+            .Set(UIElement.BackgroundProperty, well)
+            .Set(UIElement.PaddingProperty, new Thickness(4, 2, 4, 2)));
+        theme.Add(new Style("Menu").Set(UIElement.MinWidthProperty, 180f));
+        theme.Add(new Style("MenuItem")
+            .Set(UIElement.PaddingProperty, new Thickness(8, 5, 10, 5))
+            .Set(UIElement.CornerRadiiProperty, new Vector4(4))
+            .Set(UIElement.ForegroundProperty, text));
+        theme.Add(new Style("MenuItem.bar").Set(UIElement.PaddingProperty, new Thickness(10, 4, 10, 4)));
+        theme.Add(new Style("MenuItem:hover").Set(UIElement.BackgroundProperty, hover));
+        theme.Add(new Style("MenuItem:focus").Set(UIElement.BackgroundProperty, hover));
+        theme.Add(new Style("MenuItem.open").Set(UIElement.BackgroundProperty, hover));
+        theme.Add(new Style("MenuItem:disabled").Set(UIElement.OpacityProperty, 0.45f));
+        theme.Add(new Style("MenuSeparator")
+            .Set(UIElement.HeightProperty, 1f)
+            .Set(UIElement.MarginProperty, new Thickness(6, 4, 6, 4))
+            .Set(UIElement.BackgroundProperty, edge));
+        theme.Add(new Style("Label.shortcut").Set(UIElement.ForegroundProperty, muted));
         return theme;
     }
 

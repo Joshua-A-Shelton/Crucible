@@ -310,3 +310,24 @@ the rest as drafted.
 | `TextField` (`Text`, `Multiline`, `CaretColor`, `SelectionColor`, `CaretIndex`, `SelectionStart`, `SelectionLength`, `SelectedText`, `Select`, `SelectAll`, `Undo`, `Redo`, `Layout`, `Commit`, `IsEdited`, `OnTextChanged`) | The text field's members |
 | `NumberField` (`Value`, `Minimum`, `Maximum`, `Step`, `ValueChanged`, `Format`) | The number field's members |
 | `TextFieldChecks`, CTest `launcher.jit.textfields`, `textfields.png`; `docs/learning/text-editing.md` | The test and the note |
+
+## The editor shell (2026-11-04, M7 step 2)
+
+Settled by the owner, the alternatives where offered (`DockSpace`,
+`DockGroup`, `EditorPanel`, `Shortcut`); the rest as drafted. Names added
+while building are placeholders until settled (marked *).
+
+| Name | What it is |
+|---|---|
+| `crucible_editor`, `Crucible.Editor`, `--project` | The editor launcher and assembly (ADR 0066) |
+| `EditorSettings` (`RecentProjects`, `Layout`, `Load`, `Save`, `AddRecentProject`*, `DefaultPath`*, `MaxRecentProjects`*), `editor.json` | The user's settings |
+| `DockSpace` (`Node`*, `Groups`*, `Panels`*, `LargestGroup`*, `Dock`*, `Take`*, `TargetAt`*, `ShowPreview`*), `DockSplit` (`Orientation`, `Sizes`, `Nodes`*, `Insert`*, `Add`*, `Remove`*, `SetSize`*), `DockGroup` (`Panels`*, `ActivePanel`*, `Add`*, `Activate`*, `Space`*), `DockTab` (`Panel`*), `Splitter` (`Thickness`*), `DockTarget` (`Left`, `Right`, `Top`, `Bottom`, `Center`) | Docking |
+| `EditorPanel` (`Id`, `Title`, `Group`*), `PanelRegistry` (`Register`*, `Create`*, `Contains`*, `Panels`*), `HierarchyPanel`, `InspectorPanel`, `ViewportPanel`, `AssetsPanel`, `LogPanel` (`Add`*, `LineCount`*), `PlaceholderPanel`* | Panels |
+| `EditorWindow` (`Window`*, `Surface`*, `IsMain`*, `Root`*, `DockSpace`*, `MenuBar`*, `StatusBar`*), `StatusBar` (`Text`*), the tab menu's "Dock to Main Window" | Windows |
+| `MenuBar` (`Add`*, `Menus`*), `Menu` (`Title`*, `Items`*, `Add`*, `AddSeparator`*, `Close`*, `IsOpen`*), `MenuItem` (`IsChecked`, `Shortcut`, `Title`*, `Command`*, `Submenu`*, `Clicked`*; classes `bar`*, `open`*), `MenuSeparator`, `ContextMenu` (`Open`*), `Popup.Position`* | Menus |
+| `Command` (`Id`, `Title`, `Execute`, `CanExecute`, `Shortcut`*, `IsChecked`*), `CommandRegistry` (`Add`*, `Remove`*, `Find`*, `HandleShortcut`*, `Commands`*), `Shortcut` (`Modifiers`*, `Keycode`*, `Matches`*); command IDs `File.OpenProject`*, `File.Quit`*, `Edit.Undo`*, `Edit.Redo`*, `Window.<panel>`*, `Window.ResetLayout`*, `Help.About`* | Commands |
+| Platform `InputEvent::keycode`, C# `Keycode` (`A` … `Z`, `D0` … `D9`, `F1` … `F12`, `Return`*, `Escape`*, `Backspace`*, `Tab`*, `Space`*, `Delete`*, `Name`*), `KeyEvent.Keycode` | Keycodes |
+| Events `DragMoved`, `DragDropped`, `DragCanceled`, `FileDialogResult`; `WindowDragSupport` (`None`, `DropOnly`, `Full`); `windowDragSupport`, `startWindowDrag`, `stopWindowDrag`, `windowPosition`, `setWindowPosition`, `pointerScreenPosition`, `showOpenFileDialog`, `preferencesPath` | The platform |
+| `RenderSchedule` (an object: `Create`, `Default`, `Add`, `InsertBefore`, `InsertAfter`, `Replace`, `Remove`, `SetSurfaceSchedule`, `Dispose`), `setSurfaceSchedule`, `createRenderSchedule`*, `destroyRenderSchedule`*, the step `Clear`* | Render schedules |
+| `EditorChecks`, CTest `launcher.jit.editor`, `editor.png`; `DockingTests`, `MenuTests`; `Crucible.Editor.Tests`*; `docs/learning/docking-and-windows.md` | Tests and the note |
+

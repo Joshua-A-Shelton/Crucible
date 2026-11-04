@@ -833,8 +833,24 @@ void setStepTrampoline(uint64_t trampolineAddress)
     stepTrampoline = reinterpret_cast<StepTrampoline>(static_cast<uintptr_t>(trampolineAddress));
 }
 
-Result<void> insertManagedStep(std::string_view name, uint64_t id, StepPlacement placement, std::string_view anchor)
+uint32_t createRenderSchedule()
 {
+    return createSchedule();
+}
+
+void destroyRenderSchedule(uint32_t schedule)
+{
+    destroySchedule(schedule);
+}
+
+Result<void> insertManagedStep(uint32_t scheduleId, std::string_view name, uint64_t id, StepPlacement placement,
+                               std::string_view anchor)
+{
+    RenderSchedule* found = scheduleById(scheduleId);
+    if (found == nullptr)
+    {
+        return Status::NotFound;
+    }
     Vector<char> terminatedName{MemoryTag::Render};
     terminated(name, terminatedName);
     const RenderStep step{.name = terminatedName.data(),
@@ -842,7 +858,7 @@ Result<void> insertManagedStep(std::string_view name, uint64_t id, StepPlacement
                           .userData = reinterpret_cast<void*>(static_cast<uintptr_t>(id)),
                           .prepare = prepareManagedStep,
                           .release = releaseManagedStep};
-    RenderSchedule& schedule = renderSchedule();
+    RenderSchedule& schedule = *found;
     switch (placement)
     {
     case StepPlacement::Last:
@@ -857,20 +873,22 @@ Result<void> insertManagedStep(std::string_view name, uint64_t id, StepPlacement
     return Status::InvalidData;
 }
 
-Result<void> removeStep(std::string_view name)
+Result<void> removeStep(uint32_t schedule, std::string_view name)
 {
-    return renderSchedule().remove(name);
+    RenderSchedule* found = scheduleById(schedule);
+    return found != nullptr ? found->remove(name) : Result<void>(Status::NotFound);
 }
 
-uint32_t stepCount()
+uint32_t stepCount(uint32_t schedule)
 {
-    return renderSchedule().stepCount();
+    const RenderSchedule* found = scheduleById(schedule);
+    return found != nullptr ? found->stepCount() : 0;
 }
 
-std::string_view stepName(uint32_t index)
+std::string_view stepName(uint32_t schedule, uint32_t index)
 {
-    const RenderSchedule& schedule = renderSchedule();
-    return index < schedule.stepCount() ? schedule.stepName(index) : std::string_view();
+    const RenderSchedule* found = scheduleById(schedule);
+    return found != nullptr && index < found->stepCount() ? found->stepName(index) : std::string_view();
 }
 
 // ---------------------------------------------------------------------------

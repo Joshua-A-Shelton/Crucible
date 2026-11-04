@@ -130,7 +130,7 @@ public sealed class TestGameEntry : IGameEntry
         }
     }
 
-    public void AddRenderStep() => RenderSchedule.Add("TestGame.Step", new GameStep());
+    public void AddRenderStep() => RenderSchedule.Default.Add("TestGame.Step", new GameStep());
 
     // The version, if the parallel sum of i² for i < 1000 is right, both as
     // a job and through ECS chunks.

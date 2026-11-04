@@ -114,7 +114,7 @@ public class HotReloadTests
     public async Task ARenderStepLeftInTheScheduleDoesntKeepTheGameLoaded()
     {
         WeakReference context = AddStepAndUnload(TestGame("v1"));
-        await Assert.That(RenderSchedule.StepNames).DoesNotContain("TestGame.Step");
+        await Assert.That(RenderSchedule.Default.StepNames).DoesNotContain("TestGame.Step");
         await Assert.That(GameLoader.WaitForUnload(context)).IsTrue();
     }
 
@@ -123,7 +123,7 @@ public class HotReloadTests
     {
         LoadedGame game = GameLoader.Load(path);
         Call(game.Entry, "AddRenderStep");
-        if (!RenderSchedule.StepNames.Contains("TestGame.Step"))
+        if (!RenderSchedule.Default.StepNames.Contains("TestGame.Step"))
         {
             throw new InvalidOperationException("The game's step isn't in the schedule");
         }

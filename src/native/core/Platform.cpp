@@ -1,3 +1,5 @@
+#include "PlatformInternal.h"
+
 #include <crucible/Platform.h>
 #include <crucible/SmallVector.h>
 #include <crucible/Vector.h>
@@ -39,6 +41,47 @@ Vector<char>& clipboard()
 {
     static Vector<char> text(MemoryTag::Platform);
     return text;
+}
+
+// SDL event types of the platform's own: window drags and file dialogs'
+// results, queued with SDL's events so they keep their order.
+uint32_t dragEventType = 0;
+uint32_t dialogEventType = 0;
+
+// A window drag tracked with SDL (Windows, X11): the pointer on the desktop,
+// the dragged window moved with it, our window under it.
+struct SdlDrag
+{
+    bool active = false;
+    SDL_WindowID dragged = 0;
+    float offsetX = 0.0f; // window coordinates
+    float offsetY = 0.0f;
+    SDL_WindowID over = 0;
+    float x = -1.0f; // the last position reported, desktop coordinates
+    float y = -1.0f;
+};
+
+SdlDrag sdlDrag;
+
+// preferencesPath's copy of SDL's.
+Vector<char>& preferences()
+{
+    static Vector<char> path(MemoryTag::Platform);
+    return path;
+}
+
+// The open dialog's filter, kept until its answer comes.
+struct DialogFilter
+{
+    Vector<char> name{MemoryTag::Platform};
+    Vector<char> pattern{MemoryTag::Platform};
+    SDL_DialogFileFilter filter{};
+};
+
+DialogFilter& dialogFilter()
+{
+    static DialogFilter filter;
+    return filter;
 }
 
 // The gamepads opened (SDL sends a pad's events only once it's open).
@@ -83,6 +126,15 @@ SDL_Window* find(WindowHandle window)
     return window.value == 0 ? nullptr : SDL_GetWindowFromID(window.value);
 }
 
+// Physical pixels per SDL window coordinate: 1 on Windows and X11, the
+// scale on Wayland, where window coordinates are logical (ADR 0066).
+float pixelDensity(SDL_WindowID id)
+{
+    SDL_Window* window = SDL_GetWindowFromID(id);
+    const float density = window != nullptr ? SDL_GetWindowPixelDensity(window) : 0.0f;
+    return density > 0.0f ? density : 1.0f;
+}
+
 // Translates one SDL event; returns false for events Crucible doesn't use.
 bool translate(const SDL_Event& event, InputEvent& out)
 {
@@ -110,30 +162,38 @@ bool translate(const SDL_Event& event, InputEvent& out)
         out.code = static_cast<int32_t>(event.key.scancode);
         out.value = event.key.repeat ? 1 : 0;
         out.modifiers = modifiersOf(event.key.mod);
+        out.keycode = event.key.key;
         return true;
     case SDL_EVENT_MOUSE_MOTION:
+    {
         out.type = InputEventType::MouseMotion;
         out.window.value = event.motion.windowID;
-        out.x = event.motion.x;
-        out.y = event.motion.y;
-        out.dx = event.motion.xrel;
-        out.dy = event.motion.yrel;
+        const float density = pixelDensity(event.motion.windowID);
+        out.x = event.motion.x * density;
+        out.y = event.motion.y * density;
+        out.dx = event.motion.xrel * density;
+        out.dy = event.motion.yrel * density;
         return true;
+    }
     case SDL_EVENT_MOUSE_BUTTON_DOWN:
     case SDL_EVENT_MOUSE_BUTTON_UP:
+    {
         out.type =
             event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ? InputEventType::MouseButtonDown : InputEventType::MouseButtonUp;
         out.window.value = event.button.windowID;
         out.code = event.button.button;
-        out.x = event.button.x;
-        out.y = event.button.y;
+        const float density = pixelDensity(event.button.windowID);
+        out.x = event.button.x * density;
+        out.y = event.button.y * density;
         return true;
+    }
     case SDL_EVENT_MOUSE_WHEEL:
     {
         out.type = InputEventType::MouseWheel;
         out.window.value = event.wheel.windowID;
-        out.x = event.wheel.mouse_x;
-        out.y = event.wheel.mouse_y;
+        const float density = pixelDensity(event.wheel.windowID);
+        out.x = event.wheel.mouse_x * density;
+        out.y = event.wheel.mouse_y * density;
         const float flip = event.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -1.0f : 1.0f;
         out.dx = event.wheel.x * flip;
         out.dy = event.wheel.y * flip;
@@ -187,6 +247,31 @@ bool translate(const SDL_Event& event, InputEvent& out)
         out.x = SDL_GetWindowDisplayScale(SDL_GetWindowFromID(event.window.windowID));
         return true;
     default:
+        if (dragEventType != 0 && event.type == dragEventType)
+        {
+            out.type = static_cast<InputEventType>(event.user.code);
+            out.window.value = event.user.windowID;
+            const auto x = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(event.user.data1));
+            const auto y = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(event.user.data2));
+            std::memcpy(&out.x, &x, sizeof(float));
+            std::memcpy(&out.y, &y, sizeof(float));
+            return true;
+        }
+        if (dialogEventType != 0 && event.type == dialogEventType)
+        {
+            // The path SDL_strdup'd on the dialog's thread, into the polled text.
+            out.type = InputEventType::FileDialogResult;
+            const char* path = static_cast<const char*>(event.user.data1);
+            const size_t length = path != nullptr ? std::strlen(path) : 0;
+            out.code = static_cast<int32_t>(polled().size());
+            out.value = static_cast<int32_t>(length);
+            for (size_t i = 0; i < length; ++i)
+            {
+                polled().pushBack(path[i]);
+            }
+            SDL_free(event.user.data1);
+            return true;
+        }
         if (markers.eventType != 0 && event.type == markers.eventType)
         {
             out.type = InputEventType::LatencyMarker;
@@ -197,7 +282,107 @@ bool translate(const SDL_Event& event, InputEvent& out)
     }
 }
 
+// Our window under a desktop point, leaving out the dragged one; 0 for none.
+SDL_WindowID windowAt(float x, float y, SDL_WindowID except)
+{
+    int count = 0;
+    SDL_Window** windows = SDL_GetWindows(&count);
+    SDL_WindowID found = 0;
+    for (int i = 0; i < count && found == 0; ++i)
+    {
+        int left = 0, top = 0, width = 0, height = 0;
+        const SDL_WindowID id = SDL_GetWindowID(windows[i]);
+        if (id == except || (SDL_GetWindowFlags(windows[i]) & (SDL_WINDOW_HIDDEN | SDL_WINDOW_MINIMIZED)) != 0 ||
+            !SDL_GetWindowPosition(windows[i], &left, &top) || !SDL_GetWindowSize(windows[i], &width, &height))
+        {
+            continue;
+        }
+        if (x >= left && y >= top && x < left + width && y < top + height)
+        {
+            found = id;
+        }
+    }
+    SDL_free(windows);
+    return found;
+}
+
+// Each poll during an SDL drag: the dragged window follows the pointer, and
+// the window under it hears where it is, until the button is released.
+void trackSdlDrag()
+{
+    if (!sdlDrag.active)
+    {
+        return;
+    }
+    float x = 0.0f, y = 0.0f;
+    const SDL_MouseButtonFlags buttons = SDL_GetGlobalMouseState(&x, &y);
+    if (SDL_Window* dragged = SDL_GetWindowFromID(sdlDrag.dragged))
+    {
+        SDL_SetWindowPosition(dragged, static_cast<int>(x - sdlDrag.offsetX), static_cast<int>(y - sdlDrag.offsetY));
+    }
+    const SDL_WindowID over = windowAt(x, y, sdlDrag.dragged);
+    int left = 0, top = 0;
+    if (over != 0)
+    {
+        SDL_GetWindowPosition(SDL_GetWindowFromID(over), &left, &top);
+    }
+    const float density = pixelDensity(over);
+    const float localX = (x - static_cast<float>(left)) * density, localY = (y - static_cast<float>(top)) * density;
+    if ((buttons & SDL_BUTTON_LMASK) == 0)
+    {
+        sdlDrag.active = false;
+        if (over != 0)
+        {
+            pushDragEvent(InputEventType::DragDropped, over, localX, localY);
+        }
+        else
+        {
+            pushDragEvent(InputEventType::DragCanceled, 0, 0.0f, 0.0f);
+        }
+        return;
+    }
+    if (over != sdlDrag.over || x != sdlDrag.x || y != sdlDrag.y)
+    {
+        sdlDrag.over = over;
+        sdlDrag.x = x;
+        sdlDrag.y = y;
+        pushDragEvent(InputEventType::DragMoved, over, localX, localY);
+    }
+}
+
+bool sdlDrivesDrags()
+{
+    const char* driver = SDL_GetCurrentVideoDriver();
+    return driver != nullptr && (std::strcmp(driver, "windows") == 0 || std::strcmp(driver, "x11") == 0);
+}
+
+// The dialog's answer, on whatever thread SDL calls it from.
+void SDLCALL dialogAnswered(void*, const char* const* files, int)
+{
+    SDL_Event event{};
+    event.type = dialogEventType;
+    event.user.data1 = files != nullptr && files[0] != nullptr ? SDL_strdup(files[0]) : nullptr;
+    if (!SDL_PushEvent(&event))
+    {
+        SDL_free(event.user.data1);
+    }
+}
+
 } // namespace
+
+void pushDragEvent(InputEventType type, SDL_WindowID window, float x, float y)
+{
+    SDL_Event event{};
+    event.type = dragEventType;
+    event.user.code = static_cast<Sint32>(type);
+    event.user.windowID = window;
+    uint32_t bits = 0;
+    std::memcpy(&bits, &x, sizeof(float));
+    event.user.data1 = reinterpret_cast<void*>(static_cast<uintptr_t>(bits));
+    std::memcpy(&bits, &y, sizeof(float));
+    event.user.data2 = reinterpret_cast<void*>(static_cast<uintptr_t>(bits));
+    (void)SDL_PushEvent(&event);
+}
 
 Result<void> initialize()
 {
@@ -212,6 +397,12 @@ Result<void> initialize()
         std::fprintf(stderr, "crucible: SDL_Init failed: %s\n", SDL_GetError());
         return Status::Unsupported;
     }
+    const uint32_t types = SDL_RegisterEvents(2);
+    dragEventType = types != 0 ? types : 0;
+    dialogEventType = types != 0 ? types + 1 : 0;
+#if defined(CRUCIBLE_PLATFORM_WAYLAND)
+    wayland::start();
+#endif
     // Gamepads are optional: without them the UI works by mouse and keyboard.
     if (!SDL_InitSubSystem(SDL_INIT_GAMEPAD))
     {
@@ -232,8 +423,14 @@ void shutdown()
             slot = nullptr;
         }
     }
+    sdlDrag = SdlDrag{};
+#if defined(CRUCIBLE_PLATFORM_WAYLAND)
+    wayland::stop();
+#endif
     // Their memory goes back with the platform's, not at exit.
     polled() = Vector<char>(MemoryTag::Platform);
+    preferences() = Vector<char>(MemoryTag::Platform);
+    dialogFilter() = DialogFilter{};
     clipboard() = Vector<char>(MemoryTag::Platform);
     SDL_Quit();
 }
@@ -289,6 +486,13 @@ float windowDisplayScale(WindowHandle window)
 uint32_t pollEvents(std::span<InputEvent> events)
 {
     polled().clear();
+    // Drag events go into SDL's queue first, after SDL has read the
+    // display's events (ours included, which our queue holds).
+    SDL_PumpEvents();
+#if defined(CRUCIBLE_PLATFORM_WAYLAND)
+    wayland::dispatch();
+#endif
+    trackSdlDrag();
     uint32_t count = 0;
     SDL_Event event;
     while (count < events.size() && SDL_PollEvent(&event))
@@ -342,6 +546,117 @@ bool setClipboardText(std::string_view text)
     terminated.assign(std::span<const char>(text.data(), text.size()));
     terminated.pushBack('\0');
     return SDL_SetClipboardText(terminated.data());
+}
+
+Vector2 windowPosition(WindowHandle window)
+{
+    int x = 0, y = 0;
+    SDL_Window* sdlWindow = find(window);
+    if (sdlWindow == nullptr || !sdlDrivesDrags() || !SDL_GetWindowPosition(sdlWindow, &x, &y))
+    {
+        return {};
+    }
+    return {static_cast<float>(x), static_cast<float>(y)};
+}
+
+void setWindowPosition(WindowHandle window, Vector2 position)
+{
+    if (SDL_Window* sdlWindow = find(window); sdlWindow != nullptr && sdlDrivesDrags())
+    {
+        SDL_SetWindowPosition(sdlWindow, static_cast<int>(position.x), static_cast<int>(position.y));
+    }
+}
+
+Vector2 pointerScreenPosition()
+{
+    float x = 0.0f, y = 0.0f;
+    if (!sdlDrivesDrags())
+    {
+        return {};
+    }
+    SDL_GetGlobalMouseState(&x, &y);
+    return {x, y};
+}
+
+WindowDragSupport windowDragSupport()
+{
+#if defined(CRUCIBLE_PLATFORM_WAYLAND)
+    if (wayland::running())
+    {
+        return wayland::dragSupport();
+    }
+#endif
+    return sdlDrivesDrags() ? WindowDragSupport::Full : WindowDragSupport::None;
+}
+
+bool startWindowDrag(WindowHandle window, WindowHandle draggedWindow, Vector2 offset)
+{
+    SDL_Window* source = find(window);
+    SDL_Window* dragged = find(draggedWindow);
+    if (source == nullptr || dragEventType == 0)
+    {
+        return false;
+    }
+    // The offset in window coordinates, as the platforms place windows.
+    const float density = dragged != nullptr ? pixelDensity(draggedWindow.value) : 1.0f;
+#if defined(CRUCIBLE_PLATFORM_WAYLAND)
+    if (wayland::running())
+    {
+        return wayland::startDrag(source, dragged, offset.x / density, offset.y / density);
+    }
+#endif
+    if (!sdlDrivesDrags() || (SDL_GetGlobalMouseState(nullptr, nullptr) & SDL_BUTTON_LMASK) == 0)
+    {
+        return false;
+    }
+    sdlDrag = SdlDrag{.active = true,
+                      .dragged = dragged != nullptr ? draggedWindow.value : 0,
+                      .offsetX = offset.x / density,
+                      .offsetY = offset.y / density};
+    return true;
+}
+
+void stopWindowDrag()
+{
+    if (sdlDrag.active)
+    {
+        sdlDrag.active = false;
+        pushDragEvent(InputEventType::DragCanceled, 0, 0.0f, 0.0f);
+    }
+#if defined(CRUCIBLE_PLATFORM_WAYLAND)
+    wayland::stopDrag();
+#endif
+}
+
+void showOpenFileDialog(WindowHandle window, std::string_view filterName, std::string_view pattern)
+{
+    if (dialogEventType == 0)
+    {
+        return;
+    }
+    // SDL may read the filter after this returns; it's kept until the next dialog.
+    DialogFilter& kept = dialogFilter();
+    kept.name.assign(std::span<const char>(filterName.data(), filterName.size()));
+    kept.name.pushBack('\0');
+    kept.pattern.assign(std::span<const char>(pattern.data(), pattern.size()));
+    kept.pattern.pushBack('\0');
+    kept.filter = {kept.name.data(), kept.pattern.data()};
+    SDL_ShowOpenFileDialog(dialogAnswered, nullptr, find(window), pattern.empty() ? nullptr : &kept.filter,
+                           pattern.empty() ? 0 : 1, nullptr, false);
+}
+
+std::string_view preferencesPath()
+{
+    Vector<char>& path = preferences();
+    if (path.empty())
+    {
+        if (char* sdlPath = SDL_GetPrefPath(nullptr, "Crucible"))
+        {
+            path.assign(std::span<const char>(sdlPath, std::strlen(sdlPath)));
+            SDL_free(sdlPath);
+        }
+    }
+    return {path.data(), path.size()};
 }
 
 uint64_t timestampNow()
