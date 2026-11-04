@@ -221,3 +221,8 @@ Settled in a review of M4's and M5's placeholders (ADR 0047's amendment).
 | `Crucible.UI.Canvas` (`Scale`, `Count`, `Clear`, `FillRect`, `StrokeRect`, `DrawImage`, `DrawNineSlice`, `DrawText`, `DrawLine`, `DrawPolyline`, `DrawShadow`, `PushClip` / `PopClip`, `PushTransform` / `PopTransform`) | The 2D drawing API (ADR 0059), and the step that draws it |
 | Step `UI`; pass `GlyphUpload` | The UI's render step, and the glyph pages' copy |
 | `text::writeTextQuads` | A layout's glyphs as UI instances |
+| `UiInstance` (`rect`, `transform`, `translation`, `kind`, `texture`, `radii`, `color`, `color2`, `uv`, `extra`, `extra2`, `clip`), `uiRect` … `uiShadow`, `uiGradientNone` / `Linear` / `Radial`; `shaders/crucible/ui.slang` | The UI shader's instance |
+| `Gradient` (`Linear`, `Radial`; `Kind`, `Start`, `End`, `Radius`, `StartColor`, `EndColor`), `GradientKind` | Gradient fills |
+| `GlyphUpload.cpp`: `glyphPageDescriptor`, `glyphPageDescriptors`, `beginGlyphUpload`, `finishGlyphUpload`, `stopGlyphUpload`; `destroyAfterFrame` | The glyph pages on the GPU |
+| `createEngineGraphicsPipeline`, `textGlyphCount` | Engine pipelines; a layout's glyph count |
+| `CanvasChecks`, CTest `launcher.jit.canvas`, `canvas.png`; `docs/learning/drawing-2d.md` | The canvas test and its note |
