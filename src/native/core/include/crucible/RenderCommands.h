@@ -16,7 +16,7 @@
 // The engine's C# wraps these in Crucible.Render's RenderSchedule,
 // IRenderStep, RenderStepContext, RenderPass, and RenderCommands; the
 // functions marked internal are for it alone. Main thread only, like the
-// renderer. Names are placeholders (docs/naming.md).
+// renderer. Names are in docs/naming.md.
 
 #include <crucible/Expose.h>
 #include <crucible/Math.h>

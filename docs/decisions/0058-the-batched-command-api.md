@@ -1,8 +1,7 @@
 # 0058 — The batched command API
 
-**Status:** Accepted (2026-11-03); built. Names are placeholders
-(docs/naming.md) except those the owner chose: `IRenderStep`,
-`RenderPass`, `RenderCommands`, `Upload<T>` and `FrameData<T>`.
+**Status:** Accepted (2026-11-03); built. Names settled by the owner
+(docs/naming.md).
 
 ## Context
 

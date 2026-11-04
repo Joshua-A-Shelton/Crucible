@@ -197,3 +197,19 @@ Settled in a review of M4's and M5's placeholders (ADR 0047's amendment).
 | `textGlyphs` → `PositionedGlyph` (`glyph`, `x`, `y`, `offset`) | Glyphs for drawing (C++ only) |
 | `text::shutdown`, `MemoryTag::Text` | Lifetime and memory accounting |
 | C# `Fonts.Load` / `Fonts.Unload`; `TextLayout.Size`, `LineCount`, `Line(index)`, `HitTest(point)`, `Caret(index)`, `Handle` | C# API |
+
+## C# render steps (2026-11-03, M6 step 2)
+
+| Name | What it is |
+|---|---|
+| `IRenderStep` (`Prepare`, `AddPasses`, `Release`) | A C# render step (ADR 0058) |
+| C# `RenderSchedule` (`Add`, `InsertBefore`, `InsertAfter`, `Replace`, `Remove`, `StepNames`) | Placing C# steps among the C++ ones |
+| `RenderStepContext` (`Width`, `Height`, `Frame`, `FrameDataDescriptor`, `MsaaSamples`, `Texture`, `Buffer`, `Publish`, `CreateTexture`, `CreateBuffer`, `Upload<T>`, `AddPass`) | What a step sees in `AddPasses` |
+| `FrameData<T>` (`Data`, `Offset`, `Size`); the frame data | Per-frame data for shaders |
+| `RenderPass` (`Use`, `RenderTarget`, `DepthTarget`, `Commands`); `RenderCommands` (`SetPipeline`, `PushConstants`, `SetConstantBuffer`, `SetViewport`, `SetScissor`, `Draw`, `Dispatch`, `BeginLabel`, `EndLabel`) | A pass and its commands |
+| `BlackboardKey.Register`, `Name`, `Backbuffer`, `View`, `SceneDepth`, `SceneColor`, `Bloom` | Blackboard keys from C# |
+| `crucible/RenderCommands.h`: `PipelineHandle`, `GraphTexture`, `GraphBuffer`, `RenderFormat`, `BlendMode` (`Opaque`, `Alpha`, `Premultiplied`, `Additive`), `CullMode`, `CompareOp`, `Topology`, `GraphicsPipelineState`, `PassQueue`, `ResourceUsage`, `TextureUsage`, `TransientTextureDesc`, `LoadAction`, `StoreAction` | Exposed types |
+| `createGraphicsPipeline`, `createComputePipeline`, `destroyPipeline`, `pipelineCount` | Pipelines from shader assets |
+| `StepFrame`, `StepFrameInfo`, `StepMemory`, `StepPlacement`, `StepCall`; `setStepTrampoline`, `insertManagedStep`, `removeStep`, `stepCount`, `stepName`, `stepFrameInfo`, `stepTexture`, `stepBuffer`, `publishTexture`, `publishBuffer`, `createStepTexture`, `createStepBuffer`, `addStepPass`, `useTexture`, `useBuffer`, `passRenderTarget`, `passDepthTarget`, `passCommands`, `uploadFrameData` | The engine's internal step functions |
+| `RenderCommandType`, `RenderCommandHeader`; `SetPipelineCommand`, `PushConstantsCommand`, `SetConstantBufferCommand`, `SetViewportCommand`, `SetScissorCommand`, `DrawCommand`, `DispatchCommand`, `BeginLabelCommand` | Command records |
+| `Crucible.RenderStepGame`; CTest `launcher.jit.render-steps` | The C# GPU test |
