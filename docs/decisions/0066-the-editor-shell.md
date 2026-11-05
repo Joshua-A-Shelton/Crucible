@@ -180,6 +180,12 @@ with every SDL update.
 
 ## Not yet
 
+- **A floating window moved by its title bar doesn't dock.** Moving a
+  window by its frame is the window manager's job, and on Wayland the
+  app hears nothing of it, so floating windows dock by dragging their
+  tab. Windows and X11 could notice a title-bar move ending over another
+  window, but only those platforms, which the parity rule (ADR 0008)
+  argues against; undecided.
 - Floating windows on Wayland reopen wherever the compositor puts them
   (apps can't place windows there).
 - Floating windows aren't children of the main window, so they show in
@@ -231,3 +237,16 @@ with every SDL update.
   ```bash
   cd /path/to/Crucible && build/debug/src/native/launcher/crucible_editor --managed-dir build/debug/artifacts/bin/Crucible.Engine/debug --project samples/UiShowcase/Project/UiShowcase.crproject
   ```
+
+  `CRUCIBLE_DEBUG_DRAGS=1` prints the drag's events as the compositor
+  sends them (enter and leave with the window each maps to, the drop, and
+  how the drag ended) and as the editor reads them.
+- **Tried by the owner on KWin 6.8.1 (2026-11-04):**
+  - a tab torn off, followed by its window;
+  - the blue preview over the main window;
+  - docked on release;
+  - a floating window restored from the saved layout, dragged back by
+    its tab, and docked.
+
+  One drag back by the title bar didn't dock (above). Windows isn't
+  tried by hand yet.

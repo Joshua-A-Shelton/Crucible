@@ -29,6 +29,9 @@ internal sealed class Shell
     private readonly MenuItem _recentItem = new("Recent Projects");
     private TabDrag? _drag;
     private bool _stopped;
+    // CRUCIBLE_DEBUG_DRAGS=1: the platform's drag events, as the editor sees them.
+    private readonly bool _debugDrags = Environment.GetEnvironmentVariable("CRUCIBLE_DEBUG_DRAGS") == "1";
+    private uint _debugOver = uint.MaxValue;
 
     public Shell(FrameContext context, string? settingsPath)
     {
@@ -435,6 +438,13 @@ internal sealed class Shell
 
     private void PlatformDragMoved(WindowHandle over, Vector2 pixels)
     {
+        if (_debugDrags && over.Value != _debugOver)
+        {
+            _debugOver = over.Value;
+            Console.WriteLine($"Crucible.Editor: drag over window {over.Value} at {pixels} " +
+                              $"(main {Main.Window.Value}, dragged {_drag?.Dragged?.Window.Value}, editor windows " +
+                              $"{string.Join(", ", _windows.Select(window => window.Window.Value))})");
+        }
         if (_drag is not { Dragged: { } dragged } drag)
         {
             return;
@@ -450,6 +460,10 @@ internal sealed class Shell
     // (the first where it was dropped, the rest beside it), and it closes.
     private void PlatformDragDropped(WindowHandle over, Vector2 pixels)
     {
+        if (_debugDrags)
+        {
+            Console.WriteLine($"Crucible.Editor: drag dropped on window {over.Value} at {pixels} (dragging: {_drag?.Dragged is not null})");
+        }
         if (_drag is not { Dragged: { } dragged })
         {
             return;

@@ -48,6 +48,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 namespace crucible::platform::wayland {
@@ -89,6 +90,27 @@ struct State
 };
 
 State state;
+
+// CRUCIBLE_DEBUG_DRAGS=1 prints the drag's events, for finding out what a
+// compositor sends.
+bool debugging()
+{
+    static const bool on = [] {
+        const char* value = std::getenv("CRUCIBLE_DEBUG_DRAGS");
+        return value != nullptr && value[0] == '1';
+    }();
+    return on;
+}
+
+#define CRUCIBLE_DRAG_DEBUG(...)                                                                                       \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        if (debugging())                                                                                               \
+        {                                                                                                              \
+            std::fprintf(stderr, "crucible drags: " __VA_ARGS__);                                                      \
+            std::fputc('\n', stderr);                                                                                  \
+        }                                                                                                              \
+    } while (false)
 
 template <typename Function>
 bool load(Function& function, const char* name)
@@ -278,6 +300,9 @@ void deviceEnter(void*, wl_data_device*, uint32_t serial, wl_surface* surface, w
     dropOffer();
     state.offer = offer;
     SDL_Window* window = windowOf(surface);
+    CRUCIBLE_DRAG_DEBUG("enter surface %p (window %u) offer %p, ours %d, at %.1f %.1f", static_cast<void*>(surface),
+                        window != nullptr ? SDL_GetWindowID(window) : 0u, static_cast<void*>(offer),
+                        state.source != nullptr, wl_fixed_to_double(x), wl_fixed_to_double(y));
     // Only our own drags: another app's files are SDL's to accept or
     // decline (whichever device answers last wins), and another Crucible's
     // panel isn't ours to dock.
@@ -298,6 +323,7 @@ void deviceEnter(void*, wl_data_device*, uint32_t serial, wl_surface* surface, w
 
 void deviceLeave(void*, wl_data_device*)
 {
+    CRUCIBLE_DRAG_DEBUG("leave (window %u)", state.target);
     const bool wasOver = state.target != 0;
     dropOffer();
     if (wasOver && state.source != nullptr)
@@ -317,6 +343,7 @@ void deviceMotion(void*, wl_data_device*, uint32_t, wl_fixed_t x, wl_fixed_t y)
 
 void deviceDrop(void*, wl_data_device*)
 {
+    CRUCIBLE_DRAG_DEBUG("drop on window %u at %.1f %.1f", state.target, state.x, state.y);
     if (state.target != 0 && state.offer != nullptr)
     {
         state.dropped = true;
@@ -351,7 +378,10 @@ const wl_data_device_listener deviceListener = {
 // Our drag's source
 // ---------------------------------------------------------------------------
 
-void sourceTarget(void*, wl_data_source*, const char*) {}
+void sourceTarget(void*, wl_data_source*, const char* mimeType)
+{
+    CRUCIBLE_DRAG_DEBUG("source target %s", mimeType != nullptr ? mimeType : "(none)");
+}
 
 void sourceSend(void*, wl_data_source*, const char*, int32_t fd)
 {
@@ -360,6 +390,7 @@ void sourceSend(void*, wl_data_source*, const char*, int32_t fd)
 
 void sourceCancelled(void*, wl_data_source*)
 {
+    CRUCIBLE_DRAG_DEBUG("source cancelled (dropped on us: %d)", state.dropped);
     if (!state.dropped)
     {
         pushDragEvent(InputEventType::DragCanceled, 0, 0.0f, 0.0f);
@@ -369,6 +400,7 @@ void sourceCancelled(void*, wl_data_source*)
 
 void sourceDropPerformed(void*, wl_data_source*)
 {
+    CRUCIBLE_DRAG_DEBUG("source drop performed");
     // The toplevel drag may go now; the source waits for dnd_finished.
     if (state.toplevelDrag != nullptr)
     {
@@ -379,10 +411,14 @@ void sourceDropPerformed(void*, wl_data_source*)
 
 void sourceFinished(void*, wl_data_source*)
 {
+    CRUCIBLE_DRAG_DEBUG("source finished");
     endDrag();
 }
 
-void sourceAction(void*, wl_data_source*, uint32_t) {}
+void sourceAction(void*, wl_data_source*, uint32_t action)
+{
+    CRUCIBLE_DRAG_DEBUG("source action %u", action);
+}
 
 const wl_data_source_listener sourceListener = {
     .target = sourceTarget,
@@ -562,6 +598,9 @@ bool startDrag(SDL_Window* source, SDL_Window* dragged, float offsetX, float off
         }
     }
     wl_data_device_start_drag(state.device, state.source, origin, nullptr, state.pressSerial);
+    CRUCIBLE_DRAG_DEBUG("started from window %u (surface %p), dragging window %u (toplevel drag %p)",
+                        SDL_GetWindowID(source), static_cast<void*>(origin),
+                        dragged != nullptr ? SDL_GetWindowID(dragged) : 0u, static_cast<void*>(state.toplevelDrag));
     wl_display_flush(state.display);
     return true;
 }
