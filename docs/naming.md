@@ -399,7 +399,7 @@ Settled as drafted: `SerializedFields`, `SerializedField` (`Name`,
 `InspectorTests`, `FieldTableTests`, `ColorPickerTests`, CTest
 `launcher.jit.inspector`, `inspector.png`, ADR 0069,
 `docs/learning/inspectors-and-metadata.md`. Names added while building
-are placeholders (marked *):
+(marked *) settled as drafted too:
 
 | Name | What it is |
 |---|---|
