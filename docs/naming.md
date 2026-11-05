@@ -366,3 +366,24 @@ Names added while building (marked *) settled as drafted too:
 | `EditorCamera` (`Pivot`*, `Distance`*, `Yaw`*, `Pitch`*, `FieldOfViewY`*, `NearPlane`*, `FlySpeed`*, `Orbit`*, `Look`*, `Pan`*, `Dolly`*, `Fly`*, `Frame`*, `View`*, `Projection`*, `Project`*, `Ray`*, `WorldSize`*) | The camera's members |
 | `SceneView` (`Camera`*, `Handles`*, `ShowsGrid`*, `Surface`*, `LastFrameMilliseconds`*), `ViewportPanel.View`*, `EditorViewportSystem`*, `ViewportChecks`*, `--game-arg check-viewport`*, the shell's `Database`*, `Prefabs`*, `OpenScene`*, `ScenePath`*; the Diorama's `save-scene`* | The editor's parts |
 
+## Undo and the hierarchy (2026-11-04, M7 step 4a)
+
+Settled as drafted: `TreeView`, `TreeRow`, `TreeExpander`, `Dialog`,
+`Popup.IsModal`, `EntityName` (`Value`), `UndoHistory`, `UndoStep`,
+`BeginGroup`, `EndGroup`, the commands `File.NewScene`, `File.SaveScene`,
+`File.SaveSceneAs`, `Edit.Delete`, `Edit.Duplicate`, `Edit.Rename`,
+`Hierarchy.CreateEmpty`, `showSaveFileDialog`, `TreeViewTests`,
+`UndoTests`, `HierarchyTests`, CTest `launcher.jit.hierarchy`,
+`hierarchy.png`, `docs/learning/undo-and-hierarchies.md`. Names added
+while building are placeholders (marked *):
+
+| Name | What it is |
+|---|---|
+| `TreeDrop`* (`Node`*, `Target`*, `Position`*), `TreeDropPosition`* (`Before`*, `After`*, `Inside`*) | A drag's drop |
+| `TreeView` (`ChildrenOf`*, `BindRow`*, `Indent`*, `CanDrag`*, `RowCount`*, `RowNode`*, `RowDepth`*, `IndexOf`*, `ScrollView`*, `SelectedNode`*, `SelectionChanged`*, `Renamed`*, `Dropped`*, `ContextRequested`*, `IsExpanded`*, `SetExpanded`*, `Refresh`*, `ScrollIntoView`*, `FocusNode`*, `RowOf`*, `BeginRename`*) | The tree's members |
+| `TreeRow` (`Tree`*, `Node`*, `Depth`*, `Text`*, `IsRenaming`*); classes `tree`* (its list rows), `open`* (an expanded expander), `tree-drop`* (the drop indicator), `dialog`*, `dialog-message`* | Rows and style classes |
+| `Dialog` (`Message`*, `Chosen`*) | The dialog's members |
+| `UndoHistory` (`Limit`*, `CanUndo`*, `CanRedo`*, `NextUndo`*, `NextRedo`*, `UndoCount`*, `RedoCount`*, `IsDirty`*, `Changed`*, `Push`*, `Do`*, `Undo`*, `Redo`*, `MarkSaved`*, `Clear`*), `UndoStep` (`Title`*, `Undo`*, `Redo`*) | Undo's members |
+| `HierarchyPanel.Tree`*, `HierarchyChecks`*, `--game-arg check-hierarchy`*; the shell's `History`*, `SceneId`*, `IsDirty`*, `SceneName`*, `SceneChanged`*, `NewScene`*, `SaveScene`*, `SaveSceneAs`*, `WriteScene`*, `ConfirmDiscard`*, `RequestQuit`*, `Rename`*, `CreateEmpty`*, `Duplicate`*, `Delete`*, `Reparent`*, `LabelOf`* | The editor's parts |
+| Internal: `SceneIds`*, `ComponentEdit`*, `SubtreeEdit`*, `ParentEdit`*, `Shell.Scene.cs`*, `SceneEdits.cs`* | Undo's insides |
+| The menu and dialog text: "New Scene", "Save Scene", "Save Scene As…", "Rename", "Duplicate", "Delete", "Create Empty", the default name "Empty", "Save changes to X before quitting?" with "Save", "Don't Save", "Cancel"; the step titles "Move", "Rotate", "Scale", "Rename", "Create Empty", "Duplicate", "Delete", "Move in Hierarchy"; the title "Village.crscene* — Diorama — Crucible", "Untitled" | Text users see |

@@ -116,6 +116,13 @@ public sealed class SceneView : UIElement
 
     protected override void OnDetached(UIRoot root)
     {
+        // Torn off mid-drag: the drag's group ends, so undo isn't stuck open.
+        if (_mode == Mode.Handle)
+        {
+            Handles.EndDrag();
+            _shell.History.EndGroup();
+            _mode = Mode.None;
+        }
         if (_surface.Value != 0)
         {
             Crucible.Render.Api.DestroySurface(_surface);
@@ -150,6 +157,8 @@ public sealed class SceneView : UIElement
                 {
                     Handles.BeginDrag(part, Camera, ActualSize, world, at);
                     _mode = Mode.Handle;
+                    // The drag's moves undo as one (ADR 0068).
+                    _shell.History.BeginGroup(Handles.Mode.ToString());
                 }
                 else if (_surface.Value != 0 && Root is { } root)
                 {
@@ -197,6 +206,7 @@ public sealed class SceneView : UIElement
         if (_mode == Mode.Handle)
         {
             Handles.EndDrag();
+            _shell.History.EndGroup();
         }
         _mode = Mode.None;
         _flying = Vector3.Zero;
@@ -290,7 +300,7 @@ public sealed class SceneView : UIElement
         return true;
     }
 
-    protected override void OnFocusedTick(double now)
+    protected internal override void OnFocusedTick(double now)
     {
         if (_mode == Mode.Look && _flying != Vector3.Zero && !double.IsNaN(_lastTick))
         {

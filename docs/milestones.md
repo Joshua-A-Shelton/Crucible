@@ -431,7 +431,12 @@ own window frames. Tried by hand by the owner on KWin and Windows. Step 3
 built (ADR 0067): the scene viewport (an offscreen surface drawn by the UI,
 an editor camera, picking from a GPU ID buffer, the selection outlined,
 move, rotate, and scale handles, a grid) and opening projects' assets and
-scenes; tried by hand by the owner on KWin and Windows.
+scenes; tried by hand by the owner on KWin and Windows. Step 4a built
+(ADR 0068): undo and redo from edit records by scene ID, saving scenes
+(New, Save, Save As, the unsaved-changes dialog), `EntityName`, and the
+hierarchy panel on a new `TreeView` (selection both ways, F2 renaming,
+Create Empty, Duplicate, Delete, dragging to reparent). Step 4b, the
+inspector, is next.
 
 ## M8 — Animation and audio
 

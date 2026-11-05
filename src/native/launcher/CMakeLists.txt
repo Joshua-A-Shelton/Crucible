@@ -228,6 +228,19 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "ViewportChecks: all [0-9]+ checks passed")
 
+    # The hierarchy, undo, and saving checking themselves (ADR 0068): the
+    # village listed, renamed, edited, undone, and saved beside the capture
+    # (never over the village); the window saved as hierarchy.png mid-drag.
+    add_test(NAME launcher.jit.hierarchy
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 600
+            --project "${PROJECT_SOURCE_DIR}/samples/Diorama/Project/Diorama.crproject"
+            --scene "${PROJECT_SOURCE_DIR}/samples/Diorama/Project/Assets/Scenes/Village.crscene"
+            --game-arg "check-hierarchy=${CMAKE_CURRENT_BINARY_DIR}/hierarchy.png"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/hierarchy-settings.json")
+    set_tests_properties(launcher.jit.hierarchy PROPERTIES LABELS "integration;gpu" TIMEOUT 120
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "HierarchyChecks: all [0-9]+ checks passed")
+
     # The M6 demonstration (ADR 0064): the UI showcase's menu driven by mouse,
     # keyboard, and gamepad scripts, and captured at four DPI scales; on
     # Windows, on D3D12 too, the captures compared.

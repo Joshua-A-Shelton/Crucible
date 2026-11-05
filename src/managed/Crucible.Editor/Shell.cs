@@ -15,9 +15,10 @@ namespace Crucible.Editor;
 
 /// <summary>
 /// The editor's shell (ADR 0066): its windows, menus and commands, panels and
-/// their docking, the saved layout, and opening projects. Main thread only.
+/// their docking, the saved layout, and opening projects; its scene and
+/// edits are in Shell.Scene.cs (ADR 0068). Main thread only.
 /// </summary>
-internal sealed class Shell
+internal sealed partial class Shell
 {
     // Each root's shell, for elements finding theirs.
     private static readonly Dictionary<UIRoot, Shell> _shells = [];
@@ -53,6 +54,7 @@ internal sealed class Shell
         RegisterCommands();
         BuildMenus();
         RestoreLayout(Settings.Layout);
+        History.Changed += _ => SceneEdited();
         Status("No project open");
         Log($"{EngineInfo.Name} editor started (window drags: {Platform.Api.WindowDragSupport()})");
     }
@@ -111,17 +113,30 @@ internal sealed class Shell
                 case InputEventType.DragCanceled:
                     PlatformDragEnded();
                     break;
+                case InputEventType.QuitRequested:
+                    KeepUnsaved();
+                    break;
                 case InputEventType.WindowCloseRequested:
                     uint closed = input.Window.Value;
                     if (_windows.Find(window => !window.IsMain && window.Window.Value == closed) is { } floating)
                     {
                         DockBack(floating);
                     }
+                    else if (closed == Main.Window.Value)
+                    {
+                        KeepUnsaved();
+                    }
                     break;
                 case InputEventType.FileDialogResult:
-                    if (input.Value > 0 && input.Code >= 0 && input.Code + input.Value <= text.Length)
+                    string? answer = input.Value > 0 && input.Code >= 0 && input.Code + input.Value <= text.Length
+                        ? System.Text.Encoding.UTF8.GetString(text.Slice(input.Code, input.Value))
+                        : null;
+                    if (_savingAs)
                     {
-                        string chosen = System.Text.Encoding.UTF8.GetString(text.Slice(input.Code, input.Value));
+                        SaveDialogAnswered(answer);
+                    }
+                    else if (answer is { } chosen)
+                    {
                         if (chosen.EndsWith(Scene.Extension, StringComparison.OrdinalIgnoreCase))
                         {
                             OpenScene(chosen);
@@ -193,7 +208,7 @@ internal sealed class Shell
         SaveSettings();
         RebuildRecent();
         Status($"{Project.Name} — {Project.ProjectFilePath}");
-        Main.TitleBar.Title = $"{Project.Name} — {EngineInfo.Name}";
+        UpdateTitle();
         Log($"Opened {Project.Name}");
         ImportAssets(Project);
     }
@@ -225,7 +240,7 @@ internal sealed class Shell
 
     // -----------------------------------------------------------------------
     // Scenes (ADR 0067): opened into the engine's world, which the viewports
-    // show; saving comes with step 4.
+    // show; making, saving, and editing them are in Shell.Scene.cs.
     // -----------------------------------------------------------------------
 
     public void OpenScene(string sceneFile)
@@ -247,10 +262,13 @@ internal sealed class Shell
         World world = _context.World;
         Selection.Selected = Entity.Null;
         ClearScene(world);
+        ScenePath = null;
+        SceneId = AssetId.New();
         try
         {
             SceneLoad load = Scene.Load(world, bytes, prefabs: Prefabs);
             ScenePath = Path.GetFullPath(sceneFile);
+            SceneId = load.Id.IsNone ? AssetId.New() : load.Id;
             Log($"Opened {Path.GetFileName(sceneFile)}: {load.Roots.Count} entities at the top" +
                 (load.SkippedComponents.Count > 0 ? $"; skipped {string.Join(", ", load.SkippedComponents)}" : ""));
         }
@@ -263,6 +281,7 @@ internal sealed class Shell
         {
             Log("No project is open: the scene's models and textures can't be found");
         }
+        SceneReplaced();
     }
 
     // Every entity a scene made (they carry scene IDs); children go with their parents.
@@ -302,6 +321,10 @@ internal sealed class Shell
         if (Selection.Selected.Value != 0 && !world.IsAlive(Selection.Selected))
         {
             Selection.Selected = Entity.Null;
+        }
+        if (_open.GetValueOrDefault("Hierarchy") is HierarchyPanel hierarchy)
+        {
+            hierarchy.Update();
         }
         Entity[] outlined = Outlined(world);
         foreach (EditorPanel panel in _open.Values)
@@ -391,7 +414,9 @@ internal sealed class Shell
             local = worldMatrix * inverse;
         }
         Matrix4x4.Decompose(local, out Vector3 scale, out Quaternion rotation, out Vector3 position);
+        JsonNode? before = SceneIds.Read(world, entity, _transformName);
         world.Set(entity, new LocalTransform { Position = position, Rotation = rotation, Scale = scale });
+        RecordComponent(entity, _transformName, before, "Move");
     }
 
     /// <summary>Frames the selection in a viewport (F), or the scene's middle with nothing selected.</summary>
@@ -432,22 +457,15 @@ internal sealed class Shell
             Shortcut = new Shortcut(KeyModifiers.Ctrl, Keycode.O),
         });
         Commands.Add(new Command("File.OpenScene", "Open Scene…",
-            () => Platform.Api.ShowOpenFileDialog(Main.Window, "Crucible scenes", "crscene"))
+            () => ConfirmDiscard("opening another scene",
+                () => Platform.Api.ShowOpenFileDialog(Main.Window, "Crucible scenes", "crscene")))
         {
             Shortcut = new Shortcut(KeyModifiers.Ctrl | KeyModifiers.Shift, Keycode.O),
         });
-        Commands.Add(new Command("File.Quit", "Quit", () => _context.QuitRequested = true)
+        RegisterSceneCommands();
+        Commands.Add(new Command("File.Quit", "Quit", RequestQuit)
         {
             Shortcut = new Shortcut(KeyModifiers.Ctrl, Keycode.Q),
-        });
-        // The editor's undo comes with the hierarchy and inspector (M7 step 4).
-        Commands.Add(new Command("Edit.Undo", "Undo", () => { }, () => false)
-        {
-            Shortcut = new Shortcut(KeyModifiers.Ctrl, Keycode.Z),
-        });
-        Commands.Add(new Command("Edit.Redo", "Redo", () => { }, () => false)
-        {
-            Shortcut = new Shortcut(KeyModifiers.Ctrl, Keycode.Y),
         });
         foreach ((string id, string title) in Panels.Panels)
         {
@@ -462,16 +480,26 @@ internal sealed class Shell
     {
         Menu file = Main.MenuBar.Add("File");
         file.Add(Commands.Find("File.OpenProject")!);
-        file.Add(Commands.Find("File.OpenScene")!);
         _recentItem.Submenu = _recentMenu;
         file.Add(_recentItem);
         RebuildRecent();
+        file.AddSeparator();
+        file.Add(Commands.Find("File.NewScene")!);
+        file.Add(Commands.Find("File.OpenScene")!);
+        file.Add(Commands.Find("File.SaveScene")!);
+        file.Add(Commands.Find("File.SaveSceneAs")!);
         file.AddSeparator();
         file.Add(Commands.Find("File.Quit")!);
 
         Menu edit = Main.MenuBar.Add("Edit");
         edit.Add(Commands.Find("Edit.Undo")!);
         edit.Add(Commands.Find("Edit.Redo")!);
+        edit.AddSeparator();
+        edit.Add(Commands.Find("Edit.Rename")!);
+        edit.Add(Commands.Find("Edit.Duplicate")!);
+        edit.Add(Commands.Find("Edit.Delete")!);
+        edit.AddSeparator();
+        edit.Add(Commands.Find("Hierarchy.CreateEmpty")!);
 
         Menu window = Main.MenuBar.Add("Window");
         foreach ((string id, _) in Panels.Panels)
@@ -509,7 +537,7 @@ internal sealed class Shell
 
     private void RegisterPanels()
     {
-        Panels.Register("Hierarchy", "Hierarchy", () => new HierarchyPanel());
+        Panels.Register("Hierarchy", "Hierarchy", () => new HierarchyPanel(this));
         Panels.Register("Viewport", "Viewport", () => new ViewportPanel(this));
         Panels.Register("Inspector", "Inspector", () => new InspectorPanel());
         Panels.Register("Assets", "Assets", () => new AssetsPanel());
@@ -802,7 +830,7 @@ internal sealed class Shell
         }
         // The window's close buttons: the main one quits, a floating one docks back.
         Action<UIElement, UIEvent> close = window.IsMain
-            ? (_, _) => _context.QuitRequested = true
+            ? (_, _) => RequestQuit()
             : (_, _) => DockBack(window);
         window.TitleBar.CloseButton.Activated += close;
         foreach (UIElement button in window.FloatingButtons.Children)

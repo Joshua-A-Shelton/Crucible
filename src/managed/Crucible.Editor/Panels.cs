@@ -70,9 +70,6 @@ public abstract class PlaceholderPanel : EditorPanel
     }
 }
 
-/// <summary>The scene's entities as a tree (M7 step 4).</summary>
-public sealed class HierarchyPanel() : PlaceholderPanel("Hierarchy", "Hierarchy", "M7 step 4");
-
 /// <summary>The selection's properties (M7 step 4).</summary>
 public sealed class InspectorPanel() : PlaceholderPanel("Inspector", "Inspector", "M7 step 4");
 

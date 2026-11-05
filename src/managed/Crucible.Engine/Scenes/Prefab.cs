@@ -206,6 +206,12 @@ internal static class ModelPrefab
                 Rotation = new(node.Rx, node.Ry, node.Rz, node.Rw),
                 Scale = new(node.Sx, node.Sy, node.Sz),
             }));
+            // The node's name, as the hierarchy shows it (ADR 0068); the same in
+            // every instance, so instances don't save it.
+            if (name.Length > 0)
+            {
+                entity.Components.Add(Component(new EntityName { Value = name }));
+            }
             if (node.Mesh >= 0)
             {
                 entity.Components.Add(Component(new MeshInstance { Model = model, Mesh = node.Mesh }));

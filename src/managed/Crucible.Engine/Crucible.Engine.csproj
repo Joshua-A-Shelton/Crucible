@@ -28,6 +28,8 @@
   <ItemGroup>
     <!-- Tests check the generated layout checks, which are internal. -->
     <InternalsVisibleTo Include="Crucible.Engine.Tests" />
+    <!-- The editor's undo reads and writes saved components as JSON (ADR 0068). -->
+    <InternalsVisibleTo Include="Crucible.Editor" />
     <InternalsVisibleTo Include="Crucible.Engine.HotReloadTests" />
   </ItemGroup>
 

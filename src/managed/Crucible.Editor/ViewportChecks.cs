@@ -170,19 +170,19 @@ internal sealed class ViewportChecks : GameSystem
         return texture;
     }
 
-    private static Vector2 Center(UIElement element) =>
+    internal static Vector2 Center(UIElement element) =>
         new(element.Bounds.X + element.Bounds.Width / 2, element.Bounds.Y + element.Bounds.Height / 2);
 
     private static void Send(UIRoot root, params InputEvent[] events) => root.ProcessInput(events);
 
-    private static void Click(UIRoot root, Vector2 at) => Send(root, Motion(at), Button(at, true), Button(at, false));
+    internal static void Click(UIRoot root, Vector2 at) => Send(root, Motion(at), Button(at, true), Button(at, false));
 
-    private static InputEvent Motion(Vector2 at) => new() { Type = InputEventType.MouseMotion, X = at.X, Y = at.Y };
+    internal static InputEvent Motion(Vector2 at) => new() { Type = InputEventType.MouseMotion, X = at.X, Y = at.Y };
 
-    private static InputEvent Button(Vector2 at, bool down) =>
+    internal static InputEvent Button(Vector2 at, bool down) =>
         new() { Type = down ? InputEventType.MouseButtonDown : InputEventType.MouseButtonUp, X = at.X, Y = at.Y, Code = 1 };
 
-    private static void Save(SurfaceHandle surface, string path)
+    internal static void Save(SurfaceHandle surface, string path)
     {
         byte[] bgra = new byte[Width * Height * 4];
         Render.Api.ReadSurfacePixels(surface, bgra);

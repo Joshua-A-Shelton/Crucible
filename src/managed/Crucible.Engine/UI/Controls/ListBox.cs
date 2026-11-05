@@ -31,6 +31,8 @@ public sealed class ListItem : UIElement
         e.Handled = true;
         List.Activate(Index);
     }
+
+    protected override void OnGotFocus(UIEvent e) => List.ItemFocused?.Invoke(Index);
 }
 
 /// <summary>
@@ -150,6 +152,28 @@ public class ListBox : UIElement
         return _panel.Realized.TryGetValue(index, out ListItem? row) && row.Focus();
     }
 
+    // The item whose row is under a point (the root's units), or -1.
+    internal int IndexAt(Vector2 point)
+    {
+        foreach ((int index, ListItem row) in _panel.Realized)
+        {
+            if (row.Bounds.Contains(point.X, point.Y))
+            {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    // The row showing an item, if it's realized.
+    internal ListItem? RowOf(int index) => _panel.Realized.GetValueOrDefault(index);
+
+    // A tree view's (ADR 0068): rows take this class too, and focus moving
+    // to a row tells it, so selection can follow focus.
+    internal string? ItemClass { get; set; }
+
+    internal Action<int>? ItemFocused { get; set; }
+
     internal void Activate(int index)
     {
         SelectedIndex = index;
@@ -248,7 +272,7 @@ public class ListBox : UIElement
             }
             first = Math.Max(first - 1, 0);
             HashSet<int> wanted = [];
-            float y = Span(first).Top;
+            float y = count > 0 ? Span(first).Top : 0;
             for (int i = first; i < count && (y < offset + viewport || wanted.Count < 2); ++i)
             {
                 wanted.Add(i);
@@ -314,7 +338,18 @@ public class ListBox : UIElement
         {
             if (!Realized.TryGetValue(index, out ListItem? row))
             {
-                row = _free.Count > 0 ? _free.Pop() : new ListItem(list, list.CreateItem?.Invoke() ?? new Label());
+                if (_free.Count > 0)
+                {
+                    row = _free.Pop();
+                }
+                else
+                {
+                    row = new ListItem(list, list.CreateItem?.Invoke() ?? new Label());
+                    if (list.ItemClass is { } itemClass)
+                    {
+                        row.Classes.Add(itemClass);
+                    }
+                }
                 Realized[index] = row;
                 AddChildDuringLayout(row);
             }

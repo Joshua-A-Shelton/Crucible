@@ -47,6 +47,12 @@ public class Popup : UIElement
     /// </summary>
     public Vector2? Position { get; set; }
 
+    /// <summary>
+    /// A press outside doesn't close it (ADR 0068): a dialog waiting for an
+    /// answer. The press is used up, so nothing behind it reacts.
+    /// </summary>
+    public bool IsModal { get; set; }
+
     // A menu's popup (ADR 0066): a press in a menu below it closes it and
     // acts there, and a press outside every menu closes them all.
     internal virtual bool IsMenu => false;

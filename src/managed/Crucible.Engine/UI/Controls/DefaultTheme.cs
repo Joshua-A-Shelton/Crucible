@@ -103,6 +103,18 @@ public sealed partial class Theme
             .Set(UIElement.BorderColorProperty, edge)
             .Set(UIElement.PaddingProperty, new Thickness(4)));
         theme.Add(new Style("ListBox.dropdown").Set(UIElement.MaxHeightProperty, 240f));
+        theme.Add(new Style("ListItem.tree")
+            .Set(UIElement.PaddingProperty, new Thickness(4, 2, 8, 2))
+            .Set(UIElement.CornerRadiiProperty, new Vector4(3)));
+        theme.Add(new Style("ListItem.tree:focus").Set(UIElement.BorderWidthProperty, 1f));
+        theme.Add(new Style("TreeExpander")
+            .Set(UIElement.WidthProperty, 16f)
+            .Set(UIElement.ForegroundProperty, muted));
+        theme.Add(new Style("TreeExpander:hover").Set(UIElement.ForegroundProperty, text));
+        theme.Add(new Style(".tree-drop").Set(UIElement.ForegroundProperty, accent));
+        theme.Add(new Style("StackPanel.dialog")
+            .Set(UIElement.PaddingProperty, new Thickness(12))
+            .Set(UIElement.MaxWidthProperty, 440f));
 
         theme.Add(new Style("Spinner")
             .Set(UIElement.PaddingProperty, new Thickness(4))

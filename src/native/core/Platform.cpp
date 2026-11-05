@@ -75,6 +75,7 @@ struct DialogFilter
 {
     Vector<char> name{MemoryTag::Platform};
     Vector<char> pattern{MemoryTag::Platform};
+    Vector<char> location{MemoryTag::Platform};
     SDL_DialogFileFilter filter{};
 };
 
@@ -82,6 +83,20 @@ DialogFilter& dialogFilter()
 {
     static DialogFilter filter;
     return filter;
+}
+
+// Keeps a dialog's strings, NUL-terminated, until its answer comes.
+DialogFilter& keepFilter(std::string_view filterName, std::string_view pattern, std::string_view location)
+{
+    DialogFilter& kept = dialogFilter();
+    for (auto [text, into] :
+         {std::pair{filterName, &kept.name}, std::pair{pattern, &kept.pattern}, std::pair{location, &kept.location}})
+    {
+        into->assign(std::span<const char>(text.data(), text.size()));
+        into->pushBack('\0');
+    }
+    kept.filter = {kept.name.data(), kept.pattern.data()};
+    return kept;
 }
 
 // The gamepads opened (SDL sends a pad's events only once it's open).
@@ -766,14 +781,21 @@ void showOpenFileDialog(WindowHandle window, std::string_view filterName, std::s
         return;
     }
     // SDL may read the filter after this returns; it's kept until the next dialog.
-    DialogFilter& kept = dialogFilter();
-    kept.name.assign(std::span<const char>(filterName.data(), filterName.size()));
-    kept.name.pushBack('\0');
-    kept.pattern.assign(std::span<const char>(pattern.data(), pattern.size()));
-    kept.pattern.pushBack('\0');
-    kept.filter = {kept.name.data(), kept.pattern.data()};
+    DialogFilter& kept = keepFilter(filterName, pattern, {});
     SDL_ShowOpenFileDialog(dialogAnswered, nullptr, find(window), pattern.empty() ? nullptr : &kept.filter,
                            pattern.empty() ? 0 : 1, nullptr, false);
+}
+
+void showSaveFileDialog(WindowHandle window, std::string_view filterName, std::string_view pattern,
+                        std::string_view defaultLocation)
+{
+    if (dialogEventType == 0)
+    {
+        return;
+    }
+    DialogFilter& kept = keepFilter(filterName, pattern, defaultLocation);
+    SDL_ShowSaveFileDialog(dialogAnswered, nullptr, find(window), pattern.empty() ? nullptr : &kept.filter,
+                           pattern.empty() ? 0 : 1, defaultLocation.empty() ? nullptr : kept.location.data());
 }
 
 std::string_view preferencesPath()

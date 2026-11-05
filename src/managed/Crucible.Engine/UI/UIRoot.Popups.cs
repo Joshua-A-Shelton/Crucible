@@ -106,6 +106,10 @@ public sealed partial class UIRoot
         {
             return false;
         }
+        if (top.IsModal)
+        {
+            return true; // only its own answer closes it
+        }
         if (!top.IsMenu)
         {
             ClosePopup(top);

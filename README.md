@@ -87,3 +87,6 @@ Longer explanations of decisions, written to be reread:
 - [Viewports and picking](docs/learning/viewports-and-picking.md) (ADR 0067):
   a viewport as an image, an editor camera outside the scene, picking by
   drawing IDs, and handles a fixed size on screen.
+- [Undo and hierarchies](docs/learning/undo-and-hierarchies.md) (ADR 0068):
+  three ways to undo, recording edits after they're made, gestures as one
+  step, scene IDs that survive deletion, and a tree drawn as a list.

@@ -51,8 +51,10 @@ internal static class EngineComponents
         Components.Register<Crucible.Render.AmbientLight>();
         Components.Register<Crucible.Render.Sky>();
         Components.Register<SceneEntityId>();
+        Components.RegisterManaged<EntityName>();
         Components.Register<PrefabInstance>();
         SavedComponents.Add<LocalTransform>();
+        SavedComponents.AddManaged<EntityName>();
         SavedComponents.Add<MeshInstance>();
         SavedComponents.Add<Crucible.Render.Camera>();
         SavedComponents.Add<Crucible.Render.PostProcess>();
