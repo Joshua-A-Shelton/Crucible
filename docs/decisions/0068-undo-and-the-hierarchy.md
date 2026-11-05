@@ -1,8 +1,8 @@
 # 0068 — Undo and the hierarchy
 
 **Status:** Accepted (2026-11-04); part a built (the inspector, part b,
-follows). Names settled by the owner as drafted; those added while
-building are placeholders (docs/naming.md).
+follows). Names settled by the owner as drafted, including those
+added while building (docs/naming.md).
 
 ## Context
 

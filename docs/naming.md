@@ -375,7 +375,7 @@ Settled as drafted: `TreeView`, `TreeRow`, `TreeExpander`, `Dialog`,
 `Hierarchy.CreateEmpty`, `showSaveFileDialog`, `TreeViewTests`,
 `UndoTests`, `HierarchyTests`, CTest `launcher.jit.hierarchy`,
 `hierarchy.png`, `docs/learning/undo-and-hierarchies.md`. Names added
-while building are placeholders (marked *):
+while building (marked *) settled as drafted too:
 
 | Name | What it is |
 |---|---|
