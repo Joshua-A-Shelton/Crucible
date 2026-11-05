@@ -435,8 +435,8 @@ scenes; tried by hand by the owner on KWin and Windows. Step 4a built
 (ADR 0068): undo and redo from edit records by scene ID, saving scenes
 (New, Save, Save As, the unsaved-changes dialog), `EntityName`, and the
 hierarchy panel on a new `TreeView` (selection both ways, F2 renaming,
-Create Empty, Duplicate, Delete, dragging to reparent). Step 4b, the
-inspector, is next.
+Create Empty, Duplicate, Delete, dragging to reparent); tried by hand by
+the owner on KWin. Step 4b, the inspector, is next.
 
 ## M8 — Animation and audio
 

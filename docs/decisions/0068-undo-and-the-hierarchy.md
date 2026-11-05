@@ -160,3 +160,4 @@ scene, where games can read them.
   now measure again when attached (`TreeViewTests` scrolls rows of
   repeated text away and back; `launcher.jit.hierarchy` checks every
   row's text is shaped, with every top expanded).
+- **Tried again by the owner on KWin:** every row shows its name.
