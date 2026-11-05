@@ -344,4 +344,5 @@ Settled as drafted: `TitleBar`, `WindowButton` (classes `minimize`,
 | `WindowButton` (`Kind`*), `WindowButtonKind`* (`Minimize`*, `Maximize`*, `Close`*) | Window buttons |
 | `EditorWindow.TitleBar`*, the editor's main title "<project> — Crucible" | The editor's frames |
 | `TitleBarTests`* | Its tests |
+| `setWindowParent`* | A window as another's child (floating windows) |
 

@@ -352,6 +352,7 @@ internal sealed class Shell
     {
         if (_drag is not null || WindowOf(tab) is not { } window)
         {
+            Debug($"no tab drag: a drag already {_drag is not null}");
             return false;
         }
         _drag = new TabDrag(tab.Panel, window);
@@ -419,6 +420,9 @@ internal sealed class Shell
             Vector2 size = drag.Panel.Group?.ActualSize ?? new Vector2(480, 360);
             source.DockSpace.Take(drag.Panel);
             dragged = EditorWindow.CreateFloating(size, _theme, _font);
+            // A child of the main window: kept above it, so tearing a panel
+            // off doesn't send the main window behind others.
+            Platform.Api.SetWindowParent(dragged.Window, Main.Window);
             Add(dragged);
             dragged.DockSpace.Dock(drag.Panel, null, DockTarget.Center);
             Vector2 screen = Platform.Api.PointerScreenPosition();
@@ -447,6 +451,7 @@ internal sealed class Shell
     {
         if (_drag is not null || window.IsMain || window.DockSpace.Panels.FirstOrDefault() is not { } panel)
         {
+            Debug($"no window drag: a drag already {_drag is not null}");
             return;
         }
         if (Platform.Api.WindowDragSupport() == WindowDragSupport.Full &&
@@ -455,7 +460,8 @@ internal sealed class Shell
             _drag = new TabDrag(panel, window) { Dragged = window };
             return;
         }
-        Platform.Api.StartWindowMove(window.Window);
+        bool moved = Platform.Api.StartWindowMove(window.Window);
+        Debug($"window drag refused; a move instead started: {moved}");
     }
 
     public static void ToggleMaximized(EditorWindow window)
@@ -522,8 +528,17 @@ internal sealed class Shell
         Log($"Docked {string.Join(", ", panels.Select(panel => panel.Title))}");
     }
 
+    private void Debug(string message)
+    {
+        if (_debugDrags)
+        {
+            Console.WriteLine($"Crucible.Editor: {message}");
+        }
+    }
+
     private void PlatformDragEnded()
     {
+        Debug("drag ended");
         _drag = null;
         foreach (EditorWindow window in _windows)
         {
@@ -657,6 +672,7 @@ internal sealed class Shell
                 {
                     EditorWindow made = EditorWindow.CreateFloating(
                         new Vector2(Number(window["Width"], 480), Number(window["Height"], 360)), _theme, _font);
+                    Platform.Api.SetWindowParent(made.Window, Main.Window);
                     Add(made);
                     made.DockSpace.Node = node;
                     Platform.Api.SetWindowPosition(made.Window, new Vector2(Number(window["X"], 0), Number(window["Y"], 0)));

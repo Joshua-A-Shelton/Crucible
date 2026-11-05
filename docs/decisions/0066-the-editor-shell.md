@@ -184,8 +184,6 @@ with every SDL update.
   asked for one); left for the custom decorations' styling (owner).
 - Floating windows on Wayland reopen wherever the compositor puts them
   (apps can't place windows there).
-- Floating windows aren't children of the main window, so they show in
-  the task bar.
 - The menu bar has no Alt access key, and menus no access letters.
 - Docking only offers a group's sides: no docking against the whole
   space's edges.
@@ -325,4 +323,23 @@ owner meant to do anyway.
 - **By hand:** to be tried on KWin and Windows. Moves, resizing from the
   edges, double-click, the window menu, and docking by a floating
   window's strip all need a real desktop.
+
+**Fixed after trying it on KWin (2026-11-04):**
+- **Tearing a panel off sent the main window behind other apps'
+  windows:** the floating window was an unrelated toplevel. Floating
+  windows are now children of the main window (`setWindowParent`, SDL's
+  `SDL_SetWindowParent`). They stay above it, follow it between desktops
+  and when minimized, and on Windows leave the task bar to it.
+- **After dropping a floating window outside, then moving and dropping
+  it outside again, it sometimes couldn't be grabbed again.** Two causes:
+  - the platform's pointer forgot its surface on any leave, so a leave
+    arriving after the next window's enter (as one does when a window
+    under the pointer is destroyed) left every later press refused. A
+    leave now only forgets the surface it names, and a press on an
+    unknown surface is left to the compositor to judge;
+  - a compositor quietly ignores `start_drag` for a stale press, which
+    would leave the drag waiting forever. A round trip after starting
+    ends a drag the compositor never answered (kitty's approach).
+- **Tried again on KWin:** repeated tear-offs, drops outside, and grabs
+  by the strip and the tab, with two dock-backs; nothing stuck.
 

@@ -81,7 +81,9 @@ struct State
     // Our drag, from start until the compositor says it ended.
     wl_data_source* source = nullptr;
     xdg_toplevel_drag_v1* toplevelDrag = nullptr;
-    bool dropped = false; // on one of our windows
+    bool dropped = false;            // on one of our windows
+    bool answered = false;           // the compositor has said anything about it
+    wl_callback* checking = nullptr; // the round trip after starting it
 
     // A drag over our windows: its offer, the window, and the last position (pixels).
     wl_data_offer* offer = nullptr;
@@ -218,11 +220,17 @@ void endDrag()
 void pointerEnter(void*, wl_pointer*, uint32_t, wl_surface* surface, wl_fixed_t, wl_fixed_t)
 {
     state.pointerSurface = surface;
+    CRUCIBLE_DRAG_DEBUG("pointer enter surface %p", static_cast<void*>(surface));
 }
 
-void pointerLeave(void*, wl_pointer*, uint32_t, wl_surface*)
+void pointerLeave(void*, wl_pointer*, uint32_t, wl_surface* surface)
 {
-    state.pointerSurface = nullptr;
+    // Only the surface it left: a leave can come after the next surface's enter.
+    if (state.pointerSurface == surface)
+    {
+        state.pointerSurface = nullptr;
+    }
+    CRUCIBLE_DRAG_DEBUG("pointer leave surface %p", static_cast<void*>(surface));
 }
 
 void pointerMotion(void*, wl_pointer*, uint32_t, wl_fixed_t, wl_fixed_t) {}
@@ -233,6 +241,7 @@ void pointerButton(void*, wl_pointer*, uint32_t serial, uint32_t, uint32_t, uint
     {
         state.pressSerial = serial;
         state.pressSurface = state.pointerSurface;
+        CRUCIBLE_DRAG_DEBUG("press %u on surface %p", serial, static_cast<void*>(state.pressSurface));
     }
 }
 
@@ -381,6 +390,7 @@ const wl_data_device_listener deviceListener = {
 
 void sourceTarget(void*, wl_data_source*, const char* mimeType)
 {
+    state.answered = true;
     CRUCIBLE_DRAG_DEBUG("source target %s", mimeType != nullptr ? mimeType : "(none)");
 }
 
@@ -391,6 +401,7 @@ void sourceSend(void*, wl_data_source*, const char*, int32_t fd)
 
 void sourceCancelled(void*, wl_data_source*)
 {
+    state.answered = true;
     CRUCIBLE_DRAG_DEBUG("source cancelled (dropped on us: %d)", state.dropped);
     if (!state.dropped)
     {
@@ -418,6 +429,7 @@ void sourceFinished(void*, wl_data_source*)
 
 void sourceAction(void*, wl_data_source*, uint32_t action)
 {
+    state.answered = true;
     CRUCIBLE_DRAG_DEBUG("source action %u", action);
 }
 
@@ -429,6 +441,30 @@ const wl_data_source_listener sourceListener = {
     .dnd_finished = sourceFinished,
     .action = sourceAction,
 };
+
+// A compositor ignores start_drag for a press it doesn't hold (a stale
+// one) and says nothing. A round trip after starting tells: a drag that
+// started has had its first target by then. One that didn't is ended, so
+// the next can start (kitty's approach).
+void dragChecked(void*, wl_callback* callback, uint32_t)
+{
+    wl_callback_destroy(callback);
+    state.checking = nullptr;
+    if (state.source != nullptr && !state.answered)
+    {
+        CRUCIBLE_DRAG_DEBUG("the compositor ignored the drag");
+        if (state.toplevelDrag != nullptr)
+        {
+            xdg_toplevel_drag_v1_destroy(state.toplevelDrag);
+            state.toplevelDrag = nullptr;
+        }
+        wl_data_source_destroy(state.source);
+        state.source = nullptr;
+        pushDragEvent(InputEventType::DragCanceled, 0, 0.0f, 0.0f);
+    }
+}
+
+const wl_callback_listener dragCheckListener = {.done = dragChecked};
 
 // ---------------------------------------------------------------------------
 // Globals
@@ -499,6 +535,10 @@ void stop()
         return;
     }
     dropOffer();
+    if (state.checking != nullptr)
+    {
+        wl_callback_destroy(state.checking);
+    }
     // A drag still going can't be ended cleanly; its objects go with the queue.
     if (state.toplevelDrag != nullptr)
     {
@@ -570,13 +610,19 @@ WindowDragSupport dragSupport()
 bool startDrag(SDL_Window* source, SDL_Window* dragged, float offsetX, float offsetY)
 {
     wl_surface* origin = source != nullptr ? surfaceOf(source) : nullptr;
-    // A drag starts from the press holding the pointer on the window it was in.
+    // A drag starts from the press holding the pointer on the window it was
+    // in. Where our pointer didn't learn the surface (no enter since a drag
+    // ended), the compositor judges the press.
     if (state.device == nullptr || state.source != nullptr || origin == nullptr || state.pressSerial == 0 ||
-        state.pressSurface != origin)
+        (state.pressSurface != origin && state.pressSurface != nullptr))
     {
+        CRUCIBLE_DRAG_DEBUG("no drag from surface %p: a drag already %d, last press %u on surface %p",
+                            static_cast<void*>(origin), state.source != nullptr, state.pressSerial,
+                            static_cast<void*>(state.pressSurface));
         return false;
     }
     state.dropped = false;
+    state.answered = false;
     state.source = wl_data_device_manager_create_data_source(state.manager);
     wl_data_source_add_listener(state.source, &sourceListener, nullptr);
     wl_data_source_offer(state.source, dragMimeType);
@@ -599,6 +645,11 @@ bool startDrag(SDL_Window* source, SDL_Window* dragged, float offsetX, float off
         }
     }
     wl_data_device_start_drag(state.device, state.source, origin, nullptr, state.pressSerial);
+    if (state.checking == nullptr)
+    {
+        state.checking = wl_display_sync(state.wrapper);
+        wl_callback_add_listener(state.checking, &dragCheckListener, nullptr);
+    }
     CRUCIBLE_DRAG_DEBUG("started from window %u (surface %p), dragging window %u (toplevel drag %p)",
                         SDL_GetWindowID(source), static_cast<void*>(origin),
                         dragged != nullptr ? SDL_GetWindowID(dragged) : 0u, static_cast<void*>(state.toplevelDrag));
@@ -615,8 +666,11 @@ bool startMove(SDL_Window* window)
                          : nullptr;
     // From the press holding the pointer in this window, on our seat (the
     // same seat as SDL's, bound again).
-    if (toplevel == nullptr || state.seat == nullptr || state.pressSerial == 0 || state.pressSurface != surface)
+    if (toplevel == nullptr || state.seat == nullptr || state.pressSerial == 0 ||
+        (state.pressSurface != surface && state.pressSurface != nullptr))
     {
+        CRUCIBLE_DRAG_DEBUG("no move of surface %p: last press %u on surface %p", static_cast<void*>(surface),
+                            state.pressSerial, static_cast<void*>(state.pressSurface));
         return false;
     }
     xdg_toplevel_move(toplevel, state.seat, state.pressSerial);

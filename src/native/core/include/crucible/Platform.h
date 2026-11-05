@@ -202,6 +202,10 @@ CRUCIBLE_EXPOSE void stopWindowDrag();
 // with startWindowMove when its title bar is dragged, and lets the edges
 // resize it (setWindowResizeBorder, pixels; 0 for none, the default).
 CRUCIBLE_EXPOSE void setWindowBordered(WindowHandle window, bool bordered);
+// Makes a window a child of another (0: of none): it stays above its
+// parent, goes where it goes (desktops, minimizing), and on Windows leaves
+// the task bar to it. For tool windows, such as an editor's floating ones.
+CRUCIBLE_EXPOSE void setWindowParent(WindowHandle window, WindowHandle parent);
 CRUCIBLE_EXPOSE void setWindowResizeBorder(WindowHandle window, float pixels);
 // Starts a move by the system (snapping and tiling as from its own title
 // bar), from a mouse button pressed in the window and still held. False if

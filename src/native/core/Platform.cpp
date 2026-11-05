@@ -665,6 +665,14 @@ void setWindowBordered(WindowHandle window, bool bordered)
     }
 }
 
+void setWindowParent(WindowHandle window, WindowHandle parent)
+{
+    if (SDL_Window* sdlWindow = find(window))
+    {
+        SDL_SetWindowParent(sdlWindow, find(parent));
+    }
+}
+
 void setWindowResizeBorder(WindowHandle window, float pixels)
 {
     SDL_Window* sdlWindow = find(window);
