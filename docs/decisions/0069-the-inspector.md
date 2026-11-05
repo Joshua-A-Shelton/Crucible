@@ -139,3 +139,6 @@ the JSON. The owner chose color and header hints and override marks too.
     scrubbed one (each one step), 90° typed into a rotation, a part
     overridden then reverted, a camera added, its projection chosen,
     removed, and brought back; saved as `inspector.png`.
+- **Tried by the owner on KWin (2026-11-05):** typed and scrubbed numbers
+  (each one undo step), rotations in degrees, a house's part overridden
+  and reverted, and components added, edited, and removed all work.

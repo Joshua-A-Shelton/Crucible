@@ -440,7 +440,8 @@ the owner on KWin. Step 4b built (ADR 0069): the inspector, from field
 tables the serializer generator writes (`SerializedFields`), editing
 components through their JSON, with Range, Tooltip, Color, and Header
 hints, a color picker, editable lists, asset and entity drop-downs,
-adding and removing components, and prefab overrides marked with Revert.
+adding and removing components, and prefab overrides marked with Revert;
+tried by hand by the owner on KWin. Step 4 is done.
 
 ## M8 — Animation and audio
 
