@@ -90,3 +90,6 @@ Longer explanations of decisions, written to be reread:
 - [Undo and hierarchies](docs/learning/undo-and-hierarchies.md) (ADR 0068):
   three ways to undo, recording edits after they're made, gestures as one
   step, scene IDs that survive deletion, and a tree drawn as a list.
+- [Inspectors and metadata](docs/learning/inspectors-and-metadata.md) (ADR 0069):
+  field tables instead of reflection, editing through JSON, hints as
+  attributes, rotations as angles, linear and sRGB color, and overrides.

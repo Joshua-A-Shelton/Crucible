@@ -17,4 +17,7 @@ public interface IJsonSerialized<T> where T : IJsonSerialized<T>
     /// null for a class). Leaves the reader on the value's last token.
     /// </summary>
     static abstract T ReadJson(ref Utf8JsonReader reader);
+
+    /// <summary>Its members as the JSON shows them, with their editor hints (ADR 0069).</summary>
+    static abstract IReadOnlyList<SerializedField> SerializedFields { get; }
 }

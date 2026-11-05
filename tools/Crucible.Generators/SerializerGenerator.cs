@@ -23,6 +23,10 @@ public sealed class SerializerGenerator : IIncrementalGenerator
     private const string SerializedName = "Crucible.Serialization.SerializedAttribute";
     private const string NotSerializedName = "Crucible.Serialization.NotSerializedAttribute";
     private const string FormerlyNamedName = "Crucible.Serialization.FormerlyNamedAttribute";
+    private const string RangeName = "Crucible.Serialization.RangeAttribute";
+    private const string TooltipName = "Crucible.Serialization.TooltipAttribute";
+    private const string HeaderName = "Crucible.Serialization.HeaderAttribute";
+    private const string ColorName = "Crucible.Serialization.ColorAttribute";
     private const string InterfaceName = "Crucible.Serialization.IJsonSerialized`1";
     private const string VersionProperty = "$version";
 
@@ -189,7 +193,8 @@ public sealed class SerializerGenerator : IIncrementalGenerator
                     Report(Diagnostics.DuplicateName, location, display, name);
                 }
             }
-            members.Add(new MemberModel(member.Name, new EquatableArray<string>(formerNames), shape));
+            HintModel hints = HintsOf(member, shape, $"{display}.{member.Name}", location, Report);
+            members.Add(new MemberModel(member.Name, new EquatableArray<string>(formerNames), shape, hints));
         }
 
         List<string> containers = [];
@@ -208,6 +213,49 @@ public sealed class SerializerGenerator : IIncrementalGenerator
             version,
             new EquatableArray<MemberModel>([.. members]),
             new EquatableArray<DiagnosticInfo>([.. diagnostics]));
+    }
+
+    // The member's editor hints (ADR 0069), checked against what it holds.
+    private static HintModel HintsOf(ISymbol member, TypeShape shape, string display, LocationInfo? location,
+        Action<DiagnosticDescriptor, LocationInfo?, string[]> report)
+    {
+        float min = float.NaN, max = float.NaN;
+        string? tooltip = null, header = null;
+        bool color = false;
+        foreach (AttributeData attribute in member.GetAttributes())
+        {
+            switch (attribute.AttributeClass?.ToDisplayString())
+            {
+                case RangeName when attribute.ConstructorArguments.Length == 2:
+                    min = Convert.ToSingle(attribute.ConstructorArguments[0].Value, System.Globalization.CultureInfo.InvariantCulture);
+                    max = Convert.ToSingle(attribute.ConstructorArguments[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+                    if (shape.Kind is not (ShapeKind.Byte or ShapeKind.SByte or ShapeKind.Int16 or ShapeKind.UInt16
+                        or ShapeKind.Int32 or ShapeKind.UInt32 or ShapeKind.Int64 or ShapeKind.UInt64 or ShapeKind.Single
+                        or ShapeKind.Double or ShapeKind.Vector2 or ShapeKind.Vector3 or ShapeKind.Vector4))
+                    {
+                        report(Diagnostics.MisplacedAttribute, location, [display, "[Range] applies to numbers and vectors"]);
+                    }
+                    else if (!(min <= max))
+                    {
+                        report(Diagnostics.MisplacedAttribute, location, [display, $"[Range({min}, {max})] has its minimum above its maximum"]);
+                    }
+                    break;
+                case TooltipName when attribute.ConstructorArguments.Length == 1:
+                    tooltip = attribute.ConstructorArguments[0].Value as string;
+                    break;
+                case HeaderName when attribute.ConstructorArguments.Length == 1:
+                    header = attribute.ConstructorArguments[0].Value as string;
+                    break;
+                case ColorName:
+                    color = true;
+                    if (shape.Kind is not (ShapeKind.Vector3 or ShapeKind.Vector4))
+                    {
+                        report(Diagnostics.MisplacedAttribute, location, [display, "[Color] applies to a Vector3 or Vector4"]);
+                    }
+                    break;
+            }
+        }
+        return new HintModel(min, max, tooltip, header, color);
     }
 
     // Why the type can't carry generated serialization, or null if it can.
@@ -291,7 +339,9 @@ public sealed class SerializerGenerator : IIncrementalGenerator
         }
         if (named.TypeKind == TypeKind.Enum)
         {
-            return new TypeShape(ShapeKind.Enum, expression, null);
+            string[] enumNames = [.. named.GetMembers().OfType<IFieldSymbol>().Where(field => field.HasConstantValue)
+                .Select(field => field.Name)];
+            return new TypeShape(ShapeKind.Enum, expression, null, new EquatableArray<string>(enumNames));
         }
         string definition = named.OriginalDefinition.ToDisplayString();
         switch (definition)
@@ -366,6 +416,8 @@ public sealed class SerializerGenerator : IIncrementalGenerator
         EmitWrite(code, type);
         code.Line();
         EmitRead(code, type);
+        code.Line();
+        EmitFields(code, type);
         int depth = type.Containers.Length + 1 + (type.Namespace.Length > 0 ? 1 : 0);
         for (int i = 0; i < depth; ++i)
         {
@@ -462,6 +514,64 @@ public sealed class SerializerGenerator : IIncrementalGenerator
         code.Line("return result;");
         code.Close();
     }
+
+    private const string Field = "global::Crucible.Serialization.SerializedField";
+
+    private static void EmitFields(CodeWriter code, SerializedTypeModel type)
+    {
+        code.Line("/// <summary>The members as the JSON shows them, with their editor hints (generated, ADR 0069).</summary>");
+        code.Line($"public static global::System.Collections.Generic.IReadOnlyList<{Field}> SerializedFields {{ get; }} =");
+        code.Line("[");
+        foreach (MemberModel member in type.Members)
+        {
+            code.Line($"    {FieldExpression(member.Name, member.Shape, member.Hints)},");
+        }
+        code.Line("];");
+    }
+
+    // A SerializedField constructed for a member or a collection's items.
+    private static string FieldExpression(string name, TypeShape shape, HintModel? hints)
+    {
+        List<string> arguments = [Literal(name), $"global::Crucible.Serialization.FieldKind.{shape.Kind}"];
+        if (shape.Element is { } element)
+        {
+            arguments.Add($"element: {FieldExpression("", element, null)}");
+        }
+        if (shape.EnumNames.Length > 0)
+        {
+            arguments.Add($"enumNames: [{string.Join(", ", shape.EnumNames.Select(Literal))}]");
+        }
+        if (shape.Kind == ShapeKind.Serialized)
+        {
+            // Read lazily, so a type can hold itself; '!' since its own table isn't set yet while it's built.
+            arguments.Add($"fields: static () => {shape.Type}.SerializedFields!");
+        }
+        if (hints is not null)
+        {
+            if (!float.IsNaN(hints.Min))
+            {
+                arguments.Add($"min: {FloatLiteral(hints.Min)}, max: {FloatLiteral(hints.Max)}");
+            }
+            if (hints.Tooltip is { } tooltip)
+            {
+                arguments.Add($"tooltip: {Literal(tooltip)}");
+            }
+            if (hints.Header is { } header)
+            {
+                arguments.Add($"header: {Literal(header)}");
+            }
+            if (hints.IsColor)
+            {
+                arguments.Add("isColor: true");
+            }
+        }
+        return $"new {Field}({string.Join(", ", arguments)})";
+    }
+
+    private static string FloatLiteral(float value) =>
+        float.IsPositiveInfinity(value) ? "float.PositiveInfinity"
+        : float.IsNegativeInfinity(value) ? "float.NegativeInfinity"
+        : value.ToString("R", System.Globalization.CultureInfo.InvariantCulture) + "f";
 
     private const string Values = "global::Crucible.Serialization.JsonValues";
 
@@ -670,9 +780,13 @@ internal enum ShapeKind
 
 // How one member type is written and read; Element is the inner type of a
 // nullable, array, list, or dictionary.
-internal sealed record TypeShape(ShapeKind Kind, string Type, TypeShape? Element);
+internal sealed record TypeShape(ShapeKind Kind, string Type, TypeShape? Element,
+    EquatableArray<string> EnumNames = default);
 
-internal sealed record MemberModel(string Name, EquatableArray<string> FormerNames, TypeShape Shape);
+// A member's editor hints (ADR 0069); NaN for no range.
+internal sealed record HintModel(float Min, float Max, string? Tooltip, string? Header, bool IsColor);
+
+internal sealed record MemberModel(string Name, EquatableArray<string> FormerNames, TypeShape Shape, HintModel Hints);
 
 // One [Serialized] type, reduced to strings so the incremental cache can compare it.
 internal sealed record SerializedTypeModel(

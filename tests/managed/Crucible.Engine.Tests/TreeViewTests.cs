@@ -14,7 +14,7 @@ public class TreeViewTests
 {
     private const int Return = 40, Escape = 41, Right = 79, Left = 80, Down = 81;
 
-    private sealed class Rig : IDisposable
+    internal sealed class Rig : IDisposable
     {
         public readonly UIRoot Root = new();
         public readonly StackPanel Panel = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -71,12 +71,12 @@ public class TreeViewTests
         }
     }
 
-    private static InputEvent Motion(Vector2 at) => new() { Type = InputEventType.MouseMotion, X = at.X, Y = at.Y };
+    internal static InputEvent Motion(Vector2 at) => new() { Type = InputEventType.MouseMotion, X = at.X, Y = at.Y };
 
-    private static InputEvent Button(Vector2 at, bool down, int button = 1) =>
+    internal static InputEvent Button(Vector2 at, bool down, int button = 1) =>
         new() { Type = down ? InputEventType.MouseButtonDown : InputEventType.MouseButtonUp, X = at.X, Y = at.Y, Code = button };
 
-    private static InputEvent Key(int scancode) => new() { Type = InputEventType.KeyDown, Code = scancode };
+    internal static InputEvent Key(int scancode) => new() { Type = InputEventType.KeyDown, Code = scancode };
 
     // 1 and 2 at the top; 1 holds 10 and 11, and 10 holds 100.
     private static readonly Dictionary<ulong, ulong[]> _nodes = new()

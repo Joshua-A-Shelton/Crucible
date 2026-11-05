@@ -436,7 +436,11 @@ scenes; tried by hand by the owner on KWin and Windows. Step 4a built
 (New, Save, Save As, the unsaved-changes dialog), `EntityName`, and the
 hierarchy panel on a new `TreeView` (selection both ways, F2 renaming,
 Create Empty, Duplicate, Delete, dragging to reparent); tried by hand by
-the owner on KWin. Step 4b, the inspector, is next.
+the owner on KWin. Step 4b built (ADR 0069): the inspector, from field
+tables the serializer generator writes (`SerializedFields`), editing
+components through their JSON, with Range, Tooltip, Color, and Header
+hints, a color picker, editable lists, asset and entity drop-downs,
+adding and removing components, and prefab overrides marked with Revert.
 
 ## M8 — Animation and audio
 

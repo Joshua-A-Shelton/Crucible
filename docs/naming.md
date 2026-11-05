@@ -387,3 +387,25 @@ while building (marked *) settled as drafted too:
 | `HierarchyPanel.Tree`*, `HierarchyChecks`*, `--game-arg check-hierarchy`*; the shell's `History`*, `SceneId`*, `IsDirty`*, `SceneName`*, `SceneChanged`*, `NewScene`*, `SaveScene`*, `SaveSceneAs`*, `WriteScene`*, `ConfirmDiscard`*, `RequestQuit`*, `Rename`*, `CreateEmpty`*, `Duplicate`*, `Delete`*, `Reparent`*, `LabelOf`* | The editor's parts |
 | Internal: `SceneIds`*, `ComponentEdit`*, `SubtreeEdit`*, `ParentEdit`*, `Shell.Scene.cs`*, `SceneEdits.cs`* | Undo's insides |
 | The menu and dialog text: "New Scene", "Save Scene", "Save Scene As…", "Rename", "Duplicate", "Delete", "Create Empty", the default name "Empty", "Save changes to X before quitting?" with "Save", "Don't Save", "Cancel"; the step titles "Move", "Rotate", "Scale", "Rename", "Create Empty", "Duplicate", "Delete", "Move in Hierarchy"; the title "Village.crscene* — Diorama — Crucible", "Untitled" | Text users see |
+
+## The inspector (2026-11-05, M7 step 4b)
+
+Settled as drafted: `SerializedFields`, `SerializedField` (`Name`,
+`Kind`, `Element`, `EnumNames`, `Fields`, `Min`, `Max`, `Tooltip`,
+`Header`, `IsColor`), `FieldKind` (the generator's kinds), `[Range]`,
+`[Tooltip]`, `[Color]`, `[Header]`, `ColorField`, `ColorPicker`,
+`InspectorPanel`, `ComponentSection`, `FieldEditor`, "Add Component",
+"Remove Component", "Revert", "Revert All", the class `overridden`,
+`InspectorTests`, `FieldTableTests`, `ColorPickerTests`, CTest
+`launcher.jit.inspector`, `inspector.png`, ADR 0069,
+`docs/learning/inspectors-and-metadata.md`. Names added while building
+are placeholders (marked *):
+
+| Name | What it is |
+|---|---|
+| `SerializedField.HasRange`*; the attributes' `Min`*, `Max`*, `Text`* | Field table extras |
+| `ColorField` (`Color`*, `HasAlpha`*, `Picker`*, `ColorChanged`*), `ColorPicker` (`Color`*, `HasAlpha`*, `Hsv`*, `ColorChanged`*, `ToLinear`*, `ToSrgb`*, `Hex`*, `TryParseHex`*); classes `color-picker`*, `color-r`*, `color-g`*, `color-b`*, `color-a`* | The color controls |
+| `InspectorPanel` (`Entity`*, `Sections`*, `Pretty`*), `ComponentSection` (`Component`*, `Editors`*), `FieldEditor` (`Field`*, `IsOverridden`*, `Value`*, `Controls`*, `Nested`*, `EulerDegrees`*); classes `inspector-header`*, `inspector-title`*, `component`*, `component-header`*, `component-title`*, `field-name`*, `field-header`* | The inspector's members |
+| The shell's `SetComponent`*, `AddComponent`*, `RemoveComponent`*; `InspectorChecks`*, `--game-arg check-inspector`* | The editor's parts |
+| Internal: `IconButton`*, `PrefabValues`*, `ComponentSection.Json`* | Insides |
+| "Nothing selected", "No fields", "Hex", "Value", "Matrix", "N items", "N entries (read-only)", "None"; step titles "Edit <field>", "Add to <list>", "Remove from <list>", "Add Component", "Remove Component", "Revert", "Revert All" | Text users see |

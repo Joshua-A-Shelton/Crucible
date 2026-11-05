@@ -241,6 +241,19 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "HierarchyChecks: all [0-9]+ checks passed")
 
+    # The inspector checking itself (ADR 0069): the village's house edited
+    # by typing and scrubbing, a part overridden and reverted, components
+    # added and removed; the window saved as inspector.png.
+    add_test(NAME launcher.jit.inspector
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 600
+            --project "${PROJECT_SOURCE_DIR}/samples/Diorama/Project/Diorama.crproject"
+            --scene "${PROJECT_SOURCE_DIR}/samples/Diorama/Project/Assets/Scenes/Village.crscene"
+            --game-arg "check-inspector=${CMAKE_CURRENT_BINARY_DIR}/inspector.png"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/inspector-settings.json")
+    set_tests_properties(launcher.jit.inspector PROPERTIES LABELS "integration;gpu" TIMEOUT 120
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "InspectorChecks: all [0-9]+ checks passed")
+
     # The M6 demonstration (ADR 0064): the UI showcase's menu driven by mouse,
     # keyboard, and gamepad scripts, and captured at four DPI scales; on
     # Windows, on D3D12 too, the captures compared.

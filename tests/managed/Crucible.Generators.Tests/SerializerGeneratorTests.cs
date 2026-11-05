@@ -74,6 +74,9 @@ public class SerializerGeneratorTests
     [Arguments("CRU0107", "[Serialized(Version = 2)] public partial class WrongMigrate { static void Migrate(JsonObject data) { } }")]
     [Arguments("CRU0108", "public class Plain { [Serialized] private int _value; }")]
     [Arguments("CRU0108", "[Serialized] public partial class Both { [Serialized, NotSerialized] public int Value; }")]
+    [Arguments("CRU0108", "[Serialized] public partial class Hint { [Color] public float Value; }")]
+    [Arguments("CRU0108", "[Serialized] public partial class Hint { [Range(0, 1)] public string Value = \"\"; }")]
+    [Arguments("CRU0108", "[Serialized] public partial class Hint { [Range(2, 1)] public float Value; }")]
     public async Task ReportsMisuse(string id, string source)
     {
         (string[] generated, ImmutableArray<Diagnostic> diagnostics, _) = Run(source);

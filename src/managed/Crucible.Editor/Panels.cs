@@ -70,9 +70,6 @@ public abstract class PlaceholderPanel : EditorPanel
     }
 }
 
-/// <summary>The selection's properties (M7 step 4).</summary>
-public sealed class InspectorPanel() : PlaceholderPanel("Inspector", "Inspector", "M7 step 4");
-
 /// <summary>
 /// The scene, rendered (ADR 0067): a toolbar (the handles' mode and space,
 /// the grid, the last frame's time) over a <see cref="SceneView"/>.

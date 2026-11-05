@@ -3,6 +3,7 @@ using Crucible.Assets;
 using Crucible.Ecs;
 using Crucible.Platform;
 using Crucible.Scenes;
+using Crucible.Serialization;
 using Crucible.UI;
 
 namespace Crucible.Editor;
@@ -291,6 +292,39 @@ internal sealed partial class Shell
         Status($"Can't {doing} part of a prefab instance");
         return true;
     }
+
+    /// <summary>Sets a saved component from JSON (null removes it), recorded as one step.</summary>
+    public void SetComponent(Entity entity, string component, JsonNode? value, string title)
+    {
+        if (!HasLive(entity))
+        {
+            return;
+        }
+        JsonNode? before = SceneIds.Read(World, entity, component);
+        SceneIds.Write(World, entity, component, value?.DeepClone());
+        RecordComponent(entity, component, before, title);
+    }
+
+    /// <summary>Adds a saved component with its type's defaults (a transform: identity).</summary>
+    public void AddComponent(Entity entity, string component)
+    {
+        if (!HasLive(entity) || SavedComponents.Find(component) is not { } saved || World.Has(entity, saved.Id))
+        {
+            return;
+        }
+        JsonNode? before = SceneIds.Read(World, entity, component);
+        if (saved.Type == typeof(LocalTransform))
+        {
+            World.Set(entity, LocalTransform.Identity);
+        }
+        else
+        {
+            SceneIds.Write(World, entity, component, new JsonObject());
+        }
+        RecordComponent(entity, component, before, "Add Component");
+    }
+
+    public void RemoveComponent(Entity entity, string component) => SetComponent(entity, component, null, "Remove Component");
 
     /// <summary>Names an entity (F2); an empty name removes its name.</summary>
     public void Rename(Entity entity, string name)

@@ -81,6 +81,8 @@ public static class SavedComponents
     private sealed class Blittable<T>(ComponentId id) : SavedComponent(id, typeof(T))
         where T : unmanaged, IJsonSerialized<T>
     {
+        public override IReadOnlyList<SerializedField> Fields => T.SerializedFields;
+
         public override void Write(Utf8JsonWriter writer, World world, Entity entity) =>
             T.WriteJson(writer, world.Read<T>(entity));
 
@@ -90,6 +92,8 @@ public static class SavedComponents
 
     private sealed class Tag(ComponentId id, Type type) : SavedComponent(id, type)
     {
+        public override IReadOnlyList<SerializedField> Fields => [];
+
         public override void Write(Utf8JsonWriter writer, World world, Entity entity)
         {
             writer.WriteStartObject();
@@ -105,6 +109,8 @@ public static class SavedComponents
 
     private sealed class Managed<T>(ComponentId id) : SavedComponent(id, typeof(T)) where T : IJsonSerialized<T>
     {
+        public override IReadOnlyList<SerializedField> Fields => T.SerializedFields;
+
         public override void Write(Utf8JsonWriter writer, World world, Entity entity)
         {
             if (world.TryGetManaged(entity, out T? value) && value is not null)
@@ -137,6 +143,9 @@ internal abstract class SavedComponent(ComponentId id, Type type)
     public Type Type { get; } = type;
 
     public string Name { get; } = Components.NameOf(type);
+
+    /// <summary>Its members as its JSON shows them (ADR 0069); none for a tag.</summary>
+    public abstract IReadOnlyList<SerializedField> Fields { get; }
 
     public abstract void Write(Utf8JsonWriter writer, World world, Entity entity);
 

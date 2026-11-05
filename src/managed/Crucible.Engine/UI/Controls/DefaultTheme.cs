@@ -112,6 +112,13 @@ public sealed partial class Theme
             .Set(UIElement.ForegroundProperty, muted));
         theme.Add(new Style("TreeExpander:hover").Set(UIElement.ForegroundProperty, text));
         theme.Add(new Style(".tree-drop").Set(UIElement.ForegroundProperty, accent));
+        theme.Add(new Style("StackPanel.color-picker").Set(UIElement.PaddingProperty, new Thickness(8)));
+        theme.Add(new Style("ColorField")
+            .Set(UIElement.PaddingProperty, new Thickness(3))
+            .Set(UIElement.CornerRadiiProperty, new Vector4(4))
+            .Set(UIElement.BackgroundProperty, well)
+            .Set(UIElement.BorderColorProperty, accent));
+        theme.Add(new Style("ColorField:focus").Set(UIElement.BorderWidthProperty, 1.5f));
         theme.Add(new Style("StackPanel.dialog")
             .Set(UIElement.PaddingProperty, new Thickness(12))
             .Set(UIElement.MaxWidthProperty, 440f));

@@ -36,3 +36,38 @@ public sealed class FormerlyNamedAttribute(string name) : Attribute
 {
     public string Name { get; } = name;
 }
+
+/// <summary>
+/// Editor hint (ADR 0069): a number is kept between <paramref name="min"/> and
+/// <paramref name="max"/> when edited in the inspector. Saved data isn't
+/// checked.
+/// </summary>
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false)]
+public sealed class RangeAttribute(float min, float max) : Attribute
+{
+    public float Min { get; } = min;
+
+    public float Max { get; } = max;
+}
+
+/// <summary>Editor hint (ADR 0069): text shown when the pointer rests on the member in the inspector.</summary>
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false)]
+public sealed class TooltipAttribute(string text) : Attribute
+{
+    public string Text { get; } = text;
+}
+
+/// <summary>Editor hint (ADR 0069): a heading shown above the member, starting a group.</summary>
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false)]
+public sealed class HeaderAttribute(string text) : Attribute
+{
+    public string Text { get; } = text;
+}
+
+/// <summary>
+/// Editor hint (ADR 0069): a <c>Vector3</c> (RGB) or <c>Vector4</c> (RGBA) is a
+/// color, shown as a swatch with a picker. Components are linear, 0 to 1
+/// (above 1 for HDR).
+/// </summary>
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false)]
+public sealed class ColorAttribute : Attribute;

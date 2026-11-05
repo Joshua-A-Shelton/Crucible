@@ -326,6 +326,10 @@ internal sealed partial class Shell
         {
             hierarchy.Update();
         }
+        if (_open.GetValueOrDefault("Inspector") is InspectorPanel inspector)
+        {
+            inspector.Update();
+        }
         Entity[] outlined = Outlined(world);
         foreach (EditorPanel panel in _open.Values)
         {
@@ -539,7 +543,7 @@ internal sealed partial class Shell
     {
         Panels.Register("Hierarchy", "Hierarchy", () => new HierarchyPanel(this));
         Panels.Register("Viewport", "Viewport", () => new ViewportPanel(this));
-        Panels.Register("Inspector", "Inspector", () => new InspectorPanel());
+        Panels.Register("Inspector", "Inspector", () => new InspectorPanel(this));
         Panels.Register("Assets", "Assets", () => new AssetsPanel());
         Panels.Register("Log", "Log", () => new LogPanel());
     }
@@ -1114,6 +1118,24 @@ internal sealed partial class Shell
         theme.Add(new Style("Button.tool:hover").Set(UIElement.BackgroundProperty, hover));
         theme.Add(new Style("Button.on").Set(UIElement.BackgroundProperty, accent with { W = 0.55f }));
         theme.Add(new Style("Label.frame-time").Set(UIElement.ForegroundProperty, muted).Set(UIElement.MarginProperty, new Thickness(8, 0, 0, 0)));
+        // The inspector (ADR 0069): a card per component; prefab overrides in the accent color.
+        theme.Add(new Style("DockPanel.inspector-header")
+            .Set(UIElement.BackgroundProperty, strip)
+            .Set(UIElement.PaddingProperty, new Thickness(8, 4, 6, 4)));
+        theme.Add(new Style("Label.inspector-title").Set(UIElement.FontSizeProperty, 15f));
+        theme.Add(new Style("StackPanel.component")
+            .Set(UIElement.BackgroundProperty, strip)
+            .Set(UIElement.CornerRadiiProperty, new Vector4(4))
+            .Set(UIElement.PaddingProperty, new Thickness(6, 4, 6, 6)));
+        theme.Add(new Style("IconButton")
+            .Set(UIElement.ForegroundProperty, muted)
+            .Set(UIElement.CornerRadiiProperty, new Vector4(3)));
+        theme.Add(new Style("IconButton:hover").Set(UIElement.BackgroundProperty, hover).Set(UIElement.ForegroundProperty, text));
+        theme.Add(new Style("Label.field-name").Set(UIElement.ForegroundProperty, muted));
+        theme.Add(new Style("Label.field-header")
+            .Set(UIElement.ForegroundProperty, text)
+            .Set(UIElement.MarginProperty, new Thickness(0, 6, 0, 0)));
+        theme.Add(new Style("Label.overridden").Set(UIElement.ForegroundProperty, accent));
         return theme;
     }
 

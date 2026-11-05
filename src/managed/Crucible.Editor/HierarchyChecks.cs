@@ -249,7 +249,7 @@ internal sealed class HierarchyChecks : GameSystem
         Enumerable.Range(0, tree.RowCount).Count(i => shell.LabelOf(EntityOf(tree.RowNode(i))) == "House");
 
     // The list's row around a tree row, scrolled into view.
-    private static UIElement RowItem(TreeView tree, ulong node)
+    internal static UIElement RowItem(TreeView tree, ulong node)
     {
         tree.ScrollIntoView(node);
         tree.Root!.UpdateLayout(tree.Root.Size * tree.Root.Scale);
@@ -259,7 +259,7 @@ internal sealed class HierarchyChecks : GameSystem
     private static Button DialogButton(Dialog dialog, string text) =>
         Descendants(dialog).OfType<Button>().First(button => button.Text == text);
 
-    private static IEnumerable<UIElement> Descendants(UIElement element)
+    internal static IEnumerable<UIElement> Descendants(UIElement element)
     {
         foreach (UIElement child in element.Children)
         {
@@ -271,12 +271,12 @@ internal sealed class HierarchyChecks : GameSystem
         }
     }
 
-    private static void Send(UIRoot root, params InputEvent[] events) => root.ProcessInput(events);
+    internal static void Send(UIRoot root, params InputEvent[] events) => root.ProcessInput(events);
 
-    private static InputEvent KeyDown(int scancode, uint keycode) =>
+    internal static InputEvent KeyDown(int scancode, uint keycode) =>
         new() { Type = InputEventType.KeyDown, Code = scancode, Keycode = keycode };
 
-    private static void Type(UIRoot root, string typed)
+    internal static void Type(UIRoot root, string typed)
     {
         byte[] utf8 = Encoding.UTF8.GetBytes(typed);
         root.ProcessInput([new InputEvent { Type = InputEventType.TextInput, Code = 0, Value = utf8.Length }], utf8);
