@@ -343,4 +343,8 @@ owner meant to do anyway.
 - **Tried again on KWin:** repeated tear-offs, drops outside, and grabs
   by the strip and the tab, with two dock-backs; nothing stuck, and the
   main window stayed in front (owner).
+- **The frames, tried by the owner on KWin:** moving with snapping,
+  double-click to maximize and restore, the window menu, resizing from
+  edges and corners, and every window button all work. Windows is still
+  to be tried by hand.
 
