@@ -83,3 +83,29 @@ pixels. On Wayland they're logical, so at 1.25× scale a pointer at
 coordinate 100 is at pixel 125. Converting everything to pixels at the
 platform layer means the UI divides by its scale once, the same
 everywhere.
+
+## Drawing your own window frame
+
+A window's title bar and borders normally belong to the system: on
+Windows and X11 the window manager draws them, and on Wayland the
+compositor (or the app, when the compositor won't). Dropping them lets an
+app put its menus in the title bar and make the frame part of its own
+UI. In return the app does what the frame did:
+
+- **Moving:** dragging the title bar must still move the window the
+  system's way, so snapping to screen edges and tiling keep working. The
+  app asks the system to start a move from the press that's still held:
+  a caption press posted to the window on Windows, `xdg_toplevel.move`
+  on Wayland, `_NET_WM_MOVERESIZE` on X11. The press itself is the app's
+  to see first, which is what lets a double-click maximize.
+- **Resizing:** the system asks the app, as the pointer moves, what's
+  under it (a *hit test*): an edge or corner to resize, or the app's
+  own content.
+- **Buttons:** minimize, maximize, and close are the app's own, and so is
+  the window menu on a right-click (the system draws that one when
+  asked).
+
+Some frames don't move the window the system's way at all: a floating
+editor window's title bar starts a window drag of its own instead, so
+other windows hear about it and it can dock where it's dropped.
+

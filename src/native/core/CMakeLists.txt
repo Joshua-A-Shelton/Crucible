@@ -97,6 +97,18 @@ if(UNIX AND NOT APPLE)
     else()
         message(STATUS "Crucible: wayland-scanner or headers not found; no Wayland window drags")
     endif()
+    # Window moves on X11 (ADR 0066): libX11 (X11 license, MIT-style) loaded at
+    # run time; only its headers at build time, which SDL's X11 build needs too.
+    find_path(CRUCIBLE_X11_INCLUDE X11/Xlib.h)
+    if(CRUCIBLE_X11_INCLUDE)
+        target_sources(crucible_core_objects PRIVATE PlatformX11.cpp)
+        target_include_directories(crucible_core_objects PRIVATE "${CRUCIBLE_X11_INCLUDE}")
+        target_compile_definitions(crucible_core_objects PRIVATE CRUCIBLE_PLATFORM_X11=1)
+        target_link_libraries(crucible_core_objects PRIVATE ${CMAKE_DL_LIBS})
+    endif()
+endif()
+if(WIN32)
+    target_sources(crucible_core_objects PRIVATE PlatformWindows.cpp)
 endif()
 
 # The renderer (ADR 0015, 0048), with the engine's shaders embedded, and the

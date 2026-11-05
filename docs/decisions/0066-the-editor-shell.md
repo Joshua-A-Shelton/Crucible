@@ -180,12 +180,8 @@ with every SDL update.
 
 ## Not yet
 
-- **A floating window moved by its title bar doesn't dock.** Moving a
-  window by its frame is the window manager's job, and on Wayland the
-  app hears nothing of it, so floating windows dock by dragging their
-  tab. Windows and X11 could notice a title-bar move ending over another
-  window, but only those platforms, which the parity rule (ADR 0008)
-  argues against; undecided.
+- Windows draws no drop shadow around undecorated windows (DWM can be
+  asked for one); left for the custom decorations' styling (owner).
 - Floating windows on Wayland reopen wherever the compositor puts them
   (apps can't place windows there).
 - Floating windows aren't children of the main window, so they show in
@@ -250,3 +246,83 @@ with every SDL update.
 
   One drag back by the title bar didn't dock (above). Windows isn't
   tried by hand yet.
+
+## Amendment: the editor draws its own window frames (2026-11-04)
+
+**Context.** Tried by hand on KWin, a floating window dragged back by its
+title bar didn't dock. The title bar was KWin's, which moves the window
+without telling the app (on Wayland apps hear nothing of moves).
+
+**Options.** Docking only by a floating window's tab everywhere; noticing
+title-bar moves where the platform tells apps (Windows, X11), breaking
+parity; or undecorated windows drawing their own title bars, which the
+owner meant to do anyway.
+
+**Decision** (owner):
+1. **Undecorated windows** with the editor's own title bars.
+2. **The main window's menus inside its title bar.**
+3. **Floating windows' tab strips as their title bars** (a single
+   group's strip; with several groups, a slim title bar above them).
+4. **Minimize, maximize, and close on every window.**
+5. **The shadow on Windows later.**
+6. **Moves are the editor's own `startWindowMove`,** not SDL's hit test,
+   which on Wayland and X11 swallows a press in a move area: the title
+   bar would never see a double-click or a right-click there. That's a
+   real system move everywhere (snapping and tiling kept):
+   - Windows: a caption press, `WM_NCLBUTTONDOWN`;
+   - Wayland: `xdg_toplevel.move` through the platform's connection;
+   - X11: `_NET_WM_MOVERESIZE`, with libX11 (X11 license, MIT-style)
+     loaded at run time, as SDL does.
+
+   SDL's hit test only resizes, from a border 6 units wide.
+
+**Details.**
+- **The platform:** `setWindowBordered`, `setWindowResizeBorder`
+  (pixels; the hit test carries the width in its data pointer),
+  `startWindowMove`, `minimizeWindow`, `maximizeWindow`, `restoreWindow`,
+  `windowMaximized`, and `showWindowMenu` (the system's window menu,
+  `SDL_ShowWindowSystemMenu`). They're in `PlatformWindows.cpp`,
+  `PlatformX11.cpp` (Crucible's headers before Xlib's, whose macros
+  clash), and `PlatformWayland.cpp` (xdg-shell's client header, generated
+  like the others).
+- **`TitleBar`** (`Crucible.UI`):
+  - its `Leading` content on the left, the `Title` centered on the whole
+    bar (in the room left when it doesn't fit), and three
+    **`WindowButton`**s (`WindowButtonKind`; classes `minimize`,
+    `maximize`, `close`);
+  - its empty parts and title: a press moving 4 units starts the
+    system's move, a double-click maximizes or restores, and a
+    right-click shows the window menu;
+  - presses on the leading content (the menus) or buttons stay theirs;
+  - `OnMoveStarted` lets a window move otherwise;
+  - minimize and maximize act on the root's window; close is the
+    owner's (`Activated`);
+  - the maximize button draws two squares while maximized;
+  - its default theme styles: 32 units high, buttons 44 wide, close red
+    under the pointer.
+- **The editor:**
+  - **The main window:** its title bar holds the menus, its title is
+    "<project> — Crucible", and close quits.
+  - **A floating window with one group:** the group's tab strip ends in
+    the window's buttons, and its empty part works as a title bar.
+  - **With several groups:** a slim title bar above them.
+  - **Dragging a floating window's frame** drags the window, with
+    `startWindowDrag`, so it docks where it's dropped. Where the
+    platform's drags can't move it (`DropOnly`, `None`), the system
+    moves it instead.
+  - **Close** docks a floating window back.
+
+**As built.**
+- **Tests:**
+  - **native:** the frame calls are safe (the offscreen driver has no
+    frames);
+  - **`TitleBarTests`** (JIT and NativeAOT, the window calls recorded):
+    layout, moving, double-click, right-click, buttons;
+  - **`DockingTests`:** the main title bar and close, a floating
+    window's frame following its tree;
+  - **`launcher.jit.editor`:** the title bar's menus and buttons drawn,
+    the floating window's buttons on its strip.
+- **By hand:** to be tried on KWin and Windows. Moves, resizing from the
+  edges, double-click, the window menu, and docking by a floating
+  window's strip all need a real desktop.
+

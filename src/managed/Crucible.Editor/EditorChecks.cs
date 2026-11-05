@@ -82,6 +82,9 @@ internal sealed class EditorChecks : GameSystem
         EditorPanel viewport = Panel(shell, "Viewport");
         Check(CountLight(pixels, viewport.Bounds, 0x80) > 40, "the viewport's placeholder is drawn");
         Check(CountLight(pixels, main.StatusBar.Bounds, 0x80) > 20, "the status bar is drawn");
+        Check(main.TitleBar.Leading == main.MenuBar && main.TitleBar.Bounds.Top == 0, "the menus are in the title bar, on top");
+        Check(CountLight(pixels, main.TitleBar.CloseButton.Bounds, 0xc0) > 5, "the title bar's close button is drawn");
+        Check(CountLight(pixels, main.TitleBar.MaximizeButton.Bounds, 0xc0) > 5, "and its maximize button");
 
         // A click on File opens its menu over the panels.
         MenuItem file = BarItem(main.MenuBar, 0);
@@ -124,6 +127,10 @@ internal sealed class EditorChecks : GameSystem
             byte[] floatingPixels = Read(floating.Surface, floating.Root.Size);
             Check(CountLight(floatingPixels, Tab(inspector).Bounds, 0xc0, (int)floating.Root.Size.X) > 15,
                 "the floating window draws the inspector's tab");
+            Check(inspector.Group!.StripEnd == floating.FloatingButtons && floating.TitleBar.Visibility == Visibility.Collapsed,
+                "its tab strip is its title bar");
+            Check(CountLight(floatingPixels, floating.FloatingButtons.Bounds, 0xc0, (int)floating.Root.Size.X) > 15,
+                "with the window's buttons drawn at its end");
             // Closing it docks its panels back.
             shell.ProcessEvents([new InputEvent { Type = InputEventType.WindowCloseRequested, Window = floating.Window }], []);
             yield return 1;

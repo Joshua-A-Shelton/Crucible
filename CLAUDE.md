@@ -167,9 +167,10 @@ Stated by the project owner and refined one at a time (2026-10-24).
   dr_wav, dr_flac (public domain or MIT-0; ADR 0028); System.IO.Hashing
   (MIT; XXH128 for the import cache, ADR 0040). Noto Sans (SIL Open Font
   License), the editor's and the UI samples' font.
-  Linux, for window drags on Wayland (ADR 0066): libwayland-client (MIT),
-  loaded at run time; wayland-scanner (MIT), at build time; the
-  xdg-toplevel-drag protocol XML (MIT, vendored in `third_party/wayland`).
+  Linux, for window drags and moves (ADR 0066): libwayland-client (MIT)
+  and libX11 (X11 license, MIT-style), loaded at run time; wayland-scanner
+  (MIT), at build time; the xdg-toplevel-drag protocol XML (MIT, vendored
+  in `third_party/wayland`).
   SDL is patched at fetch time (`cmake/PatchSdl.cmake`) to leave
   Crucible's drags to the platform layer.
   Build-time only: the system's libclang (Apache 2.0 with LLVM exception),

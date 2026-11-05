@@ -243,6 +243,29 @@ TEST_CASE("Window drags need a platform that has them")
     destroyWindow(window.value());
 }
 
+TEST_CASE("Windows can drop their frame and draw their own")
+{
+    PlatformScope platform;
+    crucible::Result<WindowHandle> window = createWindow(200, 150, "Crucible frame");
+    REQUIRE(static_cast<bool>(window));
+    // The offscreen driver has no frames to drop: the calls are only safe here.
+    setWindowBordered(window.value(), false);
+    setWindowBordered(window.value(), true);
+    setWindowResizeBorder(window.value(), 6.0f);
+    setWindowResizeBorder(window.value(), 0.0f);
+    // No press held (and the offscreen driver has no window manager): no move.
+    CHECK_FALSE(startWindowMove(window.value()));
+    maximizeWindow(window.value());
+    restoreWindow(window.value());
+    minimizeWindow(window.value());
+    showWindowMenu(window.value(), {10.0f, 10.0f});
+    // Nothing happens for a window that doesn't exist.
+    setWindowBordered({}, false);
+    CHECK_FALSE(startWindowMove({}));
+    CHECK_FALSE(windowMaximized({}));
+    destroyWindow(window.value());
+}
+
 TEST_CASE("Drag events come back in order with their positions")
 {
     PlatformScope platform;

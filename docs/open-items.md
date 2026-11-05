@@ -32,6 +32,10 @@ is, and record which version fixed it.
   devices). On each SDL update, check the patch still applies and is
   still needed (an SDL hook for app-defined drag types would replace it),
   and try a tear-off and dock-back on Wayland by hand. → 0066
+- **Window moves bypass SDL** on Windows (a posted caption press), Wayland
+  (`xdg_toplevel.move`), and X11 (`_NET_WM_MOVERESIZE`), since SDL has
+  no call to start one: check on each SDL update whether it has gained
+  one (`SDL_StartWindowMove` or the like) and use it. → 0066
 - **`xdg-toplevel-drag-v1` is a staging protocol** (wayland-protocols
   1.45, vendored): check for a stable version, and that KWin, GNOME, and
   wlroots compositors still offer it (`CRUCIBLE_TEST_WAYLAND=1` native

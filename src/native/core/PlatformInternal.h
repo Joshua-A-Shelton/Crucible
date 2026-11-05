@@ -28,12 +28,29 @@ WindowDragSupport dragSupport();
 // the compositor moves it, `offsetX`/`offsetY` (window coordinates) under the
 // pointer. False if the drag couldn't start.
 bool startDrag(SDL_Window* source, SDL_Window* dragged, float offsetX, float offsetY);
+// A move by the compositor (xdg_toplevel.move) from the window's last press.
+bool startMove(SDL_Window* window);
 void stopDrag();
 // Reads Crucible's queue after SDL has read the socket, turning drag events
 // into pushDragEvent calls.
 void dispatch();
 
 } // namespace wayland
+#endif
+
+#if defined(CRUCIBLE_PLATFORM_X11)
+// A move by the window manager (_NET_WM_MOVERESIZE, libX11 loaded at run
+// time), from the pointer's place on the root window.
+namespace x11 {
+bool startMove(SDL_Window* window, float rootX, float rootY);
+}
+#endif
+
+#if defined(_WIN32)
+// A move by Windows, as from the caption (WM_NCLBUTTONDOWN).
+namespace windows {
+bool startMove(SDL_Window* window);
+}
 #endif
 
 } // namespace crucible::platform

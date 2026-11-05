@@ -171,6 +171,21 @@ public sealed partial class Theme
             .Set(UIElement.MarginProperty, new Thickness(6, 4, 6, 4))
             .Set(UIElement.BackgroundProperty, edge));
         theme.Add(new Style("Label.shortcut").Set(UIElement.ForegroundProperty, muted));
+
+        // Title bars of windows drawing their own frame (ADR 0066): flat
+        // buttons, close turning red under the pointer.
+        theme.Add(new Style("TitleBar")
+            .Set(UIElement.BackgroundProperty, well)
+            .Set(UIElement.MinHeightProperty, 32f)
+            .Set(UIElement.PaddingProperty, new Thickness(4, 0, 0, 0)));
+        theme.Add(new Style("Label.title").Set(UIElement.ForegroundProperty, muted));
+        theme.Add(new Style("WindowButton")
+            .Set(UIElement.WidthProperty, 44f)
+            .Set(UIElement.ForegroundProperty, text)
+            .Transition(UIElement.BackgroundProperty, quick.Duration, quick.Easing));
+        theme.Add(new Style("WindowButton:hover").Set(UIElement.BackgroundProperty, hover));
+        theme.Add(new Style("WindowButton:pressed").Set(UIElement.BackgroundProperty, pressed));
+        theme.Add(new Style("WindowButton.close:hover").Set(UIElement.BackgroundProperty, Color(0xc42b1c)));
         return theme;
     }
 

@@ -26,24 +26,31 @@ public sealed class EditorWindow : IDisposable
         _ownsWindow = ownsWindow;
         Root = new UIRoot { Theme = theme, DefaultFont = font };
         DockSpace = new DockSpace();
+        TitleBar = isMain ? new TitleBar() : new FloatingTitleBar(this);
+        DockPanel page = new();
+        page.Classes.Add("editor");
+        DockPanel.SetDock(TitleBar, Dock.Top);
+        page.Add(TitleBar);
         if (isMain)
         {
-            DockPanel page = new();
-            page.Classes.Add("editor");
-            DockPanel.SetDock(MenuBar, Dock.Top);
+            TitleBar.Title = EngineInfo.Name;
+            TitleBar.Leading = MenuBar;
             DockPanel.SetDock(StatusBar, Dock.Bottom);
-            page.Add(MenuBar);
             page.Add(StatusBar);
-            page.Add(DockSpace);
-            Root.Content = page;
         }
         else
         {
-            DockSpace.Classes.Add("editor");
-            Root.Content = DockSpace;
+            FloatingButtons.Add(new WindowButton(WindowButtonKind.Minimize));
+            FloatingButtons.Add(new WindowButton(WindowButtonKind.Maximize));
+            FloatingButtons.Add(new WindowButton(WindowButtonKind.Close));
         }
-        // Input from the window, at its display scale (none headless).
+        page.Add(DockSpace);
+        Root.Content = page;
+        // Input from the window, at its display scale (none headless); its
+        // own frame, resized from a border a few units wide (ADR 0066).
         Root.Window = window;
+        Platform.Api.SetWindowBordered(window, false);
+        Platform.Api.SetWindowResizeBorder(window, ResizeBorder * Root.Scale);
         _schedule = RenderSchedule.Create();
         _schedule.Add("UI", Root);
         if (surface.Value != 0) // none in tests
@@ -51,6 +58,8 @@ public sealed class EditorWindow : IDisposable
             RenderSchedule.SetSurfaceSchedule(surface, _schedule);
         }
     }
+
+    private const float ResizeBorder = 6; // units
 
     public WindowHandle Window { get; }
 
@@ -62,8 +71,41 @@ public sealed class EditorWindow : IDisposable
 
     public DockSpace DockSpace { get; }
 
-    /// <summary>The main window's menu bar (empty and hidden in floating ones).</summary>
+    /// <summary>
+    /// The window's own title bar: the main window's holds the menu bar; a
+    /// floating window's shows only while it holds more than one group
+    /// (with one, the group's tab strip is its title bar).
+    /// </summary>
+    public TitleBar TitleBar { get; }
+
+    /// <summary>The main window's menu bar (empty and unused in floating ones).</summary>
     public MenuBar MenuBar { get; } = new();
+
+    // A floating window's buttons at its only group's strip end.
+    internal StackPanel FloatingButtons { get; } = new() { Orientation = Orientation.Horizontal };
+
+    // A floating window's frame follows its tree: buttons on the strip of
+    // a single group, else a title bar of its own above the groups.
+    internal void UpdateFrame()
+    {
+        if (IsMain)
+        {
+            return;
+        }
+        DockGroup? only = DockSpace.Node as DockGroup;
+        foreach (DockGroup group in DockSpace.Groups)
+        {
+            if (group != only)
+            {
+                group.StripEnd = null;
+            }
+        }
+        if (only is not null)
+        {
+            only.StripEnd = FloatingButtons;
+        }
+        TitleBar.Visibility = only is null ? Visibility.Visible : Visibility.Collapsed;
+    }
 
     /// <summary>The main window's status bar.</summary>
     public StatusBar StatusBar { get; } = new();
@@ -123,4 +165,11 @@ public sealed class StatusBar : UIElement
         get => _text.Text;
         set => _text.Text = value;
     }
+}
+
+// A floating window's title bar, while it holds several groups: dragged,
+// it drags the window so it can dock, as its tab strips' empty parts do.
+internal sealed class FloatingTitleBar(EditorWindow window) : TitleBar
+{
+    protected override void OnMoveStarted(Vector2 pressedAt) => Shell.Of(this)?.BeginWindowDrag(window, pressedAt);
 }

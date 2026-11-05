@@ -19,11 +19,12 @@ public class DockingTests
     {
         public readonly string Folder = Path.Combine(Path.GetTempPath(), "crucible-editor-" + Guid.NewGuid().ToString("N"));
         public readonly Shell Shell;
+        public readonly FrameContext Context = new();
 
         public Rig()
         {
             Directory.CreateDirectory(Folder);
-            Shell = new Shell(new FrameContext(), SettingsPath);
+            Shell = new Shell(Context, SettingsPath);
             Layout();
         }
 
@@ -284,5 +285,42 @@ public class DockingTests
         });
         await Assert.That(quit).IsTrue();
         await Assert.That(string.Join(",", rig.Shell.Main.MenuBar.Menus.Select(menu => menu.Title))).IsEqualTo("File,Edit,Window,Help");
+    }
+
+    [Test]
+    public async Task TheMainTitleBarHoldsTheMenusAndClosingQuits()
+    {
+        using Rig rig = new();
+        EditorWindow main = rig.Shell.Main;
+        await Assert.That(main.TitleBar.Leading).IsSameReferenceAs(main.MenuBar);
+        await Assert.That(main.TitleBar.Bounds.Top).IsEqualTo(0f);
+        Vector2 close = Center(main.TitleBar.CloseButton);
+        rig.Send(Motion(close), Button(close, true), Button(close, false));
+        await Assert.That(rig.Context.QuitRequested).IsTrue();
+    }
+
+    [Test]
+    public async Task AFloatingWindowsFrameFollowsItsTree()
+    {
+        using Rig rig = new();
+        using EditorWindow floating = new(default, default, false, false, rig.Root.Theme!, rig.Root.DefaultFont);
+        TestPanel a = new("A"), b = new("B");
+        floating.DockSpace.Dock(a, null, DockTarget.Center);
+        floating.UpdateFrame();
+        // One group: its tab strip is the title bar, with the window's buttons at its end.
+        await Assert.That(a.Group!.StripEnd).IsSameReferenceAs(floating.FloatingButtons);
+        await Assert.That(floating.TitleBar.Visibility).IsEqualTo(Visibility.Collapsed);
+        await Assert.That(string.Join(",", floating.FloatingButtons.Children.OfType<WindowButton>().Select(button => button.Kind)))
+            .IsEqualTo("Minimize,Maximize,Close");
+        floating.Root.UpdateLayout(new Vector2(400, 300));
+        await Assert.That(floating.FloatingButtons.Bounds.Right).IsEqualTo(400f).Within(1.5f);
+        await Assert.That(floating.FloatingButtons.Bounds.Top).IsLessThan(2f);
+
+        // Two groups: a title bar of its own above them.
+        floating.DockSpace.Dock(b, a.Group, DockTarget.Right);
+        floating.UpdateFrame();
+        await Assert.That(a.Group!.StripEnd).IsNull();
+        await Assert.That(b.Group!.StripEnd).IsNull();
+        await Assert.That(floating.TitleBar.Visibility).IsEqualTo(Visibility.Visible);
     }
 }

@@ -350,6 +350,35 @@ void trackSdlDrag()
     }
 }
 
+// The resize border's width in window coordinates, carried in the hit
+// test's data pointer (no allocation per window).
+SDL_HitTestResult SDLCALL resizeHitTest(SDL_Window* window, const SDL_Point* point, void* data)
+{
+    const auto bits = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(data));
+    float border = 0.0f;
+    std::memcpy(&border, &bits, sizeof(float));
+    int width = 0, height = 0;
+    if ((SDL_GetWindowFlags(window) & (SDL_WINDOW_MAXIMIZED | SDL_WINDOW_FULLSCREEN)) != 0 ||
+        !SDL_GetWindowSize(window, &width, &height))
+    {
+        return SDL_HITTEST_NORMAL;
+    }
+    const auto x = static_cast<float>(point->x), y = static_cast<float>(point->y);
+    const bool left = x < border, right = x >= static_cast<float>(width) - border;
+    const bool top = y < border, bottom = y >= static_cast<float>(height) - border;
+    if (top)
+    {
+        return left ? SDL_HITTEST_RESIZE_TOPLEFT : right ? SDL_HITTEST_RESIZE_TOPRIGHT : SDL_HITTEST_RESIZE_TOP;
+    }
+    if (bottom)
+    {
+        return left    ? SDL_HITTEST_RESIZE_BOTTOMLEFT
+               : right ? SDL_HITTEST_RESIZE_BOTTOMRIGHT
+                       : SDL_HITTEST_RESIZE_BOTTOM;
+    }
+    return left ? SDL_HITTEST_RESIZE_LEFT : right ? SDL_HITTEST_RESIZE_RIGHT : SDL_HITTEST_NORMAL;
+}
+
 bool sdlDrivesDrags()
 {
     const char* driver = SDL_GetCurrentVideoDriver();
@@ -626,6 +655,98 @@ void stopWindowDrag()
 #if defined(CRUCIBLE_PLATFORM_WAYLAND)
     wayland::stopDrag();
 #endif
+}
+
+void setWindowBordered(WindowHandle window, bool bordered)
+{
+    if (SDL_Window* sdlWindow = find(window))
+    {
+        SDL_SetWindowBordered(sdlWindow, bordered);
+    }
+}
+
+void setWindowResizeBorder(WindowHandle window, float pixels)
+{
+    SDL_Window* sdlWindow = find(window);
+    if (sdlWindow == nullptr)
+    {
+        return;
+    }
+    const float border = pixels / pixelDensity(window.value);
+    uint32_t bits = 0;
+    std::memcpy(&bits, &border, sizeof(float));
+    SDL_SetWindowHitTest(sdlWindow, pixels > 0.0f ? resizeHitTest : nullptr,
+                         reinterpret_cast<void*>(static_cast<uintptr_t>(bits)));
+}
+
+bool startWindowMove(WindowHandle window)
+{
+    SDL_Window* sdlWindow = find(window);
+    const char* driver = SDL_GetCurrentVideoDriver();
+    if (sdlWindow == nullptr || driver == nullptr)
+    {
+        return false;
+    }
+#if defined(CRUCIBLE_PLATFORM_WAYLAND)
+    if (std::strcmp(driver, "wayland") == 0)
+    {
+        return wayland::startMove(sdlWindow);
+    }
+#endif
+#if defined(CRUCIBLE_PLATFORM_X11)
+    if (std::strcmp(driver, "x11") == 0)
+    {
+        float x = 0.0f, y = 0.0f;
+        return (SDL_GetGlobalMouseState(&x, &y) & SDL_BUTTON_LMASK) != 0 && x11::startMove(sdlWindow, x, y);
+    }
+#endif
+#if defined(_WIN32)
+    if (std::strcmp(driver, "windows") == 0)
+    {
+        return (SDL_GetGlobalMouseState(nullptr, nullptr) & SDL_BUTTON_LMASK) != 0 && windows::startMove(sdlWindow);
+    }
+#endif
+    return false;
+}
+
+void minimizeWindow(WindowHandle window)
+{
+    if (SDL_Window* sdlWindow = find(window))
+    {
+        SDL_MinimizeWindow(sdlWindow);
+    }
+}
+
+void maximizeWindow(WindowHandle window)
+{
+    if (SDL_Window* sdlWindow = find(window))
+    {
+        SDL_MaximizeWindow(sdlWindow);
+    }
+}
+
+void restoreWindow(WindowHandle window)
+{
+    if (SDL_Window* sdlWindow = find(window))
+    {
+        SDL_RestoreWindow(sdlWindow);
+    }
+}
+
+bool windowMaximized(WindowHandle window)
+{
+    SDL_Window* sdlWindow = find(window);
+    return sdlWindow != nullptr && (SDL_GetWindowFlags(sdlWindow) & SDL_WINDOW_MAXIMIZED) != 0;
+}
+
+void showWindowMenu(WindowHandle window, Vector2 position)
+{
+    if (SDL_Window* sdlWindow = find(window))
+    {
+        const float density = pixelDensity(window.value);
+        SDL_ShowWindowSystemMenu(sdlWindow, static_cast<int>(position.x / density),
+                                 static_cast<int>(position.y / density));
+    }
 }
 
 void showOpenFileDialog(WindowHandle window, std::string_view filterName, std::string_view pattern)

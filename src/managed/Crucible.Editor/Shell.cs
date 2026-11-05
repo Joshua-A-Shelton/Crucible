@@ -118,6 +118,7 @@ internal sealed class Shell
         {
             if (!window.IsMain)
             {
+                window.UpdateFrame(); // its title bar follows its tree
                 Status status = Render.Api.RenderFrame(window.Surface, default, 0, 0.02f, 0.02f, 0.025f, 1);
                 if (status < 0)
                 {
@@ -167,6 +168,7 @@ internal sealed class Shell
         SaveSettings();
         RebuildRecent();
         Status($"{Project.Name} — {Project.ProjectFilePath}");
+        Main.TitleBar.Title = $"{Project.Name} — {EngineInfo.Name}";
         Log($"Opened {Project.Name}");
     }
 
@@ -436,6 +438,38 @@ internal sealed class Shell
         }
     }
 
+    /// <summary>
+    /// A floating window's title bar (or tab strip) dragged: the platform
+    /// drags the window so it can dock where it's dropped. Where windows
+    /// can't follow a drag, the system moves it instead (no docking).
+    /// </summary>
+    public void BeginWindowDrag(EditorWindow window, Vector2 at)
+    {
+        if (_drag is not null || window.IsMain || window.DockSpace.Panels.FirstOrDefault() is not { } panel)
+        {
+            return;
+        }
+        if (Platform.Api.WindowDragSupport() == WindowDragSupport.Full &&
+            Platform.Api.StartWindowDrag(window.Window, window.Window, at * window.Root.Scale))
+        {
+            _drag = new TabDrag(panel, window) { Dragged = window };
+            return;
+        }
+        Platform.Api.StartWindowMove(window.Window);
+    }
+
+    public static void ToggleMaximized(EditorWindow window)
+    {
+        if (Platform.Api.WindowMaximized(window.Window))
+        {
+            Platform.Api.RestoreWindow(window.Window);
+        }
+        else
+        {
+            Platform.Api.MaximizeWindow(window.Window);
+        }
+    }
+
     private void PlatformDragMoved(WindowHandle over, Vector2 pixels)
     {
         if (_debugDrags && over.Value != _debugOver)
@@ -509,6 +543,19 @@ internal sealed class Shell
         {
             content.KeyDown += HandleKeys;
         }
+        // The window's close buttons: the main one quits, a floating one docks back.
+        Action<UIElement, UIEvent> close = window.IsMain
+            ? (_, _) => _context.QuitRequested = true
+            : (_, _) => DockBack(window);
+        window.TitleBar.CloseButton.Activated += close;
+        foreach (UIElement button in window.FloatingButtons.Children)
+        {
+            if (button is WindowButton { Kind: WindowButtonKind.Close })
+            {
+                button.Activated += close;
+            }
+        }
+        window.UpdateFrame();
     }
 
     private void Remove(EditorWindow window)

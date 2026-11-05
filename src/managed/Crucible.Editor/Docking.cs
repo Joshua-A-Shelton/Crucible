@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Numerics;
+using Crucible.Platform;
 using Crucible.UI;
 
 namespace Crucible.Editor;
@@ -491,9 +492,14 @@ public sealed class Splitter : UIElement
 /// </summary>
 public sealed class DockGroup : UIElement
 {
+    private const float MoveThreshold = 4; // units moved before a press on the strip moves the window
+
     private readonly StackPanel _strip = new() { Orientation = Orientation.Horizontal, Spacing = 1 };
     private readonly List<EditorPanel> _panels = [];
     private int _active = -1;
+    private UIElement? _stripEnd;
+    private bool _pressed;
+    private Vector2 _pressedAt;
 
     public DockGroup()
     {
@@ -520,6 +526,74 @@ public sealed class DockGroup : UIElement
     }
 
     internal IReadOnlyList<UIElement> Tabs => _strip.Children;
+
+    // A floating window's only group is its title bar (ADR 0066): the
+    // window's buttons at the strip's end, and the strip's empty part
+    // dragging the window (to dock it), a double-click maximizing it, a
+    // right-click showing the window's menu.
+    internal UIElement? StripEnd
+    {
+        get => _stripEnd;
+        set
+        {
+            if (_stripEnd == value)
+            {
+                return;
+            }
+            if (_stripEnd is not null)
+            {
+                RemoveChild(_stripEnd);
+            }
+            _stripEnd = value;
+            if (value is not null)
+            {
+                AddChild(value);
+            }
+            InvalidateMeasure();
+        }
+    }
+
+    private bool OnStrip(PointerEvent e) =>
+        (e.Source == this || e.Source == _strip) && e.Position.Y < _strip.Bounds.Bottom;
+
+    protected override void OnPointerDown(PointerEvent e)
+    {
+        if (_stripEnd is null || !OnStrip(e) || Shell.Of(this) is not { } shell || shell.WindowOf(this) is not { } window)
+        {
+            return;
+        }
+        e.Handled = true;
+        if (e.Button == PointerButton.Right)
+        {
+            Platform.Api.ShowWindowMenu(window.Window, e.Position * window.Root.Scale);
+        }
+        else if (e.Button == PointerButton.Left && e.ClickCount == 2)
+        {
+            _pressed = false;
+            Shell.ToggleMaximized(window);
+        }
+        else if (e.Button == PointerButton.Left)
+        {
+            _pressed = true;
+            _pressedAt = e.Position;
+        }
+    }
+
+    protected override void OnPointerMove(PointerEvent e)
+    {
+        if (!_pressed || Vector2.Distance(e.Position, _pressedAt) < MoveThreshold)
+        {
+            return;
+        }
+        e.Handled = true;
+        _pressed = false;
+        if (Shell.Of(this) is { } shell && shell.WindowOf(this) is { } window)
+        {
+            shell.BeginWindowDrag(window, _pressedAt);
+        }
+    }
+
+    protected override void OnPointerUp(PointerEvent e) => _pressed = false;
 
     /// <summary>Adds a panel's tab (at the end, or at <paramref name="index"/>) and shows it.</summary>
     public void Add(EditorPanel panel, int index = -1)
@@ -586,8 +660,9 @@ public sealed class DockGroup : UIElement
 
     protected override Vector2 MeasureCore(Vector2 available)
     {
+        _stripEnd?.Measure(available);
         _strip.Measure(available);
-        float stripHeight = _strip.DesiredSize.Y;
+        float stripHeight = MathF.Max(_strip.DesiredSize.Y, _stripEnd?.DesiredSize.Y ?? 0);
         Vector2 below = new(available.X, MathF.Max(available.Y - stripHeight, 0));
         Vector2 size = new(_strip.DesiredSize.X, 0);
         foreach (EditorPanel panel in _panels)
@@ -600,8 +675,10 @@ public sealed class DockGroup : UIElement
 
     protected override void ArrangeCore(RectangleF content)
     {
-        float stripHeight = _strip.DesiredSize.Y;
-        _strip.Arrange(new RectangleF(content.X, content.Y, content.Width, stripHeight));
+        float stripHeight = MathF.Max(_strip.DesiredSize.Y, _stripEnd?.DesiredSize.Y ?? 0);
+        float end = _stripEnd?.DesiredSize.X ?? 0;
+        _strip.Arrange(new RectangleF(content.X, content.Y, MathF.Max(content.Width - end, 0), stripHeight));
+        _stripEnd?.Arrange(new RectangleF(content.Right - end, content.Y, end, stripHeight));
         RectangleF below = new(content.X, content.Y + stripHeight, content.Width, MathF.Max(content.Height - stripHeight, 0));
         foreach (EditorPanel panel in _panels)
         {

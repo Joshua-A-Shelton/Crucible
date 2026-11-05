@@ -34,6 +34,7 @@
 #include <wayland-client-core.h>
 
 #include "wayland-protocol.h"
+#include "xdg-shell-protocol.h"
 #include "xdg-toplevel-drag-v1-protocol.h"
 
 // The interface descriptions, defined here (one translation unit).
@@ -602,6 +603,25 @@ bool startDrag(SDL_Window* source, SDL_Window* dragged, float offsetX, float off
                         SDL_GetWindowID(source), static_cast<void*>(origin),
                         dragged != nullptr ? SDL_GetWindowID(dragged) : 0u, static_cast<void*>(state.toplevelDrag));
     wl_display_flush(state.display);
+    return true;
+}
+
+bool startMove(SDL_Window* window)
+{
+    wl_surface* surface = window != nullptr ? surfaceOf(window) : nullptr;
+    auto* toplevel = window != nullptr
+                         ? static_cast<xdg_toplevel*>(SDL_GetPointerProperty(
+                               SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WAYLAND_XDG_TOPLEVEL_POINTER, nullptr))
+                         : nullptr;
+    // From the press holding the pointer in this window, on our seat (the
+    // same seat as SDL's, bound again).
+    if (toplevel == nullptr || state.seat == nullptr || state.pressSerial == 0 || state.pressSurface != surface)
+    {
+        return false;
+    }
+    xdg_toplevel_move(toplevel, state.seat, state.pressSerial);
+    wl_display_flush(state.display);
+    CRUCIBLE_DRAG_DEBUG("move of window %u", SDL_GetWindowID(window));
     return true;
 }
 

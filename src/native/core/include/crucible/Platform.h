@@ -197,6 +197,25 @@ CRUCIBLE_EXPOSE bool startWindowDrag(WindowHandle window, WindowHandle draggedWi
 // lets apps; on Wayland the compositor ends it (Escape, or the release).
 CRUCIBLE_EXPOSE void stopWindowDrag();
 
+// Drawing a window's frame yourself (ADR 0066): without the system's
+// border and title bar, the app draws its own title bar, moves the window
+// with startWindowMove when its title bar is dragged, and lets the edges
+// resize it (setWindowResizeBorder, pixels; 0 for none, the default).
+CRUCIBLE_EXPOSE void setWindowBordered(WindowHandle window, bool bordered);
+CRUCIBLE_EXPOSE void setWindowResizeBorder(WindowHandle window, float pixels);
+// Starts a move by the system (snapping and tiling as from its own title
+// bar), from a mouse button pressed in the window and still held. False if
+// no move could start (no press held, or a platform without moves, as
+// headless).
+CRUCIBLE_EXPOSE bool startWindowMove(WindowHandle window);
+CRUCIBLE_EXPOSE void minimizeWindow(WindowHandle window);
+CRUCIBLE_EXPOSE void maximizeWindow(WindowHandle window);
+CRUCIBLE_EXPOSE void restoreWindow(WindowHandle window);
+CRUCIBLE_EXPOSE bool windowMaximized(WindowHandle window);
+// The system's menu for the window (move, size, close ...) at a position in
+// it, in pixels, where the platform has one.
+CRUCIBLE_EXPOSE void showWindowMenu(WindowHandle window, Vector2 position);
+
 // The system's open-file dialog (ADR 0066), over `window` (0 for none),
 // showing files matching `pattern` (extensions without dots, separated by
 // ';', such as "crproject"; empty for all) under `filterName`. The choice

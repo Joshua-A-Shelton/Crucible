@@ -82,4 +82,5 @@ Longer explanations of decisions, written to be reread:
   groups, and scrubbing numbers.
 - [Docking and windows](docs/learning/docking-and-windows.md) (ADR 0066):
   layouts as trees, drop targets, why Wayland drags windows differently,
-  a Wayland connection beside SDL's, and pixels versus points.
+  a Wayland connection beside SDL's, pixels versus points, and drawing
+  your own window frame.

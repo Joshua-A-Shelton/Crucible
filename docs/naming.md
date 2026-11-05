@@ -331,3 +331,17 @@ while building are placeholders until settled (marked *).
 | `RenderSchedule` (an object: `Create`, `Default`, `Add`, `InsertBefore`, `InsertAfter`, `Replace`, `Remove`, `SetSurfaceSchedule`, `Dispose`), `setSurfaceSchedule`, `createRenderSchedule`*, `destroyRenderSchedule`*, the step `Clear`* | Render schedules |
 | `EditorChecks`, CTest `launcher.jit.editor`, `editor.png`; `DockingTests`, `MenuTests`; `Crucible.Editor.Tests`*; `docs/learning/docking-and-windows.md` | Tests and the note |
 
+## The editor's own window frames (2026-11-04, M7 step 2, ADR 0066 amended)
+
+Settled as drafted: `TitleBar`, `WindowButton` (classes `minimize`,
+`maximize`, `close`), `setWindowBordered`, `setWindowResizeBorder`,
+`startWindowMove`, `minimizeWindow`, `maximizeWindow`, `restoreWindow`,
+`windowMaximized`, `showWindowMenu`. Placeholders until settled (marked *):
+
+| Name | What it is |
+|---|---|
+| `TitleBar` (`Title`*, `Leading`*, `MinimizeButton`*, `MaximizeButton`*, `CloseButton`*, `OnMoveStarted`*; label class `title`*) | The title bar's members |
+| `WindowButton` (`Kind`*), `WindowButtonKind`* (`Minimize`*, `Maximize`*, `Close`*) | Window buttons |
+| `EditorWindow.TitleBar`*, the editor's main title "<project> — Crucible" | The editor's frames |
+| `TitleBarTests`* | Its tests |
+
