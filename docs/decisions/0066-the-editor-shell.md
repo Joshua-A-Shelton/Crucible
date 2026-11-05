@@ -341,5 +341,6 @@ owner meant to do anyway.
     would leave the drag waiting forever. A round trip after starting
     ends a drag the compositor never answered (kitty's approach).
 - **Tried again on KWin:** repeated tear-offs, drops outside, and grabs
-  by the strip and the tab, with two dock-backs; nothing stuck.
+  by the strip and the tab, with two dock-backs; nothing stuck, and the
+  main window stayed in front (owner).
 
