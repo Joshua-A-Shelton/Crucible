@@ -149,6 +149,9 @@ CRUCIBLE_EXPOSE_INTERNAL Entity createEntity(World& world, std::span<const Compo
 // dead entity.
 CRUCIBLE_EXPOSE_INTERNAL void destroyEntity(World& world, Entity entity);
 CRUCIBLE_EXPOSE_INTERNAL bool isAlive(const World& world, Entity entity);
+// The live entity at an index, with its generation; nullEntity if none
+// (the editor's picking reads indices back from the GPU, ADR 0067).
+Entity entityAtIndex(const World& world, uint32_t index);
 CRUCIBLE_EXPOSE_INTERNAL uint32_t entityCount(const World& world);
 
 // Adding moves the entity to the archetype with the component (zero-

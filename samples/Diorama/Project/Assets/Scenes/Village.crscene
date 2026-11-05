@@ -1,0 +1,477 @@
+{
+  "$guid": "6ea19c76-2e22-4a7a-be4d-df460ee6ee56",
+  "Entities": [
+    {
+      "Id": "01c91f4594ed61cc",
+      "Components": {
+        "Crucible.Render.AmbientLight": {
+          "SkyColor": [0.35, 0.4, 0.55],
+          "GroundColor": [0.22, 0.2, 0.16],
+          "Intensity": 0.75
+        }
+      }
+    },
+    {
+      "Id": "0729172eb83122bf",
+      "Components": {
+        "Crucible.Render.PointLight": {
+          "Color": [1, 0.78, 0.5],
+          "Intensity": 7,
+          "Range": 7,
+          "CastsShadows": false
+        },
+        "Crucible.Scenes.LocalTransform": {
+          "Position": [3.95, 2.75, -2.5],
+          "Rotation": [0, 0, 0, 1],
+          "Scale": [1, 1, 1]
+        }
+      }
+    },
+    {
+      "Id": "18cc09c477a8d09b",
+      "Prefab": "8d1c2b3a-4e5f-4a6b-9c7d-0e1f2a3b4c03",
+      "Overrides": {
+        "18cc09c477a8d09b": {
+          "Components": {
+            "Crucible.Scenes.LocalTransform": {
+              "Position": [
+                -3,
+                0,
+                10
+              ],
+              "Rotation": [
+                -0,
+                -0.997495,
+                -0,
+                0.0707372
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "Id": "196bdc38707097dd",
+      "Prefab": "8d1c2b3a-4e5f-4a6b-9c7d-0e1f2a3b4c04",
+      "Overrides": {
+        "196bdc38707097dd": {
+          "Components": {
+            "Crucible.Scenes.LocalTransform": {
+              "Position": [
+                -2.5,
+                0,
+                2.5
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "Id": "1e8edcea3ea46dca",
+      "Prefab": "8d1c2b3a-4e5f-4a6b-9c7d-0e1f2a3b4c03",
+      "Overrides": {
+        "1e8edcea3ea46dca": {
+          "Components": {
+            "Crucible.Scenes.LocalTransform": {
+              "Position": [
+                -12,
+                0,
+                2
+              ],
+              "Rotation": [
+                0,
+                0.2794155,
+                0,
+                0.96017027
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "Id": "1fa67022344740dc",
+      "Components": {
+        "Crucible.Render.PointLight": {
+          "Color": [1, 0.78, 0.5],
+          "Intensity": 7,
+          "Range": 7,
+          "CastsShadows": false
+        },
+        "Crucible.Scenes.LocalTransform": {
+          "Position": [-4.55, 2.75, -3],
+          "Rotation": [0, 0, 0, 1],
+          "Scale": [1, 1, 1]
+        }
+      }
+    },
+    {
+      "Id": "232be8fc53b98f30",
+      "Components": {
+        "Crucible.Render.PointLight": {
+          "Color": [1, 0.78, 0.5],
+          "Intensity": 7,
+          "Range": 7,
+          "CastsShadows": true
+        },
+        "Crucible.Scenes.LocalTransform": {
+          "Position": [2.45, 2.75, 4],
+          "Rotation": [0, 0, 0, 1],
+          "Scale": [1, 1, 1]
+        }
+      }
+    },
+    {
+      "Id": "336c56dbce7479ae",
+      "Prefab": "8d1c2b3a-4e5f-4a6b-9c7d-0e1f2a3b4c02",
+      "Overrides": {
+        "336c56dbce7479ae": {
+          "Components": {
+            "Crucible.Scenes.LocalTransform": {
+              "Position": [
+                9,
+                0,
+                -2.5
+              ],
+              "Rotation": [
+                -0,
+                -0.64421767,
+                -0,
+                0.7648422
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "Id": "3790b82b302868ee",
+      "Components": {
+        "Crucible.Render.Sky": {
+          "ZenithColor": [0.18, 0.32, 0.7],
+          "HorizonColor": [0.95, 0.75, 0.55],
+          "GroundColor": [0.3, 0.26, 0.22],
+          "Intensity": 1,
+          "SunSize": 0.04,
+          "SunIntensity": 6
+        }
+      }
+    },
+    {
+      "Id": "37ddaeb5f462b0dc",
+      "Prefab": "8d1c2b3a-4e5f-4a6b-9c7d-0e1f2a3b4c02",
+      "Overrides": {
+        "37ddaeb5f462b0dc": {
+          "Components": {
+            "Crucible.Scenes.LocalTransform": {
+              "Position": [
+                -8.5,
+                0,
+                -3.5
+              ],
+              "Rotation": [
+                0,
+                0.7173561,
+                0,
+                0.6967067
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "Id": "3caf61957a911107",
+      "Prefab": "8d1c2b3a-4e5f-4a6b-9c7d-0e1f2a3b4c01"
+    },
+    {
+      "Id": "577c5745e8cea90e",
+      "Prefab": "8d1c2b3a-4e5f-4a6b-9c7d-0e1f2a3b4c02",
+      "Overrides": {
+        "577c5745e8cea90e": {
+          "Components": {
+            "Crucible.Scenes.LocalTransform": {
+              "Position": [
+                -7,
+                0,
+                6
+              ],
+              "Rotation": [
+                0,
+                0.14943814,
+                0,
+                0.9887711
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "Id": "5b333b02068e27dc",
+      "Components": {
+        "Crucible.Render.Camera": {
+          "Projection": "Perspective",
+          "FieldOfViewY": 0.8,
+          "OrthographicHeight": 0,
+          "NearPlane": 0.1,
+          "FarPlane": 1000,
+          "Priority": 0
+        },
+        "Crucible.Render.PostProcess": {
+          "Exposure": 0,
+          "Tonemapper": "PbrNeutral",
+          "BloomStrength": 0.04,
+          "BloomThreshold": 0,
+          "Contrast": 0.05,
+          "Saturation": 0.08,
+          "Temperature": 0,
+          "Tint": 0,
+          "Lift": [0, 0, 0],
+          "Gamma": [0, 0, 0],
+          "Gain": [0, 0, 0]
+        },
+        "Crucible.Scenes.LocalTransform": {
+          "Position": [0, 4.5, -15],
+          "Rotation": [0.1097783, 0, 0, 0.9939561],
+          "Scale": [1, 1, 1]
+        }
+      }
+    },
+    {
+      "Id": "5c1bd8af7135cc00",
+      "Prefab": "8d1c2b3a-4e5f-4a6b-9c7d-0e1f2a3b4c04",
+      "Overrides": {
+        "5c1bd8af7135cc00": {
+          "Components": {
+            "Crucible.Scenes.LocalTransform": {
+              "Position": [
+                3,
+                0,
+                4
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "Id": "5d558a77e3c876c8",
+      "Prefab": "8d1c2b3a-4e5f-4a6b-9c7d-0e1f2a3b4c04",
+      "Overrides": {
+        "5d558a77e3c876c8": {
+          "Components": {
+            "Crucible.Scenes.LocalTransform": {
+              "Position": [
+                4.5,
+                0,
+                -2.5
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "Id": "5f30d4a8002180be",
+      "Prefab": "8d1c2b3a-4e5f-4a6b-9c7d-0e1f2a3b4c03",
+      "Overrides": {
+        "5f30d4a8002180be": {
+          "Components": {
+            "Crucible.Scenes.LocalTransform": {
+              "Position": [
+                3.5,
+                0,
+                11.5
+              ],
+              "Rotation": [
+                0,
+                0.98398596,
+                0,
+                -0.17824605
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "Id": "61a5c4a18c7c2229",
+      "Components": {
+        "Crucible.Render.PointLight": {
+          "Color": [1, 0.78, 0.5],
+          "Intensity": 7,
+          "Range": 7,
+          "CastsShadows": true
+        },
+        "Crucible.Scenes.LocalTransform": {
+          "Position": [-3.05, 2.75, 2.5],
+          "Rotation": [0, 0, 0, 1],
+          "Scale": [1, 1, 1]
+        }
+      }
+    },
+    {
+      "Id": "62bdd98f790f5f7e",
+      "Prefab": "8d1c2b3a-4e5f-4a6b-9c7d-0e1f2a3b4c02",
+      "Overrides": {
+        "62bdd98f790f5f7e": {
+          "Components": {
+            "Crucible.Scenes.LocalTransform": {
+              "Position": [
+                7.5,
+                0,
+                7
+              ],
+              "Rotation": [
+                -0,
+                -0.19866933,
+                -0,
+                0.9800666
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "Id": "651be4c3a4e7012b",
+      "Prefab": "8d1c2b3a-4e5f-4a6b-9c7d-0e1f2a3b4c03",
+      "Overrides": {
+        "651be4c3a4e7012b": {
+          "Components": {
+            "Crucible.Scenes.LocalTransform": {
+              "Position": [
+                12,
+                0,
+                3
+              ],
+              "Rotation": [
+                -0,
+                -0.2794155,
+                -0,
+                0.96017027
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "Id": "67df67ab9d727bd0",
+      "Prefab": "8d1c2b3a-4e5f-4a6b-9c7d-0e1f2a3b4c05",
+      "Overrides": {
+        "67df67ab9d727bd0": {
+          "Components": {
+            "Crucible.Scenes.LocalTransform": {
+              "Rotation": [
+                0,
+                1,
+                0,
+                -4.371139E-08
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "Id": "681b53524e03ccae",
+      "Components": {
+        "Crucible.Render.SpotLight": {
+          "Color": [0.75, 0.85, 1],
+          "Intensity": 14,
+          "Range": 12,
+          "InnerConeAngle": 0.5,
+          "OuterConeAngle": 0.7,
+          "CastsShadows": true
+        },
+        "Crucible.Scenes.LocalTransform": {
+          "Position": [0, 6, -3],
+          "Rotation": [0.4926988, 0, -0, 0.8701999],
+          "Scale": [1, 1, 1]
+        }
+      }
+    },
+    {
+      "Id": "6b890e9bd3d5a192",
+      "Prefab": "8d1c2b3a-4e5f-4a6b-9c7d-0e1f2a3b4c03",
+      "Overrides": {
+        "6b890e9bd3d5a192": {
+          "Components": {
+            "Crucible.Scenes.LocalTransform": {
+              "Position": [
+                -4.5,
+                0,
+                -8
+              ],
+              "Rotation": [
+                -0,
+                -0.7780732,
+                -0,
+                -0.62817365
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "Id": "7136ccb6ad4f59a2",
+      "Components": {
+        "Crucible.Render.DirectionalLight": {
+          "Color": [1, 0.8, 0.62],
+          "Intensity": 0.9,
+          "CastsShadows": true,
+          "ShadowDistance": 60
+        },
+        "Crucible.Scenes.LocalTransform": {
+          "Position": [0, 0, 0],
+          "Rotation": [0.3323896, 0.30469042, -0, 0.89256984],
+          "Scale": [1, 1, 1]
+        }
+      }
+    },
+    {
+      "Id": "75c6fe1d1d772c21",
+      "Prefab": "8d1c2b3a-4e5f-4a6b-9c7d-0e1f2a3b4c04",
+      "Overrides": {
+        "75c6fe1d1d772c21": {
+          "Components": {
+            "Crucible.Scenes.LocalTransform": {
+              "Position": [
+                -4,
+                0,
+                -3
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "Id": "78d05b139e6410e6",
+      "Prefab": "8d1c2b3a-4e5f-4a6b-9c7d-0e1f2a3b4c03",
+      "Overrides": {
+        "78d05b139e6410e6": {
+          "Components": {
+            "Crucible.Scenes.LocalTransform": {
+              "Position": [
+                5,
+                0,
+                -9
+              ],
+              "Rotation": [
+                0,
+                0.5984721,
+                0,
+                -0.8011436
+              ]
+            }
+          }
+        }
+      }
+    }
+  ]
+}

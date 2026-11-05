@@ -347,3 +347,22 @@ settled as drafted too:
 | `TitleBarTests`* | Its tests |
 | `setWindowParent`* | A window as another's child (floating windows) |
 
+## The scene viewport (2026-11-04, M7 step 3)
+
+Settled as drafted: `SceneView`, `EditorCamera`, `Selection` (`Selected`,
+`Changed`), `TransformHandles`, `HandleMode` (`Move`, `Rotate`, `Scale`),
+`HandleSpace` (`Local`, `World`), `setSurfaceCamera`, `clearSurfaceCamera`,
+`surfaceTexture`, `resizeOffscreenSurface`, `requestPick`, `pickResult`,
+`PickResult` (`frame`, `entity`, `hit`), `setSurfaceSelection`,
+`addEditorSteps`, the steps `Grid`, `Pick`, `SelectionOutline`, the command
+`File.OpenScene`, `--scene`, `Village.crscene`, `ViewportTests`, CTest
+`launcher.jit.viewport`, `viewport.png`, `docs/learning/viewports-and-picking.md`.
+Placeholders until settled (marked *):
+
+| Name | What it is |
+|---|---|
+| `setSurfaceGrid`*, `maxOutlined`*, the blackboard key `EntityIds`*, `entityAtIndex`*, `RenderStepContext::surface`* | Native additions |
+| `RenderSchedule.AddEditorSteps`*, `World.Handle`* (public) | Engine C# |
+| `EditorCamera` (`Pivot`*, `Distance`*, `Yaw`*, `Pitch`*, `FieldOfViewY`*, `NearPlane`*, `FlySpeed`*, `Orbit`*, `Look`*, `Pan`*, `Dolly`*, `Fly`*, `Frame`*, `View`*, `Projection`*, `Project`*, `Ray`*, `WorldSize`*) | The camera's members |
+| `SceneView` (`Camera`*, `Handles`*, `ShowsGrid`*, `Surface`*, `LastFrameMilliseconds`*), `ViewportPanel.View`*, `EditorViewportSystem`*, `ViewportChecks`*, `--game-arg check-viewport`*, the shell's `Database`*, `Prefabs`*, `OpenScene`*, `ScenePath`*; the Diorama's `save-scene`* | The editor's parts |
+

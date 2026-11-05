@@ -76,8 +76,72 @@ public sealed class HierarchyPanel() : PlaceholderPanel("Hierarchy", "Hierarchy"
 /// <summary>The selection's properties (M7 step 4).</summary>
 public sealed class InspectorPanel() : PlaceholderPanel("Inspector", "Inspector", "M7 step 4");
 
-/// <summary>The scene, rendered (M7 step 3).</summary>
-public sealed class ViewportPanel() : PlaceholderPanel("Viewport", "Viewport", "M7 step 3");
+/// <summary>
+/// The scene, rendered (ADR 0067): a toolbar (the handles' mode and space,
+/// the grid, the last frame's time) over a <see cref="SceneView"/>.
+/// </summary>
+public sealed class ViewportPanel : EditorPanel
+{
+    private readonly Button _move = Tool("Move"), _rotate = Tool("Rotate"), _scale = Tool("Scale");
+    private readonly Button _space = Tool("World");
+    private readonly Toggle _grid = new("Grid") { IsOn = true, VerticalAlignment = VerticalAlignment.Center };
+    private readonly Label _time = new() { VerticalAlignment = VerticalAlignment.Center };
+
+    internal ViewportPanel(Shell shell) : base("Viewport", "Viewport")
+    {
+        View = new SceneView(shell);
+        _move.Clicked += _ => View.Handles.Mode = HandleMode.Move;
+        _rotate.Clicked += _ => View.Handles.Mode = HandleMode.Rotate;
+        _scale.Clicked += _ => View.Handles.Mode = HandleMode.Scale;
+        _space.Clicked += _ =>
+            View.Handles.Space = View.Handles.Space == HandleSpace.World ? HandleSpace.Local : HandleSpace.World;
+        _grid.Changed += toggle => View.ShowsGrid = toggle.IsOn;
+        _time.Classes.Add("frame-time");
+        StackPanel tools = new() { Orientation = Orientation.Horizontal, Spacing = 4 };
+        tools.Classes.Add("viewport-tools");
+        foreach (UIElement tool in (UIElement[])[_move, _rotate, _scale, _space, _grid, _time])
+        {
+            tools.Add(tool);
+        }
+        DockPanel page = new();
+        DockPanel.SetDock(tools, Dock.Top);
+        page.Add(tools);
+        page.Add(View);
+        AddChild(page);
+        Refresh();
+    }
+
+    public SceneView View { get; }
+
+    // The toolbar shows the view's state, which keys change too; each frame.
+    internal void Refresh()
+    {
+        Mark(_move, View.Handles.Mode == HandleMode.Move);
+        Mark(_rotate, View.Handles.Mode == HandleMode.Rotate);
+        Mark(_scale, View.Handles.Mode == HandleMode.Scale);
+        _space.Text = View.Handles.Space == HandleSpace.World ? "World" : "Local";
+        _time.Text = View.Surface.Value != 0 ? $"{View.LastFrameMilliseconds:0.0} ms" : "";
+    }
+
+    private static Button Tool(string text)
+    {
+        Button button = new(text) { VerticalAlignment = VerticalAlignment.Center };
+        button.Classes.Add("tool");
+        return button;
+    }
+
+    private static void Mark(UIElement element, bool on)
+    {
+        if (on)
+        {
+            element.Classes.Add("on");
+        }
+        else
+        {
+            element.Classes.Remove("on");
+        }
+    }
+}
 
 /// <summary>The project's assets (M7 step 5).</summary>
 public sealed class AssetsPanel() : PlaceholderPanel("Assets", "Assets", "M7 step 5");

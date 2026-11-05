@@ -156,6 +156,11 @@ CRUCIBLE_EXPOSE_INTERNAL void setStepTrampoline(uint64_t trampolineAddress);
 // one holds Clear only; destroying one releases its steps, and its surfaces
 // go back to the default.
 CRUCIBLE_EXPOSE_INTERNAL uint32_t createRenderSchedule();
+// Adds the editor's steps to a schedule holding the scene's (ADR 0067):
+// Grid after Sky, Pick after Opaque, SelectionOutline after Tonemap. They
+// draw only on surfaces that ask (Render.h's setSurfaceGrid and friends).
+// NotFound for an unknown schedule or one without those steps.
+CRUCIBLE_EXPOSE_INTERNAL Result<void> addEditorSteps(uint32_t schedule);
 CRUCIBLE_EXPOSE_INTERNAL void destroyRenderSchedule(uint32_t schedule);
 // Adds a C# step to a schedule, as RenderSchedule's add, insertBefore,
 // insertAfter, or replace; prepared now when the renderer runs. NotFound for

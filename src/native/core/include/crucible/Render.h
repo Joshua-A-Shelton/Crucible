@@ -8,9 +8,12 @@
 // Threading: like the platform layer, everything runs on the launcher's main
 // thread.
 
+#include <crucible/Camera.h>
+#include <crucible/Ecs.h>
 #include <crucible/Export.h>
 #include <crucible/Expose.h>
 #include <crucible/Platform.h>
+#include <crucible/RenderAssets.h>
 #include <crucible/Result.h>
 
 #include <cstdint>
@@ -59,6 +62,47 @@ CRUCIBLE_EXPOSE Result<SurfaceHandle> createSurface(platform::WindowHandle windo
 CRUCIBLE_EXPOSE Result<SurfaceHandle> createOffscreenSurface(uint32_t width, uint32_t height);
 
 CRUCIBLE_EXPOSE void destroySurface(SurfaceHandle surface);
+
+// A surface's own camera (ADR 0067), drawn from instead of the world's: an
+// editor's viewport looks through a camera that isn't in the scene. The
+// world's chosen camera still gives the post-processing (PostProcess), so
+// the view looks like the game's. NotFound for a stale surface.
+CRUCIBLE_EXPOSE_STATUS Result<void> setSurfaceCamera(SurfaceHandle surface, Vector3 position, Quaternion rotation,
+                                                     Camera camera);
+CRUCIBLE_EXPOSE void clearSurfaceCamera(SurfaceHandle surface);
+
+// An offscreen surface's image as a texture the UI can draw (ADR 0067). From
+// the first call on, the surface leaves each frame ready to sample, and its
+// next frame starts after the last submit that read it (one queue). The
+// handle lives as long as the surface; NotFound for a windowed or stale one.
+CRUCIBLE_EXPOSE_STATUS Result<TextureHandle> surfaceTexture(SurfaceHandle surface);
+
+// A new size for an offscreen surface (waits for the GPU); its texture
+// handle stays the same. NotFound for a windowed or stale surface,
+// InvalidData for a zero size.
+CRUCIBLE_EXPOSE_STATUS Result<void> resizeOffscreenSurface(SurfaceHandle surface, uint32_t width, uint32_t height);
+
+// The editor's view of a surface (ADR 0067), drawn by the editor's steps
+// (RenderCommands.h's addEditorSteps) on surfaces that ask: the ground
+// grid; the selection outlined (the meshes of up to maxOutlined entities,
+// such as a prefab instance's parts; none for no outline); and picking.
+inline constexpr uint32_t maxOutlined = 16;
+CRUCIBLE_EXPOSE void setSurfaceGrid(SurfaceHandle surface, bool shown);
+CRUCIBLE_EXPOSE void setSurfaceSelection(SurfaceHandle surface, std::span<const ecs::Entity> entities);
+
+// What was drawn at a pixel: the entity, from the frame that looked.
+struct CRUCIBLE_EXPOSE PickResult
+{
+    uint64_t frame; // the surface's frame it came from (0: no answer yet)
+    ecs::Entity entity;
+    bool hit; // false where nothing opaque was drawn
+};
+
+// Asks the next frame which entity is drawn at a pixel (from the top left);
+// the answer comes once the GPU has finished that frame, a frame or two
+// later. pickResult is the newest answer.
+CRUCIBLE_EXPOSE void requestPick(SurfaceHandle surface, uint32_t x, uint32_t y);
+CRUCIBLE_EXPOSE PickResult pickResult(SurfaceHandle surface);
 
 // The render schedule the surface renders (ADR 0066), by ID
 // (RenderCommands.h's createSchedule; 0 for the default). NotFound for a

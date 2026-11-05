@@ -16,6 +16,7 @@
 #include <crucible/Shader.h>
 
 #include <algorithm>
+#include <array>
 #include <cstdio>
 #include <cstring>
 
@@ -873,7 +874,359 @@ void addClear(RenderStepContext& context, void*)
         [](slag::rendergraph::PassContext&, slag::CommandBuffer*) {});
 }
 
+// ---------------------------------------------------------------------------
+// The editor's steps (ADR 0067): Grid, Pick, SelectionOutline. They sit in
+// the scene's schedule and draw only on surfaces that ask, each with its
+// state here, by surface.
+// ---------------------------------------------------------------------------
+
+constexpr uint32_t editorSurfaces = 8; // as many as the renderer has
+constexpr uint32_t readbackSize = 256; // a row's pitch
+
+struct EditorView
+{
+    bool grid = false;
+    std::array<uint32_t, maxOutlined> selected{}; // the outlined entities' indices plus one
+    uint32_t selectedCount = 0;
+    bool pickWanted = false;
+    uint32_t pickX = 0;
+    uint32_t pickY = 0;
+    // Per frame slot: the pixel copied there, from which frame and world.
+    struct Pending
+    {
+        uint64_t frame = 0;
+        ecs::World* world = nullptr;
+    };
+    std::array<Pending, framesInFlight> pending{};
+    std::array<slag::Buffer*, framesInFlight> readback{};
+    PickResult result{};
+};
+
+std::array<EditorView, editorSurfaces> editorViews;
+
+EditorView* editorView(uint32_t surface)
+{
+    return surface >= 1 && surface <= editorSurfaces ? &editorViews[surface - 1] : nullptr;
+}
+
+BlackboardKey entityIdsKey()
+{
+    static const BlackboardKey key = registerBlackboardKey("EntityIds");
+    return key;
+}
+
+slag::Pipeline* gridPipeline = nullptr;
+slag::Pipeline* pickPipeline = nullptr;
+slag::Pipeline* outlinePipeline = nullptr;
+Vector<Draw> pickDraws{MemoryTag::Render};
+
+void destroyEditorPipeline(slag::GraphicsDevice& device, void* data)
+{
+    auto** pipeline = static_cast<slag::Pipeline**>(data);
+    if (*pipeline != nullptr)
+    {
+        device.destroy(*pipeline);
+        *pipeline = nullptr;
+    }
+}
+
+Result<void> prepareGrid(slag::GraphicsDevice& device, void*)
+{
+    const slag::PixelFormat formats[] = {sceneColorFormat};
+    slag::GraphicsPipelineDesc desc{
+        .rasterizer = {.cullMode = slag::CullMode::None},
+        // Its own depth (the ground's), tested against the scene, not written.
+        .depthStencil = {.depthTest = true, .depthWrite = false, .depthCompareOp = slag::CompareOp::GreaterEqual},
+        .colorFormats = formats,
+        .depthStencilFormat = sceneDepthFormat,
+        .sampleCount = samples,
+        .debugName = "Grid"};
+    desc.blend.targets[0] = {.blendEnable = true,
+                             .srcColorFactor = slag::BlendFactor::SrcAlpha,
+                             .destColorFactor = slag::BlendFactor::InvSrcAlpha,
+                             .srcAlphaFactor = slag::BlendFactor::Zero,
+                             .destAlphaFactor = slag::BlendFactor::One};
+    Result<slag::Pipeline*> pipeline = createPipeline(device, "editorOverlay", "overlayVertex", "gridPixel", desc);
+    if (!pipeline)
+    {
+        return pipeline.status();
+    }
+    gridPipeline = pipeline.value();
+    return {};
+}
+
+void addGrid(RenderStepContext& context, void*)
+{
+    const EditorView* editor = editorView(context.surface);
+    if (editor == nullptr || !editor->grid)
+    {
+        return;
+    }
+    const slag::rendergraph::RenderGraphTexture color = context.texture(sceneColorKey());
+    const slag::rendergraph::RenderGraphTexture depth = context.texture(sceneDepthKey());
+    const slag::rendergraph::RenderGraphBuffer view = context.buffer(viewKey());
+    context.graph.addPass(
+        "Grid", slag::CommandQueueType::Graphics,
+        [&](slag::rendergraph::PassBuilder& pass) {
+            pass.use(view, slag::rendergraph::Usage::ConstantBuffer);
+            pass.renderTarget(color, slag::LoadOp::Load, slag::StoreOp::Store);
+            pass.depthStencil(depth, slag::LoadOp::Load, slag::StoreOp::Store, {}, true);
+        },
+        [view](slag::rendergraph::PassContext& pass, slag::CommandBuffer* commands) {
+            commands->bindPipeline(gridPipeline);
+            commands->setConstantBuffer(pass.buffer(view)->gpuAddress(), viewSize());
+            commands->draw(3, 1);
+        });
+}
+
+Result<void> preparePick(slag::GraphicsDevice& device, void*)
+{
+    const slag::PixelFormat formats[] = {slag::PixelFormat::R32Uint};
+    Result<slag::Pipeline*> pipeline = createPipeline(
+        device, "editor", "pickVertex", "pickPixel",
+        {.depthStencil = {.depthTest = true, .depthWrite = true, .depthCompareOp = slag::CompareOp::GreaterEqual},
+         .colorFormats = formats,
+         .depthStencilFormat = sceneDepthFormat,
+         .debugName = "Pick"});
+    if (!pipeline)
+    {
+        return pipeline.status();
+    }
+    pickPipeline = pipeline.value();
+    return {};
+}
+
+// The opaque instances' entity indices plus one, at one sample per pixel
+// with a depth of their own, published as EntityIds; and, when a pick was
+// asked for, that pixel copied into this frame slot's readback buffer.
+void addPick(RenderStepContext& context, void*)
+{
+    EditorView* editor = editorView(context.surface);
+    if (editor == nullptr || (!editor->pickWanted && editor->selectedCount == 0))
+    {
+        return;
+    }
+    const slag::rendergraph::RenderGraphTexture ids =
+        context.graph.createTransientTexture2D({.format = slag::PixelFormat::R32Uint,
+                                                .width = context.width,
+                                                .height = context.height,
+                                                .usage = slag::TextureUsage::RenderTarget,
+                                                .debugName = "EntityIds"});
+    const slag::rendergraph::RenderGraphTexture depth =
+        context.graph.createTransientTexture2D({.format = sceneDepthFormat,
+                                                .width = context.width,
+                                                .height = context.height,
+                                                .usage = slag::TextureUsage::DepthStencil,
+                                                .debugName = "PickDepth"});
+    context.publish(entityIdsKey(), ids);
+    const slag::rendergraph::RenderGraphBuffer view = context.buffer(viewKey());
+    gatherDraws(context.draws, Pass::Depth, pickDraws);
+    for (Draw& draw : pickDraws)
+    {
+        draw.pipeline = pickPipeline;
+    }
+    const DrawList* draws = &context.draws;
+    context.graph.addPass(
+        "Pick", slag::CommandQueueType::Graphics,
+        [&](slag::rendergraph::PassBuilder& pass) {
+            pass.use(view, slag::rendergraph::Usage::ConstantBuffer);
+            pass.renderTarget(ids, slag::LoadOp::Clear, slag::StoreOp::Store, {});
+            pass.depthStencil(depth, slag::LoadOp::Clear, slag::StoreOp::Discard, {.depth = 0.0f});
+        },
+        [draws, view](slag::rendergraph::PassContext& pass, slag::CommandBuffer* commands) {
+            commands->setConstantBuffer(pass.buffer(view)->gpuAddress(), viewSize());
+            recordDraws(commands, *draws, pickDraws);
+        });
+    if (!editor->pickWanted)
+    {
+        return;
+    }
+    const uint32_t slot = frameSlotOf(context);
+    if (editor->readback[slot] == nullptr)
+    {
+        slag::Result<slag::Buffer*> buffer =
+            context.device.createBuffer({.size = readbackSize,
+                                         .placement = slag::Placement::automatic(slag::MemoryKind::Readback),
+                                         .debugName = "crucible pick readback"});
+        if (!buffer)
+        {
+            return;
+        }
+        editor->readback[slot] = buffer.value();
+    }
+    const slag::rendergraph::RenderGraphBuffer readback = context.graph.importBuffer(editor->readback[slot]);
+    const uint32_t x = std::min(editor->pickX, context.width - 1), y = std::min(editor->pickY, context.height - 1);
+    context.graph.addPass(
+        "PickCopy", slag::CommandQueueType::Graphics,
+        [&](slag::rendergraph::PassBuilder& pass) {
+            pass.use(ids, slag::rendergraph::Usage::CopySource);
+            pass.use(readback, slag::rendergraph::Usage::CopyDest);
+        },
+        [ids, readback, x, y](slag::rendergraph::PassContext& pass, slag::CommandBuffer* commands) {
+            commands->copyTextureToBuffer({pass.buffer(readback), 0, readbackSize},
+                                          {.texture = pass.texture(ids), .x = x, .y = y}, 1, 1);
+        });
+    editor->pending[slot] = {context.frame, context.world};
+    editor->pickWanted = false;
+}
+
+Result<void> prepareOutline(slag::GraphicsDevice& device, void*)
+{
+    const slag::PixelFormat formats[] = {backbufferFormat};
+    Result<slag::Pipeline*> pipeline = createPipeline(
+        device, "editorOverlay", "overlayVertex", "outlinePixel",
+        {.rasterizer = {.cullMode = slag::CullMode::None}, .colorFormats = formats, .debugName = "SelectionOutline"});
+    if (!pipeline)
+    {
+        return pipeline.status();
+    }
+    outlinePipeline = pipeline.value();
+    return {};
+}
+
+// The selection's edges, from EntityIds, over the finished image.
+void addSelectionOutline(RenderStepContext& context, void*)
+{
+    const EditorView* editor = editorView(context.surface);
+    if (editor == nullptr || editor->selectedCount == 0)
+    {
+        return;
+    }
+    const slag::rendergraph::RenderGraphTexture ids = context.texture(entityIdsKey());
+    const slag::rendergraph::RenderGraphTexture backbuffer = context.texture(backbufferKey());
+    const uint32_t firstSlot = surfaceDescriptor(context, entityIdsDescriptor);
+    struct OutlineConstants
+    {
+        uint32_t ids, count, pad0, pad1;
+        float color[4];
+        uint32_t selected[maxOutlined];
+    };
+    OutlineConstants outline{0, editor->selectedCount, 0, 0, {1.0f, 0.42f, 0.05f, 1.0f}, {}}; // orange, linear
+    std::copy(editor->selected.begin(), editor->selected.end(), outline.selected);
+    static_assert(sizeof(OutlineConstants) <= 128);
+    slag::GraphicsDevice* device = &context.device;
+    context.graph.addPass(
+        "SelectionOutline", slag::CommandQueueType::Graphics,
+        [&](slag::rendergraph::PassBuilder& pass) {
+            pass.use(ids, slag::rendergraph::Usage::ShaderRead);
+            pass.renderTarget(backbuffer, slag::LoadOp::Load, slag::StoreOp::Store);
+        },
+        [=](slag::rendergraph::PassContext& pass, slag::CommandBuffer* commands) {
+            const uint32_t slot = firstSlot + pass.frameSlot();
+            device->writeTexture(slot, {.texture = pass.texture(ids)});
+            OutlineConstants constants = outline;
+            constants.ids = slot;
+            commands->bindPipeline(outlinePipeline);
+            commands->pushConstants(&constants, sizeof(constants));
+            commands->draw(3, 1);
+        });
+}
+
 } // namespace
+
+void releaseEditorView(uint32_t surface)
+{
+    if (EditorView* editor = editorView(surface))
+    {
+        for (slag::Buffer*& buffer : editor->readback)
+        {
+            if (buffer != nullptr)
+            {
+                renderDevice()->destroy(buffer);
+            }
+        }
+        *editor = EditorView{};
+    }
+}
+
+Result<void> addEditorStepsTo(RenderSchedule& schedule)
+{
+    if (Result<void> added = schedule.insertAfter("Sky", {.name = "Grid",
+                                                          .addPasses = addGrid,
+                                                          .userData = &gridPipeline,
+                                                          .prepare = prepareGrid,
+                                                          .release = destroyEditorPipeline});
+        !added)
+    {
+        return added;
+    }
+    if (Result<void> added = schedule.insertAfter("Opaque", {.name = "Pick",
+                                                             .addPasses = addPick,
+                                                             .userData = &pickPipeline,
+                                                             .prepare = preparePick,
+                                                             .release = destroyEditorPipeline});
+        !added)
+    {
+        return added;
+    }
+    return schedule.insertAfter("Tonemap", {.name = "SelectionOutline",
+                                            .addPasses = addSelectionOutline,
+                                            .userData = &outlinePipeline,
+                                            .prepare = prepareOutline,
+                                            .release = destroyEditorPipeline});
+}
+
+void setSurfaceGrid(SurfaceHandle surface, bool shown)
+{
+    if (EditorView* editor = editorView(surface.value))
+    {
+        editor->grid = shown;
+    }
+}
+
+void setSurfaceSelection(SurfaceHandle surface, std::span<const ecs::Entity> entities)
+{
+    if (EditorView* editor = editorView(surface.value))
+    {
+        editor->selectedCount = 0;
+        for (const ecs::Entity entity : entities)
+        {
+            if (entity != ecs::nullEntity && editor->selectedCount < maxOutlined)
+            {
+                editor->selected[editor->selectedCount++] = ecs::indexOf(entity) + 1;
+            }
+        }
+    }
+}
+
+void requestPick(SurfaceHandle surface, uint32_t x, uint32_t y)
+{
+    if (EditorView* editor = editorView(surface.value))
+    {
+        editor->pickWanted = true;
+        editor->pickX = x;
+        editor->pickY = y;
+    }
+}
+
+PickResult pickResult(SurfaceHandle surface)
+{
+    EditorView* editor = editorView(surface.value);
+    if (editor == nullptr)
+    {
+        return {};
+    }
+    // Each finished frame's pixel, newest last; its slot is free again after.
+    const uint64_t done = surfaceFramesDone(surface.value);
+    for (uint32_t slot = 0; slot < framesInFlight; ++slot)
+    {
+        EditorView::Pending& pending = editor->pending[slot];
+        if (pending.frame == 0 || pending.frame > done || editor->readback[slot] == nullptr)
+        {
+            continue;
+        }
+        if (pending.frame > editor->result.frame)
+        {
+            uint32_t id = 0;
+            std::memcpy(&id, editor->readback[slot]->mappedData(), sizeof(id));
+            const ecs::Entity entity =
+                id != 0 && pending.world != nullptr ? ecs::entityAtIndex(*pending.world, id - 1) : ecs::nullEntity;
+            editor->result = {pending.frame, entity, entity != ecs::nullEntity};
+        }
+        pending = {};
+    }
+    return editor->result;
+}
 
 void addClearStep(RenderSchedule& schedule)
 {

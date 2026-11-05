@@ -84,3 +84,6 @@ Longer explanations of decisions, written to be reread:
   layouts as trees, drop targets, why Wayland drags windows differently,
   a Wayland connection beside SDL's, pixels versus points, and drawing
   your own window frame.
+- [Viewports and picking](docs/learning/viewports-and-picking.md) (ADR 0067):
+  a viewport as an image, an editor camera outside the scene, picking by
+  drawing IDs, and handles a fixed size on screen.

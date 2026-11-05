@@ -3,6 +3,7 @@
 // Between the renderer (Render.cpp), the render schedule, and the default
 // steps (ADR 0048). Internal.
 
+#include <crucible/Camera.h>
 #include <crucible/MaterialFile.h>
 #include <crucible/RenderAssets.h>
 #include <crucible/RenderSchedule.h>
@@ -48,7 +49,9 @@ inline constexpr uint32_t bloomLevelsDescriptor = 12 * framesInFlight; // + leve
 // each frame.
 inline constexpr uint32_t frameDataDescriptor = (12 + maxBloomLevels) * framesInFlight; // + frame slot
 inline constexpr uint32_t stepDescriptorsPerFrame = 40;
-inline constexpr uint32_t stepDescriptors = frameDataDescriptor + framesInFlight; // + frame slot * per frame
+// The editor's SelectionOutline (ADR 0067): the Pick step's EntityIds.
+inline constexpr uint32_t entityIdsDescriptor = frameDataDescriptor + framesInFlight; // + frame slot
+inline constexpr uint32_t stepDescriptors = entityIdsDescriptor + framesInFlight;     // + frame slot * per frame
 static_assert(stepDescriptors + stepDescriptorsPerFrame * framesInFlight <= descriptorsPerSurface);
 // 8 surfaces from slot 8: they must stay below the loaded textures' 1024.
 static_assert(8 + 8 * descriptorsPerSurface <= 1024);
@@ -99,6 +102,7 @@ struct FrameInputs
     ManagedState& managed;
     uint32_t frameSlot;
     const RenderSchedule& schedule; // the surface's (ADR 0066)
+    uint32_t surface;               // its handle's value
 };
 
 // Every schedule's steps, prepared when the renderer starts and released when
@@ -211,6 +215,26 @@ slag::SemaphoreValue workSignal();
 slag::GraphicsDevice* renderDevice();
 slag::CommandQueue* renderQueue();
 void forceStagingUploads(bool force);
+// An offscreen surface's texture in the texture table (ADR 0067), drawn by
+// handle; the surface owns it. Replacing points the handle at a new texture.
+TextureHandle addSurfaceTexture(slag::Texture* texture);
+void replaceSurfaceTexture(TextureHandle handle, slag::Texture* texture);
+void removeSurfaceTexture(TextureHandle handle);
+
+// The editor's view of a surface (ADR 0067; RenderSteps.cpp): the grid,
+// the selection outlined, and picking. Released with the surface.
+void releaseEditorView(uint32_t surface);
+Result<void> addEditorStepsTo(RenderSchedule& schedule);
+// Frames the GPU has finished on a surface (Render.cpp).
+uint64_t surfaceFramesDone(uint32_t surface);
+
+// A surface's own camera (ADR 0067) for viewConstants.
+struct CameraOverride
+{
+    Matrix4x4 world;
+    Camera camera;
+};
+
 slag::Texture* textureOf(TextureHandle texture);
 // A loaded model by its handle's index alone, for handles already checked
 // this frame (DrawList batches); null if none is loaded there.
@@ -219,7 +243,8 @@ const MeshData* meshDataAt(uint32_t index);
 // The frame's view, from the world's chosen camera (Camera.cpp): the one with
 // the highest priority, or a default one when the world (which may be null)
 // has none.
-ViewConstants viewConstants(ecs::World* world, uint32_t width, uint32_t height, float time);
+ViewConstants viewConstants(ecs::World* world, uint32_t width, uint32_t height, float time,
+                            const CameraOverride* camera = nullptr);
 
 // Materials.cpp (ADR 0052): the material buffer and the pipelines each kind
 // of material draws with, made while loading. Started after the assets,

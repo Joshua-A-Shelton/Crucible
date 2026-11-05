@@ -79,6 +79,13 @@ public sealed class DioramaSetup : GameSystem
             }
         }
         AddViewAndLight(world);
+        if (Settings.SaveScene is { } scene)
+        {
+            // The village as a scene file (the editor's Village.crscene, ADR 0067).
+            world.UpdateWorldTransforms();
+            File.WriteAllBytes(scene, Crucible.Scenes.Scene.Save(world, AssetId.New(), library));
+            Console.WriteLine($"Diorama: saved the scene to {scene}");
+        }
     }
 
     public override void Run(FrameContext context)

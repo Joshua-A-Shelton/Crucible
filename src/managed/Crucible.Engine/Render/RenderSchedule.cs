@@ -77,6 +77,20 @@ public sealed unsafe class RenderSchedule : IDisposable
         ThrowFailure();
     }
 
+    /// <summary>
+    /// Adds the editor's steps (ADR 0067): Grid after Sky, Pick after Opaque,
+    /// SelectionOutline after Tonemap, unless they're there. They draw only on
+    /// surfaces that ask (an editor's viewport). The schedule must hold the
+    /// scene's steps, as <see cref="Default"/> does.
+    /// </summary>
+    public void AddEditorSteps()
+    {
+        if (!StepNames.Contains("Pick"))
+        {
+            Api.AddEditorSteps(Id);
+        }
+    }
+
     /// <summary>The steps' names, in order.</summary>
     public IReadOnlyList<string> StepNames
     {

@@ -943,6 +943,15 @@ void destroyEntity(World& world, Entity entity)
     --world.aliveCount;
 }
 
+Entity entityAtIndex(const World& world, uint32_t index)
+{
+    if (index >= world.records.size() || !world.records[index].alive)
+    {
+        return nullEntity;
+    }
+    return Entity{(uint64_t{world.records[index].generation} << 32) | index};
+}
+
 bool isAlive(const World& world, Entity entity)
 {
     return liveRecord(world, entity) != nullptr;

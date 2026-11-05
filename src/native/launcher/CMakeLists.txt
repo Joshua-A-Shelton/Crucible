@@ -51,6 +51,13 @@ if(WIN32)
             "$<TARGET_FILE:crucible_core>" "$<TARGET_FILE_DIR:crucible_editor>"
         VERBATIM)
 endif()
+# The asset pipeline's native library beside the editor, where the editor
+# looks for it (Crucible.Editor's Dependencies.cs), as a shipped editor keeps it.
+add_custom_command(TARGET crucible_editor POST_BUILD
+    COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+        "$<TARGET_FILE:crucible_importers>" "$<TARGET_FILE_DIR:crucible_editor>"
+    VERBATIM)
+add_dependencies(crucible_editor crucible_importers)
 
 if(CRUCIBLE_BUILD_AOT)
     add_executable(crucible_launcher_aot
@@ -206,6 +213,20 @@ if(CRUCIBLE_BUILD_TESTS)
     set_tests_properties(launcher.jit.editor PROPERTIES LABELS "integration;gpu" TIMEOUT 60
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "EditorChecks: all [0-9]+ checks passed")
+
+    # The viewport checking itself (ADR 0067): the Diorama's village opened in
+    # the editor, picked, outlined, and moved by its handles, checked at
+    # pixels; the window saved as viewport.png. The project's cache stays in
+    # the source tree's ignored Cache/, as when the editor opens it by hand.
+    add_test(NAME launcher.jit.viewport
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 600
+            --project "${PROJECT_SOURCE_DIR}/samples/Diorama/Project/Diorama.crproject"
+            --scene "${PROJECT_SOURCE_DIR}/samples/Diorama/Project/Assets/Scenes/Village.crscene"
+            --game-arg "check-viewport=${CMAKE_CURRENT_BINARY_DIR}/viewport.png"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/viewport-settings.json")
+    set_tests_properties(launcher.jit.viewport PROPERTIES LABELS "integration;gpu" TIMEOUT 120
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "ViewportChecks: all [0-9]+ checks passed")
 
     # The M6 demonstration (ADR 0064): the UI showcase's menu driven by mouse,
     # keyboard, and gamepad scripts, and captured at four DPI scales; on

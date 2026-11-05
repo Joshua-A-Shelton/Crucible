@@ -11,9 +11,12 @@ namespace Crucible.Samples.Diorama;
 /// <c>&lt;capture&gt;.diff.png</c>.</item>
 /// <item><c>measure</c>: frames to time, after <c>frames</c> warm-up ones, in
 /// a town of 36 dioramas; 0 skips.</item>
+/// <item><c>save-scene</c>: where to save the village as a scene file (the
+/// editor's sample scene, ADR 0067).</item>
 /// </list>
 /// </summary>
-public sealed record DioramaSettings(string Project, int Frames, string? Capture, string? Compare, int Measure)
+public sealed record DioramaSettings(string Project, int Frames, string? Capture, string? Compare, int Measure,
+    string? SaveScene = null)
 {
     public static DioramaSettings Default { get; } =
         new(Path.Combine("samples", "Diorama", "Project", "Diorama.crproject"), 8, null, null, 0);
@@ -30,8 +33,9 @@ public sealed record DioramaSettings(string Project, int Frames, string? Capture
                 "capture" => settings with { Capture = value },
                 "compare" => settings with { Compare = value },
                 "measure" => settings with { Measure = Number(key, value, minimum: 0) },
+                "save-scene" => settings with { SaveScene = value },
                 _ => throw new ArgumentException(
-                    $"Unknown option {key}: expected project, frames, capture, compare, or measure."),
+                    $"Unknown option {key}: expected project, frames, capture, compare, measure, or save-scene."),
             };
         }
         if (settings.Compare is not null && settings.Capture is null)

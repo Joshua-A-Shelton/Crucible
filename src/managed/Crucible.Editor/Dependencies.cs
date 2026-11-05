@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 
 namespace Crucible.Editor;
@@ -36,7 +37,26 @@ internal static class Dependencies
                 return null;
             }
             using FileStream stream = File.OpenRead(path);
-            return resolving.LoadFromStream(stream);
+            Assembly loaded = resolving.LoadFromStream(stream);
+            if (name.Name == "Crucible.Assets")
+            {
+                NativeLibrary.SetDllImportResolver(loaded, FindImporters);
+            }
+            return loaded;
         };
+    }
+
+    // The asset pipeline's native library, beside the editor's executable
+    // (the build copies it there, ADR 0067); else .NET's own search.
+    private static nint FindImporters(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
+    {
+        if (libraryName != "crucible_importers" || Environment.ProcessPath is not { } processPath)
+        {
+            return 0;
+        }
+        string fileName = OperatingSystem.IsWindows() ? $"{libraryName}.dll" : $"lib{libraryName}.so";
+        return NativeLibrary.TryLoad(Path.Combine(Path.GetDirectoryName(processPath)!, fileName), out nint handle)
+            ? handle
+            : 0;
     }
 }

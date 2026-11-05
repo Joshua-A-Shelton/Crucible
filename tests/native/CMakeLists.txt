@@ -3,6 +3,7 @@ add_executable(crucible_native_tests
     BinaryFileTests.cpp
     CoreTests.cpp
     DrawListTests.cpp
+    EditorStepsTests.cpp
     EcsTests.cpp
     InputTimingTests.cpp
     JobTests.cpp

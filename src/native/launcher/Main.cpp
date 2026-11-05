@@ -103,8 +103,9 @@ int run(int argc, ArgumentChar** argv)
     // --present-mode fifo|mailbox overrides ADR 0003's default, both for
     // measuring. --msaa 1|2|4|8 sets the MSAA sample count (ADR 0051);
     // --shadow-map-size N and --shadow-atlas-size N the shadow maps' sizes
-    // (ADR 0054). The editor launcher also takes --project <file>, the
-    // project to open (the editor's game argument project=).
+    // (ADR 0054). The editor launcher also takes --project <file> and
+    // --scene <file>, the project and scene to open (the editor's game
+    // arguments project= and scene=).
     std::filesystem::path managedDirectory = executableDirectory();
     bool gameGiven = false;
     slag::Backend backend = slag::InstanceDesc{}.backend;
@@ -179,11 +180,12 @@ int run(int argc, ArgumentChar** argv)
             gameGiven = true;
         }
 #if defined(CRUCIBLE_EDITOR_LAUNCHER)
-        else if (option == CRUCIBLE_ARGUMENT("--project"))
+        else if (option == CRUCIBLE_ARGUMENT("--project") || option == CRUCIBLE_ARGUMENT("--scene"))
         {
             std::error_code error;
             const std::filesystem::path path = std::filesystem::absolute(std::filesystem::path(value), error);
-            const std::u8string utf8 = u8"project=" + (error ? std::filesystem::path(value) : path).u8string();
+            const std::u8string key = option == CRUCIBLE_ARGUMENT("--project") ? u8"project=" : u8"scene=";
+            const std::u8string utf8 = key + (error ? std::filesystem::path(value) : path).u8string();
             crucible::addGameArgument({reinterpret_cast<const char*>(utf8.data()), utf8.size()});
         }
 #endif

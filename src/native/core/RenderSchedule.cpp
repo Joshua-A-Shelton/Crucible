@@ -237,6 +237,7 @@ struct FrameBuilder
         FrameState state;
         RenderStepContext context(inputs.graph, inputs.device, inputs.viewConstants, inputs.draws);
         context.world = inputs.world;
+        context.surface = inputs.surface;
         state.descriptorBase = inputs.descriptorBase;
         state.shadows = &inputs.shadows;
         state.drawState = &inputs.drawState;

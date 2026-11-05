@@ -1,10 +1,13 @@
 using System.Numerics;
 using System.Text.Json.Nodes;
 using Crucible.Assets;
+using Crucible.Assets.Importers;
 using Crucible.Binary;
+using Crucible.Ecs;
 using Crucible.Loop;
 using Crucible.Platform;
 using Crucible.Render;
+using Crucible.Scenes;
 using Crucible.Text;
 using Crucible.UI;
 
@@ -23,6 +26,9 @@ internal sealed class Shell
     private readonly string? _settingsPath;
     private readonly List<EditorWindow> _windows = [];
     private readonly Dictionary<string, EditorPanel> _open = new(StringComparer.Ordinal);
+    // The pick asked for in a viewport, and the frame that answers it.
+    private SceneView? _pickView;
+    private ulong _pickFrame;
     private readonly Theme _theme;
     private readonly FontHandle _font;
     private readonly Menu _recentMenu = new();
@@ -66,6 +72,17 @@ internal sealed class Shell
 
     public Project? Project { get; private set; }
 
+    /// <summary>The open project's assets, imported when it opened (ADR 0067).</summary>
+    public AssetDatabase? Database { get; private set; }
+
+    public PrefabLibrary? Prefabs { get; private set; }
+
+    /// <summary>What's selected: picked in a viewport, outlined, and moved by its handles.</summary>
+    public Selection Selection { get; } = new();
+
+    /// <summary>The open scene's file, or null.</summary>
+    public string? ScenePath { get; private set; }
+
     public LogPanel? LogPanel => _open.GetValueOrDefault("Log") as LogPanel;
 
     /// <summary>The editor holding an element, through its root.</summary>
@@ -104,7 +121,15 @@ internal sealed class Shell
                 case InputEventType.FileDialogResult:
                     if (input.Value > 0 && input.Code >= 0 && input.Code + input.Value <= text.Length)
                     {
-                        OpenProject(System.Text.Encoding.UTF8.GetString(text.Slice(input.Code, input.Value)));
+                        string chosen = System.Text.Encoding.UTF8.GetString(text.Slice(input.Code, input.Value));
+                        if (chosen.EndsWith(Scene.Extension, StringComparison.OrdinalIgnoreCase))
+                        {
+                            OpenScene(chosen);
+                        }
+                        else
+                        {
+                            OpenProject(chosen);
+                        }
                     }
                     break;
             }
@@ -170,6 +195,217 @@ internal sealed class Shell
         Status($"{Project.Name} — {Project.ProjectFilePath}");
         Main.TitleBar.Title = $"{Project.Name} — {EngineInfo.Name}";
         Log($"Opened {Project.Name}");
+        ImportAssets(Project);
+    }
+
+    // Everything changed since the last import, imported now; the renderer
+    // reads imported files from the database (step 5 watches for changes).
+    private void ImportAssets(Project project)
+    {
+        AssetDatabase database = AssetDatabase.Open(project,
+            [new TextureImporter(), new MeshImporter(), new ShaderImporter(), new FontImporter(), new StyleImporter()]);
+        int imported = 0, failed = 0;
+        foreach (ImportResult result in database.ImportAll())
+        {
+            if (result.Outcome == ImportOutcome.Imported)
+            {
+                ++imported;
+            }
+            else if (result.Outcome is not (ImportOutcome.UpToDate or ImportOutcome.NoImporter))
+            {
+                ++failed;
+                Log($"Can't import {result.Path}: {result.Outcome} {result.Error}");
+            }
+        }
+        Database = database;
+        Prefabs = database.Prefabs();
+        RenderAssets.SetReader(id => database.ImportedFile(id) is { } path ? File.ReadAllBytes(path) : null);
+        Log($"{database.Assets.Count()} assets, {imported} imported" + (failed > 0 ? $", {failed} failed" : ""));
+    }
+
+    // -----------------------------------------------------------------------
+    // Scenes (ADR 0067): opened into the engine's world, which the viewports
+    // show; saving comes with step 4.
+    // -----------------------------------------------------------------------
+
+    public void OpenScene(string sceneFile)
+    {
+        if (!_context.HasWorld)
+        {
+            return;
+        }
+        byte[] bytes;
+        try
+        {
+            bytes = File.ReadAllBytes(sceneFile);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            Log($"Can't open {sceneFile}: {exception.Message}");
+            return;
+        }
+        World world = _context.World;
+        Selection.Selected = Entity.Null;
+        ClearScene(world);
+        try
+        {
+            SceneLoad load = Scene.Load(world, bytes, prefabs: Prefabs);
+            ScenePath = Path.GetFullPath(sceneFile);
+            Log($"Opened {Path.GetFileName(sceneFile)}: {load.Roots.Count} entities at the top" +
+                (load.SkippedComponents.Count > 0 ? $"; skipped {string.Join(", ", load.SkippedComponents)}" : ""));
+        }
+        catch (Exception exception) when (exception is System.Text.Json.JsonException or InvalidDataException)
+        {
+            Log($"Can't open {sceneFile}: {exception.Message}");
+            ClearScene(world);
+        }
+        if (Database is null)
+        {
+            Log("No project is open: the scene's models and textures can't be found");
+        }
+    }
+
+    // Every entity a scene made (they carry scene IDs); children go with their parents.
+    private static void ClearScene(World world)
+    {
+        using Query query = world.CreateQuery([Components.Of<SceneEntityId>()]);
+        Collector collector = new() { Found = [] };
+        query.ForEachChunk(ref collector);
+        foreach (Entity entity in collector.Found)
+        {
+            world.Destroy(entity);
+        }
+    }
+
+    private struct Collector : IChunkJob
+    {
+        public List<Entity> Found;
+
+        public readonly void Execute(in ChunkView chunk) => Found.AddRange(chunk.Entities);
+    }
+
+    // -----------------------------------------------------------------------
+    // Viewports (ADR 0067)
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Renders every open viewport, before the windows (so they draw this
+    /// frame's image), and takes in the answer to a pick.
+    /// </summary>
+    public void RenderViewports()
+    {
+        if (!_context.HasWorld)
+        {
+            return;
+        }
+        World world = _context.World;
+        if (Selection.Selected.Value != 0 && !world.IsAlive(Selection.Selected))
+        {
+            Selection.Selected = Entity.Null;
+        }
+        Entity[] outlined = Outlined(world);
+        foreach (EditorPanel panel in _open.Values)
+        {
+            if (panel is ViewportPanel viewport && viewport.Root is not null)
+            {
+                viewport.View.Render(world, outlined);
+                viewport.Refresh();
+            }
+        }
+        if (_pickView is { } view && view.Surface.Value != 0)
+        {
+            PickResult result = Render.Api.PickResult(view.Surface);
+            if (result.Frame >= _pickFrame)
+            {
+                Selection.Selected = result.Hit ? TopOf(world, result.Entity) : Entity.Null;
+                _pickView = null;
+            }
+        }
+    }
+
+    internal void RequestPick(SceneView view, Vector2 pixel)
+    {
+        Render.Api.RequestPick(view.Surface, (uint)MathF.Max(pixel.X, 0), (uint)MathF.Max(pixel.Y, 0));
+        _pickView = view;
+        _pickFrame = Render.Api.FramesSubmitted(view.Surface) + 1;
+    }
+
+    // A click picks a mesh; the selection is what it belongs to: the
+    // topmost entity above it (a prefab instance's root).
+    private static Entity TopOf(World world, Entity entity)
+    {
+        for (Entity parent = world.ParentOf(entity); parent.Value != 0; parent = world.ParentOf(entity))
+        {
+            entity = parent;
+        }
+        return entity;
+    }
+
+    // The selection and what's under it, as far as the outline takes.
+    private Entity[] Outlined(World world)
+    {
+        if (Selection.Selected.Value == 0)
+        {
+            return [];
+        }
+        List<Entity> found = [];
+        Stack<Entity> pending = new([Selection.Selected]);
+        Span<Entity> children = stackalloc Entity[64];
+        while (pending.Count > 0 && found.Count < 16)
+        {
+            Entity entity = pending.Pop();
+            found.Add(entity);
+            int count = world.ChildrenOf(entity, children);
+            for (int i = 0; i < Math.Min(count, children.Length); ++i)
+            {
+                pending.Push(children[i]);
+            }
+        }
+        return [.. found];
+    }
+
+    /// <summary>The selection's world matrix; null with nothing selected (or no world).</summary>
+    internal Matrix4x4? SelectedTransform()
+    {
+        if (!_context.HasWorld || Selection.Selected.Value == 0 || !_context.World.IsAlive(Selection.Selected) ||
+            !_context.World.Has(Selection.Selected, Components.Of<LocalTransform>()))
+        {
+            return null;
+        }
+        return _context.World.ComputeWorldTransform(Selection.Selected);
+    }
+
+    /// <summary>Moves the selection to a world matrix, through its parent's space when it has one.</summary>
+    internal void SetSelectedTransform(Matrix4x4 worldMatrix)
+    {
+        if (SelectedTransform() is null)
+        {
+            return;
+        }
+        World world = _context.World;
+        Entity entity = Selection.Selected;
+        Matrix4x4 local = worldMatrix;
+        if (world.ParentOf(entity) is { Value: not 0 } parent &&
+            Matrix4x4.Invert(world.ComputeWorldTransform(parent), out Matrix4x4 inverse))
+        {
+            local = worldMatrix * inverse;
+        }
+        Matrix4x4.Decompose(local, out Vector3 scale, out Quaternion rotation, out Vector3 position);
+        world.Set(entity, new LocalTransform { Position = position, Rotation = rotation, Scale = scale });
+    }
+
+    /// <summary>Frames the selection in a viewport (F), or the scene's middle with nothing selected.</summary>
+    internal void FrameSelection(SceneView view)
+    {
+        if (SelectedTransform() is { } world)
+        {
+            Matrix4x4.Decompose(world, out Vector3 scale, out _, out Vector3 position);
+            view.Camera.Frame(position, MathF.Max(MathF.Max(scale.X, scale.Y), scale.Z) * 3);
+        }
+        else
+        {
+            view.Camera.Frame(Vector3.Zero, 12);
+        }
     }
 
     private void SaveSettings()
@@ -194,6 +430,11 @@ internal sealed class Shell
             () => Platform.Api.ShowOpenFileDialog(Main.Window, "Crucible projects", "crproject"))
         {
             Shortcut = new Shortcut(KeyModifiers.Ctrl, Keycode.O),
+        });
+        Commands.Add(new Command("File.OpenScene", "Open Scene…",
+            () => Platform.Api.ShowOpenFileDialog(Main.Window, "Crucible scenes", "crscene"))
+        {
+            Shortcut = new Shortcut(KeyModifiers.Ctrl | KeyModifiers.Shift, Keycode.O),
         });
         Commands.Add(new Command("File.Quit", "Quit", () => _context.QuitRequested = true)
         {
@@ -221,6 +462,7 @@ internal sealed class Shell
     {
         Menu file = Main.MenuBar.Add("File");
         file.Add(Commands.Find("File.OpenProject")!);
+        file.Add(Commands.Find("File.OpenScene")!);
         _recentItem.Submenu = _recentMenu;
         file.Add(_recentItem);
         RebuildRecent();
@@ -268,7 +510,7 @@ internal sealed class Shell
     private void RegisterPanels()
     {
         Panels.Register("Hierarchy", "Hierarchy", () => new HierarchyPanel());
-        Panels.Register("Viewport", "Viewport", () => new ViewportPanel());
+        Panels.Register("Viewport", "Viewport", () => new ViewportPanel(this));
         Panels.Register("Inspector", "Inspector", () => new InspectorPanel());
         Panels.Register("Assets", "Assets", () => new AssetsPanel());
         Panels.Register("Log", "Log", () => new LogPanel());
@@ -834,6 +1076,16 @@ internal sealed class Shell
             .Set(UIElement.PaddingProperty, new Thickness(10, 3, 10, 3)));
         theme.Add(new Style("Label.status").Set(UIElement.ForegroundProperty, muted));
         theme.Add(new Style("DropPreview").Set(UIElement.ForegroundProperty, accent));
+        // The viewport's toolbar (ADR 0067): flat tools, the active one lit.
+        theme.Add(new Style("StackPanel.viewport-tools")
+            .Set(UIElement.BackgroundProperty, strip)
+            .Set(UIElement.PaddingProperty, new Thickness(6, 4, 6, 4)));
+        theme.Add(new Style("Button.tool")
+            .Set(UIElement.PaddingProperty, new Thickness(10, 3, 10, 3))
+            .Set(UIElement.BackgroundProperty, panel));
+        theme.Add(new Style("Button.tool:hover").Set(UIElement.BackgroundProperty, hover));
+        theme.Add(new Style("Button.on").Set(UIElement.BackgroundProperty, accent with { W = 0.55f }));
+        theme.Add(new Style("Label.frame-time").Set(UIElement.ForegroundProperty, muted).Set(UIElement.MarginProperty, new Thickness(8, 0, 0, 0)));
         return theme;
     }
 

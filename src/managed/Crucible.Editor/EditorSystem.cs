@@ -1,4 +1,5 @@
 using Crucible.Loop;
+using Crucible.Render;
 
 namespace Crucible.Editor;
 
@@ -16,12 +17,18 @@ public sealed class EditorSystem : GameSystem
 
     public override void Start(FrameContext context)
     {
+        // The editor's view in the scene's schedule: Grid, Pick, SelectionOutline (ADR 0067).
+        RenderSchedule.Default.AddEditorSteps();
         _shell = new Shell(context, context.GameArguments.TryGetValue("settings", out string? settings)
             ? settings
             : EditorSettings.DefaultPath);
         if (context.GameArguments.TryGetValue("project", out string? project))
         {
             _shell.OpenProject(project);
+        }
+        if (context.GameArguments.TryGetValue("scene", out string? scene))
+        {
+            _shell.OpenScene(scene);
         }
     }
 
@@ -41,3 +48,14 @@ public sealed class EditorSystem : GameSystem
         _shell = null;
     }
 }
+
+/// <summary>
+/// The editor's viewports (ADR 0067), rendered before the main window's
+/// frame, which draws their images; and picks answered.
+/// </summary>
+[System(Phases.RenderSubmit, Before = [typeof(RenderSystem)])]
+public sealed class EditorViewportSystem : GameSystem
+{
+    public override void Run(FrameContext context) => Shell.Current?.RenderViewports();
+}
+

@@ -90,6 +90,7 @@ public:
     uint64_t frame;      // counts the surface's rendered frames from 1
     float clearColor[4]; // renderFrame's color, which Opaque clears to
     ecs::World* world;   // the world drawn, or null
+    uint32_t surface;    // the surface drawn to (its SurfaceHandle's value), for steps keeping state per surface
     // The frame's view (its GPU copy is under viewKey()), and the visible
     // instances (ADR 0051).
     const ViewConstants& view;
@@ -117,6 +118,7 @@ private:
         , frame(0)
         , clearColor{}
         , world(nullptr)
+        , surface(0)
         , view(view)
         , draws(draws)
     {}

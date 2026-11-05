@@ -24,7 +24,8 @@ public sealed unsafe class World : IDisposable
         Handle = Api.CreateWorld();
     }
 
-    internal WorldHandle Handle { get; private set; }
+    /// <summary>The native world, for engine calls taking one (an editor rendering it in a viewport, ADR 0067).</summary>
+    public WorldHandle Handle { get; private set; }
 
     public void Dispose()
     {

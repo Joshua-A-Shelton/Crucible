@@ -137,7 +137,8 @@ void registerCamera()
     ecs::registerComponent<PostProcess>("Crucible.Render.PostProcess");
 }
 
-ViewConstants viewConstants(ecs::World* world, uint32_t width, uint32_t height, float time)
+ViewConstants viewConstants(ecs::World* world, uint32_t width, uint32_t height, float time,
+                            const CameraOverride* override)
 {
     Chosen chosen;
     if (world != nullptr)
@@ -150,7 +151,13 @@ ViewConstants viewConstants(ecs::World* world, uint32_t width, uint32_t height, 
             ecs::destroyQuery(cameras);
         }
     }
-    const Camera& camera = chosen.camera != nullptr ? *chosen.camera : defaultCamera;
+    const Camera& camera = override != nullptr        ? override->camera
+                           : chosen.camera != nullptr ? *chosen.camera
+                                                      : defaultCamera;
+    if (override != nullptr)
+    {
+        chosen.world = override->world;
+    }
     const float aspectRatio = height != 0 ? static_cast<float>(width) / static_cast<float>(height) : 1.0f;
 
     ViewConstants constants{};

@@ -427,7 +427,11 @@ scrubbing. Step 2 built (ADR 0066): `crucible_editor`, menus and
 commands, docking, floating windows dragged between windows on every
 platform (Wayland through `xdg-toplevel-drag`), per-surface render
 schedules, and keycodes for shortcuts; amended so the editor draws its
-own window frames. Tried by hand by the owner on KWin and Windows.
+own window frames. Tried by hand by the owner on KWin and Windows. Step 3
+built (ADR 0067): the scene viewport (an offscreen surface drawn by the UI,
+an editor camera, picking from a GPU ID buffer, the selection outlined,
+move, rotate, and scale handles, a grid) and opening projects' assets and
+scenes; to be tried by hand.
 
 ## M8 — Animation and audio
 

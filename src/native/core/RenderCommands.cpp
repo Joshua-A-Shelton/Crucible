@@ -843,6 +843,12 @@ void destroyRenderSchedule(uint32_t schedule)
     destroySchedule(schedule);
 }
 
+Result<void> addEditorSteps(uint32_t schedule)
+{
+    RenderSchedule* found = scheduleById(schedule);
+    return found != nullptr ? addEditorStepsTo(*found) : Result<void>(Status::NotFound);
+}
+
 Result<void> insertManagedStep(uint32_t scheduleId, std::string_view name, uint64_t id, StepPlacement placement,
                                std::string_view anchor)
 {

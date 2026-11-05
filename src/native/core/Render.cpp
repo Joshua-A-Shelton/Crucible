@@ -62,6 +62,12 @@ struct Surface
     slag::Texture* offscreenTexture = nullptr;
     slag::AttachmentView* offscreenView = nullptr; // the sRGB view
     bool offscreenRendered = false;
+    // Once its texture is drawn elsewhere (surfaceTexture), each frame leaves
+    // it ready to sample (ShaderRead) rather than as a render target.
+    TextureHandle sampled{};
+    slag::TextureLayout resting = slag::TextureLayout::RenderTarget;
+    bool hasCamera = false;
+    CameraOverride camera{}; // its own camera (ADR 0067)
     // The surface's render graph (ADR 0048), rebuilt every frame from the
     // render schedule.
     slag::rendergraph::RenderGraph* graph = nullptr;
@@ -192,9 +198,12 @@ void startGpuTimer(Surface& surface)
 }
 
 // Destroys whatever the surface holds. The GPU must be done with it.
+SurfaceHandle handleOf(const Surface* slot);
+
 void release(Surface& surface)
 {
     stopGpuTimer(surface);
+    releaseEditorView(handleOf(&surface).value);
     slag::GraphicsDevice* device = renderer.device;
     slag::rendergraph::destroy(surface.graph);
     destroyDrawState(surface.draws);
@@ -219,6 +228,10 @@ void release(Surface& surface)
     if (surface.offscreenView != nullptr)
     {
         device->destroy(surface.offscreenView);
+    }
+    if (surface.sampled.generation != 0)
+    {
+        removeSurfaceTexture(surface.sampled);
     }
     if (surface.offscreenTexture != nullptr)
     {
@@ -335,7 +348,8 @@ Result<void> renderWithGraph(Surface& surface, slag::Texture* texture, slag::Att
     const auto frameSlot = static_cast<uint32_t>(surface.graphFrames++ % framesInFlight);
     slag::Buffer* viewBuffer = surface.viewBuffers[frameSlot];
     const float time = std::chrono::duration<float>(std::chrono::steady_clock::now() - renderer.started).count();
-    ViewConstants constants = viewConstants(world, surface.width, surface.height, time);
+    ViewConstants constants =
+        viewConstants(world, surface.width, surface.height, time, surface.hasCamera ? &surface.camera : nullptr);
     ShadowRequests& requests = shadowRequests(*surface.shadows);
     gatherLights(*surface.lights, world, frameSlot, constants, requests);
     auto* lights = static_cast<LightData*>(lightBuffer(*surface.lights, frameSlot)->mappedData());
@@ -367,7 +381,7 @@ Result<void> renderWithGraph(Surface& surface, slag::Texture* texture, slag::Att
             {graph, *renderer.device, surface.width, surface.height, surface.submitted + 1, color, backbuffer,
              graph.importBuffer(viewBuffer), graph.importBuffer(lightBuffer(*surface.lights, frameSlot)), constants,
              draws.value(), world, drawDescriptorBase(*surface.draws), shadows, *surface.draws, *surface.managed,
-             frameSlot, schedule != nullptr ? *schedule : renderSchedule()});
+             frameSlot, schedule != nullptr ? *schedule : renderSchedule(), handleOf(&surface).value});
         !added)
     {
         return added;
@@ -416,6 +430,12 @@ Result<void> renderWithGraph(Surface& surface, slag::Texture* texture, slag::Att
 }
 
 } // namespace
+
+uint64_t surfaceFramesDone(uint32_t surface)
+{
+    const Surface* slot = find(SurfaceHandle{surface});
+    return slot != nullptr && slot->frames != nullptr ? slot->frames->value() : 0;
+}
 
 slag::GraphicsDevice* renderDevice()
 {
@@ -662,6 +682,95 @@ Result<SurfaceHandle> createOffscreenSurface(uint32_t width, uint32_t height)
     return handleOf(slot);
 }
 
+Result<void> setSurfaceCamera(SurfaceHandle surface, Vector3 position, Quaternion rotation, Camera camera)
+{
+    Surface* slot = find(surface);
+    if (slot == nullptr)
+    {
+        return Status::NotFound;
+    }
+    slot->hasCamera = true;
+    slot->camera = {Matrix4x4::rotation(rotation) * Matrix4x4::translation(position), camera};
+    return {};
+}
+
+void clearSurfaceCamera(SurfaceHandle surface)
+{
+    if (Surface* slot = find(surface))
+    {
+        slot->hasCamera = false;
+    }
+}
+
+Result<TextureHandle> surfaceTexture(SurfaceHandle surface)
+{
+    Surface* slot = find(surface);
+    if (slot == nullptr || slot->offscreenTexture == nullptr)
+    {
+        return Status::NotFound;
+    }
+    if (slot->sampled.generation == 0)
+    {
+        slot->sampled = addSurfaceTexture(slot->offscreenTexture);
+        if (slot->sampled.generation == 0)
+        {
+            return Status::OutOfDeviceMemory;
+        }
+    }
+    return slot->sampled;
+}
+
+Result<void> resizeOffscreenSurface(SurfaceHandle surface, uint32_t width, uint32_t height)
+{
+    Surface* slot = find(surface);
+    if (slot == nullptr || slot->offscreenTexture == nullptr)
+    {
+        return Status::NotFound;
+    }
+    if (width == 0 || height == 0)
+    {
+        return Status::InvalidData;
+    }
+    if (width == slot->width && height == slot->height)
+    {
+        return {};
+    }
+    // Rare (a panel resized), so simply after the GPU is done with the old one.
+    slag::GraphicsDevice* device = renderer.device;
+    (void)renderer.queue->waitIdle();
+    const slag::PixelFormat srgb[] = {slag::PixelFormat::B8G8R8A8UnormSrgb};
+    slag::Result<slag::Texture*> texture = device->createTexture2D({.format = slag::PixelFormat::B8G8R8A8Unorm,
+                                                                    .width = width,
+                                                                    .height = height,
+                                                                    .usage = slag::TextureUsage::RenderTarget,
+                                                                    .castableFormats = srgb,
+                                                                    .debugName = "crucible offscreen surface"});
+    if (!texture)
+    {
+        return toStatus(texture.status());
+    }
+    slag::Result<slag::AttachmentView*> view =
+        device->createAttachmentView({.texture = texture.value(), .format = srgb[0]});
+    if (!view)
+    {
+        device->destroy(texture.value());
+        return toStatus(view.status());
+    }
+    device->destroy(slot->offscreenView);
+    device->destroy(slot->offscreenTexture);
+    slot->offscreenTexture = texture.value();
+    slot->offscreenView = view.value();
+    slot->width = width;
+    slot->height = height;
+    slot->offscreenRendered = false;
+    slot->resting = slag::TextureLayout::RenderTarget;
+    if (slot->sampled.generation != 0)
+    {
+        replaceSurfaceTexture(slot->sampled, slot->offscreenTexture);
+    }
+    return {};
+}
+
 Result<void> setSurfaceSchedule(SurfaceHandle surface, uint32_t schedule)
 {
     Surface* slot = find(surface);
@@ -718,19 +827,21 @@ Result<void> renderFrame(SurfaceHandle surface, ecs::World* world, uint32_t last
     const float color[4] = {red, green, blue, alpha};
     if (target.offscreenTexture != nullptr)
     {
-        // Between frames the texture stays in RenderTarget (readSurfacePixels
-        // relies on it); before the first, it's Undefined.
-        const slag::TextureLayout initial =
-            target.offscreenRendered ? slag::TextureLayout::RenderTarget : slag::TextureLayout::Undefined;
+        // Between frames the texture rests in RenderTarget, or ShaderRead
+        // once it's drawn elsewhere (readSurfacePixels follows either);
+        // before the first, it's Undefined.
+        const slag::TextureLayout initial = target.offscreenRendered ? target.resting : slag::TextureLayout::Undefined;
+        const slag::TextureLayout final =
+            target.sampled.generation != 0 ? slag::TextureLayout::ShaderRead : slag::TextureLayout::RenderTarget;
         if (Result<void> rendered =
                 renderWithGraph(target, target.offscreenTexture, target.offscreenView,
-                                {.initialLayout = initial, .finalLayout = slag::TextureLayout::RenderTarget}, world,
-                                lastRunVersion, color);
+                                {.initialLayout = initial, .finalLayout = final}, world, lastRunVersion, color);
             !rendered)
         {
             return rendered;
         }
         target.offscreenRendered = true;
+        target.resting = final;
         target.presentedLastFrame = true; // pacing waits behind it, as behind a present
         return {};
     }
@@ -883,20 +994,22 @@ Result<void> readSurfacePixels(SurfaceHandle surface, std::span<uint8_t> pixels)
         slag::CommandBuffer* commands = commandBuffer.value();
         const slag::TextureBarrier toCopy = {.syncAfter = slag::BarrierSync::Copy,
                                              .accessAfter = slag::BarrierAccess::CopySource,
-                                             .layoutBefore = slag::TextureLayout::RenderTarget,
+                                             .layoutBefore = target.resting,
                                              .layoutAfter = slag::TextureLayout::CopySource,
                                              .texture = target.offscreenTexture};
         commands->barrier({}, {}, {&toCopy, 1});
         commands->copyTextureToBuffer({readback.value(), 0, footprint.rowPitch}, {.texture = target.offscreenTexture},
                                       target.width, target.height);
-        // Back to RenderTarget, the layout the texture is always in between operations.
-        const slag::TextureBarrier toTarget = {.syncBefore = slag::BarrierSync::Copy,
-                                               .syncAfter = slag::BarrierSync::RenderTarget,
-                                               .accessBefore = slag::BarrierAccess::CopySource,
-                                               .accessAfter = slag::BarrierAccess::RenderTarget,
-                                               .layoutBefore = slag::TextureLayout::CopySource,
-                                               .layoutAfter = slag::TextureLayout::RenderTarget,
-                                               .texture = target.offscreenTexture};
+        // Back to the layout the texture rests in between operations.
+        const bool sampled = target.resting == slag::TextureLayout::ShaderRead;
+        const slag::TextureBarrier toTarget = {
+            .syncBefore = slag::BarrierSync::Copy,
+            .syncAfter = sampled ? slag::BarrierSync::None : slag::BarrierSync::RenderTarget,
+            .accessBefore = slag::BarrierAccess::CopySource,
+            .accessAfter = sampled ? slag::BarrierAccess::NoAccess : slag::BarrierAccess::RenderTarget,
+            .layoutBefore = slag::TextureLayout::CopySource,
+            .layoutAfter = target.resting,
+            .texture = target.offscreenTexture};
         commands->barrier({}, {}, {&toTarget, 1});
         const slag::SemaphoreValue signal = {done.value(), 1};
         slag::CommandBuffer* const commandBuffers[] = {commands};

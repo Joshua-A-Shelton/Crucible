@@ -54,6 +54,7 @@ struct LoadedTexture
 {
     slag::Texture* texture = nullptr;
     uint32_t slot = 0;
+    bool borrowed = false; // a surface's: the surface destroys it
 };
 
 template <class T>
@@ -600,7 +601,10 @@ Result<LoadedTexture*> createTexture(std::span<const uint8_t> bytes)
 void destroyTexture(LoadedTexture* texture)
 {
     state.slots->release(texture->slot, lastSignaled());
-    state.destroyer->destroyAfter(texture->texture, lastSignaled());
+    if (!texture->borrowed)
+    {
+        state.destroyer->destroyAfter(texture->texture, lastSignaled());
+    }
     destroy(MemoryTag::Render, texture);
 }
 
@@ -866,6 +870,41 @@ Result<TextureHandle> loadTexture(std::span<const uint8_t> bytes)
 void unloadTexture(TextureHandle texture)
 {
     release(state.textures, texture.index, texture.generation, false, destroyTexture);
+}
+
+TextureHandle addSurfaceTexture(slag::Texture* texture)
+{
+    if (state.device == nullptr)
+    {
+        return {};
+    }
+    state.slots->collect();
+    const uint32_t slot = state.slots->allocate();
+    if (slot == 0)
+    {
+        return {};
+    }
+    state.device->writeTexture(slot, {.texture = texture});
+    auto* loaded = create<LoadedTexture>(MemoryTag::Render);
+    loaded->texture = texture;
+    loaded->slot = slot;
+    loaded->borrowed = true;
+    const uint32_t index = state.textures.add(loaded);
+    return TextureHandle{index, state.textures.slots[index].generation};
+}
+
+void replaceSurfaceTexture(TextureHandle handle, slag::Texture* texture)
+{
+    if (Slot<LoadedTexture>* slot = state.textures.find(handle.index, handle.generation))
+    {
+        slot->value->texture = texture;
+        state.device->writeTexture(slot->value->slot, {.texture = texture});
+    }
+}
+
+void removeSurfaceTexture(TextureHandle handle)
+{
+    release(state.textures, handle.index, handle.generation, false, destroyTexture);
 }
 
 uint32_t textureDescriptor(TextureHandle texture)
