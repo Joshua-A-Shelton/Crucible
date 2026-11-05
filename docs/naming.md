@@ -315,7 +315,7 @@ the rest as drafted.
 
 Settled by the owner, the alternatives where offered (`DockSpace`,
 `DockGroup`, `EditorPanel`, `Shortcut`); the rest as drafted. Names added
-while building are placeholders until settled (marked *).
+while building (marked *) settled as drafted too.
 
 | Name | What it is |
 |---|---|
@@ -336,7 +336,8 @@ while building are placeholders until settled (marked *).
 Settled as drafted: `TitleBar`, `WindowButton` (classes `minimize`,
 `maximize`, `close`), `setWindowBordered`, `setWindowResizeBorder`,
 `startWindowMove`, `minimizeWindow`, `maximizeWindow`, `restoreWindow`,
-`windowMaximized`, `showWindowMenu`. Placeholders until settled (marked *):
+`windowMaximized`, `showWindowMenu`. Names added while building (marked *)
+settled as drafted too:
 
 | Name | What it is |
 |---|---|

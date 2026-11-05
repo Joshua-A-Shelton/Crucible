@@ -2,7 +2,8 @@
 
 **Status:** Accepted (2026-11-04); built. Names settled by the owner
 (docs/naming.md), the alternatives where offered: `DockSpace`,
-`DockGroup`, `EditorPanel`, `Shortcut`.
+`DockGroup`, `EditorPanel`, `Shortcut`; the rest, including names added
+while building, as drafted.
 
 ## Context
 
