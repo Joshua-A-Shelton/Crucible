@@ -173,6 +173,7 @@ bool translate(const SDL_Event& event, InputEvent& out)
         out.y = event.motion.y * density;
         out.dx = event.motion.xrel * density;
         out.dy = event.motion.yrel * density;
+        out.modifiers = modifiersOf(SDL_GetModState()); // a drag with Ctrl snaps (ADR 0067)
         return true;
     }
     case SDL_EVENT_MOUSE_BUTTON_DOWN:
@@ -185,6 +186,7 @@ bool translate(const SDL_Event& event, InputEvent& out)
         const float density = pixelDensity(event.button.windowID);
         out.x = event.button.x * density;
         out.y = event.button.y * density;
+        out.modifiers = modifiersOf(SDL_GetModState()); // Alt+click orbits, Shift+click extends
         return true;
     }
     case SDL_EVENT_MOUSE_WHEEL:

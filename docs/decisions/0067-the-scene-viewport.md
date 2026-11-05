@@ -162,3 +162,11 @@ draw and the simplest to hit. Unity's controls are the owner's choice.
     scene drawn, a house picked and outlined alone, dragged along X by
     its handle, a click on the sky clearing the selection, saved as
     `viewport.png`.
+- **Tried by the owner on KWin (2026-11-04):** the camera, picking,
+  outlines, handles, the toolbar, resizing, and floating the viewport all
+  work. Snapping didn't: mouse events carried no modifiers (only key and
+  wheel events did), so a drag never saw Ctrl, and a press never saw Alt
+  or Shift. Mouse motion and button events now carry the modifiers held
+  (native test), and `launcher.jit.viewport` drags with Ctrl held and
+  checks the half-meter snap.
+

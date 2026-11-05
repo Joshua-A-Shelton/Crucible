@@ -130,7 +130,7 @@ struct CRUCIBLE_EXPOSE InputEvent
     float y;
     float dx;
     float dy;
-    uint32_t modifiers; // KeyModifiers bits, for key and wheel events
+    uint32_t modifiers; // KeyModifiers bits, for key, wheel, and mouse events
     // Added for shortcuts (ADR 0066): the key as the user's layout labels it
     // (SDL's keycode: the character for printable keys, else the scancode
     // with bit 30 set), for key events. Shortcuts match it; navigation keys

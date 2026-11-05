@@ -214,6 +214,28 @@ TEST_CASE("Text input turns on and off for a window and the clipboard holds text
     destroyWindow(window.value());
 }
 
+TEST_CASE("Mouse events carry the modifiers held")
+{
+    PlatformScope platform;
+    drain();
+    SDL_SetModState(SDL_KMOD_LCTRL | SDL_KMOD_LALT);
+    SDL_Event motion{};
+    motion.type = SDL_EVENT_MOUSE_MOTION;
+    motion.motion.x = 5;
+    REQUIRE(SDL_PushEvent(&motion));
+    SDL_Event button{};
+    button.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+    button.button.button = SDL_BUTTON_LEFT;
+    REQUIRE(SDL_PushEvent(&button));
+    std::array<InputEvent, 4> events;
+    REQUIRE(pollEvents(events) == 2);
+    SDL_SetModState(SDL_KMOD_NONE);
+    const uint32_t held = static_cast<uint32_t>(KeyModifiers::Ctrl) | static_cast<uint32_t>(KeyModifiers::Alt);
+    CHECK(events[0].type == InputEventType::MouseMotion);
+    CHECK(events[0].modifiers == held);
+    CHECK(events[1].modifiers == held);
+}
+
 TEST_CASE("Keys carry their keycodes and pointer positions are pixels")
 {
     PlatformScope platform;

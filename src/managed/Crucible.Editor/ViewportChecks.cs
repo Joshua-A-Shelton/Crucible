@@ -131,6 +131,21 @@ internal sealed class ViewportChecks : GameSystem
             Check(after.X > before.X + 0.1f, "the X axis moved it along +X", $"{before} to {after}");
             Check(MathF.Abs(after.Y - before.Y) < 1e-3f && MathF.Abs(after.Z - before.Z) < 1e-3f, "and nowhere else",
                 $"{before} to {after}");
+
+            // Again with Ctrl held: the move snaps to half meters.
+            Vector2? from = view.Camera.Project(after, view.ActualSize);
+            Vector2? end = view.Camera.Project(after + Vector3.UnitX * length, view.ActualSize);
+            if (from is { } f && end is { } e)
+            {
+                Vector2 hold = offset + f + (e - f) * 0.7f;
+                Vector2 farther = Vector2.Normalize(e - f) * 47;
+                InputEvent Held(InputEvent input) => input with { Modifiers = (uint)KeyModifiers.Ctrl };
+                Send(root, Held(Motion(hold)), Held(Button(hold, true)), Held(Motion(hold + farther)), Held(Button(hold + farther, false)));
+                yield return 2;
+                float snapped = world.Read<LocalTransform>(picked).Position.X - after.X;
+                Check(MathF.Abs(snapped / 0.5f - MathF.Round(snapped / 0.5f)) < 1e-3f && MathF.Abs(snapped) >= 0.5f,
+                    "with Ctrl held it snaps to half meters", snapped.ToString());
+            }
         }
         yield return 2;
         Save(shell.Main.Surface, _capture);
