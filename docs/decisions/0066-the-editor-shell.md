@@ -346,6 +346,6 @@ owner meant to do anyway.
   main window stayed in front (owner).
 - **The frames, tried by the owner on KWin:** moving with snapping,
   double-click to maximize and restore, the window menu, resizing from
-  edges and corners, and every window button all work. Windows is still
-  to be tried by hand.
+  edges and corners, and every window button all work.
+- **Tried by the owner on Windows (2026-11-04):** it all looks good.
 

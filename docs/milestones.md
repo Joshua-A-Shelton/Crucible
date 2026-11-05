@@ -426,8 +426,8 @@ decision made at its start):
 scrubbing. Step 2 built (ADR 0066): `crucible_editor`, menus and
 commands, docking, floating windows dragged between windows on every
 platform (Wayland through `xdg-toplevel-drag`), per-surface render
-schedules, and keycodes for shortcuts; to be tried by hand on Wayland
-and Windows.
+schedules, and keycodes for shortcuts; amended so the editor draws its
+own window frames. Tried by hand by the owner on KWin and Windows.
 
 ## M8 — Animation and audio
 
