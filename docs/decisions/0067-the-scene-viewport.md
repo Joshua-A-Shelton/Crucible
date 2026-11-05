@@ -169,4 +169,6 @@ draw and the simplest to hit. Unity's controls are the owner's choice.
   or Shift. Mouse motion and button events now carry the modifiers held
   (native test), and `launcher.jit.viewport` drags with Ctrl held and
   checks the half-meter snap.
+- **Tried again by the owner on KWin:** snapping and Alt+drag orbiting
+  work; everything else still does. Windows is still to be tried by hand.
 
