@@ -150,6 +150,30 @@ public class TreeViewTests
     }
 
     [Test]
+    public async Task RowsScrolledAwayAndBackStillDrawTheirText()
+    {
+        using Rig rig = new();
+        // Many rows with the same text: a reused row often shows it again.
+        ulong[] many = [.. Enumerable.Range(1, 200).Select(i => (ulong)i)];
+        TreeView tree = rig.Add(new TreeView
+        {
+            Height = 240,
+            ChildrenOf = node => node is null ? many : [],
+            BindRow = row => row.Text = row.Node % 3 == 0 ? "House" : "Tree",
+        });
+        tree.Refresh();
+        rig.Layout();
+        for (int pass = 0; pass < 2; ++pass)
+        {
+            tree.ScrollView.ScrollTo(Orientation.Vertical, pass == 0 ? float.MaxValue : 0);
+            rig.Layout();
+            rig.Layout();
+        }
+        string blank = string.Join(" ", many.Where(node => tree.RowOf(node) is { } row && row.Label.Layout is null));
+        await Assert.That(blank).IsEqualTo("");
+    }
+
+    [Test]
     public async Task RowsDragOntoOneAnotherButNotIntoThemselves()
     {
         using Rig rig = new();

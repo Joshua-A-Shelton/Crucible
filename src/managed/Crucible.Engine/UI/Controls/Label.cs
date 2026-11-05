@@ -73,5 +73,9 @@ public class Label : UIElement
         }
     }
 
+    // Detaching let go of the shaped text; attached again (a list's row
+    // reused for the same text), it's shaped anew.
+    protected override void OnAttached(UIRoot root) => InvalidateMeasure();
+
     protected override void OnDetached(UIRoot root) => _shaped.Detach();
 }

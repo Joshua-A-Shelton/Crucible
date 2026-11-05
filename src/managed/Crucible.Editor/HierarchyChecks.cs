@@ -87,6 +87,28 @@ internal sealed class HierarchyChecks : GameSystem
         Check(!shell.IsDirty && !shell.Main.TitleBar.Title.Contains('*'), "a scene just opened is saved",
             shell.Main.TitleBar.Title);
 
+        // Every row draws its text: the tops, then with every top expanded, scrolled through.
+        Check(Unlabeled(tree) == "", "every row shows its name", Unlabeled(tree));
+        foreach (ulong top in Enumerable.Range(0, tree.RowCount).Select(tree.RowNode).ToArray())
+        {
+            tree.SetExpanded(top, true);
+        }
+        yield return 2;
+        string missing = "";
+        for (int i = 0; i < tree.RowCount; i += 8)
+        {
+            RowItem(tree, tree.RowNode(i));
+            yield return 1;
+            missing += Unlabeled(tree);
+        }
+        Check(missing == "", "every expanded row shows its name", missing);
+        foreach (ulong top in Enumerable.Range(0, tree.RowCount).Where(i => tree.RowDepth(i) == 0).Select(tree.RowNode).ToArray())
+        {
+            tree.SetExpanded(top, false);
+        }
+        tree.ScrollView.ScrollTo(Orientation.Vertical, 0);
+        yield return 2;
+
         // Selecting: a row selects its entity, and the selection shows in the tree.
         ulong houseNode = tree.RowNode(Array.IndexOf(labels, "House"));
         Entity house = EntityOf(houseNode);
@@ -208,6 +230,20 @@ internal sealed class HierarchyChecks : GameSystem
     }
 
     private static Entity EntityOf(ulong node) => new() { Value = node };
+
+    // Rows in view with text their label can't draw: no shaped text, or no room.
+    private static string Unlabeled(TreeView tree)
+    {
+        string missing = "";
+        for (int i = 0; i < tree.RowCount; ++i)
+        {
+            if (tree.RowOf(tree.RowNode(i)) is { } row && row.Text.Length > 0 && (row.Label.Layout is null || row.Label.Bounds.Width < 1))
+            {
+                missing += $"{row.Text}@{i} ";
+            }
+        }
+        return missing;
+    }
 
     private static int HouseCount(Shell shell, TreeView tree) =>
         Enumerable.Range(0, tree.RowCount).Count(i => shell.LabelOf(EntityOf(tree.RowNode(i))) == "House");

@@ -88,6 +88,8 @@ public sealed class TreeRow : UIElement
 
     internal TreeExpander Expander => _expander;
 
+    internal Label Label => _label;
+
     internal TextField Field => _field;
 
     internal void Bind(ulong node, int depth, bool hasChildren, bool expanded)

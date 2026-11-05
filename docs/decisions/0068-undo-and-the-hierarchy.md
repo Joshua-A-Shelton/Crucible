@@ -153,3 +153,10 @@ scene, where games can read them.
     Duplicate, a grouped drag, each undone and redone; saved beside the
     capture and loaded back; the unsaved-changes dialog's Cancel and Don't
     Save; saved as `hierarchy.png` mid-drag.
+- **Tried by the owner on KWin (2026-11-04):** everything worked except
+  that a few rows showed no name until renamed. A row scrolled out of
+  view is detached, and its label lets go of its shaped text; reused for
+  the same text, nothing asked it to shape again. `Label` and `TextField`
+  now measure again when attached (`TreeViewTests` scrolls rows of
+  repeated text away and back; `launcher.jit.hierarchy` checks every
+  row's text is shaped, with every top expanded).

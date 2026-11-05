@@ -216,6 +216,9 @@ public class TextField : UIElement
         canvas.PopClip();
     }
 
+    // As a label's: shaped anew when attached again.
+    protected override void OnAttached(UIRoot root) => InvalidateMeasure();
+
     protected override void OnDetached(UIRoot root) => _shaped.Detach();
 
     // One physical pixel at 1x, whole pixels above.
