@@ -357,7 +357,7 @@ Settled as drafted: `SceneView`, `EditorCamera`, `Selection` (`Selected`,
 `addEditorSteps`, the steps `Grid`, `Pick`, `SelectionOutline`, the command
 `File.OpenScene`, `--scene`, `Village.crscene`, `ViewportTests`, CTest
 `launcher.jit.viewport`, `viewport.png`, `docs/learning/viewports-and-picking.md`.
-Placeholders until settled (marked *):
+Names added while building (marked *) settled as drafted too:
 
 | Name | What it is |
 |---|---|

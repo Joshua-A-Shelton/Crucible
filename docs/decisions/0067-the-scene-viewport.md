@@ -1,7 +1,7 @@
 # 0067 — The scene viewport
 
 **Status:** Accepted (2026-11-04); built. Names settled by the owner as
-drafted (docs/naming.md).
+drafted, including those added while building (docs/naming.md).
 
 ## Context
 
