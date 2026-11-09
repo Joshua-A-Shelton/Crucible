@@ -102,5 +102,15 @@ public class DragDropTests
         await Assert.That(rig.Root.DragPayload).IsSameReferenceAs(payload);
         await Assert.That(rig.Root.DropAt(Center(target))).IsTrue();
         await Assert.That(string.Join(",", target.Log)).IsEqualTo("enter carried,over,over,drop carried");
+
+        // A drag whose release never came (a platform drag took the pointer):
+        // the next press ends it, and acts as a press.
+        rig.Root.BeginDrag("stale");
+        Button button = rig.Add(new Button("After"));
+        int clicks = 0;
+        button.Clicked += _ => ++clicks;
+        rig.Send(T.Motion(Center(button)), T.Button(Center(button), true), T.Button(Center(button), false));
+        await Assert.That(rig.Root.IsDragging).IsFalse();
+        await Assert.That(clicks).IsEqualTo(1);
     }
 }

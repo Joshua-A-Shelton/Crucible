@@ -177,6 +177,21 @@ internal sealed class AssetChecks : GameSystem
         H.Send(root, V.Button(V.Center(house), false));
         yield return 2;
 
+        // Carried in from another window, as the shell does with a platform drag.
+        AssetDrag carried = new(house.Asset!.Id, house.Path);
+        for (int i = 0; i < 4; ++i)
+        {
+            root.ContinueDrag(carried, null, middle + new Vector2(i * 10, 0));
+            yield return 2;
+        }
+        Check(!shell.Placing.IsNull, "a drag carried in from another window places it", $"dragging {root.IsDragging}");
+        root.DropAt(middle + new Vector2(30, 0));
+        yield return 2;
+        Check(shell.Placing.IsNull && shell.History.NextUndo?.Title == "Place House", "and the drop keeps it",
+            shell.History.NextUndo?.Title ?? "");
+        shell.Undo();
+        yield return 2;
+
         // On a hierarchy row: under it.
         HierarchyPanel hierarchy = shell.Main.DockSpace.Panels.OfType<HierarchyPanel>().Single();
         ulong rowNode = hierarchy.Tree.RowNode(0);

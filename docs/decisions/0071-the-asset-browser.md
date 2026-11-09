@@ -121,3 +121,19 @@ Unity places assets.
     a texture not placed, Escape, a house placed under the pointer and
     following it, dropped as one undo step, removed on leaving, and
     placed under a hierarchy row; saved as `assets.png` mid-drag.
+- **Tried by the owner on KWin (2026-11-09):** dragging from a floating
+  Assets window into the main window placed nothing; afterwards clicks
+  and drags were dead; and placing in the viewport stuttered. Fixed:
+  - **the stutter:** every pointer move asked for a new pick and moved the
+    frame the answer had to come from, so while the pointer moved no
+    answer was ever new enough. Each frame's ask now remembers its pixel,
+    and every new answer is used with the pixel it was for;
+  - **dead clicks:** once the platform drag takes the pointer, the source
+    window never sees the release, so its UI stayed mid-drag and ate the
+    next press. A press during a drag now ends it and acts as a press
+    (`DragDropTests`); a carried drag no window holds is forgotten;
+  - **between windows:** with `CRUCIBLE_DEBUG_DRAGS=1`, the carried drag,
+    the main window's handling of it, and where the placed asset lands are
+    logged. With the fixes above, the owner's next drag from the floating
+    window placed the house; `launcher.jit.assets` checks a drag carried
+    in from another window.

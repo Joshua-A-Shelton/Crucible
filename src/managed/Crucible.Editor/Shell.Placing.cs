@@ -19,7 +19,10 @@ internal sealed partial class Shell
     private SceneView? _placeView;
     private Entity _placing;
     private Vector2 _placePixel;
-    private ulong _placeAsked;
+    // The pixel each recent frame's pick was asked for, by frame: answers come
+    // a frame or two late, each for the pixel asked then.
+    private readonly Dictionary<ulong, Vector2> _placeAsked = [];
+    private ulong _placeApplied;
     // A UI drag carried between windows by a platform drag.
     private (object Payload, UIElement? Preview)? _carried;
 
@@ -37,6 +40,7 @@ internal sealed partial class Shell
         CancelPlacement();
         if (!_context.HasWorld || !CanPlace(drag))
         {
+            Debug($"  not placing {drag.Path}: world {_context.HasWorld}, can place {CanPlace(drag)}");
             return;
         }
         try
@@ -49,6 +53,7 @@ internal sealed partial class Shell
             return;
         }
         _placeView = view;
+        _placeApplied = 0;
         Render.Api.SetSurfacePickExclusion(view.Surface, Subtree(_placing));
         MovePlacement(pixel);
     }
@@ -61,7 +66,15 @@ internal sealed partial class Shell
         }
         _placePixel = pixel;
         Render.Api.RequestPick(view.Surface, (uint)MathF.Max(pixel.X, 0), (uint)MathF.Max(pixel.Y, 0));
-        _placeAsked = Render.Api.FramesSubmitted(view.Surface) + 1;
+        ulong frame = Render.Api.FramesSubmitted(view.Surface) + 1;
+        _placeAsked[frame] = pixel; // a later ask in the same frame replaces it
+        if (_placeAsked.Count > 16)
+        {
+            foreach (ulong old in _placeAsked.Keys.Where(asked => asked + 8 < frame).ToArray())
+            {
+                _placeAsked.Remove(old);
+            }
+        }
     }
 
     // Each frame: the newest answer moves the instance to what's under the pointer.
@@ -71,16 +84,19 @@ internal sealed partial class Shell
         {
             return;
         }
+        // Asked every frame, so a still pointer follows a scene that moves.
+        MovePlacement(_placePixel);
+        // Every new answer is used, with the pixel it was asked for.
         PickResult result = Render.Api.PickResult(view.Surface);
-        if (result.Frame < _placeAsked)
+        if (result.Frame <= _placeApplied || !_placeAsked.TryGetValue(result.Frame, out Vector2 pixel))
         {
             return;
         }
-        Vector3 at = PlacementPoint(view.Camera, view.ActualSize, _placePixel / (view.Root?.Scale ?? 1), result);
+        _placeApplied = result.Frame;
+        Vector3 at = PlacementPoint(view.Camera, view.ActualSize, pixel / (view.Root?.Scale ?? 1), result);
         LocalTransform local = World.Read<LocalTransform>(_placing);
         World.Set(_placing, local with { Position = at });
-        // Asked again, so a still pointer follows a scene that moves.
-        MovePlacement(_placePixel);
+        Debug($"  placement at {at} (pixel {pixel}, hit {result.Hit}, depth {result.Depth})");
     }
 
     /// <summary>
@@ -121,6 +137,7 @@ internal sealed partial class Shell
         }
         _placing = Entity.Null;
         _placeView = null;
+        _placeAsked.Clear();
     }
 
     /// <summary>Dropped: the instance stays, as one undo step, and is selected.</summary>
@@ -133,12 +150,14 @@ internal sealed partial class Shell
         Entity placed = _placing;
         _placing = Entity.Null;
         _placeView = null;
+        _placeAsked.Clear();
         if (placed.IsNull || !World.IsAlive(placed))
         {
             return;
         }
         RecordCreated($"Place {LabelOf(placed)}", placed);
         Selection.Selected = placed;
+        Debug($"  placed {LabelOf(placed)} at {World.Read<LocalTransform>(placed).Position}");
     }
 
     /// <summary>Places an asset under <paramref name="parent"/> (or at the top) at its origin: a drop on the hierarchy.</summary>
@@ -186,6 +205,14 @@ internal sealed partial class Shell
     // A UI drag left its window: carried on by the platform, if it can.
     private void DragLeftWindow(UIRoot root, Vector2 position)
     {
+        // A carried drag no window holds any more ended without the platform saying so.
+        if (_carried is { } stale && !_windows.Exists(window => window.Root.DragPayload == stale.Payload))
+        {
+            Debug("forgot a carried drag that no window holds");
+            _carried = null;
+        }
+        Debug($"a UI drag left window {_windows.Find(window => window.Root == root)?.Window.Value} at {position}" +
+              $" (support {Platform.Api.WindowDragSupport()}, carrying {_carried is not null})");
         if (_carried is not null || root.DragPayload is not { } payload ||
             Platform.Api.WindowDragSupport() == WindowDragSupport.None ||
             _windows.Find(window => window.Root == root) is not { } source)
@@ -197,6 +224,10 @@ internal sealed partial class Shell
             _carried = (payload, null);
             Debug("carrying a UI drag between windows");
         }
+        else
+        {
+            Debug("the platform didn't start a drag to carry it");
+        }
     }
 
     private void CarriedDragMoved(WindowHandle over, Vector2 pixels)
@@ -206,6 +237,7 @@ internal sealed partial class Shell
             return;
         }
         EditorWindow? target = _windows.Find(window => window.Window.Value == over.Value);
+        Debug($"carried drag over window {over.Value} at {pixels} ({(target is null ? "not ours" : target.IsMain ? "main" : "floating")})");
         foreach (EditorWindow window in _windows)
         {
             if (window != target && window.Root.DragPayload == carried.Payload)
@@ -214,6 +246,12 @@ internal sealed partial class Shell
             }
         }
         target?.Root.ContinueDrag(carried.Payload, carried.Preview, pixels / target.Root.Scale);
+        if (target is not null)
+        {
+            Vector2 at = pixels / target.Root.Scale;
+            Debug($"  in window {over.Value}: scale {target.Root.Scale}, size {target.Root.Size}, at {at}, over " +
+                  $"{target.Root.HitTest(at)?.GetType().Name}, dragging {target.Root.IsDragging}, placing {_placing.Value}");
+        }
     }
 
     private void CarriedDragEnded(WindowHandle over, Vector2 pixels, bool dropped)
@@ -223,6 +261,7 @@ internal sealed partial class Shell
             return;
         }
         _carried = null;
+        Debug($"carried drag {(dropped ? "dropped on" : "canceled over")} window {over.Value} at {pixels}");
         foreach (EditorWindow window in _windows)
         {
             if (window.Root.DragPayload != carried.Payload)
@@ -231,7 +270,8 @@ internal sealed partial class Shell
             }
             if (dropped && window.Window.Value == over.Value)
             {
-                window.Root.DropAt(pixels / window.Root.Scale);
+                bool taken = window.Root.DropAt(pixels / window.Root.Scale);
+                Debug($"  dropped in window {over.Value}: taken {taken}, placing {_placing.Value}");
             }
             else
             {

@@ -172,14 +172,19 @@ public sealed partial class UIRoot
         _pointer = position;
         if (_dragPayload is not null)
         {
-            // A drag ends with the release of its button (any other ends it too).
-            HandledPointer = true;
-            if (!down)
+            if (down)
             {
+                // A press during a drag: its release never came here (a
+                // platform drag took the pointer, ADR 0071). It's stale.
+                CancelDrag();
+            }
+            else
+            {
+                HandledPointer = true;
                 DragMovedTo(position);
                 FinishDrag(position);
+                return;
             }
-            return;
         }
         UpdateHover(position, modifiers);
         if (down)
