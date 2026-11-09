@@ -450,7 +450,10 @@ tried by hand by the owner on KWin. Step 6a built (ADR 0072): a project's
 own code (Project/Code) built through a generated project and loaded when
 the project opens, hot-reloaded on save; Play and Stop by snapshot; a Game
 panel through the world's camera, with the input. The Diorama's gameplay
-moved into its project. Step 6b (assets reloaded on the GPU) is next.
+moved into its project. Step 6b built: textures, models, materials, and
+game shaders reloaded on the GPU in place after a reimport, waiting for
+the GPU first; a failed reload keeps the old version. Step 7 (Run
+standalone) is next.
 
 ## M8 — Animation and audio
 

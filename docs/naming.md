@@ -461,3 +461,17 @@ building (marked *) settled as drafted too:
 | `Diorama.Spin`* (`Start`*, `PerFrame`*), `Diorama.SpinSystem`*; `PlayChecks`*, `--game-arg check-play`* | Sample and checks |
 | "Building <name>…", "Build error: …", "The game didn't build", "Reloaded while playing", "Playing (no game code: nothing runs)", "Stopped: the scene is as it was" | Text users see |
 
+### Part b: GPU assets reloaded in place (2026-11-09, M7 step 6b)
+
+Settled as drafted: `RenderAssets.Reload(AssetId)`, `reloadRenderAsset`,
+`RenderAssetReloadTests`, `GpuReloadTests`, the section "Reloading GPU
+assets" in `docs/learning/play-mode-and-reloading.md`, the checks in
+`launcher.jit.play`, "Reloaded <path> on the GPU", "Can't reload <path>:
+<reason>; the last version stays". Names added while building are
+placeholders (marked *):
+
+| Name | What it is |
+|---|---|
+| `reloadMaterialAsset`*, `reloadGameShader`*, `waitForReload`*, `renderAssetReloads`* (RenderInternal.h) | Internal hooks |
+| `LoadedMaterial::mismatched`* | A material whose reloaded shader's type changed size |
+

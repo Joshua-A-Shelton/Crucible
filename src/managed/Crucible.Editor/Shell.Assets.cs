@@ -1,12 +1,14 @@
 using Crucible.Assets;
 using Crucible.Platform;
+using Crucible.Render;
 using Crucible.UI;
 
 namespace Crucible.Editor;
 
 // The project's assets kept current (ADR 0071): a watcher on the Assets
 // folder; once changes settle (or a window regains focus, or Refresh is
-// chosen), the database rescans and imports what changed.
+// chosen), the database rescans and imports what changed; what's loaded on
+// the GPU is reloaded in place (ADR 0072).
 internal sealed partial class Shell
 {
     private AssetWatcher? _watcher;
@@ -58,7 +60,8 @@ internal sealed partial class Shell
         }
         database.Refresh();
         int imported = 0, failed = 0;
-        foreach (ImportResult result in database.ImportAll())
+        List<ImportResult> results = [.. database.ImportAll()];
+        foreach (ImportResult result in results)
         {
             if (result.Outcome == ImportOutcome.Imported)
             {
@@ -81,6 +84,7 @@ internal sealed partial class Shell
                 _failures.Remove(result.Path);
             }
         }
+        ReloadOnGpu(results);
         // Prefabs are read again; already placed instances keep what they were made from.
         Prefabs = database.Prefabs();
         if (imported > 0 || failed > 0)
@@ -101,8 +105,42 @@ internal sealed partial class Shell
         Log(result.Outcome == ImportOutcome.Imported
             ? $"Reimported {result.Path}"
             : $"Can't reimport {result.Path}: {result.Outcome} {result.Error}");
+        ReloadOnGpu([result]);
         Prefabs = database.Prefabs();
         AssetsChanged?.Invoke();
+    }
+
+    // What was imported again, reloaded where it's loaded. Shaders first, so
+    // materials reloaded after them are checked against their new types;
+    // textures before the materials and models that use them.
+    private void ReloadOnGpu(IEnumerable<ImportResult> results)
+    {
+        if (Database is not { } database)
+        {
+            return;
+        }
+        static int Order(string? importer) => importer switch
+        {
+            "Shader" => 0,
+            "Texture" => 1,
+            "Material" => 2,
+            _ => 3,
+        };
+        foreach (ImportResult result in results.Where(result => result.Outcome == ImportOutcome.Imported)
+                     .OrderBy(result => Order(database.Find(result.Id)?.Importer)))
+        {
+            try
+            {
+                if (RenderAssets.Reload(result.Id))
+                {
+                    Log($"Reloaded {result.Path} on the GPU");
+                }
+            }
+            catch (CrucibleException exception)
+            {
+                Log($"Can't reload {result.Path}: {exception.Status}; the last version stays");
+            }
+        }
     }
 
     private void ReimportSelected()

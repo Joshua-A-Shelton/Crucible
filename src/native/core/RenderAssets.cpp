@@ -965,6 +965,126 @@ void destroyAfterFrame(slag::Buffer* buffer)
     state.destroyer->destroyAfter(buffer, {state.work, state.workSignaled + 1});
 }
 
+// ---------------------------------------------------------------------------
+// Reloading (ADR 0072)
+// ---------------------------------------------------------------------------
+
+namespace {
+
+uint64_t reloads = 0;
+
+// Only in the editor, after a reimport: a frame or two of waiting is
+// simpler than finding and rewriting everything that points at the old
+// version.
+void waitForGpu()
+{
+    (void)state.queue->waitIdle();
+    state.destroyer->collect();
+}
+
+// The new texture into the old one's descriptor slot, so material records
+// holding that slot read the new one without being rewritten.
+Status reloadTexture(Slot<LoadedTexture>& slot)
+{
+    Vector<uint8_t> bytes(MemoryTag::Render);
+    if (Status read = readAsset(slot.asset, bytes); read != Status::Ok)
+    {
+        return read;
+    }
+    Result<LoadedTexture*> made = createTexture(bytes.span());
+    if (!made)
+    {
+        return made.status();
+    }
+    LoadedTexture* fresh = made.value();
+    LoadedTexture* old = slot.value;
+    waitForGpu();
+    state.device->writeTexture(old->slot, {.texture = fresh->texture});
+    state.slots->release(fresh->slot, lastSignaled());
+    state.device->destroy(old->texture);
+    old->texture = fresh->texture;
+    destroy(MemoryTag::Render, fresh);
+    return Status::Ok;
+}
+
+// A new model swapped into the old one's slot. Instances find the new
+// buffers, tables, and materials through the same handle when the next
+// frame's draw list is built.
+Status reloadMesh(Slot<LoadedMesh>& slot)
+{
+    Vector<uint8_t> bytes(MemoryTag::Render);
+    if (Status read = readAsset(slot.asset, bytes); read != Status::Ok)
+    {
+        return read;
+    }
+    Result<LoadedMesh*> made = createMesh(bytes.span());
+    if (!made)
+    {
+        return made.status();
+    }
+    LoadedMesh* old = slot.value;
+    if (made.value()->data.meshes.size() < old->data.meshes.size())
+    {
+        std::fprintf(stderr,
+                     "crucible: a reloaded model has %zu meshes, not %zu: instances of the others draw nothing\n",
+                     made.value()->data.meshes.size(), old->data.meshes.size());
+    }
+    waitForGpu();
+    slot.value = made.value();
+    destroyMesh(old);
+    return Status::Ok;
+}
+
+} // namespace
+
+Result<bool> reloadRenderAsset(assets::AssetId asset)
+{
+    if (state.device == nullptr)
+    {
+        return false; // nothing can be loaded before the renderer starts
+    }
+    Status status;
+    if (const uint32_t* texture = state.textures.byAsset.find(asset))
+    {
+        status = reloadTexture(state.textures.slots[*texture]);
+    }
+    else if (const uint32_t* mesh = state.meshes.byAsset.find(asset))
+    {
+        status = reloadMesh(state.meshes.slots[*mesh]);
+    }
+    else
+    {
+        // A material or a game shader: Materials.cpp makes the new one, then
+        // waits for the GPU before swapping.
+        Result<bool> reloaded = reloadMaterialAsset(asset);
+        if (reloaded && !reloaded.value())
+        {
+            reloaded = reloadGameShader(asset);
+        }
+        if (reloaded && reloaded.value())
+        {
+            ++reloads;
+        }
+        return reloaded;
+    }
+    if (status != Status::Ok)
+    {
+        return status;
+    }
+    ++reloads;
+    return true;
+}
+
+void waitForReload()
+{
+    waitForGpu();
+}
+
+uint64_t renderAssetReloads()
+{
+    return reloads;
+}
+
 Status readAsset(const AssetId& id, Vector<uint8_t>& out)
 {
     if (reader == nullptr)

@@ -170,6 +170,20 @@ internal sealed class PlayChecks : GameSystem
         File.Delete(Path.Combine(code, "Broken.cs"));
         File.Delete(Path.Combine(code, "Marker.cs"));
         _ = lines;
+
+        // Assets the village draws, changed and imported again: reloaded on
+        // the GPU in place (6b).
+        string assets = Path.Combine(copy, "Assets");
+        File.Copy(Path.Combine(assets, "Textures", "Leaves.png"), Path.Combine(assets, "Textures", "Grass.png"), overwrite: true);
+        File.AppendAllText(Path.Combine(assets, "Models", "Hero.gltf"), "\n");
+        shell.RefreshAssets();
+        yield return 3;
+        string reloads = string.Join(" | ", H.Descendants(shell.LogPanel!).OfType<Label>().Select(label => label.Text));
+        Check(reloads.Contains("Grass.png on the GPU", StringComparison.Ordinal), "a changed texture reloads on the GPU",
+            LogText(shell));
+        Check(reloads.Contains("Hero.gltf on the GPU", StringComparison.Ordinal), "and a changed model", LogText(shell));
+        Check(!reloads.Contains("Can't reload", StringComparison.Ordinal), "without failing", LogText(shell));
+        Check(world.IsAlive(SceneIds.Find(world, heroId)), "the hero is still there");
     }
 
     private static string LogText(Shell shell) =>

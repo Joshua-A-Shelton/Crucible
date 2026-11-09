@@ -12,6 +12,7 @@ add_executable(crucible_native_tests
     MathTests.cpp
     MemoryTests.cpp
     PlatformTests.cpp
+    RenderAssetReloadTests.cpp
     RenderAssetsTests.cpp
     RenderCommandsTests.cpp
     RenderScheduleTests.cpp

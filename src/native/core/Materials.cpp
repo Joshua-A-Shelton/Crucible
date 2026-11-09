@@ -85,6 +85,9 @@ struct LoadedMaterial
     uint32_t uses = 0;
     assets::AssetId asset{};
     Vector<TextureHandle> textures{MemoryTag::Render};
+    // Its shader was reloaded with a type of another size: it draws as the
+    // fallback until it's reloaded too (ADR 0072).
+    bool mismatched = false;
 };
 
 struct Slot
@@ -475,20 +478,10 @@ Result<MaterialPipelines*> pipelinesFor(const PipelineKey& key)
 // The table
 // ---------------------------------------------------------------------------
 
-// A game's material shader, read through the asset reader on first use.
-Result<GameShader*> loadGameShader(const assets::AssetId& id)
+// A game's material shader (.crshader) from its bytes.
+Result<GameShader*> makeGameShader(std::span<const uint8_t> bytes)
 {
-    if (GameShader** found = state.shaders.find(id))
-    {
-        return *found;
-    }
-    Vector<uint8_t> bytes(MemoryTag::Render);
-    if (Status read = readAsset(id, bytes); read != Status::Ok)
-    {
-        std::fprintf(stderr, "crucible: a material's shader couldn't be read (status %d)\n", static_cast<int>(read));
-        return read;
-    }
-    Result<binary::File*> opened = binary::parseFile(bytes.span(), shaderFileKind, shaderFileVersion);
+    Result<binary::File*> opened = binary::parseFile(bytes, shaderFileKind, shaderFileVersion);
     if (!opened)
     {
         return opened.status();
@@ -502,15 +495,41 @@ Result<GameShader*> loadGameShader(const assets::AssetId& id)
         status = binary::readSection(*opened.value(), static_cast<uint32_t>(types), shader->types.span()).status();
     }
     binary::closeFile(opened.value());
-    Result<ShaderFile*> file = status == Status::Ok ? loadShaderFile(bytes.span()) : Result<ShaderFile*>(status);
+    Result<ShaderFile*> file = status == Status::Ok ? loadShaderFile(bytes) : Result<ShaderFile*>(status);
     if (!file)
     {
         destroy(MemoryTag::Render, shader);
         return file.status();
     }
     shader->file = file.value();
-    state.shaders.insertOrAssign(id, shader);
     return shader;
+}
+
+void destroyGameShader(GameShader* shader)
+{
+    destroyShaderFile(shader->file);
+    destroy(MemoryTag::Render, shader);
+}
+
+// A game's material shader, read through the asset reader on first use.
+Result<GameShader*> loadGameShader(const assets::AssetId& id)
+{
+    if (GameShader** found = state.shaders.find(id))
+    {
+        return *found;
+    }
+    Vector<uint8_t> bytes(MemoryTag::Render);
+    if (Status read = readAsset(id, bytes); read != Status::Ok)
+    {
+        std::fprintf(stderr, "crucible: a material's shader couldn't be read (status %d)\n", static_cast<int>(read));
+        return read;
+    }
+    Result<GameShader*> made = makeGameShader(bytes.span());
+    if (made)
+    {
+        state.shaders.insertOrAssign(id, made.value());
+    }
+    return made;
 }
 
 LoadedMaterial* find(MaterialHandle handle)
@@ -605,8 +624,7 @@ void stopMaterials()
     }
     for (auto& entry : state.shaders)
     {
-        destroyShaderFile(entry.value->file);
-        destroy(MemoryTag::Render, entry.value);
+        destroyGameShader(entry.value);
     }
     if (state.buffer != nullptr)
     {
@@ -711,7 +729,7 @@ void destroyMaterial(MaterialHandle handle)
 MaterialDraw materialDraw(MaterialHandle handle)
 {
     const LoadedMaterial* material = find(handle);
-    if (material == nullptr)
+    if (material == nullptr || material->mismatched)
     {
         material = find(state.fallback);
     }
@@ -754,17 +772,11 @@ Result<MaterialHandle> createMaterialFromRecords(std::span<const uint8_t> sectio
     return createMaterial(info, section.subspan(info.parameterOffset, info.parameterSize), textures.span());
 }
 
-Result<MaterialHandle> acquireMaterial(assets::AssetId id)
+namespace {
+
+// A .crmat's material records (its MTLS section), through the reader.
+Status readMaterialRecords(const assets::AssetId& id, Vector<uint8_t>& section)
 {
-    if (state.device == nullptr)
-    {
-        return Status::Unsupported;
-    }
-    if (MaterialHandle* found = state.byAsset.find(id))
-    {
-        ++find(*found)->uses;
-        return *found;
-    }
     Vector<uint8_t> bytes(MemoryTag::Render);
     if (Status read = readAsset(id, bytes); read != Status::Ok)
     {
@@ -776,7 +788,6 @@ Result<MaterialHandle> acquireMaterial(assets::AssetId id)
     {
         return Status::InvalidData;
     }
-    Vector<uint8_t> section(MemoryTag::Render);
     const int32_t index = binary::findSection(*opened.value(), assets::meshMaterialsTag);
     Status status = index < 0 ? Status::InvalidData : Status::Ok;
     if (status == Status::Ok)
@@ -785,9 +796,26 @@ Result<MaterialHandle> acquireMaterial(assets::AssetId id)
         status = binary::readSection(*opened.value(), static_cast<uint32_t>(index), section.span()).status();
     }
     binary::closeFile(opened.value());
-    if (status != Status::Ok)
+    return status;
+}
+
+} // namespace
+
+Result<MaterialHandle> acquireMaterial(assets::AssetId id)
+{
+    if (state.device == nullptr)
     {
-        return status;
+        return Status::Unsupported;
+    }
+    if (MaterialHandle* found = state.byAsset.find(id))
+    {
+        ++find(*found)->uses;
+        return *found;
+    }
+    Vector<uint8_t> section(MemoryTag::Render);
+    if (Status read = readMaterialRecords(id, section); read != Status::Ok)
+    {
+        return read;
     }
     Result<MaterialHandle> made = createMaterialFromRecords(section.span(), 0);
     if (!made)
@@ -864,6 +892,117 @@ std::string_view materialTypeName(MaterialHandle handle)
     }
     GameShader* const* shader = state.shaders.find(material->shader);
     return shader != nullptr ? typeName(**shader, material->type) : std::string_view();
+}
+
+// ---------------------------------------------------------------------------
+// Reloading (ADR 0072)
+// ---------------------------------------------------------------------------
+
+Result<bool> reloadMaterialAsset(const assets::AssetId& id)
+{
+    const MaterialHandle* found = state.byAsset.find(id);
+    if (found == nullptr)
+    {
+        return false;
+    }
+    const MaterialHandle handle = *found;
+    Vector<uint8_t> section(MemoryTag::Render);
+    if (Status read = readMaterialRecords(id, section); read != Status::Ok)
+    {
+        return read;
+    }
+    Result<MaterialHandle> made = createMaterialFromRecords(section.span(), 0);
+    if (!made)
+    {
+        return made.status();
+    }
+    waitForReload();
+    // The new material into the old one's slot, keeping its uses; the slot
+    // it was made in goes back.
+    LoadedMaterial* fresh = find(made.value());
+    LoadedMaterial* old = find(handle);
+    fresh->acquired = true;
+    fresh->uses = old->uses;
+    fresh->asset = id;
+    state.slots[handle.index].value = fresh;
+    state.slots[made.value().index].value = nullptr;
+    ++state.slots[made.value().index].generation;
+    state.freeSlots.pushBack(made.value().index);
+    releaseMaterial(old);
+    return true;
+}
+
+Result<bool> reloadGameShader(const assets::AssetId& id)
+{
+    GameShader** found = state.shaders.find(id);
+    if (found == nullptr)
+    {
+        return false;
+    }
+    GameShader* old = *found;
+    Vector<uint8_t> bytes(MemoryTag::Render);
+    if (Status read = readAsset(id, bytes); read != Status::Ok)
+    {
+        return read;
+    }
+    Result<GameShader*> made = makeGameShader(bytes.span());
+    if (!made)
+    {
+        return made.status();
+    }
+    // Every pipeline made from it, made again from the new one before any
+    // old one goes, so a shader that fails leaves the old ones drawing.
+    state.shaders.insertOrAssign(id, made.value());
+    Vector<PipelineEntry*> entries(MemoryTag::Render);
+    Vector<MaterialPipelines> fresh(MemoryTag::Render);
+    for (PipelineEntry* entry : state.pipelines)
+    {
+        if (entry->key.shader != id)
+        {
+            continue;
+        }
+        MaterialPipelines pipelines{};
+        if (Result<void> created = createPipelines(entry->key, pipelines); !created)
+        {
+            for (MaterialPipelines& unused : fresh)
+            {
+                destroyPipelines(unused);
+            }
+            state.shaders.insertOrAssign(id, old);
+            destroyGameShader(made.value());
+            return created.status();
+        }
+        entries.pushBack(entry);
+        fresh.pushBack(pipelines);
+    }
+    waitForReload();
+    for (size_t i = 0; i < entries.size(); ++i)
+    {
+        destroyPipelines(entries[i]->pipelines);
+        entries[i]->pipelines = fresh[i];
+    }
+    destroyGameShader(old);
+    // Materials whose type changed size can't be read with the new layout
+    // until they're reimported and reloaded themselves.
+    uint32_t mismatched = 0;
+    for (Slot& slot : state.slots)
+    {
+        if (slot.value != nullptr && slot.value->shader == id)
+        {
+            uint32_t size = 0;
+            slot.value->mismatched =
+                typeName(*made.value(), slot.value->type, &size).empty() || size != slot.value->size;
+            mismatched += slot.value->mismatched ? 1 : 0;
+        }
+    }
+    if (mismatched > 0)
+    {
+        std::fprintf(stderr,
+                     "crucible: %u materials no longer match their reloaded shader; they draw as the fallback "
+                     "until they're reimported\n",
+                     mismatched);
+    }
+    return true;
 }
 
 } // namespace crucible::render

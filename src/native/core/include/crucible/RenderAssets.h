@@ -107,6 +107,14 @@ CRUCIBLE_EXPOSE Result<void> setMaterialParameters(MaterialHandle material, std:
 CRUCIBLE_EXPOSE_INTERNAL assets::AssetId materialShader(MaterialHandle material);
 CRUCIBLE_EXPOSE_INTERNAL std::string_view materialTypeName(MaterialHandle material);
 
+// Loads an asset again from its reader (ADR 0072, the editor after a
+// reimport): a model, texture, material, or game shader that's loaded is
+// replaced in place, so handles to it stay valid and the next frame draws
+// the new version. It waits for the GPU first. False if the asset isn't
+// loaded (nothing to do; always, before the renderer starts). On failure the old version stays: NotFound if the
+// reader has no such asset, InvalidData if its bytes don't load.
+CRUCIBLE_EXPOSE Result<bool> reloadRenderAsset(assets::AssetId asset);
+
 // The texture's slot in the resource heap, which shaders read it through
 // (ResourceDescriptorHeap[slot]); 0 for a stale handle.
 CRUCIBLE_EXPOSE uint32_t textureDescriptor(TextureHandle texture);

@@ -283,6 +283,15 @@ MaterialDraw materialDraw(MaterialHandle material);
 Result<void> rebuildMaterialPipelines();
 // Record `index` of an MTLS section (MaterialFile.h).
 Result<MaterialHandle> createMaterialFromRecords(std::span<const uint8_t> section, uint32_t index);
+// Reloading in place (ADR 0072; RenderAssets.cpp calls these once the GPU is
+// idle): false if the asset isn't loaded as that kind.
+Result<bool> reloadMaterialAsset(const assets::AssetId& id);
+Result<bool> reloadGameShader(const assets::AssetId& id);
+// Waits for the GPU to finish everything submitted, before a swap.
+void waitForReload();
+// Counts reloads, so caches built from loaded assets (cached shadow tiles)
+// know to build again.
+uint64_t renderAssetReloads();
 // An asset's bytes through the reader (RenderAssets.cpp): NotFound if it has
 // none, Unsupported without a reader.
 Status readAsset(const assets::AssetId& id, Vector<uint8_t>& out);

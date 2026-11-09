@@ -69,6 +69,15 @@ public static unsafe class RenderAssets
         }
     }
 
+    /// <summary>
+    /// Loads an asset again from the reader after it's reimported (ADR 0072):
+    /// a loaded model, texture, material, or game shader is replaced in
+    /// place, after waiting for the GPU, so handles to it stay valid. False
+    /// if it isn't loaded (always, before the renderer starts). Throws if
+    /// the new version doesn't load; the old one stays.
+    /// </summary>
+    public static bool Reload(AssetId asset) => Api.ReloadRenderAsset(asset);
+
     /// <summary>The texture's slot in the resource heap, for shaders; 0 for a stale handle.</summary>
     public static uint TextureDescriptor(TextureHandle texture) => Api.TextureDescriptor(texture);
 

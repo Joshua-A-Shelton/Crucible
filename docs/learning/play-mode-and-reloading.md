@@ -60,3 +60,42 @@ it runs in, or any folder above. A project inside a repository with a
 `global.json` pinning an SDK you don't have would fail to build. The
 editor runs the build from the temp folder, so the SDK it gets is the one
 installed beside the runtime the editor itself runs on.
+
+## Reloading GPU assets
+
+Code isn't the only thing you change while the editor runs. Save a
+texture, a model, a material, or a shader, and the editor imports it
+again, but whatever the GPU already loaded is still the old version. To
+see the change, the loaded copy has to be replaced.
+
+The hard part is that the GPU runs behind the CPU. When the editor
+decides to swap a texture, a frame or two that use the old one may still
+be queued or drawing. Freeing the old texture then would pull it out from
+under them. There are two ways around that:
+
+- **Wait, then overwrite.** Wait until the GPU has finished everything,
+  then put the new version exactly where the old one was. Nothing
+  pointing at it has to change: the same handle, the same descriptor
+  slot. The cost is a short stall, a frame or two.
+- **Swap without stalling.** Put the new version somewhere new, update
+  everything that points at the old one, and free the old one once the
+  frames using it are done. No stall, but every reference (handles,
+  material records holding a texture's slot, cached draws) has to be
+  found and rewritten.
+
+Crucible waits. It only happens in the editor, when you save, so a
+one-off hitch costs nothing you'd notice, and the code stays small.
+
+Two details make the swap safe:
+
+- **The new version is made first.** If its bytes are broken, or a
+  shader won't compile into a pipeline, the reload fails before anything
+  is touched, and the old version keeps drawing.
+- **Order matters.** A material is checked against its shader's types,
+  and uses textures. So the editor reloads shaders first, then textures,
+  then materials, then models.
+
+Caches built from loaded assets need to know too. Shadow maps for lamps
+are kept between frames until something that casts a shadow moves. A
+reloaded model changes the shadow without moving anything, so every
+reload bumps a counter that's mixed into the check.

@@ -1,8 +1,8 @@
 # 0072 — Play mode and a project's code
 
-**Status:** Accepted (2026-11-09); part a built (GPU assets reloaded in
-place, part b, follows). Names settled by the owner as drafted; those added
-while building are placeholders (docs/naming.md).
+**Status:** Accepted (2026-11-09); part a built, then part b (GPU assets
+reloaded in place). Part a's names settled by the owner as drafted; those
+added while building part b are placeholders (docs/naming.md).
 
 ## Context
 
@@ -81,6 +81,41 @@ the Viewport; or the Viewport switching to the game's camera.
   and gives it the input; the title reads "… — Playing".
 - The shell's old `Stop()` (shutting the editor down) is now `Shutdown()`.
 
+## Part b: GPU assets reloaded in place
+
+Decided by the owner (2026-11-09):
+
+- **Wait, then overwrite.** A reload waits for the GPU to go idle, then
+  swaps the new version into the old one's place: the same handles, the
+  same descriptor slots. A frame or two of hitch on save, in the editor
+  only, rather than finding and rewriting everything that points at the
+  old version while frames still use it.
+- **All four kinds:** textures, models, materials, and game shaders.
+- **A failed reload keeps the old version** drawing, and the Log says why,
+  as a broken C# build keeps the last good one running.
+- **Placed models stay as placed.** A model that loses meshes leaves
+  instances of them drawing nothing (reported); rebuilding instances from
+  a changed prefab is prefab updating, not GPU reloading.
+
+How each kind is swapped:
+
+- **Texture:** the new texture is written into the old one's descriptor
+  slot, so material records holding the slot read it unchanged.
+- **Model:** a new model (buffers, tables, generated materials, remapped
+  ones acquired again) replaces the old in its slot; the draw list is
+  built from it every frame anyway.
+- **Material:** made anew in a new place in the material buffer, then
+  moved into the old one's slot with its uses; its textures are acquired
+  before the old ones are released.
+- **Game shader:** every pipeline made from it is made again from the new
+  one before any old one goes, so a shader that won't make a pipeline
+  leaves everything as it was. Materials whose type changed size draw as
+  the fallback until they're reloaded themselves.
+- **The editor** reloads after each import, shaders first (so materials
+  after them are checked against their new types), then textures, then
+  materials, then models. Reloads are counted, and the count is folded
+  into the shadow casters' hash, so cached shadow tiles are drawn again.
+
 ## Why
 
 A generated project keeps building in step with the engine with nothing
@@ -92,7 +127,6 @@ keeps the editor camera while playing.
 
 ## Not yet
 
-- Assets reloaded on the GPU (6b).
 - Pause and step; play in a separate window; several game views.
 - The first build blocks while the project opens.
 - NuGet packages in a project's code.
@@ -119,3 +153,24 @@ keeps the editor camera while playing.
     file added to Code built and hot-reloaded with the hero keeping its
     `Spin`; a build error logged with its file and line while the last
     build stays loaded; saved as `play.png` while playing.
+
+## As built (part b)
+
+- **Native:** `reloadRenderAsset(AssetId)` (`Result<bool>`: false if
+  nothing by that ID is loaded, always before the renderer starts);
+  internally `reloadMaterialAsset`, `reloadGameShader`, `waitForReload`,
+  `renderAssetReloads`, and a material's `mismatched` flag, which
+  `materialDraw` treats as the fallback.
+- **C#:** `RenderAssets.Reload(AssetId)`; the editor's refresh and
+  Reimport reload what they imported, logging "Reloaded <path> on the GPU"
+  or "Can't reload <path>: <reason>; the last version stays".
+- **Tests:**
+  - **`RenderAssetReloadTests`** (every backend): a texture, a model, and
+    a game material reloaded with new bytes, drawn anew through the same
+    handles and the same texture slot; a game shader reloaded; a bad
+    model, a bad shader, and a missing texture refused with the old
+    versions still drawing; an asset that isn't loaded, and any before
+    the renderer starts, reload as false.
+  - **`GpuReloadTests`:** the same from C# without a renderer.
+  - **`launcher.jit.play`:** a texture and a model the village draws,
+    changed in the project's copy, reloaded on the GPU.

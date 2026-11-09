@@ -775,7 +775,10 @@ std::span<const float> instanceDistances(const DrawState& state)
 
 uint64_t shadowCasterHash(const DrawState& state, uint32_t index)
 {
-    return index < state.casterHashes.size() ? state.casterHashes[index] : 0;
+    // A reloaded model or material changes what casts without moving
+    // anything (ADR 0072): cached tiles are drawn again.
+    const uint64_t hash = index < state.casterHashes.size() ? state.casterHashes[index] : 0;
+    return hash ^ mix(renderAssetReloads() * 0x9e3779b97f4a7c15ull);
 }
 
 void stopDrawing()
