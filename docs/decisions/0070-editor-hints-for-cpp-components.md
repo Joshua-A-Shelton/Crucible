@@ -49,3 +49,6 @@ headers already carry show in the editor with no extra work.
   now wrap within their column, and the inspector's sliders take the room
   left; `launcher.jit.inspector` checks a spot light's names and controls
   don't overlap.
+- **Tried again by the owner:** names and sliders stay in place; only in
+  a very narrow inspector does a slider (60 wide at least) still reach
+  under its number field, which the owner judged acceptable.
