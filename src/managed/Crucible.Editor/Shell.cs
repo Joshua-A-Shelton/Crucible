@@ -104,6 +104,15 @@ internal sealed partial class Shell
         {
             switch (input.Type)
             {
+                case InputEventType.DragMoved when _carried is not null:
+                    CarriedDragMoved(input.Window, new Vector2(input.X, input.Y));
+                    break;
+                case InputEventType.DragDropped when _carried is not null:
+                    CarriedDragEnded(input.Window, new Vector2(input.X, input.Y), dropped: true);
+                    break;
+                case InputEventType.DragCanceled when _carried is not null:
+                    CarriedDragEnded(input.Window, default, dropped: false);
+                    break;
                 case InputEventType.DragMoved:
                     PlatformDragMoved(input.Window, new Vector2(input.X, input.Y));
                     break;
@@ -112,6 +121,9 @@ internal sealed partial class Shell
                     break;
                 case InputEventType.DragCanceled:
                     PlatformDragEnded();
+                    break;
+                case InputEventType.WindowFocusGained:
+                    _watcher?.MarkAll(); // changes made in other programs meanwhile
                     break;
                 case InputEventType.QuitRequested:
                     KeepUnsaved();
@@ -175,6 +187,7 @@ internal sealed partial class Shell
             return;
         }
         _stopped = true;
+        _watcher?.Dispose();
         Settings.Layout = SaveLayout();
         SaveSettings();
         foreach (EditorWindow window in _windows.ToArray())
@@ -236,6 +249,8 @@ internal sealed partial class Shell
         Prefabs = database.Prefabs();
         RenderAssets.SetReader(id => database.ImportedFile(id) is { } path ? File.ReadAllBytes(path) : null);
         Log($"{database.Assets.Count()} assets, {imported} imported" + (failed > 0 ? $", {failed} failed" : ""));
+        WatchAssets(project);
+        AssetsChanged?.Invoke();
     }
 
     // -----------------------------------------------------------------------
@@ -322,6 +337,8 @@ internal sealed partial class Shell
         {
             Selection.Selected = Entity.Null;
         }
+        PollAssets();
+        UpdatePlacement();
         if (_open.GetValueOrDefault("Hierarchy") is HierarchyPanel hierarchy)
         {
             hierarchy.Update();
@@ -329,6 +346,10 @@ internal sealed partial class Shell
         if (_open.GetValueOrDefault("Inspector") is InspectorPanel inspector)
         {
             inspector.Update();
+        }
+        if (_open.GetValueOrDefault("Assets") is AssetsPanel assets)
+        {
+            assets.Update();
         }
         Entity[] outlined = Outlined(world);
         foreach (EditorPanel panel in _open.Values)
@@ -467,6 +488,7 @@ internal sealed partial class Shell
             Shortcut = new Shortcut(KeyModifiers.Ctrl | KeyModifiers.Shift, Keycode.O),
         });
         RegisterSceneCommands();
+        RegisterAssetCommands();
         Commands.Add(new Command("File.Quit", "Quit", RequestQuit)
         {
             Shortcut = new Shortcut(KeyModifiers.Ctrl, Keycode.Q),
@@ -544,7 +566,7 @@ internal sealed partial class Shell
         Panels.Register("Hierarchy", "Hierarchy", () => new HierarchyPanel(this));
         Panels.Register("Viewport", "Viewport", () => new ViewportPanel(this));
         Panels.Register("Inspector", "Inspector", () => new InspectorPanel(this));
-        Panels.Register("Assets", "Assets", () => new AssetsPanel());
+        Panels.Register("Assets", "Assets", () => new AssetsPanel(this));
         Panels.Register("Log", "Log", () => new LogPanel());
     }
 
@@ -828,6 +850,7 @@ internal sealed partial class Shell
     {
         _windows.Add(window);
         _shells[window.Root] = this;
+        window.Root.DragOutside = DragLeftWindow;
         if (window.Root.Content is { } content)
         {
             content.KeyDown += HandleKeys;
@@ -1136,6 +1159,25 @@ internal sealed partial class Shell
             .Set(UIElement.ForegroundProperty, text)
             .Set(UIElement.MarginProperty, new Thickness(0, 6, 0, 0)));
         theme.Add(new Style("Label.overridden").Set(UIElement.ForegroundProperty, accent));
+        // The asset browser and drags (ADR 0071).
+        theme.Add(new Style("Label.asset-crumb")
+            .Set(UIElement.ForegroundProperty, muted)
+            .Set(UIElement.PaddingProperty, new Thickness(8, 4, 8, 4)));
+        theme.Add(new Style("AssetTile")
+            .Set(UIElement.PaddingProperty, new Thickness(4))
+            .Set(UIElement.CornerRadiiProperty, new Vector4(4))
+            .Set(UIElement.ForegroundProperty, muted)
+            .Set(UIElement.BorderColorProperty, accent));
+        theme.Add(new Style("AssetTile:hover").Set(UIElement.BackgroundProperty, hover));
+        theme.Add(new Style("AssetTile.selected").Set(UIElement.BackgroundProperty, accent with { W = 0.3f }).Set(UIElement.ForegroundProperty, text));
+        theme.Add(new Style("AssetTile:focus").Set(UIElement.BorderWidthProperty, 1f));
+        theme.Add(new Style("Label.asset-name").Set(UIElement.FontSizeProperty, 12f));
+        theme.Add(new Style("Label.drag-preview")
+            .Set(UIElement.BackgroundProperty, panel)
+            .Set(UIElement.BorderColorProperty, accent)
+            .Set(UIElement.BorderWidthProperty, 1f)
+            .Set(UIElement.CornerRadiiProperty, new Vector4(4))
+            .Set(UIElement.PaddingProperty, new Thickness(8, 3, 8, 3)));
         return theme;
     }
 

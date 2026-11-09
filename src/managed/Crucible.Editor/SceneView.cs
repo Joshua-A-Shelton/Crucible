@@ -47,7 +47,33 @@ public sealed class SceneView : UIElement
         _shell = shell;
         IsFocusable = true;
         ClipToBounds = true;
+        AllowDrop = true;
     }
+
+    // An asset dragged in (ADR 0071): placed under the pointer as it moves.
+    private Vector2 DragPixel(DragEvent e) =>
+        (e.Position - new Vector2(Bounds.X, Bounds.Y)) * (Root?.Scale ?? 1);
+
+    protected override void OnDragEnter(DragEvent e)
+    {
+        if (e.Payload is AssetDrag drag && _shell.CanPlace(drag))
+        {
+            _shell.BeginPlacement(this, drag, DragPixel(e));
+        }
+    }
+
+    protected override void OnDragOver(DragEvent e)
+    {
+        if (!_shell.Placing.IsNull)
+        {
+            e.Accepted = true;
+            _shell.MovePlacement(DragPixel(e));
+        }
+    }
+
+    protected override void OnDragLeave(DragEvent e) => _shell.CancelPlacement();
+
+    protected override void OnDrop(DragEvent e) => _shell.FinishPlacement();
 
     public EditorCamera Camera { get; } = new();
 

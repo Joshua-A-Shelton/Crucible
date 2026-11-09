@@ -39,6 +39,9 @@ struct DrawList
     // world matrices by entity index.
     uint32_t instances;
     uint32_t transforms;
+    // The instance list as the CPU wrote it (entity indices, by firstInstance
+    // plus offset), for steps that leave some out (the editor's pick, ADR 0071).
+    std::span<const uint32_t> entities{};
 };
 
 } // namespace crucible::render

@@ -113,7 +113,7 @@ TEST_SUITE("gpu")
                     .projection = render::CameraProjection::Perspective, .fieldOfViewY = 0.8f, .nearPlane = 0.1f};
                 REQUIRE(render::setSurfaceCamera(surface, {0, 0, -10}, {0, 0, 0, 1}, camera));
                 const Entity left = scene.quad(redQuad, {-3, 0, 0}, 2);
-                scene.quad(redQuad, {3, 0, 0}, 2);
+                const Entity right = scene.quad(redQuad, {3, 0, 0}, 2);
                 scene.render(surface);
                 std::vector<uint8_t> pixels = readPixels(surface, width, height);
                 const render::CameraOverride own{Matrix4x4::translation({0, 0, -10}), camera};
@@ -130,6 +130,19 @@ TEST_SUITE("gpu")
                 picked = pick(scene, surface, 1, 1);
                 CHECK_FALSE(picked.hit);
                 CHECK(picked.frame != 0);
+                // Its depth (ADR 0071): reverse-Z, near / distance, 10 m away.
+                picked = pick(scene, surface, x, y);
+                CHECK(picked.depth == doctest::Approx(0.1f / 10).epsilon(0.02));
+                CHECK(pick(scene, surface, 1, 1).depth == 0.0f);
+                // Excluded, it's looked through; the other quad, in the same batch, isn't.
+                render::setSurfacePickExclusion(surface, std::span<const Entity>(&left, 1));
+                CHECK_FALSE(pick(scene, surface, x, y).hit);
+                const Vector4 rightClip = transform(Vector4{3, 0, 0, 1}, view.viewProjection);
+                picked = pick(scene, surface, static_cast<uint32_t>((rightClip.x / rightClip.w + 1) * 0.5f * width),
+                              static_cast<uint32_t>((1 - rightClip.y / rightClip.w) * 0.5f * height));
+                CHECK(picked.entity == right);
+                render::setSurfacePickExclusion(surface, {});
+                CHECK(pick(scene, surface, x, y).entity == left);
 
                 // The selection's outline, orange, only while something's selected.
                 CHECK(count(pixels, isOrange) == 0);

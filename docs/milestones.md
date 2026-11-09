@@ -441,7 +441,11 @@ tables the serializer generator writes (`SerializedFields`), editing
 components through their JSON, with Range, Tooltip, Color, and Header
 hints, a color picker, editable lists, asset and entity drop-downs,
 adding and removing components, and prefab overrides marked with Revert;
-tried by hand by the owner on KWin. Step 4 is done.
+tried by hand by the owner on KWin. Step 4 is done. Step 5 built (ADR
+0071): the asset browser (folders and tiles, textures showing themselves),
+a file watcher that imports changes, drag and drop in Crucible.UI carried
+between windows, and models placed by dragging them into the viewport
+(a live preview landing on the picked surface) or onto the hierarchy.
 
 ## M8 — Animation and audio
 

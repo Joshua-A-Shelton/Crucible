@@ -137,8 +137,6 @@ public sealed class ViewportPanel : EditorPanel
     }
 }
 
-/// <summary>The project's assets (M7 step 5).</summary>
-public sealed class AssetsPanel() : PlaceholderPanel("Assets", "Assets", "M7 step 5");
 
 /// <summary>The editor's messages, newest last.</summary>
 public sealed class LogPanel : EditorPanel

@@ -164,6 +164,10 @@ bool translate(const SDL_Event& event, InputEvent& out)
         out.type = InputEventType::WindowCloseRequested;
         out.window.value = event.window.windowID;
         return true;
+    case SDL_EVENT_WINDOW_FOCUS_GAINED:
+        out.type = InputEventType::WindowFocusGained;
+        out.window.value = event.window.windowID;
+        return true;
     case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
         out.type = InputEventType::WindowResized;
         out.window.value = event.window.windowID;

@@ -22,8 +22,18 @@ PickVaryings pickVertex(uint vertex : SV_VertexID, uint instance : SV_InstanceID
     return output;
 }
 
-[shader("fragment")]
-uint pickPixel(PickVaryings input) : SV_Target
+// The entity, and the depth there (ADR 0071: where a dragged model lands).
+struct PickOutput
 {
-    return input.entity;
+    uint entity : SV_Target0;
+    float depth : SV_Target1;
+};
+
+[shader("fragment")]
+PickOutput pickPixel(PickVaryings input)
+{
+    PickOutput output;
+    output.entity = input.entity;
+    output.depth = input.position.z;
+    return output;
 }

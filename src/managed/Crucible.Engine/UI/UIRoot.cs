@@ -126,7 +126,7 @@ public sealed partial class UIRoot : IRenderStep
             _size = size;
             _layoutDirty = true;
         }
-        if (!_layoutDirty || (_content is null && _popups.Count == 0))
+        if (!_layoutDirty || (_content is null && _popups.Count == 0 && _dragPreview is null))
         {
             return;
         }
@@ -138,6 +138,7 @@ public sealed partial class UIRoot : IRenderStep
             _content?.Measure(size);
             _content?.Arrange(new RectangleF(0, 0, size.X, size.Y));
             LayoutPopups();
+            LayoutDragPreview();
         }
         _drawingDirty = true;
     }
@@ -233,6 +234,7 @@ public sealed partial class UIRoot : IRenderStep
             _canvas.Clear();
             _content?.Draw(_canvas);
             DrawPopups();
+            DrawDragPreview();
         }
         ((IRenderStep)_canvas).AddPasses(context);
     }

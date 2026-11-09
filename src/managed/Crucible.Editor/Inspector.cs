@@ -26,7 +26,7 @@ public sealed class InspectorPanel : EditorPanel
     private readonly StackPanel _sections = new() { Spacing = 6 };
     private readonly Label _empty = new("Nothing selected") { HorizontalAlignment = HorizontalAlignment.Center };
     private Entity _entity;
-    private string _shape = ""; // the entity and its component names, when the sections were made
+    private string? _shape; // the entity and its component names, when the sections were made (null: not yet)
     private bool _stale = true;
     private PrefabValues? _prefab;
 

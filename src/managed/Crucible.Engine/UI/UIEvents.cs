@@ -74,6 +74,22 @@ public sealed class KeyEvent : UIEvent
     public bool IsRepeat { get; internal set; }
 }
 
+/// <summary>
+/// A drag over an element that allows drops (ADR 0071): what's dragged,
+/// where the pointer is, and whether the element under it takes it.
+/// </summary>
+public sealed class DragEvent : UIEvent
+{
+    /// <summary>What <see cref="UIRoot.BeginDrag"/> was given.</summary>
+    public object Payload { get; internal set; } = "";
+
+    /// <summary>Where the pointer is, in the root's logical units.</summary>
+    public Vector2 Position { get; internal set; }
+
+    /// <summary>Set during DragOver to take a drop here; kept until the pointer moves again.</summary>
+    public bool Accepted { get; set; }
+}
+
 public enum NavigationDirection
 {
     Up,

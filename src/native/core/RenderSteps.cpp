@@ -881,7 +881,10 @@ void addClear(RenderStepContext& context, void*)
 // ---------------------------------------------------------------------------
 
 constexpr uint32_t editorSurfaces = 8; // as many as the renderer has
-constexpr uint32_t readbackSize = 256; // a row's pitch
+// The ID's pixel at 0, the depth's at 512 (D3D12 places copies on 512-byte boundaries); rows 256 apart.
+constexpr uint32_t readbackRow = 256;
+constexpr uint32_t readbackDepthOffset = 512;
+constexpr uint32_t readbackSize = 1024;
 
 struct EditorView
 {
@@ -889,6 +892,7 @@ struct EditorView
     std::array<uint32_t, maxOutlined> selected{}; // the outlined entities' indices plus one
     uint32_t selectedCount = 0;
     bool pickWanted = false;
+    Vector<uint32_t> excluded{MemoryTag::Render}; // entity indices picking looks through
     uint32_t pickX = 0;
     uint32_t pickY = 0;
     // Per frame slot: the pixel copied there, from which frame and world.
@@ -981,7 +985,7 @@ void addGrid(RenderStepContext& context, void*)
 
 Result<void> preparePick(slag::GraphicsDevice& device, void*)
 {
-    const slag::PixelFormat formats[] = {slag::PixelFormat::R32Uint};
+    const slag::PixelFormat formats[] = {slag::PixelFormat::R32Uint, slag::PixelFormat::R32Float};
     Result<slag::Pipeline*> pipeline = createPipeline(
         device, "editor", "pickVertex", "pickPixel",
         {.depthStencil = {.depthTest = true, .depthWrite = true, .depthCompareOp = slag::CompareOp::GreaterEqual},
@@ -1018,6 +1022,12 @@ void addPick(RenderStepContext& context, void*)
                                                 .height = context.height,
                                                 .usage = slag::TextureUsage::DepthStencil,
                                                 .debugName = "PickDepth"});
+    const slag::rendergraph::RenderGraphTexture depths =
+        context.graph.createTransientTexture2D({.format = slag::PixelFormat::R32Float,
+                                                .width = context.width,
+                                                .height = context.height,
+                                                .usage = slag::TextureUsage::RenderTarget,
+                                                .debugName = "PickDepths"});
     context.publish(entityIdsKey(), ids);
     const slag::rendergraph::RenderGraphBuffer view = context.buffer(viewKey());
     gatherDraws(context.draws, Pass::Depth, pickDraws);
@@ -1025,12 +1035,53 @@ void addPick(RenderStepContext& context, void*)
     {
         draw.pipeline = pickPipeline;
     }
+    // Excluded entities: their batches drawn one instance at a time, without them.
+    if (!editor->excluded.empty() && !context.draws.entities.empty())
+    {
+        const size_t whole = pickDraws.size();
+        for (size_t i = 0; i < whole; ++i)
+        {
+            const Draw draw = pickDraws[i];
+            const uint32_t first = draw.batch->firstInstance, count = draw.batch->instanceCount;
+            bool any = false;
+            for (uint32_t at = first; at < first + count && !any; ++at)
+            {
+                any = std::find(editor->excluded.begin(), editor->excluded.end(), context.draws.entities[at]) !=
+                      editor->excluded.end();
+            }
+            if (!any || draw.instance != UINT32_MAX)
+            {
+                continue;
+            }
+            pickDraws[i].batch = nullptr; // replaced by its instances below
+            for (uint32_t at = first; at < first + count; ++at)
+            {
+                if (std::find(editor->excluded.begin(), editor->excluded.end(), context.draws.entities[at]) ==
+                    editor->excluded.end())
+                {
+                    Draw one = draw;
+                    one.instance = at;
+                    pickDraws.pushBack(one);
+                }
+            }
+        }
+        size_t kept = 0;
+        for (size_t i = 0; i < pickDraws.size(); ++i)
+        {
+            if (pickDraws[i].batch != nullptr)
+            {
+                pickDraws[kept++] = pickDraws[i];
+            }
+        }
+        pickDraws.resize(kept);
+    }
     const DrawList* draws = &context.draws;
     context.graph.addPass(
         "Pick", slag::CommandQueueType::Graphics,
         [&](slag::rendergraph::PassBuilder& pass) {
             pass.use(view, slag::rendergraph::Usage::ConstantBuffer);
             pass.renderTarget(ids, slag::LoadOp::Clear, slag::StoreOp::Store, {});
+            pass.renderTarget(depths, slag::LoadOp::Clear, slag::StoreOp::Store, {});
             pass.depthStencil(depth, slag::LoadOp::Clear, slag::StoreOp::Discard, {.depth = 0.0f});
         },
         [draws, view](slag::rendergraph::PassContext& pass, slag::CommandBuffer* commands) {
@@ -1060,11 +1111,14 @@ void addPick(RenderStepContext& context, void*)
         "PickCopy", slag::CommandQueueType::Graphics,
         [&](slag::rendergraph::PassBuilder& pass) {
             pass.use(ids, slag::rendergraph::Usage::CopySource);
+            pass.use(depths, slag::rendergraph::Usage::CopySource);
             pass.use(readback, slag::rendergraph::Usage::CopyDest);
         },
-        [ids, readback, x, y](slag::rendergraph::PassContext& pass, slag::CommandBuffer* commands) {
-            commands->copyTextureToBuffer({pass.buffer(readback), 0, readbackSize},
+        [ids, depths, readback, x, y](slag::rendergraph::PassContext& pass, slag::CommandBuffer* commands) {
+            commands->copyTextureToBuffer({pass.buffer(readback), 0, readbackRow},
                                           {.texture = pass.texture(ids), .x = x, .y = y}, 1, 1);
+            commands->copyTextureToBuffer({pass.buffer(readback), readbackDepthOffset, readbackRow},
+                                          {.texture = pass.texture(depths), .x = x, .y = y}, 1, 1);
         });
     editor->pending[slot] = {context.frame, context.world};
     editor->pickWanted = false;
@@ -1189,6 +1243,21 @@ void setSurfaceSelection(SurfaceHandle surface, std::span<const ecs::Entity> ent
     }
 }
 
+void setSurfacePickExclusion(SurfaceHandle surface, std::span<const ecs::Entity> entities)
+{
+    if (EditorView* editor = editorView(surface.value))
+    {
+        editor->excluded.clear();
+        for (const ecs::Entity entity : entities)
+        {
+            if (entity != ecs::nullEntity)
+            {
+                editor->excluded.pushBack(ecs::indexOf(entity));
+            }
+        }
+    }
+}
+
 void requestPick(SurfaceHandle surface, uint32_t x, uint32_t y)
 {
     if (EditorView* editor = editorView(surface.value))
@@ -1218,10 +1287,14 @@ PickResult pickResult(SurfaceHandle surface)
         if (pending.frame > editor->result.frame)
         {
             uint32_t id = 0;
-            std::memcpy(&id, editor->readback[slot]->mappedData(), sizeof(id));
+            float depth = 0;
+            const auto* data = static_cast<const std::byte*>(editor->readback[slot]->mappedData());
+            std::memcpy(&id, data, sizeof(id));
+            std::memcpy(&depth, data + readbackDepthOffset, sizeof(depth));
             const ecs::Entity entity =
                 id != 0 && pending.world != nullptr ? ecs::entityAtIndex(*pending.world, id - 1) : ecs::nullEntity;
-            editor->result = {pending.frame, entity, entity != ecs::nullEntity};
+            editor->result = {pending.frame, entity, entity != ecs::nullEntity,
+                              entity != ecs::nullEntity ? depth : 0.0f};
         }
         pending = {};
     }

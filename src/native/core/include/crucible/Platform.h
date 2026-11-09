@@ -63,6 +63,8 @@ enum class CRUCIBLE_EXPOSE InputEventType : uint32_t
     DragDropped,      // released over (window); x, y = position in it
     DragCanceled,     // released elsewhere, or ended by the system
     FileDialogResult, // code = offset, value = length (0: none chosen) of the path's UTF-8 in polledText()
+    // Added for the asset browser (ADR 0071):
+    WindowFocusGained, // (window) became the one with keyboard focus
 };
 
 // What startWindowDrag can do here (ADR 0066).

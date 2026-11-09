@@ -153,6 +153,12 @@ public sealed partial class UIRoot
     private void PointerMoved(Vector2 position, KeyModifiers modifiers)
     {
         _pointer = position;
+        if (_dragPayload is not null)
+        {
+            DragMovedTo(position);
+            HandledPointer = true;
+            return;
+        }
         UpdateHover(position, modifiers);
         UIElement? target = _capture ?? HitEnabled(position);
         if (target is not null)
@@ -164,6 +170,17 @@ public sealed partial class UIRoot
     private void PointerButtonChanged(Vector2 position, PointerButton button, bool down, KeyModifiers modifiers)
     {
         _pointer = position;
+        if (_dragPayload is not null)
+        {
+            // A drag ends with the release of its button (any other ends it too).
+            HandledPointer = true;
+            if (!down)
+            {
+                DragMovedTo(position);
+                FinishDrag(position);
+            }
+            return;
+        }
         UpdateHover(position, modifiers);
         if (down)
         {
@@ -300,6 +317,12 @@ public sealed partial class UIRoot
 
     private void KeyChanged(int scancode, uint keycode, bool down, bool repeat, KeyModifiers modifiers)
     {
+        if (_dragPayload is not null && down && scancode == ScancodeEscape)
+        {
+            CancelDrag();
+            HandledKeyboard = true;
+            return;
+        }
         UIElement? target = KeyTarget();
         _keyEvent.Reset(target);
         _keyEvent.Scancode = scancode;
@@ -709,6 +732,10 @@ public sealed partial class UIRoot
         if (_focused is not null && IsWithin(_focused, element))
         {
             ClearFocus();
+        }
+        if (_dragTarget is not null && IsWithin(_dragTarget, element))
+        {
+            _dragTarget = null; // gone mid-drag: no leave, no drop
         }
         if (_capture is not null && IsWithin(_capture, element))
         {

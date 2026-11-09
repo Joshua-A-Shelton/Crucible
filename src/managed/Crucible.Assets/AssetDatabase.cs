@@ -313,11 +313,11 @@ public sealed class AssetDatabase
         return results;
     }
 
-    /// <summary>Imports one asset if it needs it.</summary>
-    public ImportResult Import(AssetId id)
+    /// <summary>Imports one asset if it needs it, or with <paramref name="force"/> anyway (the editor's Reimport, ADR 0071).</summary>
+    public ImportResult Import(AssetId id, bool force = false)
     {
         AssetEntry entry = Find(id) ?? throw new ArgumentException($"There is no asset {id}.", nameof(id));
-        ImportResult result = Import(entry);
+        ImportResult result = Import(entry, force);
         Files.WriteAtomically(RecordsPath, Json.Serialize(_records));
         return result;
     }
@@ -356,13 +356,13 @@ public sealed class AssetDatabase
         return key == record.Key && File.Exists(output) ? output : null;
     }
 
-    private ImportResult Import(AssetEntry entry)
+    private ImportResult Import(AssetEntry entry, bool force = false)
     {
         if (!_importersByName.TryGetValue(entry.Importer, out Importer? importer))
         {
             return new ImportResult(entry.Id, entry.Path, ImportOutcome.NoImporter, null, null);
         }
-        string? cached = ImportedFile(entry.Id);
+        string? cached = force ? null : ImportedFile(entry.Id);
         if (cached is not null)
         {
             return new ImportResult(entry.Id, entry.Path, ImportOutcome.UpToDate, cached, null);

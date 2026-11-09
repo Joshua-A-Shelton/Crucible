@@ -254,6 +254,19 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "InspectorChecks: all [0-9]+ checks passed")
 
+    # The asset browser checking itself (ADR 0071): a copy of the Diorama's
+    # project (beside the capture, never the sources) browsed, a file added
+    # and imported, models dragged into the viewport and the hierarchy; the
+    # window saved as assets.png mid-drag.
+    add_test(NAME launcher.jit.assets
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
+            --project "${PROJECT_SOURCE_DIR}/samples/Diorama/Project/Diorama.crproject"
+            --game-arg "check-assets=${CMAKE_CURRENT_BINARY_DIR}/assets.png"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/assets-settings.json")
+    set_tests_properties(launcher.jit.assets PROPERTIES LABELS "integration;gpu" TIMEOUT 120
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "AssetChecks: all [0-9]+ checks passed")
+
     # The M6 demonstration (ADR 0064): the UI showcase's menu driven by mouse,
     # keyboard, and gamepad scripts, and captured at four DPI scales; on
     # Windows, on D3D12 too, the captures compared.

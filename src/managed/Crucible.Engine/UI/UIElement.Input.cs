@@ -21,6 +21,10 @@ public partial class UIElement
         GotFocus,
         LostFocus,
         TextInput,
+        DragEnter,
+        DragOver,
+        DragLeave,
+        Drop,
     }
 
     /// <summary>Whether it can hold focus: Tab, navigation, and clicks give it focus.</summary>
@@ -42,6 +46,12 @@ public partial class UIElement
     public UIElement? NavigateRight { get; set; }
 
     public bool IsFocused => (State & UIState.Focus) != 0;
+
+    /// <summary>
+    /// Takes part in drags (ADR 0071): it's told when a drag enters, moves
+    /// over, and leaves it, and gets the drop if it accepted the drag.
+    /// </summary>
+    public bool AllowDrop { get; set; }
 
     /// <summary>
     /// Takes typed text: while it has focus, the root turns the platform's
@@ -82,6 +92,10 @@ public partial class UIElement
     public event Action<UIElement, UIEvent>? GotFocus;
     public event Action<UIElement, UIEvent>? LostFocus;
     public event Action<UIElement, TextInputEvent>? TextInput;
+    public event Action<UIElement, DragEvent>? DragEnter;
+    public event Action<UIElement, DragEvent>? DragOver;
+    public event Action<UIElement, DragEvent>? DragLeave;
+    public event Action<UIElement, DragEvent>? Drop;
 
     /// <summary>The pointer came over it or one of its children (doesn't bubble).</summary>
     protected virtual void OnPointerEnter(PointerEvent e)
@@ -141,6 +155,23 @@ public partial class UIElement
     }
 
     /// <summary>Typed text, while it (or a child) has focus.</summary>
+    protected virtual void OnDragEnter(DragEvent e)
+    {
+    }
+
+    /// <summary>The pointer moved over it during a drag: set <see cref="DragEvent.Accepted"/> to take a drop here.</summary>
+    protected virtual void OnDragOver(DragEvent e)
+    {
+    }
+
+    protected virtual void OnDragLeave(DragEvent e)
+    {
+    }
+
+    protected virtual void OnDrop(DragEvent e)
+    {
+    }
+
     protected virtual void OnTextInput(TextInputEvent e)
     {
     }
@@ -212,6 +243,22 @@ public partial class UIElement
             case EventKind.TextInput:
                 OnTextInput((TextInputEvent)e);
                 TextInput?.Invoke(this, (TextInputEvent)e);
+                break;
+            case EventKind.DragEnter:
+                OnDragEnter((DragEvent)e);
+                DragEnter?.Invoke(this, (DragEvent)e);
+                break;
+            case EventKind.DragOver:
+                OnDragOver((DragEvent)e);
+                DragOver?.Invoke(this, (DragEvent)e);
+                break;
+            case EventKind.DragLeave:
+                OnDragLeave((DragEvent)e);
+                DragLeave?.Invoke(this, (DragEvent)e);
+                break;
+            case EventKind.Drop:
+                OnDrop((DragEvent)e);
+                Drop?.Invoke(this, (DragEvent)e);
                 break;
         }
     }

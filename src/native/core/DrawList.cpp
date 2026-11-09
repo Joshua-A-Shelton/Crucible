@@ -301,7 +301,8 @@ struct DrawState
     // Each view's batches: the first, and one past the last.
     Vector<uint32_t> viewStarts{MemoryTag::Render};
     Vector<uint64_t> casterHashes{MemoryTag::Render};
-    Vector<float> distances{MemoryTag::Render}; // by instance-list position
+    Vector<float> distances{MemoryTag::Render};   // by instance-list position
+    Vector<uint32_t> entities{MemoryTag::Render}; // by instance-list position: the GPU list's CPU copy
     uint32_t instanceSlot = 0;
     uint32_t transformSlot = 0;
 };
@@ -648,6 +649,7 @@ Result<void> batch(DrawState& state, uint32_t frameSlot, uint32_t viewCount)
     }
     auto* list = static_cast<uint32_t*>(state.frames[frameSlot].instances->mappedData());
     state.distances.resize(total);
+    state.entities.resize(total);
     for (const WorkerOutput* out : state.workers)
     {
         for (size_t i = 0; i < out->keys.size(); ++i)
@@ -655,6 +657,7 @@ Result<void> batch(DrawState& state, uint32_t frameSlot, uint32_t viewCount)
             const uint32_t at = state.cursors[*state.batchOf.find(out->keys[i])]++;
             list[at] = out->entities[i];
             state.distances[at] = out->distances[i];
+            state.entities[at] = out->entities[i];
         }
     }
     stats.visible = visible;
@@ -706,6 +709,7 @@ Result<DrawList> buildDrawList(DrawState& state, ecs::World* world, const ViewCo
     state.viewStarts.clear();
     state.casterHashes.clear();
     state.distances.clear();
+    state.entities.clear();
     const uint32_t slots[2] = {state.descriptorBase + instancesDescriptor + frameSlot,
                                state.descriptorBase + transformsDescriptor + frameSlot};
     state.instanceSlot = slots[0];
@@ -749,7 +753,7 @@ Result<DrawList> buildDrawList(DrawState& state, ecs::World* world, const ViewCo
     stats.cachedModels = static_cast<uint32_t>(cache.models.size());
     stats.cpuNs =
         static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now() - started).count());
-    return DrawList{state.batches.span().first(state.viewStarts[1]), slots[0], slots[1]};
+    return DrawList{state.batches.span().first(state.viewStarts[1]), slots[0], slots[1], state.entities.span()};
 }
 
 DrawList shadowDrawList(const DrawState& state, uint32_t index)
@@ -760,7 +764,8 @@ DrawList shadowDrawList(const DrawState& state, uint32_t index)
     }
     const uint32_t begin = state.viewStarts[index + 1];
     const uint32_t end = state.viewStarts[index + 2];
-    return DrawList{state.batches.span().subspan(begin, end - begin), state.instanceSlot, state.transformSlot};
+    return DrawList{state.batches.span().subspan(begin, end - begin), state.instanceSlot, state.transformSlot,
+                    state.entities.span()};
 }
 
 std::span<const float> instanceDistances(const DrawState& state)

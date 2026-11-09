@@ -33,9 +33,10 @@ public sealed class HierarchyPanel : EditorPanel
             }
         };
         Tree.Renamed += (_, node, text) => _shell.Rename(EntityOf(node), text);
-        Tree.Dropped += (_, drop) => Drop(drop);
+        Tree.Dropped += (_, drop) => Move(drop);
         Tree.ContextRequested += (_, node, at) => ShowMenu(node, at);
         AddChild(Tree);
+        AllowDrop = true;
     }
 
     public TreeView Tree { get; }
@@ -147,7 +148,7 @@ public sealed class HierarchyPanel : EditorPanel
     }
 
     // Before or after a row: beside it, under its parent; inside: its last child.
-    private void Drop(TreeDrop drop)
+    private void Move(TreeDrop drop)
     {
         if (!_shell.HasWorld)
         {
@@ -178,6 +179,31 @@ public sealed class HierarchyPanel : EditorPanel
     }
 
     private static Entity EntityOf(ulong node) => new() { Value = node };
+
+    // An asset dropped here (ADR 0071): placed under the row it's on, or at the top below the rows.
+    protected override void OnDragOver(DragEvent e) => e.Accepted = _shell.CanPlace(e.Payload);
+
+    protected override void OnDrop(DragEvent e)
+    {
+        if (e.Payload is not AssetDrag drag)
+        {
+            return;
+        }
+        Entity parent = Entity.Null;
+        for (int i = 0; i < Tree.RowCount; ++i)
+        {
+            if (Tree.RowOf(Tree.RowNode(i))?.Parent is { } row && row.Bounds.Contains(e.Position.X, e.Position.Y))
+            {
+                parent = EntityOf(Tree.RowNode(i));
+                break;
+            }
+        }
+        Entity placed = _shell.Place(drag, parent);
+        if (!placed.IsNull && !parent.IsNull)
+        {
+            Tree.SetExpanded(parent.Value, true);
+        }
+    }
 
     private void ShowMenu(ulong? node, Vector2 at)
     {

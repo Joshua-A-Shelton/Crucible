@@ -93,3 +93,6 @@ Longer explanations of decisions, written to be reread:
 - [Inspectors and metadata](docs/learning/inspectors-and-metadata.md) (ADR 0069):
   field tables instead of reflection, editing through JSON, hints as
   attributes, rotations as angles, linear and sRGB color, and overrides.
+- [Drag and drop, and file watching](docs/learning/drag-drop-and-file-watching.md)
+  (ADR 0071): a drag as a mode, crossing windows, a live placement preview
+  from picked depth, and debouncing a folder's changes.

@@ -420,3 +420,25 @@ Added while building (placeholders): the binding generator's `FieldHints`*
 (internal), the annotations `crucible_hint_color`*, `crucible_hint_range:`*,
 `crucible_hint_tooltip:`*, `crucible_hint_header:`*, and the header "Grading"*.
 
+## The asset browser (2026-11-09, M7 step 5)
+
+Settled as drafted: `UIRoot.BeginDrag(payload, preview)`, `CancelDrag`,
+`IsDragging`, `DragEvent` (`Payload`, `Position`, `Accepted`),
+`UIElement.AllowDrop`, `DragEnter`, `DragOver`, `DragLeave`, `Drop`,
+`PickResult.depth`, `setSurfacePickExclusion`, `AssetsPanel`, `AssetTile`,
+`AssetWatcher`, `AssetDrag` (`Id`, `Path`), the commands `Assets.Refresh`
+("Refresh", Ctrl+R) and `Assets.Reimport` ("Reimport"), the step "Place
+<name>", `DragDropTests`, `AssetBrowserTests`, `AssetWatcherTests`, CTest
+`launcher.jit.assets`, `assets.png`, ADR 0071,
+`docs/learning/drag-drop-and-file-watching.md`. Names added while building
+are placeholders (marked *):
+
+| Name | What it is |
+|---|---|
+| `UIRoot.DragPayload`*, `DragOutside`* (internal), `ContinueDrag`* (internal), `DropAt`* (internal); the On… overrides `OnDragEnter`*, `OnDragOver`*, `OnDragLeave`*, `OnDrop`* | Drag extras |
+| `InputEventType.WindowFocusGained`*; `DrawList::entities`*; the pick target "PickDepths"* | Native additions |
+| `AssetDatabase.Import(id, force)`* | Forced reimport |
+| `AssetsPanel` (`Folder`*, `SelectedAsset`*, `Tiles`*, `Folders`*, `ShowFolder`*), `AssetTile` (`Path`*, `Asset`*, `IsFolder`*, `IsSelected`*, `Kind`*, `CanPlace`*); the kinds "Folder", "Model", "Prefab", "Texture", "Scene", "Shader", "Font", "Style", "Material", "File"*; `AssetWatcher` (`Folder`*, `QuietSeconds`*, `MarkAll`*, `TakeSettled`*) | Browser members |
+| The shell's `AssetsChanged`*, `RefreshAssets`*, `Reimport`*, `CanPlace`*, `Placing`*, `Place`*, `PlacementPoint`*; `AssetChecks`*, `--game-arg check-assets`*; classes `asset-crumb`*, `asset-name`*, `drag-preview`* | The editor's parts |
+| "Open", "No project open", "(not an asset)", "no importer", "not imported", "Assets / …" | Text users see |
+

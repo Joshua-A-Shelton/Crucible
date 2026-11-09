@@ -96,6 +96,9 @@ struct CRUCIBLE_EXPOSE PickResult
     uint64_t frame; // the surface's frame it came from (0: no answer yet)
     ecs::Entity entity;
     bool hit; // false where nothing opaque was drawn
+    // The surface's depth there (ADR 0071): reverse-Z, so near / depth is the
+    // distance along the view axis; 0 where nothing was drawn.
+    float depth;
 };
 
 // Asks the next frame which entity is drawn at a pixel (from the top left);
@@ -103,6 +106,11 @@ struct CRUCIBLE_EXPOSE PickResult
 // later. pickResult is the newest answer.
 CRUCIBLE_EXPOSE void requestPick(SurfaceHandle surface, uint32_t x, uint32_t y);
 CRUCIBLE_EXPOSE PickResult pickResult(SurfaceHandle surface);
+
+// Entities picking looks through (ADR 0071): a model being placed, which
+// would otherwise always be what's under the pointer. Replaces the last
+// list; empty for none.
+CRUCIBLE_EXPOSE void setSurfacePickExclusion(SurfaceHandle surface, std::span<const ecs::Entity> entities);
 
 // The render schedule the surface renders (ADR 0066), by ID
 // (RenderCommands.h's createSchedule; 0 for the default). NotFound for a
