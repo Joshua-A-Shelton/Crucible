@@ -147,3 +147,9 @@ Unity places assets.
     KWin focused the main window, so the next press on the floating one
     only focused it. The editor's launcher now sets the hint (games keep
     SDL's default); every drag then worked.
+- **Tried again by the owner on KWin:** dragging from the floating
+  window, placing in the main window (smooth), a file copied in being
+  noticed, and a model dropped on a hierarchy row all work. The copied
+  image (250×250) couldn't import as block-compressed, as designed, but
+  its failure was logged at every rescan (window focus changes rescan):
+  a failure is now logged once, until its message changes or it imports.

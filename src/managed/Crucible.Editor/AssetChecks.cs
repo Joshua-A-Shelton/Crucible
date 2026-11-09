@@ -117,6 +117,16 @@ internal sealed class AssetChecks : GameSystem
         AssetTile? added = assets.Tiles.FirstOrDefault(tile => tile.Path == "Textures/Grass Copy.png");
         Check(added is { Kind: "Texture" }, "a copied file is noticed and listed", $"after {waited} ms");
         Check(added?.Asset is { } entry && shell.Database?.ImportedFile(entry.Id) is not null, "and imported");
+        // A file that can't import is logged once, not at every rescan.
+        File.WriteAllBytes(Path.Combine(copy, "Assets", "Textures", "Broken.png"), [1, 2, 3]);
+        LogPanel? log = shell.LogPanel;
+        int before = log?.LineCount ?? 0;
+        for (int i = 0; i < 3; ++i)
+        {
+            shell.RefreshAssets();
+        }
+        yield return 2;
+        Check(log is null || log.LineCount - before == 1, "a failing import is logged once", $"{(log?.LineCount ?? 0) - before} lines");
         AssetTile grass = assets.Tiles.First(tile => tile.Path == "Textures/Grass.png");
         grass.Focus();
         yield return 2;

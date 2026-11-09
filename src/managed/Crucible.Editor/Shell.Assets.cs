@@ -10,6 +10,8 @@ namespace Crucible.Editor;
 internal sealed partial class Shell
 {
     private AssetWatcher? _watcher;
+    // Each failing asset's last error, so a rescan repeats it only when it changes.
+    private readonly Dictionary<string, string> _failures = new(StringComparer.Ordinal);
 
     /// <summary>The database rescanned: assets may have come, gone, or been imported again.</summary>
     public event Action? AssetsChanged;
@@ -61,12 +63,22 @@ internal sealed partial class Shell
             if (result.Outcome == ImportOutcome.Imported)
             {
                 ++imported;
+                _failures.Remove(result.Path);
                 Log($"Imported {result.Path}");
             }
             else if (result.Outcome is not (ImportOutcome.UpToDate or ImportOutcome.NoImporter))
             {
-                ++failed;
-                Log($"Can't import {result.Path}: {result.Outcome} {result.Error}");
+                string error = $"{result.Outcome} {result.Error}";
+                if (_failures.GetValueOrDefault(result.Path) != error)
+                {
+                    ++failed;
+                    _failures[result.Path] = error;
+                    Log($"Can't import {result.Path}: {error}");
+                }
+            }
+            else
+            {
+                _failures.Remove(result.Path);
             }
         }
         // Prefabs are read again; already placed instances keep what they were made from.
