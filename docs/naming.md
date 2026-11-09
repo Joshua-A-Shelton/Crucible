@@ -467,8 +467,8 @@ Settled as drafted: `RenderAssets.Reload(AssetId)`, `reloadRenderAsset`,
 `RenderAssetReloadTests`, `GpuReloadTests`, the section "Reloading GPU
 assets" in `docs/learning/play-mode-and-reloading.md`, the checks in
 `launcher.jit.play`, "Reloaded <path> on the GPU", "Can't reload <path>:
-<reason>; the last version stays". Names added while building are
-placeholders (marked *):
+<reason>; the last version stays". Names added while building (marked *)
+settled as drafted too:
 
 | Name | What it is |
 |---|---|

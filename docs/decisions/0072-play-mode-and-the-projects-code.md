@@ -1,8 +1,8 @@
 # 0072 — Play mode and a project's code
 
 **Status:** Accepted (2026-11-09); part a built, then part b (GPU assets
-reloaded in place). Part a's names settled by the owner as drafted; those
-added while building part b are placeholders (docs/naming.md).
+reloaded in place). Names settled by the owner as drafted
+(docs/naming.md). Both parts tried by hand by the owner on KWin.
 
 ## Context
 
