@@ -59,6 +59,42 @@ add_custom_command(TARGET crucible_editor POST_BUILD
     VERBATIM)
 add_dependencies(crucible_editor crucible_importers)
 
+# What the editor needs to build a project's native module (ADR 0074),
+# beside the launchers: the tools this build used, and the shared core's
+# headers, definitions, and import library. The module is compiled like the
+# core (C++20, no exceptions or RTTI) with the same compiler.
+if(MSVC)
+    set(crucibleModuleOptions "\"/permissive-\", \"/EHs-c-\", \"/GR-\", \"/Zc:__cplusplus\"")
+    set(crucibleModuleDefinitions "\"_HAS_EXCEPTIONS=0\"")
+    # cl.exe at .../VC/Tools/MSVC/<version>/bin/Hostx64/x64: the environment
+    # it needs comes from .../VC/Auxiliary/Build/vcvars64.bat.
+    string(REGEX REPLACE "/VC/Tools/.*$" "/VC/Auxiliary/Build/vcvars64.bat" crucibleModuleEnvironment
+        "${CMAKE_CXX_COMPILER}")
+else()
+    set(crucibleModuleOptions "\"-fno-exceptions\", \"-fno-rtti\"")
+    set(crucibleModuleDefinitions "")
+    set(crucibleModuleEnvironment "")
+endif()
+set(crucibleModuleIncludes "$<TARGET_PROPERTY:crucible_core,INTERFACE_INCLUDE_DIRECTORIES>")
+set(crucibleModuleCoreDefinitions "$<TARGET_PROPERTY:crucible_core,INTERFACE_COMPILE_DEFINITIONS>")
+file(GENERATE OUTPUT "$<TARGET_FILE_DIR:crucible_launcher>/CrucibleModule.json" CONTENT "{
+  \"Cmake\": \"${CMAKE_COMMAND}\",
+  \"Ninja\": \"${CMAKE_MAKE_PROGRAM}\",
+  \"CxxCompiler\": \"${CMAKE_CXX_COMPILER}\",
+  \"Environment\": \"${crucibleModuleEnvironment}\",
+  \"BuildType\": \"$<CONFIG>\",
+  \"IncludeDirectories\": [\"$<JOIN:$<REMOVE_DUPLICATES:${crucibleModuleIncludes}>,\"$<COMMA> \">\"],
+  \"CompileDefinitions\": [${crucibleModuleDefinitions}$<$<AND:$<BOOL:${crucibleModuleDefinitions}>,$<BOOL:${crucibleModuleCoreDefinitions}>>:$<COMMA> >$<$<BOOL:${crucibleModuleCoreDefinitions}>:\"$<JOIN:${crucibleModuleCoreDefinitions},\"$<COMMA> \">\">],
+  \"CompileOptions\": [${crucibleModuleOptions}],
+  \"CoreLibrary\": \"$<TARGET_LINKER_FILE:crucible_core>\",
+  \"CoreHeaders\": \"${PROJECT_SOURCE_DIR}/src/native/core/include/crucible\",
+  \"Dotnet\": \"${DOTNET_EXECUTABLE}\",
+  \"Bindgen\": \"${CRUCIBLE_BINDGEN_DLL}\",
+  \"Libclang\": \"${CRUCIBLE_LIBCLANG}\",
+  \"Clang\": \"${CRUCIBLE_CLANG}\"
+}
+")
+
 if(CRUCIBLE_BUILD_AOT)
     add_executable(crucible_launcher_aot
         CpuCheck.cpp
@@ -289,6 +325,24 @@ if(CRUCIBLE_BUILD_TESTS)
     set_tests_properties(launcher.jit.standalone PROPERTIES LABELS "integration;gpu" TIMEOUT 300
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "StandaloneChecks: all [0-9]+ checks passed")
+
+    # Native modules checking themselves (ADR 0074): a copy of the Diorama's
+    # project (in the test's folder) with its module built, loaded, played,
+    # run standalone, and broken.
+    add_test(NAME launcher.jit.native
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
+            --project "${PROJECT_SOURCE_DIR}/samples/Diorama/Project/Diorama.crproject"
+            --game-arg "check-native=${CMAKE_CURRENT_BINARY_DIR}"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/native-settings.json")
+    set_tests_properties(launcher.jit.native PROPERTIES LABELS "integration;gpu" TIMEOUT 600
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "NativeChecks: all [0-9]+ checks passed")
+
+    # The editor's checks open the Diorama's project before copying it, and
+    # opening builds its native module and code into its Cache (ADR 0072,
+    # 0074): one at a time, or the builds race.
+    set_tests_properties(launcher.jit.viewport launcher.jit.hierarchy launcher.jit.inspector launcher.jit.assets
+        launcher.jit.play launcher.jit.standalone launcher.jit.native PROPERTIES RESOURCE_LOCK diorama-project-cache)
 
     # The M6 demonstration (ADR 0064): the UI showcase's menu driven by mouse,
     # keyboard, and gamepad scripts, and captured at four DPI scales; on

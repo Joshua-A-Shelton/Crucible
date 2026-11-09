@@ -40,7 +40,7 @@ almost no cost in shipping builds.
   a non-linear video editor, lives in editor assemblies.
 - **Plugins are C#.** C++ never extends the editor, so there is no
   runtime/editor split to enforce on the C++ side. C++ may get its own,
-  different extension mechanism for the runtime (open item).
+  different extension mechanism for the runtime: native modules (ADR 0074).
 - **Plugins are source-only in v1,** compiled with the project. Prebuilt
   plugins are revisited later.
 - **The game is the root plugin.** A game is structured like any other

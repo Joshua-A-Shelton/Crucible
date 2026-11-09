@@ -15,6 +15,7 @@
 // its `shadowDistance`; point and spot lights get tiles in the shadow atlas,
 // redrawn only when the light or something in its range moves.
 
+#include <crucible/Export.h>
 #include <crucible/Expose.h>
 #include <crucible/Math.h>
 
@@ -71,6 +72,6 @@ inline constexpr uint32_t maxShadowedLights = 16;
 
 // Registers the components, and the sky (crucible/Sky.h). Registering
 // again is harmless.
-CRUCIBLE_EXPOSE_INTERNAL void registerLights();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void registerLights();
 
 } // namespace crucible::render

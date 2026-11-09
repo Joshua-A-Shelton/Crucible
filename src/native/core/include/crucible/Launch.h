@@ -27,7 +27,7 @@ struct CRUCIBLE_EXPOSE LaunchOptions
 CRUCIBLE_EXPORT void setLatencyLogPath(std::string_view utf8Path);
 // Copies as much of the UTF-8 path as fits into `buffer` and returns its
 // full length; call again with a larger buffer if it didn't fit.
-CRUCIBLE_EXPOSE uint32_t latencyLogPath(std::span<uint8_t> buffer);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t latencyLogPath(std::span<uint8_t> buffer);
 
 // --game <file>: the game assembly the engine loads (ADR 0011's JIT path), and
 // --game-arg key=value, repeatable: options for the game, which the engine
@@ -35,9 +35,9 @@ CRUCIBLE_EXPOSE uint32_t latencyLogPath(std::span<uint8_t> buffer);
 // are valid until the launcher changes them, which it doesn't once the
 // engine runs. Empty path: no game.
 CRUCIBLE_EXPORT void setGamePath(std::string_view utf8Path);
-CRUCIBLE_EXPOSE std::string_view gamePath();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE std::string_view gamePath();
 CRUCIBLE_EXPORT void addGameArgument(std::string_view utf8Argument);
-CRUCIBLE_EXPOSE uint32_t gameArgumentCount();
-CRUCIBLE_EXPOSE std::string_view gameArgument(uint32_t index);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t gameArgumentCount();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE std::string_view gameArgument(uint32_t index);
 
 } // namespace crucible

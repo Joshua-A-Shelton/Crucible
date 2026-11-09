@@ -13,6 +13,7 @@
 //
 // Threading: like the renderer, on the launcher's main thread.
 
+#include <crucible/Export.h>
 #include <crucible/Expose.h>
 #include <crucible/MeshFile.h>
 #include <crucible/Result.h>
@@ -81,31 +82,32 @@ enum class CRUCIBLE_EXPOSE Sampler : uint32_t
 
 // By asset ID. NotFound if the reader has no such asset; InvalidData if its
 // bytes aren't a model (or texture); Unsupported before the renderer starts.
-CRUCIBLE_EXPOSE Result<MeshHandle> acquireMesh(assets::AssetId model);
-CRUCIBLE_EXPOSE void releaseMesh(MeshHandle mesh);
-CRUCIBLE_EXPOSE Result<TextureHandle> acquireTexture(assets::AssetId texture);
-CRUCIBLE_EXPOSE void releaseTexture(TextureHandle texture);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<MeshHandle> acquireMesh(assets::AssetId model);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void releaseMesh(MeshHandle mesh);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<TextureHandle> acquireTexture(assets::AssetId texture);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void releaseTexture(TextureHandle texture);
 
 // From bytes, outside the asset system.
-CRUCIBLE_EXPOSE Result<MeshHandle> loadMesh(std::span<const uint8_t> bytes);
-CRUCIBLE_EXPOSE void unloadMesh(MeshHandle mesh);
-CRUCIBLE_EXPOSE Result<TextureHandle> loadTexture(std::span<const uint8_t> bytes);
-CRUCIBLE_EXPOSE void unloadTexture(TextureHandle texture);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<MeshHandle> loadMesh(std::span<const uint8_t> bytes);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void unloadMesh(MeshHandle mesh);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<TextureHandle> loadTexture(std::span<const uint8_t> bytes);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void unloadTexture(TextureHandle texture);
 
 // Authored materials (.crmat, ADR 0052), by asset ID: acquire loads on first
 // use (with its shader and textures) and counts uses; release unloads after
 // the last. NotFound if the reader has no such asset; InvalidData if its
 // bytes aren't a material, or don't match its shader (reimport it).
-CRUCIBLE_EXPOSE Result<MaterialHandle> acquireMaterial(assets::AssetId material);
-CRUCIBLE_EXPOSE void releaseMaterial(MaterialHandle material);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<MaterialHandle> acquireMaterial(assets::AssetId material);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void releaseMaterial(MaterialHandle material);
 // Replaces a material's parameters, laid out as its shader's material type
 // (C#: the generated struct). Frames in flight keep the old values.
 // InvalidData if the size differs from the type's.
-CRUCIBLE_EXPOSE Result<void> setMaterialParameters(MaterialHandle material, std::span<const uint8_t> parameters);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<void> setMaterialParameters(MaterialHandle material,
+                                                                   std::span<const uint8_t> parameters);
 // What a material is, for C#'s check that a struct matches: its shader's
 // asset ID (zero for the engine's) and its type's name.
-CRUCIBLE_EXPOSE_INTERNAL assets::AssetId materialShader(MaterialHandle material);
-CRUCIBLE_EXPOSE_INTERNAL std::string_view materialTypeName(MaterialHandle material);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL assets::AssetId materialShader(MaterialHandle material);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL std::string_view materialTypeName(MaterialHandle material);
 
 // Loads an asset again from its reader (ADR 0072, the editor after a
 // reimport): a model, texture, material, or game shader that's loaded is
@@ -113,11 +115,11 @@ CRUCIBLE_EXPOSE_INTERNAL std::string_view materialTypeName(MaterialHandle materi
 // the new version. It waits for the GPU first. False if the asset isn't
 // loaded (nothing to do; always, before the renderer starts). On failure the old version stays: NotFound if the
 // reader has no such asset, InvalidData if its bytes don't load.
-CRUCIBLE_EXPOSE Result<bool> reloadRenderAsset(assets::AssetId asset);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<bool> reloadRenderAsset(assets::AssetId asset);
 
 // The texture's slot in the resource heap, which shaders read it through
 // (ResourceDescriptorHeap[slot]); 0 for a stale handle.
-CRUCIBLE_EXPOSE uint32_t textureDescriptor(TextureHandle texture);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t textureDescriptor(TextureHandle texture);
 
 // A loaded texture's top-level size in texels; zero for a stale handle.
 struct CRUCIBLE_EXPOSE TextureSize
@@ -125,9 +127,9 @@ struct CRUCIBLE_EXPOSE TextureSize
     uint32_t width;
     uint32_t height;
 };
-CRUCIBLE_EXPOSE TextureSize textureSize(TextureHandle texture);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE TextureSize textureSize(TextureHandle texture);
 // The sampler's slot in the sampler heap.
-CRUCIBLE_EXPOSE uint32_t samplerDescriptor(Sampler sampler);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t samplerDescriptor(Sampler sampler);
 
 // The C# side's reader: an [UnmanagedCallersOnly] function, as an address
 // (the generator doesn't do function pointers), called as
@@ -135,7 +137,7 @@ CRUCIBLE_EXPOSE uint32_t samplerDescriptor(Sampler sampler);
 //                    void (*deliver)(void* context, const uint8_t* data, uint64_t size))
 // It calls `deliver` with the asset's imported bytes before returning 0, or
 // returns -1 if there is no such asset. Internal to the engine.
-CRUCIBLE_EXPOSE_INTERNAL void setAssetReader(uint64_t readerAddress);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void setAssetReader(uint64_t readerAddress);
 
 // What render steps read to draw a loaded model (C++ only): its GPU buffer
 // and resource-heap slot, where each stream starts in it, and the file's
@@ -168,6 +170,6 @@ struct MeshData
 };
 
 // Null for a stale handle.
-const MeshData* meshData(MeshHandle mesh);
+CRUCIBLE_EXPORT const MeshData* meshData(MeshHandle mesh);
 
 } // namespace crucible::render

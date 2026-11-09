@@ -460,8 +460,11 @@ the GPU first; a failed reload keeps the old version; tried by hand by
 the owner on KWin. Step 6 is done. Step 7a built (ADR 0073): Run
 Standalone runs the open scene in the game launcher, which opens the
 project's imported files through the engine's `AssetCache`; tried by hand
-by the owner on KWin. Steps 7b (the
-C++ runtime extension mechanism) and 7c (subsystem interfaces) are next.
+by the owner on KWin. Step 7b built (ADR 0074): native modules, a
+project's Project/Native built into a shared library on the engine's
+shared core (every public header now exported), loaded by the launcher
+and editor, with generated C# bindings; the Diorama's lamp lights bob
+from C++. Step 7c (subsystem interfaces) is next.
 
 ## M8 — Animation and audio
 

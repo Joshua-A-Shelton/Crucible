@@ -8,6 +8,7 @@
 
 #include <crucible/Jobs.h>
 #include <crucible/Launch.h>
+#include <crucible/Module.h>
 #include <crucible/Platform.h>
 #include <crucible/Render.h>
 #include <crucible/Text.h>
@@ -21,6 +22,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <vector>
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
@@ -106,8 +108,11 @@ int run(int argc, ArgumentChar** argv)
     // --shadow-map-size N and --shadow-atlas-size N the shadow maps' sizes
     // (ADR 0054). --project <file> and --scene <file> name the project and
     // scene to open (the game arguments project= and scene=): the engine
-    // opens them for a game (ADR 0073), the editor for itself.
+    // opens them for a game (ADR 0073), the editor for itself. --module <file>
+    // (repeatable) loads a project's native module (ADR 0074) once the
+    // engine's native side is up, before the C# engine builds its schedule.
     std::filesystem::path managedDirectory = executableDirectory();
+    std::vector<std::u8string> modules;
     bool gameGiven = false;
     slag::Backend backend = slag::InstanceDesc{}.backend;
     crucible::LaunchOptions options{};
@@ -190,6 +195,12 @@ int run(int argc, ArgumentChar** argv)
             const std::u8string key = option == CRUCIBLE_ARGUMENT("--project") ? u8"project=" : u8"scene=";
             const std::u8string utf8 = key + (error ? std::filesystem::path(value) : path).u8string();
             crucible::addGameArgument({reinterpret_cast<const char*>(utf8.data()), utf8.size()});
+        }
+        else if (option == CRUCIBLE_ARGUMENT("--module"))
+        {
+            std::error_code error;
+            const std::filesystem::path path = std::filesystem::absolute(std::filesystem::path(value), error);
+            modules.push_back((error ? std::filesystem::path(value) : path).u8string());
         }
         else if (option == CRUCIBLE_ARGUMENT("--game-arg"))
         {
@@ -291,7 +302,18 @@ int run(int argc, ArgumentChar** argv)
         return 1;
     }
 
+    for (const std::u8string& module : modules)
+    {
+        if (!crucible::loadModule({reinterpret_cast<const char*>(module.data()), module.size()}))
+        {
+            crucible::render::shutdown();
+            crucible::jobs::shutdown();
+            crucible::platform::shutdown();
+            return 1;
+        }
+    }
     const crucible::Result<int> result = crucible::launcher::runEngine(managedDirectory, options);
+    crucible::stopModules();
     crucible::render::shutdown();
     crucible::text::shutdown();
     crucible::jobs::shutdown();

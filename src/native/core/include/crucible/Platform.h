@@ -145,45 +145,46 @@ struct CRUCIBLE_EXPOSE InputEvent
 CRUCIBLE_EXPORT Result<void> initialize();
 CRUCIBLE_EXPORT void shutdown();
 
-CRUCIBLE_EXPOSE Result<WindowHandle> createWindow(uint32_t width, uint32_t height, std::string_view title);
-CRUCIBLE_EXPOSE void destroyWindow(WindowHandle window);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<WindowHandle> createWindow(uint32_t width, uint32_t height,
+                                                                  std::string_view title);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void destroyWindow(WindowHandle window);
 
 // The window's size in pixels, which can differ from the size it was created
 // with on high-DPI displays. Zero for a window that doesn't exist.
-CRUCIBLE_EXPOSE WindowSize windowPixelSize(WindowHandle window);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE WindowSize windowPixelSize(WindowHandle window);
 
 // Whether the window is minimized; the renderer skips frames meanwhile.
-CRUCIBLE_EXPOSE bool windowMinimized(WindowHandle window);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE bool windowMinimized(WindowHandle window);
 // Physical pixels per logical one the OS asks for on the window's display
 // (its DPI scale); 1 for a window that doesn't exist.
-CRUCIBLE_EXPOSE float windowDisplayScale(WindowHandle window);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE float windowDisplayScale(WindowHandle window);
 
 // Fills events with pending events and returns how many it wrote. Events that
 // don't fit stay queued for the next call.
-CRUCIBLE_EXPOSE uint32_t pollEvents(std::span<InputEvent> events);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t pollEvents(std::span<InputEvent> events);
 
 // The UTF-8 text of the last pollEvents' TextInput events, which point into
 // it: copied into `out` (as much as fits); returns its whole length.
-CRUCIBLE_EXPOSE uint32_t polledText(std::span<uint8_t> out);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t polledText(std::span<uint8_t> out);
 
 // Typed text arrives as TextInput events while text input is on for the
 // window (on-screen keyboards show; ADR 0065); the UI turns it on while a
 // text field has focus.
-CRUCIBLE_EXPOSE void startTextInput(WindowHandle window);
-CRUCIBLE_EXPOSE void stopTextInput(WindowHandle window);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void startTextInput(WindowHandle window);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void stopTextInput(WindowHandle window);
 
 // The system clipboard's text ("" when empty or unavailable), and setting
 // it; false if the platform couldn't.
-CRUCIBLE_EXPOSE std::string_view clipboardText();
-CRUCIBLE_EXPOSE bool setClipboardText(std::string_view text);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE std::string_view clipboardText();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE bool setClipboardText(std::string_view text);
 
 // Window placement, in the desktop's coordinates (Windows and X11). Wayland
 // doesn't let apps place their windows or know where they are: windowPosition
 // is (0, 0) there, and setWindowPosition does nothing.
-CRUCIBLE_EXPOSE Vector2 windowPosition(WindowHandle window);
-CRUCIBLE_EXPOSE void setWindowPosition(WindowHandle window, Vector2 position);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Vector2 windowPosition(WindowHandle window);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void setWindowPosition(WindowHandle window, Vector2 position);
 // The pointer on the desktop, in the same coordinates; (0, 0) on Wayland.
-CRUCIBLE_EXPOSE Vector2 pointerScreenPosition();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Vector2 pointerScreenPosition();
 
 // Window drags (ADR 0066): a drag of something between our windows, such
 // as a panel torn off one window and docked in another. Started while a
@@ -193,85 +194,86 @@ CRUCIBLE_EXPOSE Vector2 pointerScreenPosition();
 // `draggedWindow` (0 for none) moves with the pointer, `offset` (pixels from
 // its top left) under it; give a new window before its first frame is
 // drawn. False if no drag could start (no press held, or None).
-CRUCIBLE_EXPOSE WindowDragSupport windowDragSupport();
-CRUCIBLE_EXPOSE bool startWindowDrag(WindowHandle window, WindowHandle draggedWindow, Vector2 offset);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE WindowDragSupport windowDragSupport();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE bool startWindowDrag(WindowHandle window, WindowHandle draggedWindow, Vector2 offset);
 // Cancels a drag in progress (DragCanceled follows), where the platform
 // lets apps; on Wayland the compositor ends it (Escape, or the release).
-CRUCIBLE_EXPOSE void stopWindowDrag();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void stopWindowDrag();
 
 // Drawing a window's frame yourself (ADR 0066): without the system's
 // border and title bar, the app draws its own title bar, moves the window
 // with startWindowMove when its title bar is dragged, and lets the edges
 // resize it (setWindowResizeBorder, pixels; 0 for none, the default).
-CRUCIBLE_EXPOSE void setWindowBordered(WindowHandle window, bool bordered);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void setWindowBordered(WindowHandle window, bool bordered);
 // Makes a window a child of another (0: of none): it stays above its
 // parent, goes where it goes (desktops, minimizing), and on Windows leaves
 // the task bar to it. For tool windows, such as an editor's floating ones.
-CRUCIBLE_EXPOSE void setWindowParent(WindowHandle window, WindowHandle parent);
-CRUCIBLE_EXPOSE void setWindowResizeBorder(WindowHandle window, float pixels);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void setWindowParent(WindowHandle window, WindowHandle parent);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void setWindowResizeBorder(WindowHandle window, float pixels);
 // Starts a move by the system (snapping and tiling as from its own title
 // bar), from a mouse button pressed in the window and still held. False if
 // no move could start (no press held, or a platform without moves, as
 // headless).
-CRUCIBLE_EXPOSE bool startWindowMove(WindowHandle window);
-CRUCIBLE_EXPOSE void minimizeWindow(WindowHandle window);
-CRUCIBLE_EXPOSE void maximizeWindow(WindowHandle window);
-CRUCIBLE_EXPOSE void restoreWindow(WindowHandle window);
-CRUCIBLE_EXPOSE bool windowMaximized(WindowHandle window);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE bool startWindowMove(WindowHandle window);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void minimizeWindow(WindowHandle window);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void maximizeWindow(WindowHandle window);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void restoreWindow(WindowHandle window);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE bool windowMaximized(WindowHandle window);
 // The system's menu for the window (move, size, close ...) at a position in
 // it, in pixels, where the platform has one.
-CRUCIBLE_EXPOSE void showWindowMenu(WindowHandle window, Vector2 position);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void showWindowMenu(WindowHandle window, Vector2 position);
 
 // The system's open-file dialog (ADR 0066), over `window` (0 for none),
 // showing files matching `pattern` (extensions without dots, separated by
 // ';', such as "crproject"; empty for all) under `filterName`. The choice
 // arrives later as a FileDialogResult event.
-CRUCIBLE_EXPOSE void showOpenFileDialog(WindowHandle window, std::string_view filterName, std::string_view pattern);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void showOpenFileDialog(WindowHandle window, std::string_view filterName,
+                                                        std::string_view pattern);
 // The system's save-file dialog (ADR 0068), alike, starting at
 // `defaultLocation` (a folder or a file; empty for the system's choice); its
 // answer is a FileDialogResult too.
-CRUCIBLE_EXPOSE void showSaveFileDialog(WindowHandle window, std::string_view filterName, std::string_view pattern,
-                                        std::string_view defaultLocation);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void showSaveFileDialog(WindowHandle window, std::string_view filterName,
+                                                        std::string_view pattern, std::string_view defaultLocation);
 
 // The folder for the user's settings (ADR 0066), created if needed and
 // ending in a separator: ~/.local/share/Crucible/ on Linux,
 // %APPDATA%\Crucible\ on Windows. Empty if there's none.
-CRUCIBLE_EXPOSE std::string_view preferencesPath();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE std::string_view preferencesPath();
 
 // Now, on the same clock as InputEvent::timestampNs.
-CRUCIBLE_EXPOSE uint64_t timestampNow();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint64_t timestampNow();
 
 // Whether InputEvent::timestampNs is when the input arrived (Wayland,
 // Windows) rather than when SDL processed it, which can be a frame later.
 // False under X11, where SDL doesn't convert the X server's event times
 // (ADR 0018's amendment); timing code then treats a timestamp as "no earlier
 // than the poll".
-CRUCIBLE_EXPOSE bool eventTimestampsAreArrivals();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE bool eventTimestampsAreArrivals();
 
 // The latency harness's synthetic input (ADR 0003): a background thread
 // pushes LatencyMarker events into the event queue at random intervals
 // (uniform between half and one and a half times the mean), so they arrive
 // at random points in the frame, as real input does. Their timestamps are
 // when they entered the queue. Stopping waits for the thread.
-CRUCIBLE_EXPOSE_STATUS Result<void> startLatencyMarkers(uint32_t meanIntervalUs);
-CRUCIBLE_EXPOSE void stopLatencyMarkers();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_STATUS Result<void> startLatencyMarkers(uint32_t meanIntervalUs);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void stopLatencyMarkers();
 
 // Files, by UTF-8 path (ADR 0039). Not exposed: C# has its own file API, and
 // the core reads and writes its binary files itself.
 //
 // The file's size in bytes; NotFound if it doesn't exist.
-Result<uint64_t> fileSize(std::string_view utf8Path);
+CRUCIBLE_EXPORT Result<uint64_t> fileSize(std::string_view utf8Path);
 // Reads the file's first destination.size() bytes; InvalidData if it is
 // shorter.
-Result<void> readFile(std::string_view utf8Path, std::span<std::byte> destination);
+CRUCIBLE_EXPORT Result<void> readFile(std::string_view utf8Path, std::span<std::byte> destination);
 // Writes the whole file under a temporary name beside it, then renames it
 // over `utf8Path`: a crash or full disk never leaves a half-written file
 // under the real name.
-Result<void> writeFileAtomically(std::string_view utf8Path, std::span<const std::byte> contents);
+CRUCIBLE_EXPORT Result<void> writeFileAtomically(std::string_view utf8Path, std::span<const std::byte> contents);
 
 // The OS handles Slag needs to create a swapchain (ADR 0018). Unsupported for
 // video drivers Slag can't present to, such as the offscreen test driver. Not
 // exposed: the core creates swapchains itself.
-Result<void> nativeWindow(WindowHandle window, slag::NativeWindow& native);
+CRUCIBLE_EXPORT Result<void> nativeWindow(WindowHandle window, slag::NativeWindow& native);
 
 } // namespace crucible::platform

@@ -18,6 +18,7 @@
 // functions marked internal are for it alone. Main thread only, like the
 // renderer. Names are in docs/naming.md.
 
+#include <crucible/Export.h>
 #include <crucible/Expose.h>
 #include <crucible/Math.h>
 #include <crucible/RenderAssets.h>
@@ -111,18 +112,19 @@ struct CRUCIBLE_EXPOSE GraphicsPipelineState
 // materials' shaders). Create pipelines in a step's prepare, never per frame
 // (ADR 0025). InvalidData if the asset isn't a shader or lacks an entry
 // point; Unsupported without a renderer.
-CRUCIBLE_EXPOSE Result<PipelineHandle> createGraphicsPipeline(assets::AssetId shader, std::string_view vertexEntry,
-                                                              std::string_view pixelEntry, GraphicsPipelineState state);
-CRUCIBLE_EXPOSE Result<PipelineHandle> createComputePipeline(assets::AssetId shader, std::string_view entry);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<PipelineHandle> createGraphicsPipeline(assets::AssetId shader,
+                                                                              std::string_view vertexEntry,
+                                                                              std::string_view pixelEntry,
+                                                                              GraphicsPipelineState state);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<PipelineHandle> createComputePipeline(assets::AssetId shader,
+                                                                             std::string_view entry);
 // From one of the engine's embedded shaders ("ui"), for the engine's C#.
-CRUCIBLE_EXPOSE_INTERNAL Result<PipelineHandle> createEngineGraphicsPipeline(std::string_view shader,
-                                                                             std::string_view vertexEntry,
-                                                                             std::string_view pixelEntry,
-                                                                             GraphicsPipelineState state);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL Result<PipelineHandle> createEngineGraphicsPipeline(
+    std::string_view shader, std::string_view vertexEntry, std::string_view pixelEntry, GraphicsPipelineState state);
 // Destroyed once the GPU has finished every frame that could use it.
-CRUCIBLE_EXPOSE void destroyPipeline(PipelineHandle pipeline);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void destroyPipeline(PipelineHandle pipeline);
 // Pipelines alive, for tests.
-CRUCIBLE_EXPOSE_INTERNAL uint32_t pipelineCount();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL uint32_t pipelineCount();
 
 // ---------------------------------------------------------------------------
 // Steps
@@ -151,26 +153,27 @@ enum class CRUCIBLE_EXPOSE StepCall : uint32_t
 
 // The engine's C# entry for its steps: an [UnmanagedCallersOnly] method
 // taking (step ID, StepCall, StepFrame*) and returning an int32.
-CRUCIBLE_EXPOSE_INTERNAL void setStepTrampoline(uint64_t trampolineAddress);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void setStepTrampoline(uint64_t trampolineAddress);
 // Schedules by ID (ADR 0066; RenderSchedule.h): 0 is the default. A new
 // one holds Clear only; destroying one releases its steps, and its surfaces
 // go back to the default.
-CRUCIBLE_EXPOSE_INTERNAL uint32_t createRenderSchedule();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL uint32_t createRenderSchedule();
 // Adds the editor's steps to a schedule holding the scene's (ADR 0067):
 // Grid after Sky, Pick after Opaque, SelectionOutline after Tonemap. They
 // draw only on surfaces that ask (Render.h's setSurfaceGrid and friends).
 // NotFound for an unknown schedule or one without those steps.
-CRUCIBLE_EXPOSE_INTERNAL Result<void> addEditorSteps(uint32_t schedule);
-CRUCIBLE_EXPOSE_INTERNAL void destroyRenderSchedule(uint32_t schedule);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL Result<void> addEditorSteps(uint32_t schedule);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void destroyRenderSchedule(uint32_t schedule);
 // Adds a C# step to a schedule, as RenderSchedule's add, insertBefore,
 // insertAfter, or replace; prepared now when the renderer runs. NotFound for
 // an unknown schedule.
-CRUCIBLE_EXPOSE_INTERNAL Result<void> insertManagedStep(uint32_t schedule, std::string_view name, uint64_t id,
-                                                        StepPlacement placement, std::string_view anchor);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL Result<void> insertManagedStep(uint32_t schedule, std::string_view name,
+                                                                        uint64_t id, StepPlacement placement,
+                                                                        std::string_view anchor);
 // Any step, C++ or C#; a C# step's Release is called first.
-CRUCIBLE_EXPOSE_INTERNAL Result<void> removeStep(uint32_t schedule, std::string_view name);
-CRUCIBLE_EXPOSE_INTERNAL uint32_t stepCount(uint32_t schedule);
-CRUCIBLE_EXPOSE_INTERNAL std::string_view stepName(uint32_t schedule, uint32_t index);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL Result<void> removeStep(uint32_t schedule, std::string_view name);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL uint32_t stepCount(uint32_t schedule);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL std::string_view stepName(uint32_t schedule, uint32_t index);
 
 // ---------------------------------------------------------------------------
 // One frame of a step (internal: RenderStepContext wraps these)
@@ -251,40 +254,43 @@ struct CRUCIBLE_EXPOSE StepMemory
     uint32_t offset; // frame data: where it starts in the frame data
 };
 
-CRUCIBLE_EXPOSE_INTERNAL StepFrameInfo stepFrameInfo(StepFrame& frame);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL StepFrameInfo stepFrameInfo(StepFrame& frame);
 // The blackboard (ADR 0048); reading what no step published fails the frame,
 // as for C++ steps.
-CRUCIBLE_EXPOSE_INTERNAL GraphTexture stepTexture(StepFrame& frame, BlackboardKey key);
-CRUCIBLE_EXPOSE_INTERNAL GraphBuffer stepBuffer(StepFrame& frame, BlackboardKey key);
-CRUCIBLE_EXPOSE_INTERNAL void publishTexture(StepFrame& frame, BlackboardKey key, GraphTexture texture);
-CRUCIBLE_EXPOSE_INTERNAL void publishBuffer(StepFrame& frame, BlackboardKey key, GraphBuffer buffer);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL GraphTexture stepTexture(StepFrame& frame, BlackboardKey key);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL GraphBuffer stepBuffer(StepFrame& frame, BlackboardKey key);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void publishTexture(StepFrame& frame, BlackboardKey key, GraphTexture texture);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void publishBuffer(StepFrame& frame, BlackboardKey key, GraphBuffer buffer);
 // Transients (Slag's): this frame only, contents undefined until written. A
 // buffer's size is a multiple of 4.
-CRUCIBLE_EXPOSE_INTERNAL GraphTexture createStepTexture(StepFrame& frame, TransientTextureDesc desc);
-CRUCIBLE_EXPOSE_INTERNAL GraphBuffer createStepBuffer(StepFrame& frame, uint32_t size);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL GraphTexture createStepTexture(StepFrame& frame, TransientTextureDesc desc);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL GraphBuffer createStepBuffer(StepFrame& frame, uint32_t size);
 
 // A pass, by its number this frame. Its uses and attachments are declared
 // before the step's next pass is added; its commands may be written until
 // the step returns. Every pass also reads the frame's ViewConstants, bound as
 // its constant buffer when it starts.
-CRUCIBLE_EXPOSE_INTERNAL uint32_t addStepPass(StepFrame& frame, std::string_view name, PassQueue queue);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL uint32_t addStepPass(StepFrame& frame, std::string_view name, PassQueue queue);
 // The resource-heap slot the pass reads or writes it through (ShaderRead,
 // ShaderWrite), written when the pass records; 0 for ConstantBuffer. A
 // buffer gets a slot only if this step's frame made it (its size is known).
-CRUCIBLE_EXPOSE_INTERNAL uint32_t useTexture(StepFrame& frame, uint32_t pass, GraphTexture texture,
-                                             ResourceUsage usage);
-CRUCIBLE_EXPOSE_INTERNAL uint32_t useBuffer(StepFrame& frame, uint32_t pass, GraphBuffer buffer, ResourceUsage usage);
-CRUCIBLE_EXPOSE_INTERNAL void passRenderTarget(StepFrame& frame, uint32_t pass, GraphTexture texture, LoadAction load,
-                                               StoreAction store, Vector4 clearColor);
-CRUCIBLE_EXPOSE_INTERNAL void passDepthTarget(StepFrame& frame, uint32_t pass, GraphTexture texture, LoadAction load,
-                                              StoreAction store, float clearDepth, bool readOnly);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL uint32_t useTexture(StepFrame& frame, uint32_t pass, GraphTexture texture,
+                                                             ResourceUsage usage);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL uint32_t useBuffer(StepFrame& frame, uint32_t pass, GraphBuffer buffer,
+                                                            ResourceUsage usage);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void passRenderTarget(StepFrame& frame, uint32_t pass, GraphTexture texture,
+                                                               LoadAction load, StoreAction store, Vector4 clearColor);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void passDepthTarget(StepFrame& frame, uint32_t pass, GraphTexture texture,
+                                                              LoadAction load, StoreAction store, float clearDepth,
+                                                              bool readOnly);
 // The pass's command records: records `used` bytes as written so far and
 // returns room for at least `more` beyond them (the address may move: C#
 // writes from the returned one). The step's last call for each pass, with
 // `more` 0, is what plays back.
-CRUCIBLE_EXPOSE_INTERNAL StepMemory passCommands(StepFrame& frame, uint32_t pass, uint32_t used, uint32_t more);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL StepMemory passCommands(StepFrame& frame, uint32_t pass, uint32_t used,
+                                                                 uint32_t more);
 // `size` bytes of frame data, 256-aligned, valid until the step returns.
-CRUCIBLE_EXPOSE_INTERNAL StepMemory uploadFrameData(StepFrame& frame, uint32_t size);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL StepMemory uploadFrameData(StepFrame& frame, uint32_t size);
 
 // ---------------------------------------------------------------------------
 // Command records

@@ -497,3 +497,30 @@ Names added while building (marked *) settled as drafted too:
 | `StandaloneRun` (`Arguments`*, `LauncherPath`*, `Start`*, `TakeLines`*, `TakeExit`*, `Stop`*, `IsRunning`*); the shell's `RunStandalone`*, `StopStandalone`*, `Standalone`* | The editor's parts |
 | `StandaloneChecks`*, `--game-arg check-standalone`* | The check |
 | "opened <scene>: N entities at the top"*, "<scene> has <component>, which nothing registered"*, "The standalone run was stopped"*, "Can't run standalone: …"* | Text users see |
+
+## Native modules (2026-11-09, M7 step 7b)
+
+Settled as drafted: the folder `Project/Native` (`Project.NativeFolder`),
+the library `<Project>.Native` (in Cache/Build/Native), crucible/Module.h
+with `crucibleModuleStart()`, `crucibleModuleStop()`, and
+`CRUCIBLE_MODULE_EXPORT`, the core's `loadModule(path)`, the launcher's
+`--module <file>`, `NativeBuilder`, "Building Diorama.Native…", "Built
+Diorama.Native: restart the editor to load it", `Diorama::Bob` (`height`,
+`speed`) and the system "Diorama.Bob", ADR 0074 "Native modules",
+`docs/learning/native-modules.md`, `NativeBuildTests`, `ModuleTests`,
+CTest `launcher.jit.native` ("NativeChecks: all N checks passed"); and,
+asked while building, `linkEngineComponents()` and marking each
+declaration `CRUCIBLE_EXPORT`. Names added while building are placeholders
+(marked *):
+
+| Name | What it is |
+|---|---|
+| `stopModules`*, `moduleCount`*, `modulePath`*, `nativeSystemFromModule`* | The core |
+| `ScheduleBuilder.IncludeModuleSystems`* | Module systems in the editor's play schedule |
+| `CrucibleModule.json`* (`Cmake`*, `Ninja`*, `CxxCompiler`*, `Environment`*, `BuildType`*, `IncludeDirectories`*, `CompileDefinitions`*, `CompileOptions`*, `CoreLibrary`*, `CoreHeaders`*, `Dotnet`*, `Bindgen`*, `Libclang`*, `Clang`*), `ModuleToolkit`* | The engine's build, for module builds |
+| The binding generator's `--root-namespace`* | A module's own namespace |
+| `NativeBuilder` (`LibraryName`*, `Folder`*, `ProjectFile`*, `OutputPath`*, `BindingsPath`*, `LibraryExtension`*, `ToolkitBeside`*, `HasCode`*, `IsBuilding`*, `Start`*, `TakeFinished`*, `BuildNow`*, `ReadToolkit`*, `ProjectText`*); the shell's `NativeBuilder`*, `BuildNative`*, `ModuleLoaded`*; Cache/Build/Native/Loaded/<process>/* | The editor's parts |
+| `diorama::bobbedLastFrame()`* (C#: `Diorama.Api.BobbedLastFrame()`), `Diorama.Interop`* | The sample |
+| `NativeChecks`*, `--game-arg check-native`*, `exports.public`*, `crucible_module_tests`*, `crucible_test_module`*, `crucible_not_a_module`* | Tests |
+| "Loaded Diorama.Native"*, "Can't load Diorama.Native: …"*, "Diorama.Native didn't build"* | Text users see |
+

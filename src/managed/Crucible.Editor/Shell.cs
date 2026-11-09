@@ -189,6 +189,7 @@ internal sealed partial class Shell
         _stopped = true;
         _watcher?.Dispose();
         _codeWatcher?.Dispose();
+        _nativeWatcher?.Dispose();
         _standalone.Stop();
         if (IsPlaying)
         {
@@ -345,6 +346,7 @@ internal sealed partial class Shell
             Selection.Selected = Entity.Null;
         }
         PollAssets();
+        PollNative();
         PollCode();
         PollStandalone();
         UpdatePlacement();

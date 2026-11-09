@@ -96,9 +96,8 @@ calling it (Unity); or end the loop (ADR 0030's rule for phases).
 6. **C++ systems register into a native registry:** a name, a phase, a
    function pointer, user data, and before/after names. The C# builder
    pulls them in, sorts them with the C# systems, and calls each through a
-   `delegate* unmanaged`. C++ systems are in-engine for now; how C++ code
-   from outside the engine registers stays with the C++ extension mechanism
-   (M7, docs/open-items.md).
+   `delegate* unmanaged`. C++ code from outside the engine registers the
+   same way, from a native module's start (ADR 0074).
 7. **The loop owns one command buffer per world:** the main world by
    default, plus any world registered with the loop. Systems record through
    the context. Every phase end applies them all, and so does every step of

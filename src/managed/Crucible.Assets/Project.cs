@@ -31,6 +31,7 @@ public sealed class Project
     public string Root { get; }
     public string AssetsFolder => Path.Combine(Root, "Assets");
     public string CodeFolder => Path.Combine(Root, "Code");
+    public string NativeFolder => Path.Combine(Root, "Native");
     public string PluginsFolder => Path.Combine(Root, "Plugins");
     public string CacheFolder => Path.Combine(Root, "Cache");
 

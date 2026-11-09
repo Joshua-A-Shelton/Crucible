@@ -93,6 +93,7 @@ public sealed partial class GameBuilder
                 <Nullable>enable</Nullable>
                 <ImplicitUsings>enable</ImplicitUsings>
                 <IsAotCompatible>true</IsAotCompatible>
+                <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
                 <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
                 <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
                 <OutputPath>bin/</OutputPath>
@@ -102,6 +103,9 @@ public sealed partial class GameBuilder
 
             """);
         text.Append($"    <Compile Include=\"{Escape(Path.Combine(_project.CodeFolder, "**", "*.cs"))}\" />\n");
+        // The native module's bindings (ADR 0074), when it exposes anything.
+        string bindings = Escape(Path.Combine(_project.CacheFolder, "Build", "Native", "Bindings.g.cs"));
+        text.Append($"    <Compile Include=\"{bindings}\" Condition=\"Exists('{bindings}')\" />\n");
         text.Append($"    <Reference Include=\"Crucible.Engine\" HintPath=\"{Escape(engine)}\" Private=\"false\" />\n");
         if (Generators() is { } generators)
         {
@@ -217,7 +221,7 @@ public sealed partial class GameBuilder
         Justification = "The editor is never published as a single file")]
     internal static string EngineAssembly() => typeof(Crucible.Ecs.World).Assembly.Location;
 
-    private static string Sanitize(string name)
+    internal static string Sanitize(string name)
     {
         string kept = new([.. name.Where(c => char.IsLetterOrDigit(c) || c == '_')]);
         return kept.Length == 0 || char.IsDigit(kept[0]) ? "Game" + kept : kept;

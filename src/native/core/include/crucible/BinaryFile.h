@@ -118,7 +118,7 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<void> writeFile(Writer& writer, std::stri
                                                        Compression compression);
 
 // The same, into memory: for tests and archives.
-Result<void> writeToMemory(Writer& writer, Compression compression, Vector<std::byte>& file);
+CRUCIBLE_EXPORT Result<void> writeToMemory(Writer& writer, Compression compression, Vector<std::byte>& file);
 
 // ---------------------------------------------------------------------------
 // Reading
@@ -131,22 +131,24 @@ struct CRUCIBLE_EXPOSE File;
 // IoError for the file itself, InvalidData if it is damaged or of another
 // kind, and Unsupported if it has another container or kind version: stale
 // data to reimport.
-CRUCIBLE_EXPOSE Result<File*> openFile(std::string_view utf8Path, uint32_t kind, uint32_t kindVersion);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<File*> openFile(std::string_view utf8Path, uint32_t kind, uint32_t kindVersion);
 
 // The same from bytes in memory, which are copied.
-CRUCIBLE_EXPOSE Result<File*> parseFile(std::span<const uint8_t> bytes, uint32_t kind, uint32_t kindVersion);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<File*> parseFile(std::span<const uint8_t> bytes, uint32_t kind,
+                                                        uint32_t kindVersion);
 
-CRUCIBLE_EXPOSE void closeFile(File* file);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void closeFile(File* file);
 
-CRUCIBLE_EXPOSE uint32_t sectionCount(const File& file);
-CRUCIBLE_EXPOSE SectionInfo sectionInfo(const File& file, uint32_t index);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t sectionCount(const File& file);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE SectionInfo sectionInfo(const File& file, uint32_t index);
 // The first section with the tag, or -1.
-CRUCIBLE_EXPOSE int32_t findSection(const File& file, uint32_t tag);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE int32_t findSection(const File& file, uint32_t tag);
 
 // Decompresses the section into `destination`, which must be its size, and
 // checks its CRC32C: InvalidData if it doesn't match. A file is never
 // changed after opening, so any thread may read sections at once.
-CRUCIBLE_EXPOSE Result<void> readSection(const File& file, uint32_t index, std::span<uint8_t> destination);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<void> readSection(const File& file, uint32_t index,
+                                                         std::span<uint8_t> destination);
 
 struct SectionRead
 {
@@ -157,10 +159,10 @@ struct SectionRead
 
 // Reads several sections, one job each (ADR 0014), and returns when all are
 // done; each read's status says how it went.
-void readSections(const File& file, std::span<SectionRead> reads);
+CRUCIBLE_EXPORT void readSections(const File& file, std::span<SectionRead> reads);
 
 // A raw section where it lies in the file's buffer, after checking its
 // CRC32C: no copy. Unsupported for a compressed section.
-Result<std::span<const std::byte>> rawSection(const File& file, uint32_t index);
+CRUCIBLE_EXPORT Result<std::span<const std::byte>> rawSection(const File& file, uint32_t index);
 
 } // namespace crucible::binary

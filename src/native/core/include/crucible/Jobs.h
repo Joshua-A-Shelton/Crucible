@@ -56,12 +56,12 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL Result<void> initialize(uint32_t worker
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void shutdown();
 
 // Queues `jobs` (copied) and adds them to `counter`.
-void run(std::span<const Job> jobs, JobPriority priority, JobCounter& counter);
+CRUCIBLE_EXPORT void run(std::span<const Job> jobs, JobPriority priority, JobCounter& counter);
 
 // Returns once `counter` reaches zero, running frame jobs meanwhile.
-void wait(JobCounter& counter);
+CRUCIBLE_EXPORT void wait(JobCounter& counter);
 
-bool isDone(const JobCounter& counter);
+CRUCIBLE_EXPORT bool isDone(const JobCounter& counter);
 
 // Calls function(data, begin, end) over [0, count) in batches of
 // `batchSize` (0: an automatic size), in parallel, and waits for all of them.
@@ -74,7 +74,7 @@ CRUCIBLE_EXPORT void parallelFor(uint32_t count, uint32_t batchSize,
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t workerCount();
 
 // The calling thread's worker index, or -1 if it isn't a worker.
-CRUCIBLE_EXPOSE int32_t currentWorker();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE int32_t currentWorker();
 
 // C# jobs (ADR 0014's amendment, M3 step 5). The engine's C# layer sets its
 // trampoline once: an [UnmanagedCallersOnly] method taking (job ID, begin,
@@ -82,7 +82,7 @@ CRUCIBLE_EXPOSE int32_t currentWorker();
 // parallelForManaged is parallelFor with each batch calling the trampoline
 // with `jobId`; the C# side maps the ID to the job body, so native code never
 // holds a pointer into a game assembly. Both internal to the engine.
-CRUCIBLE_EXPOSE_INTERNAL void setManagedTrampoline(uint64_t trampolineAddress);
-CRUCIBLE_EXPOSE_INTERNAL void parallelForManaged(uint64_t jobId, uint32_t count, uint32_t batchSize);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void setManagedTrampoline(uint64_t trampolineAddress);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void parallelForManaged(uint64_t jobId, uint32_t count, uint32_t batchSize);
 
 } // namespace crucible::jobs

@@ -103,3 +103,6 @@ Longer explanations of decisions, written to be reread:
 - [Running standalone](docs/learning/running-standalone.md) (ADR 0073): one
   game in two hosts, the asset cache as the contract between editor and
   game, defaults over boilerplate, and reading a child process's output.
+- [Native modules](docs/learning/native-modules.md) (ADR 0074): exporting a
+  C++ API from a shared library, a variable per library, why there's no
+  ABI promise, and why loading is easy but unloading isn't.

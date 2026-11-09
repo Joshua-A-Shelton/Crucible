@@ -12,6 +12,7 @@
 // concurrently with each other).
 
 #include <crucible/DrawList.h>
+#include <crucible/Export.h>
 #include <crucible/Expose.h>
 #include <crucible/Memory.h>
 #include <crucible/Result.h>
@@ -38,32 +39,32 @@ struct CRUCIBLE_EXPOSE BlackboardKey
 };
 
 // The same name always gives the same key.
-CRUCIBLE_EXPOSE BlackboardKey registerBlackboardKey(std::string_view name);
-CRUCIBLE_EXPOSE std::string_view blackboardKeyName(BlackboardKey key);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE BlackboardKey registerBlackboardKey(std::string_view name);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE std::string_view blackboardKeyName(BlackboardKey key);
 
 // The surface's image, published before the first step runs.
-CRUCIBLE_EXPOSE BlackboardKey backbufferKey();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE BlackboardKey backbufferKey();
 
 // The frame's ViewConstants (shaders/crucible/shared.slang, ADR 0050), in an
 // upload buffer published before the first step runs. Read it as a constant
 // buffer: setConstantBuffer(address, size) with the size of ViewConstants
 // rounded up to slag::alignment::constantBuffer.
-CRUCIBLE_EXPOSE BlackboardKey viewKey();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE BlackboardKey viewKey();
 
 // The MSAA targets the default steps draw into (ADR 0051), at
 // msaaSamples(): SceneDepth (D32Float, from DepthPrepass) and SceneColor
 // (R16G16B16A16Float, linear, from Opaque). Tonemap writes SceneColor to the
 // backbuffer.
-CRUCIBLE_EXPOSE BlackboardKey sceneDepthKey();
-CRUCIBLE_EXPOSE BlackboardKey sceneColorKey();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE BlackboardKey sceneDepthKey();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE BlackboardKey sceneColorKey();
 
 // The frame's lights (ADR 0053), published before the first step runs: the
 // visible lights' LightData (an upload buffer, under Lights), and
 // LightClustering's output (LightClusters: each cluster's light count, then
 // each cluster's list of light indices). Shaders find them through
 // ViewConstants' lights, clusterRanges, and clusterLights slots.
-CRUCIBLE_EXPOSE BlackboardKey lightsKey();
-CRUCIBLE_EXPOSE BlackboardKey lightClustersKey();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE BlackboardKey lightsKey();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE BlackboardKey lightClustersKey();
 
 // The Shadows step's maps (ADR 0054), in the shadow-map depth format:
 // ShadowCascades, the sun's cascades as a 4-layer array, made each frame and
@@ -71,16 +72,16 @@ CRUCIBLE_EXPOSE BlackboardKey lightClustersKey();
 // spot lights' tiles, kept across frames, published only while a light has
 // a tile. Shaders find them through ViewConstants' cascadeMap and
 // shadowAtlas slots (0 when not published).
-CRUCIBLE_EXPOSE BlackboardKey shadowCascadesKey();
-CRUCIBLE_EXPOSE BlackboardKey shadowAtlasKey();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE BlackboardKey shadowCascadesKey();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE BlackboardKey shadowAtlasKey();
 
 // The Bloom step's chain (ADR 0055): half size, one mip per level, the
 // summed glow in mip 0, which Tonemap mixes in. Published only when the
 // camera's PostProcess has bloom.
-CRUCIBLE_EXPOSE BlackboardKey bloomKey();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE BlackboardKey bloomKey();
 
 // What a step sees while it adds its graph passes for one frame.
-class RenderStepContext
+class CRUCIBLE_EXPORT RenderStepContext
 {
 public:
     slag::rendergraph::RenderGraph& graph;
@@ -142,7 +143,7 @@ struct RenderStep
 // The renderer's ordered steps, edited by name like frame phases (ADR 0036).
 // NotFound when the named step isn't there; InvalidData for a name already
 // used; a failed prepare is returned and the step isn't added.
-class RenderSchedule
+class CRUCIBLE_EXPORT RenderSchedule
 {
 public:
     RenderSchedule() = default;
@@ -180,15 +181,15 @@ private:
 // The renderer's schedule, holding the default steps (ADR 0051, 0053, 0054, 0055):
 // DepthPrepass, LightClustering, Shadows, Opaque, Outlines, Sky, Transparent, Bloom,
 // then Tonemap. Surfaces render it unless given another (ADR 0066).
-RenderSchedule& renderSchedule();
+CRUCIBLE_EXPORT RenderSchedule& renderSchedule();
 
 // Schedules besides the default, by ID (ADR 0066): 0 is renderSchedule().
 // A new one holds one step, Clear (the backbuffer cleared to renderFrame's
 // color), for surfaces that draw only what their own steps draw, such as an
 // editor window's UI. Prepared while the renderer runs, like the default.
-uint32_t createSchedule();
-void destroySchedule(uint32_t id);
+CRUCIBLE_EXPORT uint32_t createSchedule();
+CRUCIBLE_EXPORT void destroySchedule(uint32_t id);
 // Null for an ID that was destroyed or never made.
-RenderSchedule* scheduleById(uint32_t id);
+CRUCIBLE_EXPORT RenderSchedule* scheduleById(uint32_t id);
 
 } // namespace crucible::render

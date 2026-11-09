@@ -18,6 +18,9 @@
     <!-- The project's own code (Project/Code, ADR 0072) is compiled in by the
          default glob; what the editor builds and imports beside it isn't. -->
     <Compile Remove="Project/Cache/**" />
+    <!-- Its fields come from the native module's bindings (ADR 0074), which this
+         CMake-built sample doesn't build: it runs without the module. -->
+    <Compile Remove="Project/Code/Bob.cs" />
   </ItemGroup>
 
   <ItemGroup>

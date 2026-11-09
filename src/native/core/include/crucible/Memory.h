@@ -81,7 +81,7 @@ struct CRUCIBLE_EXPOSE MemoryUsage
     uint64_t allocations;
 };
 
-CRUCIBLE_EXPOSE MemoryUsage memoryUsage(MemoryTag tag);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE MemoryUsage memoryUsage(MemoryTag tag);
 
 // The tag's name, for messages ("Render").
 CRUCIBLE_EXPORT const char* memoryTagName(MemoryTag tag);

@@ -82,34 +82,34 @@ struct CRUCIBLE_EXPOSE TextCaret
 // By asset ID (a .crfont), like the GPU assets: acquire loads on first use
 // and counts uses; release unloads after the last. NotFound if the reader
 // has no such asset; InvalidData if its bytes aren't a font FreeType reads.
-CRUCIBLE_EXPOSE Result<FontHandle> acquireFont(assets::AssetId font);
-CRUCIBLE_EXPOSE void releaseFont(FontHandle font);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<FontHandle> acquireFont(assets::AssetId font);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void releaseFont(FontHandle font);
 // From a .crfont's bytes, outside the asset system.
-CRUCIBLE_EXPOSE Result<FontHandle> loadFont(std::span<const uint8_t> bytes);
-CRUCIBLE_EXPOSE void unloadFont(FontHandle font);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<FontHandle> loadFont(std::span<const uint8_t> bytes);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void unloadFont(FontHandle font);
 
 // Shapes UTF-8 text and breaks it into lines no wider than `wrapWidth`
 // (0 or less: only at line breaks), and asks the glyph cache for its
 // glyphs. NotFound for a stale font; InvalidData if the text isn't UTF-8
 // or the style's size isn't positive. A layout keeps its font's data, so it
 // stays valid after the font is released.
-CRUCIBLE_EXPOSE Result<TextLayoutHandle> shapeText(FontHandle font, TextStyle style, std::string_view text,
-                                                   float wrapWidth);
-CRUCIBLE_EXPOSE void destroyTextLayout(TextLayoutHandle layout);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<TextLayoutHandle> shapeText(FontHandle font, TextStyle style,
+                                                                   std::string_view text, float wrapWidth);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void destroyTextLayout(TextLayoutHandle layout);
 
 // Zeros for a stale handle.
-CRUCIBLE_EXPOSE TextMetrics textMetrics(TextLayoutHandle layout);
-CRUCIBLE_EXPOSE TextLine textLine(TextLayoutHandle layout, uint32_t line);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE TextMetrics textMetrics(TextLayoutHandle layout);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE TextLine textLine(TextLayoutHandle layout, uint32_t line);
 // The byte offset nearest a point: the line at its height (clamped to the
 // first and last), then the caret position nearest its x.
-CRUCIBLE_EXPOSE uint32_t hitTestText(TextLayoutHandle layout, float x, float y);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t hitTestText(TextLayoutHandle layout, float x, float y);
 // An offset inside a ligature or a multi-byte character goes to the start
 // of its cluster; past the end, to the end.
-CRUCIBLE_EXPOSE TextCaret textCaret(TextLayoutHandle layout, uint32_t offset);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE TextCaret textCaret(TextLayoutHandle layout, uint32_t offset);
 
 // Drawing (ADR 0059), for the engine's Canvas: the layout's glyphs, an upper
 // bound on the quads writeTextQuads writes.
-CRUCIBLE_EXPOSE_INTERNAL uint32_t textGlyphCount(TextLayoutHandle layout);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL uint32_t textGlyphCount(TextLayoutHandle layout);
 // Writes the layout's glyphs as UiInstances (shaders/crucible/ui.slang) into
 // `out`, and returns how many: glyphs without an image yet (a distance field
 // still generating, a page without its GPU texture) are left out, and appear
@@ -118,9 +118,9 @@ CRUCIBLE_EXPOSE_INTERNAL uint32_t textGlyphCount(TextLayoutHandle layout);
 // `translation`. When that mapping is the layout's DPI scale and a
 // translation, exact glyphs land texel for texel on whole pixels. `color` is
 // linear and premultiplied; `clip` is in physical pixels.
-CRUCIBLE_EXPOSE_INTERNAL uint32_t writeTextQuads(TextLayoutHandle layout, Vector2 origin, Vector4 transform,
-                                                 Vector2 translation, Vector4 color, Vector4 clip,
-                                                 std::span<uint8_t> out);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL uint32_t writeTextQuads(TextLayoutHandle layout, Vector2 origin,
+                                                                 Vector4 transform, Vector2 translation, Vector4 color,
+                                                                 Vector4 clip, std::span<uint8_t> out);
 
 // Destroys every layout, font, and cached glyph, waiting for distance
 // fields still generating. Called by the launcher after the renderer and
@@ -138,6 +138,6 @@ struct PositionedGlyph
     uint32_t offset;
 };
 
-std::span<const PositionedGlyph> textGlyphs(TextLayoutHandle layout);
+CRUCIBLE_EXPORT std::span<const PositionedGlyph> textGlyphs(TextLayoutHandle layout);
 
 } // namespace crucible::text

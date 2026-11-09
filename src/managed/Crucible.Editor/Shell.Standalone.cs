@@ -67,7 +67,7 @@ internal sealed partial class Shell
         {
             _standalone.Start(launcher,
                 StandaloneRun.Arguments(Path.GetDirectoryName(GameBuilder.EngineAssembly())!, game,
-                    project.ProjectFilePath, scene, extra),
+                    project.ProjectFilePath, scene, [.. ModuleArguments(), .. extra]),
                 project.Root);
         }
         catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or IOException)
@@ -78,6 +78,10 @@ internal sealed partial class Shell
         Log($"Running {SceneName} standalone");
         return true;
     }
+
+    // The native module's latest build (ADR 0074): a new process loads it fresh.
+    private string[] ModuleArguments() =>
+        _native is { HasCode: true } native && File.Exists(native.OutputPath) ? ["--module", native.OutputPath] : [];
 
     public void StopStandalone()
     {

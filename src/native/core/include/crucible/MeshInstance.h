@@ -4,6 +4,7 @@
 // C# like the transforms (Crucible.Scenes): MeshInstance is saved in scenes;
 // LoadedMesh is the renderer's, never saved.
 
+#include <crucible/Export.h>
 #include <crucible/Expose.h>
 #include <crucible/RenderAssets.h>
 
@@ -29,6 +30,6 @@ struct CRUCIBLE_EXPOSE LoadedMesh
 };
 
 // Registers MeshInstance and LoadedMesh. Registering again is harmless.
-CRUCIBLE_EXPOSE_INTERNAL void registerMeshInstance();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void registerMeshInstance();
 
 } // namespace crucible::scenes

@@ -4,6 +4,7 @@
 // position and orientation are its entity's WorldTransform (looking along
 // +Z, Y up); scale is ignored. Shared with C# as Crucible.Render.Camera.
 
+#include <crucible/Export.h>
 #include <crucible/Expose.h>
 
 #include <cstdint>
@@ -32,6 +33,6 @@ struct CRUCIBLE_EXPOSE Camera
 
 // Registers the component, and PostProcess (crucible/PostProcess.h).
 // Registering again is harmless.
-CRUCIBLE_EXPOSE_INTERNAL void registerCamera();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void registerCamera();
 
 } // namespace crucible::render

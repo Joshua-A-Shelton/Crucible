@@ -72,7 +72,7 @@ internal sealed record Scope(IReadOnlyList<string> Namespaces)
 
     public string CSharp => string.Join('.', Namespaces.Select(Names.Pascal));
 
-    /// <summary>The namespaces below crucible, joined for C and raw C# names.</summary>
+    /// <summary>The namespaces below the root (crucible, or a module's), joined for C and raw C# names.</summary>
     public IEnumerable<string> Inner => Namespaces.Skip(1);
 
     public bool Equals(Scope? other) => other is not null && Namespaces.SequenceEqual(other.Namespaces);
@@ -139,7 +139,7 @@ internal sealed record ExposedFunction(
     public string QualifiedName => $"{Scope.Cpp}{Name}";
 
     /// <summary>The exported C symbol: crucible_platform_createWindow.</summary>
-    public string CName => string.Join('_', ["crucible", .. Scope.Inner, Name]);
+    public string CName => string.Join('_', [Scope.Namespaces[0], .. Scope.Inner, Name]);
 
     /// <summary>The raw C# layer's method name: PlatformCreateWindow.</summary>
     public string RawName => string.Concat(Scope.Inner.Append(Name).Select(Names.Pascal));

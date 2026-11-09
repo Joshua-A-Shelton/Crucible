@@ -35,6 +35,13 @@ public sealed class ScheduleBuilder
     public bool IncludeNativeSystems { get; set; } = true;
 
     /// <summary>
+    /// Without <see cref="IncludeNativeSystems"/>, whether <see cref="Build"/>
+    /// still adds those native modules registered (ADR 0074): the editor's
+    /// play schedule, beside a main schedule that has the engine's own.
+    /// </summary>
+    public bool IncludeModuleSystems { get; set; }
+
+    /// <summary>
     /// ADR 0036's default frame: BeginFrame, Input, FixedTick (PrePhysics,
     /// Physics, PostPhysics), Update, Animation, LateUpdate, RenderPrepare,
     /// RenderSubmit, EndFrame, with the engine's pacing, input, and present
@@ -143,9 +150,9 @@ public sealed class ScheduleBuilder
         }
 
         List<Entry> systems = [.. _systems];
-        if (IncludeNativeSystems)
+        if (IncludeNativeSystems || IncludeModuleSystems)
         {
-            systems.AddRange(NativeSystem.Registered());
+            systems.AddRange(NativeSystem.Registered(modulesOnly: !IncludeNativeSystems));
         }
 
         // Which phase each system is in; names must be unique.

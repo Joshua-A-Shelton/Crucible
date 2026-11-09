@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 using Crucible.Ecs;
 using Crucible.Loop;
@@ -63,8 +64,26 @@ public static class GameLoader
     private static (AssemblyLoadContext Context, Assembly Assembly) LoadAssembly(string path)
     {
         AssemblyLoadContext context = new($"Game: {Path.GetFileName(path)}", isCollectible: true);
+        // The game's bindings into its native module (ADR 0074) name the
+        // module's library, which the launcher or editor already loaded.
+        context.ResolvingUnmanagedDll += ResolveModule;
         using FileStream stream = File.OpenRead(path);
         return (context, context.LoadFromStream(stream));
+    }
+
+    // A loaded module whose file is named <library>.so or <library>.dll.
+    private static nint ResolveModule(Assembly assembly, string library)
+    {
+        uint count = Api.ModuleCount();
+        for (uint i = 0; i < count; ++i)
+        {
+            string path = Api.ModulePath(i);
+            if (string.Equals(Path.GetFileNameWithoutExtension(path), library, StringComparison.Ordinal))
+            {
+                return NativeLibrary.Load(path);
+            }
+        }
+        return 0;
     }
 
     [RequiresUnreferencedCode(JitOnly)]

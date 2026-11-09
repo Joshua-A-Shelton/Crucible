@@ -16,12 +16,16 @@ internal sealed unsafe class NativeSystem(string name, ulong function, nint user
     public override void Run(FrameContext context) => _function(context.NativeContext, userData);
 
     // Every registered C++ system, as builder entries.
-    internal static List<ScheduleBuilder.Entry> Registered()
+    internal static List<ScheduleBuilder.Entry> Registered(bool modulesOnly = false)
     {
         List<ScheduleBuilder.Entry> entries = [];
         uint count = Api.NativeSystemCount();
         for (uint i = 0; i < count; ++i)
         {
+            if (modulesOnly && !Api.NativeSystemFromModule(i))
+            {
+                continue;
+            }
             entries.Add(new ScheduleBuilder.Entry(
                 Api.NativeSystemPhase(i),
                 new NativeSystem(Api.NativeSystemName(i), Api.NativeSystemFunction(i), Api.NativeSystemUserData(i)),

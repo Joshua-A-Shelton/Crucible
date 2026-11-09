@@ -13,7 +13,8 @@ public static class Program
         "                        --depfile <file>\n" +
         "                        [--include-dir <dir>]... --header <file>... [--extern-header <file>]...\n" +
         "                        [--library <name>] [--interop-namespace <namespace>]\n" +
-        "                        [--export-macro <macro>] [--export-header <include path>]";
+        "                        [--export-macro <macro>] [--export-header <include path>]\n" +
+        "                        [--root-namespace <namespace>]";
 
     public static int Main(string[] args)
     {
@@ -21,7 +22,7 @@ public static class Program
         List<string> headers = [];
         List<string> includeDirectories = [];
         List<string> externHeaders = [];
-        string? library = null, interopNamespace = null, exportMacro = null, exportHeader = null;
+        string? library = null, interopNamespace = null, exportMacro = null, exportHeader = null, root = null;
         for (int i = 0; i + 1 < args.Length; i += 2)
         {
             switch (args[i])
@@ -38,6 +39,7 @@ public static class Program
                 case "--interop-namespace": interopNamespace = args[i + 1]; break;
                 case "--export-macro": exportMacro = args[i + 1]; break;
                 case "--export-header": exportHeader = args[i + 1]; break;
+                case "--root-namespace": root = args[i + 1]; break;
                 default:
                     Console.Error.WriteLine($"crucible-bindgen: unknown argument {args[i]}\n{Usage}");
                     return 2;
@@ -51,7 +53,7 @@ public static class Program
         }
 
         Libclang.Load(libclang);
-        BindingModel? model = Parser.Parse(clang, headers, includeDirectories, externHeaders);
+        BindingModel? model = Parser.Parse(clang, headers, includeDirectories, externHeaders, root);
         if (model is null)
         {
             return 1;

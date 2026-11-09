@@ -5,6 +5,7 @@
 // sort into one order. Names are placeholders (docs/naming.md).
 
 #include <crucible/Ecs.h>
+#include <crucible/Export.h>
 #include <crucible/Expose.h>
 
 #include <cstdint>
@@ -48,29 +49,33 @@ struct SystemDesc
 // Copies the description; registering a name again replaces it. Thread-safe.
 // The registry is read when the C# loop builds a schedule, so register before
 // that; changes later take effect when the schedule is built again.
-void registerSystem(const SystemDesc& desc);
+CRUCIBLE_EXPORT void registerSystem(const SystemDesc& desc);
 
 // Removes the system, if registered. Thread-safe.
-void unregisterSystem(std::string_view name);
+CRUCIBLE_EXPORT void unregisterSystem(std::string_view name);
 
 // The registry, read by the C# schedule builder (ADR 0036). Indices are valid
 // until the registry changes; strings until the call returns.
-CRUCIBLE_EXPOSE_INTERNAL uint32_t nativeSystemCount();
-CRUCIBLE_EXPOSE_INTERNAL std::string_view nativeSystemName(uint32_t index);
-CRUCIBLE_EXPOSE_INTERNAL std::string_view nativeSystemPhase(uint32_t index);
-CRUCIBLE_EXPOSE_INTERNAL uint32_t nativeSystemConstraintCount(uint32_t index, bool before);
-CRUCIBLE_EXPOSE_INTERNAL std::string_view nativeSystemConstraint(uint32_t index, bool before, uint32_t constraint);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL uint32_t nativeSystemCount();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL std::string_view nativeSystemName(uint32_t index);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL std::string_view nativeSystemPhase(uint32_t index);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL uint32_t nativeSystemConstraintCount(uint32_t index, bool before);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL std::string_view nativeSystemConstraint(uint32_t index, bool before,
+                                                                                 uint32_t constraint);
 // The function's address and its user data, which C# calls through a function pointer.
-CRUCIBLE_EXPOSE_INTERNAL uint64_t nativeSystemFunction(uint32_t index);
-CRUCIBLE_EXPOSE_INTERNAL void* nativeSystemUserData(uint32_t index);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL uint64_t nativeSystemFunction(uint32_t index);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void* nativeSystemUserData(uint32_t index);
+// Whether a native module registered it (ADR 0074): the editor plays those
+// without the engine's own, which its schedule already has.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL bool nativeSystemFromModule(uint32_t index);
 
 // Test probe: two C++ systems in `phase`. "crucible.probe.Count" counts its
 // calls and keeps the last context it saw; "crucible.probe.Spawn", ordered
 // after it by a native constraint, records one entity creation per call into
 // the context's command buffer.
-CRUCIBLE_EXPOSE_INTERNAL void registerProbeSystems(std::string_view phase);
-CRUCIBLE_EXPOSE_INTERNAL void unregisterProbeSystems();
-CRUCIBLE_EXPOSE_INTERNAL uint64_t probeSystemCalls();
-CRUCIBLE_EXPOSE_INTERNAL SystemContext probeLastContext();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void registerProbeSystems(std::string_view phase);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void unregisterProbeSystems();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL uint64_t probeSystemCalls();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL SystemContext probeLastContext();
 
 } // namespace crucible::loop

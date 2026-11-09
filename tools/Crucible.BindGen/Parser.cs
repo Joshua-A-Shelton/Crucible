@@ -21,6 +21,9 @@ internal sealed class Parser
     private const string HintHeaderPrefix = "crucible_hint_header:";
 
     private readonly HashSet<string> _headerFiles;
+    // The namespace exposed declarations are under: crucible, or a native
+    // module's own (ADR 0074); the engine's types it uses stay crucible's.
+    private string _root = "crucible";
     private readonly HashSet<string> _externFiles;
     // Whether the declaration being added comes from an extern header: kept
     // for lookups, left out of the model the writers emit.
@@ -42,10 +45,11 @@ internal sealed class Parser
     /// types resolve, but nothing is generated for them.
     /// </param>
     public static BindingModel? Parse(string clang, IReadOnlyList<string> headers,
-        IReadOnlyList<string> includeDirectories, IReadOnlyList<string>? externHeaders = null)
+        IReadOnlyList<string> includeDirectories, IReadOnlyList<string>? externHeaders = null,
+        string? rootNamespace = null)
     {
         externHeaders ??= [];
-        Parser parser = new(headers, externHeaders);
+        Parser parser = new(headers, externHeaders) { _root = rootNamespace ?? "crucible" };
         BindingModel model = new();
         foreach (string header in headers)
         {
@@ -226,11 +230,12 @@ internal sealed class Parser
                 continue;
             }
 
-            // Every exposed name is under crucible::, which becomes the C#
-            // root namespace Crucible.
-            if (namespaces.Count == 0 || namespaces[0] != "crucible" || namespaces.Any(name => name.Length == 0))
+            // Every exposed name is under crucible:: (or a module's root), which
+            // becomes the C# root namespace Crucible.
+            if (namespaces.Count == 0 || (namespaces[0] != "crucible" && namespaces[0] != _root) ||
+                namespaces.Any(name => name.Length == 0))
             {
-                Error(cursor, $"{Libclang.Spelling(cursor)}: exposed declarations must be in namespace crucible " +
+                Error(cursor, $"{Libclang.Spelling(cursor)}: exposed declarations must be in namespace {_root} " +
                               "or a named namespace inside it");
                 continue;
             }

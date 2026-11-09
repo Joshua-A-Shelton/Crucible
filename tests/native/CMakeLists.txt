@@ -86,3 +86,30 @@ set_tests_properties(core.includes PROPERTIES LABELS native)
 add_test(NAME tests.names
     COMMAND "${CMAKE_COMMAND}" -DTEST_DIR=${CMAKE_CURRENT_SOURCE_DIR} -P "${PROJECT_SOURCE_DIR}/cmake/CheckTestNames.cmake")
 set_tests_properties(tests.names PROPERTIES LABELS native)
+# Native modules (ADR 0074) load into the shared core, as the launcher and
+# editor use it, so their tests are an executable of their own.
+add_library(crucible_test_module SHARED modules/TestModule.cpp)
+crucible_set_compile_options(crucible_test_module)
+set_target_properties(crucible_test_module PROPERTIES CXX_VISIBILITY_PRESET hidden)
+target_link_libraries(crucible_test_module PRIVATE crucible::core)
+add_library(crucible_not_a_module SHARED modules/NotAModule.cpp)
+add_executable(crucible_module_tests Main.cpp ModuleTests.cpp)
+crucible_set_compile_options(crucible_module_tests)
+target_compile_definitions(crucible_module_tests PRIVATE DOCTEST_CONFIG_NO_EXCEPTIONS_BUT_WITH_ALL_ASSERTS
+    CRUCIBLE_TEST_MODULE="$<TARGET_FILE:crucible_test_module>"
+    CRUCIBLE_NOT_A_MODULE="$<TARGET_FILE:crucible_not_a_module>")
+target_link_libraries(crucible_module_tests PRIVATE crucible::core doctest::doctest)
+add_dependencies(crucible_module_tests crucible_test_module crucible_not_a_module)
+if(WIN32)
+    add_custom_command(TARGET crucible_module_tests POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            "$<TARGET_FILE:crucible_core>" "$<TARGET_FILE_DIR:crucible_module_tests>"
+        VERBATIM)
+endif()
+doctest_discover_tests(crucible_module_tests ADD_LABELS 1 PROPERTIES LABELS native)
+
+# Every public declaration is exported for native modules (ADR 0074).
+add_test(NAME exports.public
+    COMMAND "${CMAKE_COMMAND}" -DHEADER_DIR=${PROJECT_SOURCE_DIR}/src/native/core/include/crucible
+        -P "${PROJECT_SOURCE_DIR}/cmake/CheckExports.cmake")
+set_tests_properties(exports.public PROPERTIES LABELS native)

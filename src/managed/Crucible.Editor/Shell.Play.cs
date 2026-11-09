@@ -72,6 +72,8 @@ internal sealed partial class Shell
     // before a scene loads), and watched from then on.
     private void OpenProjectCode(Project project)
     {
+        // The native module first: the game's C# uses its bindings.
+        OpenProjectNative(project);
         _codeWatcher?.Dispose();
         _codeWatcher = null;
         _builder = new GameBuilder(project);
@@ -246,7 +248,9 @@ internal sealed partial class Shell
     // The game's systems in a schedule of their own, phase by phase; started.
     private void StartSystems()
     {
-        ScheduleBuilder builder = new() { IncludeNativeSystems = false };
+        // The engine's native systems are in the editor's schedule already; a
+        // native module's are the game's (ADR 0074).
+        ScheduleBuilder builder = new() { IncludeNativeSystems = false, IncludeModuleSystems = true };
         foreach (string phase in (string[])[Phases.BeginFrame, Phases.Input, ScheduleBuilder.FixedTick, Phases.Update,
                      Phases.Animation, Phases.LateUpdate, Phases.RenderPrepare, Phases.RenderSubmit, Phases.EndFrame])
         {

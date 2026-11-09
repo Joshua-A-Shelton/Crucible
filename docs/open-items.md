@@ -44,8 +44,6 @@ is, and record which version fixed it.
 ## Needs a decision from the project owner
 
 - Final names of the default phases (the list is ADR 0036's). → 0013, 0036 [M3]
-- C++ runtime extension mechanism (not plugins; C++ never extends the
-  editor). → 0002 [M7 step 7b]
 - Interfaces for replaceable subsystems, physics and audio included. →
   0006 [M7 step 7c]
 - The pixel-art 2D path details. → 0005 [M11]

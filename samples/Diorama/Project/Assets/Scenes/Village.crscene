@@ -93,6 +93,10 @@
     {
       "Id": "1fa67022344740dc",
       "Components": {
+        "Diorama.Bob": {
+          "Height": 0.12,
+          "Speed": 0.5
+        },
         "Crucible.Render.PointLight": {
           "Color": [1, 0.78, 0.5],
           "Intensity": 7,
@@ -109,6 +113,10 @@
     {
       "Id": "232be8fc53b98f30",
       "Components": {
+        "Diorama.Bob": {
+          "Height": 0.12,
+          "Speed": 0.6
+        },
         "Crucible.Render.PointLight": {
           "Color": [1, 0.78, 0.5],
           "Intensity": 7,

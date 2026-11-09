@@ -28,6 +28,7 @@ struct SystemRecord
     void* userData = nullptr;
     Vector<Vector<char>> before{MemoryTag::General};
     Vector<Vector<char>> after{MemoryTag::General};
+    bool module = false; // registered by a native module as it started (ADR 0074)
 };
 
 struct Registry
@@ -35,6 +36,9 @@ struct Registry
     std::mutex mutex;
     Vector<SystemRecord> systems{MemoryTag::General};
 };
+
+// Set while a module starts (Module.cpp), which happens on the main thread.
+std::atomic<bool> markingModules{false};
 
 Registry& registry()
 {
@@ -75,6 +79,7 @@ void registerSystem(const SystemDesc& desc)
     record->phase = copyOf(desc.phase);
     record->function = desc.function;
     record->userData = desc.userData;
+    record->module = markingModules.load(std::memory_order_relaxed);
     record->before.clear();
     record->after.clear();
     for (const std::string_view name : desc.before)
@@ -139,6 +144,16 @@ uint64_t nativeSystemFunction(uint32_t index)
 void* nativeSystemUserData(uint32_t index)
 {
     return at(index).userData;
+}
+
+bool nativeSystemFromModule(uint32_t index)
+{
+    return at(index).module;
+}
+
+void markModuleSystems(bool marking)
+{
+    markingModules.store(marking, std::memory_order_relaxed);
 }
 
 // ---------------------------------------------------------------------------

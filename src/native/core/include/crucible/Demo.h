@@ -6,6 +6,7 @@
 // asks. It lives in the core until C++ code from outside the engine can
 // register systems (M7). Names are placeholders (docs/naming.md).
 
+#include <crucible/Export.h>
 #include <crucible/Expose.h>
 #include <crucible/Math.h>
 
@@ -46,7 +47,7 @@ struct CRUCIBLE_EXPOSE DemoSettings
 };
 
 // Registers Position, Velocity, and Lifetime. Registering again is harmless.
-CRUCIBLE_EXPOSE void registerDemoComponents();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void registerDemoComponents();
 
 // Registers the C++ systems, with the components:
 // - "crucible.demo.Respawn" in PrePhysics: records creations until the
@@ -56,16 +57,16 @@ CRUCIBLE_EXPOSE void registerDemoComponents();
 //   - drag * v) * step, over every particle, one job per chunk.
 // Register before the schedule is built (ADR 0036). Settings start at zero:
 // configure them before the first frame.
-CRUCIBLE_EXPOSE void registerDemoSystems();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void registerDemoSystems();
 
 // Replaces the settings; call between frames.
-CRUCIBLE_EXPOSE void configureDemo(DemoSettings settings);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void configureDemo(DemoSettings settings);
 
 // Removes the systems and frees their queries; call before destroying the
 // world they ran on.
-CRUCIBLE_EXPOSE void unregisterDemoSystems();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void unregisterDemoSystems();
 
 // How many particles Respawn has recorded since the systems were registered.
-CRUCIBLE_EXPOSE uint64_t demoRespawned();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint64_t demoRespawned();
 
 } // namespace crucible::demo

@@ -21,6 +21,7 @@
 //
 // SIMD comes in M3 step 3, as separate compute types; these stay plain data.
 
+#include <crucible/Export.h>
 #include <crucible/Expose.h>
 
 #include <cmath>
@@ -89,8 +90,8 @@ struct CRUCIBLE_EXPOSE_AS("System.Numerics.Quaternion") Quaternion
     }
 
     // `axis` must be normalized.
-    static Quaternion fromAxisAngle(Vector3 axis, float angle);
-    static Quaternion fromYawPitchRoll(float yaw, float pitch, float roll);
+    CRUCIBLE_EXPORT static Quaternion fromAxisAngle(Vector3 axis, float angle);
+    CRUCIBLE_EXPORT static Quaternion fromYawPitchRoll(float yaw, float pitch, float roll);
 };
 
 // Four rows; with row vectors, rows[3] holds the translation.
@@ -103,26 +104,28 @@ struct CRUCIBLE_EXPOSE_AS("System.Numerics.Matrix4x4") Matrix4x4
         return {{{1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}}};
     }
 
-    static Matrix4x4 translation(Vector3 offset);
-    static Matrix4x4 scale(Vector3 factors);
-    static Matrix4x4 rotationX(float angle);
-    static Matrix4x4 rotationY(float angle);
-    static Matrix4x4 rotationZ(float angle);
-    static Matrix4x4 rotation(Quaternion rotation);
+    CRUCIBLE_EXPORT static Matrix4x4 translation(Vector3 offset);
+    CRUCIBLE_EXPORT static Matrix4x4 scale(Vector3 factors);
+    CRUCIBLE_EXPORT static Matrix4x4 rotationX(float angle);
+    CRUCIBLE_EXPORT static Matrix4x4 rotationY(float angle);
+    CRUCIBLE_EXPORT static Matrix4x4 rotationZ(float angle);
+    CRUCIBLE_EXPORT static Matrix4x4 rotation(Quaternion rotation);
 
     // A left-handed perspective projection, depth 0 at `nearPlane` and 1 at
     // `farPlane`. `fieldOfViewY` is the full vertical angle.
-    static Matrix4x4 perspectiveFieldOfView(float fieldOfViewY, float aspectRatio, float nearPlane, float farPlane);
+    CRUCIBLE_EXPORT static Matrix4x4 perspectiveFieldOfView(float fieldOfViewY, float aspectRatio, float nearPlane,
+                                                            float farPlane);
     // A left-handed orthographic projection centered on the view axis.
-    static Matrix4x4 orthographic(float width, float height, float nearPlane, float farPlane);
+    CRUCIBLE_EXPORT static Matrix4x4 orthographic(float width, float height, float nearPlane, float farPlane);
     // The renderer's projections (ADR 0050): reverse-Z, so depth is 1 at
     // `nearPlane` and falls toward 0 with distance, where floats are most
     // precise. The perspective one has no far plane: depth reaches 0 only at
     // infinity.
-    static Matrix4x4 perspectiveReverseZInfinite(float fieldOfViewY, float aspectRatio, float nearPlane);
-    static Matrix4x4 orthographicReverseZ(float width, float height, float nearPlane, float farPlane);
+    CRUCIBLE_EXPORT static Matrix4x4 perspectiveReverseZInfinite(float fieldOfViewY, float aspectRatio,
+                                                                 float nearPlane);
+    CRUCIBLE_EXPORT static Matrix4x4 orthographicReverseZ(float width, float height, float nearPlane, float farPlane);
     // A left-handed view matrix: the camera at `eye`, looking at `target`.
-    static Matrix4x4 lookAt(Vector3 eye, Vector3 target, Vector3 up);
+    CRUCIBLE_EXPORT static Matrix4x4 lookAt(Vector3 eye, Vector3 target, Vector3 up);
 };
 
 // ---------------------------------------------------------------------------
@@ -443,11 +446,11 @@ inline Matrix4x4 transpose(const Matrix4x4& m)
     return result;
 }
 
-float determinant(const Matrix4x4& m);
+CRUCIBLE_EXPORT float determinant(const Matrix4x4& m);
 
 // Writes the inverse to `result` and returns true, or returns false (and
 // writes NaNs, as System.Numerics does) if `m` isn't invertible.
-bool invert(const Matrix4x4& m, Matrix4x4& result);
+CRUCIBLE_EXPORT bool invert(const Matrix4x4& m, Matrix4x4& result);
 
 // p * M with w = 1: rotates, scales, and translates a point.
 constexpr Vector3 transformPoint(Vector3 p, const Matrix4x4& m)
