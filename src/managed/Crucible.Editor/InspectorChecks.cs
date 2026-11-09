@@ -161,6 +161,29 @@ internal sealed class InspectorChecks : GameSystem
         Check(!transform.Editors[0].IsOverridden &&
               Vector3.Distance(world.Read<LocalTransform>(part).Position, partStart) < 1e-4f, "Revert puts the prefab's back");
 
+        // Long field names stay in their column: none reaches the controls beside it.
+        Entity spot = SceneIds.Of(world).Entities.FirstOrDefault(entity => world.Has(entity, Components.Of<Crucible.Render.SpotLight>()));
+        Check(!spot.IsNull, "the village has a spot light");
+        shell.Selection.Selected = spot;
+        yield return 3;
+        foreach (FieldEditor editor in inspector.Sections.SelectMany(section => section.Editors))
+        {
+            UIElement name = H.Descendants(editor).OfType<Label>().First();
+            float controls = editor.Controls.Select(control => control.Bounds.Left).DefaultIfEmpty(float.MaxValue).Min();
+            Check(name.Bounds.Right <= controls + 0.5f, "a field's name stays left of its controls",
+                $"{editor.Field.Name}: {name.Bounds.Right} > {controls}");
+            UIElement[] row = [.. editor.Controls];
+            for (int i = 0; i < row.Length; ++i)
+            {
+                for (int j = i + 1; j < row.Length; ++j)
+                {
+                    Check(!row[i].Bounds.IntersectsWith(row[j].Bounds), "a field's controls don't overlap",
+                        $"{editor.Field.Name}: {row[i].GetType().Name} {row[i].Bounds} and {row[j].GetType().Name} {row[j].Bounds}");
+                }
+            }
+        }
+        V.Save(shell.Main.Surface, Path.ChangeExtension(_capture, ".spot.png"));
+
         // Components added and removed, each undoable; an enum set from its drop-down.
         Entity empty = shell.CreateEmpty(Entity.Null);
         yield return 2;

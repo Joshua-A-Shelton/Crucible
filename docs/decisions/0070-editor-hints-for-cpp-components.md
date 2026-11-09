@@ -42,3 +42,10 @@ headers already carry show in the editor with no extra work.
 - **Tests:** `FieldTableTests` checks the hints on `PointLight`,
   `SpotLight`, `PostProcess`, `Camera`, and `AmbientLight`, and comment
   tooltips from the same line and from the lines above.
+- **Tried by the owner on KWin (2026-11-09):** swatches, sliders, the
+  header, and tooltips show, but long field names ("Inner Cone Angle",
+  "Casts Shadows") ran under the controls beside them, and sliders under
+  their number fields (the theme's sliders are a fixed 200 wide). Names
+  now wrap within their column, and the inspector's sliders take the room
+  left; `launcher.jit.inspector` checks a spot light's names and controls
+  don't overlap.

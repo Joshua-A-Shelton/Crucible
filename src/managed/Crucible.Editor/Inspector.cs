@@ -378,7 +378,8 @@ public sealed class FieldEditor : UIElement
         Field = field;
         _label = label;
         _path = path;
-        _name = new Label(label) { VerticalAlignment = VerticalAlignment.Center, Width = LabelWidth };
+        // Long names wrap within the column rather than run under the controls.
+        _name = new Label(label) { VerticalAlignment = VerticalAlignment.Center, Width = LabelWidth, Wrap = true };
         _name.Classes.Add("field-name");
         DockPanel.SetDock(_name, Dock.Left);
         _row.Add(_name);
@@ -514,7 +515,8 @@ public sealed class FieldEditor : UIElement
                     {
                         slider = new Slider
                         {
-                            Minimum = (float)min, Maximum = (float)max, Step = whole ? 1 : 0, MinWidth = 80,
+                            // As wide as the room left, not the theme's fixed width.
+                            Minimum = (float)min, Maximum = (float)max, Step = whole ? 1 : 0, MinWidth = 60, Width = float.NaN,
                             VerticalAlignment = VerticalAlignment.Center,
                         };
                         bool showing = false;
