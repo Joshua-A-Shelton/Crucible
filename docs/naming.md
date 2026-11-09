@@ -451,7 +451,7 @@ shell's `Play()`, `Stop()`, `IsPlaying`, `PlayStateChanged`, the command
 Playing", `GameBuildTests`, `PlayModeTests`, CTest `launcher.jit.play`,
 `play.png`, ADR 0072, `docs/learning/play-mode-and-reloading.md` (and, for
 6b, `RenderAssets.Reload(AssetId)`, `reloadRenderAsset`). Names added while
-building are placeholders (marked *):
+building (marked *) settled as drafted too:
 
 | Name | What it is |
 |---|---|
