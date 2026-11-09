@@ -16,6 +16,7 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <string>
 #include <string_view>
@@ -243,6 +244,21 @@ int run(int argc, ArgumentChar** argv)
     }
 #else
     (void)gameGiven;
+#endif
+
+#if defined(CRUCIBLE_EDITOR_LAUNCHER)
+    // A click on an editor window acts even when it also focuses the window
+    // (ADR 0071): SDL drops it otherwise, so after a drag between windows the
+    // first press in the other one did nothing. Games keep SDL's default. An
+    // environment variable is a hint SDL reads at startup; one already set wins.
+#if defined(_WIN32)
+    if (std::getenv("SDL_MOUSE_FOCUS_CLICKTHROUGH") == nullptr)
+    {
+        _putenv_s("SDL_MOUSE_FOCUS_CLICKTHROUGH", "1");
+    }
+#else
+    setenv("SDL_MOUSE_FOCUS_CLICKTHROUGH", "1", 0);
+#endif
 #endif
 
     // Platform, job system, and renderer setup and shutdown belong to the

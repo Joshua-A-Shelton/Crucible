@@ -185,6 +185,11 @@ internal sealed class AssetChecks : GameSystem
             yield return 2;
         }
         Check(!shell.Placing.IsNull, "a drag carried in from another window places it", $"dragging {root.IsDragging}");
+        // Placing undone mid-drag (the drag handed back and forth): the next move starts it again.
+        shell.CancelPlacement();
+        root.ContinueDrag(carried, null, middle + new Vector2(35, 0));
+        yield return 2;
+        Check(!shell.Placing.IsNull, "a move over the view starts placing again");
         root.DropAt(middle + new Vector2(30, 0));
         yield return 2;
         Check(shell.Placing.IsNull && shell.History.NextUndo?.Title == "Place House", "and the drop keeps it",

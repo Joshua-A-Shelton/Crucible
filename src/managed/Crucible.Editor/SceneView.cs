@@ -64,6 +64,12 @@ public sealed class SceneView : UIElement
 
     protected override void OnDragOver(DragEvent e)
     {
+        // Started here too, not only on entering: a drag handed over from
+        // another window can arrive already over the view (ADR 0071).
+        if (_shell.Placing.IsNull && e.Payload is AssetDrag drag)
+        {
+            _shell.BeginPlacement(this, drag, DragPixel(e)); // says why when it can't
+        }
         if (!_shell.Placing.IsNull)
         {
             e.Accepted = true;

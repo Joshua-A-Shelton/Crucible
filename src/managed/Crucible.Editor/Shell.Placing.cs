@@ -50,6 +50,7 @@ internal sealed partial class Shell
         catch (Exception exception) when (exception is System.Text.Json.JsonException or InvalidDataException)
         {
             Status($"Can't place {drag.Path}: {exception.Message}");
+            Debug($"  not placing {drag.Path}: {exception.GetType().Name}: {exception.Message}");
             return;
         }
         _placeView = view;
@@ -250,7 +251,9 @@ internal sealed partial class Shell
         {
             Vector2 at = pixels / target.Root.Scale;
             Debug($"  in window {over.Value}: scale {target.Root.Scale}, size {target.Root.Size}, at {at}, over " +
-                  $"{target.Root.HitTest(at)?.GetType().Name}, dragging {target.Root.IsDragging}, placing {_placing.Value}");
+                  $"{target.Root.HitTest(at)?.GetType().Name}, {target.Root.DragState}, placing {_placing.Value}, " +
+                  $"payload {carried.Payload}, can place {CanPlace(carried.Payload)} (asset " +
+                  $"{(carried.Payload is AssetDrag d ? Database?.Find(d.Id)?.Importer ?? "unknown" : "-")}, prefabs {Prefabs is not null})");
         }
     }
 
@@ -270,8 +273,9 @@ internal sealed partial class Shell
             }
             if (dropped && window.Window.Value == over.Value)
             {
+                string before = window.Root.DragState;
                 bool taken = window.Root.DropAt(pixels / window.Root.Scale);
-                Debug($"  dropped in window {over.Value}: taken {taken}, placing {_placing.Value}");
+                Debug($"  dropped in window {over.Value}: taken {taken}, placing {_placing.Value} (before: {before})");
             }
             else
             {

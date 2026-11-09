@@ -22,6 +22,10 @@ public sealed partial class UIRoot
     /// <summary>Whether a drag is under way in this root.</summary>
     public bool IsDragging => _dragPayload is not null;
 
+    // For hosts' diagnostics: the drop target and whether it accepted.
+    internal string DragState =>
+        $"target {_dragTarget?.GetType().Name ?? "none"}, accepted {_dragAccepted}, payload {_dragPayload is not null}";
+
     /// <summary>What's being dragged here, or null.</summary>
     public object? DragPayload => _dragPayload;
 

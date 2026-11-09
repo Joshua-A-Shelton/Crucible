@@ -137,3 +137,13 @@ Unity places assets.
     logged. With the fixes above, the owner's next drag from the floating
     window placed the house; `launcher.jit.assets` checks a drag carried
     in from another window.
+- **Tried again by the owner on KWin:** drags from the floating window
+  then worked every other time. Two causes:
+  - **placing began only on entering the viewport**, which a drag handed
+    over between windows could miss: the viewport now also begins placing
+    on a move over it (`launcher.jit.assets` checks it);
+  - **SDL drops the click that focuses a window** (on Wayland, Windows,
+    and X11, unless `SDL_MOUSE_FOCUS_CLICKTHROUGH` is set). After a drop
+    KWin focused the main window, so the next press on the floating one
+    only focused it. The editor's launcher now sets the hint (games keep
+    SDL's default); every drag then worked.
