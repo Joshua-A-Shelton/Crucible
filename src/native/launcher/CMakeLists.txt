@@ -267,6 +267,18 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "AssetChecks: all [0-9]+ checks passed")
 
+    # Play mode and the project's code checking themselves (ADR 0072): a copy
+    # of the Diorama's project (beside the capture) built, played, stopped,
+    # and hot-reloaded; the window saved as play.png while playing.
+    add_test(NAME launcher.jit.play
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
+            --project "${PROJECT_SOURCE_DIR}/samples/Diorama/Project/Diorama.crproject"
+            --game-arg "check-play=${CMAKE_CURRENT_BINARY_DIR}/play.png"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/play-settings.json")
+    set_tests_properties(launcher.jit.play PROPERTIES LABELS "integration;gpu" TIMEOUT 300
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "PlayChecks: all [0-9]+ checks passed")
+
     # The M6 demonstration (ADR 0064): the UI showcase's menu driven by mouse,
     # keyboard, and gamepad scripts, and captured at four DPI scales; on
     # Windows, on D3D12 too, the captures compared.

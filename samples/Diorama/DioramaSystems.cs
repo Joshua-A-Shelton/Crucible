@@ -11,7 +11,7 @@ namespace Crucible.Samples.Diorama;
 
 // The M5 demonstration (ADR 0056). Each frame:
 //   BeginFrame  DioramaSetup    (first frame) imports the project and builds the scene
-//   Update      SpinSystem      turns the heroes
+//   Update      SpinSystem      turns the heroes (the project's own code, Project/Code)
 //   ...         the engine's propagation and render systems
 //   EndFrame    DioramaFinish   captures, compares, or measures, then quits
 
@@ -167,7 +167,10 @@ public sealed class DioramaSetup : GameSystem
         });
         // Facing the camera (its nose on glTF's +Z, which the camera looks
         // along); SpinSystem turns it from there.
-        Heroes.Add(Place(models.Hero, Vector3.Zero, MathF.PI));
+        // Turned by the project's own code (Project/Code/Spin.cs, ADR 0072).
+        Entity hero = Place(models.Hero, Vector3.Zero, MathF.PI);
+        world.Set(hero, new global::Diorama.Spin { Start = MathF.PI, PerFrame = 0.08f });
+        Heroes.Add(hero);
     }
 
     // The camera with its finishing, the evening sun, the ambient light, and
@@ -236,27 +239,6 @@ public sealed class DioramaSetup : GameSystem
             string target = Path.Combine(to, relative);
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             File.Copy(file, target);
-        }
-    }
-}
-
-/// <summary>
-/// Turns every hero a little each frame, by the frame's number, so every run
-/// shows the same turn at the same frame.
-/// </summary>
-[System(Phases.Update)]
-public sealed class SpinSystem : GameSystem
-{
-    private int _frames;
-
-    public override void Run(FrameContext context)
-    {
-        ++_frames;
-        World world = context.World;
-        foreach (Entity hero in DioramaSetup.Heroes)
-        {
-            world.Get<LocalTransform>(hero).Rotation =
-                Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI + 0.08f * _frames);
         }
     }
 }

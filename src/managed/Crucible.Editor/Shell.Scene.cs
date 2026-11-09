@@ -115,7 +115,7 @@ internal sealed partial class Shell
 
     private void UpdateTitle()
     {
-        string scene = SceneName + (IsDirty ? "*" : "");
+        string scene = SceneName + (IsDirty ? "*" : "") + (IsPlaying ? " — Playing" : "");
         Main.TitleBar.Title = Project is { } project
             ? $"{scene} — {project.Name} — {EngineInfo.Name}"
             : $"{scene} — {EngineInfo.Name}";

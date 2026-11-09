@@ -44,7 +44,7 @@ public sealed class EditorSystem : GameSystem
 
     public override void Stop(FrameContext context)
     {
-        _shell?.Stop();
+        _shell?.Shutdown();
         _shell = null;
     }
 }

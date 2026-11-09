@@ -59,7 +59,7 @@ public class DockingTests
 
         public void Dispose()
         {
-            Shell.Stop();
+            Shell.Shutdown();
             Directory.Delete(Folder, true);
         }
     }
@@ -217,7 +217,7 @@ public class DockingTests
         rig.Shell.RestoreLayout(JsonNode.Parse("""{ "Main": { "Panels": ["Nope", "Log", "Log"] } }""")!.AsObject());
         await Assert.That(string.Join(",", rig.Space.Panels.Select(panel => panel.Id))).IsEqualTo("Log");
         rig.Shell.RestoreLayout(JsonNode.Parse("""{ "Main": { "Children": [] } }""")!.AsObject());
-        await Assert.That(rig.Space.Panels.Count()).IsEqualTo(5);
+        await Assert.That(rig.Space.Panels.Count()).IsEqualTo(6);
     }
 
     // The same tree: the same panels and splits, sizes within float rounding.
@@ -260,10 +260,10 @@ public class DockingTests
 
         // The shell saves its layout on stop, and starts from it.
         rig.Shell.TogglePanel("Inspector");
-        rig.Shell.Stop();
+        rig.Shell.Shutdown();
         Shell again = new(new FrameContext(), rig.SettingsPath);
         await Assert.That(again.Main.DockSpace.Panels.Any(panel => panel.Id == "Inspector")).IsFalse();
-        again.Stop();
+        again.Shutdown();
     }
 
     [Test]

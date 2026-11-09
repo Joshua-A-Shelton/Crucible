@@ -180,7 +180,7 @@ internal sealed partial class Shell
         }
     }
 
-    public void Stop()
+    public void Shutdown()
     {
         if (_stopped)
         {
@@ -188,6 +188,11 @@ internal sealed partial class Shell
         }
         _stopped = true;
         _watcher?.Dispose();
+        _codeWatcher?.Dispose();
+        if (IsPlaying)
+        {
+            StopSystems();
+        }
         Settings.Layout = SaveLayout();
         SaveSettings();
         foreach (EditorWindow window in _windows.ToArray())
@@ -251,6 +256,7 @@ internal sealed partial class Shell
         Log($"{database.Assets.Count()} assets, {imported} imported" + (failed > 0 ? $", {failed} failed" : ""));
         WatchAssets(project);
         AssetsChanged?.Invoke();
+        OpenProjectCode(project);
     }
 
     // -----------------------------------------------------------------------
@@ -338,6 +344,7 @@ internal sealed partial class Shell
             Selection.Selected = Entity.Null;
         }
         PollAssets();
+        PollCode();
         UpdatePlacement();
         if (_open.GetValueOrDefault("Hierarchy") is HierarchyPanel hierarchy)
         {
@@ -358,6 +365,10 @@ internal sealed partial class Shell
             {
                 viewport.View.Render(world, outlined);
                 viewport.Refresh();
+            }
+            else if (panel is GamePanel game && game.Root is not null && game.Group?.ActivePanel == game)
+            {
+                game.View.Render(world);
             }
         }
         if (_pickView is { } view && view.Surface.Value != 0)
@@ -489,6 +500,7 @@ internal sealed partial class Shell
         });
         RegisterSceneCommands();
         RegisterAssetCommands();
+        RegisterPlayCommands();
         Commands.Add(new Command("File.Quit", "Quit", RequestQuit)
         {
             Shortcut = new Shortcut(KeyModifiers.Ctrl, Keycode.Q),
@@ -520,6 +532,8 @@ internal sealed partial class Shell
         Menu edit = Main.MenuBar.Add("Edit");
         edit.Add(Commands.Find("Edit.Undo")!);
         edit.Add(Commands.Find("Edit.Redo")!);
+        edit.AddSeparator();
+        edit.Add(Commands.Find("Play.Toggle")!);
         edit.AddSeparator();
         edit.Add(Commands.Find("Edit.Rename")!);
         edit.Add(Commands.Find("Edit.Duplicate")!);
@@ -567,6 +581,7 @@ internal sealed partial class Shell
         Panels.Register("Viewport", "Viewport", () => new ViewportPanel(this));
         Panels.Register("Inspector", "Inspector", () => new InspectorPanel(this));
         Panels.Register("Assets", "Assets", () => new AssetsPanel(this));
+        Panels.Register("Game", "Game", () => new GamePanel(this));
         Panels.Register("Log", "Log", () => new LogPanel());
     }
 
@@ -983,7 +998,7 @@ internal sealed partial class Shell
     private UIElement DefaultLayout()
     {
         DockSplit middle = new(Orientation.Vertical);
-        middle.Add(Group("Viewport"), 0.68f);
+        middle.Add(Group("Viewport", "Game"), 0.68f);
         middle.Add(Group("Assets", "Log"), 0.32f);
         DockSplit columns = new(Orientation.Horizontal);
         columns.Add(Group("Hierarchy"), 0.2f);

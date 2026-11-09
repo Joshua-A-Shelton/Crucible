@@ -442,3 +442,22 @@ Settled as drafted: `UIRoot.BeginDrag(payload, preview)`, `CancelDrag`,
 | The shell's `AssetsChanged`*, `RefreshAssets`*, `Reimport`*, `CanPlace`*, `Placing`*, `Place`*, `PlacementPoint`*; `AssetChecks`*, `--game-arg check-assets`*; classes `asset-crumb`*, `asset-name`*, `drag-preview`* | The editor's parts |
 | "Open", "No project open", "(not an asset)", "no importer", "not imported", "Assets / …" | Text users see |
 
+## Play mode and a project's code (2026-11-09, M7 step 6a)
+
+Settled as drafted: `GameBuilder`, the generated project
+`Cache/Build/<Project>.Game.csproj` building `<Project>.Game.dll`, the
+shell's `Play()`, `Stop()`, `IsPlaying`, `PlayStateChanged`, the command
+`Play.Toggle` ("Play", Ctrl+P), `GamePanel` ("Game"), the title's "—
+Playing", `GameBuildTests`, `PlayModeTests`, CTest `launcher.jit.play`,
+`play.png`, ADR 0072, `docs/learning/play-mode-and-reloading.md` (and, for
+6b, `RenderAssets.Reload(AssetId)`, `reloadRenderAsset`). Names added while
+building are placeholders (marked *):
+
+| Name | What it is |
+|---|---|
+| `GameBuilder` (`AssemblyName`*, `ProjectFile`*, `OutputPath`*, `HasCode`*, `IsBuilding`*, `Start`*, `TakeFinished`*, `BuildNow`*, `ProjectText`*), `BuildError`* (`File`*, `Line`*, `Message`*), `GameBuild`* (`Succeeded`*, `Assembly`*, `Errors`*, `Output`*) | Building |
+| The shell's `Game`*, `Builder`*, `BuildCode`*, `Shutdown`* (was `Stop`) | The shell |
+| `GameView`* (`Surface`*, `HasInput`*, `TakeInput`*), `GamePanel.View`*; `PlayPhaseSystem`* and `PlayBeginFrame`*, `PlayInput`*, `PlayPrePhysics`*, `PlayPhysics`*, `PlayPostPhysics`*, `PlayUpdate`*, `PlayAnimation`*, `PlayLateUpdate`*, `PlayRenderPrepare`*, `PlayRenderSubmit`*, `PlayEndFrame`* | Play's parts |
+| `Diorama.Spin`* (`Start`*, `PerFrame`*), `Diorama.SpinSystem`*; `PlayChecks`*, `--game-arg check-play`* | Sample and checks |
+| "Building <name>…", "Build error: …", "The game didn't build", "Reloaded while playing", "Playing (no game code: nothing runs)", "Stopped: the scene is as it was" | Text users see |
+

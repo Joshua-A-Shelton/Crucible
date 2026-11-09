@@ -96,3 +96,6 @@ Longer explanations of decisions, written to be reread:
 - [Drag and drop, and file watching](docs/learning/drag-drop-and-file-watching.md)
   (ADR 0071): a drag as a mode, crossing windows, a live placement preview
   from picked depth, and debouncing a folder's changes.
+- [Play mode and reloading](docs/learning/play-mode-and-reloading.md) (ADR 0072):
+  building a game the editor doesn't know, load contexts and unloading,
+  play as a snapshot, a schedule inside a schedule, and input focus.

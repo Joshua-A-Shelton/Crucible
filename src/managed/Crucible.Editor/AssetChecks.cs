@@ -224,7 +224,7 @@ internal sealed class AssetChecks : GameSystem
 
     private static string Names(AssetsPanel assets) => string.Join(",", assets.Tiles.Select(tile => tile.Path));
 
-    private static void CopyProject(string from, string to)
+    internal static void CopyProject(string from, string to)
     {
         foreach (string directory in Directory.EnumerateDirectories(from, "*", SearchOption.AllDirectories))
         {

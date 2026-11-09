@@ -446,7 +446,11 @@ tried by hand by the owner on KWin. Step 4 is done. Step 5 built (ADR
 a file watcher that imports changes, drag and drop in Crucible.UI carried
 between windows, and models placed by dragging them into the viewport
 (a live preview landing on the picked surface) or onto the hierarchy;
-tried by hand by the owner on KWin.
+tried by hand by the owner on KWin. Step 6a built (ADR 0072): a project's
+own code (Project/Code) built through a generated project and loaded when
+the project opens, hot-reloaded on save; Play and Stop by snapshot; a Game
+panel through the world's camera, with the input. The Diorama's gameplay
+moved into its project. Step 6b (assets reloaded on the GPU) is next.
 
 ## M8 — Animation and audio
 

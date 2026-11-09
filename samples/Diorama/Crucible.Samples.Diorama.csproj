@@ -15,6 +15,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- The project's own code (Project/Code, ADR 0072) is compiled in by the
+         default glob; what the editor builds and imports beside it isn't. -->
+    <Compile Remove="Project/Cache/**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- The engine isn't copied: at runtime it comes from the default load
          context, as for every game (ADR 0011). The asset pipeline is. -->
     <ProjectReference Include="../../src/managed/Crucible.Engine/Crucible.Engine.csproj" Private="false" />

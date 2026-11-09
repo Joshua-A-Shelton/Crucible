@@ -157,6 +157,25 @@ public sealed class UndoHistory
         Changed?.Invoke(this);
     }
 
+    // Play mode (ADR 0072): the history as it was at Play, put back at Stop
+    // with the scene, dropping what was recorded while playing.
+    internal sealed record Saved(UndoStep[] Done, UndoStep[] Undone, UndoStep? SavedAt, bool SavedLost);
+
+    internal Saved Save() => new([.. _done], [.. _undone], _saved, _savedLost);
+
+    internal void Restore(Saved saved)
+    {
+        _done.Clear();
+        _done.AddRange(saved.Done);
+        _undone.Clear();
+        _undone.AddRange(saved.Undone);
+        _saved = saved.SavedAt;
+        _savedLost = saved.SavedLost;
+        _open = null;
+        _depth = 0;
+        Changed?.Invoke(this);
+    }
+
     /// <summary>Forgets every step (a scene opened or made new); what's there counts as saved.</summary>
     public void Clear()
     {
