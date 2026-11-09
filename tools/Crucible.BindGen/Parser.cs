@@ -15,6 +15,10 @@ internal sealed class Parser
     private const string StatusAnnotation = "crucible_status";
     private const string InternalAnnotation = "crucible_internal";
     private const string ExposeAsPrefix = "crucible_expose_as:";
+    private const string HintColor = "crucible_hint_color";
+    private const string HintRangePrefix = "crucible_hint_range:";
+    private const string HintTooltipPrefix = "crucible_hint_tooltip:";
+    private const string HintHeaderPrefix = "crucible_hint_header:";
 
     private readonly HashSet<string> _headerFiles;
     private readonly HashSet<string> _externFiles;
@@ -250,6 +254,90 @@ internal sealed class Parser
         }
     }
 
+    // A field's editor hints (ADR 0070): its CRUCIBLE_HINT_* annotations, and
+    // for a tooltip without one, its comment: on the field's line after it,
+    // or the comment lines just above it.
+    private FieldHints? HintsOf(CXCursor field, string display)
+    {
+        string? tooltip = null, header = null, min = null, max = null;
+        bool color = false;
+        foreach (string annotation in Libclang.Children(field).Where(child => child.Kind == CursorKind.AnnotateAttr)
+                     .Select(Libclang.Spelling))
+        {
+            if (annotation == HintColor)
+            {
+                color = true;
+            }
+            else if (annotation.StartsWith(HintRangePrefix, StringComparison.Ordinal))
+            {
+                string[] bounds = annotation[HintRangePrefix.Length..].Split(':');
+                if (bounds.Length != 2 || !TryNumber(bounds[0], out min) || !TryNumber(bounds[1], out max))
+                {
+                    Error(field, $"{display}: CRUCIBLE_HINT_RANGE takes two numbers");
+                }
+            }
+            else if (annotation.StartsWith(HintTooltipPrefix, StringComparison.Ordinal))
+            {
+                tooltip = annotation[HintTooltipPrefix.Length..];
+            }
+            else if (annotation.StartsWith(HintHeaderPrefix, StringComparison.Ordinal))
+            {
+                header = annotation[HintHeaderPrefix.Length..];
+            }
+        }
+        tooltip ??= CommentOf(field);
+        return tooltip is null && header is null && min is null && !color ? null : new FieldHints(tooltip, header, min, max, color);
+    }
+
+    // A number as the macro spelled it ("0", "-1", "3.14159f"), as a C# float literal.
+    private static bool TryNumber(string spelled, out string? literal)
+    {
+        string text = spelled.Trim().TrimEnd('f', 'F');
+        literal = float.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture,
+            out float value)
+            ? value.ToString("R", System.Globalization.CultureInfo.InvariantCulture) + "f"
+            : null;
+        return literal is not null;
+    }
+
+    private readonly Dictionary<string, string[]> _lines = new(StringComparer.Ordinal);
+
+    private string? CommentOf(CXCursor field)
+    {
+        if (Libclang.Line(field) is not var (file, line) || line < 1)
+        {
+            return null;
+        }
+        if (!_lines.TryGetValue(file, out string[]? lines))
+        {
+            lines = System.IO.File.Exists(file) ? System.IO.File.ReadAllLines(file) : [];
+            _lines[file] = lines;
+        }
+        if (line > lines.Length)
+        {
+            return null;
+        }
+        string own = lines[line - 1];
+        int trailing = own.IndexOf("//", own.IndexOf(';') + 1, StringComparison.Ordinal);
+        if (own.IndexOf(';') >= 0 && trailing >= 0)
+        {
+            return Tidy(own[(trailing + 2)..]);
+        }
+        List<string> above = [];
+        for (int i = line - 2; i >= 0 && lines[i].TrimStart().StartsWith("//", StringComparison.Ordinal); --i)
+        {
+            above.Insert(0, lines[i].TrimStart()[2..].TrimStart('/'));
+        }
+        return above.Count > 0 ? Tidy(string.Join(" ", above.Select(text => text.Trim()))) : null;
+    }
+
+    // Whitespace collapsed, and the first letter capitalized, as a sentence.
+    private static string? Tidy(string text)
+    {
+        string trimmed = string.Join(" ", text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        return trimmed.Length == 0 ? null : char.ToUpperInvariant(trimmed[0]) + trimmed[1..];
+    }
+
     private static bool HasAnnotation(CXCursor cursor, string annotation) =>
         Libclang.Children(cursor).Any(child =>
             child.Kind == CursorKind.AnnotateAttr && Libclang.Spelling(child) == annotation);
@@ -347,7 +435,8 @@ internal sealed class Parser
             if (fieldType is not null)
             {
                 // libclang reports offsets in bits.
-                exposed.Fields.Add(new Field(name, fieldType, Libclang.CursorGetOffsetOfField(field) / 8));
+                exposed.Fields.Add(new Field(name, fieldType, Libclang.CursorGetOffsetOfField(field) / 8,
+                    HintsOf(field, $"{qualifiedName}::{name}")));
             }
         }
 

@@ -129,6 +129,10 @@ internal static class CSharpWriter
         foreach (Field field in exposed.Fields)
         {
             string name = Names.Pascal(field.Name);
+            if (field.Hints is { } hints)
+            {
+                text.AppendLine($"        {Attributes(hints)}");
+            }
             if (field.Type.Is(Primitive.Bool))
             {
                 // bool isn't blittable in .NET: store the C++ byte, expose a bool.
@@ -436,4 +440,30 @@ internal static class CSharpWriter
     }
 
     private static string Identifier(string name) => _keywords.Contains(name) ? $"@{name}" : name;
+
+    // A field's editor hints (ADR 0070) as the serializer's attributes.
+    private static string Attributes(FieldHints hints)
+    {
+        List<string> attributes = [];
+        if (hints.Header is { } header)
+        {
+            attributes.Add($"global::Crucible.Serialization.Header({Literal(header)})");
+        }
+        if (hints.Color)
+        {
+            attributes.Add("global::Crucible.Serialization.Color");
+        }
+        if (hints.Min is { } min && hints.Max is { } max)
+        {
+            attributes.Add($"global::Crucible.Serialization.Range({min}, {max})");
+        }
+        if (hints.Tooltip is { } tooltip)
+        {
+            attributes.Add($"global::Crucible.Serialization.Tooltip({Literal(tooltip)})");
+        }
+        return $"[{string.Join(", ", attributes)}]";
+    }
+
+    private static string Literal(string text) =>
+        "\"" + text.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";
 }

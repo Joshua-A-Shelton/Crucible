@@ -83,4 +83,25 @@ public class FieldTableTests
             .IsEqualTo("Position:Vector3 Rotation:Quaternion Scale:Vector3");
         await Assert.That(Crucible.Render.Camera.SerializedFields.Count).IsGreaterThan(2);
     }
+
+    // C++ components' hints (ADR 0070): CRUCIBLE_HINT_* annotations, and comments as tooltips.
+    [Test]
+    public async Task EngineComponentsCarryTheirHeadersHints()
+    {
+        SerializedField Find(IReadOnlyList<SerializedField> fields, string name) => fields.Single(field => field.Name == name);
+        IReadOnlyList<SerializedField> point = Crucible.Render.PointLight.SerializedFields;
+        await Assert.That(Find(point, "Color").IsColor).IsTrue();
+        await Assert.That(Find(point, "Color").Tooltip).IsEqualTo("Linear");
+        await Assert.That(Find(point, "Range").Tooltip).IsEqualTo("Meters: no light past it");
+        await Assert.That(Find(point, "Intensity").Tooltip).IsNull();
+        SerializedField cone = Find(Crucible.Render.SpotLight.SerializedFields, "OuterConeAngle");
+        await Assert.That(cone.HasRange && cone.Min == 0 && Math.Abs(cone.Max - 3.14159f) < 1e-5f).IsTrue();
+        SerializedField contrast = Find(Crucible.Render.PostProcess.SerializedFields, "Contrast");
+        await Assert.That(contrast.Header).IsEqualTo("Grading");
+        await Assert.That(contrast.Min).IsEqualTo(-1f);
+        // The comment lines above a field are its tooltip when it has none on its line.
+        await Assert.That(Find(Crucible.Render.Camera.SerializedFields, "Priority").Tooltip)
+            .IsEqualTo("The renderer draws from the camera with the highest priority; among equals, the one with the lowest entity index.");
+        await Assert.That(Find(Crucible.Render.AmbientLight.SerializedFields, "SkyColor").IsColor).IsTrue();
+    }
 }

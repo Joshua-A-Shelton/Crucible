@@ -22,7 +22,7 @@ namespace crucible::render {
 
 struct CRUCIBLE_EXPOSE DirectionalLight
 {
-    Vector3 color; // linear
+    CRUCIBLE_HINT_COLOR Vector3 color; // linear
     float intensity;
     bool castsShadows;    // only the brightest casting directional light does
     float shadowDistance; // meters from the camera that shadows reach; 0 for 100
@@ -30,7 +30,7 @@ struct CRUCIBLE_EXPOSE DirectionalLight
 
 struct CRUCIBLE_EXPOSE PointLight
 {
-    Vector3 color;
+    CRUCIBLE_HINT_COLOR Vector3 color; // linear
     float intensity;
     float range; // meters: no light past it
     bool castsShadows;
@@ -40,11 +40,11 @@ struct CRUCIBLE_EXPOSE PointLight
 // light is at full strength, and it fades to nothing at outerConeAngle.
 struct CRUCIBLE_EXPOSE SpotLight
 {
-    Vector3 color;
+    CRUCIBLE_HINT_COLOR Vector3 color; // linear
     float intensity;
     float range;
-    float innerConeAngle;
-    float outerConeAngle;
+    CRUCIBLE_HINT_RANGE(0, 3.14159f) float innerConeAngle; // full strength inside, in radians
+    CRUCIBLE_HINT_RANGE(0, 3.14159f) float outerConeAngle; // no light outside, in radians
     bool castsShadows;
 };
 
@@ -53,8 +53,8 @@ struct CRUCIBLE_EXPOSE SpotLight
 // the lowest entity index; with none, no ambient light.
 struct CRUCIBLE_EXPOSE AmbientLight
 {
-    Vector3 skyColor;
-    Vector3 groundColor;
+    CRUCIBLE_HINT_COLOR Vector3 skyColor;    // from above
+    CRUCIBLE_HINT_COLOR Vector3 groundColor; // from below
     float intensity;
 };
 

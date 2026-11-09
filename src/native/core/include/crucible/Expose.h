@@ -23,6 +23,14 @@
 // existing C# type with the same layout, instead of generating a mirror
 // (ADR 0024's amendment): the math storage types cross as System.Numerics.
 //
+// Editor hints on an exposed struct's fields (ADR 0070) become the C#
+// mirror's [Color], [Range], [Tooltip], and [Header] (ADR 0069), which the
+// inspector reads. A field's comment (after it on its line, or the comment
+// lines just above it) is its tooltip unless CRUCIBLE_HINT_TOOLTIP gives one.
+//
+//     CRUCIBLE_HINT_COLOR Vector3 color; // linear
+//     CRUCIBLE_HINT_RANGE(0, 3.14159f) float innerConeAngle;
+//
 // Names are placeholders (docs/naming.md).
 
 #if defined(CRUCIBLE_BINDGEN)
@@ -31,9 +39,17 @@
 #define CRUCIBLE_EXPOSE_AS(csharpType)                                                                                 \
     __attribute__((annotate("crucible_expose"), annotate("crucible_expose_as:" csharpType)))
 #define CRUCIBLE_EXPOSE_INTERNAL __attribute__((annotate("crucible_expose"), annotate("crucible_internal")))
+#define CRUCIBLE_HINT_COLOR __attribute__((annotate("crucible_hint_color")))
+#define CRUCIBLE_HINT_RANGE(min, max) __attribute__((annotate("crucible_hint_range:" #min ":" #max)))
+#define CRUCIBLE_HINT_TOOLTIP(text) __attribute__((annotate("crucible_hint_tooltip:" text)))
+#define CRUCIBLE_HINT_HEADER(text) __attribute__((annotate("crucible_hint_header:" text)))
 #else
 #define CRUCIBLE_EXPOSE
 #define CRUCIBLE_EXPOSE_STATUS
 #define CRUCIBLE_EXPOSE_AS(csharpType)
 #define CRUCIBLE_EXPOSE_INTERNAL
+#define CRUCIBLE_HINT_COLOR
+#define CRUCIBLE_HINT_RANGE(min, max)
+#define CRUCIBLE_HINT_TOOLTIP(text)
+#define CRUCIBLE_HINT_HEADER(text)
 #endif

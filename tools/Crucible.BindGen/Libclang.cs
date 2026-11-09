@@ -267,6 +267,15 @@ internal static unsafe partial class Libclang
         return file == 0 ? "<unknown>" : $"{Take(GetFileName(file))}:{line}:{column}";
     }
 
+    /// <summary>The file and line a cursor is spelled at, or null.</summary>
+    public static (string File, int Line)? Line(CXCursor cursor)
+    {
+        nint file;
+        uint line, column, offset;
+        GetSpellingLocation(GetCursorLocation(cursor), &file, &line, &column, &offset);
+        return file == 0 ? null : (Take(GetFileName(file)), (int)line);
+    }
+
     /// <summary>The file a cursor is spelled in, or null.</summary>
     public static string? File(CXCursor cursor)
     {

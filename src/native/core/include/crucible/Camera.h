@@ -21,10 +21,10 @@ enum class CRUCIBLE_EXPOSE CameraProjection : uint32_t
 struct CRUCIBLE_EXPOSE Camera
 {
     CameraProjection projection;
-    float fieldOfViewY;       // perspective: the full vertical angle, in radians
-    float orthographicHeight; // orthographic: the full height of the view, in meters
-    float nearPlane;          // meters from the camera
-    float farPlane;           // orthographic only
+    CRUCIBLE_HINT_RANGE(0.01f, 3.13f) float fieldOfViewY; // perspective: the full vertical angle, in radians
+    float orthographicHeight;                             // orthographic: the full height of the view, in meters
+    float nearPlane;                                      // meters from the camera
+    float farPlane;                                       // orthographic only
     // The renderer draws from the camera with the highest priority; among
     // equals, the one with the lowest entity index.
     int32_t priority;

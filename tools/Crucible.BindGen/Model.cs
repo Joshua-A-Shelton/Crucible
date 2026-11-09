@@ -80,7 +80,13 @@ internal sealed record Scope(IReadOnlyList<string> Namespaces)
     public override int GetHashCode() => CSharp.GetHashCode(StringComparison.Ordinal);
 }
 
-internal sealed record Field(string Name, TypeRef Type, long Offset);
+internal sealed record Field(string Name, TypeRef Type, long Offset, FieldHints? Hints = null);
+
+/// <summary>
+/// A field's editor hints (ADR 0070), from CRUCIBLE_HINT_* annotations and its
+/// comment, written onto the C# mirror as the serializer's attributes.
+/// </summary>
+internal sealed record FieldHints(string? Tooltip, string? Header, string? Min, string? Max, bool Color);
 
 /// <summary>
 /// A struct declared but not defined in the headers, marked CRUCIBLE_EXPOSE:

@@ -27,16 +27,16 @@ struct CRUCIBLE_EXPOSE PostProcess
 {
     float exposure; // EV: each +1 doubles the light before tonemapping
     Tonemapper tonemapper;
-    float bloomStrength;  // how much of the bloom is mixed in; 0.04 is a good start
-    float bloomThreshold; // only light past this blooms (with a soft knee); 0 for all of it
+    CRUCIBLE_HINT_RANGE(0, 1) float bloomStrength; // how much of the bloom is mixed in; 0.04 is a good start
+    float bloomThreshold;                          // only light past this blooms (with a soft knee); 0 for all of it
     // Grading, after tonemapping except white balance (before it):
-    float contrast;    // -1 to 1, around mid-gray
-    float saturation;  // -1 (gray) to 1
-    float temperature; // -1 (cooler, bluer) to 1 (warmer)
-    float tint;        // -1 (greener) to 1 (more magenta)
-    Vector3 lift;      // added to the shadows, per channel
-    Vector3 gamma;     // raises (positive) or lowers the midtones, per channel
-    Vector3 gain;      // scales the highlights: 0 is x1, 1 is x2, per channel
+    CRUCIBLE_HINT_HEADER("Grading") CRUCIBLE_HINT_RANGE(-1, 1) float contrast; // -1 to 1, around mid-gray
+    CRUCIBLE_HINT_RANGE(-1, 1) float saturation;                               // -1 (gray) to 1
+    CRUCIBLE_HINT_RANGE(-1, 1) float temperature;                              // -1 (cooler, bluer) to 1 (warmer)
+    CRUCIBLE_HINT_RANGE(-1, 1) float tint;                                     // -1 (greener) to 1 (more magenta)
+    Vector3 lift;                                                              // added to the shadows, per channel
+    Vector3 gamma; // raises (positive) or lowers the midtones, per channel
+    Vector3 gain;  // scales the highlights: 0 is x1, 1 is x2, per channel
 };
 
 } // namespace crucible::render

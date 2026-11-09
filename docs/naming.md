@@ -409,3 +409,14 @@ Settled as drafted: `SerializedFields`, `SerializedField` (`Name`,
 | The shell's `SetComponent`*, `AddComponent`*, `RemoveComponent`*; `InspectorChecks`*, `--game-arg check-inspector`* | The editor's parts |
 | Internal: `IconButton`*, `PrefabValues`*, `ComponentSection.Json`* | Insides |
 | "Nothing selected", "No fields", "Hex", "Value", "Matrix", "N items", "N entries (read-only)", "None"; step titles "Edit <field>", "Add to <list>", "Remove from <list>", "Add Component", "Remove Component", "Revert", "Revert All" | Text users see |
+
+## Editor hints for C++ components (2026-11-09, ADR 0070)
+
+Settled as drafted: `CRUCIBLE_HINT_COLOR`, `CRUCIBLE_HINT_RANGE(min, max)`,
+`CRUCIBLE_HINT_TOOLTIP("…")`, `CRUCIBLE_HINT_HEADER("…")`, ADR 0070
+"Editor hints for C++ components", the tests in `FieldTableTests`, the
+section "Hints from C++ headers" in `docs/learning/inspectors-and-metadata.md`.
+Added while building (placeholders): the binding generator's `FieldHints`*
+(internal), the annotations `crucible_hint_color`*, `crucible_hint_range:`*,
+`crucible_hint_tooltip:`*, `crucible_hint_header:`*, and the header "Grading"*.
+

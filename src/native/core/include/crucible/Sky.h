@@ -16,12 +16,12 @@ namespace crucible::render {
 
 struct CRUCIBLE_EXPOSE Sky
 {
-    Vector3 zenithColor;
-    Vector3 horizonColor;
-    Vector3 groundColor;
+    CRUCIBLE_HINT_COLOR Vector3 zenithColor;
+    CRUCIBLE_HINT_COLOR Vector3 horizonColor;
+    CRUCIBLE_HINT_COLOR Vector3 groundColor;
     float intensity;
-    float sunSize;      // the disk's angular diameter, in radians; 0 for none
-    float sunIntensity; // times the sun's color with its intensity
+    CRUCIBLE_HINT_RANGE(0, 0.5f) float sunSize; // the disk's angular diameter, in radians; 0 for none
+    float sunIntensity;                         // times the sun's color with its intensity
 };
 
 } // namespace crucible::render

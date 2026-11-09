@@ -81,3 +81,16 @@ those are, the inspector loads the prefab into a scratch world, the same
 way saving does, finds the entity that corresponds to the selected one
 (by the scene ID the instance derives for it), and compares each field's
 JSON. Reverting a field is setting it back to the prefab's JSON.
+
+## Hints from C++ headers
+
+The engine's own components are C++ structs; their C# halves are written
+by the binding generator, which reads the headers with libclang (ADR
+0017). C# attributes can't be added to fields declared in another part of
+a partial struct, so the hints start in C++ instead: macros like
+`CRUCIBLE_HINT_COLOR` are empty for the compiler but become clang
+"annotate" attributes while the generator parses. The generator copies
+them onto the C# field as `[Color]`, and from there everything works as
+for a C# field. A field's comment becomes its tooltip, so what the header
+explains to a programmer, the editor explains to a designer (ADR 0070).
+
