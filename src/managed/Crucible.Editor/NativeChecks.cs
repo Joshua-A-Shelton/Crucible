@@ -103,7 +103,7 @@ internal sealed class NativeChecks : GameSystem
         yield return 20;
         float playing = world.Read<LocalTransform>(light).Position.Y;
         Check(MathF.Abs(playing - placed) > 1e-4f, "playing bobs the light", $"{placed} then {playing}");
-        Check(BobbedLastFrame(shell) == 2, "C# reads the module's count through the bindings",
+        Check(BobbedLastFrame(shell) == 4, "C# reads the module's count through the bindings",
             $"{BobbedLastFrame(shell)}");
         shell.Stop();
         yield return 2;

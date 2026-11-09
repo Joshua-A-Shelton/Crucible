@@ -145,7 +145,7 @@ cost, and Run Standalone keeps iteration fast.
   `ModuleLoaded`; `Project.NativeFolder`; the game's project compiles the
   bindings and allows unsafe code.
 - **Sample:** samples/Diorama/Project/Native/Bob.h and Bob.cpp, Code/Bob.cs;
-  Bob on the village's two lamp lights; `bobbedLastFrame()` for C# to call.
+  the village's four lamp lights named "Lamp Light", each with a Bob; `bobbedLastFrame()` for C# to call.
 - **Tests:**
   - **`ModuleTests`** (an executable on the shared core): a module loaded
     once, its system marked as a module's, stopped; a missing file and a
@@ -156,6 +156,6 @@ cost, and Run Standalone keeps iteration fast.
   - **`launcher.jit.native`:** on a copy of the Diorama's project, the
     module built and loaded before the C#; Bob known and on the lamp
     light; Play bobs it, C# reads `bobbedLastFrame()` through the bindings
-    (2), Stop puts it back; a standalone run with the module; a broken C++
+    (4), Stop puts it back; a standalone run with the module; a broken C++
     file reported with its file, line, and column; the fixed build asks
     for a restart.
