@@ -1,7 +1,7 @@
 # 0071 — The asset browser
 
 **Status:** Accepted (2026-11-09); built. Names settled by the owner as
-drafted; those added while building are placeholders (docs/naming.md).
+drafted, including those added while building (docs/naming.md).
 
 ## Context
 

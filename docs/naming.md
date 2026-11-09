@@ -431,7 +431,7 @@ Settled as drafted: `UIRoot.BeginDrag(payload, preview)`, `CancelDrag`,
 <name>", `DragDropTests`, `AssetBrowserTests`, `AssetWatcherTests`, CTest
 `launcher.jit.assets`, `assets.png`, ADR 0071,
 `docs/learning/drag-drop-and-file-watching.md`. Names added while building
-are placeholders (marked *):
+(marked *) settled as drafted too:
 
 | Name | What it is |
 |---|---|
