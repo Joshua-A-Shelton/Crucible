@@ -100,3 +100,6 @@ Longer explanations of decisions, written to be reread:
   building a game the editor doesn't know, load contexts and unloading,
   play as a snapshot, a schedule inside a schedule, input focus, and
   reloading GPU assets while frames still use them.
+- [Running standalone](docs/learning/running-standalone.md) (ADR 0073): one
+  game in two hosts, the asset cache as the contract between editor and
+  game, defaults over boilerplate, and reading a child process's output.

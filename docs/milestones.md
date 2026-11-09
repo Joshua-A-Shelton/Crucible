@@ -417,7 +417,11 @@ decision made at its start):
    editor builds games.
 7. Run standalone (the game as its own process) and the deferred
    decisions: the C++ runtime extension mechanism if needed, interfaces
-   for the replaceable subsystems.
+   for the replaceable subsystems. Split in three (owner, 2026-11-09):
+   - 7a: Run standalone.
+   - 7b: the C++ runtime extension mechanism (designed now, not left open).
+   - 7c: interfaces for the replaceable subsystems, physics and audio
+     included.
 8. The demonstration: the "done when" session scripted and checked
    headless, then tried by hand.
 
@@ -453,8 +457,10 @@ panel through the world's camera, with the input. The Diorama's gameplay
 moved into its project. Step 6b built: textures, models, materials, and
 game shaders reloaded on the GPU in place after a reimport, waiting for
 the GPU first; a failed reload keeps the old version; tried by hand by
-the owner on KWin. Step 6 is done. Step 7 (Run
-standalone) is next.
+the owner on KWin. Step 6 is done. Step 7a built (ADR 0073): Run
+Standalone runs the open scene in the game launcher, which opens the
+project's imported files through the engine's `AssetCache`. Steps 7b (the
+C++ runtime extension mechanism) and 7c (subsystem interfaces) are next.
 
 ## M8 — Animation and audio
 

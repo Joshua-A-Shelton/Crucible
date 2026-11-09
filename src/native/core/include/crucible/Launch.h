@@ -18,6 +18,7 @@ struct CRUCIBLE_EXPOSE LaunchOptions
     uint32_t frameLimit; // --frames N: stop after N frames; 0 runs until quit
     bool headless;       // --headless: no window; frames render into an offscreen surface
     bool noPacing;       // --no-pacing: skip BeginFrame's pacing wait (ADR 0003 lets games opt out)
+    bool editor;         // the editor launcher: the editor opens --project and --scene itself (ADR 0073)
 };
 
 // --latency <file>: where the latency harness writes its CSV. Strings can't

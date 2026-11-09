@@ -50,6 +50,9 @@ public sealed class Command
 
     public string Title { get; }
 
+    /// <summary>A title that follows the state ("Stop Standalone" while running); menus read it as they open.</summary>
+    public Func<string>? CurrentTitle { get; init; }
+
     public Shortcut? Shortcut { get; init; }
 
     /// <summary>For an on-off command ("Show grid"): whether it's on now, shown as a check in menus.</summary>

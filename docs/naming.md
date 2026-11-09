@@ -475,3 +475,25 @@ settled as drafted too:
 | `reloadMaterialAsset`*, `reloadGameShader`*, `waitForReload`*, `renderAssetReloads`* (RenderInternal.h) | Internal hooks |
 | `LoadedMaterial::mismatched`* | A material whose reloaded shader's type changed size |
 
+## Running a project standalone (2026-11-09, M7 step 7a)
+
+Settled as drafted: the launcher's `--project` and `--scene` in the game
+launcher (the game arguments `project=` and `scene=`), `ProjectStartup`
+(Crucible.Hosting), `StandaloneRun`, `Cache/Run/<Scene>.crscene`, the
+command `Play.RunStandalone` ("Run Standalone", Ctrl+Shift+P; "Stop
+Standalone" while running), "Running <scene> standalone", "[game] <line>",
+"The standalone run ended (exit code N)", ADR 0073 "Running a project
+standalone", `docs/learning/running-standalone.md`, `ProjectStartupTests`,
+`StandaloneRunTests`, CTest `launcher.jit.standalone` ("StandaloneChecks:
+all N checks passed"). `AssetCache` (Crucible.Assets, in the engine)
+replaces the drafted `AssetDatabase.OpenImported`, chosen by the owner.
+Names added while building are placeholders (marked *):
+
+| Name | What it is |
+|---|---|
+| `AssetCache` (`Open`*, `Read`*, `FileOf`*, `Prefabs`*, `Count`*, `Root`*, `CacheFolder`*) | The engine's read-only cache |
+| `ProjectStartup.Open`*; `LaunchOptions.editor`* | Opening a project in a game |
+| `Command.CurrentTitle`* | A command's title that follows its state |
+| `StandaloneRun` (`Arguments`*, `LauncherPath`*, `Start`*, `TakeLines`*, `TakeExit`*, `Stop`*, `IsRunning`*); the shell's `RunStandalone`*, `StopStandalone`*, `Standalone`* | The editor's parts |
+| `StandaloneChecks`*, `--game-arg check-standalone`* | The check |
+| "opened <scene>: N entities at the top"*, "<scene> has <component>, which nothing registered"*, "The standalone run was stopped"*, "Can't run standalone: …"* | Text users see |

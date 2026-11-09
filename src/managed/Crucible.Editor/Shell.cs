@@ -189,6 +189,7 @@ internal sealed partial class Shell
         _stopped = true;
         _watcher?.Dispose();
         _codeWatcher?.Dispose();
+        _standalone.Stop();
         if (IsPlaying)
         {
             StopSystems();
@@ -345,6 +346,7 @@ internal sealed partial class Shell
         }
         PollAssets();
         PollCode();
+        PollStandalone();
         UpdatePlacement();
         if (_open.GetValueOrDefault("Hierarchy") is HierarchyPanel hierarchy)
         {
@@ -501,6 +503,7 @@ internal sealed partial class Shell
         RegisterSceneCommands();
         RegisterAssetCommands();
         RegisterPlayCommands();
+        RegisterStandaloneCommands();
         Commands.Add(new Command("File.Quit", "Quit", RequestQuit)
         {
             Shortcut = new Shortcut(KeyModifiers.Ctrl, Keycode.Q),
@@ -534,6 +537,7 @@ internal sealed partial class Shell
         edit.Add(Commands.Find("Edit.Redo")!);
         edit.AddSeparator();
         edit.Add(Commands.Find("Play.Toggle")!);
+        edit.Add(Commands.Find("Play.RunStandalone")!);
         edit.AddSeparator();
         edit.Add(Commands.Find("Edit.Rename")!);
         edit.Add(Commands.Find("Edit.Duplicate")!);

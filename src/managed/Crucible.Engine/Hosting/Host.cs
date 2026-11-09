@@ -102,11 +102,18 @@ public static class Host
         game?.RegisterServices(services);
         ScheduleBuilder builder = ScheduleBuilder.CreateDefault();
         game?.RegisterSystems(builder);
+        Dictionary<string, string> arguments = GameArguments();
+        // --project and --scene: the project's scene, there before the game's
+        // systems start (ADR 0073); the editor opens its own.
+        if (!options.Editor)
+        {
+            ProjectStartup.Open(world, arguments);
+        }
         FrameContext context = new()
         {
             World = world,
             Services = services,
-            GameArguments = GameArguments(),
+            GameArguments = arguments,
             Window = window,
             Surface = surface,
             Pacing = !options.NoPacing,

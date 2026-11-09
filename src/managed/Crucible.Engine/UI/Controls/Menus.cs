@@ -71,7 +71,7 @@ public class Menu : UIElement
 
     internal void Closed(MenuItem? opener) => opener?.Classes.Remove("open");
 
-    // Items running commands show whether they can run and are on, as of now.
+    // Items running commands show whether they can run, are on, and their title, as of now.
     private void Refresh()
     {
         foreach (UIElement child in _items.Children)
@@ -82,6 +82,10 @@ public class Menu : UIElement
                 if (command.IsChecked is { } isChecked)
                 {
                     item.IsChecked = isChecked();
+                }
+                if (command.CurrentTitle is { } title)
+                {
+                    item.Title = title();
                 }
             }
         }

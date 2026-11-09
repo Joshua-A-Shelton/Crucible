@@ -104,13 +104,16 @@ int run(int argc, ArgumentChar** argv)
     // --present-mode fifo|mailbox overrides ADR 0003's default, both for
     // measuring. --msaa 1|2|4|8 sets the MSAA sample count (ADR 0051);
     // --shadow-map-size N and --shadow-atlas-size N the shadow maps' sizes
-    // (ADR 0054). The editor launcher also takes --project <file> and
-    // --scene <file>, the project and scene to open (the editor's game
-    // arguments project= and scene=).
+    // (ADR 0054). --project <file> and --scene <file> name the project and
+    // scene to open (the game arguments project= and scene=): the engine
+    // opens them for a game (ADR 0073), the editor for itself.
     std::filesystem::path managedDirectory = executableDirectory();
     bool gameGiven = false;
     slag::Backend backend = slag::InstanceDesc{}.backend;
     crucible::LaunchOptions options{};
+#if defined(CRUCIBLE_EDITOR_LAUNCHER)
+    options.editor = true;
+#endif
     crucible::render::PresentPreference presentMode = crucible::render::PresentPreference::Default;
     uint32_t workers = 0;
     uint32_t msaa = 0; // 0: the renderer's default
@@ -180,7 +183,6 @@ int run(int argc, ArgumentChar** argv)
             crucible::setGamePath({reinterpret_cast<const char*>(utf8.data()), utf8.size()});
             gameGiven = true;
         }
-#if defined(CRUCIBLE_EDITOR_LAUNCHER)
         else if (option == CRUCIBLE_ARGUMENT("--project") || option == CRUCIBLE_ARGUMENT("--scene"))
         {
             std::error_code error;
@@ -189,7 +191,6 @@ int run(int argc, ArgumentChar** argv)
             const std::u8string utf8 = key + (error ? std::filesystem::path(value) : path).u8string();
             crucible::addGameArgument({reinterpret_cast<const char*>(utf8.data()), utf8.size()});
         }
-#endif
         else if (option == CRUCIBLE_ARGUMENT("--game-arg"))
         {
             const std::u8string utf8 = std::filesystem::path(value).u8string();

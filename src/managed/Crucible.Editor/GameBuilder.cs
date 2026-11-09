@@ -215,7 +215,7 @@ public sealed partial class GameBuilder
     // The editor runs JIT only (ADR 0016), never as a single-file app.
     [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("SingleFile", "IL3000",
         Justification = "The editor is never published as a single file")]
-    private static string EngineAssembly() => typeof(Crucible.Ecs.World).Assembly.Location;
+    internal static string EngineAssembly() => typeof(Crucible.Ecs.World).Assembly.Location;
 
     private static string Sanitize(string name)
     {
