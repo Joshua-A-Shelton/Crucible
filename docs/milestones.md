@@ -459,7 +459,8 @@ game shaders reloaded on the GPU in place after a reimport, waiting for
 the GPU first; a failed reload keeps the old version; tried by hand by
 the owner on KWin. Step 6 is done. Step 7a built (ADR 0073): Run
 Standalone runs the open scene in the game launcher, which opens the
-project's imported files through the engine's `AssetCache`. Steps 7b (the
+project's imported files through the engine's `AssetCache`; tried by hand
+by the owner on KWin. Steps 7b (the
 C++ runtime extension mechanism) and 7c (subsystem interfaces) are next.
 
 ## M8 — Animation and audio

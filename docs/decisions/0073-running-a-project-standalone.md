@@ -1,8 +1,8 @@
 # 0073 — Running a project standalone
 
-**Status:** Accepted (2026-11-09); part a of M7 step 7 built. Names settled
-by the owner as drafted, except `AssetCache` (chosen while building, see
-below); those added while building are placeholders (docs/naming.md).
+**Status:** Accepted (2026-11-09); part a of M7 step 7 built and tried by
+hand by the owner on KWin. Names settled by the owner as drafted, except
+`AssetCache` (chosen while building, see below) (docs/naming.md).
 
 ## Context
 

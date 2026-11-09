@@ -487,7 +487,7 @@ standalone", `docs/learning/running-standalone.md`, `ProjectStartupTests`,
 `StandaloneRunTests`, CTest `launcher.jit.standalone` ("StandaloneChecks:
 all N checks passed"). `AssetCache` (Crucible.Assets, in the engine)
 replaces the drafted `AssetDatabase.OpenImported`, chosen by the owner.
-Names added while building are placeholders (marked *):
+Names added while building (marked *) settled as drafted too:
 
 | Name | What it is |
 |---|---|
