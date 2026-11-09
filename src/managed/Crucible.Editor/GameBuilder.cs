@@ -13,7 +13,7 @@ namespace Crucible.Editor;
 /// folder, through a project file the editor writes (Cache/Build/&lt;Project&gt;.Game.csproj:
 /// the engine referenced, not copied; the engine's source generators; the
 /// engine's AOT-safe settings), with <c>dotnet build</c> run in the
-/// background. The build's errors come back with their file and line.
+/// background. The build's errors come back with their file, line, and column.
 /// </summary>
 public sealed partial class GameBuilder
 {
@@ -58,7 +58,7 @@ public sealed partial class GameBuilder
         }
         _running = null;
         return done.IsFaulted
-            ? new GameBuild(false, null, [new BuildError("", 0, done.Exception?.GetBaseException().Message ?? "the build failed")], "")
+            ? new GameBuild(false, null, [new BuildError("", 0, 0, done.Exception?.GetBaseException().Message ?? "the build failed")], "")
             : done.Result;
     }
 
@@ -130,7 +130,7 @@ public sealed partial class GameBuilder
     {
         if (DotnetPath() is not { } dotnet)
         {
-            return new GameBuild(false, null, [new BuildError("", 0, "no dotnet found to build with (set DOTNET_ROOT)")], "");
+            return new GameBuild(false, null, [new BuildError("", 0, 0, "no dotnet found to build with (set DOTNET_ROOT)")], "");
         }
         ProcessStartInfo start = new(dotnet)
         {
@@ -162,18 +162,19 @@ public sealed partial class GameBuilder
         if (!built && errors.Count == 0)
         {
             string first = all.Split('\n').Select(line => line.Trim()).FirstOrDefault(line => line.Length > 0) ?? "";
-            errors.Add(new BuildError("", 0, $"dotnet build failed ({process.ExitCode}): {first}"));
+            errors.Add(new BuildError("", 0, 0, $"dotnet build failed ({process.ExitCode}): {first}"));
         }
         return new GameBuild(built, built ? OutputPath : null, errors, all);
     }
 
     // "path(12,5): error CS1002: ; expected [project]"
-    [GeneratedRegex(@"^(?<file>.+?)\((?<line>\d+),\d+\): error (?<code>\w+): (?<message>.*?)( \[[^\]]*\])?$", RegexOptions.Multiline)]
+    [GeneratedRegex(@"^(?<file>.+?)\((?<line>\d+),(?<column>\d+)\): error (?<code>\w+): (?<message>.*?)( \[[^\]]*\])?$", RegexOptions.Multiline)]
     private static partial Regex ErrorLine();
 
     internal static IEnumerable<BuildError> Errors(string output) =>
         ErrorLine().Matches(output).Select(match => new BuildError(match.Groups["file"].Value.Trim(),
                 int.Parse(match.Groups["line"].Value, System.Globalization.CultureInfo.InvariantCulture),
+                int.Parse(match.Groups["column"].Value, System.Globalization.CultureInfo.InvariantCulture),
                 $"{match.Groups["code"].Value}: {match.Groups["message"].Value.Trim()}"))
             .Distinct();
 
@@ -225,10 +226,11 @@ public sealed partial class GameBuilder
     private static string Escape(string path) => System.Security.SecurityElement.Escape(path.Replace('\\', '/'))!;
 }
 
-/// <summary>An error from building a project's code: its file and line (0 when it has none), and the message.</summary>
-public sealed record BuildError(string File, int Line, string Message)
+/// <summary>An error from building a project's code: its file, line, and column (0 when it has none), and the message.</summary>
+public sealed record BuildError(string File, int Line, int Column, string Message)
 {
-    public override string ToString() => File.Length == 0 ? Message : $"{File}({Line}): {Message}";
+    // The column too: errors on one line would otherwise read as repeats.
+    public override string ToString() => File.Length == 0 ? Message : $"{File}({Line},{Column}): {Message}";
 }
 
 /// <summary>A finished build: whether it succeeded, the assembly, its errors, and dotnet's whole output.</summary>

@@ -155,7 +155,7 @@ internal sealed class PlayChecks : GameSystem
         Check(SavedComponents.Find("Diorama.Spin") is { } spun && world.Has(SceneIds.Find(world, heroId), spun.Id),
             "the hero keeps its Spin across the reload");
 
-        // A build error: reported with its file and line; the last build keeps running.
+        // A build error: reported with its file, line, and column; the last build keeps running.
         Hosting.LoadedGame? good = shell.Game;
         int lines = shell.LogPanel?.LineCount ?? 0;
         File.WriteAllText(Path.Combine(code, "Broken.cs"), "namespace Diorama;\npublic class Broken { int x = ; }\n");
@@ -165,7 +165,7 @@ internal sealed class PlayChecks : GameSystem
             yield return 2;
         }
         string log = LogText(shell);
-        Check(log.Contains("Broken.cs(2)", StringComparison.Ordinal), "a build error names its file and line", log);
+        Check(log.Contains("Broken.cs(2,31)", StringComparison.Ordinal), "a build error names its file, line, and column", log);
         Check(shell.Game == good, "the last good build stays loaded");
         File.Delete(Path.Combine(code, "Broken.cs"));
         File.Delete(Path.Combine(code, "Marker.cs"));

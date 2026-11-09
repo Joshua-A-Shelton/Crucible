@@ -60,10 +60,12 @@ public class GameBuildTests
         const string output = """
             /home/me/Game/Code/Player.cs(12,5): error CS1002: ; expected [/home/me/Game/Cache/Build/Game.Game.csproj]
             /home/me/Game/Code/Player.cs(12,5): error CS1002: ; expected [/home/me/Game/Cache/Build/Game.Game.csproj]
+            /home/me/Game/Code/Player.cs(12,9): error CS1002: ; expected [/home/me/Game/Cache/Build/Game.Game.csproj]
             /home/me/Game/Code/Enemy.cs(3,1): warning CS0168: unused
             """;
         BuildError[] errors = [.. GameBuilder.Errors(output)];
-        await Assert.That(errors.Length).IsEqualTo(1); // repeated lines once, warnings not at all
-        await Assert.That(errors[0].ToString()).IsEqualTo("/home/me/Game/Code/Player.cs(12): CS1002: ; expected");
+        await Assert.That(errors.Length).IsEqualTo(2); // repeated lines once, warnings not at all
+        await Assert.That(errors[0].ToString()).IsEqualTo("/home/me/Game/Code/Player.cs(12,5): CS1002: ; expected");
+        await Assert.That(errors[1].Column).IsEqualTo(9); // same line, another column: another error
     }
 }

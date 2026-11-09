@@ -110,7 +110,7 @@ keeps the editor camera while playing.
   `samples/Diorama/Project/Code`; the village's hero has a `Spin`.
 - **Tests:**
   - **`GameBuildTests`:** the generated project, a real build of a tiny
-    game, a build error's file and line; errors read from dotnet's output;
+    game, a build error's file, line, and column; errors read from dotnet's output;
   - **`PlayModeTests`:** the history at Play comes back at Stop;
   - **`launcher.jit.play`:** on a copy of the Diorama's project, its code
     built and its `Spin` known before the village opens; Play turning the

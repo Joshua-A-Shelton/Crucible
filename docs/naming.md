@@ -455,7 +455,7 @@ building are placeholders (marked *):
 
 | Name | What it is |
 |---|---|
-| `GameBuilder` (`AssemblyName`*, `ProjectFile`*, `OutputPath`*, `HasCode`*, `IsBuilding`*, `Start`*, `TakeFinished`*, `BuildNow`*, `ProjectText`*), `BuildError`* (`File`*, `Line`*, `Message`*), `GameBuild`* (`Succeeded`*, `Assembly`*, `Errors`*, `Output`*) | Building |
+| `GameBuilder` (`AssemblyName`*, `ProjectFile`*, `OutputPath`*, `HasCode`*, `IsBuilding`*, `Start`*, `TakeFinished`*, `BuildNow`*, `ProjectText`*), `BuildError`* (`File`*, `Line`*, `Column`*, `Message`*), `GameBuild`* (`Succeeded`*, `Assembly`*, `Errors`*, `Output`*) | Building |
 | The shell's `Game`*, `Builder`*, `BuildCode`*, `Shutdown`* (was `Stop`) | The shell |
 | `GameView`* (`Surface`*, `HasInput`*, `TakeInput`*), `GamePanel.View`*; `PlayPhaseSystem`* and `PlayBeginFrame`*, `PlayInput`*, `PlayPrePhysics`*, `PlayPhysics`*, `PlayPostPhysics`*, `PlayUpdate`*, `PlayAnimation`*, `PlayLateUpdate`*, `PlayRenderPrepare`*, `PlayRenderSubmit`*, `PlayEndFrame`* | Play's parts |
 | `Diorama.Spin`* (`Start`*, `PerFrame`*), `Diorama.SpinSystem`*; `PlayChecks`*, `--game-arg check-play`* | Sample and checks |
