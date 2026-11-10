@@ -1,8 +1,7 @@
 # 0074 — Native modules
 
-**Status:** Accepted (2026-11-09); M7 step 7b built. Names settled by the
-owner as drafted; those added while building are placeholders
-(docs/naming.md).
+**Status:** Accepted (2026-11-09); M7 step 7b built and tried by hand by
+the owner on KWin. Names settled by the owner as drafted (docs/naming.md).
 
 ## Context
 

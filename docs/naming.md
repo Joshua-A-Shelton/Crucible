@@ -510,8 +510,8 @@ Diorama.Native: restart the editor to load it", `Diorama::Bob` (`height`,
 `docs/learning/native-modules.md`, `NativeBuildTests`, `ModuleTests`,
 CTest `launcher.jit.native` ("NativeChecks: all N checks passed"); and,
 asked while building, `linkEngineComponents()` and marking each
-declaration `CRUCIBLE_EXPORT`. Names added while building are placeholders
-(marked *):
+declaration `CRUCIBLE_EXPORT`. Names added while building (marked *)
+settled as drafted too:
 
 | Name | What it is |
 |---|---|

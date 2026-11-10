@@ -464,7 +464,8 @@ by the owner on KWin. Step 7b built (ADR 0074): native modules, a
 project's Project/Native built into a shared library on the engine's
 shared core (every public header now exported), loaded by the launcher
 and editor, with generated C# bindings; the Diorama's lamp lights bob
-from C++. Step 7c (subsystem interfaces) is next.
+from C++; tried by hand by the owner on KWin. Step 7c (subsystem
+interfaces) is next.
 
 ## M8 — Animation and audio
 
