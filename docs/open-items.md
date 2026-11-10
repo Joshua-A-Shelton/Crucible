@@ -48,6 +48,14 @@ is, and record which version fixed it.
 - Upscaler licenses: DLSS, XeSS (FSR is MIT); SMAA's license. → 0004
   [when each is added]
 
+## Revisit (owner's notes)
+
+- Animation clip storage (M8 step 1): clips are resampled at a fixed rate
+  (30 Hz by default) and quantized to 16 bits (smallest-three rotations,
+  translations and scales within each track's range). The owner asked to
+  revisit it: keyframes as authored, other rates or precisions, and ACL
+  (ADR 0026) when clip memory matters.
+
 ## Small editor fixes noticed in M7 (ADR 0077)
 
 - The hierarchy orders top-level entities by their entity slot, so a model
