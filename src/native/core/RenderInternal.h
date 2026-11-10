@@ -21,10 +21,14 @@ namespace crucible::render {
 // The CPU builds one frame while the GPU may still run the previous one.
 inline constexpr uint32_t framesInFlight = 2;
 
-// Each surface's reserved resource-heap slots, below the loaded textures'
-// (which start at 1024): `descriptorsPerSurface` from 8 + surface index *
-// descriptorsPerSurface, one per frame slot for each of these.
-inline constexpr uint32_t descriptorsPerSurface = 122;
+// Where loaded models' and textures' slots start; everything the renderer
+// reserves is below it.
+inline constexpr uint32_t firstAssetDescriptor = 2048;
+
+// Each surface's reserved resource-heap slots, below the loaded assets':
+// `descriptorsPerSurface` from 8 + surface index * descriptorsPerSurface,
+// one per frame slot for each of these.
+inline constexpr uint32_t descriptorsPerSurface = 128;
 // (LightClustering writes the cluster lists through the RW slots, Opaque
 // reads them through the others. The shadow atlas outlives frames, so it
 // has one slot.)
@@ -53,20 +57,29 @@ inline constexpr uint32_t stepDescriptorsPerFrame = 40;
 inline constexpr uint32_t entityIdsDescriptor = frameDataDescriptor + framesInFlight; // + frame slot
 // DebugLines (ADR 0079): the frame's lines, a StructuredBuffer<DebugVertex>.
 inline constexpr uint32_t debugLinesDescriptor = entityIdsDescriptor + framesInFlight; // + frame slot
-inline constexpr uint32_t stepDescriptors = debugLinesDescriptor + framesInFlight;     // + frame slot * per frame
+// Skinning (ADR 0080): the palettes (StructuredBuffer<float4>, three rows per
+// joint), and the skinned vertices as draws read them (ByteAddressBuffer)
+// and as the compute pass writes them (RWByteAddressBuffer).
+inline constexpr uint32_t skinPaletteDescriptor = debugLinesDescriptor + framesInFlight;            // + frame slot
+inline constexpr uint32_t skinnedVerticesDescriptor = skinPaletteDescriptor + framesInFlight;       // + frame slot
+inline constexpr uint32_t rwSkinnedVerticesDescriptor = skinnedVerticesDescriptor + framesInFlight; // + frame slot
+inline constexpr uint32_t stepDescriptors = rwSkinnedVerticesDescriptor + framesInFlight; // + frame slot * per frame
 static_assert(stepDescriptors + stepDescriptorsPerFrame * framesInFlight <= descriptorsPerSurface);
-// 8 surfaces from slot 8: they must stay below the loaded textures' 1024.
-static_assert(8 + 8 * descriptorsPerSurface <= 1024);
+// 8 surfaces from slot 8, below the loaded assets'.
+static_assert(8 + 8 * descriptorsPerSurface <= firstAssetDescriptor);
 // The glyph cache's pages on the GPU (ADR 0059), after the surfaces': the
 // exact pages, then the distance-field pages.
 inline constexpr uint32_t glyphPageDescriptors = 8 + 8 * descriptorsPerSurface;
-static_assert(glyphPageDescriptors + 8 + 4 <= 1024);
+static_assert(glyphPageDescriptors + 8 + 4 <= firstAssetDescriptor);
 
 // The material buffer's slot (a ByteAddressBuffer), below the surfaces'.
 inline constexpr uint32_t materialBufferDescriptor = 1;
 
 // The surface's slot `which` (one of the above, plus the frame slot).
 uint32_t surfaceDescriptor(const RenderStepContext& context, uint32_t which);
+// A buffer an earlier step published under the key, or an invalid handle if
+// none did, without reporting it (an optional input, such as SkinnedVertices).
+slag::rendergraph::RenderGraphBuffer publishedBuffer(const RenderStepContext& context, BlackboardKey key);
 
 // A view's planes for row vectors (Gribb and Hartmann): left, right, bottom,
 // top, then w - z and z, normalized so a sphere's radius compares with the

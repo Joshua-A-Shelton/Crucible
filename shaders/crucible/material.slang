@@ -225,9 +225,16 @@ public uint instanceEntity(uint instance)
     return instances[instance];
 }
 
+// Where positions, normals, tangents, and outline normals come from: the
+// frame's skinned vertices for a skinned instance (ADR 0080), else the model.
+public ByteAddressBuffer geometryBuffer()
+{
+    return ResourceDescriptorHeap[draw.deformed != 0 ? draw.deformed : draw.model];
+}
+
 public float3 worldPosition(uint vertex, InstanceTransform transform)
 {
-    ByteAddressBuffer model = ResourceDescriptorHeap[draw.model];
+    ByteAddressBuffer model = geometryBuffer();
     const float4 position = float4(asfloat(model.Load3(draw.positions + vertex * 12)), 1.0);
     return float3(dot(position, transform.x), dot(position, transform.y), dot(position, transform.z));
 }
@@ -259,6 +266,7 @@ public struct MaterialVertex
 public MaterialVertex materialVertexMain(uint vertex, uint instance)
 {
     ByteAddressBuffer model = ResourceDescriptorHeap[draw.model];
+    ByteAddressBuffer geometry = geometryBuffer();
     const InstanceTransform transform = instanceTransform(instance);
     MaterialVertex output;
     output.world = worldPosition(vertex, transform);
@@ -271,13 +279,13 @@ public MaterialVertex materialVertexMain(uint vertex, uint instance)
     float3 normal = float3(0.0, 1.0, 0.0);
     if ((draw.attributes & normalsAttribute) != 0)
     {
-        normal = octahedral(model.Load(draw.normals + vertex * 4));
+        normal = octahedral(geometry.Load(draw.normals + vertex * 4));
     }
     output.normal = worldNormal(normal, transform);
     output.tangent = float4(1.0, 0.0, 0.0, 1.0);
     if ((draw.attributes & tangentsAttribute) != 0)
     {
-        const uint2 packed = model.Load2(draw.tangents + vertex * 8);
+        const uint2 packed = geometry.Load2(draw.tangents + vertex * 8);
         const float3 tangent = octahedral(packed.x);
         const float sign = (int(packed.y << 16) >> 16) < 0 ? -1.0 : 1.0;
         output.tangent = float4(normalize(tangent.x * row0 + tangent.y * row1 + tangent.z * row2), sign);
@@ -309,8 +317,8 @@ public MaterialVertex outlineVertexMain(uint vertex, uint instance)
     float3 direction = output.normal;
     if ((draw.attributes & outlineNormalsAttribute) != 0)
     {
-        ByteAddressBuffer model = ResourceDescriptorHeap[draw.model];
-        direction = worldNormal(octahedral(model.Load(draw.outlineNormals + vertex * 4)), instanceTransform(instance));
+        ByteAddressBuffer geometry = geometryBuffer();
+        direction = worldNormal(octahedral(geometry.Load(draw.outlineNormals + vertex * 4)), instanceTransform(instance));
     }
     const float depth = max(mul(float4(output.world, 1.0), view.view).z, 1e-3);
     const float width = draw.outlineWidth * min(1.0, outlineFadeDistance / depth);

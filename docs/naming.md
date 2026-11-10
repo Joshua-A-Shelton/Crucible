@@ -657,3 +657,24 @@ drafted too (after the owner tried step 2 by hand):
 | The asset picker's "Models/Walker.gltf: Walk"* | How sub-assets are listed |
 | tests/native/AnimationTestSupport.h* | The pose tests' shared support |
 
+## Compute pre-skinning (2026-11-10, M8 step 3)
+
+Settled as drafted: the render step "Skinning" (`render::steps::skinning`,
+C# `RenderSteps.Skinning`) and its blackboard key "SkinnedVertices"
+(`skinnedVerticesKey()`); shaders/crucible/skinning.slang and its entry
+`skinVertices`; `DrawConstants::deformed`, `DrawBatch::deformedOffset`;
+`MeshData::jointIndices`, `jointWeights`, `jointReach`;
+`animation::poseJoints`; ADR 0080 "Compute pre-skinning",
+`docs/learning/compute-skinning.md`; `SkinningTests`, `SkinnedCullingTests`.
+Names added while building are placeholders (*):
+
+| Name | What it is |
+|---|---|
+| `SkinnedInstance`* (`model`, `mesh`, `paletteOffset`, `jointCount`, `deformedOffset`, `vertexCount`), `DrawList::skinned`*, `palettes`*, `deformed`*, `skinnedVertexCount`* | The frame's skins, as a draw list carries them |
+| `skinnedNormalsOffset`*, `skinnedTangentsOffset`*, `skinnedOutlineNormalsOffset`*, `skinnedVerticesSize`* | The skinned vertices' layout |
+| `MeshData::skinInfluences`*, `joints`*, `names`*, `jointOrigins`* | A model's skin on the CPU |
+| `animation::poseJointIndex`*, `poseSkeletonKey`* | Matching a mesh's joints to a pose's |
+| `firstAssetDescriptor`*, `skinPaletteDescriptor`*, `skinnedVerticesDescriptor`*, `rwSkinnedVerticesDescriptor`* | Resource-heap slots |
+| `geometryBuffer`* (material.slang) | Where draws read the four skinned streams from |
+| `QuadOptions::skinned`*, `armRest`* | The test models' two-joint skin |
+

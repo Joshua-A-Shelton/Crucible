@@ -103,6 +103,12 @@ BlackboardKey sceneColorKey()
     return key;
 }
 
+BlackboardKey skinnedVerticesKey()
+{
+    static const BlackboardKey key = registerBlackboardKey("SkinnedVertices");
+    return key;
+}
+
 BlackboardKey lightsKey()
 {
     static const BlackboardKey key = registerBlackboardKey("Lights");
@@ -227,6 +233,14 @@ struct FrameBuilder
         return *static_cast<const FrameState*>(context.frameState)->drawState;
     }
 
+    static slag::rendergraph::RenderGraphBuffer published(const RenderStepContext& context, BlackboardKey key)
+    {
+        const FrameState::Entry* entry = slot(context.frameState, key);
+        return entry != nullptr && entry->kind == FrameState::Kind::Buffer
+                   ? slag::rendergraph::RenderGraphBuffer{entry->index}
+                   : slag::rendergraph::RenderGraphBuffer{};
+    }
+
     static FrameState& state(const RenderStepContext& context)
     {
         return *static_cast<FrameState*>(context.frameState);
@@ -261,6 +275,11 @@ struct FrameBuilder
         return state.failed ? Result<void>(Status::InvalidData) : Result<void>();
     }
 };
+
+slag::rendergraph::RenderGraphBuffer publishedBuffer(const RenderStepContext& context, BlackboardKey key)
+{
+    return FrameBuilder::published(context, key);
+}
 
 uint32_t surfaceDescriptor(const RenderStepContext& context, uint32_t which)
 {

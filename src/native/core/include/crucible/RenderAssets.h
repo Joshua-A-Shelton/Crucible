@@ -16,6 +16,7 @@
 #include <crucible/AssetSource.h>
 #include <crucible/Export.h>
 #include <crucible/Expose.h>
+#include <crucible/Math.h>
 #include <crucible/MeshFile.h>
 #include <crucible/Result.h>
 
@@ -132,12 +133,24 @@ struct MeshData
     Stream uv1;
     Stream colors;
     Stream outlineNormals; // ADR 0055
+    Stream jointIndices;   // ADR 0078: uint16 x skinInfluences per vertex
+    Stream jointWeights;   // unorm8 x skinInfluences per vertex
     Stream indices;        // each MeshRange's indexByteOffset is from here
     std::span<const assets::MeshEntry> meshes;
     std::span<const assets::MeshLod> lods;
     std::span<const assets::MeshRange> ranges;
     std::span<const assets::MeshNode> nodes;
     std::span<const assets::MaterialEntry> materials;
+    // The skin (ADR 0078, 0080), empty without one: its joints, their names
+    // (JointEntry's offsets are into it), each joint's bind-pose origin in
+    // the model's space, and its reach: how far its vertices are from that
+    // origin (negative for a joint no vertex follows), for culling posed
+    // instances.
+    uint32_t skinInfluences;
+    std::span<const assets::JointEntry> joints;
+    std::span<const char> names;
+    std::span<const Vector3> jointOrigins;
+    std::span<const float> jointReach;
 };
 
 // Null for a stale handle.

@@ -73,6 +73,11 @@ struct QuadOptions
     float outlineWidth = 0; // pixels
     float outlineColor[3] = {0, 0, 0};
     float outlineTint = 0;
+    // A skin (ADR 0078): two joints, "Root" and "Arm" (Arm's child), both
+    // bound at the origin; vertices with x > 0 follow Arm, the rest Root.
+    // Arm's node rests at armRest, so posing the rest pose moves them by it.
+    bool skinned = false;
+    Vector3 armRest{0, 0, 0};
 };
 
 // A model of one mesh from its streams (normals and half-float UVs), with
@@ -88,7 +93,7 @@ inline std::vector<uint8_t> meshModel(const std::vector<float>& positions, const
     assets::MeshEntry entry{};
     entry.vertexCount = vertexCount;
     entry.indexSize = 2;
-    entry.attributes = 1 | 4; // normals, UV0
+    entry.attributes = 1 | 4 | (options.skinned ? 64 : 0); // normals, UV0, skinned
     entry.lodCount = 1;
     entry.submeshCount = 1;
     std::memcpy(entry.boundsMin, boundsMin, sizeof(boundsMin));
@@ -104,7 +109,48 @@ inline std::vector<uint8_t> meshModel(const std::vector<float>& positions, const
     assets::MeshNode node{};
     node.parent = -1;
     node.mesh = 0;
-    addSection(writer, binary::tag("NODE"), std::vector<assets::MeshNode>{node});
+    node.rotation[3] = 1;
+    node.scale[0] = node.scale[1] = node.scale[2] = 1;
+    std::vector<assets::MeshNode> nodes{node};
+    if (options.skinned)
+    {
+        // Nodes 1 (Root) and 2 (Arm), named in NAME ("RootArm").
+        assets::MeshNode root = node, arm = node;
+        root.mesh = arm.mesh = -1;
+        root.nameOffset = 0;
+        root.nameLength = 4;
+        arm.parent = 1;
+        arm.translation[0] = options.armRest.x;
+        arm.translation[1] = options.armRest.y;
+        arm.translation[2] = options.armRest.z;
+        arm.nameOffset = 4;
+        arm.nameLength = 3;
+        nodes.push_back(root);
+        nodes.push_back(arm);
+        assets::JointEntry joints[2]{};
+        joints[0] = {-1, 1, {}, 0, 4};
+        joints[1] = {0, 2, {}, 4, 3};
+        for (assets::JointEntry& joint : joints)
+        {
+            for (int i = 0; i < 4; ++i)
+            {
+                joint.inverseBind[i * 5] = 1;
+            }
+        }
+        addSection(writer, binary::tag("JNTS"), std::vector<assets::JointEntry>(joints, joints + 2));
+        addSection(writer, binary::tag("SKIN"), std::vector<assets::SkinInfo>{{2, 4}});
+        addSection(writer, binary::tag("NAME"), std::vector<char>{'R', 'o', 'o', 't', 'A', 'r', 'm', 0});
+        std::vector<uint16_t> jointIndices(size_t{vertexCount} * 4, 0);
+        std::vector<uint8_t> weights(size_t{vertexCount} * 4, 0);
+        for (uint32_t v = 0; v < vertexCount; ++v)
+        {
+            jointIndices[v * 4] = positions[v * 3] > 0 ? 1 : 0;
+            weights[v * 4] = 255;
+        }
+        addSection(writer, binary::tag("JIDX"), jointIndices);
+        addSection(writer, binary::tag("JWGT"), weights);
+    }
+    addSection(writer, binary::tag("NODE"), nodes);
     assets::MaterialEntry imported{};
     std::memcpy(imported.baseColor, options.baseColor, sizeof(options.baseColor));
     addSection(writer, binary::tag("MATL"), std::vector<assets::MaterialEntry>{imported});

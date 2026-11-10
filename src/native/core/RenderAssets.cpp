@@ -22,7 +22,6 @@ namespace {
 using assets::AssetId;
 
 // Resource slots below this stay with render steps (per-frame data, ADR 0049).
-constexpr uint32_t firstTextureSlot = 1024;
 // Sampler slots for Sampler's values, from 1 (0 reads as no sampler).
 constexpr uint32_t firstSamplerSlot = 1;
 // Stream offsets in a model's buffer: aligned for any view of it.
@@ -48,6 +47,8 @@ struct LoadedMesh
     // none for a file without one, whose slots draw the fallback.
     Vector<MaterialHandle> materials{MemoryTag::Render};
     Vector<bool> acquiredMaterials{MemoryTag::Render}; // remapped slots' (released, not destroyed)
+    Vector<Vector3> jointOrigins{MemoryTag::Render};   // data.jointOrigins
+    Vector<float> jointReach{MemoryTag::Render};       // data.jointReach
 };
 
 struct LoadedTexture
@@ -256,6 +257,51 @@ Status createMaterials(LoadedMesh& mesh, const Vector<uint8_t>& generated, const
     return Status::Ok;
 }
 
+// Each joint's bind-pose origin (its inverse bind, inverted) and how far
+// the vertices following it are from there, for culling posed instances
+// (ADR 0080).
+void measureJoints(LoadedMesh& mesh, const Vector<uint8_t>& positions, const Vector<uint8_t>& joints,
+                   const Vector<uint8_t>& weights)
+{
+    const uint32_t influences = mesh.data.skinInfluences;
+    const size_t jointCount = mesh.data.joints.size();
+    mesh.jointOrigins.resize(jointCount);
+    mesh.jointReach.resize(jointCount);
+    for (size_t j = 0; j < jointCount; ++j)
+    {
+        Matrix4x4 inverseBind, bind;
+        std::memcpy(&inverseBind, mesh.data.joints[j].inverseBind, sizeof(inverseBind));
+        mesh.jointOrigins[j] =
+            invert(inverseBind, bind) ? Vector3{bind.rows[3].x, bind.rows[3].y, bind.rows[3].z} : Vector3{};
+        mesh.jointReach[j] = -1.0f;
+    }
+    const size_t vertexCount = positions.size() / 12;
+    if (influences == 0 || joints.size() < vertexCount * influences * 2 || weights.size() < vertexCount * influences)
+    {
+        mesh.data.skinInfluences = 0;
+    }
+    else
+    {
+        for (size_t v = 0; v < vertexCount; ++v)
+        {
+            Vector3 p;
+            std::memcpy(&p, positions.data() + v * 12, 12);
+            for (uint32_t k = 0; k < influences; ++k)
+            {
+                uint16_t joint;
+                std::memcpy(&joint, joints.data() + (v * influences + k) * 2, 2);
+                if (weights[v * influences + k] == 0 || joint >= jointCount)
+                {
+                    continue;
+                }
+                mesh.jointReach[joint] = std::max(mesh.jointReach[joint], length(p - mesh.jointOrigins[joint]));
+            }
+        }
+    }
+    mesh.data.jointOrigins = mesh.jointOrigins.span();
+    mesh.data.jointReach = mesh.jointReach.span();
+}
+
 Result<LoadedMesh*> createMesh(std::span<const uint8_t> bytes)
 {
     Result<binary::File*> opened = binary::parseFile(bytes, assets::meshFileKind, assets::meshFileVersion);
@@ -269,9 +315,11 @@ Result<LoadedMesh*> createMesh(std::span<const uint8_t> bytes)
 
     // The tables, kept on the CPU, back to back (each 16-byte aligned).
     const uint32_t tableTags[] = {binary::tag("INFO"), binary::tag("MSHS"), binary::tag("LODS"),
-                                  binary::tag("RNGS"), binary::tag("NODE"), binary::tag("MATL")};
-    uint64_t tableOffsets[6] = {}, tableSizes[6] = {};
-    for (int t = 0; t < 6 && status == Status::Ok; ++t)
+                                  binary::tag("RNGS"), binary::tag("NODE"), binary::tag("MATL"),
+                                  binary::tag("JNTS"), binary::tag("NAME"), binary::tag("SKIN")};
+    constexpr int tableCount = static_cast<int>(std::size(tableTags));
+    uint64_t tableOffsets[tableCount] = {}, tableSizes[tableCount] = {};
+    for (int t = 0; t < tableCount && status == Status::Ok; ++t)
     {
         Vector<uint8_t> section(MemoryTag::Render);
         status = readSection(file, tableTags[t], section);
@@ -290,10 +338,12 @@ Result<LoadedMesh*> createMesh(std::span<const uint8_t> bytes)
 
     // The streams, in one GPU buffer.
     const uint32_t streamTags[] = {binary::tag("POSN"), binary::tag("NRML"), binary::tag("TNGT"), binary::tag("UV0_"),
-                                   binary::tag("UV1_"), binary::tag("COLR"), binary::tag("ONRM"), binary::tag("INDX")};
+                                   binary::tag("UV1_"), binary::tag("COLR"), binary::tag("ONRM"), binary::tag("JIDX"),
+                                   binary::tag("JWGT"), binary::tag("INDX")};
     MeshData::Stream* streams[] = {
-        &mesh->data.positions, &mesh->data.normals, &mesh->data.tangents,       &mesh->data.uv0,
-        &mesh->data.uv1,       &mesh->data.colors,  &mesh->data.outlineNormals, &mesh->data.indices};
+        &mesh->data.positions,    &mesh->data.normals, &mesh->data.tangents,       &mesh->data.uv0,
+        &mesh->data.uv1,          &mesh->data.colors,  &mesh->data.outlineNormals, &mesh->data.jointIndices,
+        &mesh->data.jointWeights, &mesh->data.indices};
     constexpr int streamCount = static_cast<int>(std::size(streamTags));
     int32_t sectionIndex[streamCount] = {};
     uint64_t total = 0;
@@ -353,6 +403,14 @@ Result<LoadedMesh*> createMesh(std::span<const uint8_t> bytes)
         }
     }
     Vector<uint8_t> generated(MemoryTag::Render), remapped(MemoryTag::Render);
+    // The skin's vertices, on the CPU too, for each joint's reach.
+    Vector<uint8_t> skinPositions(MemoryTag::Render), skinJoints(MemoryTag::Render), skinWeights(MemoryTag::Render);
+    if (status == Status::Ok && tableSizes[6] > 0)
+    {
+        status = readSection(file, binary::tag("POSN"), skinPositions);
+        status = status == Status::Ok ? readSection(file, binary::tag("JIDX"), skinJoints) : status;
+        status = status == Status::Ok ? readSection(file, binary::tag("JWGT"), skinWeights) : status;
+    }
     if (status == Status::Ok)
     {
         status = readSection(file, assets::meshMaterialsTag, generated);
@@ -400,6 +458,12 @@ Result<LoadedMesh*> createMesh(std::span<const uint8_t> bytes)
     mesh->data.ranges = tableOf<assets::MeshRange>(mesh->tables, tableOffsets[3], tableSizes[3]);
     mesh->data.nodes = tableOf<assets::MeshNode>(mesh->tables, tableOffsets[4], tableSizes[4]);
     mesh->data.materials = tableOf<assets::MaterialEntry>(mesh->tables, tableOffsets[5], tableSizes[5]);
+    mesh->data.joints = tableOf<assets::JointEntry>(mesh->tables, tableOffsets[6], tableSizes[6]);
+    mesh->data.names = tableOf<char>(mesh->tables, tableOffsets[7], tableSizes[7]);
+    const std::span<const assets::SkinInfo> skin =
+        tableOf<assets::SkinInfo>(mesh->tables, tableOffsets[8], tableSizes[8]);
+    mesh->data.skinInfluences = skin.empty() ? 0 : skin[0].influences;
+    measureJoints(*mesh, skinPositions, skinJoints, skinWeights);
     if (Status made = createMaterials(*mesh, generated, remapped); made != Status::Ok)
     {
         destroyMesh(mesh);
@@ -701,8 +765,8 @@ Result<void> startAssets(slag::GraphicsDevice& device, slag::CommandQueue& queue
     state.slots = create<slag::DescriptorAllocator>(
         MemoryTag::Render, &device,
         slag::DescriptorAllocatorDesc{.heap = slag::DescriptorHeap::Resource,
-                                      .firstSlot = firstTextureSlot,
-                                      .slotCount = slag::defaults::resourceHeapSize - firstTextureSlot});
+                                      .firstSlot = firstAssetDescriptor,
+                                      .slotCount = slag::defaults::resourceHeapSize - firstAssetDescriptor});
     const slag::SamplerDescriptor samplers[] = {
         {.addressU = slag::AddressMode::Wrap,
          .addressV = slag::AddressMode::Wrap,

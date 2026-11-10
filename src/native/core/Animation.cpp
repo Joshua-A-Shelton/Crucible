@@ -96,6 +96,7 @@ Matrix4x4 trsMatrix(Vector3 position, Quaternion rotation, Vector3 scale)
 
 struct Skeleton
 {
+    uint64_t key = 0; // unique to this load, for caches (poseSkeletonKey)
     uint32_t jointCount = 0;
     uint32_t blocks = 0; // jointCount in wideLanes, rounded up
     Vector<int32_t> parents{tag};
@@ -164,6 +165,8 @@ Skeleton* loadSkeleton(const AssetId& id)
         return nullptr;
     }
     Skeleton* skeleton = create<Skeleton>(tag);
+    static uint64_t loads = 0;
+    skeleton->key = ++loads;
     skeleton->jointCount = static_cast<uint32_t>(joints.size());
     skeleton->blocks = (skeleton->jointCount + wideLanes - 1) / wideLanes;
     const size_t padded = size_t{skeleton->blocks} * wideLanes;
@@ -1137,6 +1140,42 @@ Matrix4x4 jointModelTransform(const ecs::World& world, ecs::Entity entity, int32
         return Matrix4x4::identity();
     }
     return pose->model[joint];
+}
+
+namespace {
+
+const Pose* poseAt(uint32_t pose)
+{
+    return pose >= 1 && pose <= pool.size() ? pool[pose - 1] : nullptr;
+}
+
+} // namespace
+
+std::span<const Matrix4x4> poseJoints(uint32_t pose)
+{
+    const Pose* found = poseAt(pose);
+    return found != nullptr && found->posed && found->skeleton != nullptr ? found->model.span()
+                                                                          : std::span<const Matrix4x4>{};
+}
+
+int32_t poseJointIndex(uint32_t pose, std::string_view name)
+{
+    const Pose* found = poseAt(pose);
+    const Skeleton* skeleton = found != nullptr ? found->skeleton : nullptr;
+    for (uint32_t j = 0; skeleton != nullptr && j < skeleton->jointCount; ++j)
+    {
+        if (skeleton->name(j) == name)
+        {
+            return static_cast<int32_t>(j);
+        }
+    }
+    return -1;
+}
+
+uint64_t poseSkeletonKey(uint32_t pose)
+{
+    const Pose* found = poseAt(pose);
+    return found != nullptr && found->skeleton != nullptr ? found->skeleton->key : 0;
 }
 
 void drawSkeletons(const ecs::World& world, Vector4 color)

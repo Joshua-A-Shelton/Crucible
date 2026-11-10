@@ -102,6 +102,15 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE int32_t findJoint(ecs::World& world, ecs::Entity
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Matrix4x4 jointModelTransform(const ecs::World& world, ecs::Entity entity,
                                                               int32_t joint);
 
+// The pose a PoseHandle names (its `pose`, the pool index plus one), for
+// skinning (ADR 0080): its joints' model-space matrices as last posed, empty
+// for none or one not posed yet; a joint of its skeleton by name, or -1; and
+// its skeleton's identity, never reused, even by the same skeleton read
+// again (0 for none), for caches keyed by it. Main thread, between poses.
+CRUCIBLE_EXPORT std::span<const Matrix4x4> poseJoints(uint32_t pose);
+CRUCIBLE_EXPORT int32_t poseJointIndex(uint32_t pose, std::string_view name);
+CRUCIBLE_EXPORT uint64_t poseSkeletonKey(uint32_t pose);
+
 // Adds debug lines (crucible/DebugLines.h) from every posed joint to its
 // parent, in world space through the entity's WorldTransform.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void drawSkeletons(const ecs::World& world, Vector4 color);

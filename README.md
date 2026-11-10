@@ -118,3 +118,6 @@ Longer explanations of decisions, written to be reread:
 - [Poses and blending](docs/learning/poses-and-blending.md) (ADR 0079): local
   and model space, sampling with nlerp, blending as one operation, structure
   of arrays, and debug lines.
+- [Compute skinning](docs/learning/compute-skinning.md) (ADR 0080): deforming
+  once and drawing many times, the palette, keeping the formats, culling by
+  joint reach, and barriers from a render graph.

@@ -9,6 +9,9 @@ namespace Crucible.Render;
 /// </summary>
 public static class RenderSteps
 {
+    /// <summary>Skinned meshes deformed by their poses (ADR 0080), before everything that draws them.</summary>
+    public const string Skinning = "Skinning";
+
     public const string Clear = "Clear";
     public const string DepthPrepass = "DepthPrepass";
     public const string LightClustering = "LightClustering";

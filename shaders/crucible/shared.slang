@@ -111,6 +111,10 @@ public struct DrawConstants
     public float outlineWidth;
     public float3 outlineColor;
     public float outlineTint;
+    // A skinned instance's (ADR 0080): the frame's skinned vertices, which
+    // positions, normals, tangents, and outlineNormals are offsets into;
+    // 0 reads them from the model like the other streams.
+    public uint deformed;
 };
 
 // One light as shaders read it (ADR 0053), in world space. Directional

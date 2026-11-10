@@ -142,6 +142,7 @@ void recordDraws(slag::CommandBuffer* commands, const DrawList& draws, const Vec
         commands->bindIndexBuffer(model.buffer, model.indices.offset, model.indices.size,
                                   mesh.indexSize == 2 ? slag::IndexFormat::Uint16 : slag::IndexFormat::Uint32);
         const uint64_t first = mesh.vertexOffset;
+        const bool skinned = batch.deformedOffset != UINT32_MAX && draws.deformed != 0;
         const bool floatUv0 = (model.info.floatUvs & 1) != 0;
         const bool floatUv1 = (model.info.floatUvs & 2) != 0;
         DrawConstants constants{};
@@ -163,6 +164,17 @@ void recordDraws(slag::CommandBuffer* commands, const DrawList& draws, const Vec
         constants.outlineWidth = draw.outline.width;
         constants.outlineColor = draw.outline.color;
         constants.outlineTint = draw.outline.tint;
+        if (skinned)
+        {
+            // Those four streams from the skinned vertices (ADR 0080).
+            const uint32_t count = draws.skinnedVertexCount;
+            const uint64_t at = batch.deformedOffset;
+            constants.deformed = draws.deformed;
+            constants.positions = static_cast<uint32_t>(at * 12);
+            constants.normals = static_cast<uint32_t>(skinnedNormalsOffset(count) + at * 4);
+            constants.tangents = static_cast<uint32_t>(skinnedTangentsOffset(count) + at * 8);
+            constants.outlineNormals = static_cast<uint32_t>(skinnedOutlineNormalsOffset(count) + at * 4);
+        }
         commands->pushConstants(&constants, sizeof(constants));
         const bool one = draw.instance != UINT32_MAX;
         commands->drawIndexed(range.indexCount, one ? 1 : batch.instanceCount, range.indexByteOffset / mesh.indexSize,
@@ -174,6 +186,113 @@ uint32_t viewSize()
 {
     return (sizeof(ViewConstants) + slag::alignment::constantBuffer - 1) / slag::alignment::constantBuffer *
            slag::alignment::constantBuffer;
+}
+
+// ---------------------------------------------------------------------------
+// Skinning (ADR 0080)
+// ---------------------------------------------------------------------------
+
+// A pass drawing meshes reads the skinned vertices, when there are any, so
+// the graph orders it after Skinning's writes.
+void useSkinned(RenderStepContext& context, slag::rendergraph::PassBuilder& pass)
+{
+    const slag::rendergraph::RenderGraphBuffer skinned = publishedBuffer(context, skinnedVerticesKey());
+    if (skinned.index != UINT32_MAX)
+    {
+        pass.use(skinned, slag::rendergraph::Usage::ShaderRead);
+    }
+}
+
+slag::Pipeline* skinningPipeline = nullptr;
+
+Result<void> prepareSkinning(slag::GraphicsDevice& device, void*)
+{
+    Result<ShaderFile*> file = loadShaderFile(engineShader("skinning"));
+    if (!file)
+    {
+        return file.status();
+    }
+    const int32_t entry = findShaderEntry(*file.value(), "skinVertices");
+    if (entry < 0)
+    {
+        destroyShaderFile(file.value());
+        return Status::InvalidData;
+    }
+    slag::ShaderStage stage;
+    shaderStage(*file.value(), static_cast<uint32_t>(entry), stage);
+    slag::Result<slag::Pipeline*> pipeline = device.createComputePipeline({.compute = stage, .debugName = "Skinning"});
+    destroyShaderFile(file.value());
+    if (!pipeline)
+    {
+        return Status::Unsupported;
+    }
+    skinningPipeline = pipeline.value();
+    return {};
+}
+
+// Every skinned instance the view or its shadows draw, deformed by its
+// palette into the frame's skinned vertices: one dispatch each.
+void addSkinning(RenderStepContext& context, void*)
+{
+    const DrawList& draws = context.draws;
+    if (draws.skinned.empty() || draws.skinnedVertexCount == 0)
+    {
+        return;
+    }
+    const uint32_t count = draws.skinnedVertexCount;
+    const slag::rendergraph::RenderGraphBuffer skinned =
+        context.graph.createTransientBuffer({.size = skinnedVerticesSize(count), .debugName = "SkinnedVertices"});
+    context.publish(skinnedVerticesKey(), skinned);
+    const uint32_t rwSlot = surfaceDescriptor(context, rwSkinnedVerticesDescriptor);
+    const uint32_t readSlot = surfaceDescriptor(context, skinnedVerticesDescriptor);
+    const std::span<const SkinnedInstance> instances = draws.skinned;
+    const uint32_t palettes = draws.palettes;
+    slag::GraphicsDevice* device = &context.device;
+    context.graph.addPass(
+        "Skinning", slag::CommandQueueType::Graphics,
+        [&](slag::rendergraph::PassBuilder& pass) { pass.use(skinned, slag::rendergraph::Usage::ShaderWrite); },
+        [=](slag::rendergraph::PassContext& pass, slag::CommandBuffer* commands) {
+            const uint32_t frame = pass.frameSlot();
+            const slag::RawBufferDescriptor view{.buffer = pass.buffer(skinned), .size = skinnedVerticesSize(count)};
+            device->writeRWRawBuffer(rwSlot + frame, view);
+            device->writeRawBuffer(readSlot + frame, view);
+            struct SkinConstants
+            {
+                uint32_t model, palettes, output, paletteOffset, vertexCount, influences, attributes;
+                uint32_t positions, normals, tangents, outlineNormals, joints, weights;
+                uint32_t outPositions, outNormals, outTangents, outOutlineNormals;
+            };
+            static_assert(sizeof(SkinConstants) <= 128);
+            commands->bindPipeline(skinningPipeline);
+            for (const SkinnedInstance& instance : instances)
+            {
+                const MeshData& model = *instance.model;
+                const assets::MeshEntry& mesh = model.meshes[instance.mesh];
+                const uint64_t first = mesh.vertexOffset;
+                const uint32_t influences = model.skinInfluences;
+                const uint64_t at = instance.deformedOffset;
+                const SkinConstants constants{
+                    .model = model.descriptor,
+                    .palettes = palettes,
+                    .output = rwSlot + frame,
+                    .paletteOffset = instance.paletteOffset,
+                    .vertexCount = instance.vertexCount,
+                    .influences = influences,
+                    .attributes = mesh.attributes,
+                    .positions = static_cast<uint32_t>(model.positions.offset + first * 12),
+                    .normals = static_cast<uint32_t>(model.normals.offset + first * 4),
+                    .tangents = static_cast<uint32_t>(model.tangents.offset + first * 8),
+                    .outlineNormals = static_cast<uint32_t>(model.outlineNormals.offset + first * 4),
+                    .joints = static_cast<uint32_t>(model.jointIndices.offset + first * influences * 2),
+                    .weights = static_cast<uint32_t>(model.jointWeights.offset + first * influences),
+                    .outPositions = static_cast<uint32_t>(at * 12),
+                    .outNormals = static_cast<uint32_t>(skinnedNormalsOffset(count) + at * 4),
+                    .outTangents = static_cast<uint32_t>(skinnedTangentsOffset(count) + at * 8),
+                    .outOutlineNormals = static_cast<uint32_t>(skinnedOutlineNormalsOffset(count) + at * 4)};
+                commands->pushConstants(&constants, sizeof(constants));
+                commands->dispatch((instance.vertexCount + 63) / 64, 1, 1);
+            }
+        });
 }
 
 // ---------------------------------------------------------------------------
@@ -198,6 +317,7 @@ void addDepthPrepass(RenderStepContext& context, void*)
     context.graph.addPass(
         "DepthPrepass", slag::CommandQueueType::Graphics,
         [&](slag::rendergraph::PassBuilder& pass) {
+            useSkinned(context, pass);
             pass.use(view, slag::rendergraph::Usage::ConstantBuffer);
             // Reverse-Z (ADR 0050): far is 0.
             pass.depthStencil(depth, slag::LoadOp::Clear, slag::StoreOp::Store, {.depth = 0.0f});
@@ -363,6 +483,7 @@ void addShadows(RenderStepContext& context, void*)
             context.graph.addPass(
                 "ShadowCascade", slag::CommandQueueType::Graphics,
                 [&](slag::rendergraph::PassBuilder& builder) {
+                    useSkinned(context, builder);
                     // Conventional depth: far is 1.
                     builder.depthStencil(cascades, slag::LoadOp::Clear, slag::StoreOp::Store, {.depth = 1.0f}, false, 0,
                                          cascade.layer, 1);
@@ -391,6 +512,7 @@ void addShadows(RenderStepContext& context, void*)
             context.graph.addPass(
                 "ShadowAtlas", slag::CommandQueueType::Graphics,
                 [&](slag::rendergraph::PassBuilder& builder) {
+                    useSkinned(context, builder);
                     builder.depthStencil(atlas, slag::LoadOp::Load, slag::StoreOp::Store);
                 },
                 [tiles, first](slag::rendergraph::PassContext&, slag::CommandBuffer* commands) {
@@ -494,6 +616,7 @@ void addOpaque(RenderStepContext& context, void*)
     context.graph.addPass(
         "Opaque", slag::CommandQueueType::Graphics,
         [&](slag::rendergraph::PassBuilder& pass) {
+            useSkinned(context, pass);
             lighting.declare(pass);
             pass.renderTarget(color, slag::LoadOp::Clear, slag::StoreOp::Store, clear);
             pass.depthStencil(depth, slag::LoadOp::Load, slag::StoreOp::Store, {}, true);
@@ -535,6 +658,7 @@ void addOutlines(RenderStepContext& context, void*)
     context.graph.addPass(
         "Outlines", slag::CommandQueueType::Graphics,
         [&](slag::rendergraph::PassBuilder& pass) {
+            useSkinned(context, pass);
             pass.use(view, slag::rendergraph::Usage::ConstantBuffer);
             pass.renderTarget(color, slag::LoadOp::Load, slag::StoreOp::Store);
             pass.depthStencil(depth, slag::LoadOp::Load, slag::StoreOp::Store);
@@ -646,6 +770,7 @@ void addTransparent(RenderStepContext& context, void*)
     context.graph.addPass(
         "Transparent", slag::CommandQueueType::Graphics,
         [&](slag::rendergraph::PassBuilder& pass) {
+            useSkinned(context, pass);
             lighting.declare(pass);
             pass.renderTarget(color, slag::LoadOp::Load, slag::StoreOp::Store);
             pass.depthStencil(depth, slag::LoadOp::Load, slag::StoreOp::Store, {}, true);
@@ -1190,6 +1315,7 @@ void addPick(RenderStepContext& context, void*)
     context.graph.addPass(
         "Pick", slag::CommandQueueType::Graphics,
         [&](slag::rendergraph::PassBuilder& pass) {
+            useSkinned(context, pass);
             pass.use(view, slag::rendergraph::Usage::ConstantBuffer);
             pass.renderTarget(ids, slag::LoadOp::Clear, slag::StoreOp::Store, {});
             pass.renderTarget(depths, slag::LoadOp::Clear, slag::StoreOp::Store, {});
@@ -1419,6 +1545,11 @@ void addClearStep(RenderSchedule& schedule)
 
 void addDefaultSteps(RenderSchedule& schedule)
 {
+    (void)schedule.add({.name = steps::skinning,
+                        .addPasses = addSkinning,
+                        .userData = &skinningPipeline,
+                        .prepare = prepareSkinning,
+                        .release = destroyPipeline});
     // Their pipelines are the materials' (Materials.cpp).
     (void)schedule.add({.name = steps::depthPrepass, .addPasses = addDepthPrepass});
     (void)schedule.add({.name = steps::lightClustering,

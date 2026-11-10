@@ -541,7 +541,11 @@ the pose runtime, an Animator naming its skeleton and clip, poses in a
 native pool sampled and blended with the wide types (crossfades, override
 and additive layers with joint masks), "Animation.Update" while playing and
 "Animation.Pose" always; debug lines and the editor's View > Skeletons.
-Tried by hand by the owner on KWin. Step 2 is done.
+Tried by hand by the owner on KWin. Step 2 is done. Step 3 built (ADR 0080):
+compute pre-skinning, a Skinning step per view deforming every skinned
+instance with a pose into the frame's skinned vertices, which every pass
+(shadows included) draws like a static mesh; posed bounds from each joint's
+reach; a draw per skinned instance.
 
 ## M9 — Physics
 

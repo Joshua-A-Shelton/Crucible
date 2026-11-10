@@ -35,6 +35,7 @@ namespace crucible::render {
 // steps around them by name; the default steps, in order:
 namespace steps {
 inline constexpr const char* clear = "Clear";
+inline constexpr const char* skinning = "Skinning";
 inline constexpr const char* depthPrepass = "DepthPrepass";
 inline constexpr const char* lightClustering = "LightClustering";
 inline constexpr const char* shadows = "Shadows";
@@ -80,6 +81,11 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE BlackboardKey viewKey();
 // backbuffer.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE BlackboardKey sceneDepthKey();
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE BlackboardKey sceneColorKey();
+
+// The Skinning step's output (ADR 0080): the frame's skinned vertices
+// (DrawList::deformed reads them), published only when there are any.
+// Steps that draw meshes declare reading it, so its writes come first.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE BlackboardKey skinnedVerticesKey();
 
 // The frame's lights (ADR 0053), published before the first step runs: the
 // visible lights' LightData (an upload buffer, under Lights), and
@@ -202,7 +208,7 @@ private:
 };
 
 // The renderer's schedule, holding the default steps (ADR 0051, 0053, 0054, 0055):
-// DepthPrepass, LightClustering, Shadows, Opaque, Outlines, Sky, Transparent, Bloom,
+// Skinning, DepthPrepass, LightClustering, Shadows, Opaque, Outlines, Sky, Transparent, Bloom,
 // Tonemap, then DebugLines. Surfaces render it unless given another (ADR 0066).
 CRUCIBLE_EXPORT RenderSchedule& renderSchedule();
 

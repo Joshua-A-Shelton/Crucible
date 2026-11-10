@@ -28,6 +28,23 @@ struct DrawBatch
     // MeshRange::material picks one. Empty for a model without generated
     // materials, whose submeshes draw the fallback.
     std::span<const MaterialHandle> materials;
+    // A skinned instance's batch (ADR 0080, always one instance): its first
+    // vertex in the frame's skinned vertices; UINT32_MAX for a batch drawn
+    // from the model's own.
+    uint32_t deformedOffset = UINT32_MAX;
+};
+
+// A skinned instance the Skinning step deforms this frame (ADR 0080): its
+// mesh's vertices, blended by `jointCount` palette joints from
+// `paletteOffset`, into the skinned vertices from `deformedOffset`.
+struct SkinnedInstance
+{
+    const MeshData* model;
+    uint32_t mesh;
+    uint32_t paletteOffset; // in joints, three float4 rows each
+    uint32_t jointCount;
+    uint32_t deformedOffset; // in vertices
+    uint32_t vertexCount;
 };
 
 struct DrawList
@@ -42,6 +59,33 @@ struct DrawList
     // The instance list as the CPU wrote it (entity indices, by firstInstance
     // plus offset), for steps that leave some out (the editor's pick, ADR 0071).
     std::span<const uint32_t> entities{};
+    // Skinning (ADR 0080): the instances to deform, the palettes' slot
+    // (StructuredBuffer<float4>), the skinned vertices' slot as draws read
+    // them (ByteAddressBuffer), and how many vertices it holds. The skinned
+    // vertices are stream by stream: positions (12 bytes each), then
+    // normals (4), tangents (8), and outline normals (4).
+    std::span<const SkinnedInstance> skinned{};
+    uint32_t palettes = 0;
+    uint32_t deformed = 0;
+    uint32_t skinnedVertexCount = 0;
 };
+
+// Byte offsets of the skinned vertices' streams, for `count` vertices.
+inline constexpr uint64_t skinnedNormalsOffset(uint32_t count)
+{
+    return uint64_t{count} * 12;
+}
+inline constexpr uint64_t skinnedTangentsOffset(uint32_t count)
+{
+    return uint64_t{count} * 16;
+}
+inline constexpr uint64_t skinnedOutlineNormalsOffset(uint32_t count)
+{
+    return uint64_t{count} * 24;
+}
+inline constexpr uint64_t skinnedVerticesSize(uint32_t count)
+{
+    return uint64_t{count} * 28;
+}
 
 } // namespace crucible::render

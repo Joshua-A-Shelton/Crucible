@@ -6,6 +6,7 @@
 
 #include "RenderInternal.h"
 
+#include <crucible/Animation.h>
 #include <crucible/Ecs.h>
 #include <crucible/HashMap.h>
 #include <crucible/Jobs.h>
@@ -241,6 +242,8 @@ struct FrameBuffers
     uint32_t transformCapacity = 0;
     slag::Buffer* instances = nullptr;
     uint32_t instanceCapacity = 0;
+    slag::Buffer* palettes = nullptr; // skinning's (ADR 0080), three rows per joint
+    uint32_t paletteCapacity = 0;     // in joints
 };
 
 // What one worker (or the calling thread) found; reused frame to frame.
@@ -258,12 +261,51 @@ struct WorkerOutput
 // View 0 is the camera, shadow views follow it. Sorting the keys groups the
 // batches by view, then model, mesh, and level.
 constexpr uint32_t maxViews = 256;
-constexpr uint32_t maxModelIndex = 1u << 24;
+constexpr uint32_t maxModelIndex = 1u << 23;
+// A skinned instance's key (ADR 0080) has this bit, and its skin in place of
+// the mesh, so each gets a batch of its own.
+constexpr uint64_t skinnedKeyBit = uint64_t{1} << 55;
+constexpr uint32_t maxSkins = 1u << 24;
 
 uint64_t batchKey(uint32_t view, uint32_t model, uint32_t mesh, uint32_t lod)
 {
     return (uint64_t{view} << 56) | (uint64_t{model} << 32) | (uint64_t{mesh} << 8) | lod;
 }
+
+uint64_t skinnedKey(uint32_t view, uint32_t model, uint32_t skin, uint32_t lod)
+{
+    return (uint64_t{view} << 56) | skinnedKeyBit | (uint64_t{model} << 32) | (uint64_t{skin} << 8) | lod;
+}
+
+// What culling needs of a skinned instance: its bounds in its mesh's space
+// as posed, and a hash of its palette, so a shadow it casts redraws when it
+// moves.
+struct SkinRecord
+{
+    uint32_t modelIndex;
+    Vector3 boundsMin;
+    Vector3 boundsMax;
+    uint64_t poseHash;
+};
+
+struct RemapKey
+{
+    const MeshData* model;
+    uint64_t skeleton;
+    bool operator==(const RemapKey& other) const
+    {
+        return model == other.model && skeleton == other.skeleton;
+    }
+};
+
+struct RemapKeyHash
+{
+    uint64_t operator()(const RemapKey& key) const
+    {
+        return Hash<uint64_t>()(static_cast<uint64_t>(reinterpret_cast<uintptr_t>(key.model)) * 0x9e3779b97f4a7c15ull ^
+                                key.skeleton);
+    }
+};
 
 uint64_t mix(uint64_t h)
 {
@@ -305,6 +347,18 @@ struct DrawState
     Vector<uint32_t> entities{MemoryTag::Render}; // by instance-list position: the GPU list's CPU copy
     uint32_t instanceSlot = 0;
     uint32_t transformSlot = 0;
+    // Skinning (ADR 0080): this frame's skinned instances, by skin; which
+    // skin an entity index has; the palettes; and each skin's joints in its
+    // pose's skeleton, by model and skeleton (rebuilt after a reload).
+    Vector<SkinnedInstance> skinned{MemoryTag::Render};
+    Vector<SkinRecord> skinRecords{MemoryTag::Render};
+    HashMap<uint32_t, uint32_t> skinOf{MemoryTag::Render};
+    Vector<InstanceTransform> palette{MemoryTag::Render};
+    HashMap<RemapKey, Vector<int32_t>*, RemapKeyHash> remaps{MemoryTag::Render};
+    uint64_t remapReloads = 0;
+    uint32_t skinnedVertexCount = 0;
+    uint32_t paletteSlot = 0;
+    uint32_t deformedSlot = 0;
 };
 
 namespace {
@@ -419,15 +473,24 @@ void cullChunk(const ecs::ChunkView& view, void* data)
             continue;
         }
         const assets::MeshEntry& mesh = model->meshes[static_cast<size_t>(meshIndex)];
+        // A skinned instance is culled by its posed bounds (ADR 0080).
+        const uint32_t* skin = job.state->skinOf.find(index);
+        Vector3 boundsMin{mesh.boundsMin[0], mesh.boundsMin[1], mesh.boundsMin[2]};
+        Vector3 boundsMax{mesh.boundsMax[0], mesh.boundsMax[1], mesh.boundsMax[2]};
+        if (skin != nullptr)
+        {
+            boundsMin = job.state->skinRecords[*skin].boundsMin;
+            boundsMax = job.state->skinRecords[*skin].boundsMax;
+        }
+        auto keyOf = [&](uint32_t view, uint32_t lod) {
+            return skin != nullptr ? skinnedKey(view, handle.index, *skin, lod)
+                                   : batchKey(view, handle.index, static_cast<uint32_t>(meshIndex), lod);
+        };
 
         // The bounds in world space (Arvo): the center transformed, the
         // extents through the absolute 3x3.
-        const Vector3 localCenter{(mesh.boundsMin[0] + mesh.boundsMax[0]) * 0.5f,
-                                  (mesh.boundsMin[1] + mesh.boundsMax[1]) * 0.5f,
-                                  (mesh.boundsMin[2] + mesh.boundsMax[2]) * 0.5f};
-        const Vector3 localExtent{(mesh.boundsMax[0] - mesh.boundsMin[0]) * 0.5f,
-                                  (mesh.boundsMax[1] - mesh.boundsMin[1]) * 0.5f,
-                                  (mesh.boundsMax[2] - mesh.boundsMin[2]) * 0.5f};
+        const Vector3 localCenter = (boundsMin + boundsMax) * 0.5f;
+        const Vector3 localExtent = (boundsMax - boundsMin) * 0.5f;
         const Vector3 center = transformPoint(localCenter, world);
         Vector3 extent{};
         for (int axis = 0; axis < 3; ++axis)
@@ -440,7 +503,7 @@ void cullChunk(const ecs::ChunkView& view, void* data)
         {
             const uint32_t lod =
                 levelOf(*model, mesh, world, center, extent, job.orthographic, job.camera, job.pixelsPerMeter);
-            out.keys.pushBack(batchKey(0, handle.index, static_cast<uint32_t>(meshIndex), lod));
+            out.keys.pushBack(keyOf(0, lod));
             out.entities.pushBack(index);
             out.distances.pushBack(dot(center - job.camera, job.forward));
         }
@@ -457,12 +520,17 @@ void cullChunk(const ecs::ChunkView& view, void* data)
             }
             const uint32_t lod =
                 levelOf(*model, mesh, world, center, extent, shadow.orthographic, shadow.eye, shadow.pixelsPerMeter);
-            const uint64_t key =
-                batchKey(static_cast<uint32_t>(v) + 1, handle.index, static_cast<uint32_t>(meshIndex), lod);
+            const uint64_t key = keyOf(static_cast<uint32_t>(v) + 1, lod);
             out.keys.pushBack(key);
             out.entities.pushBack(index);
             out.distances.pushBack(0);
-            out.casterHashes[v] += casterHash(index, key & ~(uint64_t{0xff} << 56), world);
+            // A skin's key changes with its index from frame to frame: its
+            // mesh and pose stand in.
+            const uint64_t casterKey = skin != nullptr
+                                           ? (uint64_t{handle.index} << 32 | uint32_t(meshIndex) << 8 | lod) ^
+                                                 job.state->skinRecords[*skin].poseHash
+                                           : key & ~(uint64_t{0xff} << 56);
+            out.casterHashes[v] += casterHash(index, casterKey, world);
         }
     }
 }
@@ -527,6 +595,227 @@ Result<void> ensureInstances(DrawState& state, uint32_t frameSlot, uint32_t capa
     frame.instanceCapacity = capacity;
     device.writeStructuredBuffer(state.descriptorBase + instancesDescriptor + frameSlot,
                                  {.buffer = frame.instances, .count = capacity, .stride = sizeof(uint32_t)});
+    return {};
+}
+
+Result<void> ensurePalettes(DrawState& state, uint32_t frameSlot, uint32_t capacity)
+{
+    FrameBuffers& frame = state.frames[frameSlot];
+    if (frame.palettes != nullptr && frame.paletteCapacity >= capacity)
+    {
+        return {};
+    }
+    destroyBuffer(frame.palettes);
+    slag::GraphicsDevice& device = *renderDevice();
+    slag::Result<slag::Buffer*> buffer =
+        device.createBuffer({.size = uint64_t{capacity} * sizeof(InstanceTransform),
+                             .placement = slag::Placement::automatic(slag::MemoryKind::Upload),
+                             .debugName = "crucible skin palettes"});
+    if (!buffer)
+    {
+        frame.paletteCapacity = 0;
+        return Status::OutOfDeviceMemory;
+    }
+    frame.palettes = buffer.value();
+    frame.paletteCapacity = capacity;
+    device.writeStructuredBuffer(state.descriptorBase + skinPaletteDescriptor + frameSlot,
+                                 {.buffer = frame.palettes, .count = capacity * 3, .stride = sizeof(Vector4)});
+    return {};
+}
+
+// The entity's pose (ADR 0079): a PoseHandle on it or its nearest ancestor
+// that has one; 0 for none.
+uint32_t poseOf(const ecs::World& world, ecs::Entity entity)
+{
+    for (int depth = 0; entity != ecs::nullEntity && depth < 256; ++depth)
+    {
+        if (const animation::PoseHandle* handle = ecs::read<animation::PoseHandle>(world, entity);
+            handle != nullptr && handle->pose != 0)
+        {
+            return handle->pose;
+        }
+        entity = ecs::parentOf(world, entity);
+    }
+    return 0;
+}
+
+// The model's joints in the pose's skeleton, by name (-1 where it has none).
+const Vector<int32_t>& remapOf(DrawState& state, const MeshData& model, uint32_t pose)
+{
+    const RemapKey key{&model, animation::poseSkeletonKey(pose)};
+    if (Vector<int32_t>** found = state.remaps.find(key))
+    {
+        return **found;
+    }
+    auto* remap = create<Vector<int32_t>>(MemoryTag::Render, MemoryTag::Render);
+    for (const assets::JointEntry& joint : model.joints)
+    {
+        const bool named = uint64_t{joint.nameOffset} + joint.nameLength <= model.names.size();
+        remap->pushBack(
+            named ? animation::poseJointIndex(pose, {model.names.data() + joint.nameOffset, joint.nameLength}) : -1);
+    }
+    state.remaps.insertOrAssign(key, remap);
+    return *remap;
+}
+
+void clearRemaps(DrawState& state)
+{
+    for (auto& entry : state.remaps)
+    {
+        destroy(MemoryTag::Render, entry.value);
+    }
+    state.remaps.clear();
+}
+
+// The world's skinned instances that have a pose (ADR 0080): each skin's
+// palette (inverse bind, then the posed joint, then the pose's entity to the
+// mesh's, so skinned vertices are in the mesh's own space and draw with its
+// transform), its posed bounds, and its place in the skinned vertices.
+Result<void> gatherSkins(DrawState& state, ecs::World& world, uint32_t frameSlot)
+{
+    state.skinned.clear();
+    state.skinRecords.clear();
+    state.skinOf.clear();
+    state.palette.clear();
+    state.skinnedVertexCount = 0;
+    if (ecs::componentIdOf<animation::PoseHandle> == ecs::invalidComponent)
+    {
+        return {};
+    }
+    if (renderAssetReloads() != state.remapReloads)
+    {
+        clearRemaps(state);
+        state.remapReloads = renderAssetReloads();
+    }
+    struct Gather
+    {
+        DrawState* state;
+        ecs::World* world;
+    };
+    Gather gather{&state, &world};
+    const ecs::ComponentId required[] = {ecs::componentIdOf<MeshInstance>, ecs::componentIdOf<LoadedMesh>,
+                                         ecs::componentIdOf<WorldTransform>};
+    ecs::Query* query = ecs::createQuery(world, {.required = required});
+    ecs::forEachChunk(
+        *query,
+        [](const ecs::ChunkView& view, void* data) {
+            DrawState& state = *static_cast<Gather*>(data)->state;
+            const ecs::World& world = *static_cast<Gather*>(data)->world;
+            const std::span<const MeshInstance> instances = ecs::readColumn<MeshInstance>(view);
+            const std::span<const LoadedMesh> loaded = ecs::readColumn<LoadedMesh>(view);
+            const std::span<const WorldTransform> worlds = ecs::readColumn<WorldTransform>(view);
+            const ecs::Entity* entities = ecs::entitiesOf(view);
+            for (size_t i = 0; i < instances.size(); ++i)
+            {
+                const MeshHandle handle = loaded[i].handle;
+                const MeshData* model = handle.generation != 0 ? meshData(handle) : nullptr;
+                const int32_t meshIndex = instances[i].mesh;
+                if (model == nullptr || model->skinInfluences == 0 || meshIndex < 0 ||
+                    static_cast<size_t>(meshIndex) >= model->meshes.size() || handle.index >= maxModelIndex ||
+                    state.skinned.size() >= maxSkins)
+                {
+                    continue;
+                }
+                const assets::MeshEntry& mesh = model->meshes[static_cast<size_t>(meshIndex)];
+                if ((mesh.attributes & static_cast<uint32_t>(assets::MeshAttribute::Skinned)) == 0)
+                {
+                    continue;
+                }
+                const uint32_t pose = poseOf(world, entities[i]);
+                const std::span<const Matrix4x4> joints = animation::poseJoints(pose);
+                if (joints.empty())
+                {
+                    continue; // drawn as it was bound
+                }
+                // From the pose's entity (whose space the joints are in) to the mesh's.
+                Matrix4x4 meshInverse;
+                ecs::Entity owner = entities[i];
+                while (owner != ecs::nullEntity)
+                {
+                    const animation::PoseHandle* found = ecs::read<animation::PoseHandle>(world, owner);
+                    if (found != nullptr && found->pose == pose)
+                    {
+                        break;
+                    }
+                    owner = ecs::parentOf(world, owner);
+                }
+                const WorldTransform* ownerWorld = ecs::read<WorldTransform>(world, owner);
+                if (!invert(worlds[i].matrix, meshInverse))
+                {
+                    continue;
+                }
+                const Matrix4x4 toMesh =
+                    (ownerWorld != nullptr ? ownerWorld->matrix : Matrix4x4::identity()) * meshInverse;
+                const Vector<int32_t>& remap = remapOf(state, *model, pose);
+                const uint32_t paletteOffset = static_cast<uint32_t>(state.palette.size());
+                Vector3 lo{1e30f, 1e30f, 1e30f}, hi{-1e30f, -1e30f, -1e30f};
+                uint64_t hash = 0xcbf29ce484222325ull;
+                for (size_t j = 0; j < model->joints.size(); ++j)
+                {
+                    Matrix4x4 skinning = Matrix4x4::identity(); // a joint the pose lacks stays as bound
+                    if (remap[j] >= 0 && static_cast<size_t>(remap[j]) < joints.size())
+                    {
+                        Matrix4x4 inverseBind;
+                        std::memcpy(&inverseBind, model->joints[j].inverseBind, sizeof(inverseBind));
+                        skinning = inverseBind * joints[static_cast<size_t>(remap[j])] * toMesh;
+                    }
+                    InstanceTransform& row = state.palette.emplaceBack();
+                    writeTransform(row, skinning);
+                    uint32_t bits[12];
+                    std::memcpy(bits, &row, sizeof(bits));
+                    for (const uint32_t b : bits)
+                    {
+                        hash = (hash ^ b) * 0x100000001b3ull;
+                    }
+                    if (model->jointReach[j] < 0)
+                    {
+                        continue;
+                    }
+                    // The joint's vertices are within its reach of it, scaled
+                    // as it is; blended ones within the union of those spheres.
+                    float scale = 0;
+                    for (int axis = 0; axis < 3; ++axis)
+                    {
+                        const Vector4 r = skinning.rows[axis];
+                        scale = std::max(scale, r.x * r.x + r.y * r.y + r.z * r.z);
+                    }
+                    const float reach = model->jointReach[j] * std::sqrt(scale);
+                    const Vector3 at = transformPoint(model->jointOrigins[j], skinning);
+                    lo = {std::min(lo.x, at.x - reach), std::min(lo.y, at.y - reach), std::min(lo.z, at.z - reach)};
+                    hi = {std::max(hi.x, at.x + reach), std::max(hi.y, at.y + reach), std::max(hi.z, at.z + reach)};
+                }
+                if (lo.x > hi.x)
+                {
+                    lo = hi = {};
+                }
+                const uint32_t skin = static_cast<uint32_t>(state.skinned.size());
+                state.skinned.pushBack({.model = model,
+                                        .mesh = static_cast<uint32_t>(meshIndex),
+                                        .paletteOffset = paletteOffset,
+                                        .jointCount = static_cast<uint32_t>(model->joints.size()),
+                                        .deformedOffset = state.skinnedVertexCount,
+                                        .vertexCount = mesh.vertexCount});
+                state.skinRecords.pushBack({handle.index, lo, hi, hash});
+                state.skinOf.insertOrAssign(ecs::indexOf(entities[i]), skin);
+                state.skinnedVertexCount += mesh.vertexCount;
+            }
+        },
+        &gather);
+    ecs::destroyQuery(query);
+    if (state.palette.empty())
+    {
+        return {};
+    }
+    const uint32_t joints = static_cast<uint32_t>(state.palette.size());
+    if (Result<void> made = ensurePalettes(state, frameSlot, std::max(joints + joints / 2, 256u)); !made)
+    {
+        state.skinned.clear();
+        state.skinOf.clear();
+        state.skinnedVertexCount = 0;
+        return made;
+    }
+    std::memcpy(state.frames[frameSlot].palettes->mappedData(), state.palette.data(),
+                state.palette.size() * sizeof(InstanceTransform));
     return {};
 }
 
@@ -618,10 +907,13 @@ Result<void> batch(DrawState& state, uint32_t frameSlot, uint32_t viewCount)
         *state.batchOf.find(key) = static_cast<uint32_t>(state.batches.size());
         ++state.viewStarts[(key >> 56) + 1];
         const uint32_t modelIndex = static_cast<uint32_t>((key >> 32) & (maxModelIndex - 1));
+        const uint32_t meshOrSkin = static_cast<uint32_t>((key >> 8) & 0xffffff);
+        const bool skinned = (key & skinnedKeyBit) != 0;
         state.batches.pushBack({.model = meshDataAt(modelIndex),
-                                .mesh = static_cast<uint32_t>((key >> 8) & 0xffffff),
+                                .mesh = skinned ? state.skinned[meshOrSkin].mesh : meshOrSkin,
                                 .lod = static_cast<uint32_t>(key & 0xff),
-                                .materials = modelMaterials(modelIndex)});
+                                .materials = modelMaterials(modelIndex),
+                                .deformedOffset = skinned ? state.skinned[meshOrSkin].deformedOffset : UINT32_MAX});
         state.cursors.pushBack(0);
     }
     for (const WorkerOutput* out : state.workers)
@@ -666,6 +958,20 @@ Result<void> batch(DrawState& state, uint32_t frameSlot, uint32_t viewCount)
 
 } // namespace
 
+namespace {
+
+// The frame's skinning, which every view's list carries (ADR 0080).
+DrawList withSkins(const DrawState& state, DrawList list)
+{
+    list.skinned = state.skinned.span();
+    list.palettes = state.paletteSlot;
+    list.deformed = state.deformedSlot;
+    list.skinnedVertexCount = state.skinnedVertexCount;
+    return list;
+}
+
+} // namespace
+
 DrawState* createDrawState(uint32_t descriptorBase)
 {
     auto* state = create<DrawState>(MemoryTag::Render);
@@ -692,7 +998,9 @@ void destroyDrawState(DrawState* state)
     {
         destroyBuffer(frame.transforms);
         destroyBuffer(frame.instances);
+        destroyBuffer(frame.palettes);
     }
+    clearRemaps(*state);
     for (WorkerOutput* out : state->workers)
     {
         destroy(MemoryTag::Render, out);
@@ -710,6 +1018,11 @@ Result<DrawList> buildDrawList(DrawState& state, ecs::World* world, const ViewCo
     state.casterHashes.clear();
     state.distances.clear();
     state.entities.clear();
+    state.skinned.clear();
+    state.skinOf.clear();
+    state.skinnedVertexCount = 0;
+    state.paletteSlot = state.descriptorBase + skinPaletteDescriptor + frameSlot;
+    state.deformedSlot = state.descriptorBase + skinnedVerticesDescriptor + frameSlot;
     const uint32_t slots[2] = {state.descriptorBase + instancesDescriptor + frameSlot,
                                state.descriptorBase + transformsDescriptor + frameSlot};
     state.instanceSlot = slots[0];
@@ -732,6 +1045,10 @@ Result<DrawList> buildDrawList(DrawState& state, ecs::World* world, const ViewCo
 
     resolveInstances(*world, lastRunVersion);
     ++cache.build;
+    if (Result<void> skins = gatherSkins(state, *world, frameSlot); !skins)
+    {
+        return skins.status();
+    }
     if (Result<void> culled = cull(state, *world, view, height, frameSlot, shadowViews); !culled)
     {
         return culled.status();
@@ -753,7 +1070,8 @@ Result<DrawList> buildDrawList(DrawState& state, ecs::World* world, const ViewCo
     stats.cachedModels = static_cast<uint32_t>(cache.models.size());
     stats.cpuNs =
         static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now() - started).count());
-    return DrawList{state.batches.span().first(state.viewStarts[1]), slots[0], slots[1], state.entities.span()};
+    return withSkins(
+        state, DrawList{state.batches.span().first(state.viewStarts[1]), slots[0], slots[1], state.entities.span()});
 }
 
 DrawList shadowDrawList(const DrawState& state, uint32_t index)
@@ -764,8 +1082,8 @@ DrawList shadowDrawList(const DrawState& state, uint32_t index)
     }
     const uint32_t begin = state.viewStarts[index + 1];
     const uint32_t end = state.viewStarts[index + 2];
-    return DrawList{state.batches.span().subspan(begin, end - begin), state.instanceSlot, state.transformSlot,
-                    state.entities.span()};
+    return withSkins(state, DrawList{state.batches.span().subspan(begin, end - begin), state.instanceSlot,
+                                     state.transformSlot, state.entities.span()});
 }
 
 std::span<const float> instanceDistances(const DrawState& state)
