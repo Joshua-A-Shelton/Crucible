@@ -24,12 +24,13 @@
 // (ADR 0024's amendment): the math storage types cross as System.Numerics.
 //
 // Editor hints on an exposed struct's fields (ADR 0070) become the C#
-// mirror's [Color], [Range], [Tooltip], and [Header] (ADR 0069), which the
-// inspector reads. A field's comment (after it on its line, or the comment
+// mirror's [Color], [Range], [Tooltip], [Header], and [Layers] (ADR 0069,
+// 0075), which the inspector reads. A field's comment (after it on its line, or the comment
 // lines just above it) is its tooltip unless CRUCIBLE_HINT_TOOLTIP gives one.
 //
 //     CRUCIBLE_HINT_COLOR Vector3 color; // linear
 //     CRUCIBLE_HINT_RANGE(0, 3.14159f) float innerConeAngle;
+//     CRUCIBLE_HINT_LAYERS uint32_t mask; // a layer mask, shown by layer name
 //
 // Names are placeholders (docs/naming.md).
 
@@ -43,6 +44,7 @@
 #define CRUCIBLE_HINT_RANGE(min, max) __attribute__((annotate("crucible_hint_range:" #min ":" #max)))
 #define CRUCIBLE_HINT_TOOLTIP(text) __attribute__((annotate("crucible_hint_tooltip:" text)))
 #define CRUCIBLE_HINT_HEADER(text) __attribute__((annotate("crucible_hint_header:" text)))
+#define CRUCIBLE_HINT_LAYERS __attribute__((annotate("crucible_hint_layers")))
 #else
 #define CRUCIBLE_EXPOSE
 #define CRUCIBLE_EXPOSE_STATUS
@@ -52,4 +54,5 @@
 #define CRUCIBLE_HINT_RANGE(min, max)
 #define CRUCIBLE_HINT_TOOLTIP(text)
 #define CRUCIBLE_HINT_HEADER(text)
+#define CRUCIBLE_HINT_LAYERS
 #endif

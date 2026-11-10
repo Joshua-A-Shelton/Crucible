@@ -7,6 +7,9 @@ namespace Crucible.Assets;
 public partial class ProjectFile
 {
     public string Name = "";
+
+    /// <summary>The physics layers' names, by layer, up to 32 (ADR 0075); "" for an unnamed layer.</summary>
+    public List<string> PhysicsLayers = [];
 }
 
 /// <summary>
@@ -19,14 +22,18 @@ public sealed class Project
 {
     public const string Extension = ".crproject";
 
-    private Project(string projectFile, string name)
+    private Project(string projectFile, string name, IReadOnlyList<string>? physicsLayers = null)
     {
         ProjectFilePath = Path.GetFullPath(projectFile);
         Root = Path.GetDirectoryName(ProjectFilePath)!;
         Name = name;
+        PhysicsLayers = physicsLayers ?? [];
     }
 
     public string Name { get; }
+
+    /// <summary>The physics layers' names, by layer (ADR 0075): what layer masks show.</summary>
+    public IReadOnlyList<string> PhysicsLayers { get; }
     public string ProjectFilePath { get; }
     public string Root { get; }
     public string AssetsFolder => Path.Combine(Root, "Assets");
@@ -38,7 +45,7 @@ public sealed class Project
     public static Project Open(string projectFile)
     {
         ProjectFile file = Json.Deserialize<ProjectFile>(File.ReadAllBytes(projectFile));
-        Project project = new(projectFile, file.Name);
+        Project project = new(projectFile, file.Name, [.. file.PhysicsLayers.Take(32)]);
         Directory.CreateDirectory(project.AssetsFolder);
         Directory.CreateDirectory(project.CacheFolder);
         return project;

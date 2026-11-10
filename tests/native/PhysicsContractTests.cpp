@@ -1,6 +1,6 @@
 // The physics contract (ADR 0075): its components and gameplay systems
-// registered, the null physics answering every call, the layer matrix, and
-// an installed service taking over.
+// registered, the null physics answering every call, and an installed
+// service taking over.
 
 #include "SubsystemTestSupport.h"
 
@@ -59,18 +59,6 @@ TEST_CASE("The null physics finds nothing and moves characters freely")
     CHECK_FALSE(moved.grounded);
     CHECK(ecs::read<scenes::LocalTransform>(*world, character)->position.z == 2);
     ecs::destroyWorld(world);
-}
-
-TEST_CASE("Layers collide by default and the matrix is symmetric")
-{
-    CHECK(layersCollide(3, 7));
-    setLayersCollide(3, 7, false);
-    CHECK_FALSE(layersCollide(3, 7));
-    CHECK_FALSE(layersCollide(7, 3));
-    CHECK(layersCollide(3, 3));
-    setLayersCollide(7, 3, true);
-    CHECK(layersCollide(3, 7));
-    CHECK_FALSE(layersCollide(32, 0)); // out of range
 }
 
 namespace {

@@ -531,6 +531,31 @@ public sealed class FieldEditor : UIElement
                     };
                     break;
                 }
+            case FieldKind.UInt32 when Field.IsLayers:
+                {
+                    // A layer mask, by the project's layer names (ADR 0075).
+                    LayerMaskField mask = new()
+                    {
+                        LayerNames = _section.Shell.Project?.PhysicsLayers ?? [],
+                        VerticalAlignment = VerticalAlignment.Center,
+                    };
+                    bool showing = false;
+                    mask.MaskChanged += m =>
+                    {
+                        if (!showing)
+                        {
+                            Commit(JsonValue.Create(m.Mask));
+                        }
+                    };
+                    Add(mask);
+                    _show = value =>
+                    {
+                        showing = true;
+                        mask.Mask = value is JsonValue v && v.TryGetValue(out uint bits) ? bits : 0;
+                        showing = false;
+                    };
+                    break;
+                }
             case FieldKind.Byte or FieldKind.SByte or FieldKind.Int16 or FieldKind.UInt16 or FieldKind.Int32
                 or FieldKind.UInt32 or FieldKind.Int64 or FieldKind.UInt64 or FieldKind.Single or FieldKind.Double:
                 {

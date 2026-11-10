@@ -529,14 +529,14 @@ settled as drafted too:
 
 Settled as drafted: crucible/Physics.h (`crucible::physics`, C#
 `Crucible.Physics`): `RigidBody` (`kind`, `mass`, `linearVelocity`,
-`angularVelocity`, `gravityScale`, `layer`), `BodyKind` (`Static`,
+`angularVelocity`, `gravityScale`, `layer`, then `layers` and `mask`), `BodyKind` (`Static`,
 `Kinematic`, `Dynamic`), `Collider` (`shape`, `size`, `offset`, `friction`,
 `restitution`, `isTrigger`, `mesh`), `ShapeKind` (`Box`, `Sphere`, `Capsule`,
 `Mesh`, `Convex`), `Joint` (`kind`, `other`, anchors, limits), `JointKind`
 (`Fixed`, `Hinge`, `BallSocket`, `SwingTwist`, `Distance`),
 `CharacterController` (`radius`, `height`, `stepHeight`, `slopeLimit`);
 `raycast`, `shapeCast`, `overlap`, `contacts`, `ContactEvent`,
-`moveCharacter`, `setLayersCollide`; the systems "Physics.Sync",
+`moveCharacter`, `setLayersCollide` (removed when layers became masks); the systems "Physics.Sync",
 "Physics.Step", "Physics.WriteBack"; `installPhysics`, `PhysicsService`.
 crucible/Audio.h (`crucible::audio`, C# `Crucible.Audio`): `AudioSource`
 (`clip`, `volume`, `pitch`, `loop`, `playOnStart`, `bus`, `spatial`,
@@ -551,9 +551,20 @@ Names added while building are placeholders (marked *):
 
 | Name | What it is |
 |---|---|
-| `Joint` (`anchor`*, `otherAnchor`*, `axis`*, `lowerLimit`*, `upperLimit`*, `swingLimit`*, `twistLimit`*); `Collider.meshIndex`*; `CharacterController.layer`* | Fields |
-| `QueryShape`* (`kind`*, `size`*), `RayHit`* (`hit`*, `entity`*, `point`*, `normal`*, `distance`*), `ContactKind`* (`Begin`*, `End`*), `ContactEvent` (`kind`*, `trigger`*, `a`*, `b`*, `point`*, `normal`*), `CharacterMove`* (`position`*, `grounded`*, `groundNormal`*), `layersCollide`*, `physicsService`*, `registerPhysics`*; the constants `syncSystemName`*, `stepSystemName`*, `writeBackSystemName`*, `layerCount`*, `allLayers`* | Physics |
+| `Joint` (`anchor`*, `otherAnchor`*, `axis`*, `lowerLimit`*, `upperLimit`*, `swingLimit`*, `twistLimit`*); `Collider.meshIndex`* | Fields |
+| `QueryShape`* (`kind`*, `size`*), `RayHit`* (`hit`*, `entity`*, `point`*, `normal`*, `distance`*), `ContactKind`* (`Begin`*, `End`*), `ContactEvent` (`kind`*, `trigger`*, `a`*, `b`*, `point`*, `normal`*), `CharacterMove`* (`position`*, `grounded`*, `groundNormal`*), `physicsService`*, `registerPhysics`*; the constants `syncSystemName`*, `stepSystemName`*, `writeBackSystemName`*, `layerCount`*, `allLayers`* | Physics |
 | `Rolloff`* (`Linear`*, `Inverse`*, `None`*), `BusEffects` (`lowPassHz`*, `reverbSend`*, `duckedBy`*, `duckAmount`*), `MusicAlign`* (`Now`*, `Beat`*, `Bar`*), `MusicTransition` (`crossfadeSeconds`*, `align`*), `defineSnapshot`*, `audioService`*, `registerAudio`*, `NullAudioCounts`* (`plays`*, `stops`*, `busChanges`*, `snapshots`*, `musicChanges`*, `sourcesStarted`*), `nullAudioCounts`*; the constants `updateSystemName`*, `masterBus`*, `noBus`* | Audio |
 | `registerDefaultSystem`* | An engine default a replacement registered first keeps out |
 | `crucible_test_subsystems`*, tests/native/SubsystemTestSupport.h* | Tests |
+
+Layers as masks (2026-11-09, after trying 7c by hand), settled as drafted:
+`RigidBody.layers` and `mask`, `CharacterController.layers` and `mask`
+(replacing `layer`), `CRUCIBLE_HINT_LAYERS` and C# `[Layers]`
+(`LayersAttribute`), `LayerMaskField` (Crucible.UI), the project file's
+`"PhysicsLayers"`. Placeholders (marked *):
+
+| Name | What it is |
+|---|---|
+| `LayerMaskField` (`LayerNames`*, `Mask`*, `MaskChanged`*, `IsOpen`*, `List`*, `NameOf`*), `LayerMaskRow`* (`Text`*, `IsChecked`*); the rows "Nothing"*, "Everything"*, "Default"*, "Layer N"* | The control |
+| `SerializedField.IsLayers`*, `Project.PhysicsLayers`*, `ProjectFile.PhysicsLayers`* | Carrying it |
 

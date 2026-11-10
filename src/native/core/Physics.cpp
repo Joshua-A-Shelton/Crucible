@@ -1,12 +1,9 @@
-// The physics contract's engine side (ADR 0075): the installed service, the
-// layer matrix, and the null physics that stands in until an
-// implementation replaces it.
+// The physics contract's engine side (ADR 0075): the installed service and
+// the null physics that stands in until an implementation replaces it.
 
 #include <crucible/Physics.h>
 #include <crucible/Systems.h>
 #include <crucible/Transform.h>
-
-#include <atomic>
 
 namespace crucible::physics {
 
@@ -51,22 +48,6 @@ constexpr PhysicsService nullPhysics{noHit, noCastHit, noOverlap, noContacts, mo
 
 PhysicsService installed = nullPhysics;
 
-// Bit b of row a: whether layers a and b collide. All by default.
-struct LayerMatrix
-{
-    std::atomic<uint32_t> rows[layerCount];
-
-    LayerMatrix()
-    {
-        for (std::atomic<uint32_t>& row : rows)
-        {
-            row.store(allLayers);
-        }
-    }
-};
-
-LayerMatrix matrix;
-
 } // namespace
 
 void installPhysics(const PhysicsService& service)
@@ -104,33 +85,6 @@ uint32_t contacts(ecs::World& world, std::span<ContactEvent> into)
 CharacterMove moveCharacter(ecs::World& world, ecs::Entity character, Vector3 displacement, float seconds)
 {
     return installed.moveCharacter(world, character, displacement, seconds);
-}
-
-void setLayersCollide(uint32_t a, uint32_t b, bool collide)
-{
-    if (a >= layerCount || b >= layerCount)
-    {
-        return;
-    }
-    if (collide)
-    {
-        matrix.rows[a].fetch_or(1u << b);
-        matrix.rows[b].fetch_or(1u << a);
-    }
-    else
-    {
-        matrix.rows[a].fetch_and(~(1u << b));
-        matrix.rows[b].fetch_and(~(1u << a));
-    }
-}
-
-bool layersCollide(uint32_t a, uint32_t b)
-{
-    if (a >= layerCount || b >= layerCount)
-    {
-        return false;
-    }
-    return (matrix.rows[a].load() & (1u << b)) != 0;
 }
 
 void registerPhysics()

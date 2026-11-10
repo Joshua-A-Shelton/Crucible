@@ -36,8 +36,11 @@ inline constexpr std::string_view syncSystemName = "Physics.Sync";
 inline constexpr std::string_view stepSystemName = "Physics.Step";
 inline constexpr std::string_view writeBackSystemName = "Physics.WriteBack";
 
-// Collision layers: 32, each body and character on one. Which layers
-// collide is a matrix (setLayersCollide); queries take a mask of layers.
+// Collision layers: 32, as bits of a mask. A body or character is on the
+// layers in its `layers` and collides with those in its `mask`; two collide
+// when either's mask has a layer the other is on (Box3D's category and mask
+// bits). Queries take a mask too. The project names the layers
+// ("PhysicsLayers"); the inspector shows them by name.
 inline constexpr uint32_t layerCount = 32;
 inline constexpr uint32_t allLayers = 0xFFFFFFFFu;
 
@@ -65,7 +68,8 @@ struct CRUCIBLE_EXPOSE RigidBody
     Vector3 linearVelocity;                   // meters per second
     Vector3 angularVelocity;                  // radians per second, around each axis
     CRUCIBLE_HINT_RANGE(-2, 2) float gravityScale;
-    CRUCIBLE_HINT_RANGE(0, 31) uint32_t layer;
+    CRUCIBLE_HINT_LAYERS uint32_t layers; // the layers it's on
+    CRUCIBLE_HINT_LAYERS uint32_t mask;   // the layers it collides with
 };
 
 // The shape physics sees, in the entity's space.
@@ -112,7 +116,8 @@ struct CRUCIBLE_EXPOSE CharacterController
     CRUCIBLE_HINT_RANGE(0, 4) float height; // between the end caps' centers
     CRUCIBLE_HINT_RANGE(0, 1) float stepHeight;
     CRUCIBLE_HINT_RANGE(0, 1.5708f) float slopeLimit; // radians; steeper is a wall
-    CRUCIBLE_HINT_RANGE(0, 31) uint32_t layer;
+    CRUCIBLE_HINT_LAYERS uint32_t layers;             // the layers it's on
+    CRUCIBLE_HINT_LAYERS uint32_t mask;               // the layers it collides with
 };
 
 // A shape for casts and overlaps: Box, Sphere, or Capsule, sized as a Collider.
@@ -188,11 +193,6 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t contacts(ecs::World& world, std::span<C
 // and writes its LocalTransform.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE CharacterMove moveCharacter(ecs::World& world, ecs::Entity character,
                                                             Vector3 displacement, float seconds);
-
-// The layer matrix, which every implementation reads: by default every
-// layer collides with every other.
-CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void setLayersCollide(uint32_t a, uint32_t b, bool collide);
-CRUCIBLE_EXPORT CRUCIBLE_EXPOSE bool layersCollide(uint32_t a, uint32_t b);
 
 // Registers the components and, unless an implementation registered its
 // own first, the null physics's systems. The engine calls it at start-up.

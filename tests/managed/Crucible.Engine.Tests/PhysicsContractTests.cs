@@ -35,9 +35,28 @@ public class PhysicsContractTests
         using World world = new();
         RayHit hit = Crucible.Physics.Api.Raycast(world.Handle, Vector3.Zero, Vector3.UnitZ, 100, uint.MaxValue);
         await Assert.That(hit.Hit).IsFalse();
-        Crucible.Physics.Api.SetLayersCollide(4, 5, false);
-        await Assert.That(Crucible.Physics.Api.LayersCollide(5, 4)).IsFalse();
-        Crucible.Physics.Api.SetLayersCollide(4, 5, true);
+    }
+
+    [Test]
+    public async Task ABodyStartsOnTheDefaultLayerCollidingWithEverything()
+    {
+        RigidBody body = new();
+        await Assert.That(body.Kind).IsEqualTo(BodyKind.Dynamic);
+        await Assert.That(body.Layers).IsEqualTo(1u);
+        await Assert.That(body.Mask).IsEqualTo(uint.MaxValue);
+        // Added in the editor (an empty object read), it gets the same.
+        RigidBody added = Crucible.Serialization.Json.Deserialize<RigidBody>("{}");
+        await Assert.That(added.Mask).IsEqualTo(uint.MaxValue);
+        await Assert.That(new CharacterController().Layers).IsEqualTo(1u);
+    }
+
+    [Test]
+    public async Task LayerMasksAreMarkedForTheInspector()
+    {
+        Crucible.Serialization.SerializedField[] fields = [.. RigidBody.SerializedFields];
+        await Assert.That(fields.Single(field => field.Name == "Layers").IsLayers).IsTrue();
+        await Assert.That(fields.Single(field => field.Name == "Mask").IsLayers).IsTrue();
+        await Assert.That(fields.Single(field => field.Name == "Mass").IsLayers).IsFalse();
     }
 
     [Test]

@@ -453,6 +453,10 @@ internal static class CSharpWriter
         {
             attributes.Add("global::Crucible.Serialization.Color");
         }
+        if (hints.Layers)
+        {
+            attributes.Add("global::Crucible.Serialization.Layers");
+        }
         if (hints.Min is { } min && hints.Max is { } max)
         {
             attributes.Add($"global::Crucible.Serialization.Range({min}, {max})");

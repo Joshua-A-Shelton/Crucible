@@ -71,3 +71,10 @@ public sealed class HeaderAttribute(string text) : Attribute
 /// </summary>
 [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false)]
 public sealed class ColorAttribute : Attribute;
+
+/// <summary>
+/// Editor hint (ADR 0075): a <c>uint</c> is a layer mask, one bit per layer,
+/// shown by the project's layer names (<c>PhysicsLayers</c>).
+/// </summary>
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false)]
+public sealed class LayersAttribute : Attribute;

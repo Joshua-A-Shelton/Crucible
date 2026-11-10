@@ -1,3 +1,4 @@
 {
-  "Name": "Diorama"
+  "Name": "Diorama",
+  "PhysicsLayers": ["Default", "Player", "Enemies", "Props"]
 }

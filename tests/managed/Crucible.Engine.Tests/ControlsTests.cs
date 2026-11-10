@@ -384,4 +384,51 @@ public class ControlsTests
         await Assert.That(combo.IsOpen).IsFalse();
         await Assert.That(combo.SelectedOption).IsEqualTo("High");
     }
+
+    [Test]
+    public async Task LayerMasksPickSeveralNamedLayers()
+    {
+        using Rig rig = new();
+        // Layer 0 unnamed (Default), 1 Player, 3 Enemies; 2 unnamed, so not offered.
+        LayerMaskField field = rig.Add(new LayerMaskField { LayerNames = ["", "Player", "", "Enemies"], Mask = 0b0001 });
+        int changes = 0;
+        field.MaskChanged += _ => ++changes;
+        await Assert.That(field.List.ItemCount).IsEqualTo(5); // Nothing, Everything, Default, Player, Enemies
+
+        rig.Click(field);
+        await Assert.That(field.IsOpen).IsTrue();
+        // Down to Enemies (Nothing, Everything, Default, Player, Enemies) and toggle it on: the list stays open.
+        rig.Send(Key(Down), Key(Down), Key(Down), Key(Down), Key(Return));
+        await Assert.That(field.Mask).IsEqualTo(0b1001u);
+        await Assert.That(field.IsOpen).IsTrue();
+        await Assert.That(Shown(field)).IsEqualTo("Default, Enemies");
+        rig.Send(Key(Return)); // and off again
+        await Assert.That(field.Mask).IsEqualTo(0b0001u);
+        rig.Send(Key(Escape));
+        await Assert.That(field.IsOpen).IsFalse();
+        await Assert.That(changes).IsEqualTo(2);
+
+        field.Mask = uint.MaxValue;
+        await Assert.That(Shown(field)).IsEqualTo("Everything");
+        field.Mask = 0;
+        await Assert.That(Shown(field)).IsEqualTo("Nothing");
+        field.Mask = 0b0100; // on a layer with no name: shown by number
+        await Assert.That(Shown(field)).IsEqualTo("Layer 2");
+    }
+
+    // The text a layer mask field shows.
+    private static string Shown(LayerMaskField field) =>
+        Descendants(field).OfType<Label>().First().Text;
+
+    private static IEnumerable<UIElement> Descendants(UIElement element)
+    {
+        foreach (UIElement child in element.Children)
+        {
+            yield return child;
+            foreach (UIElement below in Descendants(child))
+            {
+                yield return below;
+            }
+        }
+    }
 }

@@ -44,12 +44,12 @@ Decided by the owner (2026-11-09):
 3. **Contracts, null defaults, and tests.**
 4. **The larger contracts:**
    - **Physics:** `RigidBody` (static, kinematic, dynamic; mass,
-     velocities, gravity scale, layer), `Collider` (box, sphere, capsule,
+     velocities, gravity scale, layers and mask), `Collider` (box, sphere, capsule,
      mesh, convex hull; offset, friction, restitution, trigger), `Joint`
      (fixed, hinge, ball-and-socket, swing-twist, distance; anchors, axis,
-     limits), `CharacterController` (capsule, step height, slope limit);
-     `raycast`, `shapeCast`, `overlap`, `contacts`, `moveCharacter`, and a
-     32-layer collision matrix. Systems: "Physics.Sync" (PrePhysics),
+     limits), `CharacterController` (capsule, step height, slope limit,
+     layers and mask); `raycast`, `shapeCast`, `overlap`, `contacts`,
+     `moveCharacter`; 32 collision layers (see Layers, below). Systems: "Physics.Sync" (PrePhysics),
      "Physics.Step" (Physics), "Physics.WriteBack" (PostPhysics).
    - **Audio:** `AudioSource` (clip, volume, pitch, loop, play on start,
      bus, spatial, distances, rolloff, occlusion), `AudioListener` (a
@@ -82,6 +82,7 @@ nothing predictably.
 
 ## Details
 
+- **The Diorama** names four layers (Default, Player, Enemies, Props).
 - **The null physics:** its systems do nothing; nothing moves or collides;
   queries find nothing; `moveCharacter` moves straight through everything
   and is never grounded.
@@ -98,9 +99,24 @@ nothing predictably.
   a capsule's radius in `size.x` and the distance between its end caps'
   centers in `size.y`, along Y. Mesh and convex colliders name a model and
   one of its meshes (`meshIndex`).
-- **The layer matrix is the engine's,** not an implementation's: every
-  implementation reads it, so changing implementation keeps a game's
-  layers.
+- **Layers (changed after trying it by hand, owner, 2026-11-09):** first
+  built as one layer per body and a project-wide matrix of which layers
+  collide, shown as a 0–31 slider. The owner asked for what other engines
+  do: a body can be on several layers. Now a body or character has two
+  masks, `layers` (which it's on) and `mask` (which it collides with); two
+  collide when either's mask has a layer the other is on. That's Box3D's
+  own category and mask filtering, and Godot's layers and masks; the
+  matrix (`setLayersCollide`, `layersCollide`) went. The project names its
+  layers (`"PhysicsLayers"` in the .crproject, up to 32; layer 0 is
+  "Default" when unnamed); the inspector shows a mask as a multi-select
+  drop-down of those names (`LayerMaskField`: "Nothing", "Everything", or
+  the names that are on; the list stays open while layers are toggled), for
+  any `uint` marked `CRUCIBLE_HINT_LAYERS` in C++ or `[Layers]` in C#.
+- **Defaults when added:** the C# halves of `RigidBody`, `Collider`,
+  `CharacterController`, and `AudioSource` have constructors, which reading
+  an empty object (Add Component) uses: a dynamic body of 1 kg on layer 0
+  colliding with everything, a 1 m box, a 0.4 m by 1 m character, a source
+  at full volume heard from 1 to 50 m.
 - **`linkEngineComponents`** registers the new components in a module's
   own IDs too.
 
@@ -114,7 +130,10 @@ nothing predictably.
 
 - **Core:** crucible/Physics.h and Physics.cpp, crucible/Audio.h and
   Audio.cpp; `SystemDesc::gameplay`, `registerDefaultSystem`,
-  `nativeSystemIsGameplay`.
+  `nativeSystemIsGameplay`; `CRUCIBLE_HINT_LAYERS`, carried by the binding
+  generator to `[Layers]`, by the serializer generator to
+  `SerializedField.IsLayers`, and shown by the inspector as a
+  `LayerMaskField` (Crucible.UI) with `Project.PhysicsLayers`' names.
 - **Engine:** the components' C# halves (Physics/PhysicsComponents.cs,
   Audio/AudioComponents.cs), registered and saved with the engine's;
   `ScheduleBuilder.IncludeGameplaySystems` (off unless asked); the host
@@ -124,9 +143,13 @@ nothing predictably.
 - **Tests:**
   - **`PhysicsContractTests`** (native): the components and three
     gameplay systems in their phases; the null physics's answers and
-    character moves; the layer matrix; an installed service answering.
-    (C#): gameplay systems join a schedule only when asked; queries and
-    layers through the bindings; the components saved.
+    character moves; an installed service answering. (C#): gameplay
+    systems join a schedule only when asked; queries through the bindings;
+    a body's defaults (on layer 0, colliding with everything), also when
+    read from an empty object; its masks marked as layers; the components
+    saved. `ControlsTests`: a layer mask field toggling several named
+    layers with the list open, and showing Nothing, Everything, names, and
+    an unnamed layer's number.
   - **`AudioContractTests`** (native): the components (the listener a
     tag) and the gameplay system; the null audio's counts; play-on-start
     sources started once; an installed service answering. (C#): the null

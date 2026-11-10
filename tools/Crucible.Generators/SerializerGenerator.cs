@@ -27,6 +27,7 @@ public sealed class SerializerGenerator : IIncrementalGenerator
     private const string TooltipName = "Crucible.Serialization.TooltipAttribute";
     private const string HeaderName = "Crucible.Serialization.HeaderAttribute";
     private const string ColorName = "Crucible.Serialization.ColorAttribute";
+    private const string LayersName = "Crucible.Serialization.LayersAttribute";
     private const string InterfaceName = "Crucible.Serialization.IJsonSerialized`1";
     private const string VersionProperty = "$version";
 
@@ -221,7 +222,7 @@ public sealed class SerializerGenerator : IIncrementalGenerator
     {
         float min = float.NaN, max = float.NaN;
         string? tooltip = null, header = null;
-        bool color = false;
+        bool color = false, layers = false;
         foreach (AttributeData attribute in member.GetAttributes())
         {
             switch (attribute.AttributeClass?.ToDisplayString())
@@ -253,9 +254,16 @@ public sealed class SerializerGenerator : IIncrementalGenerator
                         report(Diagnostics.MisplacedAttribute, location, [display, "[Color] applies to a Vector3 or Vector4"]);
                     }
                     break;
+                case LayersName:
+                    layers = true;
+                    if (shape.Kind is not ShapeKind.UInt32)
+                    {
+                        report(Diagnostics.MisplacedAttribute, location, [display, "[Layers] applies to a uint"]);
+                    }
+                    break;
             }
         }
-        return new HintModel(min, max, tooltip, header, color);
+        return new HintModel(min, max, tooltip, header, color, layers);
     }
 
     // Why the type can't carry generated serialization, or null if it can.
@@ -564,6 +572,10 @@ public sealed class SerializerGenerator : IIncrementalGenerator
             {
                 arguments.Add("isColor: true");
             }
+            if (hints.IsLayers)
+            {
+                arguments.Add("isLayers: true");
+            }
         }
         return $"new {Field}({string.Join(", ", arguments)})";
     }
@@ -784,7 +796,7 @@ internal sealed record TypeShape(ShapeKind Kind, string Type, TypeShape? Element
     EquatableArray<string> EnumNames = default);
 
 // A member's editor hints (ADR 0069); NaN for no range.
-internal sealed record HintModel(float Min, float Max, string? Tooltip, string? Header, bool IsColor);
+internal sealed record HintModel(float Min, float Max, string? Tooltip, string? Header, bool IsColor, bool IsLayers = false);
 
 internal sealed record MemberModel(string Name, EquatableArray<string> FormerNames, TypeShape Shape, HintModel Hints);
 

@@ -16,6 +16,7 @@ internal sealed class Parser
     private const string InternalAnnotation = "crucible_internal";
     private const string ExposeAsPrefix = "crucible_expose_as:";
     private const string HintColor = "crucible_hint_color";
+    private const string HintLayers = "crucible_hint_layers";
     private const string HintRangePrefix = "crucible_hint_range:";
     private const string HintTooltipPrefix = "crucible_hint_tooltip:";
     private const string HintHeaderPrefix = "crucible_hint_header:";
@@ -265,13 +266,17 @@ internal sealed class Parser
     private FieldHints? HintsOf(CXCursor field, string display)
     {
         string? tooltip = null, header = null, min = null, max = null;
-        bool color = false;
+        bool color = false, layers = false;
         foreach (string annotation in Libclang.Children(field).Where(child => child.Kind == CursorKind.AnnotateAttr)
                      .Select(Libclang.Spelling))
         {
             if (annotation == HintColor)
             {
                 color = true;
+            }
+            else if (annotation == HintLayers)
+            {
+                layers = true;
             }
             else if (annotation.StartsWith(HintRangePrefix, StringComparison.Ordinal))
             {
@@ -291,7 +296,9 @@ internal sealed class Parser
             }
         }
         tooltip ??= CommentOf(field);
-        return tooltip is null && header is null && min is null && !color ? null : new FieldHints(tooltip, header, min, max, color);
+        return tooltip is null && header is null && min is null && !color && !layers
+            ? null
+            : new FieldHints(tooltip, header, min, max, color, layers);
     }
 
     // A number as the macro spelled it ("0", "-1", "3.14159f"), as a C# float literal.
