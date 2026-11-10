@@ -547,7 +547,7 @@ crucible/Audio.h (`crucible::audio`, C# `Crucible.Audio`): `AudioSource`
 `nativeSystemIsGameplay`, `ScheduleBuilder.IncludeGameplaySystems`; ADR
 0075 "Physics and audio contracts", `docs/learning/subsystem-contracts.md`,
 `PhysicsContractTests`, `AudioContractTests`, `SubsystemReplacementTests`.
-Names added while building are placeholders (marked *):
+Names added while building (marked *) settled as drafted too:
 
 | Name | What it is |
 |---|---|
@@ -561,7 +561,8 @@ Layers as masks (2026-11-09, after trying 7c by hand), settled as drafted:
 `RigidBody.layers` and `mask`, `CharacterController.layers` and `mask`
 (replacing `layer`), `CRUCIBLE_HINT_LAYERS` and C# `[Layers]`
 (`LayersAttribute`), `LayerMaskField` (Crucible.UI), the project file's
-`"PhysicsLayers"`. Placeholders (marked *):
+`"PhysicsLayers"`. Names added while building (marked *) settled as
+drafted too:
 
 | Name | What it is |
 |---|---|

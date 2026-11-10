@@ -1,8 +1,7 @@
 # 0075 — Physics and audio contracts
 
-**Status:** Accepted (2026-11-09); M7 step 7c built. Names settled by the
-owner as drafted; those added while building are placeholders
-(docs/naming.md).
+**Status:** Accepted (2026-11-09); M7 step 7c built and tried by hand by
+the owner on KWin. Names settled by the owner as drafted (docs/naming.md).
 
 ## Context
 
