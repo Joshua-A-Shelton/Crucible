@@ -115,3 +115,6 @@ Longer explanations of decisions, written to be reread:
 - [Skinning and clips](docs/learning/skinning-and-clips.md) (ADR 0078): the
   skinning formula, weights as bytes, resampled clips and smallest-three
   rotations, testing against a reference pose, and sub-assets.
+- [Poses and blending](docs/learning/poses-and-blending.md) (ADR 0079): local
+  and model space, sampling with nlerp, blending as one operation, structure
+  of arrays, and debug lines.

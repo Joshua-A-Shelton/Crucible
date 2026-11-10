@@ -151,7 +151,16 @@ public sealed class ScheduleBuilder
         }
 
         List<Entry> systems = [.. _systems];
-        systems.AddRange(NativeSystem.Registered(IncludeNativeSystems, IncludeGameplaySystems));
+        // Native systems are registered for every schedule: one whose phase
+        // this schedule doesn't have is left out of it (ADR 0079).
+        systems.AddRange(NativeSystem.Registered(IncludeNativeSystems, IncludeGameplaySystems)
+            .Where(entry => _phases.Contains(entry.Phase) || _fixedPhases.Contains(entry.Phase)));
+        // Native systems this schedule leaves out (gameplay ones while
+        // editing): ordering against one is ignored rather than an error, so
+        // "Animation.Pose" can run after the gameplay "Animation.Update"
+        // where both are (ADR 0079).
+        HashSet<string> leftOut = new(NativeSystem.Registered().Select(entry => entry.System.Name), StringComparer.Ordinal);
+        leftOut.ExceptWith(systems.Select(entry => entry.System.Name));
 
         // Which phase each system is in; names must be unique.
         Dictionary<string, Entry> byName = new(StringComparer.Ordinal);
@@ -175,7 +184,8 @@ public sealed class ScheduleBuilder
         Dictionary<string, GameSystem[]> sorted = new(StringComparer.Ordinal);
         foreach (string phase in PhaseNames.Where(phase => phase != FixedTick))
         {
-            sorted[phase] = Sort(phase, [.. byName.Values.Where(entry => entry.Phase == phase)], byName, errors);
+            sorted[phase] = Sort(phase, [.. byName.Values.Where(entry => entry.Phase == phase)], byName, leftOut,
+                errors);
         }
         if (errors.Count > 0)
         {
@@ -201,7 +211,7 @@ public sealed class ScheduleBuilder
     // free to go next, the ordinally smallest name goes first, so the order
     // never depends on the order systems were added in (ADR 0013).
     private static GameSystem[] Sort(string phase, List<Entry> entries, Dictionary<string, Entry> byName,
-        List<string> errors)
+        HashSet<string> leftOut, List<string> errors)
     {
         Dictionary<string, List<string>> next = new(StringComparer.Ordinal);
         Dictionary<string, int> waitingOn = new(StringComparer.Ordinal);
@@ -216,7 +226,11 @@ public sealed class ScheduleBuilder
             foreach ((string other, bool isBefore) in entry.Before.Select(other => (other, true))
                          .Concat(entry.After.Select(other => (other, false))))
             {
-                if (!byName.TryGetValue(other, out Entry? target))
+                if (!byName.TryGetValue(other, out Entry? target) && leftOut.Contains(other))
+                {
+                    continue;
+                }
+                if (target is null)
                 {
                     errors.Add($"{name}: {(isBefore ? "before" : "after")} {other}, which isn't a system");
                     continue;

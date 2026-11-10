@@ -44,6 +44,8 @@ inline constexpr const char* sky = "Sky";
 inline constexpr const char* transparent = "Transparent";
 inline constexpr const char* bloom = "Bloom";
 inline constexpr const char* tonemap = "Tonemap";
+// Debug lines (crucible/DebugLines.h, ADR 0079) over the finished image.
+inline constexpr const char* debugLines = "DebugLines";
 // The editor's own, around them (editor views only).
 inline constexpr const char* grid = "Grid";
 inline constexpr const char* pick = "Pick";
@@ -201,7 +203,7 @@ private:
 
 // The renderer's schedule, holding the default steps (ADR 0051, 0053, 0054, 0055):
 // DepthPrepass, LightClustering, Shadows, Opaque, Outlines, Sky, Transparent, Bloom,
-// then Tonemap. Surfaces render it unless given another (ADR 0066).
+// Tonemap, then DebugLines. Surfaces render it unless given another (ADR 0066).
 CRUCIBLE_EXPORT RenderSchedule& renderSchedule();
 
 // Schedules besides the default, by ID (ADR 0066): 0 is renderSchedule().

@@ -129,6 +129,13 @@ internal sealed partial class Shell
         foreach (ImportResult result in results.Where(result => result.Outcome == ImportOutcome.Imported)
                      .OrderBy(result => Order(database.Find(result.Id)?.Importer)))
         {
+            // A model's skeleton and clips (its sub-assets), read again by
+            // the poses that use them (ADR 0079).
+            Crucible.Animation.Api.ReloadAnimationAsset(result.Id);
+            foreach (AssetEntry clip in database.SubAssetsOf(result.Id))
+            {
+                Crucible.Animation.Api.ReloadAnimationAsset(clip.Id);
+            }
             try
             {
                 if (RenderAssets.Reload(result.Id))

@@ -125,6 +125,8 @@ const char* memoryTagName(MemoryTag tag)
         return "Assets";
     case MemoryTag::Text:
         return "Text";
+    case MemoryTag::Animation:
+        return "Animation";
     default:
         return "General";
     }

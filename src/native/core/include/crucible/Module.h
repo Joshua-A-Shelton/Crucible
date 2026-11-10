@@ -20,6 +20,7 @@
 //
 //     CRUCIBLE_MODULE_EXPORT void crucibleModuleStop() {}
 
+#include <crucible/Animation.h>
 #include <crucible/Audio.h>
 #include <crucible/Camera.h>
 #include <crucible/Ecs.h>
@@ -83,6 +84,8 @@ inline void linkEngineComponents()
     ecs::registerComponent<physics::CharacterController>("Crucible.Physics.CharacterController");
     ecs::registerComponent<audio::AudioSource>("Crucible.Audio.AudioSource");
     ecs::registerComponent<audio::AudioListener>("Crucible.Audio.AudioListener");
+    ecs::registerComponent<animation::Animator>("Crucible.Animation.Animator");
+    ecs::registerComponent<animation::PoseHandle>("Crucible.Animation.PoseHandle");
 }
 
 } // namespace crucible

@@ -363,6 +363,11 @@ internal sealed partial class Shell
             assets.Update();
         }
         Entity[] outlined = Outlined(world);
+        if (ShowsSkeletons)
+        {
+            // Every posed character's joints (ADR 0079), in every view.
+            Crucible.Animation.Animator.DrawSkeletons(world, _skeletonColor);
+        }
         foreach (EditorPanel panel in _open.Values)
         {
             if (panel is ViewportPanel viewport && viewport.Root is not null)
@@ -515,9 +520,19 @@ internal sealed partial class Shell
             Commands.Add(new Command($"Window.{id}", title, () => TogglePanel(id)) { IsChecked = () => _open.ContainsKey(id) });
         }
         Commands.Add(new Command("Window.ResetLayout", "Reset Layout", () => RestoreLayout(null)));
+        Commands.Add(new Command("View.Skeletons", "Skeletons", () => ShowsSkeletons = !ShowsSkeletons)
+        {
+            IsChecked = () => ShowsSkeletons,
+        });
         Commands.Add(new Command("Help.About", $"About {EngineInfo.Name}",
             () => Log($"{EngineInfo.Name} editor, M7 (ADR 0016, 0066)")));
     }
+
+    // Light blue, so it stands out from the orange selection outline.
+    private static readonly Vector4 _skeletonColor = new(0.3f, 0.75f, 1.0f, 1.0f);
+
+    /// <summary>Whether the views draw every posed character's skeleton (View > Skeletons, ADR 0079).</summary>
+    public bool ShowsSkeletons { get; set; }
 
     private void BuildMenus()
     {
@@ -546,6 +561,9 @@ internal sealed partial class Shell
         edit.Add(Commands.Find("Edit.Delete")!);
         edit.AddSeparator();
         edit.Add(Commands.Find("Hierarchy.CreateEmpty")!);
+
+        Menu viewMenu = Main.MenuBar.Add("View");
+        viewMenu.Add(Commands.Find("View.Skeletons")!);
 
         Menu window = Main.MenuBar.Add("Window");
         foreach ((string id, _) in Panels.Panels)

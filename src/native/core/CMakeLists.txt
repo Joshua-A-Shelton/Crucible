@@ -27,11 +27,13 @@ crucible_generate_bindings(
 
 target_sources(crucible_core_objects PRIVATE
     BinaryFile.cpp
+    Animation.cpp
     AssetSource.cpp
     Audio.cpp
     BindingProbe.cpp
     Checksum.cpp
     Core.cpp
+    DebugLines.cpp
     Demo.cpp
     Ecs.cpp
     Jobs.cpp
@@ -158,6 +160,7 @@ crucible_embed_shaders(crucible_render_objects
         "${PROJECT_SOURCE_DIR}/shaders/crucible/ui.slang"
         "${PROJECT_SOURCE_DIR}/shaders/crucible/editor.slang"
         "${PROJECT_SOURCE_DIR}/shaders/crucible/editorOverlay.slang"
+        "${PROJECT_SOURCE_DIR}/shaders/crucible/debugLines.slang"
     # The C# mirrors of their [GpuShared] structs (DefaultMaterial), for
     # Crucible.Engine.
     CS_OUTPUT_DIR "${CRUCIBLE_GENERATED_DIR}/managed/engine-shaders")

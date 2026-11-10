@@ -20,6 +20,9 @@ public static class RenderSteps
     public const string Bloom = "Bloom";
     public const string Tonemap = "Tonemap";
 
+    /// <summary>Debug lines (Crucible.Debug.DebugLines, ADR 0079) over the finished image.</summary>
+    public const string DebugLines = "DebugLines";
+
     // The editor's, around them (editor views only).
     public const string Grid = "Grid";
     public const string Pick = "Pick";

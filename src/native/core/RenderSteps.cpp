@@ -11,6 +11,7 @@
 
 #include "RenderInternal.h"
 
+#include <crucible/DebugLines.h>
 #include <crucible/Lights.h>
 #include <crucible/Render.h>
 #include <crucible/Shader.h>
@@ -856,6 +857,116 @@ void addTonemap(RenderStepContext& context, void*)
         });
 }
 
+// ---------------------------------------------------------------------------
+// DebugLines (ADR 0079)
+// ---------------------------------------------------------------------------
+
+slag::Pipeline* debugLinePipeline = nullptr;
+
+// Each surface's line vertices, one upload buffer per frame slot, made the
+// first time the surface draws lines and kept until the renderer stops.
+struct DebugVertex
+{
+    Vector3 position;
+    uint32_t color; // RGBA8
+};
+std::array<std::array<slag::Buffer*, framesInFlight>, 8> debugLineBuffers{};
+
+Result<void> prepareDebugLines(slag::GraphicsDevice& device, void*)
+{
+    const slag::PixelFormat formats[] = {backbufferFormat};
+    slag::GraphicsPipelineDesc desc{.topology = slag::PrimitiveTopology::LineList,
+                                    .rasterizer = {.cullMode = slag::CullMode::None},
+                                    .colorFormats = formats,
+                                    .debugName = "DebugLines"};
+    desc.blend.targets[0] = {.blendEnable = true,
+                             .srcColorFactor = slag::BlendFactor::SrcAlpha,
+                             .destColorFactor = slag::BlendFactor::InvSrcAlpha,
+                             .srcAlphaFactor = slag::BlendFactor::Zero,
+                             .destAlphaFactor = slag::BlendFactor::One};
+    Result<slag::Pipeline*> pipeline = createPipeline(device, "debugLines", "debugLineVertex", "debugLinePixel", desc);
+    if (!pipeline)
+    {
+        return pipeline.status();
+    }
+    debugLinePipeline = pipeline.value();
+    return {};
+}
+
+void releaseDebugLines(slag::GraphicsDevice& device, void* userData)
+{
+    for (auto& buffers : debugLineBuffers)
+    {
+        for (slag::Buffer*& buffer : buffers)
+        {
+            if (buffer != nullptr)
+            {
+                device.destroy(buffer);
+                buffer = nullptr;
+            }
+        }
+    }
+    destroyPipeline(device, userData);
+}
+
+uint32_t packColor(const Vector4& color)
+{
+    auto channel = [](float value) {
+        return static_cast<uint32_t>(std::clamp(value, 0.0f, 1.0f) * 255.0f + 0.5f);
+    };
+    return channel(color.x) | channel(color.y) << 8 | channel(color.z) << 16 | channel(color.w) << 24;
+}
+
+void addDebugLines(RenderStepContext& context, void*)
+{
+    const std::span<const debug::DebugLine> lines = debug::debugLines();
+    if (lines.empty() || context.surface < 1 || context.surface > debugLineBuffers.size())
+    {
+        return;
+    }
+    const slag::rendergraph::RenderGraphTexture backbuffer = context.texture(backbufferKey());
+    const slag::rendergraph::RenderGraphBuffer view = context.buffer(viewKey());
+    const uint32_t firstSlot = surfaceDescriptor(context, debugLinesDescriptor);
+    std::array<slag::Buffer*, framesInFlight>* buffers = &debugLineBuffers[context.surface - 1];
+    slag::GraphicsDevice* device = &context.device;
+    context.graph.addPass(
+        "DebugLines", slag::CommandQueueType::Graphics,
+        [&](slag::rendergraph::PassBuilder& pass) {
+            pass.use(view, slag::rendergraph::Usage::ConstantBuffer);
+            pass.renderTarget(backbuffer, slag::LoadOp::Load, slag::StoreOp::Store);
+        },
+        [=](slag::rendergraph::PassContext& pass, slag::CommandBuffer* commands) {
+            constexpr uint32_t capacity = debug::maxDebugLines * 2;
+            slag::Buffer*& buffer = (*buffers)[pass.frameSlot()];
+            if (buffer == nullptr)
+            {
+                slag::Result<slag::Buffer*> created =
+                    device->createBuffer({.size = uint64_t{capacity} * sizeof(DebugVertex),
+                                          .placement = slag::Placement::automatic(slag::MemoryKind::Upload),
+                                          .debugName = "crucible debug lines"});
+                if (!created)
+                {
+                    return;
+                }
+                buffer = created.value();
+            }
+            const uint32_t slot = firstSlot + pass.frameSlot();
+            device->writeStructuredBuffer(slot, {.buffer = buffer, .count = capacity, .stride = sizeof(DebugVertex)});
+            auto* vertices = static_cast<DebugVertex*>(buffer->mappedData());
+            for (size_t i = 0; i < lines.size(); ++i)
+            {
+                const uint32_t color = packColor(lines[i].color);
+                vertices[2 * i] = {lines[i].from, color};
+                vertices[2 * i + 1] = {lines[i].to, color};
+            }
+            const uint32_t constants[4] = {slot, 0, 0, 0};
+            commands->bindPipeline(debugLinePipeline);
+            commands->setConstantBuffer(pass.buffer(view)->gpuAddress(), viewSize());
+            commands->pushConstants(constants, sizeof(constants));
+            commands->draw(static_cast<uint32_t>(lines.size() * 2), 1);
+        });
+}
+
 // A new schedule's first step (ADR 0066): the backbuffer cleared to
 // renderFrame's color, for schedules without the scene's steps.
 void addClear(RenderStepContext& context, void*)
@@ -1334,6 +1445,11 @@ void addDefaultSteps(RenderSchedule& schedule)
                         .userData = &tonemapPipeline,
                         .prepare = prepareTonemap,
                         .release = destroyPipeline});
+    (void)schedule.add({.name = steps::debugLines,
+                        .addPasses = addDebugLines,
+                        .userData = &debugLinePipeline,
+                        .prepare = prepareDebugLines,
+                        .release = releaseDebugLines});
 }
 
 Result<void> setMsaaSamples(uint32_t count)

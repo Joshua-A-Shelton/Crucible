@@ -117,7 +117,9 @@ public sealed class RenderStepChecks : GameSystem
         RenderSchedule.Default.InsertAfter("Tonemap", "Test.Probe", _step);
         Check(_step.Prepares == 1, "the step is prepared when it joins a running renderer");
         IReadOnlyList<string> names = RenderSchedule.Default.StepNames;
-        Check(names.Count > 1 && names[^1] == "Test.Probe", "the step comes after Tonemap");
+        int tonemap = names.ToList().IndexOf("Tonemap");
+        Check(tonemap >= 0 && tonemap + 1 < names.Count && names[tonemap + 1] == "Test.Probe",
+            "the step comes after Tonemap");
         Check(Throws<CrucibleException>(() => RenderSchedule.Default.Add("Test.Probe", _step)), "names are unique");
         Check(Throws<CrucibleException>(() => RenderSchedule.Default.Remove("Test.Nowhere")), "removing needs a step");
     }

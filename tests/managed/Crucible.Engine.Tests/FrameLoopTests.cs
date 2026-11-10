@@ -140,6 +140,22 @@ public class FrameLoopTests
     }
 
     [Test]
+    public async Task NativeSystemsWithoutTheirPhaseAreLeftOut()
+    {
+        // Registered for every schedule (ADR 0079): "Animation.Pose" and
+        // "DebugLines.Clear" sit in phases this one doesn't have.
+        Crucible.Animation.Api.RegisterAnimation();
+        Crucible.Debug.Api.RegisterDebugLines();
+        ScheduleBuilder builder = new();
+        builder.AddPhase(Phases.Update);
+        Schedule schedule = builder.Build();
+        await Assert.That(schedule.Systems.Any(system => system.Name is "Animation.Pose" or "DebugLines.Clear")).IsFalse();
+
+        builder.AddPhase(Phases.Animation);
+        await Assert.That(builder.Build().Systems.Select(system => system.Name)).Contains("Animation.Pose");
+    }
+
+    [Test]
     public async Task BuildReportsEveryProblemAtOnce()
     {
         List<string> log = [];

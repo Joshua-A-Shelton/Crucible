@@ -24,7 +24,7 @@ inline constexpr uint32_t framesInFlight = 2;
 // Each surface's reserved resource-heap slots, below the loaded textures'
 // (which start at 1024): `descriptorsPerSurface` from 8 + surface index *
 // descriptorsPerSurface, one per frame slot for each of these.
-inline constexpr uint32_t descriptorsPerSurface = 120;
+inline constexpr uint32_t descriptorsPerSurface = 122;
 // (LightClustering writes the cluster lists through the RW slots, Opaque
 // reads them through the others. The shadow atlas outlives frames, so it
 // has one slot.)
@@ -51,7 +51,9 @@ inline constexpr uint32_t frameDataDescriptor = (12 + maxBloomLevels) * framesIn
 inline constexpr uint32_t stepDescriptorsPerFrame = 40;
 // The editor's SelectionOutline (ADR 0067): the Pick step's EntityIds.
 inline constexpr uint32_t entityIdsDescriptor = frameDataDescriptor + framesInFlight; // + frame slot
-inline constexpr uint32_t stepDescriptors = entityIdsDescriptor + framesInFlight;     // + frame slot * per frame
+// DebugLines (ADR 0079): the frame's lines, a StructuredBuffer<DebugVertex>.
+inline constexpr uint32_t debugLinesDescriptor = entityIdsDescriptor + framesInFlight; // + frame slot
+inline constexpr uint32_t stepDescriptors = debugLinesDescriptor + framesInFlight;     // + frame slot * per frame
 static_assert(stepDescriptors + stepDescriptorsPerFrame * framesInFlight <= descriptorsPerSurface);
 // 8 surfaces from slot 8: they must stay below the loaded textures' 1024.
 static_assert(8 + 8 * descriptorsPerSurface <= 1024);

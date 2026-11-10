@@ -645,7 +645,15 @@ public sealed class FieldEditor : UIElement
             case FieldKind.AssetId:
                 {
                     (string Label, string Value)[] assets = _section.Shell.Database is { } database
-                        ? [.. database.Assets.Select(asset => (asset.Path, asset.Id.ToString()))]
+                        ? [
+                            .. database.Assets.SelectMany(asset => (IEnumerable<(string, string)>)
+                            [
+                                (asset.Path, asset.Id.ToString()),
+                                // Its sub-assets (a model's clips, ADR 0078) after it.
+                                .. database.SubAssetsOf(asset.Id)
+                                    .Select(sub => ($"{asset.Path}: {sub.SubAssetName}", sub.Id.ToString())),
+                            ]),
+                        ]
                         : [];
                     Choice(["None", .. assets.Select(asset => asset.Label)], ["", .. assets.Select(asset => asset.Value)],
                         value => value is JsonValue v && v.TryGetValue(out string? s) ? s : "");

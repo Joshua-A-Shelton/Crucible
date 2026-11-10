@@ -31,6 +31,7 @@ public sealed unsafe class World : IDisposable
     {
         if (!Handle.IsNull)
         {
+            Crucible.Animation.Api.ReleasePoses(Handle);
             Api.DestroyWorld(Handle);
             Handle = default;
         }

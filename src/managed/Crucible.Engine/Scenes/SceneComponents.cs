@@ -43,6 +43,9 @@ internal static class EngineComponents
         // the null defaults' systems unless an implementation's came first.
         Crucible.Physics.Api.RegisterPhysics();
         Crucible.Audio.Api.RegisterAudio();
+        // The pose runtime (ADR 0079) and the frame's debug lines.
+        Crucible.Animation.Api.RegisterAnimation();
+        Crucible.Debug.Api.RegisterDebugLines();
         Components.Register<LocalTransform>();
         Components.Register<WorldTransform>();
         Components.Register<Crucible.Render.Camera>();
@@ -60,6 +63,8 @@ internal static class EngineComponents
         Components.Register<Crucible.Physics.CharacterController>();
         Components.Register<Crucible.Audio.AudioSource>();
         Components.RegisterTag<Crucible.Audio.AudioListener>();
+        Components.Register<Crucible.Animation.Animator>();
+        Components.Register<Crucible.Animation.PoseHandle>();
         Components.Register<SceneEntityId>();
         Components.RegisterManaged<EntityName>();
         Components.Register<PrefabInstance>();
@@ -79,6 +84,7 @@ internal static class EngineComponents
         SavedComponents.Add<Crucible.Physics.CharacterController>();
         SavedComponents.Add<Crucible.Audio.AudioSource>();
         SavedComponents.AddTag<Crucible.Audio.AudioListener>();
+        SavedComponents.Add<Crucible.Animation.Animator>();
         return true;
     });
 

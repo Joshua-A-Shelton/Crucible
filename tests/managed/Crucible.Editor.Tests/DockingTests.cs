@@ -284,7 +284,7 @@ public class DockingTests
             Modifiers = (uint)(KeyModifiers.Ctrl | KeyModifiers.Shift),
         });
         await Assert.That(quit).IsTrue();
-        await Assert.That(string.Join(",", rig.Shell.Main.MenuBar.Menus.Select(menu => menu.Title))).IsEqualTo("File,Edit,Window,Help");
+        await Assert.That(string.Join(",", rig.Shell.Main.MenuBar.Menus.Select(menu => menu.Title))).IsEqualTo("File,Edit,View,Window,Help");
     }
 
     [Test]

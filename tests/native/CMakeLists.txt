@@ -3,6 +3,7 @@ add_executable(crucible_native_tests
     AudioContractTests.cpp
     BinaryFileTests.cpp
     CoreTests.cpp
+    DebugLineTests.cpp
     DrawListTests.cpp
     EditorStepsTests.cpp
     EcsTests.cpp
@@ -68,7 +69,7 @@ doctest_discover_tests(crucible_native_tests ADD_LABELS 1
 # The importers (ADR 0042), editor-only: their own executable, so the core's
 # tests never link them.
 add_executable(crucible_importers_tests Main.cpp FbxImportTests.cpp MeshImportTests.cpp ShaderCompilerTests.cpp
-    SkinImportTests.cpp ClipImportTests.cpp TextureImportTests.cpp)
+    SkinImportTests.cpp ClipImportTests.cpp PoseTests.cpp LayerTests.cpp TextureImportTests.cpp)
 crucible_set_compile_options(crucible_importers_tests)
 # ufbx's sample files (ADR 0044) are the FBX tests' models.
 target_compile_definitions(crucible_importers_tests PRIVATE DOCTEST_CONFIG_NO_EXCEPTIONS_BUT_WITH_ALL_ASSERTS

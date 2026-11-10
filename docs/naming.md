@@ -626,3 +626,33 @@ hand):
 | C# `MeshImportSettings.MaxInfluences`*, `ClipSampleRate`* | The import settings, as the sidecar shows them |
 | `AssetEntry.Parent`*, `SubAssetName`*, `AssetDatabase.SubAssetsOf`* | Sub-assets in the database |
 | The "Idle" clip* | The Walker's second clip |
+
+## The pose runtime (2026-11-10, M8 step 2)
+
+Settled as drafted: crucible/Animation.h, namespace `crucible::animation`;
+`Animator` (`skeleton`, `clip`, `speed`, `loop`), `PoseHandle` (`pose`); the
+system "Animation.Update"; `play`, `setLayer`, `clearLayer`, `LayerDesc`
+(`clip`, `weight`, `blend`, `speed`, `loop`, `fadeSeconds`), `LayerBlend`
+(`Override`, `Additive`), `MaskEntry` (`joint`, `weight`), `findJoint`,
+`jointModelTransform`; crucible/DebugLines.h, `debug::drawLine`,
+`render::steps::debugLines` and C# `RenderSteps.DebugLines`, C#
+`DebugLines.Draw`; the View menu's "Skeletons"; ADR 0079 "The pose runtime",
+`docs/learning/poses-and-blending.md`; `PoseTests`, `LayerTests`,
+`DebugLineTests`. The C# calls are static methods on `Animator`
+(`Animator.Play`, `SetLayer`, `ClearLayer`, `FindJoint`,
+`JointModelTransform`), since `Crucible.Animation` is the namespace (owner,
+2026-11-10). A layer's mask is a parameter beside `LayerDesc`, since exposed
+structs can't hold spans. Names added while building are placeholders (*):
+
+| Name | What it is |
+|---|---|
+| "Animation.Pose"*, `poseSystemName`*, `updateSystemName`* | The system that samples and poses, and the two names' constants |
+| `maxLayers`* | Layers per character (8) |
+| `drawSkeletons`*, C# `Animator.DrawSkeletons`* | Debug lines along every posed skeleton |
+| `reloadAnimationAsset`*, `releasePoses`*, `poseCount`*, `advancePoses`*, `evaluatePoses`*, `registerAnimation`* | The runtime's housekeeping and the systems' bodies |
+| `MemoryTag::Animation`* | Skeletons, clips, and poses |
+| `debug::DebugLine`*, `maxDebugLines`*, `debugLines`*, `debugLineCount`*, `clearDebugLines`*, `registerDebugLines`*, "DebugLines.Clear"*, C# `DebugLines.Count`* | The debug line list |
+| `View.Skeletons`*, `Shell.ShowsSkeletons`* | The editor's command and its state |
+| The asset picker's "Models/Walker.gltf: Walk"* | How sub-assets are listed |
+| tests/native/AnimationTestSupport.h* | The pose tests' shared support |
+
