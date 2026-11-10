@@ -515,8 +515,8 @@ settled as drafted too:
 
 | Name | What it is |
 |---|---|
-| `stopModules`*, `moduleCount`*, `modulePath`*, `nativeSystemFromModule`* | The core |
-| `ScheduleBuilder.IncludeModuleSystems`* | Module systems in the editor's play schedule |
+| `stopModules`*, `moduleCount`*, `modulePath`*, `nativeSystemFromModule`* (renamed `nativeSystemIsGameplay` in 7c) | The core |
+| `ScheduleBuilder.IncludeModuleSystems`* (renamed `IncludeGameplaySystems` in 7c) | Module systems in the editor's play schedule |
 | `CrucibleModule.json`* (`Cmake`*, `Ninja`*, `CxxCompiler`*, `Environment`*, `BuildType`*, `IncludeDirectories`*, `CompileDefinitions`*, `CompileOptions`*, `CoreLibrary`*, `CoreHeaders`*, `Dotnet`*, `Bindgen`*, `Libclang`*, `Clang`*), `ModuleToolkit`* | The engine's build, for module builds |
 | The binding generator's `--root-namespace`* | A module's own namespace |
 | `NativeBuilder` (`LibraryName`*, `Folder`*, `ProjectFile`*, `OutputPath`*, `BindingsPath`*, `LibraryExtension`*, `ToolkitBeside`*, `HasCode`*, `IsBuilding`*, `Start`*, `TakeFinished`*, `BuildNow`*, `ReadToolkit`*, `ProjectText`*); the shell's `NativeBuilder`*, `BuildNative`*, `ModuleLoaded`*; Cache/Build/Native/Loaded/<process>/* | The editor's parts |
@@ -524,4 +524,36 @@ settled as drafted too:
 | `NativeChecks`*, `--game-arg check-native`*, `exports.public`*, `crucible_module_tests`*, `crucible_test_module`*, `crucible_not_a_module`* | Tests |
 | "Loaded Diorama.Native"*, "Can't load Diorama.Native: …"*, "Diorama.Native didn't build"* | Text users see |
 | The shell's `GameReloading`* | A new game build is about to replace the old one |
+
+## Physics and audio contracts (2026-11-09, M7 step 7c)
+
+Settled as drafted: crucible/Physics.h (`crucible::physics`, C#
+`Crucible.Physics`): `RigidBody` (`kind`, `mass`, `linearVelocity`,
+`angularVelocity`, `gravityScale`, `layer`), `BodyKind` (`Static`,
+`Kinematic`, `Dynamic`), `Collider` (`shape`, `size`, `offset`, `friction`,
+`restitution`, `isTrigger`, `mesh`), `ShapeKind` (`Box`, `Sphere`, `Capsule`,
+`Mesh`, `Convex`), `Joint` (`kind`, `other`, anchors, limits), `JointKind`
+(`Fixed`, `Hinge`, `BallSocket`, `SwingTwist`, `Distance`),
+`CharacterController` (`radius`, `height`, `stepHeight`, `slopeLimit`);
+`raycast`, `shapeCast`, `overlap`, `contacts`, `ContactEvent`,
+`moveCharacter`, `setLayersCollide`; the systems "Physics.Sync",
+"Physics.Step", "Physics.WriteBack"; `installPhysics`, `PhysicsService`.
+crucible/Audio.h (`crucible::audio`, C# `Crucible.Audio`): `AudioSource`
+(`clip`, `volume`, `pitch`, `loop`, `playOnStart`, `bus`, `spatial`,
+`minDistance`, `maxDistance`, `rolloff`, `occlusion`), `AudioListener`;
+`playOneShot`, `stop`, `setBusVolume`, `setBusEffects`, `BusEffects`,
+`blendToSnapshot`, `playMusic`, `MusicTransition`; the system
+"Audio.Update"; `installAudio`, `AudioService`. `SystemDesc::gameplay`,
+`nativeSystemIsGameplay`, `ScheduleBuilder.IncludeGameplaySystems`; ADR
+0075 "Physics and audio contracts", `docs/learning/subsystem-contracts.md`,
+`PhysicsContractTests`, `AudioContractTests`, `SubsystemReplacementTests`.
+Names added while building are placeholders (marked *):
+
+| Name | What it is |
+|---|---|
+| `Joint` (`anchor`*, `otherAnchor`*, `axis`*, `lowerLimit`*, `upperLimit`*, `swingLimit`*, `twistLimit`*); `Collider.meshIndex`*; `CharacterController.layer`* | Fields |
+| `QueryShape`* (`kind`*, `size`*), `RayHit`* (`hit`*, `entity`*, `point`*, `normal`*, `distance`*), `ContactKind`* (`Begin`*, `End`*), `ContactEvent` (`kind`*, `trigger`*, `a`*, `b`*, `point`*, `normal`*), `CharacterMove`* (`position`*, `grounded`*, `groundNormal`*), `layersCollide`*, `physicsService`*, `registerPhysics`*; the constants `syncSystemName`*, `stepSystemName`*, `writeBackSystemName`*, `layerCount`*, `allLayers`* | Physics |
+| `Rolloff`* (`Linear`*, `Inverse`*, `None`*), `BusEffects` (`lowPassHz`*, `reverbSend`*, `duckedBy`*, `duckAmount`*), `MusicAlign`* (`Now`*, `Beat`*, `Bar`*), `MusicTransition` (`crossfadeSeconds`*, `align`*), `defineSnapshot`*, `audioService`*, `registerAudio`*, `NullAudioCounts`* (`plays`*, `stops`*, `busChanges`*, `snapshots`*, `musicChanges`*, `sourcesStarted`*), `nullAudioCounts`*; the constants `updateSystemName`*, `masterBus`*, `noBus`* | Audio |
+| `registerDefaultSystem`* | An engine default a replacement registered first keeps out |
+| `crucible_test_subsystems`*, tests/native/SubsystemTestSupport.h* | Tests |
 

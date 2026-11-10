@@ -106,3 +106,6 @@ Longer explanations of decisions, written to be reread:
 - [Native modules](docs/learning/native-modules.md) (ADR 0074): exporting a
   C++ API from a shared library, a variable per library, why there's no
   ABI promise, and why loading is easy but unloading isn't.
+- [Subsystem contracts](docs/learning/subsystem-contracts.md) (ADR 0075):
+  where to draw a replaceable part's line, null defaults, order without
+  ordering, and gameplay systems.

@@ -26,7 +26,7 @@ bool registered(std::string_view name, bool* fromModule = nullptr)
         {
             if (fromModule != nullptr)
             {
-                *fromModule = loop::nativeSystemFromModule(i);
+                *fromModule = loop::nativeSystemIsGameplay(i);
             }
             return true;
         }

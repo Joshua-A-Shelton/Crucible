@@ -44,8 +44,9 @@ is, and record which version fixed it.
 ## Needs a decision from the project owner
 
 - Final names of the default phases (the list is ADR 0036's). → 0013, 0036 [M3]
-- Interfaces for replaceable subsystems, physics and audio included. →
-  0006 [M7 step 7c]
+- Interfaces for replaceable subsystems: input, runtime assets, the
+  renderer, and the loop driver (physics and audio: ADR 0075). → 0006
+  [M7 step 7d]
 - The pixel-art 2D path details. → 0005 [M11]
 - Upscaler licenses: DLSS, XeSS (FSR is MIT); SMAA's license. → 0004
   [when each is added]

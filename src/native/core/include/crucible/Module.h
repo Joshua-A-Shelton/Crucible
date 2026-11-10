@@ -20,12 +20,14 @@
 //
 //     CRUCIBLE_MODULE_EXPORT void crucibleModuleStop() {}
 
+#include <crucible/Audio.h>
 #include <crucible/Camera.h>
 #include <crucible/Ecs.h>
 #include <crucible/Export.h>
 #include <crucible/Expose.h>
 #include <crucible/Lights.h>
 #include <crucible/MeshInstance.h>
+#include <crucible/Physics.h>
 #include <crucible/PostProcess.h>
 #include <crucible/Result.h>
 #include <crucible/Sky.h>
@@ -75,6 +77,12 @@ inline void linkEngineComponents()
     ecs::registerComponent<render::SpotLight>("Crucible.Render.SpotLight");
     ecs::registerComponent<render::AmbientLight>("Crucible.Render.AmbientLight");
     ecs::registerComponent<render::Sky>("Crucible.Render.Sky");
+    ecs::registerComponent<physics::RigidBody>("Crucible.Physics.RigidBody");
+    ecs::registerComponent<physics::Collider>("Crucible.Physics.Collider");
+    ecs::registerComponent<physics::Joint>("Crucible.Physics.Joint");
+    ecs::registerComponent<physics::CharacterController>("Crucible.Physics.CharacterController");
+    ecs::registerComponent<audio::AudioSource>("Crucible.Audio.AudioSource");
+    ecs::registerComponent<audio::AudioListener>("Crucible.Audio.AudioListener");
 }
 
 } // namespace crucible

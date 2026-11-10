@@ -100,7 +100,13 @@ public static class Host
         game?.RegisterComponents();
         Services services = new();
         game?.RegisterServices(services);
+        // The engine's components and default subsystems (the null physics and
+        // audio, ADR 0075) before the schedule is built.
+        Scenes.EngineComponents.Register();
+        // A game runs the gameplay systems; the editor plays them in its play
+        // mode, not in its own schedule.
         ScheduleBuilder builder = ScheduleBuilder.CreateDefault();
+        builder.IncludeGameplaySystems = !options.Editor;
         game?.RegisterSystems(builder);
         Dictionary<string, string> arguments = GameArguments();
         // --project and --scene: the project's scene, there before the game's

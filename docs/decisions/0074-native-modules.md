@@ -96,7 +96,8 @@ cost, and Run Standalone keeps iteration fast.
 - **Systems a module registers are marked** in the registry
   (`nativeSystemFromModule`): the editor's play schedule adds those
   (`ScheduleBuilder.IncludeModuleSystems`) but not the engine's own, which
-  its main schedule already has.
+  its main schedule already has. ADR 0075 widened the mark to gameplay
+  systems: `nativeSystemIsGameplay`, `IncludeGameplaySystems`.
 - **The game's bindings find the module's library** through the game's load
   context (`ResolvingUnmanagedDll`), by its file name among the loaded
   modules (`moduleCount`, `modulePath`).

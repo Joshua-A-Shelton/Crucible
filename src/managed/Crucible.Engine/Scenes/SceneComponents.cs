@@ -39,6 +39,10 @@ internal static class EngineComponents
         Crucible.Render.Api.RegisterCamera();
         Api.RegisterMeshInstance();
         Crucible.Render.Api.RegisterLights();
+        // The physics and audio contracts (ADR 0075): their components, and
+        // the null defaults' systems unless an implementation's came first.
+        Crucible.Physics.Api.RegisterPhysics();
+        Crucible.Audio.Api.RegisterAudio();
         Components.Register<LocalTransform>();
         Components.Register<WorldTransform>();
         Components.Register<Crucible.Render.Camera>();
@@ -50,6 +54,12 @@ internal static class EngineComponents
         Components.Register<Crucible.Render.SpotLight>();
         Components.Register<Crucible.Render.AmbientLight>();
         Components.Register<Crucible.Render.Sky>();
+        Components.Register<Crucible.Physics.RigidBody>();
+        Components.Register<Crucible.Physics.Collider>();
+        Components.Register<Crucible.Physics.Joint>();
+        Components.Register<Crucible.Physics.CharacterController>();
+        Components.Register<Crucible.Audio.AudioSource>();
+        Components.RegisterTag<Crucible.Audio.AudioListener>();
         Components.Register<SceneEntityId>();
         Components.RegisterManaged<EntityName>();
         Components.Register<PrefabInstance>();
@@ -63,6 +73,12 @@ internal static class EngineComponents
         SavedComponents.Add<Crucible.Render.SpotLight>();
         SavedComponents.Add<Crucible.Render.AmbientLight>();
         SavedComponents.Add<Crucible.Render.Sky>();
+        SavedComponents.Add<Crucible.Physics.RigidBody>();
+        SavedComponents.Add<Crucible.Physics.Collider>();
+        SavedComponents.Add<Crucible.Physics.Joint>();
+        SavedComponents.Add<Crucible.Physics.CharacterController>();
+        SavedComponents.Add<Crucible.Audio.AudioSource>();
+        SavedComponents.AddTag<Crucible.Audio.AudioListener>();
         return true;
     });
 

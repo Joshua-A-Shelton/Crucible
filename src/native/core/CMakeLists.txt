@@ -27,6 +27,7 @@ crucible_generate_bindings(
 
 target_sources(crucible_core_objects PRIVATE
     BinaryFile.cpp
+    Audio.cpp
     BindingProbe.cpp
     Checksum.cpp
     Core.cpp
@@ -38,6 +39,7 @@ target_sources(crucible_core_objects PRIVATE
     MathProbe.cpp
     Memory.cpp
     Module.cpp
+    Physics.cpp
     Platform.cpp
     Shader.cpp
     Systems.cpp

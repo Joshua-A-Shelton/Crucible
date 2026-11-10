@@ -31,15 +31,16 @@ public sealed class ScheduleBuilder
     /// <summary>The most fixed steps one frame runs; 4 by default (ADR 0036).</summary>
     public int MaxFixedSteps { get; set; } = 4;
 
-    /// <summary>Whether <see cref="Build"/> adds the C++ systems registered in the native registry.</summary>
+    /// <summary>Whether <see cref="Build"/> adds the engine's own C++ systems from the native registry.</summary>
     public bool IncludeNativeSystems { get; set; } = true;
 
     /// <summary>
-    /// Without <see cref="IncludeNativeSystems"/>, whether <see cref="Build"/>
-    /// still adds those native modules registered (ADR 0074): the editor's
-    /// play schedule, beside a main schedule that has the engine's own.
+    /// Whether <see cref="Build"/> adds the registry's gameplay systems
+    /// (physics, audio, native modules', ADR 0074, 0075), which need the
+    /// default phases. Off unless asked for: the host asks for a game, the
+    /// editor for its play mode, not its own schedule.
     /// </summary>
-    public bool IncludeModuleSystems { get; set; }
+    public bool IncludeGameplaySystems { get; set; }
 
     /// <summary>
     /// ADR 0036's default frame: BeginFrame, Input, FixedTick (PrePhysics,
@@ -150,10 +151,7 @@ public sealed class ScheduleBuilder
         }
 
         List<Entry> systems = [.. _systems];
-        if (IncludeNativeSystems || IncludeModuleSystems)
-        {
-            systems.AddRange(NativeSystem.Registered(modulesOnly: !IncludeNativeSystems));
-        }
+        systems.AddRange(NativeSystem.Registered(IncludeNativeSystems, IncludeGameplaySystems));
 
         // Which phase each system is in; names must be unique.
         Dictionary<string, Entry> byName = new(StringComparer.Ordinal);

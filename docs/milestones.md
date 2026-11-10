@@ -421,7 +421,9 @@ decision made at its start):
    - 7a: Run standalone.
    - 7b: the C++ runtime extension mechanism (designed now, not left open).
    - 7c: interfaces for the replaceable subsystems, physics and audio
-     included.
+     included. Split again (owner, 2026-11-09): 7c, the physics and audio
+     contracts; 7d, input, runtime assets, the renderer, and the loop
+     driver.
 8. The demonstration: the "done when" session scripted and checked
    headless, then tried by hand.
 
@@ -464,8 +466,11 @@ by the owner on KWin. Step 7b built (ADR 0074): native modules, a
 project's Project/Native built into a shared library on the engine's
 shared core (every public header now exported), loaded by the launcher
 and editor, with generated C# bindings; the Diorama's lamp lights bob
-from C++; tried by hand by the owner on KWin. Step 7c (subsystem
-interfaces) is next.
+from C++; tried by hand by the owner on KWin. Step 7c built (ADR 0075):
+the physics and audio contracts (components, gameplay systems under fixed
+names, and services, in C++ bound to C#) with null defaults, replaceable by
+a native module. Step 7d (input, runtime assets, the renderer, and the loop
+driver) is next.
 
 ## M8 — Animation and audio
 

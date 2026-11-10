@@ -257,9 +257,10 @@ internal sealed partial class Shell
     // The game's systems in a schedule of their own, phase by phase; started.
     private void StartSystems()
     {
-        // The engine's native systems are in the editor's schedule already; a
-        // native module's are the game's (ADR 0074).
-        ScheduleBuilder builder = new() { IncludeNativeSystems = false, IncludeModuleSystems = true };
+        // The engine's native systems are in the editor's schedule already;
+        // gameplay ones (physics, audio, a native module's) are the game's
+        // (ADR 0074, 0075).
+        ScheduleBuilder builder = new() { IncludeNativeSystems = false, IncludeGameplaySystems = true };
         foreach (string phase in (string[])[Phases.BeginFrame, Phases.Input, ScheduleBuilder.FixedTick, Phases.Update,
                      Phases.Animation, Phases.LateUpdate, Phases.RenderPrepare, Phases.RenderSubmit, Phases.EndFrame])
         {

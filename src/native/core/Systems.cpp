@@ -28,7 +28,7 @@ struct SystemRecord
     void* userData = nullptr;
     Vector<Vector<char>> before{MemoryTag::General};
     Vector<Vector<char>> after{MemoryTag::General};
-    bool module = false; // registered by a native module as it started (ADR 0074)
+    bool gameplay = false; // marked so, or registered by a native module as it started (ADR 0074, 0075)
 };
 
 struct Registry
@@ -64,6 +64,26 @@ const SystemRecord& at(uint32_t index)
     return registry().systems[index];
 }
 
+// The caller holds the lock.
+void store(SystemRecord& record, const SystemDesc& desc)
+{
+    record.name = copyOf(desc.name);
+    record.phase = copyOf(desc.phase);
+    record.function = desc.function;
+    record.userData = desc.userData;
+    record.gameplay = desc.gameplay || markingModules.load(std::memory_order_relaxed);
+    record.before.clear();
+    record.after.clear();
+    for (const std::string_view name : desc.before)
+    {
+        record.before.pushBack(copyOf(name));
+    }
+    for (const std::string_view name : desc.after)
+    {
+        record.after.pushBack(copyOf(name));
+    }
+}
+
 } // namespace
 
 void registerSystem(const SystemDesc& desc)
@@ -71,24 +91,16 @@ void registerSystem(const SystemDesc& desc)
     Registry& systems = registry();
     std::lock_guard lock(systems.mutex);
     SystemRecord* record = find(systems, desc.name);
-    if (record == nullptr)
+    store(record != nullptr ? *record : systems.systems.emplaceBack(), desc);
+}
+
+void registerDefaultSystem(const SystemDesc& desc)
+{
+    Registry& systems = registry();
+    std::lock_guard lock(systems.mutex);
+    if (find(systems, desc.name) == nullptr)
     {
-        record = &systems.systems.emplaceBack();
-    }
-    record->name = copyOf(desc.name);
-    record->phase = copyOf(desc.phase);
-    record->function = desc.function;
-    record->userData = desc.userData;
-    record->module = markingModules.load(std::memory_order_relaxed);
-    record->before.clear();
-    record->after.clear();
-    for (const std::string_view name : desc.before)
-    {
-        record->before.pushBack(copyOf(name));
-    }
-    for (const std::string_view name : desc.after)
-    {
-        record->after.pushBack(copyOf(name));
+        store(systems.systems.emplaceBack(), desc);
     }
 }
 
@@ -146,9 +158,9 @@ void* nativeSystemUserData(uint32_t index)
     return at(index).userData;
 }
 
-bool nativeSystemFromModule(uint32_t index)
+bool nativeSystemIsGameplay(uint32_t index)
 {
-    return at(index).module;
+    return at(index).gameplay;
 }
 
 void markModuleSystems(bool marking)

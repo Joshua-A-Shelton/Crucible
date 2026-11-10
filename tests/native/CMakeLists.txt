@@ -1,5 +1,6 @@
 add_executable(crucible_native_tests
     Main.cpp
+    AudioContractTests.cpp
     BinaryFileTests.cpp
     CoreTests.cpp
     DrawListTests.cpp
@@ -11,6 +12,7 @@ add_executable(crucible_native_tests
     MaterialTests.cpp
     MathTests.cpp
     MemoryTests.cpp
+    PhysicsContractTests.cpp
     PlatformTests.cpp
     RenderAssetReloadTests.cpp
     RenderAssetsTests.cpp
@@ -93,13 +95,18 @@ crucible_set_compile_options(crucible_test_module)
 set_target_properties(crucible_test_module PROPERTIES CXX_VISIBILITY_PRESET hidden)
 target_link_libraries(crucible_test_module PRIVATE crucible::core)
 add_library(crucible_not_a_module SHARED modules/NotAModule.cpp)
-add_executable(crucible_module_tests Main.cpp ModuleTests.cpp)
+add_library(crucible_test_subsystems SHARED modules/TestSubsystems.cpp)
+crucible_set_compile_options(crucible_test_subsystems)
+set_target_properties(crucible_test_subsystems PROPERTIES CXX_VISIBILITY_PRESET hidden)
+target_link_libraries(crucible_test_subsystems PRIVATE crucible::core)
+add_executable(crucible_module_tests Main.cpp ModuleTests.cpp SubsystemReplacementTests.cpp)
 crucible_set_compile_options(crucible_module_tests)
 target_compile_definitions(crucible_module_tests PRIVATE DOCTEST_CONFIG_NO_EXCEPTIONS_BUT_WITH_ALL_ASSERTS
     CRUCIBLE_TEST_MODULE="$<TARGET_FILE:crucible_test_module>"
-    CRUCIBLE_NOT_A_MODULE="$<TARGET_FILE:crucible_not_a_module>")
+    CRUCIBLE_NOT_A_MODULE="$<TARGET_FILE:crucible_not_a_module>"
+    CRUCIBLE_TEST_SUBSYSTEMS="$<TARGET_FILE:crucible_test_subsystems>")
 target_link_libraries(crucible_module_tests PRIVATE crucible::core doctest::doctest)
-add_dependencies(crucible_module_tests crucible_test_module crucible_not_a_module)
+add_dependencies(crucible_module_tests crucible_test_module crucible_not_a_module crucible_test_subsystems)
 if(WIN32)
     add_custom_command(TARGET crucible_module_tests POST_BUILD
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different
