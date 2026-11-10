@@ -60,12 +60,44 @@ public sealed class InspectorPanel : EditorPanel
     protected override void OnAttached(UIRoot root)
     {
         _shell.SceneChanged += Invalidate;
+        _shell.GameReloading += Forget;
         _stale = true;
     }
 
-    protected override void OnDetached(UIRoot root) => _shell.SceneChanged -= Invalidate;
+    protected override void OnDetached(UIRoot root)
+    {
+        _shell.SceneChanged -= Invalidate;
+        _shell.GameReloading -= Forget;
+    }
 
     private void Invalidate() => _stale = true;
+
+    // A game's components belong to the build that made them: its sections
+    // go before the new build loads, so the old one can unload, and come back
+    // from the new build next frame. A field being edited commits first,
+    // with the types it began with.
+    private void Forget()
+    {
+        if (Root is { FocusedElement: { } focused } root && Contains(focused))
+        {
+            root.ClearFocus();
+        }
+        _sections.Clear();
+        _shape = null;
+        _stale = true;
+    }
+
+    private bool Contains(UIElement element)
+    {
+        for (UIElement? at = element; at is not null; at = at.Parent)
+        {
+            if (at == this)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /// <summary>Each frame, before the viewports render: sections made again if the entity or its components changed, values read again.</summary>
     internal void Update()

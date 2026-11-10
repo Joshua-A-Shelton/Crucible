@@ -154,6 +154,20 @@ keeps the editor camera while playing.
     `Spin`; a build error logged with its file and line while the last
     build stays loaded; saved as `play.png` while playing.
 
+- **Found by hand in 7b:** after editing a field in the inspector, a
+  reload left the old build loaded. Two things held it: the inspector's
+  sections (and with them the old build's component types), kept across
+  a reload that left the entity's components the same; and the UI root's
+  restyle and animation sets, which kept a just-focused field until the
+  next frame even after it was removed. The shell now raises
+  `GameReloading` before the new build loads: the inspector commits a
+  field being edited, with the types it began with, and drops its
+  sections. The root drops removed elements from both sets, and from its
+  reused events' sources, as it already did from hover, capture, and
+  focus. `launcher.jit.play` reloads with a number typed into the hero's
+  Spin, not yet entered, and requires the edit to be entered and the old
+  build to unload; the check no longer holds the old build itself.
+
 ## As built (part b)
 
 - **Native:** `reloadRenderAsset(AssetId)` (`Result<bool>`: false if

@@ -131,8 +131,20 @@ internal sealed class PlayChecks : GameSystem
         Check(world.EntityCount == entities, "what was made while playing is gone", $"{entities} then {world.EntityCount}");
         Check(shell.History.UndoCount == steps, "and its undo steps with it");
 
-        // A file added to Code: built and hot-reloaded.
-        Hosting.LoadedGame? first = shell.Game;
+        // A file added to Code: built and hot-reloaded, with the inspector
+        // showing the hero's Spin and a number typed into it, not yet
+        // entered. Only the old build's identity is kept here: holding it
+        // (or its Spin, or the inspector's field) would keep it from
+        // unloading.
+        shell.Selection.Selected = SceneIds.Find(world, heroId);
+        spin = null;
+        yield return 2;
+        if (TypeInto(shell, "PerFrame", "0.25") is { } typing)
+        {
+            Check(false, "the inspector shows the hero's Spin", typing);
+        }
+        yield return 2;
+        int first = System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(shell.Game);
         File.WriteAllText(Path.Combine(code, "Marker.cs"), """
             using Crucible.Ecs;
             using Crucible.Serialization;
@@ -146,14 +158,21 @@ internal sealed class PlayChecks : GameSystem
             }
             """);
         long started = Environment.TickCount64;
-        while (shell.Game == first && Environment.TickCount64 - started < 60000)
+        while (System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(shell.Game) == first &&
+               Environment.TickCount64 - started < 60000)
         {
             yield return 2;
         }
-        Check(shell.Game != first && SavedComponents.Find("Diorama.Marker") is not null,
+        Check(System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(shell.Game) != first &&
+              SavedComponents.Find("Diorama.Marker") is not null,
             "a file added to Code is built and hot-reloaded", $"after {Environment.TickCount64 - started} ms; {LogText(shell)}");
         Check(SavedComponents.Find("Diorama.Spin") is { } spun && world.Has(SceneIds.Find(world, heroId), spun.Id),
             "the hero keeps its Spin across the reload");
+        string all = string.Join(" | ", H.Descendants(shell.LogPanel!).OfType<Label>().Select(label => label.Text));
+        Check(!all.Contains("didn't unload", StringComparison.Ordinal),
+            "and the old build unloads, a field of its Spin being edited", LogText(shell));
+        Check(SceneIds.Read(world, SceneIds.Find(world, heroId), "Diorama.Spin")?["PerFrame"]?.GetValue<float>() == 0.25f,
+            "the edit is entered before the reload");
 
         // A build error: reported with its file, line, and column; the last build keeps running.
         Hosting.LoadedGame? good = shell.Game;
@@ -184,6 +203,25 @@ internal sealed class PlayChecks : GameSystem
         Check(reloads.Contains("Hero.gltf on the GPU", StringComparison.Ordinal), "and a changed model", LogText(shell));
         Check(!reloads.Contains("Can't reload", StringComparison.Ordinal), "without failing", LogText(shell));
         Check(world.IsAlive(SceneIds.Find(world, heroId)), "the hero is still there");
+    }
+
+    // Focuses a number field of the selected entity's components and types
+    // into it, without Enter; null, or what's missing.
+    private static string? TypeInto(Shell shell, string field, string text)
+    {
+        InspectorPanel? inspector = shell.Main.DockSpace.Panels.OfType<InspectorPanel>().FirstOrDefault();
+        NumberField? box = inspector?.Sections.SelectMany(section => section.Editors)
+            .Where(editor => editor.Field.Name == field)
+            .SelectMany(editor => editor.Controls.SelectMany(control => H.Descendants(control).Prepend(control)))
+            .OfType<NumberField>().FirstOrDefault();
+        if (box is null)
+        {
+            return $"no {field} field";
+        }
+        box.Focus();
+        box.SelectAll();
+        H.Type(shell.Main.Root, text);
+        return null;
     }
 
     private static string LogText(Shell shell) =>

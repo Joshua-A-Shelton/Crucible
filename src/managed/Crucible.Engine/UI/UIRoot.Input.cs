@@ -731,7 +731,7 @@ public sealed partial class UIRoot
         return _event;
     }
 
-    // An element leaving the tree loses hover, capture, and focus.
+    // An element leaving the tree loses hover, capture, and focus, and no event keeps it.
     internal void Detached(UIElement element)
     {
         if (_focused is not null && IsWithin(_focused, element))
@@ -760,6 +760,21 @@ public sealed partial class UIRoot
             }
         }
         _hovered.RemoveAll(hovered => IsWithin(hovered, element));
+        // Restyles and animations waiting for the next frame would skip it
+        // then; dropped now, it stops being reachable at once. So do the
+        // reused events' last sources. Otherwise a removed element (and
+        // whatever it holds, such as the game types the inspector showed)
+        // outlives its removal, which keeps an old game build from
+        // unloading (ADR 0072).
+        _restyle.RemoveWhere(pending => IsWithin(pending, element));
+        _animating.RemoveWhere(animating => IsWithin(animating, element));
+        foreach (UIEvent pooled in (UIEvent[])[_pointerEvent, _keyEvent, _navigationEvent, _textEvent, _event, _dragEvent])
+        {
+            if (pooled.Source is not null && IsWithin(pooled.Source, element))
+            {
+                pooled.Source = null;
+            }
+        }
     }
 
     private static bool IsWithin(UIElement element, UIElement ancestor)

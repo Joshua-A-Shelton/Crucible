@@ -523,4 +523,5 @@ declaration `CRUCIBLE_EXPORT`. Names added while building are placeholders
 | `diorama::bobbedLastFrame()`* (C#: `Diorama.Api.BobbedLastFrame()`), `Diorama.Interop`* | The sample |
 | `NativeChecks`*, `--game-arg check-native`*, `exports.public`*, `crucible_module_tests`*, `crucible_test_module`*, `crucible_not_a_module`* | Tests |
 | "Loaded Diorama.Native"*, "Can't load Diorama.Native: …"*, "Diorama.Native didn't build"* | Text users see |
+| The shell's `GameReloading`* | A new game build is about to replace the old one |
 

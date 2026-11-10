@@ -35,6 +35,14 @@ internal sealed partial class Shell
     /// <summary>Play started or stopped.</summary>
     public event Action? PlayStateChanged;
 
+    /// <summary>
+    /// A new build of the game is about to replace the old one, which
+    /// unloads after: whatever holds the old version's types (the
+    /// inspector's sections, an edit in progress) finishes and lets go now,
+    /// or it can't unload (ADR 0011).
+    /// </summary>
+    public event Action? GameReloading;
+
     /// <summary>The project's game, once built and loaded.</summary>
     public LoadedGame? Game => _game;
 
@@ -152,6 +160,7 @@ internal sealed partial class Shell
             else
             {
                 LoadedGame old = _game;
+                GameReloading?.Invoke();
                 _game = GameLoader.Reload(old, build.Assembly, out IReadOnlyList<MigrationNote> notes);
                 _game.RegisterComponents();
                 foreach (MigrationNote note in notes)
