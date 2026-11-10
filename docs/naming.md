@@ -642,7 +642,8 @@ system "Animation.Update"; `play`, `setLayer`, `clearLayer`, `LayerDesc`
 (`Animator.Play`, `SetLayer`, `ClearLayer`, `FindJoint`,
 `JointModelTransform`), since `Crucible.Animation` is the namespace (owner,
 2026-11-10). A layer's mask is a parameter beside `LayerDesc`, since exposed
-structs can't hold spans. Names added while building are placeholders (*):
+structs can't hold spans. Names added while building (marked *) settled as
+drafted too (after the owner tried step 2 by hand):
 
 | Name | What it is |
 |---|---|

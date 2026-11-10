@@ -1,7 +1,9 @@
 # 0079 — The pose runtime
 
-**Status:** Accepted (2026-11-10); M8 step 2 built. Names settled by the
-owner as drafted (docs/naming.md); names added while building are marked *.
+**Status:** Accepted (2026-11-10); M8 step 2 built, then tried by hand by
+the owner (View > Skeletons showing the Walker's skeleton, walking while
+the game plays). Names, including those added while building, settled by
+the owner as drafted (docs/naming.md).
 
 ## Context
 
