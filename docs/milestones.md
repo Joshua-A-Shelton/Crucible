@@ -478,7 +478,9 @@ can name; tried by hand by the owner on KWin. Step 7 is done. Step 8 built
 project (create, open with its C# and C++, drag a model in, edit it in the
 inspector, save and reopen, play, hot-reload C#, reload a texture, stop,
 run standalone), with undo along the way, captured, and on Windows compared
-between D3D12 and Vulkan. M7 awaits the owner's by-hand run and sign-off.
+between D3D12 and Vulkan; done by hand by the owner on KWin, which found
+that lights and cameras added with Add Component started at zeros (fixed).
+Signed off by the owner on 2026-11-09; M7 is done.
 
 ## M8 — Animation and audio
 

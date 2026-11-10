@@ -597,7 +597,7 @@ passed"), tests/demonstration/compare_demonstration.cmake, the project "Demo"
 with Code/Wobble.cs (`Wobble`, `WobbleSystem`) and Native/Pulse.cpp
 (`demo::Pulse`, "Demo.Pulse"), `placed.png`, `playing.png`, ADR 0077 "The M7
 demonstration", `docs/learning/end-to-end-checks.md`. Names added while
-building are placeholders (marked *):
+building (marked *) settled as drafted too:
 
 | Name | What it is |
 |---|---|

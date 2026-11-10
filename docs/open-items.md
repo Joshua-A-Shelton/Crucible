@@ -48,6 +48,14 @@ is, and record which version fixed it.
 - Upscaler licenses: DLSS, XeSS (FSR is MIT); SMAA's license. → 0004
   [when each is added]
 
+## Small editor fixes noticed in M7 (ADR 0077)
+
+- The hierarchy orders top-level entities by their entity slot, so a model
+  placed after a drag (whose preview entity was made and removed) can land
+  above entities made before it.
+- The inspector's position fields clip a long number (17.7836 shows as
+  "7836").
+
 ## Revisit once there is a prototype to test against
 
 

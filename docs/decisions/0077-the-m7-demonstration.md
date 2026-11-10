@@ -1,8 +1,8 @@
 # 0077 — The M7 demonstration
 
-**Status:** Accepted (2026-11-09); M7 step 8 built. Names settled by the
-owner as drafted; those added while building are placeholders
-(docs/naming.md).
+**Status:** Accepted (2026-11-09); M7 step 8 built, then done by hand by
+the owner on KWin, in a project made the same way; M7 signed off. Names
+settled by the owner as drafted (docs/naming.md).
 
 ## Context
 
