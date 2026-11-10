@@ -72,6 +72,16 @@ compare_demonstration.cmake):
   in the frame a placement landed showed the hierarchy before its scheduled
   refresh (it reads the scene again a frame after a change); the capture
   now waits for it.
+- **Found by hand (owner, 2026-11-09):** lights and a camera added with Add
+  Component started at all zeros (black, intensity 0, a field of view of 0),
+  so the hand-made scene was black throughout and the texture swap had
+  nothing to show; the scripted session had set their values in code, which
+  hid it. Like the physics components (ADR 0075), the C# halves of
+  `DirectionalLight`, `PointLight`, `SpotLight`, `AmbientLight`, `Sky`, and
+  `Camera` now have constructors with the values a new one starts with (the
+  Diorama's, roughly); `PostProcess` stays at zeros, which is neutral. The
+  session now adds its sun and camera with Add Component, setting only where
+  they are, and checks they start lit and with a field of view.
 - **The standalone run** is checked through its log: a game process has no
   way to save a capture of its own.
 - **The comparison covers the 3D view** (the viewport for placed.png, the
@@ -95,5 +105,5 @@ compare_demonstration.cmake):
   `Project/Native/Pulse.h` and `Pulse.cpp` (`demo::Pulse`,
   `pulsesLastFrame`), `compare_demonstration.cmake` (Vulkan, then on Windows
   D3D12 compared with it).
-- **CTest:** `launcher.jit.demonstration`: 25 checks on Vulkan; on Windows,
-  31 on D3D12 (with the comparisons).
+- **CTest:** `launcher.jit.demonstration`: 27 checks on Vulkan; on Windows,
+  33 on D3D12 (with the comparisons).

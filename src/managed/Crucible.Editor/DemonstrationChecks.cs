@@ -267,23 +267,29 @@ internal sealed class DemonstrationChecks : GameSystem
               !log.Contains("couldn't be loaded", StringComparison.Ordinal), "with its module and model", Tail(log));
     }
 
-    // A sun, ambient light, and a camera looking at where the model lands.
-    private static void Light(Shell shell)
+    // A sun, ambient light, and a camera looking at where the model lands,
+    // added as a person would, with Add Component: their starting values
+    // light the scene and frame it (all zeros, the by-hand run found, was a
+    // black scene). Only where they are is set.
+    private void Light(Shell shell)
     {
         Entity sun = shell.CreateEmpty(Entity.Null);
         shell.SetComponent(sun, "Crucible.Scenes.EntityName", JsonNode.Parse("""{ "Value": "Sun" }"""), "Rename");
-        shell.SetComponent(sun, "Crucible.Render.DirectionalLight",
-            JsonNode.Parse("""{ "Color": [1, 0.97, 0.92], "Intensity": 3 }"""), "Sun");
-        shell.SetComponent(sun, "Crucible.Render.AmbientLight",
-            JsonNode.Parse("""{ "SkyColor": [0.5, 0.6, 0.8], "GroundColor": [0.3, 0.25, 0.2], "Intensity": 0.6 }"""), "Ambient");
+        shell.AddComponent(sun, "Crucible.Render.DirectionalLight");
+        shell.AddComponent(sun, "Crucible.Render.AmbientLight");
         shell.SetComponent(sun, typeof(LocalTransform).FullName!,
             JsonNode.Parse("""{ "Position": [0, 0, 0], "Rotation": [0.35, 0.35, 0, 0.87], "Scale": [1, 1, 1] }"""), "Sun");
         Entity camera = shell.CreateEmpty(Entity.Null);
         shell.SetComponent(camera, "Crucible.Scenes.EntityName", JsonNode.Parse("""{ "Value": "Camera" }"""), "Rename");
-        shell.SetComponent(camera, "Crucible.Render.Camera",
-            JsonNode.Parse("""{ "Projection": "Perspective", "FieldOfViewY": 0.9, "NearPlane": 0.1 }"""), "Camera");
+        shell.AddComponent(camera, "Crucible.Render.Camera");
         shell.SetComponent(camera, typeof(LocalTransform).FullName!,
             JsonNode.Parse("""{ "Position": [0, 3, -9], "Rotation": [0.13, 0, 0, 0.99], "Scale": [1, 1, 1] }"""), "Camera");
+        World world = shell.World;
+        Check(SceneIds.Read(world, sun, "Crucible.Render.DirectionalLight")?["Intensity"]?.GetValue<float>() > 0 &&
+              SceneIds.Read(world, sun, "Crucible.Render.AmbientLight")?["Intensity"]?.GetValue<float>() > 0,
+            "lights added with Add Component start lit");
+        Check(SceneIds.Read(world, camera, "Crucible.Render.Camera")?["FieldOfViewY"]?.GetValue<float>() > 0,
+            "a camera added with Add Component starts with a field of view");
     }
 
     // Types into a field's first number box, in the selected entity's section
