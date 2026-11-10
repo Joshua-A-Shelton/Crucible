@@ -1195,29 +1195,29 @@ void releaseEditorView(uint32_t surface)
 
 Result<void> addEditorStepsTo(RenderSchedule& schedule)
 {
-    if (Result<void> added = schedule.insertAfter("Sky", {.name = "Grid",
-                                                          .addPasses = addGrid,
-                                                          .userData = &gridPipeline,
-                                                          .prepare = prepareGrid,
-                                                          .release = destroyEditorPipeline});
+    if (Result<void> added = schedule.insertAfter(steps::sky, {.name = steps::grid,
+                                                               .addPasses = addGrid,
+                                                               .userData = &gridPipeline,
+                                                               .prepare = prepareGrid,
+                                                               .release = destroyEditorPipeline});
         !added)
     {
         return added;
     }
-    if (Result<void> added = schedule.insertAfter("Opaque", {.name = "Pick",
-                                                             .addPasses = addPick,
-                                                             .userData = &pickPipeline,
-                                                             .prepare = preparePick,
-                                                             .release = destroyEditorPipeline});
+    if (Result<void> added = schedule.insertAfter(steps::opaque, {.name = steps::pick,
+                                                                  .addPasses = addPick,
+                                                                  .userData = &pickPipeline,
+                                                                  .prepare = preparePick,
+                                                                  .release = destroyEditorPipeline});
         !added)
     {
         return added;
     }
-    return schedule.insertAfter("Tonemap", {.name = "SelectionOutline",
-                                            .addPasses = addSelectionOutline,
-                                            .userData = &outlinePipeline,
-                                            .prepare = prepareOutline,
-                                            .release = destroyEditorPipeline});
+    return schedule.insertAfter(steps::tonemap, {.name = steps::selectionOutline,
+                                                 .addPasses = addSelectionOutline,
+                                                 .userData = &outlinePipeline,
+                                                 .prepare = prepareOutline,
+                                                 .release = destroyEditorPipeline});
 }
 
 void setSurfaceGrid(SurfaceHandle surface, bool shown)
@@ -1303,33 +1303,33 @@ PickResult pickResult(SurfaceHandle surface)
 
 void addClearStep(RenderSchedule& schedule)
 {
-    (void)schedule.add({.name = "Clear", .addPasses = addClear});
+    (void)schedule.add({.name = steps::clear, .addPasses = addClear});
 }
 
 void addDefaultSteps(RenderSchedule& schedule)
 {
     // Their pipelines are the materials' (Materials.cpp).
-    (void)schedule.add({.name = "DepthPrepass", .addPasses = addDepthPrepass});
-    (void)schedule.add({.name = "LightClustering",
+    (void)schedule.add({.name = steps::depthPrepass, .addPasses = addDepthPrepass});
+    (void)schedule.add({.name = steps::lightClustering,
                         .addPasses = addLightClustering,
                         .userData = &clusterPipeline,
                         .prepare = prepareLightClustering,
                         .release = destroyPipeline});
-    (void)schedule.add({.name = "Shadows",
+    (void)schedule.add({.name = steps::shadows,
                         .addPasses = addShadows,
                         .userData = &clearTilePipeline,
                         .prepare = prepareShadowStep,
                         .release = releaseShadows});
-    (void)schedule.add({.name = "Opaque", .addPasses = addOpaque});
-    (void)schedule.add({.name = "Outlines", .addPasses = addOutlines});
-    (void)schedule.add({.name = "Sky",
+    (void)schedule.add({.name = steps::opaque, .addPasses = addOpaque});
+    (void)schedule.add({.name = steps::outlines, .addPasses = addOutlines});
+    (void)schedule.add({.name = steps::sky,
                         .addPasses = addSky,
                         .userData = &skyPipeline,
                         .prepare = prepareSky,
                         .release = destroyPipeline});
-    (void)schedule.add({.name = "Transparent", .addPasses = addTransparent});
-    (void)schedule.add({.name = "Bloom", .addPasses = addBloom, .prepare = prepareBloom, .release = releaseBloom});
-    (void)schedule.add({.name = "Tonemap",
+    (void)schedule.add({.name = steps::transparent, .addPasses = addTransparent});
+    (void)schedule.add({.name = steps::bloom, .addPasses = addBloom, .prepare = prepareBloom, .release = releaseBloom});
+    (void)schedule.add({.name = steps::tonemap,
                         .addPasses = addTonemap,
                         .userData = &tonemapPipeline,
                         .prepare = prepareTonemap,

@@ -275,7 +275,7 @@ TEST_SUITE("gpu")
     {
         REQUIRE(platform::initialize());
         library = {{1, TestModel().bytes()}, {2, textureBytes(testMips())}, {3, {1, 2, 3}}};
-        render::setAssetReader(reinterpret_cast<uint64_t>(&readTestAsset));
+        assets::setAssetReader(reinterpret_cast<uint64_t>(&readTestAsset));
         for (slag::Backend backend : {slag::Backend::D3D12, slag::Backend::Vulkan})
         {
             if (!slag::isBackendAvailable(backend) || !render::initialize(backend))
@@ -317,7 +317,7 @@ TEST_SUITE("gpu")
             REQUIRE(render::acquireTexture(idOf(2)));
             render::shutdown();
         }
-        render::setAssetReader(0);
+        assets::setAssetReader(0);
         platform::shutdown();
     }
 }

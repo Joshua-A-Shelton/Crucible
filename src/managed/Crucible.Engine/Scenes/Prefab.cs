@@ -69,6 +69,9 @@ public static class Prefab
 /// </summary>
 public sealed class PrefabLibrary(Func<AssetId, byte[]?> read)
 {
+    /// <summary>Prefabs read through the installed asset source (ADR 0076).</summary>
+    public static PrefabLibrary FromAssetSource() => new(AssetSource.Read);
+
     private readonly Dictionary<AssetId, SceneFile> _files = [];
     private readonly Lock _lock = new();
 

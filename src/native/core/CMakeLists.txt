@@ -27,6 +27,7 @@ crucible_generate_bindings(
 
 target_sources(crucible_core_objects PRIVATE
     BinaryFile.cpp
+    AssetSource.cpp
     Audio.cpp
     BindingProbe.cpp
     Checksum.cpp

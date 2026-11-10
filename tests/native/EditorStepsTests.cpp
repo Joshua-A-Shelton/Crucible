@@ -91,7 +91,7 @@ TEST_SUITE("gpu")
         render::registerLights();
         const assets::AssetId redQuad = test::idOf(11);
         library[11] = test::quadModel({.baseColor = {1, 0, 0, 1}});
-        render::setAssetReader(reinterpret_cast<uint64_t>(&readTestAsset));
+        assets::setAssetReader(reinterpret_cast<uint64_t>(&readTestAsset));
         REQUIRE(platform::initialize());
         for (slag::Backend backend : {slag::Backend::D3D12, slag::Backend::Vulkan})
         {

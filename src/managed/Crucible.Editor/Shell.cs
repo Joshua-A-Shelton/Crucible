@@ -254,7 +254,7 @@ internal sealed partial class Shell
         }
         Database = database;
         Prefabs = database.Prefabs();
-        RenderAssets.SetReader(id => database.ImportedFile(id) is { } path ? File.ReadAllBytes(path) : null);
+        AssetSource.Install(id => database.ImportedFile(id) is { } path ? File.ReadAllBytes(path) : null);
         Log($"{database.Assets.Count()} assets, {imported} imported" + (failed > 0 ? $", {failed} failed" : ""));
         WatchAssets(project);
         AssetsChanged?.Invoke();

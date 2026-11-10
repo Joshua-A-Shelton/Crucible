@@ -533,7 +533,9 @@ float windowDisplayScale(WindowHandle window)
     return scale > 0 ? scale : 1.0f;
 }
 
-uint32_t pollEvents(std::span<InputEvent> events)
+namespace {
+
+uint32_t pollPlatform(std::span<InputEvent> events)
 {
     polled().clear();
     // Drag events go into SDL's queue first, after SDL has read the
@@ -555,11 +557,42 @@ uint32_t pollEvents(std::span<InputEvent> events)
     return count;
 }
 
-uint32_t polledText(std::span<uint8_t> out)
+uint32_t platformText(std::span<uint8_t> out)
 {
     const Vector<char>& text = polled();
     std::memcpy(out.data(), text.data(), std::min(out.size(), text.size()));
     return static_cast<uint32_t>(text.size());
+}
+
+constexpr InputSource platformSource{pollPlatform, platformText};
+
+InputSource installedSource = platformSource;
+
+} // namespace
+
+uint32_t pollEvents(std::span<InputEvent> events)
+{
+    return installedSource.poll(events);
+}
+
+uint32_t polledText(std::span<uint8_t> out)
+{
+    return installedSource.text(out);
+}
+
+void installInputSource(const InputSource& source)
+{
+    installedSource = source;
+}
+
+const InputSource& inputSource()
+{
+    return installedSource;
+}
+
+const InputSource& platformInputSource()
+{
+    return platformSource;
 }
 
 void startTextInput(WindowHandle window)

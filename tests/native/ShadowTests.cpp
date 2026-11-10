@@ -131,7 +131,7 @@ TEST_SUITE("gpu")
         test::library[7] = shaderBytes;
         test::library[8] = test::materialFile(shader, layout.index, layout.defaults);
         test::library[9] = test::quadModel({.remap = &lit});
-        render::setAssetReader(reinterpret_cast<uint64_t>(&test::readTestAsset));
+        assets::setAssetReader(reinterpret_cast<uint64_t>(&test::readTestAsset));
         REQUIRE(platform::initialize());
         for (slag::Backend backend : {slag::Backend::D3D12, slag::Backend::Vulkan})
         {
@@ -284,7 +284,7 @@ TEST_SUITE("gpu")
             render::shutdown();
         }
         platform::shutdown();
-        render::setAssetReader(0);
+        assets::setAssetReader(0);
         test::library.clear();
     }
 }

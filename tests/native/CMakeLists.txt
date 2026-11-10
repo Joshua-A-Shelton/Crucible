@@ -6,6 +6,7 @@ add_executable(crucible_native_tests
     DrawListTests.cpp
     EditorStepsTests.cpp
     EcsTests.cpp
+    InputSourceTests.cpp
     InputTimingTests.cpp
     JobTests.cpp
     LightTests.cpp

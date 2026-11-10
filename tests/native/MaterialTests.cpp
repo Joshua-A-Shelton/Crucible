@@ -92,7 +92,7 @@ TEST_SUITE("gpu")
         test::library[4] = test::rowTexture({255, 255, 255, 0, 255, 255, 255, 255});
         test::library[5] = test::quadModel();
         test::library[6] = test::quadModel({.doubleSided = true});
-        render::setAssetReader(reinterpret_cast<uint64_t>(&test::readTestAsset));
+        assets::setAssetReader(reinterpret_cast<uint64_t>(&test::readTestAsset));
         REQUIRE(platform::initialize());
         for (slag::Backend backend : {slag::Backend::D3D12, slag::Backend::Vulkan})
         {
@@ -154,7 +154,7 @@ TEST_SUITE("gpu")
             render::shutdown();
         }
         platform::shutdown();
-        render::setAssetReader(0);
+        assets::setAssetReader(0);
         test::library.clear();
     }
 }
@@ -173,7 +173,7 @@ TEST_SUITE("gpu")
         test::library[7] = shaderBytes;
         test::library[8] = test::materialFile(shader, layout.index, layout.defaults);
         test::library[9] = test::quadModel({.baseColor = {1, 0, 0, 1}, .remap = &flat});
-        render::setAssetReader(reinterpret_cast<uint64_t>(&test::readTestAsset));
+        assets::setAssetReader(reinterpret_cast<uint64_t>(&test::readTestAsset));
         REQUIRE(platform::initialize());
         for (slag::Backend backend : {slag::Backend::D3D12, slag::Backend::Vulkan})
         {
@@ -226,7 +226,7 @@ TEST_SUITE("gpu")
             render::shutdown();
         }
         platform::shutdown();
-        render::setAssetReader(0);
+        assets::setAssetReader(0);
         test::library.clear();
     }
 }

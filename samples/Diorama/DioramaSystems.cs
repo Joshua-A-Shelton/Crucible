@@ -64,7 +64,7 @@ public sealed class DioramaSetup : GameSystem
             }
         }
         Console.WriteLine($"Diorama: imported {database.Assets.Count()} assets in {watch.ElapsedMilliseconds} ms");
-        RenderAssets.SetReader(id => database.ImportedFile(id) is { } path ? File.ReadAllBytes(path) : null);
+        AssetSource.Install(id => database.ImportedFile(id) is { } path ? File.ReadAllBytes(path) : null);
 
         Models models = new(database);
         World world = context.World;
@@ -94,7 +94,7 @@ public sealed class DioramaSetup : GameSystem
 
     public override void Stop(FrameContext context)
     {
-        RenderAssets.SetReader(null);
+        AssetSource.Install(null);
         if (_work is not null && Directory.Exists(_work))
         {
             Directory.Delete(_work, recursive: true);

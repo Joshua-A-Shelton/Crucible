@@ -55,3 +55,24 @@ propagates transforms), but physics shouldn't simulate while you're placing
 things. Systems that belong to the game itself (physics, audio, a native
 module's) are marked *gameplay*: a game's schedule includes them, the
 editor's own schedule leaves them out, and its play mode runs them.
+
+## The seams that already existed
+
+Input, assets, the renderer, and the loop all worked before step 7d; what
+was missing was a single place to swap each one (ADR 0076).
+
+- **Input** came straight from the platform. Now the platform is just the
+  default *source* of each frame's events. A source that plays back a
+  recording can still pass the window's own events through, by calling the
+  platform's source for those and adding its recorded keys.
+- **Assets** were read in three places, each told separately where to look.
+  Now there's one source, and everything reads through it. Whichever
+  language installs it, both languages read from it.
+- **The renderer** was already components, named steps, and a service. It
+  just needed writing down: the step names became constants, so code that
+  inserts a step "after Opaque" names a constant, not a string it might
+  mistype.
+- **The loop** that runs the frame was built directly by the engine's host.
+  Now it's an interface the host runs through, and a game can hand it its
+  own: one that renders on another thread, for instance.
+

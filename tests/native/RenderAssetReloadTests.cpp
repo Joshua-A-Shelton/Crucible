@@ -77,7 +77,7 @@ TEST_SUITE("gpu")
         std::vector<uint8_t> redFlat = layout.defaults;
         const float red[4] = {1, 0, 0, 1};
         std::memcpy(redFlat.data() + layout.offsetOf("color"), red, sizeof(red));
-        render::setAssetReader(reinterpret_cast<uint64_t>(&test::readTestAsset));
+        assets::setAssetReader(reinterpret_cast<uint64_t>(&test::readTestAsset));
         REQUIRE(platform::initialize());
         for (slag::Backend backend : {slag::Backend::D3D12, slag::Backend::Vulkan})
         {
@@ -163,6 +163,6 @@ TEST_SUITE("gpu")
             test::library.clear();
         }
         platform::shutdown();
-        render::setAssetReader(0);
+        assets::setAssetReader(0);
     }
 }

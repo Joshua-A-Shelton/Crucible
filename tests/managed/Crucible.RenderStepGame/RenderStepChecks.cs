@@ -113,7 +113,7 @@ public sealed class RenderStepChecks : GameSystem
             return;
         }
         _shader = File.ReadAllBytes(context.GameArguments["shader"]);
-        RenderAssets.SetReader(id => id == ProbeStep.Shader ? _shader : null);
+        AssetSource.Install(id => id == ProbeStep.Shader ? _shader : null);
         RenderSchedule.Default.InsertAfter("Tonemap", "Test.Probe", _step);
         Check(_step.Prepares == 1, "the step is prepared when it joins a running renderer");
         IReadOnlyList<string> names = RenderSchedule.Default.StepNames;
@@ -145,7 +145,7 @@ public sealed class RenderStepChecks : GameSystem
             RenderSchedule.Default.Remove("Test.Probe");
             Check(_step.Releases == 1, "the step is released when it leaves");
             Check(!RenderSchedule.Default.StepNames.Contains("Test.Probe"), "it's gone from the schedule");
-            RenderAssets.SetReader(null);
+            AssetSource.Install(null);
             Console.WriteLine(_failures == 0
                 ? $"RenderStepGame: all {_checks} checks passed"
                 : $"RenderStepGame: {_failures} of {_checks} checks failed");

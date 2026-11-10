@@ -93,7 +93,7 @@ TEST_SUITE("gpu")
         test::library[2] = test::sphereModel({.baseColor = {1, 1, 1, 1}, .outlineWidth = 4});
         test::library[3] = test::sphereModel(
             {.baseColor = {1, 0.1f, 0.1f, 1}, .outlineWidth = 4, .outlineColor = {1, 1, 1}, .outlineTint = 1});
-        render::setAssetReader(reinterpret_cast<uint64_t>(&test::readTestAsset));
+        assets::setAssetReader(reinterpret_cast<uint64_t>(&test::readTestAsset));
         REQUIRE(platform::initialize());
         for (slag::Backend backend : {slag::Backend::D3D12, slag::Backend::Vulkan})
         {
@@ -160,7 +160,7 @@ TEST_SUITE("gpu")
             render::shutdown();
         }
         platform::shutdown();
-        render::setAssetReader(0);
+        assets::setAssetReader(0);
         test::library.clear();
     }
 }

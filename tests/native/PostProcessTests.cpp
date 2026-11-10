@@ -75,7 +75,7 @@ TEST_SUITE("gpu")
         };
         const assets::AssetId gray = coloredQuad(0.25f, 0.25f, 0.25f), white = coloredQuad(1, 1, 1),
                               orange = coloredQuad(1, 0.4f, 0.1f);
-        render::setAssetReader(reinterpret_cast<uint64_t>(&test::readTestAsset));
+        assets::setAssetReader(reinterpret_cast<uint64_t>(&test::readTestAsset));
         REQUIRE(platform::initialize());
         for (slag::Backend backend : {slag::Backend::D3D12, slag::Backend::Vulkan})
         {
@@ -201,7 +201,7 @@ TEST_SUITE("gpu")
             render::shutdown();
         }
         platform::shutdown();
-        render::setAssetReader(0);
+        assets::setAssetReader(0);
         test::library.clear();
     }
 }

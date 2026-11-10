@@ -569,3 +569,23 @@ drafted too:
 | `LayerMaskField` (`LayerNames`*, `Mask`*, `MaskChanged`*, `IsOpen`*, `List`*, `NameOf`*), `LayerMaskRow`* (`Text`*, `IsChecked`*); the rows "Nothing"*, "Everything"*, "Default"*, "Layer N"* | The control |
 | `SerializedField.IsLayers`*, `Project.PhysicsLayers`*, `ProjectFile.PhysicsLayers`* | Carrying it |
 
+## Input, asset, renderer, and loop contracts (2026-11-09, M7 step 7d)
+
+Settled as drafted: `InputSource` (`poll`, `text`), `installInputSource`,
+`inputSource`, `platformInputSource`; crucible/AssetSource.h, `AssetSource`
+(`read`), `installAssetSource`, `assetSource`; C# `AssetSource.Install`
+(replacing `RenderAssets.SetReader`), `PrefabLibrary.FromAssetSource()`;
+`render::steps::clear`, `shadows`, … and C# `RenderSteps.Clear`, …;
+`ILoopDriver` (`Run`), `[assembly: LoopDriver(typeof(...))]`; ADR 0076
+"Input, asset, renderer, and loop contracts", the section in
+`docs/learning/subsystem-contracts.md`, `InputSourceTests`,
+`AssetSourceTests`, `LoopDriverTests`. Names added while building are
+placeholders (marked *):
+
+| Name | What it is |
+|---|---|
+| `AssetDelivery`*, `assetSourceInstalled`*, `assetSize`*, `copyAsset`* | The asset source's C++ side |
+| C# `AssetSource.InstallDefault`*, `IsInstalled`*, `Read`* | Its C# side |
+| `render::steps` (`depthPrepass`*, `lightClustering`*, `opaque`*, `outlines`*, `sky`*, `transparent`*, `bloom`*, `tonemap`*, `grid`*, `pick`*, `selectionOutline`*) and the matching C# constants | Step names |
+| `ILoopDriver.Schedule`*, `LoopDriverAttribute.DriverType`*, `LoadedGame.CreateLoopDriver`* | The loop driver |
+

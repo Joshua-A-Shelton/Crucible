@@ -108,9 +108,6 @@ struct Table
     }
 };
 
-using AssetReader = int32_t (*)(const AssetId* id, void* context,
-                                void (*deliver)(void* context, const uint8_t* data, uint64_t size));
-
 struct Assets
 {
     slag::GraphicsDevice* device = nullptr;
@@ -124,7 +121,6 @@ struct Assets
 };
 
 Assets state;
-AssetReader reader = nullptr;
 bool stagingOnly = false; // tests
 
 slag::SemaphoreValue lastSignaled()
@@ -624,9 +620,9 @@ Result<uint32_t> acquire(Table<T>& table, const AssetId& id, Create create)
         ++table.slots[*found].uses;
         return *found;
     }
-    if (reader == nullptr)
+    if (!assets::assetSourceInstalled())
     {
-        std::fprintf(stderr, "crucible: an asset was acquired before C# set the asset reader\n");
+        std::fprintf(stderr, "crucible: an asset was acquired before an asset source was installed\n");
         return Status::NotFound;
     }
     struct Load
@@ -641,7 +637,7 @@ Result<uint32_t> acquire(Table<T>& table, const AssetId& id, Create create)
         self.status = created.status();
         self.value = created ? created.value() : nullptr;
     };
-    if (reader(&id, &load, deliverTo) != 0)
+    if (assets::assetSource().read(&id, &load, deliverTo) != 0)
     {
         return Status::NotFound;
     }
@@ -924,11 +920,6 @@ uint32_t samplerDescriptor(Sampler sampler)
     return firstSamplerSlot + static_cast<uint32_t>(sampler);
 }
 
-void setAssetReader(uint64_t readerAddress)
-{
-    reader = reinterpret_cast<AssetReader>(static_cast<uintptr_t>(readerAddress));
-}
-
 const MeshData* meshData(MeshHandle mesh)
 {
     const Slot<LoadedMesh>* slot = state.meshes.find(mesh.index, mesh.generation);
@@ -1087,7 +1078,7 @@ uint64_t renderAssetReloads()
 
 Status readAsset(const AssetId& id, Vector<uint8_t>& out)
 {
-    if (reader == nullptr)
+    if (!assets::assetSourceInstalled())
     {
         return Status::Unsupported;
     }
@@ -1095,7 +1086,7 @@ Status readAsset(const AssetId& id, Vector<uint8_t>& out)
         static_cast<Vector<uint8_t>*>(context)->assign(std::span<const uint8_t>(data, static_cast<size_t>(size)));
     };
     out.clear();
-    return reader(&id, &out, deliver) == 0 ? Status::Ok : Status::NotFound;
+    return assets::assetSource().read(&id, &out, deliver) == 0 ? Status::Ok : Status::NotFound;
 }
 
 } // namespace crucible::render

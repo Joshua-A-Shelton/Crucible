@@ -4,8 +4,8 @@
 // loaded into Slag buffers and textures for render steps to draw.
 //
 // By asset ID, acquire loads on first use and counts uses; release unloads
-// after the last. The bytes come from the reader C# registers (the asset
-// database in the editor). load / unload take bytes directly, for data
+// after the last. The bytes come from the installed asset source
+// (crucible/AssetSource.h, ADR 0076). load / unload take bytes directly, for data
 // outside the asset system. Loading is synchronous (ADR 0021's asynchronous
 // loading comes with cooking). Unloading never frees what a submitted frame
 // may still use: Slag's DeferredDestroyer and DescriptorAllocator wait for
@@ -13,6 +13,7 @@
 //
 // Threading: like the renderer, on the launcher's main thread.
 
+#include <crucible/AssetSource.h>
 #include <crucible/Export.h>
 #include <crucible/Expose.h>
 #include <crucible/MeshFile.h>
@@ -25,28 +26,6 @@
 namespace slag {
 class Buffer;
 }
-
-namespace crucible::assets {
-
-// An asset's GUID, the same 16 bytes as C#'s AssetId.
-struct CRUCIBLE_EXPOSE_AS("Crucible.Assets.AssetId") AssetId
-{
-    uint8_t bytes[16];
-};
-
-inline bool operator==(const AssetId& a, const AssetId& b)
-{
-    for (int i = 0; i < 16; ++i)
-    {
-        if (a.bytes[i] != b.bytes[i])
-        {
-            return false;
-        }
-    }
-    return true;
-}
-
-} // namespace crucible::assets
 
 namespace crucible::render {
 
@@ -130,14 +109,6 @@ struct CRUCIBLE_EXPOSE TextureSize
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE TextureSize textureSize(TextureHandle texture);
 // The sampler's slot in the sampler heap.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t samplerDescriptor(Sampler sampler);
-
-// The C# side's reader: an [UnmanagedCallersOnly] function, as an address
-// (the generator doesn't do function pointers), called as
-//     int32_t reader(const AssetId* id, void* context,
-//                    void (*deliver)(void* context, const uint8_t* data, uint64_t size))
-// It calls `deliver` with the asset's imported bytes before returning 0, or
-// returns -1 if there is no such asset. Internal to the engine.
-CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void setAssetReader(uint64_t readerAddress);
 
 // What render steps read to draw a loaded model (C++ only): its GPU buffer
 // and resource-heap slot, where each stream starts in it, and the file's

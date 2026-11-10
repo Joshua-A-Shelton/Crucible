@@ -3,12 +3,12 @@ using System.Diagnostics;
 namespace Crucible.Loop;
 
 /// <summary>
-/// The loop driver (ADR 0011, 0013, 0036): runs a <see cref="Schedule"/> once
-/// per frame until a system requests quit or fails, or the frame limit is
-/// reached. The driver is replaceable (ADR 0013), so it holds no state a
-/// system needs.
+/// The engine's loop driver (ADR 0011, 0013, 0036): runs a <see cref="Schedule"/>
+/// once per frame until a system requests quit or fails, or the frame limit
+/// is reached. A game can replace it (<see cref="ILoopDriver"/>, ADR 0076), so
+/// it holds no state a system needs.
 /// </summary>
-public sealed class FrameLoop(Schedule schedule)
+public sealed class FrameLoop(Schedule schedule) : ILoopDriver
 {
     /// <summary>The schedule it runs.</summary>
     public Schedule Schedule { get; } = schedule;

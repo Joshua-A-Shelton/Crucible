@@ -160,12 +160,31 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE bool windowMinimized(WindowHandle window);
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE float windowDisplayScale(WindowHandle window);
 
 // Fills events with pending events and returns how many it wrote. Events that
-// don't fit stay queued for the next call.
+// don't fit stay queued for the next call. They come from the installed
+// input source: the platform's, unless something replaced it.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t pollEvents(std::span<InputEvent> events);
 
 // The UTF-8 text of the last pollEvents' TextInput events, which point into
 // it: copied into `out` (as much as fits); returns its whole length.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t polledText(std::span<uint8_t> out);
+
+// The input contract (ADR 0076): what fills each frame's event buffer. The
+// Input phase's system polls it (pollEvents, polledText); the UI, the game,
+// and the editor read the buffer. The platform's source (SDL) is the
+// default; a replacement (recorded input played back, a network or test
+// stream) is installed in its place, and can wrap platformInputSource() to
+// keep the window's own events. Main thread.
+struct InputSource
+{
+    uint32_t (*poll)(std::span<InputEvent> events); // as pollEvents
+    uint32_t (*text)(std::span<uint8_t> out);       // as polledText
+};
+
+CRUCIBLE_EXPORT void installInputSource(const InputSource& source);
+// The installed source.
+CRUCIBLE_EXPORT const InputSource& inputSource();
+// The platform's own source, which is installed until something replaces it.
+CRUCIBLE_EXPORT const InputSource& platformInputSource();
 
 // Typed text arrives as TextInput events while text input is on for the
 // window (on-screen keyboards show; ADR 0065); the UI turns it on while a

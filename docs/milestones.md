@@ -470,8 +470,10 @@ from C++; tried by hand by the owner on KWin. Step 7c built (ADR 0075):
 the physics and audio contracts (components, gameplay systems under fixed
 names, and services, in C++ bound to C#) with null defaults, replaceable by
 a native module; layers became two masks per body, shown by name; tried by
-hand by the owner on KWin. Step 7d (input, runtime assets, the renderer,
-and the loop driver) is next.
+hand by the owner on KWin. Step 7d built (ADR 0076): an input source the
+platform's is the default of, one asset source every runtime read goes
+through, the renderer's step names as constants, and a loop driver a game
+can name. Step 8 (the demonstration) is next.
 
 ## M8 — Animation and audio
 

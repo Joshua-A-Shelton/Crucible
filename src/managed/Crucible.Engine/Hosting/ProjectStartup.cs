@@ -24,8 +24,10 @@ public static class ProjectStartup
             return null;
         }
         AssetCache assets = AssetCache.Open(project);
-        RenderAssets.SetReader(assets.Read);
-        SceneLoad loaded = Scene.Load(world, File.ReadAllBytes(scene), prefabs: assets.Prefabs());
+        // The project's imported files, unless a native module installed its
+        // own source (pack files, ADR 0076); prefabs come through it too.
+        AssetSource.InstallDefault(assets.Read);
+        SceneLoad loaded = Scene.Load(world, File.ReadAllBytes(scene), prefabs: PrefabLibrary.FromAssetSource());
         Console.WriteLine($"Crucible.Hosting: opened {Path.GetFileName(scene)}: {loaded.Roots.Count} entities at the top");
         foreach (string skipped in loaded.SkippedComponents)
         {

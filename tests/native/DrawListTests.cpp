@@ -87,7 +87,7 @@ TEST_SUITE("gpu")
         library[2] = test::quadModel({.texture = &blueTexture});
         library[3] = test::pixelTexture(0, 0, 255, 255);
         library[4] = test::quadModel({.baseColor = {0, 1, 0, 1}});
-        render::setAssetReader(reinterpret_cast<uint64_t>(&readTestAsset));
+        assets::setAssetReader(reinterpret_cast<uint64_t>(&readTestAsset));
         REQUIRE(platform::initialize());
         for (slag::Backend backend : {slag::Backend::D3D12, slag::Backend::Vulkan})
         {
@@ -168,7 +168,7 @@ TEST_SUITE("gpu")
             render::shutdown();
         }
         platform::shutdown();
-        render::setAssetReader(0);
+        assets::setAssetReader(0);
         library.clear();
     }
 }

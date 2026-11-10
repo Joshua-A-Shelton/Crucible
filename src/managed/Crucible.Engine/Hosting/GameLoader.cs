@@ -31,7 +31,7 @@ public static class GameLoader
     public static LoadedGame Load(string path)
     {
         (AssemblyLoadContext context, Assembly assembly) = LoadAssembly(path);
-        return new LoadedGame(context, CreateEntry(assembly), CreateRegistrations(assembly));
+        return new LoadedGame(context, CreateEntry(assembly), CreateRegistrations(assembly), DriverOf(assembly));
     }
 
     /// <summary>
@@ -55,7 +55,7 @@ public static class GameLoader
         AssemblyLoadContext oldContext = current.Context;
         (AssemblyLoadContext context, Assembly assembly) = LoadAssembly(path);
         notes = ComponentMigration.Migrate(oldContext, context);
-        return new LoadedGame(context, CreateEntry(assembly), CreateRegistrations(assembly));
+        return new LoadedGame(context, CreateEntry(assembly), CreateRegistrations(assembly), DriverOf(assembly));
     }
 
     // The assembly is read from a stream, not opened by path, so the file
@@ -100,6 +100,11 @@ public static class GameLoader
         Create<IComponentRegistration>(assembly.GetCustomAttribute<ComponentRegistrationAttribute>()?.RegistrationType),
         Create<IServiceRegistration>(assembly.GetCustomAttribute<ServiceRegistrationAttribute>()?.RegistrationType));
 
+    // The game's own loop driver (ADR 0076), if it names one.
+    [RequiresUnreferencedCode(JitOnly)]
+    [return: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
+    private static Type? DriverOf(Assembly assembly) => assembly.GetCustomAttribute<LoopDriverAttribute>()?.DriverType;
+
     private static T? Create<T>(
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type? type)
         where T : class =>
@@ -135,12 +140,31 @@ public sealed class LoadedGame
     private AssemblyLoadContext? _context;
     private IGameEntry? _entry;
     private Registrations? _registrations;
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
+    private Type? _driver;
 
-    internal LoadedGame(AssemblyLoadContext context, IGameEntry? entry, Registrations registrations)
+    internal LoadedGame(AssemblyLoadContext context, IGameEntry? entry, Registrations registrations,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type? driver = null)
     {
         _context = context;
         _entry = entry;
         _registrations = registrations;
+        _driver = driver;
+    }
+
+    /// <summary>
+    /// The game's own loop driver for <paramref name="schedule"/>, if it names
+    /// one (<see cref="LoopDriverAttribute"/>, ADR 0076); null to use
+    /// <see cref="FrameLoop"/>.
+    /// </summary>
+    public ILoopDriver? CreateLoopDriver(Schedule schedule)
+    {
+        if (_driver is null)
+        {
+            return null;
+        }
+        return Activator.CreateInstance(_driver, schedule) as ILoopDriver ??
+               throw new InvalidOperationException($"{_driver} isn't an ILoopDriver with a constructor taking the Schedule.");
     }
 
     /// <summary>The game's <see cref="GameEntryAttribute"/> entry (an M1 placeholder); throws if it has none.</summary>
@@ -184,6 +208,7 @@ public sealed class LoadedGame
         WeakReference weak = new(context);
         _entry = null;
         _registrations = null;
+        _driver = null;
         _context = null;
         // The saved-component table would otherwise keep the game's types.
         SavedComponents.Forget(context);

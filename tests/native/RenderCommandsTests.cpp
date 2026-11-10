@@ -294,7 +294,7 @@ TEST_SUITE("gpu")
     {
         REQUIRE(platform::initialize());
         test::library[probeShader.bytes[0]] = test::readFile(CRUCIBLE_SHADER_DIR "/StepProbe.crshader");
-        setAssetReader(reinterpret_cast<uint64_t>(&test::readTestAsset));
+        assets::setAssetReader(reinterpret_cast<uint64_t>(&test::readTestAsset));
         setStepTrampoline(reinterpret_cast<uint64_t>(&trampoline));
         bodies[1] = probeStep;
         for (slag::Backend backend : {slag::Backend::D3D12, slag::Backend::Vulkan})
@@ -366,7 +366,7 @@ TEST_SUITE("gpu")
             render::shutdown();
         }
         setStepTrampoline(0);
-        setAssetReader(0);
+        assets::setAssetReader(0);
         platform::shutdown();
     }
 }

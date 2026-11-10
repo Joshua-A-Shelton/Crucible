@@ -29,6 +29,27 @@ struct World;
 
 namespace crucible::render {
 
+// The renderer's contract (ADR 0048, 0076): its components (MeshInstance,
+// Camera, the lights, Sky, PostProcess), these steps by name in a surface's
+// schedule, and RenderAssets. A game or plugin replaces, removes, or adds
+// steps around them by name; the default steps, in order:
+namespace steps {
+inline constexpr const char* clear = "Clear";
+inline constexpr const char* depthPrepass = "DepthPrepass";
+inline constexpr const char* lightClustering = "LightClustering";
+inline constexpr const char* shadows = "Shadows";
+inline constexpr const char* opaque = "Opaque";
+inline constexpr const char* outlines = "Outlines";
+inline constexpr const char* sky = "Sky";
+inline constexpr const char* transparent = "Transparent";
+inline constexpr const char* bloom = "Bloom";
+inline constexpr const char* tonemap = "Tonemap";
+// The editor's own, around them (editor views only).
+inline constexpr const char* grid = "Grid";
+inline constexpr const char* pick = "Pick";
+inline constexpr const char* selectionOutline = "SelectionOutline";
+} // namespace steps
+
 // Generated from shaders/crucible/shared.slang (the renderer's shared.g.h).
 struct ViewConstants;
 

@@ -75,7 +75,7 @@ public sealed class ShowcaseSystem : GameSystem
             RenderSchedule.Default.Remove("UI");
         }
         _root.Content = null;
-        RenderAssets.SetReader(null);
+        AssetSource.Install(null);
         if (_work is not null && Directory.Exists(_work))
         {
             Directory.Delete(_work, recursive: true);
@@ -97,7 +97,7 @@ public sealed class ShowcaseSystem : GameSystem
                 throw new InvalidOperationException($"importing {result.Path}: {result.Outcome} {result.Error}");
             }
         }
-        RenderAssets.SetReader(id => database.ImportedFile(id) is { } path ? File.ReadAllBytes(path) : null);
+        AssetSource.Install(id => database.ImportedFile(id) is { } path ? File.ReadAllBytes(path) : null);
         AssetEntry style = database.Assets.Single(asset => asset.Path.EndsWith(".crstyle", StringComparison.Ordinal));
         Theme theme = Theme.CreateDefault();
         foreach (Style rule in Theme.Load(File.ReadAllBytes(database.ImportedFile(style.Id)!)).Styles)
