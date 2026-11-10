@@ -12,6 +12,7 @@
 #include <ufbx.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 
 namespace crucible::importers {
@@ -158,14 +159,85 @@ void pushUv(Vector<float>& stream, const ufbx_vertex_vec2* uvs, uint32_t index)
     stream.pushBack(static_cast<float>(1.0 - uv.y));
 }
 
+// A ufbx matrix (column vectors) as Matrix4x4's row-major one for row vectors.
+void rowMajor(const ufbx_matrix& m, float* out)
+{
+    for (int row = 0; row < 4; ++row)
+    {
+        out[row * 4 + 0] = static_cast<float>(m.cols[row].x);
+        out[row * 4 + 1] = static_cast<float>(m.cols[row].y);
+        out[row * 4 + 2] = static_cast<float>(m.cols[row].z);
+        out[row * 4 + 3] = row == 3 ? 1.0f : 0.0f;
+    }
+}
+
+// A corner's influences (ADR 0078): the vertex's eight strongest, as joints
+// of the scene's skeleton; zeros without a skin.
+void pushSkin(const ufbx_mesh& mesh, uint32_t index, const Vector<int32_t>& jointOfNode, Corners& corners)
+{
+    struct Influence
+    {
+        int32_t joint;
+        float weight;
+    };
+    Influence strongest[8] = {};
+    uint32_t used = 0;
+    if (mesh.skin_deformers.count > 0)
+    {
+        const ufbx_skin_deformer& skin = *mesh.skin_deformers.data[0];
+        const uint32_t vertex = mesh.vertex_indices.data[index];
+        if (vertex < skin.vertices.count)
+        {
+            const ufbx_skin_vertex& weights = skin.vertices.data[vertex];
+            for (uint32_t w = 0; w < weights.num_weights; ++w)
+            {
+                const ufbx_skin_weight& weight = skin.weights.data[weights.weight_begin + w];
+                const ufbx_skin_cluster* cluster = skin.clusters.data[weight.cluster_index];
+                if (cluster->bone_node == nullptr || jointOfNode[cluster->bone_node->typed_id] < 0)
+                {
+                    continue;
+                }
+                const Influence influence{jointOfNode[cluster->bone_node->typed_id], static_cast<float>(weight.weight)};
+                if (used < 8)
+                {
+                    strongest[used++] = influence;
+                }
+                else
+                {
+                    // Full: replace the weakest if this is stronger.
+                    uint32_t weakest = 0;
+                    for (uint32_t k = 1; k < 8; ++k)
+                    {
+                        weakest = strongest[k].weight < strongest[weakest].weight ? k : weakest;
+                    }
+                    if (influence.weight > strongest[weakest].weight)
+                    {
+                        strongest[weakest] = influence;
+                    }
+                }
+            }
+        }
+    }
+    for (uint32_t k = 0; k < 8; ++k)
+    {
+        corners.joints.pushBack(static_cast<float>(k < used ? strongest[k].joint : 0));
+        corners.weights.pushBack(k < used ? strongest[k].weight : 0.0f);
+    }
+}
+
 // One FBX mesh's polygons, triangulated, one submesh per material.
-void readMesh(const ufbx_mesh& mesh, SourceMesh& out, StringList& warnings)
+void readMesh(const ufbx_mesh& mesh, const Vector<int32_t>& jointOfNode, SourceMesh& out, StringList& warnings)
 {
     const char* name = nameOf(mesh.name.data, "(unnamed)");
-    if (mesh.skin_deformers.count > 0 || mesh.blend_deformers.count > 0)
+    if (mesh.blend_deformers.count > 0)
     {
-        warnings.addFormat("mesh %s: skins and blend shapes aren't imported yet", name);
+        warnings.addFormat("mesh %s: blend shapes aren't imported yet", name);
     }
+    if (mesh.skin_deformers.count > 1)
+    {
+        warnings.addFormat("mesh %s: has %zu skins; only the first is imported", name, mesh.skin_deformers.count);
+    }
+    const bool hasSkin = mesh.skin_deformers.count > 0;
     if (mesh.num_line_faces > 0 || mesh.num_point_faces > 0)
     {
         warnings.addFormat("mesh %s: points and lines are left out", name);
@@ -245,10 +317,11 @@ void readMesh(const ufbx_mesh& mesh, SourceMesh& out, StringList& warnings)
                         corners.colors.pushBack(1.0f);
                     }
                 }
+                pushSkin(mesh, i, jointOfNode, corners);
             }
         }
         out.submeshes.pushBack(
-            {first, corners.count() - first, material, hasNormals, hasTangents, hasUv0, hasUv1, hasColors});
+            {first, corners.count() - first, material, hasNormals, hasTangents, hasUv0, hasUv1, hasColors, hasSkin});
     }
 }
 
@@ -273,21 +346,7 @@ Result<MeshImport*> importFbx(std::span<const uint8_t> bytes, MeshSettings setti
                                  "anything looks wrong",
                                  fbx->metadata.version);
     }
-    if (fbx->anim_curves.count > 0)
-    {
-        scene.warnings.add("animation isn't imported yet");
-    }
-    for (size_t m = 0; m < fbx->meshes.count; ++m)
-    {
-        const ufbx_mesh& mesh = *fbx->meshes.data[m];
-        readMesh(mesh, scene.addMesh(view(mesh.name)), scene.warnings);
-    }
-    for (size_t i = 0; i < fbx->materials.count; ++i)
-    {
-        readMaterial(*fbx->materials.data[i], scene);
-    }
-
-    // Nodes, without ufbx's implicit root: its children become roots.
+    // Nodes are numbered without ufbx's implicit root: its children become roots.
     Vector<int32_t> nodeIndex(MemoryTag::Assets);
     nodeIndex.resize(fbx->nodes.count);
     int32_t next = 0;
@@ -295,6 +354,37 @@ Result<MeshImport*> importFbx(std::span<const uint8_t> bytes, MeshSettings setti
     {
         nodeIndex[n] = fbx->nodes.data[n]->is_root ? -1 : next++;
     }
+    // The skeleton (ADR 0078): every skin cluster's bone, each once, bound by
+    // its geometry-to-bone matrix (the inverse bind matrix).
+    Vector<int32_t> jointOfNode(MemoryTag::Assets);
+    jointOfNode.resize(fbx->nodes.count);
+    for (int32_t& joint : jointOfNode)
+    {
+        joint = -1;
+    }
+    for (size_t c = 0; c < fbx->skin_clusters.count; ++c)
+    {
+        const ufbx_skin_cluster& cluster = *fbx->skin_clusters.data[c];
+        if (cluster.bone_node == nullptr || nodeIndex[cluster.bone_node->typed_id] < 0 ||
+            jointOfNode[cluster.bone_node->typed_id] >= 0)
+        {
+            continue;
+        }
+        SourceJoint joint{nodeIndex[cluster.bone_node->typed_id], {}};
+        rowMajor(cluster.geometry_to_bone, joint.inverseBind);
+        jointOfNode[cluster.bone_node->typed_id] = static_cast<int32_t>(scene.joints.size());
+        scene.joints.pushBack(joint);
+    }
+    for (size_t m = 0; m < fbx->meshes.count; ++m)
+    {
+        const ufbx_mesh& mesh = *fbx->meshes.data[m];
+        readMesh(mesh, jointOfNode, scene.addMesh(view(mesh.name)), scene.warnings);
+    }
+    for (size_t i = 0; i < fbx->materials.count; ++i)
+    {
+        readMaterial(*fbx->materials.data[i], scene);
+    }
+
     for (size_t n = 0; n < fbx->nodes.count; ++n)
     {
         const ufbx_node& node = *fbx->nodes.data[n];
@@ -320,6 +410,43 @@ Result<MeshImport*> importFbx(std::span<const uint8_t> bytes, MeshSettings setti
         }
         out.name = scene.strings.add(view(node.name));
         scene.nodes.pushBack(out);
+    }
+
+    // Each animation stack a clip: every joint's local transform, evaluated
+    // by ufbx at the clip rate.
+    const float sampleRate = std::clamp(settings.clipSampleRate, 1.0f, 240.0f);
+    for (size_t a = 0; a < fbx->anim_stacks.count && !scene.joints.empty(); ++a)
+    {
+        const ufbx_anim_stack& stack = *fbx->anim_stacks.data[a];
+        SourceClip& clip = scene.addClip(view(stack.name));
+        clip.duration = static_cast<float>(std::max(stack.time_end - stack.time_begin, 0.0));
+        clip.sampleRate = sampleRate;
+        clip.sampleCount = static_cast<uint32_t>(std::ceil(clip.duration * sampleRate - 1e-3f)) + 1;
+        for (size_t n = 0; n < fbx->nodes.count; ++n)
+        {
+            if (jointOfNode[n] < 0)
+            {
+                continue;
+            }
+            SourceTrack* track = create<SourceTrack>(MemoryTag::Assets);
+            track->node = nodeIndex[n];
+            for (uint32_t i = 0; i < clip.sampleCount; ++i)
+            {
+                const double time = stack.time_begin +
+                                    std::min(static_cast<double>(i) / sampleRate, static_cast<double>(clip.duration));
+                const ufbx_transform transform = ufbx_evaluate_transform(stack.anim, fbx->nodes.data[n], time);
+                for (int c = 0; c < 4; ++c)
+                {
+                    track->rotations.pushBack(static_cast<float>(transform.rotation.v[c]));
+                }
+                for (int c = 0; c < 3; ++c)
+                {
+                    track->translations.pushBack(static_cast<float>(transform.translation.v[c]));
+                    track->scales.pushBack(static_cast<float>(transform.scale.v[c]));
+                }
+            }
+            clip.tracks.pushBack(track);
+        }
     }
     ufbx_free_scene(fbx);
     return buildMeshImport(scene, settings);

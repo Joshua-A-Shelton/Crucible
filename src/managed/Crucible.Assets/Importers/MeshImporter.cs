@@ -63,6 +63,15 @@ public partial class MeshImportSettings
 
     /// <summary>Levels stop once they deviate more than this share of the mesh's size.</summary>
     public float LodMaxError = 0.05f;
+
+    /// <summary>
+    /// Joints a skinned vertex follows, at most: 4, or 8 for the faces and
+    /// cloth that need more (ADR 0078). Each vertex keeps its strongest.
+    /// </summary>
+    public int MaxInfluences = 4;
+
+    /// <summary>Samples per second the model's animation clips are resampled at (ADR 0078).</summary>
+    public float ClipSampleRate = 30;
 }
 
 /// <summary>
@@ -70,18 +79,25 @@ public partial class MeshImportSettings
 /// (ADR 0043): every mesh of the file, its node hierarchy, and its materials,
 /// mirrored into Crucible's space. Buffers in other files are read as
 /// dependencies, so changing one reimports the model; textures are other
-/// assets, referenced by ID. Names are placeholders (docs/naming.md).
+/// assets, referenced by ID. A skinned model's animations become clips
+/// (.crclip), sub-assets of the model (ADR 0078). Names are placeholders
+/// (docs/naming.md).
 /// </summary>
 public sealed class MeshImporter : Importer<MeshImportSettings>
 {
     public static readonly uint Kind = Tag.Of("MESH");
     public static readonly uint MaterialSection = Tag.Of("MATL");
-    public const uint KindVersion = 2;
+    public const uint KindVersion = 3; // as meshFileVersion
+
+    /// <summary>An animation clip's file (ADR 0078), as ClipFile.h lays it out.</summary>
+    public static readonly uint ClipKind = Tag.Of("CLIP");
+    public const uint ClipVersion = 1; // as clipFileVersion
+    public const string ClipExtension = ".crclip";
 
     public override string Name => "Mesh";
 
-    // 2: generated materials (MTLS); 3: remapped slots (MRMP).
-    public override int Version => 4;
+    // 2: generated materials (MTLS); 3: remapped slots (MRMP); 5: skins and clips.
+    public override int Version => 5;
 
     public override IReadOnlyList<string> Extensions => [".gltf", ".glb"];
 
@@ -132,6 +148,8 @@ public sealed class MeshImporter : Importer<MeshImportSettings>
         MaxLods = (uint)Math.Clamp(settings.MaxLods, 0, 8),
         LodRatio = settings.LodRatio,
         LodMaxError = Math.Max(0, settings.LodMaxError),
+        MaxInfluences = settings.MaxInfluences > 4 ? 8u : 4u,
+        ClipSampleRate = Math.Clamp(settings.ClipSampleRate, 1, 240),
     };
 
     /// <summary>
@@ -193,6 +211,20 @@ public sealed class MeshImporter : Importer<MeshImportSettings>
                 context.Warn($"Materials lists {settings.Materials.Count} slots, but the model has {materials.Length}");
             }
             output.Add(RemappedMaterialsSection, 1, remap);
+        }
+
+        // Each clip a sub-asset, found by its name across reimports.
+        for (uint c = 0; c < ImportersApi.MeshClipCount(mesh); ++c)
+        {
+            ImportedFileWriter clip = context.AddSubAsset(ImportersApi.MeshClipName(mesh, c), ClipKind, ClipVersion,
+                ClipExtension);
+            for (uint i = 0; i < ImportersApi.MeshClipSectionCount(mesh, c); ++i)
+            {
+                MeshSectionInfo section = ImportersApi.MeshClipSection(mesh, c, i);
+                byte[] bytes = new byte[section.Size];
+                ImportersApi.CopyMeshClipSection(mesh, c, i, bytes);
+                clip.Add(section.Tag, section.Version, bytes);
+            }
         }
 
         for (uint i = 0; i < ImportersApi.MeshWarningCount(mesh); ++i)

@@ -303,7 +303,7 @@ public class PrefabTests
             names.AddRange(Encoding.UTF8.GetBytes(nodes[i].Name));
         }
         string path = Path.Combine(Path.GetTempPath(), $"crucible-model-{Guid.NewGuid():N}.mesh");
-        using (ImportedFileWriter writer = new(Tag.Of("MESH"), 2))
+        using (ImportedFileWriter writer = new(Tag.Of("MESH"), 3))
         {
             writer.Add(Tag.Of("NODE"), 1, table);
             writer.Add(Tag.Of("NAME"), 1, [.. names]);

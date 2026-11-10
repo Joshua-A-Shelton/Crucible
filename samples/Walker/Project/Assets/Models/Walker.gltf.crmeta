@@ -1,0 +1,9 @@
+{
+  "Guid": "56dc8cab-d989-4bc0-87bf-f2754d45a10a",
+  "Importer": "Mesh",
+  "Settings": {},
+  "SubAssets": {
+    "Idle": "5b2d9abd-9735-4e60-a088-9e28ed3d37ea",
+    "Walk": "10880ff6-b22a-451e-a23a-d6729d1f813d"
+  }
+}

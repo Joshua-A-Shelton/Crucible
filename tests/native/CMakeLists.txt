@@ -68,11 +68,12 @@ doctest_discover_tests(crucible_native_tests ADD_LABELS 1
 # The importers (ADR 0042), editor-only: their own executable, so the core's
 # tests never link them.
 add_executable(crucible_importers_tests Main.cpp FbxImportTests.cpp MeshImportTests.cpp ShaderCompilerTests.cpp
-    TextureImportTests.cpp)
+    SkinImportTests.cpp ClipImportTests.cpp TextureImportTests.cpp)
 crucible_set_compile_options(crucible_importers_tests)
 # ufbx's sample files (ADR 0044) are the FBX tests' models.
 target_compile_definitions(crucible_importers_tests PRIVATE DOCTEST_CONFIG_NO_EXCEPTIONS_BUT_WITH_ALL_ASSERTS
     CRUCIBLE_UFBX_DATA_DIR="${ufbx_SOURCE_DIR}/data"
+    CRUCIBLE_WALKER_DIR="${PROJECT_SOURCE_DIR}/samples/Walker/Project/Assets/Models"
     CRUCIBLE_SHADER_LIBRARY_DIR="${CRUCIBLE_SHADER_LIBRARY_DIR}")
 target_include_directories(crucible_importers_tests SYSTEM PRIVATE "${stb_SOURCE_DIR}") # stb_image_write, to make test images
 target_link_libraries(crucible_importers_tests PRIVATE crucible_importers_static doctest::doctest)

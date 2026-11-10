@@ -41,6 +41,11 @@ struct Corners
     Vector<float> uv0{MemoryTag::Assets};       // 2
     Vector<float> uv1{MemoryTag::Assets};       // 2
     Vector<float> colors{MemoryTag::Assets};    // 4, linear
+    // Skins (ADR 0078): up to 8 influences, as joint indices (into
+    // SourceScene::joints, held as floats so they weld like the rest) and
+    // weights; zeros where a corner isn't skinned.
+    Vector<float> joints{MemoryTag::Assets};  // 8
+    Vector<float> weights{MemoryTag::Assets}; // 8
 
     uint32_t count() const
     {
@@ -60,6 +65,7 @@ struct Submesh
     bool hasUv0;
     bool hasUv1;
     bool hasColors;
+    bool hasSkin = false;
 };
 
 struct SourceMesh
@@ -86,11 +92,41 @@ struct SourceMaterial
     uint32_t textures[5]; // per TextureRole, into strings; an empty string for none
 };
 
+// A skeleton joint: a node, and its inverse bind matrix (row vectors,
+// row-major, as Matrix4x4).
+struct SourceJoint
+{
+    int32_t node;
+    float inverseBind[16];
+};
+
+// One node's transform at each of a clip's samples, relative to its parent.
+struct SourceTrack
+{
+    int32_t node = -1;
+    Vector<float> rotations{MemoryTag::Assets};    // 4 per sample, x, y, z, w
+    Vector<float> translations{MemoryTag::Assets}; // 3
+    Vector<float> scales{MemoryTag::Assets};       // 3
+};
+
+// An animation, sampled by its reader at sampleRate: samples at i / sampleRate,
+// for as many as reach the duration (the last at or past it, holding the end).
+struct SourceClip
+{
+    uint32_t name = 0; // into SourceScene::strings
+    float duration = 0;
+    float sampleRate = 30;
+    uint32_t sampleCount = 0;
+    Vector<SourceTrack*> tracks{MemoryTag::Assets};
+};
+
 struct SourceScene
 {
     Vector<SourceMesh*> meshes{MemoryTag::Assets};
     Vector<SourceNode> nodes{MemoryTag::Assets};
     Vector<SourceMaterial> materials{MemoryTag::Assets};
+    Vector<SourceJoint> joints{MemoryTag::Assets};
+    Vector<SourceClip*> clips{MemoryTag::Assets};
     StringList strings;
     StringList warnings;
 
@@ -100,9 +136,11 @@ struct SourceScene
     ~SourceScene();
 
     SourceMesh& addMesh(std::string_view name);
+    SourceClip& addClip(std::string_view name);
 };
 
-struct MeshImport
+// Binary sections, laid out back to back: an import's output.
+struct SectionBlob
 {
     struct Section
     {
@@ -113,9 +151,6 @@ struct MeshImport
     };
     Vector<uint8_t> bytes{MemoryTag::Assets};
     Vector<Section> sections{MemoryTag::Assets};
-    Vector<MaterialEntry> materials{MemoryTag::Assets};
-    StringList textures; // five per material
-    StringList warnings;
 
     void addSection(uint32_t tag, const Vector<uint8_t>& section)
     {
@@ -125,6 +160,21 @@ struct MeshImport
             bytes.pushBack(value);
         }
     }
+};
+
+struct MeshImport : SectionBlob
+{
+    Vector<MaterialEntry> materials{MemoryTag::Assets};
+    StringList textures; // five per material
+    StringList warnings;
+    // The animation clips (ADR 0078), each a CLIP file's sections, by name.
+    Vector<SectionBlob*> clips{MemoryTag::Assets};
+    StringList clipNames;
+
+    MeshImport() = default;
+    MeshImport(const MeshImport&) = delete;
+    MeshImport& operator=(const MeshImport&) = delete;
+    ~MeshImport();
 };
 
 // Mirrors the scene on X with the winding reversed (ADR 0024's amendment),

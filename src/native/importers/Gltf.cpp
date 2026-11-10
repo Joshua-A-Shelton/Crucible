@@ -10,7 +10,9 @@
 
 #include <cgltf.h>
 
+#include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 
 namespace crucible::importers {
@@ -122,12 +124,15 @@ Vector<float> unpack(const cgltf_accessor* accessor, uint32_t components)
     return values;
 }
 
-// Reads one glTF mesh's triangle primitives into corners.
-Status readCorners(const cgltf_data& data, const cgltf_mesh& mesh, SourceMesh& out, StringList& warnings)
+// Reads one glTF mesh's triangle primitives into corners; skinned with
+// `skin` (a node using the mesh names it), whose joints are the scene's by
+// `jointOfNode`.
+Status readCorners(const cgltf_data& data, const cgltf_mesh& mesh, const cgltf_skin* skin,
+                   const Vector<int32_t>& jointOfNode, SourceMesh& out, StringList& warnings)
 {
     Corners& corners = out.corners;
     const char* meshName = nameOf(mesh.name, "(unnamed)");
-    bool warnedSkin = false;
+    bool warnedMorph = false;
     for (cgltf_size p = 0; p < mesh.primitives_count; ++p)
     {
         const cgltf_primitive& primitive = mesh.primitives[p];
@@ -138,10 +143,20 @@ Status readCorners(const cgltf_data& data, const cgltf_mesh& mesh, SourceMesh& o
                 static_cast<unsigned>(p));
             continue;
         }
-        if (!warnedSkin && (primitive.targets_count > 0 || findAttribute(primitive, cgltf_attribute_type_joints, 0)))
+        if (!warnedMorph && primitive.targets_count > 0)
         {
-            warnings.addFormat("mesh %s: skins and morph targets aren't imported yet", meshName);
-            warnedSkin = true;
+            warnings.addFormat("mesh %s: morph targets aren't imported yet", meshName);
+            warnedMorph = true;
+        }
+        // Skins (ADR 0078): two sets of four influences at most.
+        const cgltf_accessor* jointSets[2] = {findAttribute(primitive, cgltf_attribute_type_joints, 0),
+                                              findAttribute(primitive, cgltf_attribute_type_joints, 1)};
+        Vector<float> weightSets[2] = {unpack(findAttribute(primitive, cgltf_attribute_type_weights, 0), 4),
+                                       unpack(findAttribute(primitive, cgltf_attribute_type_weights, 1), 4)};
+        const bool skinned = skin != nullptr && jointSets[0] != nullptr && !weightSets[0].empty();
+        if (jointSets[0] != nullptr && skin == nullptr)
+        {
+            warnings.addFormat("mesh %s: has joints but no node skins it, so it isn't skinned", meshName);
         }
         const cgltf_accessor* positionAccessor = findAttribute(primitive, cgltf_attribute_type_position, 0);
         Vector<float> positions = unpack(positionAccessor, 3);
@@ -201,10 +216,30 @@ Status readCorners(const cgltf_data& data, const cgltf_mesh& mesh, SourceMesh& o
                                             : c < colorComponents ? colors[v * colorComponents + c]
                                                                   : 1.0f);
                 }
+                for (int set = 0; set < 2; ++set)
+                {
+                    cgltf_uint local[4] = {0, 0, 0, 0};
+                    const bool present = skinned && jointSets[set] != nullptr && !weightSets[set].empty();
+                    if (present)
+                    {
+                        cgltf_accessor_read_uint(jointSets[set], v, local, 4);
+                    }
+                    for (int c = 0; c < 4; ++c)
+                    {
+                        const float weight = present ? weightSets[set][v * 4 + c] : 0.0f;
+                        int32_t joint = 0;
+                        if (present && local[c] < skin->joints_count)
+                        {
+                            joint = jointOfNode[cgltf_node_index(&data, skin->joints[local[c]])];
+                        }
+                        corners.joints.pushBack(static_cast<float>(std::max(joint, 0)));
+                        corners.weights.pushBack(weight);
+                    }
+                }
             }
         }
         out.submeshes.pushBack({first, corners.count() - first, material, !normals.empty(), !tangents.empty(),
-                                !uv0.empty(), !uv1.empty(), !colors.empty()});
+                                !uv0.empty(), !uv1.empty(), !colors.empty(), skinned});
     }
     return Status::Ok;
 }
@@ -269,6 +304,200 @@ void decompose(const float* m, float* translation, float* rotation, float* scale
         rotation[0] = (columns[2][0] + columns[0][2]) / s;
         rotation[1] = (columns[2][1] + columns[1][2]) / s;
         rotation[2] = 0.25f * s;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Animation (ADR 0078)
+// ---------------------------------------------------------------------------
+
+// A sampler's value at time t: `width` floats (4 for rotations, renormalized),
+// as its interpolation says (glTF 2.0 §3.11).
+void evaluate(const cgltf_animation_sampler& sampler, const Vector<float>& times, const Vector<float>& values,
+              uint32_t width, float t, float* out)
+{
+    const bool cubic = sampler.interpolation == cgltf_interpolation_type_cubic_spline;
+    const size_t stride = cubic ? width * 3 : width;
+    const size_t keys = times.size();
+    // The value of key k (for cubic splines, the middle of its three).
+    auto value = [&](size_t k, uint32_t c) {
+        return values[k * stride + (cubic ? width : 0) + c];
+    };
+    if (keys == 0 || values.size() < keys * stride)
+    {
+        return;
+    }
+    if (t <= times[0] || keys == 1)
+    {
+        for (uint32_t c = 0; c < width; ++c)
+        {
+            out[c] = value(0, c);
+        }
+        return;
+    }
+    if (t >= times[keys - 1])
+    {
+        for (uint32_t c = 0; c < width; ++c)
+        {
+            out[c] = value(keys - 1, c);
+        }
+        return;
+    }
+    size_t k = 0;
+    while (k + 2 < keys && times[k + 1] <= t)
+    {
+        ++k;
+    }
+    const float span = times[k + 1] - times[k];
+    const float f = span > 0 ? (t - times[k]) / span : 0.0f;
+    if (sampler.interpolation == cgltf_interpolation_type_step)
+    {
+        for (uint32_t c = 0; c < width; ++c)
+        {
+            out[c] = value(k, c);
+        }
+        return;
+    }
+    if (cubic)
+    {
+        // Hermite: the out-tangent of k and the in-tangent of k + 1, scaled by the span.
+        const float f2 = f * f, f3 = f2 * f;
+        for (uint32_t c = 0; c < width; ++c)
+        {
+            const float p0 = value(k, c), p1 = value(k + 1, c);
+            const float m0 = values[k * stride + width * 2 + c] * span;
+            const float m1 = values[(k + 1) * stride + c] * span;
+            out[c] = (2 * f3 - 3 * f2 + 1) * p0 + (f3 - 2 * f2 + f) * m0 + (-2 * f3 + 3 * f2) * p1 + (f3 - f2) * m1;
+        }
+    }
+    else if (width == 4)
+    {
+        // Rotations: slerp, the shorter way round.
+        float a[4], b[4], dot = 0.0f;
+        for (uint32_t c = 0; c < 4; ++c)
+        {
+            a[c] = value(k, c);
+            b[c] = value(k + 1, c);
+            dot += a[c] * b[c];
+        }
+        if (dot < 0)
+        {
+            dot = -dot;
+            for (float& c : b)
+            {
+                c = -c;
+            }
+        }
+        float wa = 1.0f - f, wb = f;
+        if (dot < 0.9995f)
+        {
+            const float angle = std::acos(std::min(dot, 1.0f));
+            wa = std::sin((1.0f - f) * angle) / std::sin(angle);
+            wb = std::sin(f * angle) / std::sin(angle);
+        }
+        for (uint32_t c = 0; c < 4; ++c)
+        {
+            out[c] = wa * a[c] + wb * b[c];
+        }
+    }
+    else
+    {
+        for (uint32_t c = 0; c < width; ++c)
+        {
+            out[c] = value(k, c) + (value(k + 1, c) - value(k, c)) * f;
+        }
+    }
+    if (width == 4)
+    {
+        const float length = std::sqrt(out[0] * out[0] + out[1] * out[1] + out[2] * out[2] + out[3] * out[3]);
+        for (uint32_t c = 0; c < 4 && length > 0; ++c)
+        {
+            out[c] /= length;
+        }
+    }
+}
+
+// Every animation, each targeted node's transform sampled at the clip rate;
+// channels an animation doesn't drive hold the node's own transform.
+void readAnimations(const cgltf_data& data, float sampleRate, SourceScene& scene)
+{
+    for (cgltf_size a = 0; a < data.animations_count; ++a)
+    {
+        const cgltf_animation& animation = data.animations[a];
+        float duration = 0.0f;
+        for (cgltf_size s = 0; s < animation.samplers_count; ++s)
+        {
+            const Vector<float> times = unpack(animation.samplers[s].input, 1);
+            if (!times.empty())
+            {
+                duration = std::max(duration, times[times.size() - 1]);
+            }
+        }
+        char fallback[32];
+        std::snprintf(fallback, sizeof(fallback), "Animation %u", static_cast<unsigned>(a));
+        SourceClip& clip = scene.addClip(nameOf(animation.name, fallback));
+        clip.duration = duration;
+        clip.sampleRate = sampleRate;
+        clip.sampleCount = static_cast<uint32_t>(std::ceil(duration * sampleRate - 1e-3f)) + 1;
+        Vector<int32_t> trackOfNode(MemoryTag::Assets);
+        trackOfNode.resize(data.nodes_count);
+        for (int32_t& track : trackOfNode)
+        {
+            track = -1;
+        }
+        bool warnedWeights = false;
+        for (cgltf_size c = 0; c < animation.channels_count; ++c)
+        {
+            const cgltf_animation_channel& channel = animation.channels[c];
+            if (channel.target_node == nullptr)
+            {
+                continue;
+            }
+            if (channel.target_path == cgltf_animation_path_type_weights)
+            {
+                if (!warnedWeights)
+                {
+                    scene.warnings.addFormat("animation %s: morph target weights aren't imported yet",
+                                             nameOf(animation.name, fallback));
+                    warnedWeights = true;
+                }
+                continue;
+            }
+            const size_t node = cgltf_node_index(&data, channel.target_node);
+            if (trackOfNode[node] < 0)
+            {
+                // A new track, holding the node's own transform until a channel drives it.
+                SourceTrack* track = create<SourceTrack>(MemoryTag::Assets);
+                track->node = static_cast<int32_t>(node);
+                const SourceNode& rest = scene.nodes[node];
+                for (uint32_t i = 0; i < clip.sampleCount; ++i)
+                {
+                    for (int k = 0; k < 4; ++k)
+                    {
+                        track->rotations.pushBack(rest.rotation[k]);
+                    }
+                    for (int k = 0; k < 3; ++k)
+                    {
+                        track->translations.pushBack(rest.translation[k]);
+                        track->scales.pushBack(rest.scale[k]);
+                    }
+                }
+                trackOfNode[node] = static_cast<int32_t>(clip.tracks.size());
+                clip.tracks.pushBack(track);
+            }
+            SourceTrack& track = *clip.tracks[static_cast<size_t>(trackOfNode[node])];
+            const uint32_t width = channel.target_path == cgltf_animation_path_type_rotation ? 4 : 3;
+            Vector<float>& out = channel.target_path == cgltf_animation_path_type_rotation      ? track.rotations
+                                 : channel.target_path == cgltf_animation_path_type_translation ? track.translations
+                                                                                                : track.scales;
+            const Vector<float> times = unpack(channel.sampler->input, 1);
+            const Vector<float> values = unpack(channel.sampler->output, width);
+            for (uint32_t i = 0; i < clip.sampleCount; ++i)
+            {
+                const float t = std::min(static_cast<float>(i) / sampleRate, duration);
+                evaluate(*channel.sampler, times, values, width, t, out.data() + i * width);
+            }
+        }
     }
 }
 
@@ -401,11 +630,53 @@ Result<MeshImport*> importGltf(GltfSource& source, MeshSettings settings)
     }
 
     SourceScene scene;
+    // The skeleton (ADR 0078): every skin's joints, each node once.
+    Vector<int32_t> jointOfNode(MemoryTag::Assets);
+    jointOfNode.resize(data.nodes_count);
+    for (int32_t& joint : jointOfNode)
+    {
+        joint = -1;
+    }
+    for (cgltf_size s = 0; s < data.skins_count; ++s)
+    {
+        const cgltf_skin& skin = data.skins[s];
+        for (cgltf_size j = 0; j < skin.joints_count; ++j)
+        {
+            // Read as is, glTF's column-major matrix for column vectors is
+            // the row-major one for row vectors that Matrix4x4 is.
+            SourceJoint joint{static_cast<int32_t>(cgltf_node_index(&data, skin.joints[j])),
+                              {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}};
+            if (skin.inverse_bind_matrices != nullptr)
+            {
+                cgltf_accessor_read_float(skin.inverse_bind_matrices, j, joint.inverseBind, 16);
+            }
+            int32_t& index = jointOfNode[static_cast<size_t>(joint.node)];
+            if (index < 0)
+            {
+                index = static_cast<int32_t>(scene.joints.size());
+                scene.joints.pushBack(joint);
+            }
+            else if (std::memcmp(scene.joints[static_cast<size_t>(index)].inverseBind, joint.inverseBind, 64) != 0)
+            {
+                scene.warnings.addFormat("joint %s: two skins bind it differently; the first one's is kept",
+                                         nameOf(skin.joints[j]->name, "(unnamed)"));
+            }
+        }
+    }
     for (cgltf_size m = 0; m < data.meshes_count; ++m)
     {
         const cgltf_mesh& mesh = data.meshes[m];
+        // The skin of the first node using the mesh with one.
+        const cgltf_skin* skin = nullptr;
+        for (cgltf_size n = 0; n < data.nodes_count && skin == nullptr; ++n)
+        {
+            if (data.nodes[n].mesh == &mesh)
+            {
+                skin = data.nodes[n].skin;
+            }
+        }
         SourceMesh& out = scene.addMesh(mesh.name != nullptr ? mesh.name : "");
-        if (const Status status = readCorners(data, mesh, out, scene.warnings); status != Status::Ok)
+        if (const Status status = readCorners(data, mesh, skin, jointOfNode, out, scene.warnings); status != Status::Ok)
         {
             return status;
         }
@@ -431,6 +702,7 @@ Result<MeshImport*> importGltf(GltfSource& source, MeshSettings settings)
         out.name = scene.strings.add(node.name != nullptr ? node.name : "");
         scene.nodes.pushBack(out);
     }
+    readAnimations(data, std::clamp(settings.clipSampleRate, 1.0f, 240.0f), scene);
 
     for (cgltf_size i = 0; i < data.materials_count; ++i)
     {

@@ -5,9 +5,22 @@ using Crucible.Serialization;
 
 namespace Crucible.Assets;
 
-/// <summary>One asset the database knows: its identity, where it is, and how it imports.</summary>
+/// <summary>
+/// One asset the database knows: its identity, where it is, and how it
+/// imports. A sub-asset (ADR 0078) has its parent's path and importer, and
+/// is made by importing its parent.
+/// </summary>
 public sealed record AssetEntry(AssetId Id, string Path, string Importer)
 {
+    /// <summary>The asset whose import makes this one, or <see cref="AssetId.None"/>.</summary>
+    public AssetId Parent { get; init; }
+
+    /// <summary>Its name among its parent's sub-assets ("Walk"); empty for an asset of its own.</summary>
+    public string SubAssetName { get; init; } = "";
+
+    // A parent's sub-assets, by name, as its sidecar lists them.
+    internal IReadOnlyDictionary<string, AssetId> SubAssets { get; init; } = new Dictionary<string, AssetId>();
+
     // The canonical settings JSON, and the source's content hash.
     internal byte[] Settings { get; init; } = [];
     internal string Hash { get; init; } = "";
@@ -50,6 +63,7 @@ internal partial class ImportRecord
 {
     public string Key = "";
     public Dictionary<string, string> Dependencies = [];
+    public string Extension = ""; // a sub-asset's (its importer's is the parent's)
 }
 
 [Serialized]
@@ -64,8 +78,10 @@ internal partial class ImportRecordFile
 /// source of truth, and a stamp file lets unchanged files skip hashing.
 /// Importing writes each asset's output to <c>Cache/Imported/</c>, named by a
 /// hash of everything that went into it, so unchanged assets are never
-/// reimported and deleting the cache is always safe. Names are placeholders
-/// (docs/naming.md).
+/// reimported and deleting the cache is always safe. An import can make
+/// sub-assets (ADR 0078), each an asset of its own whose ID its parent's
+/// sidecar keeps by name; they aren't in <see cref="Assets"/> but are found by
+/// ID. Names are placeholders (docs/naming.md).
 /// </summary>
 /// <remarks>Not thread-safe: the editor uses it from one thread.</remarks>
 public sealed class AssetDatabase
@@ -120,6 +136,12 @@ public sealed class AssetDatabase
     public int FilesHashed { get; private set; }
 
     public AssetEntry? Find(AssetId id) => _byId.GetValueOrDefault(id);
+
+    /// <summary>An asset's sub-assets, by name.</summary>
+    public IEnumerable<AssetEntry> SubAssetsOf(AssetId id) =>
+        Find(id) is { } entry
+            ? entry.SubAssets.OrderBy(pair => pair.Key, StringComparer.Ordinal).Select(pair => _byId[pair.Value])
+            : [];
 
     public AssetEntry? Find(string assetPath) => _byPath.GetValueOrDefault(assetPath);
 
@@ -242,6 +264,16 @@ public sealed class AssetDatabase
             sidecar = sidecar with { Id = AssetId.New() };
             rewrite = true;
         }
+        if (sidecar.SubAssets.Values.Any(_byId.ContainsKey) ||
+            sidecar.SubAssets.Values.Distinct().Count() != sidecar.SubAssets.Count)
+        {
+            // Copied too: new ones, kept by name.
+            sidecar = sidecar with
+            {
+                SubAssets = sidecar.SubAssets.ToDictionary(pair => pair.Key, _ => AssetId.New(), StringComparer.Ordinal),
+            };
+            rewrite = true;
+        }
 
         Importer? importer = null;
         if (sidecar.Importer.Length > 0 && !_importersByName.TryGetValue(sidecar.Importer, out importer))
@@ -266,9 +298,23 @@ public sealed class AssetDatabase
             Files.WriteAtomically(sidecarPath, sidecar.Write(importer));
         }
 
-        AssetEntry entry = new(sidecar.Id, path, sidecar.Importer) { Settings = settings, Hash = _hashes[path] };
+        AssetEntry entry = new(sidecar.Id, path, sidecar.Importer)
+        {
+            Settings = settings,
+            Hash = _hashes[path],
+            SubAssets = sidecar.SubAssets,
+        };
         _byId[entry.Id] = entry;
         _byPath[path] = entry;
+        AddSubAssets(entry);
+    }
+
+    private void AddSubAssets(AssetEntry parent)
+    {
+        foreach ((string name, AssetId id) in parent.SubAssets)
+        {
+            _byId[id] = new AssetEntry(id, parent.Path, parent.Importer) { Parent = parent.Id, SubAssetName = name };
+        }
     }
 
     // Crucible's own files keep their GUID inside (ADR 0021), as their first
@@ -346,18 +392,42 @@ public sealed class AssetDatabase
     public string? ImportedFile(AssetId id)
     {
         AssetEntry? entry = Find(id);
+        if (entry is { Parent.IsNone: false })
+        {
+            // Up to date with its parent: its key is made from the parent's.
+            if (ImportedFile(entry.Parent) is null ||
+                !_records.Assets.TryGetValue(entry.Parent.ToString(), out ImportRecord? parent) ||
+                !_records.Assets.TryGetValue(id.ToString(), out ImportRecord? sub) ||
+                sub.Key != SubKey(parent.Key, entry.SubAssetName))
+            {
+                return null;
+            }
+            string subOutput = OutputPath(sub.Key, sub.Extension);
+            return File.Exists(subOutput) ? subOutput : null;
+        }
         if (entry is null || !_records.Assets.TryGetValue(id.ToString(), out ImportRecord? record) ||
             !_importersByName.TryGetValue(entry.Importer, out Importer? importer))
         {
             return null;
         }
         string? key = KeyOf(entry, importer, record.Dependencies.Keys);
-        string output = OutputPath(record.Key, importer);
+        string output = OutputPath(record.Key, importer.OutputExtension);
         return key == record.Key && File.Exists(output) ? output : null;
     }
 
     private ImportResult Import(AssetEntry entry, bool force = false)
     {
+        if (!entry.Parent.IsNone)
+        {
+            // Made by its parent's import.
+            ImportResult parent = Import(_byId[entry.Parent], force);
+            string? output = parent.Outcome is ImportOutcome.Imported or ImportOutcome.UpToDate
+                ? ImportedFile(entry.Id)
+                : null;
+            ImportOutcome outcome = output is not null ? parent.Outcome : ImportOutcome.Failed;
+            string? error = output is not null ? null : parent.Error ?? $"its import no longer makes {entry.SubAssetName}";
+            return new ImportResult(entry.Id, entry.Path, outcome, output, error) { Warnings = parent.Warnings };
+        }
         if (!_importersByName.TryGetValue(entry.Importer, out Importer? importer))
         {
             return new ImportResult(entry.Id, entry.Path, ImportOutcome.NoImporter, null, null);
@@ -380,7 +450,7 @@ public sealed class AssetDatabase
             // The key uses the dependencies as they were read during the
             // import, so a file changed meanwhile is caught next time.
             string key = Key(entry, importer, context.Dependencies);
-            string output = OutputPath(key, importer);
+            string output = OutputPath(key, importer.OutputExtension);
             Directory.CreateDirectory(Path.GetDirectoryName(output)!);
             context.Output.Write(output, Compression.Fast);
             _records.Assets[entry.Id.ToString()] = new ImportRecord
@@ -388,6 +458,7 @@ public sealed class AssetDatabase
                 Key = key,
                 Dependencies = new Dictionary<string, string>(context.Dependencies, StringComparer.Ordinal),
             };
+            WriteSubAssets(entry, importer, key, context.SubAssets);
             return new ImportResult(entry.Id, entry.Path, ImportOutcome.Imported, output, null)
             {
                 Warnings = [.. context.Warnings],
@@ -396,12 +467,59 @@ public sealed class AssetDatabase
         catch (Exception exception)
         {
             _records.Assets.Remove(entry.Id.ToString());
+            foreach (AssetId sub in entry.SubAssets.Values)
+            {
+                _records.Assets.Remove(sub.ToString());
+            }
             return new ImportResult(entry.Id, entry.Path, ImportOutcome.Failed, null, exception.Message)
             {
                 Warnings = [.. context.Warnings],
             };
         }
     }
+
+    // Writes an import's sub-assets, each keyed by its parent's key and its
+    // name, and keeps their IDs in the parent's sidecar: the same name keeps
+    // its ID, a new one gets one, and one no longer made is forgotten.
+    private void WriteSubAssets(AssetEntry entry, Importer importer, string key,
+        IReadOnlyList<(string Name, string Extension, ImportedFileWriter Output)> made)
+    {
+        Dictionary<string, AssetId> ids = new(StringComparer.Ordinal);
+        foreach ((string name, string extension, ImportedFileWriter writer) in made)
+        {
+            AssetId id = entry.SubAssets.TryGetValue(name, out AssetId kept) ? kept : AssetId.New();
+            ids[name] = id;
+            string subKey = SubKey(key, name);
+            string output = OutputPath(subKey, extension);
+            Directory.CreateDirectory(Path.GetDirectoryName(output)!);
+            writer.Write(output, Compression.Fast);
+            _records.Assets[id.ToString()] = new ImportRecord { Key = subKey, Extension = extension };
+        }
+        bool changed = ids.Count != entry.SubAssets.Count || ids.Any(pair =>
+            !entry.SubAssets.TryGetValue(pair.Key, out AssetId old) || old != pair.Value);
+        if (!changed)
+        {
+            return;
+        }
+        foreach ((string name, AssetId stale) in entry.SubAssets)
+        {
+            if (!ids.ContainsKey(name))
+            {
+                _records.Assets.Remove(stale.ToString());
+                _byId.Remove(stale);
+            }
+        }
+        AssetEntry updated = entry with { SubAssets = ids };
+        _byId[entry.Id] = updated;
+        _byPath[entry.Path] = updated;
+        AddSubAssets(updated);
+        string sidecarPath = FullPath(Project.AssetsFolder, entry.Path) + Sidecar.Extension;
+        Sidecar sidecar = new(entry.Id, entry.Importer, entry.Settings) { SubAssets = ids };
+        Files.WriteAtomically(sidecarPath, sidecar.Write(importer));
+    }
+
+    private static string SubKey(string parentKey, string name) =>
+        ContentHash.Of(Encoding.UTF8.GetBytes(parentKey + "\n" + name));
 
     // Another asset's imported file and what it depends on, importing it
     // first if it needs it (a material's shader), or null.
@@ -461,8 +579,8 @@ public sealed class AssetDatabase
         return ContentHash.Of([.. header, .. entry.Settings]);
     }
 
-    private string OutputPath(string key, Importer importer) =>
-        Path.Combine(ImportedFolder, key[..2], key + importer.OutputExtension);
+    private string OutputPath(string key, string extension) =>
+        Path.Combine(ImportedFolder, key[..2], key + extension);
 
     // ---------------------------------------------------------------------
 

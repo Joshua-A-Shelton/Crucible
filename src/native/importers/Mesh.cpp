@@ -52,6 +52,30 @@ SourceScene::~SourceScene()
     {
         destroy(MemoryTag::Assets, mesh);
     }
+    for (SourceClip* clip : clips)
+    {
+        for (SourceTrack* track : clip->tracks)
+        {
+            destroy(MemoryTag::Assets, track);
+        }
+        destroy(MemoryTag::Assets, clip);
+    }
+}
+
+SourceClip& SourceScene::addClip(std::string_view name)
+{
+    SourceClip* clip = create<SourceClip>(MemoryTag::Assets);
+    clip->name = strings.add(name);
+    clips.pushBack(clip);
+    return *clip;
+}
+
+MeshImport::~MeshImport()
+{
+    for (SectionBlob* clip : clips)
+    {
+        destroy(MemoryTag::Assets, clip);
+    }
 }
 
 SourceMesh& SourceScene::addMesh(std::string_view name)
@@ -84,6 +108,8 @@ struct BuiltMesh
     Vector<float> uv0{MemoryTag::Assets};
     Vector<float> uv1{MemoryTag::Assets};
     Vector<float> colors{MemoryTag::Assets};
+    Vector<float> joints{MemoryTag::Assets};  // 8 per vertex
+    Vector<float> weights{MemoryTag::Assets}; // 8 per vertex
     // Every level's indices, back to back; per level and submesh, a range.
     Vector<uint32_t> indices{MemoryTag::Assets};
     struct Range
@@ -180,14 +206,18 @@ void buildMesh(SourceMesh& mesh, const char* meshName, const MeshSettings& setti
     const Vector<Submesh>& submeshes = mesh.submeshes;
 
     // Which attributes the mesh has: any submesh's attribute makes it.
-    bool anyTangents = false, anyUv0 = false, anyUv1 = false, anyColors = false;
+    bool anyTangents = false, anyUv0 = false, anyUv1 = false, anyColors = false, anySkin = false;
     for (const Submesh& submesh : submeshes)
     {
         anyTangents |= submesh.hasTangents;
         anyUv0 |= submesh.hasUv0;
         anyUv1 |= submesh.hasUv1;
         anyColors |= submesh.hasColors;
+        anySkin |= submesh.hasSkin;
     }
+    // Readers that don't skin leave the skin streams empty: zeros.
+    corners.joints.resize(static_cast<size_t>(corners.count()) * 8);
+    corners.weights.resize(static_cast<size_t>(corners.count()) * 8);
     const bool tangentsWanted = anyTangents || (settings.generateTangents && anyUv0);
 
     // Normals: flat ones where the source has none, as glTF asks (FBX too).
@@ -239,7 +269,8 @@ void buildMesh(SourceMesh& mesh, const char* meshName, const MeshSettings& setti
 
     built.attributes = bit(MeshAttribute::Normals) | bit(MeshAttribute::OutlineNormals) |
                        (tangentsWanted ? bit(MeshAttribute::Tangents) : 0) | (anyUv0 ? bit(MeshAttribute::Uv0) : 0) |
-                       (anyUv1 ? bit(MeshAttribute::Uv1) : 0) | (anyColors ? bit(MeshAttribute::Colors) : 0);
+                       (anyUv1 ? bit(MeshAttribute::Uv1) : 0) | (anyColors ? bit(MeshAttribute::Colors) : 0) |
+                       (anySkin ? bit(MeshAttribute::Skinned) : 0);
     built.submeshCount = static_cast<uint32_t>(submeshes.size());
     const uint32_t cornerCount = corners.count();
     if (cornerCount == 0)
@@ -255,22 +286,23 @@ void buildMesh(SourceMesh& mesh, const char* meshName, const MeshSettings& setti
     // Weld identical corners into shared vertices. Welding compares bytes,
     // and mirroring (and the cross products above) can leave -0.0 where
     // another corner has 0.0: adding 0.0 turns every -0.0 into 0.0 first.
-    for (Vector<float>* stream :
-         {&corners.positions, &corners.normals, &corners.tangents, &corners.uv0, &corners.uv1, &corners.colors})
+    for (Vector<float>* stream : {&corners.positions, &corners.normals, &corners.tangents, &corners.uv0, &corners.uv1,
+                                  &corners.colors, &corners.joints, &corners.weights})
     {
         for (float& value : *stream)
         {
             value += 0.0f;
         }
     }
-    meshopt_Stream streams[6] = {
+    meshopt_Stream streams[8] = {
         {corners.positions.data(), 12, 12}, {corners.normals.data(), 12, 12}, {corners.tangents.data(), 16, 16},
         {corners.uv0.data(), 8, 8},         {corners.uv1.data(), 8, 8},       {corners.colors.data(), 16, 16},
+        {corners.joints.data(), 32, 32},    {corners.weights.data(), 32, 32},
     };
     Vector<uint32_t> remap(MemoryTag::Assets);
     remap.resize(cornerCount);
     const size_t vertexCount =
-        meshopt_generateVertexRemapMulti(remap.data(), nullptr, cornerCount, cornerCount, streams, 6);
+        meshopt_generateVertexRemapMulti(remap.data(), nullptr, cornerCount, cornerCount, streams, 8);
     Vector<uint32_t> lod0(MemoryTag::Assets);
     lod0.resize(cornerCount);
     meshopt_remapIndexBuffer(lod0.data(), nullptr, cornerCount, remap.data());
@@ -284,6 +316,8 @@ void buildMesh(SourceMesh& mesh, const char* meshName, const MeshSettings& setti
     weld(corners.uv0, 2, built.uv0);
     weld(corners.uv1, 2, built.uv1);
     weld(corners.colors, 4, built.colors);
+    weld(corners.joints, 8, built.joints);
+    weld(corners.weights, 8, built.weights);
 
     // LOD 0: each submesh ordered for the vertex cache, then for overdraw.
     Vector<uint32_t> scratch(MemoryTag::Assets);
@@ -389,6 +423,8 @@ void buildMesh(SourceMesh& mesh, const char* meshName, const MeshSettings& setti
         reorder(built.uv0, 2);
         reorder(built.uv1, 2);
         reorder(built.colors, 4);
+        reorder(built.joints, 8);
+        reorder(built.weights, 8);
         built.vertexCount = static_cast<uint32_t>(kept);
     }
     else
@@ -532,6 +568,8 @@ void mirror(SourceScene& scene)
             swapCorners(corners.uv0, 2, i + 1, i + 2);
             swapCorners(corners.uv1, 2, i + 1, i + 2);
             swapCorners(corners.colors, 4, i + 1, i + 2);
+            swapCorners(corners.joints, 8, i + 1, i + 2);
+            swapCorners(corners.weights, 8, i + 1, i + 2);
         }
     }
     for (SourceNode& node : scene.nodes)
@@ -540,6 +578,276 @@ void mirror(SourceScene& scene)
         node.rotation[1] = -node.rotation[1];
         node.rotation[2] = -node.rotation[2];
     }
+    // A matrix M becomes S M S, S mirroring X: the first row's and column's
+    // other elements change sign.
+    for (SourceJoint& joint : scene.joints)
+    {
+        for (int i : {1, 2, 3, 4, 8, 12})
+        {
+            joint.inverseBind[i] = -joint.inverseBind[i];
+        }
+    }
+    for (SourceClip* clip : scene.clips)
+    {
+        for (SourceTrack* track : clip->tracks)
+        {
+            for (size_t i = 0; i < track->translations.size(); i += 3)
+            {
+                track->translations[i] = -track->translations[i];
+            }
+            for (size_t i = 0; i < track->rotations.size(); i += 4)
+            {
+                track->rotations[i + 1] = -track->rotations[i + 1];
+                track->rotations[i + 2] = -track->rotations[i + 2];
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Skins and clips (ADR 0078)
+// ---------------------------------------------------------------------------
+
+// The skeleton in an order where every joint comes after its parent joint,
+// the nearest ancestor node that is one.
+struct Skeleton
+{
+    Vector<int32_t> order{MemoryTag::Assets};    // new index to the scene's
+    Vector<int32_t> newIndex{MemoryTag::Assets}; // the scene's index to new
+    Vector<int32_t> parent{MemoryTag::Assets};   // by new index: the parent's new index, or -1
+};
+
+void orderJoints(const SourceScene& scene, Skeleton& skeleton)
+{
+    const size_t count = scene.joints.size();
+    Vector<int32_t> jointOfNode(MemoryTag::Assets);
+    jointOfNode.resize(scene.nodes.size());
+    for (int32_t& joint : jointOfNode)
+    {
+        joint = -1;
+    }
+    for (size_t j = 0; j < count; ++j)
+    {
+        jointOfNode[static_cast<size_t>(scene.joints[j].node)] = static_cast<int32_t>(j);
+    }
+    Vector<int32_t> parentOf(MemoryTag::Assets);
+    for (size_t j = 0; j < count; ++j)
+    {
+        int32_t node = scene.nodes[static_cast<size_t>(scene.joints[j].node)].parent;
+        while (node >= 0 && jointOfNode[static_cast<size_t>(node)] < 0)
+        {
+            node = scene.nodes[static_cast<size_t>(node)].parent;
+        }
+        parentOf.pushBack(node >= 0 ? jointOfNode[static_cast<size_t>(node)] : -1);
+    }
+    skeleton.newIndex.resize(count);
+    for (int32_t& index : skeleton.newIndex)
+    {
+        index = -1;
+    }
+    // Repeatedly take, in the scene's order, every joint whose parent is placed.
+    while (skeleton.order.size() < count)
+    {
+        bool placed = false;
+        for (size_t j = 0; j < count; ++j)
+        {
+            if (skeleton.newIndex[j] < 0 &&
+                (parentOf[j] < 0 || skeleton.newIndex[static_cast<size_t>(parentOf[j])] >= 0))
+            {
+                skeleton.newIndex[j] = static_cast<int32_t>(skeleton.order.size());
+                skeleton.order.pushBack(static_cast<int32_t>(j));
+                skeleton.parent.pushBack(parentOf[j] < 0 ? -1 : skeleton.newIndex[static_cast<size_t>(parentOf[j])]);
+                placed = true;
+            }
+        }
+        if (!placed)
+        {
+            break; // a cycle can't happen in a node tree; this only guards the loop
+        }
+    }
+}
+
+// A vertex's strongest influences, renormalized to weights summing to 255.
+void packSkin(const BuiltMesh& mesh, uint32_t vertex, uint32_t influences, const Skeleton& skeleton, Blob& joints,
+              Blob& weights)
+{
+    struct Influence
+    {
+        uint32_t joint;
+        float weight;
+    };
+    Influence all[8];
+    uint32_t used = 0;
+    for (uint32_t k = 0; k < 8; ++k)
+    {
+        const float weight = mesh.weights[vertex * 8 + k];
+        if (weight > 0.0f)
+        {
+            all[used++] = {static_cast<uint32_t>(mesh.joints[vertex * 8 + k]), weight};
+        }
+    }
+    std::sort(all, all + used, [](const Influence& a, const Influence& b) { return a.weight > b.weight; });
+    used = std::min(used, influences);
+    float total = 0.0f;
+    for (uint32_t k = 0; k < used; ++k)
+    {
+        total += all[k].weight;
+    }
+    uint8_t quantized[8] = {};
+    int sum = 0;
+    for (uint32_t k = 0; k < used; ++k)
+    {
+        quantized[k] = static_cast<uint8_t>(std::lround(all[k].weight / total * 255.0f));
+        sum += quantized[k];
+    }
+    if (used > 0)
+    {
+        quantized[0] = static_cast<uint8_t>(quantized[0] + (255 - sum)); // the strongest takes the rounding
+    }
+    for (uint32_t k = 0; k < influences; ++k)
+    {
+        const uint32_t joint = k < used ? all[k].joint : 0;
+        joints.add(static_cast<uint16_t>(joint < skeleton.newIndex.size() ? skeleton.newIndex[joint] : 0));
+        weights.add(quantized[k]);
+    }
+}
+
+uint16_t unorm16(float value)
+{
+    return static_cast<uint16_t>(std::lround(std::clamp(value, 0.0f, 1.0f) * 65535.0f));
+}
+
+// Smallest three: the largest component dropped (the quaternion negated if
+// it was negative), the others stored from [-1/√2, 1/√2], then its index.
+void packRotation(const float* rotation, Blob& out)
+{
+    float q[4];
+    const float length = std::sqrt(rotation[0] * rotation[0] + rotation[1] * rotation[1] + rotation[2] * rotation[2] +
+                                   rotation[3] * rotation[3]);
+    for (int c = 0; c < 4; ++c)
+    {
+        q[c] = length > 0 ? rotation[c] / length : (c == 3 ? 1.0f : 0.0f);
+    }
+    int largest = 0;
+    for (int c = 1; c < 4; ++c)
+    {
+        if (std::fabs(q[c]) > std::fabs(q[largest]))
+        {
+            largest = c;
+        }
+    }
+    const float sign = q[largest] < 0 ? -1.0f : 1.0f;
+    constexpr float range = 0.70710678f;
+    for (int c = 0; c < 4; ++c)
+    {
+        if (c != largest)
+        {
+            out.add(unorm16((q[c] * sign / range) * 0.5f + 0.5f));
+        }
+    }
+    out.add(static_cast<uint16_t>(largest));
+}
+
+bool constantRotations(const Vector<float>& values, uint32_t samples)
+{
+    for (uint32_t i = 1; i < samples; ++i)
+    {
+        float dot = 0.0f;
+        for (int c = 0; c < 4; ++c)
+        {
+            dot += values[c] * values[i * 4 + c];
+        }
+        if (std::fabs(dot) < 1.0f - 1e-6f)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool constantVectors(const Vector<float>& values, uint32_t samples)
+{
+    for (uint32_t i = 1; i < samples; ++i)
+    {
+        for (int c = 0; c < 3; ++c)
+        {
+            if (std::fabs(values[i * 3 + c] - values[c]) > 1e-5f)
+            {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+// Vectors within their own range, as unorm16; one sample if constant.
+void packVectors(const Vector<float>& values, uint32_t samples, bool constant, float* min, float* max, Blob& out)
+{
+    const uint32_t stored = constant ? 1 : samples;
+    for (int c = 0; c < 3; ++c)
+    {
+        min[c] = values[c];
+        max[c] = values[c];
+    }
+    for (uint32_t i = 0; i < stored; ++i)
+    {
+        for (int c = 0; c < 3; ++c)
+        {
+            min[c] = std::min(min[c], values[i * 3 + c]);
+            max[c] = std::max(max[c], values[i * 3 + c]);
+        }
+    }
+    for (uint32_t i = 0; i < stored; ++i)
+    {
+        for (int c = 0; c < 3; ++c)
+        {
+            const float span = max[c] - min[c];
+            out.add(span > 0 ? unorm16((values[i * 3 + c] - min[c]) / span) : uint16_t{0});
+        }
+    }
+}
+
+SectionBlob* packClip(const SourceClip& clip, const SourceScene& scene)
+{
+    Blob info, tracks, rotations, translations, scales, names;
+    for (const SourceTrack* track : clip.tracks)
+    {
+        assets::ClipTrack out{};
+        const std::string_view name = scene.strings.at(scene.nodes[static_cast<size_t>(track->node)].name);
+        out.nameOffset = static_cast<uint32_t>(names.bytes.size());
+        out.nameLength = static_cast<uint32_t>(name.size());
+        for (char c : name)
+        {
+            names.bytes.pushBack(static_cast<uint8_t>(c));
+        }
+        const bool rotationConstant = constantRotations(track->rotations, clip.sampleCount);
+        const bool translationConstant = constantVectors(track->translations, clip.sampleCount);
+        const bool scaleConstant = constantVectors(track->scales, clip.sampleCount);
+        out.constant = (rotationConstant ? static_cast<uint32_t>(assets::ClipChannel::Rotation) : 0) |
+                       (translationConstant ? static_cast<uint32_t>(assets::ClipChannel::Translation) : 0) |
+                       (scaleConstant ? static_cast<uint32_t>(assets::ClipChannel::Scale) : 0);
+        out.rotationOffset = static_cast<uint32_t>(rotations.bytes.size() / 8);
+        out.translationOffset = static_cast<uint32_t>(translations.bytes.size() / 6);
+        out.scaleOffset = static_cast<uint32_t>(scales.bytes.size() / 6);
+        for (uint32_t i = 0; i < (rotationConstant ? 1 : clip.sampleCount); ++i)
+        {
+            packRotation(track->rotations.data() + i * 4, rotations);
+        }
+        packVectors(track->translations, clip.sampleCount, translationConstant, out.translationMin, out.translationMax,
+                    translations);
+        packVectors(track->scales, clip.sampleCount, scaleConstant, out.scaleMin, out.scaleMax, scales);
+        tracks.add(out);
+    }
+    info.add(
+        assets::ClipInfo{clip.duration, clip.sampleRate, clip.sampleCount, static_cast<uint32_t>(clip.tracks.size())});
+    SectionBlob* result = create<SectionBlob>(MemoryTag::Assets);
+    result->addSection(binary::tag("INFO"), info.bytes);
+    result->addSection(binary::tag("TRCK"), tracks.bytes);
+    result->addSection(binary::tag("ROTS"), rotations.bytes);
+    result->addSection(binary::tag("POSS"), translations.bytes);
+    result->addSection(binary::tag("SCLS"), scales.bytes);
+    result->addSection(binary::tag("NAME"), names.bytes);
+    return result;
 }
 
 } // namespace
@@ -552,7 +860,10 @@ Result<MeshImport*> buildMeshImport(SourceScene& scene, MeshSettings settings)
 {
     settings.lodRatio = std::clamp(settings.lodRatio, 0.05f, 0.95f);
     settings.maxLods = std::min(settings.maxLods, 8u);
+    settings.maxInfluences = settings.maxInfluences > 4 ? 8u : 4u;
     mirror(scene);
+    Skeleton skeleton;
+    orderJoints(scene, skeleton);
 
     MeshImport* result = create<MeshImport>(MemoryTag::Assets);
     result->warnings = static_cast<StringList&&>(scene.warnings);
@@ -592,6 +903,7 @@ Result<MeshImport*> buildMeshImport(SourceScene& scene, MeshSettings settings)
     }
 
     Blob info, entries, lods, ranges, positions, normals, tangents, uv0, uv1, colors, outline, indices, nodes;
+    Blob jointIndices, jointWeights, skin, joints;
     uint32_t vertexOffset = 0;
     for (uint32_t m = 0; m < built.size(); ++m)
     {
@@ -679,6 +991,10 @@ Result<MeshImport*> buildMeshImport(SourceScene& scene, MeshSettings settings)
             colors.add(toByte(linearToSrgb(color[1])));
             colors.add(toByte(linearToSrgb(color[2])));
             colors.add(toByte(color[3]));
+            if ((streams & bit(MeshAttribute::Skinned)) != 0)
+            {
+                packSkin(mesh, v, settings.maxInfluences, skeleton, jointIndices, jointWeights);
+            }
         }
         vertexOffset += mesh.vertexCount;
     }
@@ -692,6 +1008,17 @@ Result<MeshImport*> buildMeshImport(SourceScene& scene, MeshSettings settings)
         addName(node.name, out.nameOffset, out.nameLength);
         nodes.add(out);
     }
+
+    // The skeleton, each joint after its parent; its name is its node's.
+    for (uint32_t j = 0; j < skeleton.order.size(); ++j)
+    {
+        const SourceJoint& source = scene.joints[static_cast<size_t>(skeleton.order[j])];
+        assets::JointEntry out{skeleton.parent[j], source.node};
+        std::memcpy(out.inverseBind, source.inverseBind, sizeof(out.inverseBind));
+        addName(scene.nodes[static_cast<size_t>(source.node)].name, out.nameOffset, out.nameLength);
+        joints.add(out);
+    }
+    skin.add(assets::SkinInfo{static_cast<uint32_t>(skeleton.order.size()), settings.maxInfluences});
 
     // Materials, with each texture's file for C# to turn into an asset ID.
     for (const SourceMaterial& material : scene.materials)
@@ -741,13 +1068,34 @@ Result<MeshImport*> buildMeshImport(SourceScene& scene, MeshSettings settings)
     {
         result->addSection(binary::tag("COLR"), colors.bytes);
     }
+    if ((streams & bit(MeshAttribute::Skinned)) != 0)
+    {
+        result->addSection(binary::tag("JIDX"), jointIndices.bytes);
+        result->addSection(binary::tag("JWGT"), jointWeights.bytes);
+    }
     result->addSection(binary::tag("INDX"), indices.bytes);
     result->addSection(binary::tag("NODE"), nodes.bytes);
+    if (!skeleton.order.empty())
+    {
+        result->addSection(binary::tag("SKIN"), skin.bytes);
+        result->addSection(binary::tag("JNTS"), joints.bytes);
+    }
     result->addSection(binary::tag("NAME"), names.bytes);
 
     for (BuiltMesh* mesh : built)
     {
         destroy(MemoryTag::Assets, mesh);
+    }
+
+    // The animation clips, each a CLIP file of its own.
+    for (const SourceClip* clip : scene.clips)
+    {
+        if (clip->sampleCount == 0 || clip->tracks.empty())
+        {
+            continue;
+        }
+        result->clips.pushBack(packClip(*clip, scene));
+        result->clipNames.add(scene.strings.at(clip->name));
     }
     return result;
 }
@@ -816,6 +1164,43 @@ uint32_t meshWarningCount(const MeshImport& mesh)
 std::string_view meshWarning(const MeshImport& mesh, uint32_t index)
 {
     return mesh.warnings.at(index);
+}
+
+uint32_t meshClipCount(const MeshImport& mesh)
+{
+    return static_cast<uint32_t>(mesh.clips.size());
+}
+
+std::string_view meshClipName(const MeshImport& mesh, uint32_t clip)
+{
+    return mesh.clipNames.at(clip);
+}
+
+uint32_t meshClipSectionCount(const MeshImport& mesh, uint32_t clip)
+{
+    return clip < mesh.clips.size() ? static_cast<uint32_t>(mesh.clips[clip]->sections.size()) : 0;
+}
+
+MeshSectionInfo meshClipSection(const MeshImport& mesh, uint32_t clip, uint32_t index)
+{
+    if (clip >= mesh.clips.size() || index >= mesh.clips[clip]->sections.size())
+    {
+        return {};
+    }
+    const SectionBlob::Section& section = mesh.clips[clip]->sections[index];
+    return {section.tag, section.version, section.size};
+}
+
+void copyMeshClipSection(const MeshImport& mesh, uint32_t clip, uint32_t index, std::span<uint8_t> destination)
+{
+    if (clip >= mesh.clips.size() || index >= mesh.clips[clip]->sections.size())
+    {
+        return;
+    }
+    const SectionBlob& blob = *mesh.clips[clip];
+    const SectionBlob::Section& section = blob.sections[index];
+    std::memcpy(destination.data(), blob.bytes.data() + section.offset,
+                std::min<size_t>(destination.size(), static_cast<size_t>(section.size)));
 }
 
 } // namespace crucible::importers

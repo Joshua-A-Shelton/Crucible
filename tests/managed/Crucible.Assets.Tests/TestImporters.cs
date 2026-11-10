@@ -79,3 +79,31 @@ public sealed class BrokenImporter : Importer<ListSettings>
     public override void Import(ImportContext context, ListSettings settings) =>
         throw new InvalidDataException("this file is beyond repair");
 }
+
+// .parts: each line "name=text" becomes a sub-asset with the text; the main
+// output is the names joined.
+public sealed class PartsImporter : Importer<ListSettings>
+{
+    public override string OutputExtension => ".crparts";
+
+    public override string Name => "Parts";
+
+    public override int Version => 1;
+
+    public override IReadOnlyList<string> Extensions => [".parts"];
+
+    public override void Import(ImportContext context, ListSettings settings)
+    {
+        string[] lines = Encoding.UTF8.GetString(context.ReadSource())
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        List<string> names = [];
+        foreach (string line in lines)
+        {
+            string[] pair = line.Split('=', 2);
+            names.Add(pair[0]);
+            context.AddSubAsset(pair[0], TextImporter.Kind, 1, ".crtext")
+                .Add(TextImporter.Body, 1, Encoding.UTF8.GetBytes(pair[1]));
+        }
+        context.CreateOutput(TextImporter.Kind, 1).Add(TextImporter.Body, 1, Encoding.UTF8.GetBytes(string.Join("+", names)));
+    }
+}

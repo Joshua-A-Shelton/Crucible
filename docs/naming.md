@@ -605,3 +605,23 @@ building (marked *) settled as drafted too:
 | `Wobble` (`Amount`*, `Frames`*), `Pulse.rate`*, `demo::pulsesLastFrame`*, Native/Pulse.h*, Code/Pulse.cs* | The Demo project's code |
 | The scene `Main.crscene`*, the entities "Sun"* and "Camera"* | Made by the session |
 
+## Skins and animation clips (2026-11-09, M8 step 1)
+
+Settled as drafted: MESH version 3 with the sections `SKIN` (`SkinInfo`),
+`JNTS` (`JointEntry`), `JIDX`, `JWGT`, and `MeshAttribute::Skinned`; the clip
+file .crclip (kind `CLIP`) with `INFO` (`ClipInfo`), `TRCK` (`ClipTrack`),
+`ROTS`, `POSS`, `SCLS`, `NAME`; `MeshSettings::maxInfluences`,
+`clipSampleRate`; the sidecar's `"SubAssets"`, `ImportContext.AddSubAsset`;
+samples/Walker with make_walker.py, Walker.gltf and its "Walk" clip; ADR 0078
+"Skins and animation clips", `docs/learning/skinning-and-clips.md`;
+`SkinImportTests`, `ClipImportTests`, `SubAssetTests`. Names added while
+building are placeholders (*):
+
+| Name | What it is |
+|---|---|
+| `ClipChannel`* (`Rotation`*, `Translation`*, `Scale`*), `ClipTrack::constant`* | Which of a track's channels are stored once |
+| `clipFileKind`*, `clipFileVersion`*, C# `MeshImporter.ClipKind`*, `ClipVersion`*, `ClipExtension`* | The clip file's constants |
+| `meshClipCount`*, `meshClipName`*, `meshClipSectionCount`*, `meshClipSection`*, `copyMeshClipSection`* | The importers' clip API |
+| C# `MeshImportSettings.MaxInfluences`*, `ClipSampleRate`* | The import settings, as the sidecar shows them |
+| `AssetEntry.Parent`*, `SubAssetName`*, `AssetDatabase.SubAssetsOf`* | Sub-assets in the database |
+| The "Idle" clip* | The Walker's second clip |

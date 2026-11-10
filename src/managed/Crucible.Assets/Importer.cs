@@ -79,6 +79,7 @@ public sealed class ImportContext : IDisposable
     private readonly Func<AssetId, (string Path, string Imported, IReadOnlyCollection<string> Dependencies)?> _imported;
     private readonly List<string> _warnings = [];
     private ImportedFileWriter? _output;
+    private readonly List<(string Name, string Extension, ImportedFileWriter Output)> _subAssets = [];
 
     internal ImportContext(AssetId asset, string assetPath, string assetsFolder, Func<string, AssetId> idOf,
         Func<AssetId, (string Path, string Imported, IReadOnlyCollection<string> Dependencies)?>? imported = null)
@@ -204,11 +205,39 @@ public sealed class ImportContext : IDisposable
         return _output;
     }
 
+    /// <summary>
+    /// Another output, a sub-asset (ADR 0078): an asset of its own with its
+    /// own ID (a model's animation clips), named uniquely within this import.
+    /// Its ID stays the same across imports while the name does.
+    /// </summary>
+    /// <param name="extension">Its file's extension, as <see cref="Importer.OutputExtension"/> (".crclip").</param>
+    public ImportedFileWriter AddSubAsset(string name, uint kind, uint kindVersion, string extension)
+    {
+        if (name.Length == 0 || _subAssets.Any(sub => sub.Name == name))
+        {
+            throw new InvalidDataException(name.Length == 0
+                ? "a sub-asset has no name"
+                : $"two sub-assets are named {name}");
+        }
+        ImportedFileWriter output = new(kind, kindVersion);
+        _subAssets.Add((name, extension, output));
+        return output;
+    }
+
     internal IReadOnlyDictionary<string, string> Dependencies => _dependencies;
 
     internal ImportedFileWriter? Output => _output;
 
-    public void Dispose() => _output?.Dispose();
+    internal IReadOnlyList<(string Name, string Extension, ImportedFileWriter Output)> SubAssets => _subAssets;
+
+    public void Dispose()
+    {
+        _output?.Dispose();
+        foreach ((_, _, ImportedFileWriter output) in _subAssets)
+        {
+            output.Dispose();
+        }
+    }
 }
 
 /// <summary>XXH128 of file contents (ADR 0040), as 32 lowercase hex digits.</summary>

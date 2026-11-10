@@ -1,0 +1,545 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "Crucible samples/Walker/make_walker.py"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0,
+        1
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Walker",
+      "mesh": 0,
+      "skin": 0
+    },
+    {
+      "name": "Hips",
+      "translation": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "children": [
+        2,
+        8,
+        11
+      ]
+    },
+    {
+      "name": "Spine",
+      "translation": [
+        0.0,
+        0.1,
+        0.0
+      ],
+      "children": [
+        3,
+        4,
+        6
+      ]
+    },
+    {
+      "name": "Head",
+      "translation": [
+        0.0,
+        0.55,
+        0.0
+      ]
+    },
+    {
+      "name": "LeftUpperArm",
+      "translation": [
+        0.28,
+        0.45,
+        0.0
+      ],
+      "children": [
+        5
+      ]
+    },
+    {
+      "name": "LeftLowerArm",
+      "translation": [
+        0.0,
+        -0.3,
+        0.0
+      ]
+    },
+    {
+      "name": "RightUpperArm",
+      "translation": [
+        -0.28,
+        0.45,
+        0.0
+      ],
+      "children": [
+        7
+      ]
+    },
+    {
+      "name": "RightLowerArm",
+      "translation": [
+        0.0,
+        -0.3,
+        0.0
+      ]
+    },
+    {
+      "name": "LeftUpperLeg",
+      "translation": [
+        0.12,
+        -0.05,
+        0.0
+      ],
+      "children": [
+        9
+      ]
+    },
+    {
+      "name": "LeftLowerLeg",
+      "translation": [
+        0.0,
+        -0.45,
+        0.0
+      ],
+      "children": [
+        10
+      ]
+    },
+    {
+      "name": "LeftFoot",
+      "translation": [
+        0.0,
+        -0.45,
+        0.0
+      ]
+    },
+    {
+      "name": "RightUpperLeg",
+      "translation": [
+        -0.12,
+        -0.05,
+        0.0
+      ],
+      "children": [
+        12
+      ]
+    },
+    {
+      "name": "RightLowerLeg",
+      "translation": [
+        0.0,
+        -0.45,
+        0.0
+      ],
+      "children": [
+        13
+      ]
+    },
+    {
+      "name": "RightFoot",
+      "translation": [
+        0.0,
+        -0.45,
+        0.0
+      ]
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Body",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "COLOR_0": 2,
+            "JOINTS_0": 3,
+            "WEIGHTS_0": 4
+          },
+          "indices": 5,
+          "material": 0
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "Walker",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "roughnessFactor": 0.8
+      }
+    }
+  ],
+  "skins": [
+    {
+      "name": "Walker",
+      "joints": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "inverseBindMatrices": 6,
+      "skeleton": 1
+    }
+  ],
+  "animations": [
+    {
+      "name": "Walk",
+      "channels": [
+        {
+          "sampler": 0,
+          "target": {
+            "node": 8,
+            "path": "rotation"
+          }
+        },
+        {
+          "sampler": 1,
+          "target": {
+            "node": 11,
+            "path": "rotation"
+          }
+        },
+        {
+          "sampler": 2,
+          "target": {
+            "node": 9,
+            "path": "rotation"
+          }
+        },
+        {
+          "sampler": 3,
+          "target": {
+            "node": 12,
+            "path": "rotation"
+          }
+        },
+        {
+          "sampler": 4,
+          "target": {
+            "node": 4,
+            "path": "rotation"
+          }
+        },
+        {
+          "sampler": 5,
+          "target": {
+            "node": 6,
+            "path": "rotation"
+          }
+        },
+        {
+          "sampler": 6,
+          "target": {
+            "node": 1,
+            "path": "translation"
+          }
+        }
+      ],
+      "samplers": [
+        {
+          "input": 7,
+          "output": 8,
+          "interpolation": "LINEAR"
+        },
+        {
+          "input": 7,
+          "output": 9,
+          "interpolation": "LINEAR"
+        },
+        {
+          "input": 7,
+          "output": 10,
+          "interpolation": "LINEAR"
+        },
+        {
+          "input": 7,
+          "output": 11,
+          "interpolation": "LINEAR"
+        },
+        {
+          "input": 7,
+          "output": 12,
+          "interpolation": "LINEAR"
+        },
+        {
+          "input": 7,
+          "output": 13,
+          "interpolation": "LINEAR"
+        },
+        {
+          "input": 7,
+          "output": 14,
+          "interpolation": "LINEAR"
+        }
+      ]
+    },
+    {
+      "name": "Idle",
+      "channels": [
+        {
+          "sampler": 0,
+          "target": {
+            "node": 2,
+            "path": "rotation"
+          }
+        }
+      ],
+      "samplers": [
+        {
+          "input": 15,
+          "output": 16,
+          "interpolation": "LINEAR"
+        }
+      ]
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 288,
+      "type": "VEC3",
+      "min": [
+        -0.33,
+        -0.010000000000000064,
+        -0.12
+      ],
+      "max": [
+        0.33,
+        1.8900000000000001,
+        0.18
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 288,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 288,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 288,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 288,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5123,
+      "count": 432,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5126,
+      "count": 13,
+      "type": "MAT4"
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5126,
+      "count": 17,
+      "type": "SCALAR",
+      "min": [
+        0.0
+      ],
+      "max": [
+        1.0
+      ]
+    },
+    {
+      "bufferView": 8,
+      "componentType": 5126,
+      "count": 17,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 9,
+      "componentType": 5126,
+      "count": 17,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 10,
+      "componentType": 5126,
+      "count": 17,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 11,
+      "componentType": 5126,
+      "count": 17,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 12,
+      "componentType": 5126,
+      "count": 17,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 13,
+      "componentType": 5126,
+      "count": 17,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 14,
+      "componentType": 5126,
+      "count": 17,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 15,
+      "componentType": 5126,
+      "count": 33,
+      "type": "SCALAR",
+      "min": [
+        0.0
+      ],
+      "max": [
+        2.0
+      ]
+    },
+    {
+      "bufferView": 16,
+      "componentType": 5126,
+      "count": 33,
+      "type": "VEC4"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 3456,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 3456,
+      "byteLength": 3456,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 6912,
+      "byteLength": 4608,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 11520,
+      "byteLength": 2304,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 13824,
+      "byteLength": 4608,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 18432,
+      "byteLength": 864,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 19296,
+      "byteLength": 832
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 20128,
+      "byteLength": 68
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 20196,
+      "byteLength": 272
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 20468,
+      "byteLength": 272
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 20740,
+      "byteLength": 272
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 21012,
+      "byteLength": 272
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 21284,
+      "byteLength": 272
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 21556,
+      "byteLength": 272
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 21828,
+      "byteLength": 204
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 22032,
+      "byteLength": 132
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 22164,
+      "byteLength": 528
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "Walker.bin",
+      "byteLength": 22692
+    }
+  ]
+}

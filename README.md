@@ -112,3 +112,6 @@ Longer explanations of decisions, written to be reread:
 - [End-to-end checks](docs/learning/end-to-end-checks.md) (ADR 0077): testing
   a session rather than a feature, starting from nothing, repeatable
   captures, and checks that don't change what they measure.
+- [Skinning and clips](docs/learning/skinning-and-clips.md) (ADR 0078): the
+  skinning formula, weights as bytes, resampled clips and smallest-three
+  rotations, testing against a reference pose, and sub-assets.

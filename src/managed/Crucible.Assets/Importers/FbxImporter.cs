@@ -14,8 +14,8 @@ public sealed class FbxImporter : Importer<MeshImportSettings>
 {
     public override string Name => "Fbx";
 
-    // 2: generated materials (MTLS); 3: remapped slots (MRMP).
-    public override int Version => 3;
+    // 2: generated materials (MTLS); 3: remapped slots (MRMP); 4: skins and clips.
+    public override int Version => 4;
 
     public override IReadOnlyList<string> Extensions => [".fbx"];
 

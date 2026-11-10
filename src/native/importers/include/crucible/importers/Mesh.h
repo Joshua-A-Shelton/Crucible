@@ -9,6 +9,7 @@
 // Editor-only. Names are placeholders (docs/naming.md).
 //
 
+#include <crucible/ClipFile.h>
 #include <crucible/Expose.h>
 #include <crucible/MeshFile.h>
 #include <crucible/Result.h>
@@ -37,6 +38,9 @@ struct CRUCIBLE_EXPOSE MeshSettings
     uint32_t maxLods;  // levels after LOD 0
     float lodRatio;    // each level keeps about this share of the last's triangles
     float lodMaxError; // stop when a level deviates more than this share of the mesh's size
+    // Skins and clips (ADR 0078):
+    uint32_t maxInfluences; // joints per vertex, 4 or 8; the strongest are kept, renormalized
+    float clipSampleRate;   // samples per second clips are resampled at
 };
 
 struct CRUCIBLE_EXPOSE MeshSectionInfo
@@ -80,7 +84,16 @@ CRUCIBLE_EXPOSE uint32_t meshMaterialCount(const MeshImport& mesh);
 CRUCIBLE_EXPOSE MaterialEntry meshMaterial(const MeshImport& mesh, uint32_t index);
 CRUCIBLE_EXPOSE std::string_view meshMaterialTexture(const MeshImport& mesh, uint32_t material, TextureRole role);
 
-// What the import left out or worked around (lines, skins, embedded
+// The animation clips (ADR 0078): each a CLIP file's sections (ClipFile.h),
+// written by C# as a sub-asset of the model, by its name.
+CRUCIBLE_EXPOSE uint32_t meshClipCount(const MeshImport& mesh);
+CRUCIBLE_EXPOSE std::string_view meshClipName(const MeshImport& mesh, uint32_t clip);
+CRUCIBLE_EXPOSE uint32_t meshClipSectionCount(const MeshImport& mesh, uint32_t clip);
+CRUCIBLE_EXPOSE MeshSectionInfo meshClipSection(const MeshImport& mesh, uint32_t clip, uint32_t index);
+CRUCIBLE_EXPOSE void copyMeshClipSection(const MeshImport& mesh, uint32_t clip, uint32_t index,
+                                         std::span<uint8_t> destination);
+
+// What the import left out or worked around (lines, morph targets, embedded
 // textures...), for the editor to show.
 CRUCIBLE_EXPOSE uint32_t meshWarningCount(const MeshImport& mesh);
 CRUCIBLE_EXPOSE std::string_view meshWarning(const MeshImport& mesh, uint32_t index);

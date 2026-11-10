@@ -148,11 +148,13 @@ internal static class PrefabIds
 }
 
 // An imported model as a prefab (ADR 0045): a root, then one entity per
-// node with its LocalTransform and, if it has one, its MeshInstance.
+// node with its LocalTransform and, if it has one, its MeshInstance. A
+// skeleton's joints, and what hangs below them, aren't entities: the pose
+// holds them (ADR 0078).
 internal static class ModelPrefab
 {
     public static readonly uint Kind = Tag.Of("MESH");
-    public const uint KindVersion = 2; // as MeshImporter.KindVersion
+    public const uint KindVersion = 3; // as MeshImporter.KindVersion
     public const ulong RootId = 1;
 
     // The MESH file's MeshNode (src/native/importers/include/crucible/importers/Mesh.h).
@@ -175,13 +177,29 @@ internal static class ModelPrefab
         using ImportedFile file = ImportedFile.Parse(bytes, Kind, KindVersion);
         Node[] nodes = MemoryMarshal.Cast<byte, Node>(file.Read(file.Find(Tag.Of("NODE")))).ToArray();
         byte[] names = file.Read(file.Find(Tag.Of("NAME")));
+        bool[] isJoint = new bool[nodes.Length];
+        int joints = file.Find(Tag.Of("JNTS"));
+        if (joints >= 0)
+        {
+            // JointEntry: parent, node, inverse bind (16 floats), name offset and length.
+            const int jointSize = 80;
+            byte[] entries = file.Read(joints);
+            for (int at = 0; at + jointSize <= entries.Length; at += jointSize)
+            {
+                int node = BitConverter.ToInt32(entries, at + 4);
+                if (node >= 0 && node < nodes.Length)
+                {
+                    isJoint[node] = true;
+                }
+            }
+        }
 
         SceneFile scene = new() { Id = model };
         EntityNode root = new() { Id = RootId };
         root.Components.Add(Component(LocalTransform.Identity));
         scene.Roots.Add(root);
 
-        EntityNode[] entities = new EntityNode[nodes.Length];
+        EntityNode?[] entities = new EntityNode?[nodes.Length];
         string[] paths = new string[nodes.Length];
         HashSet<ulong> ids = [RootId];
         Dictionary<(EntityNode Parent, string Name), int> seen = [];
@@ -189,7 +207,11 @@ internal static class ModelPrefab
         foreach (int index in ParentsFirst(nodes))
         {
             Node node = nodes[index];
-            EntityNode parent = node.Parent < 0 ? root : entities[node.Parent];
+            if (isJoint[index] || (node.Parent >= 0 && entities[node.Parent] is null))
+            {
+                continue; // a joint, or below one
+            }
+            EntityNode parent = node.Parent < 0 ? root : entities[node.Parent]!;
             string name = Encoding.UTF8.GetString(names, (int)node.NameOffset, (int)node.NameLength);
             string prefix = node.Parent < 0 ? "" : paths[node.Parent] + "/";
             // The k-th sibling with a name already taken is "name#k".
