@@ -615,7 +615,8 @@ file .crclip (kind `CLIP`) with `INFO` (`ClipInfo`), `TRCK` (`ClipTrack`),
 samples/Walker with make_walker.py, Walker.gltf and its "Walk" clip; ADR 0078
 "Skins and animation clips", `docs/learning/skinning-and-clips.md`;
 `SkinImportTests`, `ClipImportTests`, `SubAssetTests`. Names added while
-building are placeholders (*):
+building (marked *) settled as drafted too (after the owner tried step 1 by
+hand):
 
 | Name | What it is |
 |---|---|

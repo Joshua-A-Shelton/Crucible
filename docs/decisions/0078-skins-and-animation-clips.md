@@ -1,7 +1,9 @@
 # 0078 — Skins and animation clips
 
-**Status:** Accepted (2026-11-09); M8 step 1 built. Names settled by the
-owner as drafted (docs/naming.md); names added while building are marked *.
+**Status:** Accepted (2026-11-09); M8 step 1 built, then tried by hand by
+the owner (the Walker placed, its joints left out of the hierarchy). Names,
+including those added while building, settled by the owner as drafted
+(docs/naming.md).
 
 ## Context
 
