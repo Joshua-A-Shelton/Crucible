@@ -473,8 +473,12 @@ a native module; layers became two masks per body, shown by name; tried by
 hand by the owner on KWin. Step 7d built (ADR 0076): an input source the
 platform's is the default of, one asset source every runtime read goes
 through, the renderer's step names as constants, and a loop driver a game
-can name; tried by hand by the owner on KWin. Step 7 is done. Step 8 (the
-demonstration) is next.
+can name; tried by hand by the owner on KWin. Step 7 is done. Step 8 built
+(ADR 0077): the "done when" as one headless session from a brand-new
+project (create, open with its C# and C++, drag a model in, edit it in the
+inspector, save and reopen, play, hot-reload C#, reload a texture, stop,
+run standalone), with undo along the way, captured, and on Windows compared
+between D3D12 and Vulkan. M7 awaits the owner's by-hand run and sign-off.
 
 ## M8 — Animation and audio
 

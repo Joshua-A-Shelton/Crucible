@@ -338,6 +338,16 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "NativeChecks: all [0-9]+ checks passed")
 
+    # The M7 demonstration (ADR 0077): the "done when" as one session from a
+    # brand-new project, on Vulkan; on Windows on D3D12 too, the captures
+    # compared.
+    add_test(NAME launcher.jit.demonstration
+        COMMAND "${CMAKE_COMMAND}" "-DEDITOR=$<TARGET_FILE:crucible_editor>" "-DENGINE=${engineDirectory}"
+            "-DREPOSITORY=${PROJECT_SOURCE_DIR}" "-DOUT=${CMAKE_CURRENT_BINARY_DIR}/demonstration"
+            -P "${PROJECT_SOURCE_DIR}/tests/demonstration/compare_demonstration.cmake")
+    set_tests_properties(launcher.jit.demonstration PROPERTIES LABELS "integration;gpu" TIMEOUT 600
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen")
+
     # The editor's checks open the Diorama's project before copying it, and
     # opening builds its native module and code into its Cache (ADR 0072,
     # 0074): one at a time, or the builds race.

@@ -109,3 +109,6 @@ Longer explanations of decisions, written to be reread:
 - [Subsystem contracts](docs/learning/subsystem-contracts.md) (ADR 0075,
   0076): where to draw a replaceable part's line, null defaults, order
   without ordering, gameplay systems, and the seams that already existed.
+- [End-to-end checks](docs/learning/end-to-end-checks.md) (ADR 0077): testing
+  a session rather than a feature, starting from nothing, repeatable
+  captures, and checks that don't change what they measure.

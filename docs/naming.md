@@ -589,3 +589,19 @@ Settled as drafted: `InputSource` (`poll`, `text`), `installInputSource`,
 | `render::steps` (`depthPrepass`*, `lightClustering`*, `opaque`*, `outlines`*, `sky`*, `transparent`*, `bloom`*, `tonemap`*, `grid`*, `pick`*, `selectionOutline`*) and the matching C# constants | Step names |
 | `ILoopDriver.Schedule`*, `LoopDriverAttribute.DriverType`*, `LoadedGame.CreateLoopDriver`* | The loop driver |
 
+## The M7 demonstration (2026-11-09, M7 step 8)
+
+Settled as drafted: `DemonstrationChecks`, `--game-arg check-demonstration`,
+CTest `launcher.jit.demonstration` ("DemonstrationChecks: all N checks
+passed"), tests/demonstration/compare_demonstration.cmake, the project "Demo"
+with Code/Wobble.cs (`Wobble`, `WobbleSystem`) and Native/Pulse.cpp
+(`demo::Pulse`, "Demo.Pulse"), `placed.png`, `playing.png`, ADR 0077 "The M7
+demonstration", `docs/learning/end-to-end-checks.md`. Names added while
+building are placeholders (marked *):
+
+| Name | What it is |
+|---|---|
+| `--game-arg demonstration-repo`*, `--game-arg compare`* | The check's arguments |
+| `Wobble` (`Amount`*, `Frames`*), `Pulse.rate`*, `demo::pulsesLastFrame`*, Native/Pulse.h*, Code/Pulse.cs* | The Demo project's code |
+| The scene `Main.crscene`*, the entities "Sun"* and "Camera"* | Made by the session |
+
