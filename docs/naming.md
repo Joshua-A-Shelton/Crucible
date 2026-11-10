@@ -579,8 +579,8 @@ Settled as drafted: `InputSource` (`poll`, `text`), `installInputSource`,
 `ILoopDriver` (`Run`), `[assembly: LoopDriver(typeof(...))]`; ADR 0076
 "Input, asset, renderer, and loop contracts", the section in
 `docs/learning/subsystem-contracts.md`, `InputSourceTests`,
-`AssetSourceTests`, `LoopDriverTests`. Names added while building are
-placeholders (marked *):
+`AssetSourceTests`, `LoopDriverTests`. Names added while building (marked
+*) settled as drafted too:
 
 | Name | What it is |
 |---|---|

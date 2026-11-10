@@ -1,8 +1,7 @@
 # 0076 — Input, asset, renderer, and loop contracts
 
-**Status:** Accepted (2026-11-09); M7 step 7d built. Names settled by the
-owner as drafted; those added while building are placeholders
-(docs/naming.md).
+**Status:** Accepted (2026-11-09); M7 step 7d built and tried by hand by
+the owner on KWin. Names settled by the owner as drafted (docs/naming.md).
 
 ## Context
 
