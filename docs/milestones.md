@@ -582,6 +582,34 @@ by the owner on 2026-11-11; M8 is done.
 **Done when:** a character walks a mesh level, and a test hit registers
 identically at 30 and 240 fps.
 
+**Steps** (agreed with the owner, 2026-11-11; one commit each, each step's
+decision made at its start):
+
+1. Box3D in the core: fetched and built (a recent master commit, at least
+   two weeks old, pinned by commit and SHA-256; rechecked before every
+   release), its tasks on the job system, a physics world per ECS world;
+   bodies made, updated, and removed from `RigidBody` and `Collider` (box,
+   sphere, capsule) by "Physics.Sync", stepped by "Physics.Step", written
+   back by "Physics.WriteBack" with interpolated transforms for rendering;
+   gravity, layers and masks, contacts and sensor events; collider debug
+   lines (View > Colliders). Replaces the null physics.
+2. Mesh and convex colliders from imported models: static triangle meshes
+   for levels, convex hulls for props.
+3. Queries: `raycast`, `shapeCast`, `overlap` on Box3D, and their C# side.
+4. The character controller: `CharacterController` on Box3D's character
+   mover; `moveCharacter` collides and slides, follows the ground, takes
+   slopes and steps; root motion drives it.
+5. Joints: fixed (weld), hinge (revolute), and distance on Box3D;
+   ball-and-socket and swing-twist reported as unsupported (the contract
+   keeps them; recorded for the Jolt checkpoint).
+6. Box2D v3: 2D bodies, colliders, and queries behind a 2D contract of the
+   same shape, on the job system.
+7. Swept hitboxes: a hitbox shape on a joint, active during an animation
+   window (ADR 0081), swept each frame by shape cast; hits reported with
+   exact times, interpolated between frame timestamps.
+8. The demonstration: the Walker walks a mesh level; a scripted swing's hit
+   lands at the same moment at 30 and 240 fps.
+
 ## M10 — Shipping
 
 - Cooking: dependency walk from root scenes, archives, async loading on
