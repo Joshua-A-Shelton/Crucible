@@ -81,16 +81,32 @@ internal sealed partial class WalkerChecks : GameSystem
         int[] rates = [30, 144];
         for (int r = 0; r < rates.Length; ++r)
         {
-            int ended = Count(Log(shell), "The standalone run ended");
-            Check(shell.RunStandalone("--headless", "--frame-rate", rates[r].ToString(CultureInfo.InvariantCulture),
-                "--game-arg", "check=1", "--game-arg", $"seconds={Seconds}"), $"the run at {rates[r]} fps starts");
-            long started = Environment.TickCount64;
-            while (Count(Log(shell), "The standalone run ended") == ended && Environment.TickCount64 - started < 120000)
+            // A frame the loop clamped (longer than four ticks, ADR 0036)
+            // drops time by design, moving later steps: such a run, as a
+            // loaded machine can make, is run again, up to three times.
+            Match report = Match.Empty;
+            for (int attempt = 1; attempt <= 3; ++attempt)
             {
-                yield return 2;
+                int ended = Count(Log(shell), "The standalone run ended");
+                Check(shell.RunStandalone("--headless", "--frame-rate",
+                    rates[r].ToString(CultureInfo.InvariantCulture), "--game-arg", "check=1", "--game-arg",
+                    $"seconds={Seconds}"), $"the run at {rates[r]} fps starts");
+                long started = Environment.TickCount64;
+                while (Count(Log(shell), "The standalone run ended") == ended &&
+                       Environment.TickCount64 - started < 120000)
+                {
+                    yield return 2;
+                }
+                report = Report().Matches(Log(shell)).LastOrDefault() ?? Match.Empty;
+                int clamped = report.Success ? int.Parse(report.Groups["clamped"].Value, CultureInfo.InvariantCulture) : 0;
+                if (clamped == 0)
+                {
+                    break;
+                }
+                Console.WriteLine($"WalkerChecks: at {rates[r]} fps, {clamped} frames clamped (the machine is busy); " +
+                                  (attempt < 3 ? "running it again" : "comparing it as it is"));
             }
             string log = Log(shell);
-            Match report = Report().Matches(log).LastOrDefault() ?? Match.Empty;
             Check(report.Success, $"at {rates[r]} fps the game reports its footsteps", Tail(log));
             if (!report.Success)
             {
@@ -126,7 +142,7 @@ internal sealed partial class WalkerChecks : GameSystem
             $"{apart:0.000} ms");
     }
 
-    [GeneratedRegex(@"Crucible\.Walker: (?<heard>\d+) of (?<steps>\d+) footsteps heard, at most (?<worst>\d+) frames from their times, (?<late>\d+) late; steps at ms (?<times>[0-9.,]+)")]
+    [GeneratedRegex(@"Crucible\.Walker: (?<heard>\d+) of (?<steps>\d+) footsteps heard, at most (?<worst>\d+) frames from their times, (?<late>\d+) late; steps at ms (?<times>[0-9.,]+); (?<clamped>\d+) frames clamped")]
     private static partial Regex Report();
 
     private static string Log(Shell shell) =>

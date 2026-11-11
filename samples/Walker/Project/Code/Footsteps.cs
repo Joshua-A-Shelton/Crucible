@@ -51,6 +51,8 @@ public sealed class FootstepSystem : GameSystem
     private ulong _start;
     private readonly List<float> _mixed = [];
     private readonly List<ulong> _steps = [];
+    private ulong _lastFrame;
+    private int _clamped;
 
     public override void Start(FrameContext context)
     {
@@ -67,6 +69,13 @@ public sealed class FootstepSystem : GameSystem
 
     public override void Run(FrameContext context)
     {
+        // Frames whose delta the loop clamped (ADR 0036): longer than four
+        // ticks, their extra time is dropped by design, moving later events.
+        if (_lastFrame != 0 && context.FrameStartNs - _lastFrame > context.DeltaSeconds * 1e9 + 1e6)
+        {
+            ++_clamped;
+        }
+        _lastFrame = context.FrameStartNs;
         World world = context.World;
         int count = Math.Min(Animator.Events(world, _events), _events.Length);
         for (int i = 0; i < count; ++i)
@@ -132,7 +141,7 @@ public sealed class FootstepSystem : GameSystem
         string times = string.Join(",", _steps.Select(step => ((step - _steps[0]) / 1e6).ToString("0.000",
             System.Globalization.CultureInfo.InvariantCulture)));
         Console.WriteLine($"Crucible.Walker: {heard} of {_steps.Count} footsteps heard, at most {worst} frames " +
-                          $"from their times, {stats.LateStarts} late; steps at ms {times}");
+                          $"from their times, {stats.LateStarts} late; steps at ms {times}; {_clamped} frames clamped");
         AudioApi.StopMixing();
     }
 
