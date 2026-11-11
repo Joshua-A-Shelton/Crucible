@@ -82,6 +82,14 @@ internal sealed class ImportSettingsChecks : GameSystem
         AssetId model = database.Find(modelPath)!.Id;
         string sidecar = Path.Combine(copy, "Assets", "Models", "Walker.gltf" + ".crmeta");
         InspectorPanel inspector = shell.Main.DockSpace.Panels.OfType<InspectorPanel>().Single();
+        // The copy starts without collision generated, whatever the project's
+        // own sidecar says (someone may have set it trying it by hand).
+        if (database.SettingsOf(model) is { } start && start["Collision"]?.GetValue<string>() != "None")
+        {
+            start["Collision"] = "None";
+            shell.ApplyImportSettings(model, start);
+            yield return 2;
+        }
 
         // A static body with a Convex collider on the model, which has none cooked.
         Entity entity = shell.CreateEmpty(Entity.Null);
@@ -93,14 +101,18 @@ internal sealed class ImportSettingsChecks : GameSystem
         yield return 2;
         ColliderNotice? notice = H.Descendants(inspector).OfType<ColliderNotice>().FirstOrDefault();
         Check(notice is { Visibility: Visibility.Visible }, "a Convex collider on a model without hulls shows the notice");
-        Check(notice?.Text.Text == "Walker.gltf isn't imported with Convex collision",
+        Check(notice?.Text.Text == "Walker.gltf has no Convex collision generated",
             "the notice names the model and the kind", notice?.Text.Text ?? "");
-        Check(notice?.ReimportButton.Text == "Reimport Walker.gltf with Convex collision", "the button offers to reimport it",
-            notice?.ReimportButton.Text ?? "");
+        Check(notice?.GenerateButton.Text == "Generate Convex collision for Walker.gltf", "the button offers to generate it",
+            notice?.GenerateButton.Text ?? "");
+        FieldEditor[] meshFields = [.. H.Descendants(inspector).OfType<FieldEditor>().Where(editor => editor.Field.Name is "Mesh" or "MeshIndex")];
+        Check(meshFields.Length == 2 && meshFields.All(editor => editor.Warns), "the Mesh fields are marked");
+        Check(notice is not null && notice.Parent is { } parent && IndexAfter(parent, meshFields.LastOrDefault()) == notice,
+            "the notice is right under the Mesh fields");
 
         // In play, the core's warning (stderr before) reaches the Log.
         shell.Play();
-        string warning = "Warning: a Convex collider's model isn't imported with Convex collision";
+        string warning = "Warning: a Convex collider's model has no Convex collision generated";
         long started = Environment.TickCount64;
         while (!Log(shell).Contains(warning, StringComparison.Ordinal) && Environment.TickCount64 - started < 20000)
         {
@@ -123,9 +135,9 @@ internal sealed class ImportSettingsChecks : GameSystem
         notice = H.Descendants(inspector).OfType<ColliderNotice>().FirstOrDefault();
         if (notice is not null)
         {
-            notice.ReimportButton.Focus(); // scrolled into view
+            notice.GenerateButton.Focus(); // scrolled into view
             yield return 1;
-            Press(notice.ReimportButton);
+            Press(notice.GenerateButton);
         }
         yield return 3;
         Check(File.ReadAllText(sidecar).Contains("\"Collision\": \"Convex\"", StringComparison.Ordinal),
@@ -203,7 +215,7 @@ internal sealed class ImportSettingsChecks : GameSystem
         MenuItem[] items = [.. menu.Items.OfType<MenuItem>()];
         Check(items.Any(item => item.Title == "Import Settings…"), "the menu has Import Settings…",
             string.Join(", ", items.Select(item => item.Title)));
-        MenuItem? collision = items.FirstOrDefault(item => item.Title == "Collision");
+        MenuItem? collision = items.FirstOrDefault(item => item.Title == "Generate Collision");
         MenuItem[] kinds = collision?.Submenu is { } submenu ? [.. submenu.Items.OfType<MenuItem>()] : [];
         Check(string.Join(",", kinds.Select(item => item.Title)) == "None,Mesh,Convex", "a model's Collision offers each kind",
             string.Join(",", kinds.Select(item => item.Title)));
@@ -224,8 +236,8 @@ internal sealed class ImportSettingsChecks : GameSystem
         yield return 2;
         notice = H.Descendants(inspector).OfType<ColliderNotice>().FirstOrDefault();
         Check(notice is { Visibility: Visibility.Visible } &&
-              notice.ReimportButton.Text == "Reimport Walker.gltf with Convex collision (replaces Mesh)",
-            "the notice says reimporting replaces the other kind", notice?.ReimportButton.Text ?? "");
+              notice.GenerateButton.Text == "Generate Convex collision for Walker.gltf (replaces Mesh)",
+            "the notice says reimporting replaces the other kind", notice?.GenerateButton.Text ?? "");
 
         // ...and hides while the collider builds its own at load.
         JsonObject generating = new()
@@ -239,6 +251,7 @@ internal sealed class ImportSettingsChecks : GameSystem
         yield return 2;
         notice = H.Descendants(inspector).OfType<ColliderNotice>().FirstOrDefault();
         Check(notice is { Visibility: Visibility.Collapsed }, "Generate If Missing hides the notice");
+        Check(!H.Descendants(inspector).OfType<FieldEditor>().Any(editor => editor.Warns), "and unmarks the Mesh fields");
         Check(H.Descendants(inspector).OfType<FieldEditor>().Any(editor => editor.Field.Name == "GenerateIfMissing"),
             "the collider shows Generate If Missing");
     }
@@ -246,6 +259,14 @@ internal sealed class ImportSettingsChecks : GameSystem
     // A real click at the button's center: it must be on screen (focused
     // first, which scrolls it into view) and enabled.
     private static void Press(Button button) => ViewportChecks.Click(button.Root!, ViewportChecks.Center(button));
+
+    // The element after another among its parent's children.
+    private static UIElement? IndexAfter(UIElement parent, UIElement? element)
+    {
+        List<UIElement> children = [.. parent.Children];
+        int at = element is null ? -1 : children.IndexOf(element);
+        return at >= 0 && at + 1 < children.Count ? children[at + 1] : null;
+    }
 
     private static string Log(Shell shell) =>
         shell.LogPanel is { } log

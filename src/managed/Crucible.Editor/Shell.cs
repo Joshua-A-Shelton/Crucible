@@ -1268,6 +1268,7 @@ internal sealed partial class Shell
             .Set(UIElement.ForegroundProperty, text)
             .Set(UIElement.MarginProperty, new Thickness(0, 6, 0, 0)));
         theme.Add(new Style("Label.overridden").Set(UIElement.ForegroundProperty, accent));
+        theme.Add(new Style("Label.field-warning").Set(UIElement.ForegroundProperty, Color(0xf0c060)));
         // The asset browser and drags (ADR 0071).
         theme.Add(new Style("Label.asset-crumb")
             .Set(UIElement.ForegroundProperty, muted)

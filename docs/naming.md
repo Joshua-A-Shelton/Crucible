@@ -853,7 +853,7 @@ placeholders (*):
 | `Importer.SettingsFields`*, `AssetDatabase.SettingsOf`*, `SettingsFieldsOf`*, `SetSettings`* | Settings in the database |
 | `Shell.InspectedAsset`*, `Shell.ApplyImportSettings`* | The inspected asset, and Apply |
 | `IFieldOwner`*, `ImportSettingsSection`* (`Asset`, `Editors`, `HasChanges`, `ApplyButton`, `RevertButton`, `Apply`, `Revert`), `InspectorPanel.ImportSettings`* | The inspector |
-| `ColliderNotice`* (`Text`, `ReimportButton`), "(replaces *Kind*)"* | The Collider's notice |
+| `ColliderNotice`* (`Text`, `GenerateButton`), "(replaces *Kind*)"* | The Collider's notice |
 | "No import settings"*, "Applied *path*'s import settings"*, "Can't apply *path*'s import settings"* | Text users see |
 | `ImportSettingsChecks`*, `--game-arg check-import-settings=` | The check |
 
@@ -876,3 +876,24 @@ asset browser's "Import Settings…" and "Collision" ▸ "None", "Mesh",
 | "a *Kind* collider's model has no mesh *n* to build collision from"* | Generate If Missing finding nothing to build from |
 | Box3dPhysics.cpp's `generate`*, `readModel`* (was `readCooked`), `CollisionData::generated`*, `generatedHullVertices`*, `slowGenerationMilliseconds`* | Building at load |
 | `AssetsPanel.ShowMenu` returning its `ContextMenu`* | For the check |
+
+## "Generate" wording and the Mesh field's notice (2026-11-11, editor usability step 1, amended again)
+
+Settled as drafted: the model's setting shown as "Generate Collision" (the
+key stays `Collision`); the notice "*model* has no *Kind* collision
+generated", its button "Generate *Kind* collision for *model*"; the
+right-click "Generate Collision" ▸ "None", "Mesh", "Convex"; the warning "a
+*Kind* collider's model has no *Kind* collision generated (set the model's
+Generate Collision, or the collider's Generate If Missing)". These replace
+the "isn't imported with" wording above. Names added while building are
+placeholders (*):
+
+| Name | What it is |
+|---|---|
+| `[Label]`* (`LabelAttribute`*, `SerializedField.Label`*) | A field's shown name |
+| The Collision setting's tooltip "Collision data to generate for Mesh or Convex colliders: Mesh for level geometry, Convex for anything that moves"* | Text users see |
+| "generated a model's *kind* collision for mesh *n* at load (*t* ms); set the model's Generate Collision to generate it ahead of time"* | The slow-build information (replaces "built a model's …") |
+| `ColliderNotice.GenerateButton`* (was `ReimportButton`), `FieldEditor.Warns`*, the style `field-warning`* | The notice by the Mesh field |
+
+The collider's tooltip also changes, to "Generate the collision data at load
+if the model has none generated"*.

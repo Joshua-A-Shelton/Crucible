@@ -189,7 +189,7 @@ public sealed class AssetsPanel : EditorPanel
                         });
                         item.IsChecked = kind == chosen;
                     }
-                    menu.Add(new MenuItem("Collision") { Submenu = collision });
+                    menu.Add(new MenuItem("Generate Collision") { Submenu = collision });
                 }
             }
         }

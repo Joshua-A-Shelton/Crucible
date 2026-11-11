@@ -270,11 +270,6 @@ public sealed class ComponentSection : UIElement, IFieldOwner
         body.Classes.Add("component");
         body.Add(header);
         body.Add(_fields);
-        if (saved.Type == typeof(Crucible.Physics.Collider))
-        {
-            _notice = new ColliderNotice(inspector.Shell);
-            body.Add(_notice);
-        }
         AddChild(body);
         foreach (SerializedField field in saved.Fields)
         {
@@ -284,9 +279,16 @@ public sealed class ComponentSection : UIElement, IFieldOwner
                 label.Classes.Add("field-header");
                 _fields.Add(label);
             }
-            FieldEditor editor = new(this, field, InspectorPanel.Pretty(field.Name), [field.Name]);
+            FieldEditor editor = new(this, field, field.Label ?? InspectorPanel.Pretty(field.Name), [field.Name]);
             _editors.Add(editor);
             _fields.Add(editor);
+            // A Collider's model without its collision: said right under
+            // where the model is chosen (ADR 0087).
+            if (saved.Type == typeof(Crucible.Physics.Collider) && field.Name == "MeshIndex")
+            {
+                _notice = new ColliderNotice(inspector.Shell);
+                _fields.Add(_notice);
+            }
         }
         if (saved.Fields.Count == 0)
         {
@@ -323,7 +325,15 @@ public sealed class ComponentSection : UIElement, IFieldOwner
             bool overridden = added || (prefab is not null && !JsonNode.DeepEquals(value, prefab[editor.Field.Name]));
             editor.Update(value, overridden);
         }
-        _notice?.Update(_value);
+        if (_notice is not null)
+        {
+            _notice.Update(_value);
+            bool missing = _notice.Visibility == Visibility.Visible;
+            foreach (FieldEditor editor in _editors.Where(editor => editor.Field.Name is "Mesh" or "MeshIndex"))
+            {
+                editor.Warns = missing;
+            }
+        }
     }
 
     /// <summary>Sets the value at a path inside the component (keys and list indices) and records it.</summary>
@@ -476,7 +486,7 @@ public sealed class ImportSettingsSection : UIElement, IFieldOwner
                 label.Classes.Add("field-header");
                 list.Add(label);
             }
-            FieldEditor editor = new(this, field, InspectorPanel.Pretty(field.Name), [field.Name]);
+            FieldEditor editor = new(this, field, field.Label ?? InspectorPanel.Pretty(field.Name), [field.Name]);
             _editors.Add(editor);
             list.Add(editor);
         }
@@ -652,6 +662,13 @@ public sealed class FieldEditor : UIElement
 
     /// <summary>Whether a prefab instance's value differs from its prefab's (class <c>overridden</c>).</summary>
     public bool IsOverridden { get; private set; }
+
+    /// <summary>Whether its name is marked as needing attention (class <c>field-warning</c>): a Collider's model without its collision.</summary>
+    public bool Warns
+    {
+        get => _name.Classes.Contains("field-warning");
+        set => _name.Classes.Set("field-warning", value);
+    }
 
     /// <summary>The value shown, as JSON.</summary>
     public JsonNode? Value => _value;
@@ -960,7 +977,7 @@ public sealed class FieldEditor : UIElement
                     Fold();
                     foreach (SerializedField field in Field.Fields)
                     {
-                        FieldEditor editor = new(_section, field, InspectorPanel.Pretty(field.Name), [.. _path, field.Name]);
+                        FieldEditor editor = new(_section, field, field.Label ?? InspectorPanel.Pretty(field.Name), [.. _path, field.Name]);
                         _items.Add(editor);
                         _children.Add(editor);
                     }

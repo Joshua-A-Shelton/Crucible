@@ -104,3 +104,26 @@ the way to make collision data. Decided by the owner:
   returns its menu*, for the check.
 - `ImportSettingsChecks` also chooses Collision from the right-click menu,
   sees the "(replaces Mesh)" button, and turns Generate If Missing on.
+
+## Amendment (2026-11-11): "generate", not "import", and the notice by the Mesh field
+
+On a second try, the owner found "imported with collision" misleading too:
+importing suggests the model already holds collision data that wasn't
+brought over, when it's generated from the model. And the notice, at the
+bottom of the Collider and only sometimes there, was easy to miss below the
+fold. Decided by the owner:
+
+- **Generate.** The model's setting is shown as "Generate Collision" (a new
+  `[Label]`* editor hint gives a field a shown name; the sidecar key stays
+  `Collision`, so no settings change). The notice reads "Walker.gltf has no
+  Convex collision generated"; its button "Generate Convex collision for
+  Walker.gltf" (with "(replaces Mesh)"); the right-click submenu "Generate
+  Collision" ▸ None, Mesh, Convex; the warning "a Convex collider's model has
+  no Convex collision generated (set the model's Generate Collision, or the
+  collider's Generate If Missing)".
+- **By the Mesh field.** The notice sits right under the Collider's Mesh and
+  Mesh Index, and their names turn amber (`FieldEditor.Warns`*, class
+  `field-warning`*) while the data is missing.
+- `ImportSettingsChecks` sets its copy's Generate Collision back to None
+  first, so a setting changed by hand in the project doesn't break it.
+

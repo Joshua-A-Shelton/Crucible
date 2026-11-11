@@ -500,8 +500,8 @@ CollisionData* readModel(const assets::AssetId& id, int32_t meshIndex, bool hull
         if (made != nullptr && elapsed > slowGenerationMilliseconds)
         {
             // The runtime knows assets by ID, not by file: the editor's Log names the time.
-            log::info("built a model's %s collision for mesh %d at load (%.0f ms); set its Collision import "
-                      "setting to prepare it at import",
+            log::info("generated a model's %s collision for mesh %d at load (%.0f ms); set the model's Generate "
+                      "Collision to generate it ahead of time",
                       hull ? "convex" : "mesh", meshIndex, elapsed);
         }
     }
@@ -543,8 +543,8 @@ CollisionData* acquireData(const assets::AssetId& id, int32_t meshIndex, bool hu
             found->hull = hull;
             if (!generateIfMissing)
             {
-                log::warning("a %s collider's model isn't imported with %s collision (set its Collision import "
-                             "setting, or the collider's Generate If Missing)",
+                log::warning("a %s collider's model has no %s collision generated (set the model's Generate "
+                             "Collision, or the collider's Generate If Missing)",
                              hull ? "Convex" : "Mesh", hull ? "Convex" : "Mesh");
             }
             else

@@ -95,12 +95,13 @@ for.
   colliders that ask for it, so one that doesn't still has no shape and says
   so. A model is still imported with one kind; the other kind can be built
   at load.
-- A build longer than 10 ms says so in the Log (information): "built a
-  model's convex collision for mesh 0 at load (14 ms); set its Collision
-  import setting to prepare it at import"*. The runtime knows assets by ID,
+- A build longer than 10 ms says so in the Log (information): "generated a
+  model's convex collision for mesh 0 at load (14 ms); set the model's
+  Generate Collision to generate it ahead of time"* (worded as amended in
+  ADR 0087). The runtime knows assets by ID,
   not by file, so the model isn't named (drafted with its file name).
-- The warning for missing data now reads "a Convex collider's model isn't
-  imported with Convex collision (set its Collision import setting, or the
-  collider's Generate If Missing)".
+- The warning for missing data now reads "a Convex collider's model has no
+  Convex collision generated (set the model's Generate Collision, or the
+  collider's Generate If Missing)" (ADR 0087's second amendment).
 - Tested by `CollisionCookingTests`' "Generate If Missing builds collision at
   load from a model imported without it".

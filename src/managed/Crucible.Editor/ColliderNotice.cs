@@ -9,17 +9,17 @@ using Crucible.UI;
 namespace Crucible.Editor;
 
 /// <summary>
-/// Under a Mesh or Convex Collider whose model isn't imported with that
-/// kind of collision for its mesh (ADR 0087), unless the collider's Generate
-/// If Missing builds it at load: says so, with a button that sets the
-/// model's Collision import setting and reimports it. A model is imported
-/// with one kind for all its meshes, so the other kind replaces it.
+/// Under a Mesh or Convex Collider's Mesh field, when its model has no
+/// collision of that kind generated for its mesh (ADR 0087), unless the
+/// collider's Generate If Missing builds it at load: says so, with a button
+/// that sets the model's Generate Collision and reimports it. A model
+/// generates one kind for all its meshes, so the other kind replaces it.
 /// </summary>
 internal sealed class ColliderNotice : UIElement
 {
     private readonly Shell _shell;
     private readonly Label _text = new() { Wrap = true };
-    private readonly Button _reimport = new("");
+    private readonly Button _generate = new("");
     private string? _checked; // the model, kind, and mesh last looked at
     private AssetId _model;
     private ShapeKind _kind;
@@ -28,18 +28,18 @@ internal sealed class ColliderNotice : UIElement
     {
         _shell = shell;
         _text.Classes.Add("log-warning");
-        _reimport.Clicked += _ => Reimport();
-        _reimport.HorizontalAlignment = HorizontalAlignment.Start;
-        StackPanel body = new() { Spacing = 4, Margin = new Thickness(0, 4, 0, 0) };
+        _generate.Clicked += _ => Generate();
+        _generate.HorizontalAlignment = HorizontalAlignment.Start;
+        StackPanel body = new() { Spacing = 4, Margin = new Thickness(0, 2, 0, 4) };
         body.Add(_text);
-        body.Add(_reimport);
+        body.Add(_generate);
         AddChild(body);
         Visibility = Visibility.Collapsed;
     }
 
     public Label Text => _text;
 
-    public Button ReimportButton => _reimport;
+    public Button GenerateButton => _generate;
 
     protected override void OnAttached(UIRoot root) => _shell.AssetsChanged += Forget;
 
@@ -72,10 +72,10 @@ internal sealed class ColliderNotice : UIElement
         }
         string imported = _shell.Database!.SettingsOf(model)?["Collision"]?.GetValue<string>() ?? "None";
         string name = Path.GetFileName(entry!.Path);
-        _text.Text = $"{name} isn't imported with {kind} collision";
-        _reimport.Text = imported is "None" || imported == kind.ToString()
-            ? $"Reimport {name} with {kind} collision"
-            : $"Reimport {name} with {kind} collision (replaces {imported})";
+        _text.Text = $"{name} has no {kind} collision generated";
+        _generate.Text = imported is "None" || imported == kind.ToString()
+            ? $"Generate {kind} collision for {name}"
+            : $"Generate {kind} collision for {name} (replaces {imported})";
     }
 
     // Whether the model's imported file has data of the kind for the mesh;
@@ -103,7 +103,7 @@ internal sealed class ColliderNotice : UIElement
         }
     }
 
-    private void Reimport()
+    private void Generate()
     {
         if (_shell.Database?.SettingsOf(_model) is not { } settings)
         {

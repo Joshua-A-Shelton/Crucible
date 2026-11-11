@@ -57,6 +57,16 @@ public sealed class TooltipAttribute(string text) : Attribute
     public string Text { get; } = text;
 }
 
+/// <summary>
+/// Editor hint (ADR 0087): the name the inspector shows for the member, in
+/// place of its own (which stays its JSON key).
+/// </summary>
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false)]
+public sealed class LabelAttribute(string text) : Attribute
+{
+    public string Text { get; } = text;
+}
+
 /// <summary>Editor hint (ADR 0069): a heading shown above the member, starting a group.</summary>
 [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false)]
 public sealed class HeaderAttribute(string text) : Attribute

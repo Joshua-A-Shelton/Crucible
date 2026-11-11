@@ -89,7 +89,7 @@ struct CRUCIBLE_EXPOSE Collider
     bool isTrigger;                              // reports contacts but doesn't collide
     assets::AssetId mesh;                        // Mesh and Convex: the model
     int32_t meshIndex;                           // which of its meshes
-    CRUCIBLE_HINT_TOOLTIP("Build the collision data at load if the model wasn't imported with it")
+    CRUCIBLE_HINT_TOOLTIP("Generate the collision data at load if the model has none generated")
     bool generateIfMissing; // Mesh and Convex: build from the model's triangles when not imported (ADR 0086)
 };
 

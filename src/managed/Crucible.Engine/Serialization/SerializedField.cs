@@ -45,7 +45,8 @@ public sealed class SerializedField
     /// <summary>For generated code: <paramref name="fields"/> gives a nested type's table, read when first asked for.</summary>
     public SerializedField(string name, FieldKind kind, SerializedField? element = null, string[]? enumNames = null,
         Func<IReadOnlyList<SerializedField>>? fields = null, float min = float.NaN, float max = float.NaN,
-        string? tooltip = null, string? header = null, bool isColor = false, bool isLayers = false)
+        string? tooltip = null, string? header = null, bool isColor = false, bool isLayers = false,
+        string? label = null)
     {
         Name = name;
         Kind = kind;
@@ -58,6 +59,7 @@ public sealed class SerializedField
         Header = header;
         IsColor = isColor;
         IsLayers = isLayers;
+        Label = label;
     }
 
     /// <summary>The member's name and JSON key; empty for a list's or dictionary's items.</summary>
@@ -92,4 +94,7 @@ public sealed class SerializedField
 
     /// <summary>From <see cref="LayersAttribute"/>: a uint shown as a layer mask.</summary>
     public bool IsLayers { get; }
+
+    /// <summary>From <see cref="LabelAttribute"/>: the name the inspector shows, or null for its own.</summary>
+    public string? Label { get; }
 }

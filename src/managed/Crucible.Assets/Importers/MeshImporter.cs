@@ -77,10 +77,13 @@ public partial class MeshImportSettings
     public Dictionary<string, ClipImportSettings> Clips = [];
 
     /// <summary>
-    /// Collision data cooked for Mesh or Convex colliders (ADR 0086): Mesh
-    /// for level geometry (static bodies), Convex for props and anything that
-    /// moves.
+    /// Collision data generated for Mesh or Convex colliders as the model is
+    /// imported (ADR 0086): Mesh for level geometry (static bodies), Convex
+    /// for props and anything that moves. Shown as "Generate Collision" (ADR
+    /// 0087); the key stays Collision.
     /// </summary>
+    [Label("Generate Collision")]
+    [Tooltip("Collision data to generate for Mesh or Convex colliders: Mesh for level geometry, Convex for anything that moves")]
     public CollisionImport Collision = CollisionImport.None;
 
     /// <summary>The most vertices a convex hull keeps (4 to 128).</summary>

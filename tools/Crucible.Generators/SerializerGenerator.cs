@@ -26,6 +26,7 @@ public sealed class SerializerGenerator : IIncrementalGenerator
     private const string RangeName = "Crucible.Serialization.RangeAttribute";
     private const string TooltipName = "Crucible.Serialization.TooltipAttribute";
     private const string HeaderName = "Crucible.Serialization.HeaderAttribute";
+    private const string LabelName = "Crucible.Serialization.LabelAttribute";
     private const string ColorName = "Crucible.Serialization.ColorAttribute";
     private const string LayersName = "Crucible.Serialization.LayersAttribute";
     private const string InterfaceName = "Crucible.Serialization.IJsonSerialized`1";
@@ -221,7 +222,7 @@ public sealed class SerializerGenerator : IIncrementalGenerator
         Action<DiagnosticDescriptor, LocationInfo?, string[]> report)
     {
         float min = float.NaN, max = float.NaN;
-        string? tooltip = null, header = null;
+        string? tooltip = null, header = null, label = null;
         bool color = false, layers = false;
         foreach (AttributeData attribute in member.GetAttributes())
         {
@@ -247,6 +248,9 @@ public sealed class SerializerGenerator : IIncrementalGenerator
                 case HeaderName when attribute.ConstructorArguments.Length == 1:
                     header = attribute.ConstructorArguments[0].Value as string;
                     break;
+                case LabelName when attribute.ConstructorArguments.Length == 1:
+                    label = attribute.ConstructorArguments[0].Value as string;
+                    break;
                 case ColorName:
                     color = true;
                     if (shape.Kind is not (ShapeKind.Vector3 or ShapeKind.Vector4))
@@ -263,7 +267,7 @@ public sealed class SerializerGenerator : IIncrementalGenerator
                     break;
             }
         }
-        return new HintModel(min, max, tooltip, header, color, layers);
+        return new HintModel(min, max, tooltip, header, color, layers, label);
     }
 
     // Why the type can't carry generated serialization, or null if it can.
@@ -576,6 +580,10 @@ public sealed class SerializerGenerator : IIncrementalGenerator
             {
                 arguments.Add("isLayers: true");
             }
+            if (hints.Label is { } label)
+            {
+                arguments.Add($"label: {Literal(label)}");
+            }
         }
         return $"new {Field}({string.Join(", ", arguments)})";
     }
@@ -796,7 +804,8 @@ internal sealed record TypeShape(ShapeKind Kind, string Type, TypeShape? Element
     EquatableArray<string> EnumNames = default);
 
 // A member's editor hints (ADR 0069); NaN for no range.
-internal sealed record HintModel(float Min, float Max, string? Tooltip, string? Header, bool IsColor, bool IsLayers = false);
+internal sealed record HintModel(float Min, float Max, string? Tooltip, string? Header, bool IsColor, bool IsLayers = false,
+    string? Label = null);
 
 internal sealed record MemberModel(string Name, EquatableArray<string> FormerNames, TypeShape Shape, HintModel Hints);
 
