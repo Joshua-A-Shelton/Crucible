@@ -6,6 +6,7 @@
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/Diorama/Crucible.Samples.Diorama.csproj" />
+    <Project Path="samples/Metronome/Crucible.Samples.Metronome.csproj" />
     <Project Path="samples/Particles/Crucible.Samples.Particles.csproj" />
     <Project Path="samples/SceneRoundTrip/Crucible.Samples.SceneRoundTrip.csproj" />
     <Project Path="samples/UiShowcase/Crucible.Samples.UiShowcase.csproj" />

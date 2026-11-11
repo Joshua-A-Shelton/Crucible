@@ -551,7 +551,13 @@ Tried by hand by the owner on KWin. Step 3 is done. Step 4 built (ADR
 Trigger parameters, exit times, and 1D blend spaces kept in phase; events
 and windows from the model's sidecar, timestamped where the clip passed
 them; root motion through moveCharacter; two-bone and look-at IK slots.
-Tried by hand by the owner on KWin. Step 4 is done.
+Tried by hand by the owner on KWin. Step 4 is done. Step 5 built (ADR
+0082): Crucible's mixer in the core, mixing in SDL3's stream callback;
+lock-free command and feedback rings; sounds scheduled at their timestamp
+plus a fixed 50 ms delay, to the frame; buses with low-pass, ducking, and a
+Freeverb send; constant-power 3D panning; music switching on a beat or
+bar; .crsound and sounds made in code; samples/Metronome and its headless
+check.
 
 ## M9 — Physics
 

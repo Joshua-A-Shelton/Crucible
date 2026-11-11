@@ -722,3 +722,31 @@ events, root motion, and IK", `docs/learning/state-machines-and-events.md`,
 | `advancePoses`' `frameStartNs`*; the parameters `setting`* (`setFloat`, `setBool`) | Arguments (`value` is reserved by the binding generator) |
 | src/native/core/StateMachine.h* and .cpp*, `StateMachine`*, `parseStateMachine`*, `stateClips`*, `chooseTransition`*, `consumeTriggers`*, `StateProgress`*, `ClipWeight`*, `maxStateClips`* | The runtime's state machine half |
 | tests/native `markClip`*, `MachineBuilder`*, `worstJoint`* (moved), `blendPoses`*, `Character::pose`*, `Character::clock`* | Test support |
+
+## The mixer (2026-11-10, M8 step 5)
+
+Settled as drafted: crucible/SoundFile.h, the sound file `.crsound` (kind
+`SOND`, sections `INFO` and `PCMS`), `SoundInfo` (`sampleRate`,
+`channels`, `frameCount`, `encoding`, `beatsPerMinute`, `beatsPerBar`),
+`SoundEncoding::Pcm16`; src/native/core/Mixer.h and Mixer.cpp,
+`mixRate`, `maxVoices`, `maxBuses`, `reverbBus`; `setScheduleDelay`,
+`defaultScheduleDelay`, C# `AudioMixer.ScheduleDelay`; `MixerStats`
+(`voices`, `lateStarts`, `underruns`, `latencyEstimate`), `mixerStats`,
+C# `AudioMixer.Stats`; `startOfflineMixing`, `mixOffline`; `createSound`,
+`destroySound`; samples/Metronome; ADR 0082 "The mixer",
+`docs/learning/mixing-audio.md`; `MixerTests`, `AudioSchedulingTests`,
+`AudioEffectTests`, `SpatialAudioTests`, `MusicTests`. Names added while
+building are placeholders (*):
+
+| Name | What it is |
+|---|---|
+| `stopAll`* (crucible/Audio.h, `AudioService::stopAll`*), `NullAudioCounts::stopAlls`* | Stopping every sound (the editor's Stop) |
+| `startMixing`*, `stopMixing`*, `scheduleDelay`* | Starting the mixer on a device, stopping it, reading the delay |
+| `musicBus`* (1) | The bus music plays on |
+| `MixerStats::droppedCommands`* | Commands a full queue turned away |
+| `MemoryTag::Audio`* | Sounds and the mixer |
+| src/native/core/MixerService.cpp*; `Sound`*, `RingQueue`*, `Command`*, `CommandKind`*, `Feedback`*, `FeedbackKind`*, `Mixer`*, `updateMixerSources`*, `nullAudioService`* | The mixer's internals |
+| C# `AudioMixer.CreateSound`*, `DestroySound`*, `MixRate`*, `MaxVoices`*, `MasterBus`*, `MusicBus`*, `ReverbBus`*, `NoBus`* | The C# side |
+| The `startOfflineMixing` argument `startNs`* | When offline frame 0 is |
+| The Metronome's `MetronomeSystem`*, its options `seconds`* and `check`*, the test `samples.metronome`* | The sample |
+| tests/native/AudioTestSupport.h*: `Offline`*, `TestSound`*, `steady`*, `sine`*, `frameOf`*, `centre`*, `here`* | Test support |

@@ -73,12 +73,16 @@ public static class Host
         try
         {
             SurfaceHandle surface = Render.Api.CreateSurface(window);
+            // Crucible's mixer on the default audio device (ADR 0082); without
+            // one, the null audio stays and the game is silent.
+            StartAudio();
             try
             {
                 return RunLoop(options, window, surface);
             }
             finally
             {
+                Audio.Api.StopMixing();
                 Render.Api.DestroySurface(surface);
             }
         }
@@ -86,6 +90,17 @@ public static class Host
         {
             Platform.Api.DestroyWindow(window);
         }
+    }
+
+    private static void StartAudio()
+    {
+        if (!Audio.Api.StartMixing())
+        {
+            Console.WriteLine("Crucible.Hosting: no audio device: silent");
+            return;
+        }
+        Console.WriteLine($"Crucible.Hosting: audio: {Audio.AudioMixer.MixRate} Hz stereo, " +
+                          $"about {Audio.AudioMixer.Stats.LatencyEstimate * 1000:0} ms of output latency (estimated)");
     }
 
     private static int RunLoop(LaunchOptions options, WindowHandle window, SurfaceHandle surface)

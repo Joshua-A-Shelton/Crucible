@@ -1,6 +1,8 @@
 add_executable(crucible_native_tests
     Main.cpp
     AudioContractTests.cpp
+    AudioEffectTests.cpp
+    AudioSchedulingTests.cpp
     BinaryFileTests.cpp
     CoreTests.cpp
     DebugLineTests.cpp
@@ -11,6 +13,9 @@ add_executable(crucible_native_tests
     EcsTests.cpp
     InputSourceTests.cpp
     InputTimingTests.cpp
+    MixerTests.cpp
+    MusicTests.cpp
+    SpatialAudioTests.cpp
     JobTests.cpp
     LightTests.cpp
     MaterialTests.cpp

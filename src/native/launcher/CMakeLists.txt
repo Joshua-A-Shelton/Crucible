@@ -159,6 +159,16 @@ if(CRUCIBLE_BUILD_TESTS)
     set_tests_properties(launcher.jit.particles PROPERTIES LABELS integration ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "Crucible.Particles: 5000 particles, 60 fixed steps")
 
+    # Crucible's mixer (ADR 0082): the Metronome sample headless, mixing
+    # offline, its clicks scheduled from frames and checked to the frame.
+    set(metronomeGame
+        "${CRUCIBLE_DOTNET_ARTIFACTS_DIR}/bin/Crucible.Samples.Metronome/${CRUCIBLE_DOTNET_CONFIGURATION_DIR}/Crucible.Samples.Metronome.dll")
+    add_test(NAME samples.metronome
+        COMMAND crucible_launcher --managed-dir "${engineDirectory}" --headless --game "${metronomeGame}"
+            --game-arg check=1 --game-arg seconds=3)
+    set_tests_properties(samples.metronome PROPERTIES LABELS integration ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "Crucible.Metronome: [56] clicks, at most 0 frames from their times, 0 late")
+
     # The M5 demonstration (ADR 0056): the Diorama imported and rendered on
     # Vulkan, and on Windows on D3D12 too, the two images compared. The asset
     # pipeline's native library sits beside the core.

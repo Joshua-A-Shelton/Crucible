@@ -41,6 +41,8 @@ target_sources(crucible_core_objects PRIVATE
     Math.cpp
     MathProbe.cpp
     Memory.cpp
+    Mixer.cpp
+    MixerService.cpp
     Module.cpp
     Physics.cpp
     Platform.cpp

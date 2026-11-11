@@ -14,16 +14,20 @@
 //     AudioService.
 //
 // An implementation (a native module, ADR 0074) registers "Audio.Update",
-// replacing the default, and installs its service. Until one does, the
-// null audio stands in: silence that counts what it was asked to do.
+// replacing the default, and installs its service. The engine's own is
+// Crucible's mixer (ADR 0082), started by the host when an audio device
+// opens (startMixing) or by a headless check (startOfflineMixing). Until one
+// is, the null audio stands in: silence that counts what it was asked to do.
 
 #include <crucible/Ecs.h>
 #include <crucible/Export.h>
 #include <crucible/Expose.h>
 #include <crucible/Math.h>
 #include <crucible/RenderAssets.h>
+#include <crucible/SoundFile.h>
 
 #include <cstdint>
+#include <span>
 #include <string_view>
 
 namespace crucible::audio {
@@ -33,6 +37,19 @@ inline constexpr std::string_view updateSystemName = "Audio.Update";
 // Buses mix sounds together: 0 is the master, which the others feed.
 inline constexpr uint32_t masterBus = 0;
 inline constexpr uint32_t noBus = 0xFFFFFFFFu;
+
+// Crucible's mixer (ADR 0082): it mixes in stereo at mixRate, at most
+// maxVoices sounds at once on maxBuses buses. The last bus is the shared
+// reverb, which buses' reverb sends feed; music plays on musicBus.
+inline constexpr uint32_t mixRate = 48000;
+inline constexpr uint32_t maxVoices = 128;
+inline constexpr uint32_t maxBuses = 16;
+inline constexpr uint32_t reverbBus = maxBuses - 1;
+inline constexpr uint32_t musicBus = 1;
+// How long after its timestamp a scheduled sound starts: enough to cover a
+// frame at 30 fps (events are timestamped up to a frame in the past) and
+// the trip to the audio thread, so every sound is late by the same amount.
+inline constexpr float defaultScheduleDelay = 0.05f;
 
 enum class CRUCIBLE_EXPOSE Rolloff : uint32_t
 {
@@ -93,6 +110,7 @@ struct AudioService
     void (*defineSnapshot)(std::string_view name, uint32_t bus, float volume, BusEffects effects);
     void (*blendToSnapshot)(std::string_view name, float seconds);
     void (*playMusic)(assets::AssetId track, MusicTransition transition);
+    void (*stopAll)(float fadeSeconds);
 };
 
 // Replaces the service; the default is the null audio's. Main thread.
@@ -118,6 +136,40 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void defineSnapshot(std::string_view name, uint3
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void blendToSnapshot(std::string_view name, float seconds);
 // Switches the music to a track, crossfading, now or on a beat or bar.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void playMusic(assets::AssetId track, MusicTransition transition);
+// Stops every sound, music and sources included, fading out over
+// fadeSeconds; sources that play on start start again when next seen (the
+// editor's Stop).
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void stopAll(float fadeSeconds);
+
+// --- Crucible's mixer (ADR 0082) --------------------------------------------
+
+struct CRUCIBLE_EXPOSE MixerStats
+{
+    uint32_t voices;          // playing now
+    uint32_t lateStarts;      // scheduled sounds that arrived after their time, started at once
+    uint32_t underruns;       // times the device found nothing queued (an estimate of dropouts)
+    float latencyEstimate;    // seconds from mixing to the speaker: the device's buffer and what's queued
+    uint32_t droppedCommands; // commands the full queue turned away
+};
+
+// Opens the default audio device and installs the mixer; false (the null
+// audio stays) if there's no device. Main thread.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE bool startMixing();
+// The mixer without a device: the caller pulls samples with mixOffline, the
+// first at startNs on the input clock (a headless check, tests).
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void startOfflineMixing(uint64_t startNs);
+// Mixes the next into.size() / 2 frames, interleaved stereo, offline.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void mixOffline(std::span<float> into);
+// Closes the device (or offline mixing) and puts the null audio back.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void stopMixing();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void setScheduleDelay(float seconds);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE float scheduleDelay();
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE MixerStats mixerStats();
+
+// A sound made in code (frames x channels samples, interleaved), playable
+// by its ID like an imported one; destroySound frees it once nothing plays it.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE assets::AssetId createSound(assets::SoundInfo info, std::span<const int16_t> samples);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void destroySound(assets::AssetId sound);
 
 // What the null audio was asked to do, for tests.
 struct CRUCIBLE_EXPOSE NullAudioCounts
@@ -128,6 +180,7 @@ struct CRUCIBLE_EXPOSE NullAudioCounts
     uint32_t snapshots;      // blendToSnapshot calls
     uint32_t musicChanges;   // playMusic calls
     uint32_t sourcesStarted; // AudioSources Audio.Update started (playOnStart)
+    uint32_t stopAlls;       // stopAll calls
 };
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL NullAudioCounts nullAudioCounts();
 

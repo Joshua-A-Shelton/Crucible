@@ -127,3 +127,6 @@ Longer explanations of decisions, written to be reread:
 - [Root motion and IK](docs/learning/root-motion-and-ik.md) (ADR 0081):
   moving the character by its animation, the law of cosines for two-bone
   IK, poles, look-at, and weights.
+- [Mixing audio](docs/learning/mixing-audio.md) (ADR 0082): the audio
+  thread's deadline, lock-free rings, resampling, constant-power panning,
+  a low-pass, ducking, Freeverb, and sample-exact scheduling.

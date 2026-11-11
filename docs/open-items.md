@@ -221,6 +221,13 @@ is, and record which version fixed it.
 - Animation state machine graph editor, when the action RPG starts. → 0026
 - Root motion from a clip that turns isn't tested: the Walker walks
   straight. Test it with the first turning clip. → 0081
+- Audio output latency is estimated from buffer sizes, not measured (ADR
+  0028 asks for it per platform): measure it with a loopback cable (output
+  to input, a click timed both ways) on Linux and Windows. → 0082
+- Audio dropouts are estimated from late callbacks; SDL doesn't report
+  them. → 0082
+- The AudioSource `occlusion` field is ignored by Crucible's mixer (a
+  low-pass per voice would honour it). → 0075, 0082
 - Foot IK leaves the foot turned with the shin; flattening it to the ground
   (a third joint) when foot planting needs it. → 0081
 - **Box3D checkpoint, before the action RPG starts:** ragdoll-capable

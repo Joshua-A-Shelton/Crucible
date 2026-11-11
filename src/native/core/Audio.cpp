@@ -1,5 +1,8 @@
 // The audio contract's engine side (ADR 0075): the installed service and
-// the null audio that stands in until an implementation replaces it.
+// the null audio that stands in until an implementation replaces it (the
+// engine's own mixer, ADR 0082: MixerService.cpp).
+
+#include "Mixer.h"
 
 #include <crucible/Audio.h>
 #include <crucible/HashMap.h>
@@ -20,6 +23,7 @@ struct Counts
     std::atomic<uint32_t> snapshots{0};
     std::atomic<uint32_t> musicChanges{0};
     std::atomic<uint32_t> sourcesStarted{0};
+    std::atomic<uint32_t> stopAlls{0};
     std::atomic<uint32_t> nextVoice{1};
 };
 
@@ -58,8 +62,11 @@ void countMusic(assets::AssetId, MusicTransition)
     ++counts.musicChanges;
 }
 
+struct Started;
+void countStopAll(float);
+
 constexpr AudioService nullAudio{countPlay,      countStop,     countBusVolume, countBusEffects,
-                                 ignoreSnapshot, countSnapshot, countMusic};
+                                 ignoreSnapshot, countSnapshot, countMusic,     countStopAll};
 
 AudioService installed = nullAudio;
 
@@ -73,8 +80,19 @@ struct Started
 
 Started started;
 
+void countStopAll(float)
+{
+    ++counts.stopAlls;
+    started.entities.clear();
+}
+
 void update(const loop::SystemContext& context, void*)
 {
+    // Crucible's mixer, once started, does the work.
+    if (updateMixerSources(context))
+    {
+        return;
+    }
     if (started.world != context.world)
     {
         if (started.sources != nullptr)
@@ -150,10 +168,20 @@ void playMusic(assets::AssetId track, MusicTransition transition)
     installed.playMusic(track, transition);
 }
 
+void stopAll(float fadeSeconds)
+{
+    installed.stopAll(fadeSeconds);
+}
+
 NullAudioCounts nullAudioCounts()
 {
-    return {counts.plays,     counts.stops,        counts.busChanges,
-            counts.snapshots, counts.musicChanges, counts.sourcesStarted};
+    return {counts.plays,        counts.stops,          counts.busChanges, counts.snapshots,
+            counts.musicChanges, counts.sourcesStarted, counts.stopAlls};
+}
+
+const AudioService& nullAudioService()
+{
+    return nullAudio;
 }
 
 void registerAudio()

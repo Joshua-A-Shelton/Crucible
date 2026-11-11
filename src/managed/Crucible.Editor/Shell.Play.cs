@@ -226,6 +226,8 @@ internal sealed partial class Shell
             return;
         }
         StopSystems();
+        // The game's sounds stop with it, music and sources too (ADR 0082).
+        Audio.Api.StopAll(0.1f);
         IsPlaying = false;
         GameInput = null;
         World world = World;
