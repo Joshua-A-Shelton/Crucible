@@ -75,6 +75,16 @@ public partial class MeshImportSettings
 
     /// <summary>Events and windows on the model's clips, by clip name (ADR 0081).</summary>
     public Dictionary<string, ClipImportSettings> Clips = [];
+
+    /// <summary>
+    /// Collision data cooked for Mesh or Convex colliders (ADR 0086): Mesh
+    /// for level geometry (static bodies), Convex for props and anything that
+    /// moves.
+    /// </summary>
+    public CollisionImport Collision = CollisionImport.None;
+
+    /// <summary>The most vertices a convex hull keeps (4 to 128).</summary>
+    public int MaxHullVertices = 32;
 }
 
 /// <summary>A clip's events and windows, marked on its timeline (ADR 0081).</summary>
@@ -125,8 +135,9 @@ public sealed class MeshImporter : Importer<MeshImportSettings>
     public override string Name => "Mesh";
 
     // 2: generated materials (MTLS); 3: remapped slots (MRMP); 5: skins and
-    // clips; 6: clip events and windows.
-    public override int Version => 6;
+    // clips; 6: clip events and windows; 7: collision data (COLM, COLH; moving
+    // the Box3D pin to a changed data format bumps it too).
+    public override int Version => 7;
 
     public override IReadOnlyList<string> Extensions => [".gltf", ".glb"];
 
@@ -179,6 +190,8 @@ public sealed class MeshImporter : Importer<MeshImportSettings>
         LodMaxError = Math.Max(0, settings.LodMaxError),
         MaxInfluences = settings.MaxInfluences > 4 ? 8u : 4u,
         ClipSampleRate = Math.Clamp(settings.ClipSampleRate, 1, 240),
+        Collision = settings.Collision,
+        MaxHullVertices = (uint)Math.Clamp(settings.MaxHullVertices, 4, 128),
     };
 
     /// <summary>

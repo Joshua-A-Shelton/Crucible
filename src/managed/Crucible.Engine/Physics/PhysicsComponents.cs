@@ -32,6 +32,24 @@ public partial struct RigidBody
 [Serialized]
 public partial struct Collider
 {
+    /// <summary>
+    /// Collision data built now from triangles the game made (facing as
+    /// Crucible's meshes do), for a Mesh collider on a static body: set the collider's
+    /// <c>Mesh</c> to the ID, <c>MeshIndex</c> 0. Throws if it can't be made.
+    /// </summary>
+    public static Assets.AssetId CreateMesh(ReadOnlySpan<System.Numerics.Vector3> positions, ReadOnlySpan<uint> indices) =>
+        Made(Api.CreateCollisionMesh(positions, indices));
+
+    /// <summary>A convex hull of the points (at most <paramref name="maxVertices"/>, 4 to 128) for a Convex collider.</summary>
+    public static Assets.AssetId CreateHull(ReadOnlySpan<System.Numerics.Vector3> points, int maxVertices = 32) =>
+        Made(Api.CreateCollisionHull(points, (uint)Math.Clamp(maxVertices, 4, 128)));
+
+    /// <summary>Frees collision data made with <see cref="CreateMesh"/> or <see cref="CreateHull"/>.</summary>
+    public static void DestroyShape(Assets.AssetId shape) => Api.DestroyCollisionShape(shape);
+
+    private static Assets.AssetId Made(Assets.AssetId id) =>
+        id.IsNone ? throw new ArgumentException("No collision data could be made from that geometry.") : id;
+
     /// <summary>Debug lines along every collider's outline, this frame (while editing too).</summary>
     public static void DrawColliders(Ecs.World world, System.Numerics.Vector4 color) =>
         Api.DrawColliders(world.Live, color);

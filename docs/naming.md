@@ -813,3 +813,24 @@ tried step 1 by hand), `box3d` in place of `crucible_box3d`:
 | `View.Colliders`*, `Shell.ShowsColliders`* | The editor's command and state |
 | CMake target `box3d`* (Box3D's own, from its CMake; drafted as `crucible_box3d`, a target of ours, which building through Box3D's CMake made unneeded) | The library |
 | tests/native/PhysicsTestSupport.h*: `Scene`*, `tick`*, `step`*, `seconds`*, `events`*, `box`*, `sphere`*, `dynamic`*, `ground`* | Test support |
+
+## Mesh and convex colliders (2026-11-11, M9 step 2)
+
+Settled as drafted: `MeshImportSettings.Collision` (`CollisionImport`:
+`None`, `Mesh`, `Convex`), `MaxHullVertices`; the MESH sections `COLM` and
+`COLH`, `CollisionEntry` (`offset`, `size`); `physics::cookCollisionMesh`,
+`cookCollisionHull`, `createCollisionMesh`, `createCollisionHull`,
+`destroyCollisionShape`, C# `Collider.CreateMesh`, `CreateHull`,
+`DestroyShape`; ADR 0086 "Mesh and convex colliders",
+`docs/learning/collision-meshes.md`; `MeshColliderTests`,
+`ConvexColliderTests`, `CollisionCookingTests`,
+`MeshImporterTests.TheCollisionSettingCooksEachMesh`. The MESH version
+stays 3 (drafted to bump; the sections are optional). Names added while
+building are placeholders (*):
+
+| Name | What it is |
+|---|---|
+| `reloadCollisionAsset`* (C# `Api.ReloadCollisionAsset`) | Forgetting a reimported model's collision data |
+| `MeshSettings::collision`*, `maxHullVertices`* (native) | The importer's settings |
+| Box3dPhysics.cpp's `CollisionData`*, `acquireData`*, `releaseData`*, `retire`*, `readCooked`*, `makeMesh`*, `makeHull`*, `adopt`* | The runtime's collision cache |
+| The made IDs' "crcoll" prefix* | Telling made data from a model's |

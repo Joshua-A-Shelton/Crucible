@@ -30,6 +30,14 @@ using assets::MeshNode;
 using assets::MeshRange;
 using assets::TextureRole;
 
+// Collision data cooked into the model for Mesh and Convex colliders (ADR 0086).
+enum class CRUCIBLE_EXPOSE CollisionImport : uint32_t
+{
+    None,
+    Mesh,   // each mesh's triangles: level geometry, static bodies
+    Convex, // each mesh's convex hull: props, anything that moves
+};
+
 struct CRUCIBLE_EXPOSE MeshSettings
 {
     bool optimize;         // vertex cache, overdraw, and fetch order
@@ -41,6 +49,9 @@ struct CRUCIBLE_EXPOSE MeshSettings
     // Skins and clips (ADR 0078):
     uint32_t maxInfluences; // joints per vertex, 4 or 8; the strongest are kept, renormalized
     float clipSampleRate;   // samples per second clips are resampled at
+    // Collision (ADR 0086):
+    CollisionImport collision;
+    uint32_t maxHullVertices; // 4 to 128
 };
 
 struct CRUCIBLE_EXPOSE MeshSectionInfo

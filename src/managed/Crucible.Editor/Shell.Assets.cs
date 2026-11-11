@@ -136,6 +136,8 @@ internal sealed partial class Shell
             {
                 Crucible.Animation.Api.ReloadAnimationAsset(clip.Id);
             }
+            // Its collision data, and the colliders built from it (ADR 0086).
+            Crucible.Physics.Api.ReloadCollisionAsset(result.Id);
             try
             {
                 if (RenderAssets.Reload(result.Id))

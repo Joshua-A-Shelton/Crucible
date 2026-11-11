@@ -139,3 +139,6 @@ Longer explanations of decisions, written to be reread:
 - [Fixed-step physics](docs/learning/fixed-step-physics.md) (ADR 0085): why
   physics steps at a fixed rate, interpolating between ticks, reconciling
   the ECS with Box3D, and moving dynamic, kinematic, and static bodies.
+- [Collision meshes](docs/learning/collision-meshes.md) (ADR 0086): triangle
+  meshes and convex hulls, cooking bounding-volume trees at import, building
+  them at run time, and which way a triangle faces.

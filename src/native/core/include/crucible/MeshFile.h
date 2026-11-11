@@ -24,6 +24,9 @@
 //   SKIN  SkinInfo, when any mesh is skinned (ADR 0078)
 //   JNTS  JointEntry, the skeleton's joints, each after its parent
 //   NAME  UTF-8 names, referenced by offset and length
+//   COLM  collision meshes (optional, ADR 0086): a CollisionEntry per mesh,
+//         then each mesh's Box3D mesh data (b3MeshData), 16-byte aligned
+//   COLH  collision hulls (optional, likewise): Box3D hull data (b3HullData)
 // A stream is present when any mesh has the attribute; meshes without it
 // hold zeros there (MeshEntry::attributes says which are real).
 // Positions are in meters; front faces are clockwise. A skinned mesh's
@@ -89,6 +92,14 @@ struct CRUCIBLE_EXPOSE MeshRange
     uint32_t indexByteOffset; // into INDX
     uint32_t indexCount;
     int32_t material; // into MATL, or -1
+};
+
+// Where a mesh's cooked collision data sits in its COLM or COLH section:
+// bytes from the section's start (size 0: none for this mesh).
+struct CRUCIBLE_EXPOSE CollisionEntry
+{
+    uint32_t offset;
+    uint32_t size;
 };
 
 struct CRUCIBLE_EXPOSE MeshNode

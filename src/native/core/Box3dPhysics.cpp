@@ -19,10 +19,13 @@
 
 #include "Box3dPhysics.h"
 
+#include <crucible/AssetSource.h>
+#include <crucible/BinaryFile.h>
 #include <crucible/DebugLines.h>
 #include <crucible/HashMap.h>
 #include <crucible/Jobs.h>
 #include <crucible/Memory.h>
+#include <crucible/MeshFile.h>
 #include <crucible/Systems.h>
 #include <crucible/Transform.h>
 #include <crucible/Vector.h>
@@ -31,6 +34,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 
 namespace crucible::physics {
@@ -55,6 +59,16 @@ void release(void* memory, size_t size)
     if (memory != nullptr)
     {
         free(memory, size, tag);
+    }
+}
+
+void setAllocator()
+{
+    static bool set = false;
+    if (!set)
+    {
+        b3SetAllocator(allocate, release);
+        set = true;
     }
 }
 
@@ -174,10 +188,13 @@ bool same(const Collider& a, const Collider& b)
 
 // --- Worlds and bodies ------------------------------------------------------
 
+struct CollisionData;
+
 struct Body
 {
     b3BodyId body = b3_nullBodyId;
     b3ShapeId shape = b3_nullShapeId;
+    CollisionData* data = nullptr;    // a Mesh or Convex shape's
     BodyKind kind = BodyKind::Static; // a Collider alone is static
     // What the shape was made from.
     Collider collider{};
@@ -199,6 +216,176 @@ struct Body
     Quaternion currentRotation = Quaternion::identity();
     uint32_t seen = 0;
 };
+
+// --- Collision data (ADR 0086) ---------------------------------------------
+//
+// Box3D's mesh and hull data, by model and mesh: read from a model's COLM or
+// COLH section (cooked at import), or made at run time. Self-contained blobs,
+// kept 16-byte aligned. A mesh shape refers to its data rather than copying
+// it, so data is counted by the bodies using it; data a reload or destroy
+// retires is freed once none do, and bodies using it rebuild their shapes.
+
+struct CollisionData
+{
+    assets::AssetId id{};
+    int32_t meshIndex = 0;
+    bool hull = false;
+    void* bytes = nullptr; // null: there's none (so it isn't read again)
+    size_t size = 0;
+    uint32_t refs = 0;
+    bool retired = false;
+};
+
+Vector<CollisionData*> collisionData{tag}; // every live and retired entry
+uint32_t createdShapes = 0;
+
+void freeData(CollisionData* data)
+{
+    if (data->bytes != nullptr)
+    {
+        free(data->bytes, data->size, tag);
+    }
+    destroy(tag, data);
+}
+
+void retire(CollisionData* data)
+{
+    data->retired = true;
+    if (data->refs == 0)
+    {
+        for (size_t i = 0; i < collisionData.size(); ++i)
+        {
+            if (collisionData[i] == data)
+            {
+                collisionData.removeSwap(i);
+                break;
+            }
+        }
+        freeData(data);
+    }
+}
+
+void releaseData(CollisionData*& data)
+{
+    if (data != nullptr && --data->refs == 0 && data->retired)
+    {
+        CollisionData* gone = data;
+        for (size_t i = 0; i < collisionData.size(); ++i)
+        {
+            if (collisionData[i] == gone)
+            {
+                collisionData.removeSwap(i);
+                break;
+            }
+        }
+        freeData(gone);
+    }
+    data = nullptr;
+}
+
+// An aligned copy of a blob, its size from its own byte count.
+CollisionData* holding(const void* blob, size_t size, bool hull)
+{
+    CollisionData* data = create<CollisionData>(tag);
+    data->hull = hull;
+    data->bytes = tryAllocate(size, 16, tag);
+    if (data->bytes == nullptr)
+    {
+        destroy(tag, data);
+        return nullptr;
+    }
+    std::memcpy(data->bytes, blob, size);
+    data->size = size;
+    return data;
+}
+
+bool validBlob(const void* blob, size_t size, bool hull)
+{
+    if (hull)
+    {
+        const auto* data = static_cast<const b3HullData*>(blob);
+        return size >= sizeof(b3HullData) && data->version == B3_HULL_VERSION && data->byteCount > 0 &&
+               static_cast<size_t>(data->byteCount) <= size;
+    }
+    const auto* data = static_cast<const b3MeshData*>(blob);
+    return size >= sizeof(b3MeshData) && data->version == B3_MESH_VERSION && data->byteCount > 0 &&
+           static_cast<size_t>(data->byteCount) <= size;
+}
+
+// A model's mesh's cooked data, from its MESH file; null if it has none.
+CollisionData* readCooked(const assets::AssetId& id, int32_t meshIndex, bool hull)
+{
+    Vector<uint8_t> bytes(tag);
+    auto deliver = [](void* context, const uint8_t* data, uint64_t size) {
+        static_cast<Vector<uint8_t>*>(context)->assign(std::span<const uint8_t>(data, static_cast<size_t>(size)));
+    };
+    if (assets::assetSource().read(&id, &bytes, deliver) != 0)
+    {
+        return nullptr;
+    }
+    Result<binary::File*> opened = binary::parseFile(bytes.span(), assets::meshFileKind, assets::meshFileVersion);
+    if (!opened)
+    {
+        return nullptr;
+    }
+    binary::File* file = opened.value();
+    CollisionData* made = nullptr;
+    const int32_t index = binary::findSection(*file, binary::tag(hull ? "COLH" : "COLM"));
+    if (index >= 0)
+    {
+        Vector<uint8_t> section(tag);
+        section.resize(static_cast<size_t>(binary::sectionInfo(*file, static_cast<uint32_t>(index)).size));
+        if (binary::readSection(*file, static_cast<uint32_t>(index), section.span()) && meshIndex >= 0 &&
+            (static_cast<size_t>(meshIndex) + 1) * sizeof(assets::CollisionEntry) <= section.size())
+        {
+            assets::CollisionEntry entry;
+            std::memcpy(&entry, section.data() + static_cast<size_t>(meshIndex) * sizeof(entry), sizeof(entry));
+            if (entry.size > 0 && uint64_t{entry.offset} + entry.size <= section.size() &&
+                validBlob(section.data() + entry.offset, entry.size, hull))
+            {
+                made = holding(section.data() + entry.offset, entry.size, hull);
+            }
+        }
+    }
+    binary::closeFile(file);
+    return made;
+}
+
+// The live data for a collider, read if it hasn't been; null if there's
+// none (said once).
+CollisionData* acquireData(const assets::AssetId& id, int32_t meshIndex, bool hull)
+{
+    CollisionData* found = nullptr;
+    for (CollisionData* data : collisionData)
+    {
+        if (!data->retired && data->id == id && data->meshIndex == meshIndex && data->hull == hull)
+        {
+            found = data;
+        }
+    }
+    if (found == nullptr)
+    {
+        found = readCooked(id, meshIndex, hull);
+        if (found == nullptr)
+        {
+            found = create<CollisionData>(tag); // none: remembered, so it's said and read once
+            found->hull = hull;
+            std::fprintf(stderr,
+                         "crucible: a %s collider's model has no cooked %s data for mesh %d (set its Collision "
+                         "import setting to %s)\n",
+                         hull ? "Convex" : "Mesh", hull ? "hull" : "mesh", meshIndex, hull ? "Convex" : "Mesh");
+        }
+        found->id = id;
+        found->meshIndex = meshIndex;
+        collisionData.pushBack(found);
+    }
+    if (found->bytes == nullptr)
+    {
+        return nullptr;
+    }
+    ++found->refs;
+    return found;
+}
 
 struct Task
 {
@@ -269,12 +456,7 @@ PhysicsWorld& worldOf(const ecs::World& world)
     {
         return *found;
     }
-    static bool allocatorSet = false;
-    if (!allocatorSet)
-    {
-        b3SetAllocator(allocate, release);
-        allocatorSet = true;
-    }
+    setAllocator();
     PhysicsWorld* made = create<PhysicsWorld>(tag);
     made->world = &world;
     b3WorldDef def = b3DefaultWorldDef();
@@ -336,6 +518,7 @@ void buildShape(Body& body, ecs::Entity entity, const Collider& collider, Vector
         b3DestroyShape(body.shape, false);
         body.shape = b3_nullShapeId;
     }
+    releaseData(body.data);
     body.collider = collider;
     body.scale = scale;
     body.layers = layers;
@@ -378,7 +561,29 @@ void buildShape(Body& body, ecs::Entity entity, const Collider& collider, Vector
         break;
     }
     case ShapeKind::Mesh:
+        // Box3D collides triangle meshes only on static bodies.
+        if (body.kind != BodyKind::Static)
+        {
+            std::fprintf(stderr,
+                         "crucible: a Mesh collider is only for static bodies; use Convex for one that moves\n");
+            break;
+        }
+        body.data = acquireData(collider.mesh, collider.meshIndex, false);
+        if (body.data != nullptr)
+        {
+            body.shape =
+                b3CreateMeshShape(body.body, &def, static_cast<const b3MeshData*>(body.data->bytes), toB3(scale));
+        }
+        break;
     case ShapeKind::Convex:
+        body.data = acquireData(collider.mesh, collider.meshIndex, true);
+        if (body.data != nullptr)
+        {
+            // Cloned, scaled, and offset; the data could go now, but it's
+            // kept for the next body using it.
+            body.shape = b3CreateTransformedHullShape(body.body, &def, static_cast<const b3HullData*>(body.data->bytes),
+                                                      {toB3(offset), {{0, 0, 0}, 1}}, toB3(scale));
+        }
         break;
     }
 }
@@ -455,6 +660,7 @@ void syncBody(ecs::World& world, PhysicsWorld& physics, ecs::Entity entity, floa
         return;
     }
 
+    const bool kindChanged = kind != body->kind;
     if (kind != body->kind)
     {
         b3Body_SetType(body->body, typeOf(kind));
@@ -465,7 +671,7 @@ void syncBody(ecs::World& world, PhysicsWorld& physics, ecs::Entity entity, floa
         std::fabs(pose.scale.x - body->scale.x) + std::fabs(pose.scale.y - body->scale.y) +
                 std::fabs(pose.scale.z - body->scale.z) >
             1e-5f ||
-        layers != body->layers || mask != body->mask)
+        layers != body->layers || mask != body->mask || (body->data != nullptr && body->data->retired) || kindChanged)
     {
         buildShape(*body, entity, collider, pose.scale, layers, mask);
         applyMass(*body, rigid != nullptr ? rigid->mass : 0);
@@ -585,6 +791,7 @@ void sync(const loop::SystemContext& context, void*)
     for (const uint64_t key : gone)
     {
         Body* body = physics.bodies.find(key);
+        releaseData(body->data);
         if (!B3_IS_NULL(body->body))
         {
             b3DestroyBody(body->body);
@@ -769,6 +976,146 @@ BodyPose bodyPose(const ecs::World& world, ecs::Entity entity)
     return {true, fromB3(transform.p), normalize(fromB3(transform.q))};
 }
 
+using namespace box3d;
+
+namespace {
+
+// Box3D's mesh from triangles, owned by the caller (b3DestroyMesh); null if
+// it can't be made. Crucible's front faces are clockwise as seen in its
+// left-handed space, which is the order whose cross product (b - a) x (c - a)
+// points out of the front: Box3D's default winding, whatever the handedness.
+b3MeshData* makeMesh(std::span<const Vector3> positions, std::span<const uint32_t> indices)
+{
+    if (positions.empty() || indices.size() < 3 || positions.size() > INT32_MAX || indices.size() / 3 > INT32_MAX)
+    {
+        return nullptr;
+    }
+    for (const uint32_t index : indices)
+    {
+        if (index >= positions.size())
+        {
+            return nullptr;
+        }
+    }
+    static_assert(sizeof(Vector3) == sizeof(b3Vec3));
+    b3MeshDef def{};
+    def.vertices = const_cast<b3Vec3*>(reinterpret_cast<const b3Vec3*>(positions.data()));
+    def.stride = sizeof(b3Vec3);
+    def.indices = const_cast<int32_t*>(reinterpret_cast<const int32_t*>(indices.data()));
+    def.vertexCount = static_cast<int>(positions.size());
+    def.triangleCount = static_cast<int>(indices.size() / 3);
+    def.weldTolerance = 0.0001f;
+    def.weldVertices = true;
+    def.identifyEdges = true;
+    def.clockWiseWinding = false;
+    return b3CreateMesh(&def, nullptr, 0);
+}
+
+b3HullData* makeHull(std::span<const Vector3> points, uint32_t maxVertices)
+{
+    if (points.size() < 4 || points.size() > INT32_MAX)
+    {
+        return nullptr;
+    }
+    return b3CreateHull(reinterpret_cast<const b3Vec3*>(points.data()), static_cast<int>(points.size()),
+                        static_cast<int>(std::clamp(maxVertices, 4u, 128u)));
+}
+
+// A made shape under a new ID: "crcoll" and a count.
+assets::AssetId adopt(const void* blob, size_t size, bool hull)
+{
+    CollisionData* data = holding(blob, size, hull);
+    if (data == nullptr)
+    {
+        return {};
+    }
+    assets::AssetId id{};
+    std::memcpy(id.bytes, "crcoll", 6);
+    const uint32_t count = ++createdShapes;
+    std::memcpy(id.bytes + 8, &count, sizeof(count));
+    data->id = id;
+    collisionData.pushBack(data);
+    return id;
+}
+
+} // namespace
+
+bool cookCollisionMesh(std::span<const Vector3> positions, std::span<const uint32_t> indices, Vector<uint8_t>& out)
+{
+    setAllocator();
+    b3MeshData* mesh = makeMesh(positions, indices);
+    if (mesh == nullptr)
+    {
+        return false;
+    }
+    out.assign(std::span(reinterpret_cast<const uint8_t*>(mesh), static_cast<size_t>(mesh->byteCount)));
+    b3DestroyMesh(mesh);
+    return true;
+}
+
+bool cookCollisionHull(std::span<const Vector3> points, uint32_t maxVertices, Vector<uint8_t>& out)
+{
+    setAllocator();
+    b3HullData* hull = makeHull(points, maxVertices);
+    if (hull == nullptr)
+    {
+        return false;
+    }
+    out.assign(std::span(reinterpret_cast<const uint8_t*>(hull), static_cast<size_t>(hull->byteCount)));
+    b3DestroyHull(hull);
+    return true;
+}
+
+assets::AssetId createCollisionMesh(std::span<const Vector3> positions, std::span<const uint32_t> indices)
+{
+    setAllocator();
+    b3MeshData* mesh = makeMesh(positions, indices);
+    if (mesh == nullptr)
+    {
+        return {};
+    }
+    const assets::AssetId id = adopt(mesh, static_cast<size_t>(mesh->byteCount), false);
+    b3DestroyMesh(mesh);
+    return id;
+}
+
+assets::AssetId createCollisionHull(std::span<const Vector3> points, uint32_t maxVertices)
+{
+    setAllocator();
+    b3HullData* hull = makeHull(points, maxVertices);
+    if (hull == nullptr)
+    {
+        return {};
+    }
+    const assets::AssetId id = adopt(hull, static_cast<size_t>(hull->byteCount), true);
+    b3DestroyHull(hull);
+    return id;
+}
+
+void destroyCollisionShape(assets::AssetId shape)
+{
+    (void)reloadCollisionAsset(shape);
+}
+
+bool reloadCollisionAsset(assets::AssetId model)
+{
+    bool found = false;
+    Vector<CollisionData*> matching(tag);
+    for (CollisionData* data : collisionData)
+    {
+        if (!data->retired && data->id == model)
+        {
+            matching.pushBack(data);
+        }
+    }
+    for (CollisionData* data : matching)
+    {
+        found = found || data->bytes != nullptr;
+        retire(data);
+    }
+    return found;
+}
+
 void releasePhysics(const ecs::World& world)
 {
     using namespace box3d;
@@ -776,6 +1123,10 @@ void releasePhysics(const ecs::World& world)
     {
         if (worlds[i]->world == &world)
         {
+            for (auto& entry : worlds[i]->bodies)
+            {
+                releaseData(entry.value.data);
+            }
             b3DestroyWorld(worlds[i]->id);
             destroy(tag, worlds[i]);
             worlds.removeSwap(i);
@@ -849,8 +1200,50 @@ void outline(const Collider& collider, const Matrix4x4& toWorld, Vector4 color)
         break;
     }
     case ShapeKind::Mesh:
-    case ShapeKind::Convex:
+    {
+        // The triangles' edges, from the collision data itself (what Box3D sees).
+        CollisionData* data = acquireData(collider.mesh, collider.meshIndex, false);
+        if (data == nullptr)
+        {
+            break;
+        }
+        const auto* mesh = static_cast<const b3MeshData*>(data->bytes);
+        const b3Vec3* vertices = b3GetMeshVertices(mesh);
+        const b3MeshTriangle* triangles = b3GetMeshTriangles(mesh);
+        for (int32_t t = 0; t < mesh->triangleCount; ++t)
+        {
+            const Vector3 a = transformPoint(fromB3(vertices[triangles[t].index1]), toWorld);
+            const Vector3 b = transformPoint(fromB3(vertices[triangles[t].index2]), toWorld);
+            const Vector3 c = transformPoint(fromB3(vertices[triangles[t].index3]), toWorld);
+            debug::drawLine(a, b, color);
+            debug::drawLine(b, c, color);
+            debug::drawLine(c, a, color);
+        }
+        releaseData(data);
         break;
+    }
+    case ShapeKind::Convex:
+    {
+        CollisionData* data = acquireData(collider.mesh, collider.meshIndex, true);
+        if (data == nullptr)
+        {
+            break;
+        }
+        const auto* hull = static_cast<const b3HullData*>(data->bytes);
+        const b3Vec3* points = b3GetHullPoints(hull);
+        const b3HullHalfEdge* edges = b3GetHullEdges(hull);
+        for (int32_t e = 0; e < hull->edgeCount; ++e)
+        {
+            // Each edge once: from the half of it with the lower index.
+            if (e < edges[e].twin)
+            {
+                debug::drawLine(transformPoint(o + fromB3(points[edges[e].origin]), toWorld),
+                                transformPoint(o + fromB3(points[edges[edges[e].twin].origin]), toWorld), color);
+            }
+        }
+        releaseData(data);
+        break;
+    }
     }
 }
 

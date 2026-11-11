@@ -93,6 +93,29 @@ public class MeshImporterTests
         database.ImportAll().Single(result => result.Path == path);
 
     [Test]
+    [Arguments("Mesh", "COLM", true)]
+    [Arguments("Convex", "COLH", false)] // a single triangle has no solid hull
+    public async Task TheCollisionSettingCooksEachMesh(string collision, string section, bool made)
+    {
+        using Scratch scratch = new();
+        File.WriteAllBytes(scratch.PathOf("Models/tri.bin"), TriangleBuffer());
+        File.WriteAllText(scratch.PathOf("Models/tri.gltf"), TriangleJson("tri.bin", "../Textures/none.png"));
+        File.WriteAllText(scratch.PathOf("Models/tri.gltf") + Sidecar.Extension, $$"""
+            { "Guid": "7d3f1c2b-5a4e-4b6d-9c8f-0e1d2c3b4a59", "Importer": "Mesh",
+              "Settings": { "Collision": "{{collision}}", "MaxHullVertices": 16 } }
+            """);
+        ImportResult result = Result(scratch.Open(), "Models/tri.gltf");
+        await Assert.That(result.Error).IsNull();
+        using ImportedFile file = ImportedFile.Open(result.OutputPath!, MeshImporter.Kind, MeshImporter.KindVersion);
+        int index = file.Find(Tag.Of(section));
+        await Assert.That(index).IsGreaterThanOrEqualTo(0);
+        CollisionEntry entry = MemoryMarshal.Read<CollisionEntry>(file.Read(index));
+        await Assert.That(entry.Size > 0).IsEqualTo(made);
+        await Assert.That(result.Warnings.Any(warning => warning.Contains("no collision", StringComparison.Ordinal)))
+            .IsEqualTo(!made);
+    }
+
+    [Test]
     public async Task AModelBecomesAMeshFileWithItsTexturesById()
     {
         using Scratch scratch = new();

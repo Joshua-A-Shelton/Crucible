@@ -3,6 +3,7 @@
 #include "Common.h"
 
 #include <crucible/BinaryFile.h>
+#include <crucible/Physics.h>
 
 #include <meshoptimizer.h>
 #include <mikktspace.h>
@@ -1081,6 +1082,57 @@ Result<MeshImport*> buildMeshImport(SourceScene& scene, MeshSettings settings)
         result->addSection(binary::tag("JNTS"), joints.bytes);
     }
     result->addSection(binary::tag("NAME"), names.bytes);
+
+    // Collision data (ADR 0086): each mesh's level 0 cooked by Box3D, through
+    // the core, as a triangle mesh or a convex hull.
+    if (settings.collision != CollisionImport::None)
+    {
+        const bool hull = settings.collision == CollisionImport::Convex;
+        Blob collision;
+        collision.bytes.resize(built.size() * sizeof(assets::CollisionEntry));
+        Vector<uint32_t> levelZero(MemoryTag::Assets);
+        Vector<uint8_t> cooked(MemoryTag::Assets);
+        for (uint32_t m = 0; m < built.size(); ++m)
+        {
+            const BuiltMesh& mesh = *built[m];
+            const std::span<const Vector3> points(reinterpret_cast<const Vector3*>(mesh.positions.data()),
+                                                  mesh.vertexCount);
+            bool made = false;
+            if (hull)
+            {
+                made = physics::cookCollisionHull(points, settings.maxHullVertices, cooked);
+            }
+            else
+            {
+                levelZero.clear();
+                for (uint32_t s = 0; s < mesh.submeshCount && !mesh.ranges.empty(); ++s)
+                {
+                    const BuiltMesh::Range range = mesh.ranges[s];
+                    for (uint32_t i = 0; i < range.count; ++i)
+                    {
+                        levelZero.pushBack(mesh.indices[range.first + i]);
+                    }
+                }
+                made = physics::cookCollisionMesh(points, levelZero.span(), cooked);
+            }
+            assets::CollisionEntry entry{0, 0};
+            if (made)
+            {
+                collision.align(16);
+                entry = {static_cast<uint32_t>(collision.bytes.size()), static_cast<uint32_t>(cooked.size())};
+                const size_t at = collision.bytes.size();
+                collision.bytes.resize(at + cooked.size());
+                std::memcpy(collision.bytes.data() + at, cooked.data(), cooked.size());
+            }
+            else if (mesh.vertexCount > 0)
+            {
+                result->warnings.addFormat("mesh %u: no collision %s could be made from it", m,
+                                           hull ? "hull (it needs four points not all in a plane)" : "mesh");
+            }
+            std::memcpy(collision.bytes.data() + m * sizeof(assets::CollisionEntry), &entry, sizeof(entry));
+        }
+        result->addSection(binary::tag(hull ? "COLH" : "COLM"), collision.bytes);
+    }
 
     for (BuiltMesh* mesh : built)
     {

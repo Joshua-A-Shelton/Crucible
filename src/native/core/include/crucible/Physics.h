@@ -28,6 +28,7 @@
 #include <crucible/Expose.h>
 #include <crucible/Math.h>
 #include <crucible/RenderAssets.h>
+#include <crucible/Vector.h>
 
 #include <cstdint>
 #include <span>
@@ -60,8 +61,9 @@ enum class CRUCIBLE_EXPOSE ShapeKind : uint32_t
     Box,     // size: the full extents
     Sphere,  // size.x: the radius
     Capsule, // size.x: the radius; size.y: the height between the end caps' centers, along Y
-    Mesh,    // a model's triangles (static bodies only)
-    Convex,  // the convex hull of a model's vertices
+    Mesh,    // a model's triangles, cooked at import (its Collision setting) or made at run time; static
+             // bodies only (Box3D collides meshes only there); scaled, not offset
+    Convex,  // the convex hull of a model's mesh's vertices, likewise; scaled and offset
 };
 
 // An entity simulated by physics; it needs a Collider too (on itself).
@@ -214,6 +216,30 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE BodyPose bodyPose(const ecs::World& world, ecs::
 // Adds debug lines (crucible/DebugLines.h) along every collider's outline,
 // from the components, so it works while editing too.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void drawColliders(const ecs::World& world, Vector4 color);
+
+// --- Mesh and Convex colliders (ADR 0086) -----------------------------------
+
+// Cooking, for the model importer: Box3D's collision data for one mesh, in
+// its own format (COLM and COLH, MeshFile.h). Triangles face the way
+// Crucible's meshes do (clockwise as seen from the front, in its left-handed
+// space; meshes are one-sided); a hull keeps at most
+// maxVertices (4 to 128) of the points'. False if it can't be made.
+CRUCIBLE_EXPORT bool cookCollisionMesh(std::span<const Vector3> positions, std::span<const uint32_t> indices,
+                                       Vector<uint8_t>& out);
+CRUCIBLE_EXPORT bool cookCollisionHull(std::span<const Vector3> points, uint32_t maxVertices, Vector<uint8_t>& out);
+
+// Built at run time, from geometry the game makes (generated, or changing):
+// an ID a Collider's mesh takes (meshIndex 0), as an imported model's would;
+// none if it can't be made. Destroyed, colliders using it lose their shape.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE assets::AssetId createCollisionMesh(std::span<const Vector3> positions,
+                                                                    std::span<const uint32_t> indices);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE assets::AssetId createCollisionHull(std::span<const Vector3> points,
+                                                                    uint32_t maxVertices);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void destroyCollisionShape(assets::AssetId shape);
+
+// Forgets a model's collision data read before (the editor after a
+// reimport): colliders using it are rebuilt from the new. True if it was read.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE bool reloadCollisionAsset(assets::AssetId model);
 
 // Frees the world's physics (before destroying it).
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void releasePhysics(const ecs::World& world);
