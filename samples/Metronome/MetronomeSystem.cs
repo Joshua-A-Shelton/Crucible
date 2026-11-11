@@ -59,7 +59,10 @@ public sealed class MetronomeSystem : GameSystem
                 throw new ArgumentException($"Unknown option {key}: expected seconds or check.");
             }
         }
-        _start = context.FrameStartNs;
+        // Now, not the frame's start: Start runs late in the first frame,
+        // after the game has loaded, and clicks timed from the frame's start
+        // would already be due.
+        _start = Crucible.Platform.Api.TimestampNow();
         _nextClick = _start + 200_000_000;
         if (_check)
         {

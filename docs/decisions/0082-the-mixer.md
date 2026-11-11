@@ -105,5 +105,12 @@ Decided by the owner (2026-11-10):
   onset at its frame exactly.
 - Tests: `MixerTests`, `AudioSchedulingTests`, `AudioEffectTests`,
   `SpatialAudioTests`, `MusicTests`, all offline.
+- **Tried by hand:** the owner's first run reported 2 late starts, every
+  time. The sample timed its clicks from `FrameStartNs` in `Start`, but
+  `Start` runs during the first frame after the game has loaded, here
+  912 ms after that frame began, so the first two clicks were already due.
+  The mixer counted them correctly; the sample now takes its start from
+  the clock (`timestampNow`). Anything scheduling from `Start` must do the
+  same.
 - Not done: the `occlusion` field is ignored (the contract lets a backend
   ignore it); surround output; Vorbis streaming and ADPCM (step 6).
