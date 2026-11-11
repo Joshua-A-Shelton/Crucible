@@ -8,15 +8,18 @@
 //   - Systems, the per-frame work, crossing the boundary once per tick:
 //     "Physics.Sync" (PrePhysics) pushes new, removed, and moved bodies into
 //     the simulation; "Physics.Step" (Physics) advances it; "Physics.WriteBack"
-//     (PostPhysics) writes dynamic bodies back to LocalTransform. They're
+//     (PostPhysics) writes dynamic bodies back; and once a frame
+//     "Physics.Interpolate" (Update) sets each dynamic body's LocalTransform
+//     between its last two ticks, so motion is smooth at any frame rate. They're
 //     gameplay systems: they run while the game plays, not while editing.
 //   - A service, the calls: queries, contacts, character moves. The functions
 //     below forward to the installed PhysicsService.
 //
 // An implementation (a native module, ADR 0074) registers the three systems
 // under the same names, replacing the defaults, and installs its service.
-// Until one does, the null physics stands in: nothing moves or collides,
-// queries find nothing, characters move straight through everything.
+// The engine's own is Box3D (ADR 0085); queries and character moves join it
+// in later steps, and until then answer as the null physics does: queries
+// find nothing, characters move straight through everything.
 //
 // Units are meters, seconds, and kilograms; Y is up (ADR 0024).
 
@@ -35,6 +38,7 @@ namespace crucible::physics {
 inline constexpr std::string_view syncSystemName = "Physics.Sync";
 inline constexpr std::string_view stepSystemName = "Physics.Step";
 inline constexpr std::string_view writeBackSystemName = "Physics.WriteBack";
+inline constexpr std::string_view interpolateSystemName = "Physics.Interpolate";
 
 // Collision layers: 32, as bits of a mask. A body or character is on the
 // layers in its `layers` and collides with those in its `mask`; two collide
@@ -142,7 +146,7 @@ enum class CRUCIBLE_EXPOSE ContactKind : uint32_t
     End,
 };
 
-// Two entities that started or stopped touching in the last tick.
+// Two entities that started or stopped touching during this frame's ticks.
 struct CRUCIBLE_EXPOSE ContactEvent
 {
     ContactKind kind;
@@ -187,15 +191,35 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE RayHit shapeCast(ecs::World& world, QueryShape s
 // The entities whose colliders overlap the shape, as many as fit; returns how many there are.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t overlap(ecs::World& world, QueryShape shape, Vector3 at, Quaternion rotation,
                                                  uint32_t layers, std::span<ecs::Entity> into);
-// The last tick's contact events, as many as fit; returns how many there are.
+// The contact events of every tick since the last frame, as many as fit;
+// returns how many there are.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t contacts(ecs::World& world, std::span<ContactEvent> into);
 // Moves a character by a displacement over a time, sliding and climbing,
 // and writes its LocalTransform.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE CharacterMove moveCharacter(ecs::World& world, ecs::Entity character,
                                                             Vector3 displacement, float seconds);
 
+// A dynamic body's pose as of the last tick (its LocalTransform is
+// interpolated, up to a tick behind), in world space; found false for an
+// entity without a body.
+struct CRUCIBLE_EXPOSE BodyPose
+{
+    bool found;
+    Vector3 position;
+    Quaternion rotation;
+};
+
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE BodyPose bodyPose(const ecs::World& world, ecs::Entity entity);
+
+// Adds debug lines (crucible/DebugLines.h) along every collider's outline,
+// from the components, so it works while editing too.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void drawColliders(const ecs::World& world, Vector4 color);
+
+// Frees the world's physics (before destroying it).
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void releasePhysics(const ecs::World& world);
+
 // Registers the components and, unless an implementation registered its
-// own first, the null physics's systems. The engine calls it at start-up.
+// own first, Box3D's systems (ADR 0085). The engine calls it at start-up.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void registerPhysics();
 
 } // namespace crucible::physics

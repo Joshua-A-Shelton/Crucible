@@ -136,3 +136,6 @@ Longer explanations of decisions, written to be reread:
 - [Frame-rate independence](docs/learning/frame-rate-independence.md) (ADR
   0084): carrying exact times from animation to the speaker, and the state
   machine transition a two-rate test caught.
+- [Fixed-step physics](docs/learning/fixed-step-physics.md) (ADR 0085): why
+  physics steps at a fixed rate, interpolating between ticks, reconciling
+  the ECS with Box3D, and moving dynamic, kinematic, and static bodies.

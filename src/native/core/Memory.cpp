@@ -129,6 +129,8 @@ const char* memoryTagName(MemoryTag tag)
         return "Animation";
     case MemoryTag::Audio:
         return "Audio";
+    case MemoryTag::Physics:
+        return "Physics";
     default:
         return "General";
     }

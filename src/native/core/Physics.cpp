@@ -1,5 +1,8 @@
 // The physics contract's engine side (ADR 0075): the installed service and
-// the null physics that stands in until an implementation replaces it.
+// its default, Box3D (ADR 0085, Box3dPhysics.cpp), whose queries and
+// character moves answer as the null physics did until they're built.
+
+#include "Box3dPhysics.h"
 
 #include <crucible/Physics.h>
 #include <crucible/Systems.h>
@@ -9,9 +12,7 @@ namespace crucible::physics {
 
 namespace {
 
-// Nothing moves or collides; queries find nothing.
-void nothing(const loop::SystemContext&, void*) {}
-
+// Queries find nothing (until M9 step 3).
 RayHit noHit(ecs::World&, Vector3, Vector3, float, uint32_t)
 {
     return {};
@@ -27,12 +28,7 @@ uint32_t noOverlap(ecs::World&, QueryShape, Vector3, Quaternion, uint32_t, std::
     return 0;
 }
 
-uint32_t noContacts(ecs::World&, std::span<ContactEvent>)
-{
-    return 0;
-}
-
-// Straight through everything, never on the ground.
+// Straight through everything, never on the ground (until M9 step 4).
 CharacterMove moveFreely(ecs::World& world, ecs::Entity character, Vector3 displacement, float)
 {
     scenes::LocalTransform* transform = ecs::get<scenes::LocalTransform>(world, character);
@@ -44,9 +40,9 @@ CharacterMove moveFreely(ecs::World& world, ecs::Entity character, Vector3 displ
     return {transform->position, false, {0, 1, 0}};
 }
 
-constexpr PhysicsService nullPhysics{noHit, noCastHit, noOverlap, noContacts, moveFreely};
+constexpr PhysicsService defaultPhysics{noHit, noCastHit, noOverlap, box3d::contacts, moveFreely};
 
-PhysicsService installed = nullPhysics;
+PhysicsService installed = defaultPhysics;
 
 } // namespace
 
@@ -93,10 +89,7 @@ void registerPhysics()
     ecs::registerComponent<Collider>("Crucible.Physics.Collider");
     ecs::registerComponent<Joint>("Crucible.Physics.Joint");
     ecs::registerComponent<CharacterController>("Crucible.Physics.CharacterController");
-    loop::registerDefaultSystem({.name = syncSystemName, .phase = "PrePhysics", .function = nothing, .gameplay = true});
-    loop::registerDefaultSystem({.name = stepSystemName, .phase = "Physics", .function = nothing, .gameplay = true});
-    loop::registerDefaultSystem(
-        {.name = writeBackSystemName, .phase = "PostPhysics", .function = nothing, .gameplay = true});
+    box3d::registerSystems();
 }
 
 } // namespace crucible::physics

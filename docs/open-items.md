@@ -41,6 +41,11 @@ is, and record which version fixed it.
   wlroots compositors still offer it (`CRUCIBLE_TEST_WAYLAND=1` native
   test prints what the desktop has). → 0066
 
+- **Box3D is pinned at a master commit** (f36d061, 2026-10-20), not a
+  release: before each release, look for a newer release (or a commit at
+  least two weeks old), check its changes, and move the pin with its
+  SHA-256 (cmake/CrucibleDependencies.cmake). → 0085
+
 ## Needs a decision from the project owner
 
 - Final names of the default phases (the list is ADR 0036's). → 0013, 0036 [M3]
@@ -233,8 +238,9 @@ is, and record which version fixed it.
 - Foot IK leaves the foot turned with the shin; flattening it to the ground
   (a third joint) when foot planting needs it. → 0081
 - Box3D's backend reports ball-and-socket and swing-twist joints as
-  unsupported (Box3D has neither yet; owner, 2026-11-11): part of the
-  checkpoint below. → 0027, 0075
+  unsupported (owner, 2026-11-11, from Box3D's README). But Box3D at the
+  pinned commit has a spherical joint with cone and twist limits: step 5's
+  design revisits this. → 0027, 0075, 0085
 - **Box3D checkpoint, before the action RPG starts:** ragdoll-capable
   joints, character mover maturity, stability and release cadence. Switch
   to Jolt if any fall short. → 0027

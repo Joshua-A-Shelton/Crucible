@@ -793,3 +793,22 @@ the events `LeftFoot` and `RightFoot`; the game options `check` and
 | The editor's `WalkerChecks`*, `--game-arg check-walker=<folder>`* | The check |
 | `pastExit`*, `catchUp`*, `StateProgress::raw`*, `rate`* | Carrying a frame's time past an exit time |
 | The scene's entities "Sky"*, "Sun"*, "Camera"* | Walk.crscene |
+
+## Box3D in the core (2026-11-11, M9 step 1)
+
+Settled as drafted: src/native/core/Box3dPhysics.cpp; "Physics.Interpolate"; `physics::bodyPose` (C#
+`RigidBody.Pose`), `physics::drawColliders` (C# `Collider.DrawColliders`);
+the editor's View > "Colliders"; `MemoryTag::Physics`; ADR 0085 "Box3D in
+the core", `docs/learning/fixed-step-physics.md`; `PhysicsBodyTests`,
+`PhysicsSyncTests`, `ContactEventTests`, `PhysicsInterpolationTests`. Names
+added while building are placeholders (*):
+
+| Name | What it is |
+|---|---|
+| `interpolateSystemName`* | The system's name constant |
+| `BodyPose`* (`found`, `position`, `rotation`) | What `bodyPose` returns |
+| `releasePhysics`* | Frees a world's physics (World.Dispose) |
+| src/native/core/Box3dPhysics.h*, `box3d::registerSystems`*, `box3d::contacts`* | The backend's entry points |
+| `View.Colliders`*, `Shell.ShowsColliders`* | The editor's command and state |
+| CMake target `box3d`* (Box3D's own, from its CMake; drafted as `crucible_box3d`, a target of ours, which building through Box3D's CMake made unneeded) | The library |
+| tests/native/PhysicsTestSupport.h*: `Scene`*, `tick`*, `step`*, `seconds`*, `events`*, `box`*, `sphere`*, `dynamic`*, `ground`* | Test support |

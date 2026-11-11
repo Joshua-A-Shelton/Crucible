@@ -13,6 +13,10 @@ add_executable(crucible_native_tests
     EcsTests.cpp
     InputSourceTests.cpp
     InputTimingTests.cpp
+    ContactEventTests.cpp
+    PhysicsBodyTests.cpp
+    PhysicsInterpolationTests.cpp
+    PhysicsSyncTests.cpp
     MixerTests.cpp
     MusicTests.cpp
     SpatialAudioTests.cpp

@@ -610,6 +610,12 @@ decision made at its start):
 8. The demonstration: the Walker walks a mesh level; a scripted swing's hit
    lands at the same moment at 30 and 240 fps.
 
+**Status (2026-11-11):** step 1 built (ADR 0085): Box3D (f36d061) in the
+core, its tasks on the job system and its memory through Crucible's
+allocator; bodies synced by kind, written back, and interpolated between
+ticks; contacts and sensors over the frame's ticks; the contract's layers
+through a custom filter; View > Colliders.
+
 ## M10 — Shipping
 
 - Cooking: dependency walk from root scenes, archives, async loading on

@@ -93,6 +93,27 @@ unset(CMAKE_POLICY_DEFAULT_CMP0091)
 set_target_properties(libzstd_static PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # ---------------------------------------------------------------------------
+# Box3D (MIT; by Erin Catto): 3D physics behind Crucible's physics contract
+# (ADR 0027, 0085), in the shipped core. Pre-1.0 and moving fast, so pinned
+# at a master commit at least two weeks old (2026-10-20, "CMake
+# improvements"), rechecked before every release. Single precision; its
+# samples, tests, and validation are top-level only, so they stay off here.
+# ---------------------------------------------------------------------------
+
+set(BOX3D_DOUBLE_PRECISION OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(box3d
+    URL https://github.com/erincatto/box3d/archive/f36d061ba26998c87cb7dc593a4065aaa03fb7eb.tar.gz
+    URL_HASH SHA256=b035dce6997edccc89e17b74ffc18cadc0c2318ecdacfcf5fa5173b824df17ed)
+FetchContent_MakeAvailable(box3d)
+# Linked into the shared core, so position-independent; its warnings are its own.
+set_target_properties(box3d PROPERTIES POSITION_INDEPENDENT_CODE ON)
+if(MSVC)
+    target_compile_options(box3d PRIVATE /W0)
+else()
+    target_compile_options(box3d PRIVATE -w)
+endif()
+
+# ---------------------------------------------------------------------------
 # Editor-only importers (ADR 0022, 0042), built into crucible_importers and
 # never shipped. Neither project tags releases, so both are pinned by commit.
 #   stb_image (MIT or public domain): decodes PNG, JPEG, TGA, and Radiance HDR.

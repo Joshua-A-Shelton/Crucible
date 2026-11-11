@@ -371,6 +371,11 @@ internal sealed partial class Shell
             // Every posed character's joints (ADR 0079), in every view.
             Crucible.Animation.Animator.DrawSkeletons(world, _skeletonColor);
         }
+        if (ShowsColliders)
+        {
+            // Every collider's outline (ADR 0085), from its components.
+            Crucible.Physics.Collider.DrawColliders(world, _colliderColor);
+        }
         foreach (EditorPanel panel in _open.Values)
         {
             if (panel is ViewportPanel viewport && viewport.Root is not null)
@@ -527,6 +532,10 @@ internal sealed partial class Shell
         {
             IsChecked = () => ShowsSkeletons,
         });
+        Commands.Add(new Command("View.Colliders", "Colliders", () => ShowsColliders = !ShowsColliders)
+        {
+            IsChecked = () => ShowsColliders,
+        });
         Commands.Add(new Command("Help.About", $"About {EngineInfo.Name}",
             () => Log($"{EngineInfo.Name} editor, M7 (ADR 0016, 0066)")));
     }
@@ -536,6 +545,12 @@ internal sealed partial class Shell
 
     /// <summary>Whether the views draw every posed character's skeleton (View > Skeletons, ADR 0079).</summary>
     public bool ShowsSkeletons { get; set; }
+
+    // Green, apart from the skeletons' blue and the selection's orange.
+    private static readonly Vector4 _colliderColor = new(0.4f, 1.0f, 0.45f, 1.0f);
+
+    /// <summary>Whether the views draw every collider's outline (View > Colliders, ADR 0085).</summary>
+    public bool ShowsColliders { get; set; }
 
     private void BuildMenus()
     {
@@ -567,6 +582,7 @@ internal sealed partial class Shell
 
         Menu viewMenu = Main.MenuBar.Add("View");
         viewMenu.Add(Commands.Find("View.Skeletons")!);
+        viewMenu.Add(Commands.Find("View.Colliders")!);
 
         Menu window = Main.MenuBar.Add("Window");
         foreach ((string id, _) in Panels.Panels)

@@ -11,6 +11,13 @@ namespace Crucible.Physics;
 [Serialized]
 public partial struct RigidBody
 {
+    /// <summary>
+    /// A body's pose as of the last tick, in world space: its transform is
+    /// interpolated between ticks, up to a tick behind. <c>Found</c> is false
+    /// without a body.
+    /// </summary>
+    public static BodyPose Pose(Ecs.World world, Ecs.Entity entity) => Api.BodyPose(world.Live, entity);
+
     public RigidBody()
     {
         Kind = BodyKind.Dynamic;
@@ -25,6 +32,10 @@ public partial struct RigidBody
 [Serialized]
 public partial struct Collider
 {
+    /// <summary>Debug lines along every collider's outline, this frame (while editing too).</summary>
+    public static void DrawColliders(Ecs.World world, System.Numerics.Vector4 color) =>
+        Api.DrawColliders(world.Live, color);
+
     public Collider()
     {
         Shape = ShapeKind.Box;
