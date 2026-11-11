@@ -72,6 +72,13 @@ same machine by 0.3, 0.07, and 0.4 s and finds the next state equally far
 in (it fails without the change). Transitions on conditions alone are taken
 when the frame sees the condition, which is when gameplay set it.
 
+Later (2026-11-11, during M9 step 2), a loaded Windows debug run had the
+144 fps run's second walk 2 ms late: a frame past the loop's 66 ms clamp
+(ADR 0036) drops time by design, moving later steps (at 12 fps, where every
+frame is clamped, the steps move by whole tenths of a second). The game now
+reports its clamped frames, and the check runs a clamped run again, up to
+three times, before comparing.
+
 ## As built
 
 - Launcher `--frame-rate` (`LaunchOptions::frameRate`*, C#
