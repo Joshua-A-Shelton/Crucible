@@ -666,7 +666,8 @@ C# `RenderSteps.Skinning`) and its blackboard key "SkinnedVertices"
 `MeshData::jointIndices`, `jointWeights`, `jointReach`;
 `animation::poseJoints`; ADR 0080 "Compute pre-skinning",
 `docs/learning/compute-skinning.md`; `SkinningTests`, `SkinnedCullingTests`.
-Names added while building are placeholders (*):
+Names added while building (marked *) settled as drafted too (after the
+owner tried step 3 by hand):
 
 | Name | What it is |
 |---|---|

@@ -1,7 +1,9 @@
 # 0080 — Compute pre-skinning
 
-**Status:** Accepted (2026-11-10); M8 step 3 built. Names settled by the
-owner as drafted (docs/naming.md); names added while building are marked *.
+**Status:** Accepted (2026-11-10); M8 step 3 built, then tried by hand by
+the owner (the Walker's mesh walking while the game plays). Names, including
+those added while building, settled by the owner as drafted
+(docs/naming.md).
 
 ## Context
 
