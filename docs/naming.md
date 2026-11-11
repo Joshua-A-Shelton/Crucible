@@ -931,7 +931,8 @@ Settled as drafted: `CRUCIBLE_HINT_ASSET(".crmesh", ...)`,
 "*Name* (*n*)", "Mesh *n* (missing)"; ADR 0089 "Pickers that offer only
 valid choices", `docs/learning/editor-field-hints.md`; `PickerChecks`
 (CTest's `launcher.jit.pickers`) and the field table tests. Names added
-while building are placeholders (*):
+while building (marked *) settled as drafted too, after the owner tried
+step 3 by hand:
 
 | Name | What it is |
 |---|---|

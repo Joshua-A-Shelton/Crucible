@@ -1,8 +1,8 @@
 # 0089 — Pickers that offer only valid choices
 
-**Status:** Accepted (2026-11-11); editor usability step 3 built. Names
-settled by the owner as drafted (docs/naming.md); names added while
-building are marked *.
+**Status:** Accepted (2026-11-11); editor usability step 3 built, then
+tried by hand by the owner. Names, including those added while building,
+settled by the owner as drafted (docs/naming.md).
 
 ## Context
 

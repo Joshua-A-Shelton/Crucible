@@ -656,7 +656,9 @@ launcher.jit.play-toolbar. Tried by hand by the owner on KWin. Step 2 is
 done. Step 3 built (ADR 0089): asset pickers by the kinds they accept,
 Animator.Skeleton by skinned models, Joint.Other by entities with a
 Collider, and mesh indices as their model's meshes by name; lists read
-again on opening; checked by launcher.jit.pickers.
+again on opening; checked by launcher.jit.pickers. Tried by hand by the
+owner on KWin. Step 3 is done, and with it the editor usability work: M9
+step 2's try by hand comes next.
 
 ## M10 — Shipping
 
