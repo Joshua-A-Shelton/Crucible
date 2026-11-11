@@ -826,7 +826,8 @@ Settled as drafted: `MeshImportSettings.Collision` (`CollisionImport`:
 `ConvexColliderTests`, `CollisionCookingTests`,
 `MeshImporterTests.TheCollisionSettingCooksEachMesh`. The MESH version
 stays 3 (drafted to bump; the sections are optional). Names added while
-building are placeholders (*):
+building (marked *) settled as drafted too, after the owner tried step 2
+by hand:
 
 | Name | What it is |
 |---|---|

@@ -620,7 +620,8 @@ Tried by hand by the owner on KWin. Step 1 is done. Step 2 built (ADR
 setting (COLM, COLH) or built at run time; hulls of at most 32 vertices by
 default; meshes on static bodies only; outlines from the data.
 Tried by hand by the owner, who found testing in the editor too obtuse:
-editor usability comes next (below), then step 2's try.
+editor usability came next (below), then step 2's try, through it. Step 2
+is done.
 
 **Editor usability** (agreed with the owner, 2026-11-11, between M9 steps 2
 and 3; one commit each, tried by hand like a milestone's steps):

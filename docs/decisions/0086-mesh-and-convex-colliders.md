@@ -1,7 +1,10 @@
 # 0086 — Mesh and convex colliders
 
-**Status:** Accepted (2026-11-11); M9 step 2 built. Names settled by the
-owner as drafted (docs/naming.md); names added while building are marked *.
+**Status:** Accepted (2026-11-11); M9 step 2 built, amended (Generate If
+Missing), then tried by hand by the owner through the editor usability
+work (collision generated from the asset browser and the inspector,
+colliders landing, Generate If Missing). Names, including those added
+while building, settled by the owner as drafted (docs/naming.md).
 
 ## Context
 
