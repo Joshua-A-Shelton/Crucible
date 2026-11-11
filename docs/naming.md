@@ -909,7 +909,8 @@ tick (Ctrl+Alt+P)"; `Shell.IsPaused`, `Shell.Pause(bool)`, `Shell.Step()`;
 "(paused)"; `audio::pauseAll(bool)` (C# `Audio.Api.PauseAll`); ADR 0088 "The
 play toolbar", `docs/learning/pausing-a-game.md`; `AudioPauseTests`,
 `PlayToolbarChecks`, CTest's `launcher.jit.play-toolbar`. Names added while
-building are placeholders (*):
+building (marked *) settled as drafted too, after the owner tried step 2 by
+hand:
 
 | Name | What it is |
 |---|---|

@@ -1,8 +1,9 @@
 # 0088 — The play toolbar
 
-**Status:** Accepted (2026-11-11); editor usability step 2 built. Names
-settled by the owner as drafted (docs/naming.md); names added while
-building are marked *.
+**Status:** Accepted (2026-11-11); editor usability step 2 built, then
+tried by hand by the owner (Pause before Play, Step, resuming, Stop).
+Names, including those added while building, settled by the owner as
+drafted (docs/naming.md).
 
 ## Context
 

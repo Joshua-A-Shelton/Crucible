@@ -652,7 +652,8 @@ Tried by hand by the owner on KWin. Step 1 is done. Step 2 built (ADR
 0088): the play toolbar under the menu bar (Play/Stop, Pause, Step);
 paused, gameplay holds and drawing runs, the mixer holds its sounds in
 place; Step runs one fixed tick; Pause works before Play; checked by
-launcher.jit.play-toolbar.
+launcher.jit.play-toolbar. Tried by hand by the owner on KWin. Step 2 is
+done.
 
 ## M10 — Shipping
 
