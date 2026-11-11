@@ -54,6 +54,9 @@ Decided by the owner (2026-11-10):
   when the state passes that share of itself: once a loop, or, for a state
   that doesn't loop, any time after. They're checked in order, at most one a
   frame, in "Animation.Update" (so, like clips, only while playing).
+  Amended (ADR 0084): a transition taken at an exit time carries the
+  frame's time past the exit into the next state, played for that long in
+  the same update, so where it falls doesn't depend on the frame rate.
 - **Phase.** A state's clips share one phase, 0 to 1; its length is their
   lengths weighted, so a 2 s idle and a 1 s walk blended half and half take
   1.5 s, and both reach their ends together. This keeps a walk and a run in

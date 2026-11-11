@@ -775,3 +775,21 @@ Settled as drafted: the importer "Sound" (C# `SoundImporter`) for `.wav`,
 | `Stream`*, `streamSeconds`*, `Sound::data`* | The mixer's Vorbis streams |
 | CMake `dr_libs`*, `crucible_dr_libs`*, `crucible_stb_vorbis`* | The libraries' targets |
 | tests/native/SoundTestSupport.h*: `testSound`*, `defaults`*, `Imported`*, `SoundAssets`*, `asFloats`*; `CRUCIBLE_SOUNDS_DIR`*, `CRUCIBLE_SOUNDS`* | Test support |
+
+## The M8 demonstration (2026-11-11, M8 step 7)
+
+Settled as drafted: the launcher's `--frame-rate N`; the Walker project's
+`Walk.crscene`, `Code/Footsteps.cs` with `FootstepSystem` and
+`CircleSystem`, `Assets/Sounds/Footstep.wav` and `samples/Walker/make_footstep.py`;
+the events `LeftFoot` and `RightFoot`; the game options `check` and
+`seconds`; the CTest `samples.walker`; ADR 0084 "The M8 demonstration",
+`docs/learning/frame-rate-independence.md`. Names added while building are
+placeholders (*):
+
+| Name | What it is |
+|---|---|
+| `Footsteps`* (`Sound`*, `Volume`*), `Circle`* (`Radius`*), namespace `Walker`* | The demonstration's components |
+| `LaunchOptions::frameRate`*, C# `FrameLoop.FrameRate`* | The frame cap |
+| The editor's `WalkerChecks`*, `--game-arg check-walker=<folder>`* | The check |
+| `pastExit`*, `catchUp`*, `StateProgress::raw`*, `rate`* | Carrying a frame's time past an exit time |
+| The scene's entities "Sky"*, "Sun"*, "Camera"* | Walk.crscene |

@@ -19,6 +19,14 @@ public sealed class FrameLoop(Schedule schedule) : ILoopDriver
     /// </summary>
     public Func<ulong> Clock { get; init; } = static () => Platform.Api.TimestampNow();
 
+    /// <summary>
+    /// Frames a second to hold to, in real time (the launcher's
+    /// <c>--frame-rate</c>; ADR 0084): each frame starts 1/FrameRate s after
+    /// the last, waiting out what's left; a frame that runs long moves the
+    /// rest on rather than rushing to catch up. 0 runs as fast as pacing lets.
+    /// </summary>
+    public uint FrameRate { get; init; }
+
     /// <summary>ADR 0036's default schedule, with the C++ systems registered so far.</summary>
     public static FrameLoop CreateDefault() => new(ScheduleBuilder.CreateDefault().Build());
 
@@ -48,6 +56,8 @@ public sealed class FrameLoop(Schedule schedule) : ILoopDriver
             ulong accumulatorNs = 0;
             ulong lastNs = 0;
             bool first = true;
+            ulong periodNs = FrameRate > 0 ? 1_000_000_000UL / FrameRate : 0;
+            ulong nextNs = 0;
             while (!context.QuitRequested && context.Failure == Status.Ok &&
                    (frameLimit == 0 || context.FrameNumber < frameLimit))
             {
@@ -90,6 +100,11 @@ public sealed class FrameLoop(Schedule schedule) : ILoopDriver
                     }
                 }
                 context.FrameNumber++;
+                if (periodNs > 0)
+                {
+                    nextNs = nextNs == 0 ? now + periodNs : nextNs + periodNs;
+                    nextNs = WaitUntil(nextNs, periodNs);
+                }
             }
         }
         finally
@@ -162,5 +177,26 @@ public sealed class FrameLoop(Schedule schedule) : ILoopDriver
             Console.Error.WriteLine(
                 $"Crucible.Loop: {system.Name} threw while {(starting ? "starting" : "stopping")}: {exception}");
         }
+    }
+
+    // Sleeps, then spins the last millisecond (sleeps overshoot), until
+    // `deadline` on the clock; returns the deadline the next frame counts
+    // from: this one, or now if the frame ran past it by a whole period.
+    private ulong WaitUntil(ulong deadline, ulong periodNs)
+    {
+        ulong now = Clock();
+        if (now >= deadline)
+        {
+            return now - deadline >= periodNs ? now : deadline;
+        }
+        if (deadline - now > 2_000_000)
+        {
+            Thread.Sleep(TimeSpan.FromTicks((long)(deadline - now - 1_000_000) / 100));
+        }
+        while (Clock() < deadline)
+        {
+            Thread.SpinWait(20);
+        }
+        return deadline;
     }
 }

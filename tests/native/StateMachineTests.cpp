@@ -175,3 +175,28 @@ TEST_CASE("A state machine read again starts over and one that can't be read lea
     CHECK(currentState(*walker.world, walker.entity) == -1);
     CHECK(worstJoint(walker, reference, reference.sample(reference.clip(0), 0.2f)) < 1e-4f);
 }
+
+TEST_CASE("A transition at an exit time carries the frame's time past it")
+{
+    // Idle is 2 s; Walk follows at its end. Whatever the steps, 2.4 s in,
+    // Walk is 0.4 s in: the 0.1 s of the frame after Idle's end counts.
+    MachineBuilder machine;
+    const uint32_t idle = machine.state("Idle", 3);
+    const uint32_t walk = machine.state("Walk", 2);
+    machine.transition(static_cast<int32_t>(idle), walk, 0, 1.0f);
+    machine.install(machineId);
+    const Reference reference;
+    for (const float step : {0.3f, 0.07f, 0.4f})
+    {
+        CAPTURE(step);
+        Character walker;
+        useMachine(walker, machineId);
+        const int frames = static_cast<int>(std::lround(2.4f / step));
+        for (int i = 0; i < frames; ++i)
+        {
+            walker.step(step);
+        }
+        CHECK(currentState(*walker.world, walker.entity) == static_cast<int32_t>(walk));
+        CHECK(worstJoint(walker, reference, reference.sample(reference.clip(0), frames * step - 2.0f)) < 1e-3f);
+    }
+}

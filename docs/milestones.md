@@ -562,7 +562,11 @@ Listened to by the owner on KWin. Step 5 is done. Step 6 built (ADR
 0083): WAV, FLAC, and OGG imported into .crsound (dr_wav, dr_flac,
 stb_vorbis); PCM, IMA ADPCM, and Vorbis kept from .ogg and streamed from
 memory on background jobs; mono, trim, and normalize at import.
-Tried by hand by the owner on KWin. Step 6 is done.
+Tried by hand by the owner on KWin. Step 6 is done. Step 7 built (ADR
+0084): the Walker project's Walk.crscene and game code, footsteps scheduled
+at each planted foot as it circles; `--frame-rate`; samples.walker running it
+standalone at 30 and 144 fps, every step on its time to the frame, the two
+runs agreeing; a transition-timing leak it found, fixed.
 
 ## M9 — Physics
 

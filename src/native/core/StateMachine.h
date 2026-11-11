@@ -82,6 +82,8 @@ struct StateProgress
     float after;
     uint32_t wraps; // times a looping state went past its end
     bool loop;
+    float raw;  // where it would be, not wrapped or held at its end
+    float rate; // shares a second
 };
 
 // The first transition, in order, from `state` (or from any state but its

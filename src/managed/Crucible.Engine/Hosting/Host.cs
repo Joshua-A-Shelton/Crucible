@@ -156,7 +156,8 @@ public static class Host
         {
             // The game's own loop driver if it names one (ADR 0076), else the engine's.
             Schedule schedule = builder.Build();
-            ILoopDriver driver = game?.CreateLoopDriver(schedule) ?? new FrameLoop(schedule);
+            ILoopDriver driver = game?.CreateLoopDriver(schedule) ??
+                                 new FrameLoop(schedule) { FrameRate = options.FrameRate };
             frames = driver.Run(context, options.FrameLimit);
         }
         finally

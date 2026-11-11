@@ -916,10 +916,12 @@ void advancePlayer(Player& player, float delta, float speed, bool loop)
 StateProgress advanceState(const MachinePlay& play, StatePlay& state, float delta, float speed)
 {
     const assets::StateEntry& entry = play.machine->states[static_cast<uint32_t>(state.state)];
-    StateProgress progress{state.phase, state.phase, 0, entry.loop != 0};
+    StateProgress progress{state.phase, state.phase, 0, entry.loop != 0, state.phase, 0};
     if (state.duration > 0)
     {
-        const float raw = state.phase + delta * entry.speed * speed / state.duration;
+        progress.rate = entry.speed * speed / state.duration;
+        const float raw = state.phase + delta * progress.rate;
+        progress.raw = raw;
         if (progress.loop)
         {
             const float turns = std::floor(raw);
@@ -1843,12 +1845,39 @@ float fadeToward(float weight, float goal, float rate, float delta)
     return weight < goal ? std::min(weight + rate * delta, goal) : std::max(weight - rate * delta, goal);
 }
 
-void advanceBase(Pose& pose, float delta)
+// The seconds of the update after a transition's exit time was passed:
+// the state that follows has already been playing that long (0 for a
+// transition on conditions alone, taken when the frame sees them).
+float pastExit(const assets::StateTransition& transition, const StateProgress& progress)
+{
+    if (transition.exitTime < 0 || progress.rate <= 0)
+    {
+        return 0;
+    }
+    float at = transition.exitTime;
+    if (progress.loop)
+    {
+        while (at <= progress.before)
+        {
+            at += 1.0f;
+        }
+    }
+    else
+    {
+        at = std::max(at, progress.before);
+    }
+    return std::max(progress.raw - at, 0.0f) / progress.rate;
+}
+
+// Advances the base; a transition taken at an exit time partway through the
+// update returns how long ago it was taken, which the caller plays the new
+// state for, so transitions fall where they would at any frame rate.
+float advanceBase(Pose& pose, float delta)
 {
     if (!playsMachine(pose))
     {
         advancePlayer(pose.base, delta, pose.speed, pose.loop);
-        return;
+        return 0;
     }
     MachinePlay& play = pose.machine;
     const StateProgress progress = advanceState(play, play.current, delta, pose.speed);
@@ -1870,6 +1899,29 @@ void advanceBase(Pose& pose, float delta)
         const assets::StateTransition& transition = play.machine->transitions[static_cast<uint32_t>(taken)];
         play.enter(transition.to, transition.blendSeconds);
         refreshState(pose, play.current);
+        return std::min(pastExit(transition, progress), delta);
+    }
+    return 0;
+}
+
+// The new state's share of the update after its transition: its events
+// passed (the state it left keeps its weight, so the clip with the most
+// weight still decides, as in any frame), its time and fade moved on.
+void catchUp(const ecs::World& world, Pose& pose, float seconds, uint64_t frameStart)
+{
+    MachinePlay& play = pose.machine;
+    const float t = play.previous.state >= 0 ? fadeShare(play.fadeElapsed + seconds, play.fadeDuration) : 1.0f;
+    Contribution contributions[maxContributions];
+    uint32_t count = stateContributions(play, play.current, seconds, pose.speed, t, contributions);
+    if (t < 1)
+    {
+        count += stateContributions(play, play.previous, 0, pose.speed, 1 - t, contributions + count);
+    }
+    passEvents(world, pose, 0, contributions, count, FrameClock{frameStart, seconds});
+    (void)advanceState(play, play.current, seconds, pose.speed);
+    if (play.fadeDuration > 0)
+    {
+        play.fadeElapsed += seconds;
     }
 }
 
@@ -1908,7 +1960,10 @@ void advance(ecs::World& world, float delta, uint64_t frameStart)
             applyRootMotion(world, *pose, base, baseCount, delta);
         }
 
-        advanceBase(*pose, delta);
+        if (const float leftover = advanceBase(*pose, delta); leftover > 0)
+        {
+            catchUp(world, *pose, leftover, frameStart);
+        }
         for (Layer& layer : pose->layers)
         {
             if (!layer.active)

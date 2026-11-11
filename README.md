@@ -133,3 +133,6 @@ Longer explanations of decisions, written to be reread:
 - [Audio codecs](docs/learning/audio-codecs.md) (ADR 0083): PCM, IMA ADPCM's
   adaptive steps, Vorbis's perceptual coding, and streaming ahead through a
   ring.
+- [Frame-rate independence](docs/learning/frame-rate-independence.md) (ADR
+  0084): carrying exact times from animation to the speaker, and the state
+  machine transition a two-rate test caught.

@@ -336,6 +336,18 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "StandaloneChecks: all [0-9]+ checks passed")
 
+    # The M8 demonstration (ADR 0084): a copy of the Walker's project run
+    # standalone, headless, at 30 and 144 fps, its footsteps checked against
+    # their times in the offline mix, and the two runs compared.
+    add_test(NAME samples.walker
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
+            --project "${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject"
+            --game-arg "check-walker=${CMAKE_CURRENT_BINARY_DIR}"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/walker-settings.json")
+    set_tests_properties(samples.walker PROPERTIES LABELS "integration;gpu" TIMEOUT 300
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "WalkerChecks: all [0-9]+ checks passed")
+
     # Native modules checking themselves (ADR 0074): a copy of the Diorama's
     # project (in the test's folder) with its module built, loaded, played,
     # run standalone, and broken.

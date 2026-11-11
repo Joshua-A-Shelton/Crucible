@@ -161,6 +161,10 @@ int run(int argc, ArgumentChar** argv)
         {
             valid = parseCount(value, options.frameLimit);
         }
+        else if (option == CRUCIBLE_ARGUMENT("--frame-rate"))
+        {
+            valid = parseCount(value, options.frameRate) && options.frameRate > 0 && options.frameRate <= 1000;
+        }
         else if (option == CRUCIBLE_ARGUMENT("--msaa"))
         {
             valid = parseCount(value, msaa) && (msaa == 1 || msaa == 2 || msaa == 4 || msaa == 8);

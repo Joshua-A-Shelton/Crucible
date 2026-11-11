@@ -5,14 +5,14 @@
     "Clips": {
       "Walk": {
         "Events": [
-          { "Name": "Footstep", "Time": 0 },
-          { "Name": "Footstep", "Time": 0.5 }
+          { "Name": "RightFoot", "Time": 0 },
+          { "Name": "LeftFoot", "Time": 0.5 }
         ]
       },
       "WalkForward": {
         "Events": [
-          { "Name": "Footstep", "Time": 0 },
-          { "Name": "Footstep", "Time": 0.5 }
+          { "Name": "RightFoot", "Time": 0 },
+          { "Name": "LeftFoot", "Time": 0.5 }
         ]
       }
     }
