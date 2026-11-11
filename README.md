@@ -145,3 +145,6 @@ Longer explanations of decisions, written to be reread:
 - [Engine messages](docs/learning/engine-messages.md) (ADR 0087): one sink
   for the core's warnings, a fixed ring that never allocates, pulling them
   into C# each frame, and holding import settings until Apply.
+- [Pausing a game](docs/learning/pausing-a-game.md) (ADR 0088): stopping the
+  simulation but not the drawing, resuming without a jump, stepping one
+  fixed tick, and holding the mixer's sounds in place.

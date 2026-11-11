@@ -94,7 +94,9 @@ enum class CommandKind : uint32_t
     BusEffects,
     Music, // the next track, crossfading, aligned
     StopAll,
-    Forget, // a sound about to be freed: stop what plays it, then say so
+    Forget,  // a sound about to be freed: stop what plays it, then say so
+    Pause,   // hold everything, or let it go on (ADR 0088)
+    Advance, // while paused: mix the next seconds, then hold again
 };
 
 // Frames of a Vorbis voice decoded ahead: a second's worth, topped up when
@@ -122,6 +124,7 @@ struct Command
     float seconds = 0;
     BusEffects effects{};
     MusicTransition transition{};
+    bool paused = false;
 };
 
 enum class FeedbackKind : uint32_t

@@ -28,6 +28,7 @@ public sealed class EditorWindow : IDisposable
         DockSpace = new DockSpace();
         TitleBar = isMain ? new TitleBar() : new FloatingTitleBar(this);
         DockPanel page = new();
+        _page = page;
         page.Classes.Add("editor");
         DockPanel.SetDock(TitleBar, Dock.Top);
         page.Add(TitleBar);
@@ -60,6 +61,17 @@ public sealed class EditorWindow : IDisposable
     }
 
     private const float ResizeBorder = 6; // units
+
+    private readonly DockPanel _page;
+
+    /// <summary>A strip under the title bar, above the panels (the main window's play toolbar, ADR 0088).</summary>
+    internal void AddStrip(UIElement strip)
+    {
+        _page.Remove(DockSpace);
+        DockPanel.SetDock(strip, Dock.Top);
+        _page.Add(strip);
+        _page.Add(DockSpace);
+    }
 
     public WindowHandle Window { get; }
 

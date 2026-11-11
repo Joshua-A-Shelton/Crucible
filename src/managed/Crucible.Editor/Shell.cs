@@ -49,6 +49,8 @@ internal sealed partial class Shell
         _font = LoadFont();
         _theme = CreateTheme();
         Main = new EditorWindow(context.Window, context.Surface, true, false, _theme, _font);
+        Toolbar = new PlayToolbar(this);
+        Main.AddStrip(Toolbar);
         Add(Main);
         RegisterPanels();
         RegisterCommands();
@@ -77,6 +79,9 @@ internal sealed partial class Shell
     public PanelRegistry Panels { get; } = new();
 
     public EditorWindow Main { get; }
+
+    /// <summary>The play toolbar under the main window's menu bar (ADR 0088).</summary>
+    public PlayToolbar Toolbar { get; }
 
     public IReadOnlyList<EditorWindow> Windows => _windows;
 
@@ -377,6 +382,7 @@ internal sealed partial class Shell
         {
             Selection.Selected = Entity.Null;
         }
+        Toolbar.Update();
         PollAssets();
         PollNative();
         PollCode();
@@ -601,6 +607,8 @@ internal sealed partial class Shell
         edit.Add(Commands.Find("Edit.Redo")!);
         edit.AddSeparator();
         edit.Add(Commands.Find("Play.Toggle")!);
+        edit.Add(Commands.Find("Play.Pause")!);
+        edit.Add(Commands.Find("Play.Step")!);
         edit.Add(Commands.Find("Play.RunStandalone")!);
         edit.AddSeparator();
         edit.Add(Commands.Find("Edit.Rename")!);
@@ -1249,6 +1257,16 @@ internal sealed partial class Shell
         theme.Add(new Style("Button.tool:hover").Set(UIElement.BackgroundProperty, hover));
         theme.Add(new Style("Button.on").Set(UIElement.BackgroundProperty, accent with { W = 0.55f }));
         theme.Add(new Style("Button:disabled").Set(UIElement.ForegroundProperty, muted));
+        theme.Add(new Style("PlayToolbar")
+            .Set(UIElement.BackgroundProperty, strip)
+            .Set(UIElement.PaddingProperty, new Thickness(0, 3, 0, 3)));
+        theme.Add(new Style("PlayToolButton.tool")
+            .Set(UIElement.ForegroundProperty, text)
+            .Set(UIElement.BackgroundProperty, panel)
+            .Set(UIElement.CornerRadiiProperty, new Vector4(3)));
+        theme.Add(new Style("PlayToolButton.tool:hover").Set(UIElement.BackgroundProperty, hover));
+        theme.Add(new Style("PlayToolButton.on").Set(UIElement.BackgroundProperty, accent with { W = 0.55f }));
+        theme.Add(new Style("PlayToolButton:disabled").Set(UIElement.ForegroundProperty, muted));
         theme.Add(new Style("Label.frame-time").Set(UIElement.ForegroundProperty, muted).Set(UIElement.MarginProperty, new Thickness(8, 0, 0, 0)));
         // The inspector (ADR 0069): a card per component; prefab overrides in the accent color.
         theme.Add(new Style("DockPanel.inspector-header")

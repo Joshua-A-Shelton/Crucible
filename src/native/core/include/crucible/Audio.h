@@ -111,6 +111,8 @@ struct AudioService
     void (*blendToSnapshot)(std::string_view name, float seconds);
     void (*playMusic)(assets::AssetId track, MusicTransition transition);
     void (*stopAll)(float fadeSeconds);
+    void (*pauseAll)(bool paused);        // null: nothing to pause
+    void (*advancePaused)(float seconds); // null likewise
 };
 
 // Replaces the service; the default is the null audio's. Main thread.
@@ -140,6 +142,13 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void playMusic(assets::AssetId track, MusicTrans
 // fadeSeconds; sources that play on start start again when next seen (the
 // editor's Stop).
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void stopAll(float fadeSeconds);
+// Holds every sound where it is, music included, silent, or lets them go
+// on from there (the editor's Pause, ADR 0088). Sounds scheduled for later
+// move by the length of the pause, so they still land on their frames.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void pauseAll(bool paused);
+// While paused: plays the next seconds of audio, then holds again (the
+// editor's Step, one fixed tick).
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void advancePaused(float seconds);
 
 // --- Crucible's mixer (ADR 0082) --------------------------------------------
 

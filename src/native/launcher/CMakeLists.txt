@@ -361,6 +361,18 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "ImportSettingsChecks: all [0-9]+ checks passed")
 
+    # The play toolbar checking itself (ADR 0088): a copy of the Walker's
+    # project (in the test's folder), a ball timed through Pause before
+    # Play, Step, Pause off, and Stop, each a click on the toolbar.
+    add_test(NAME launcher.jit.play-toolbar
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
+            --project "${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject"
+            --game-arg "check-play-toolbar=${CMAKE_CURRENT_BINARY_DIR}"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/play-toolbar-settings.json")
+    set_tests_properties(launcher.jit.play-toolbar PROPERTIES LABELS "integration;gpu" TIMEOUT 300
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "PlayToolbarChecks: all [0-9]+ checks passed")
+
     # Native modules checking themselves (ADR 0074): a copy of the Diorama's
     # project (in the test's folder) with its module built, loaded, played,
     # run standalone, and broken.
@@ -388,7 +400,8 @@ if(CRUCIBLE_BUILD_TESTS)
     # 0074): one at a time, or the builds race.
     set_tests_properties(launcher.jit.viewport launcher.jit.hierarchy launcher.jit.inspector launcher.jit.assets
         launcher.jit.play launcher.jit.standalone launcher.jit.native PROPERTIES RESOURCE_LOCK diorama-project-cache)
-    set_tests_properties(samples.walker launcher.jit.import-settings PROPERTIES RESOURCE_LOCK walker-project-cache)
+    set_tests_properties(samples.walker launcher.jit.import-settings launcher.jit.play-toolbar PROPERTIES
+        RESOURCE_LOCK walker-project-cache)
 
     # The M6 demonstration (ADR 0064): the UI showcase's menu driven by mouse,
     # keyboard, and gamepad scripts, and captured at four DPI scales; on

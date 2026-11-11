@@ -205,6 +205,10 @@ public:
     uint32_t lastFrames = 0;
     bool anchored = false;
     int32_t music = -1; // the voice playing the current track
+    // Paused (ADR 0088): nothing advances but the cursor, which keeps time;
+    // what's scheduled moves with it. advanceFrames: a Step's frames to mix.
+    bool paused = false;
+    uint64_t advanceFrames = 0;
     // Each voice's last two decoded ADPCM blocks (the four samples cubic
     // Hermite reads span at most two), by block number.
     int64_t cachedBlock[maxVoices][2];
@@ -464,6 +468,32 @@ void apply(Mixer& mixer, const Command& command)
         }
         (void)mixer.feedback.push({FeedbackKind::Forgotten, 0, command.sound, nullptr});
         return;
+    case CommandKind::Pause:
+        mixer.paused = command.paused;
+        mixer.advanceFrames = 0;
+        return;
+    case CommandKind::Advance:
+        if (mixer.paused)
+        {
+            mixer.advanceFrames += static_cast<uint64_t>(std::llround(std::max(command.seconds, 0.0f) * mixRate));
+        }
+        return;
+    }
+}
+
+// A held block: silence, and every voice's frames (its start, its fade's)
+// moved on with the cursor, so each resumes where it was and what's
+// scheduled still lands as far ahead as it was.
+void hold(Mixer& mixer, float* out, uint32_t frames)
+{
+    std::fill_n(out, frames * 2, 0.0f);
+    for (Voice& voice : mixer.voices)
+    {
+        if (voice.active)
+        {
+            voice.start += frames;
+            voice.fadeFrom += frames;
+        }
     }
 }
 
@@ -843,8 +873,20 @@ void mix(Mixer& mixer, float* out, uint32_t frames, uint64_t nowNs)
     }
     while (frames > 0)
     {
-        const uint32_t block = std::min(frames, blockFrames);
-        mixBlock(mixer, out, block);
+        uint32_t block = std::min(frames, blockFrames);
+        if (mixer.paused && mixer.advanceFrames == 0)
+        {
+            hold(mixer, out, block);
+        }
+        else
+        {
+            if (mixer.paused)
+            {
+                block = static_cast<uint32_t>(std::min<uint64_t>(block, mixer.advanceFrames));
+                mixer.advanceFrames -= block;
+            }
+            mixBlock(mixer, out, block);
+        }
         out += block * 2;
         frames -= block;
         mixer.cursor += block;

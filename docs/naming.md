@@ -898,3 +898,24 @@ the "isn't imported with" wording above. Names added while building (marked
 
 The collider's tooltip also changes, to "Generate the collision data at load
 if the model has none generated"* (settled as drafted).
+
+## The play toolbar (2026-11-11, editor usability step 2)
+
+Settled as drafted: commands `Play.Toggle` (kept), `Play.Pause` "Pause"
+(Ctrl+Shift+P), `Play.Step` "Step" (Ctrl+Alt+P); the buttons' status-bar
+tips "Play (Ctrl+P)" / "Stop (Ctrl+P)", "Pause (Ctrl+Shift+P)", "Step one
+tick (Ctrl+Alt+P)"; `Shell.IsPaused`, `Shell.Pause(bool)`, `Shell.Step()`;
+`PlayToolbar`; the status "Paused" and "Stepped one tick", the title's
+"(paused)"; `audio::pauseAll(bool)` (C# `Audio.Api.PauseAll`); ADR 0088 "The
+play toolbar", `docs/learning/pausing-a-game.md`; `AudioPauseTests`,
+`PlayToolbarChecks`, CTest's `launcher.jit.play-toolbar`. Names added while
+building are placeholders (*):
+
+| Name | What it is |
+|---|---|
+| `audio::advancePaused`* (internal; C# `Audio.Api.AdvancePaused`), `AudioService::pauseAll`*, `advancePaused`* | A step's tick of sound, and the service's entries |
+| The mixer's `CommandKind::Pause`*, `Advance`*, `Command::paused`*, `Mixer::paused`*, `advanceFrames`*, `hold`* | The mixer's side |
+| `PlayToolbar.PlayButton`*, `PauseButton`*, `StepButton`*; `PlayToolButton`*, `PlayGlyph`* (`Play`, `Stop`, `Pause`, `Step`); `Shell.Toolbar`*; `EditorWindow.AddStrip`* | The toolbar |
+| The style classes `play-toolbar`*; the status "Pause off"* | The toolbar's look, and Pause turned off while stopped |
+| The capture `play-toolbar.png`*, `--game-arg check-play-toolbar=` | The check |
+

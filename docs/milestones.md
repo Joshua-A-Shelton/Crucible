@@ -648,7 +648,11 @@ Generate If Missing builds data at load when the model wasn't imported with
 it; the asset browser's right-click has Import Settings… and Collision.
 Amended again: "generate", not "import" (the setting shown as Generate
 Collision), and the notice right under the Collider's Mesh fields, marked.
-Tried by hand by the owner on KWin. Step 1 is done.
+Tried by hand by the owner on KWin. Step 1 is done. Step 2 built (ADR
+0088): the play toolbar under the menu bar (Play/Stop, Pause, Step);
+paused, gameplay holds and drawing runs, the mixer holds its sounds in
+place; Step runs one fixed tick; Pause works before Play; checked by
+launcher.jit.play-toolbar.
 
 ## M10 — Shipping
 

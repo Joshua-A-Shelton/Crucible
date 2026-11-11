@@ -438,9 +438,23 @@ void mixerStopAll(float fadeSeconds)
     sourceStates.clear();
 }
 
-constexpr AudioService mixerService{mixerPlayOneShot, mixerStop,           mixerBusVolume,
-                                    mixerBusEffects,  mixerDefineSnapshot, mixerBlendToSnapshot,
-                                    mixerPlayMusic,   mixerStopAll};
+void mixerPauseAll(bool paused)
+{
+    Command command{.kind = CommandKind::Pause};
+    command.paused = paused;
+    (void)send(*mixer, command);
+}
+
+void mixerAdvancePaused(float seconds)
+{
+    Command command{.kind = CommandKind::Advance};
+    command.seconds = seconds;
+    (void)send(*mixer, command);
+}
+
+constexpr AudioService mixerService{
+    mixerPlayOneShot,     mixerStop,      mixerBusVolume, mixerBusEffects, mixerDefineSnapshot,
+    mixerBlendToSnapshot, mixerPlayMusic, mixerStopAll,   mixerPauseAll,   mixerAdvancePaused};
 
 // --- The device -------------------------------------------------------------
 

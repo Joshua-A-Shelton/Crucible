@@ -65,8 +65,8 @@ void countMusic(assets::AssetId, MusicTransition)
 struct Started;
 void countStopAll(float);
 
-constexpr AudioService nullAudio{countPlay,      countStop,     countBusVolume, countBusEffects,
-                                 ignoreSnapshot, countSnapshot, countMusic,     countStopAll};
+constexpr AudioService nullAudio{countPlay,     countStop,  countBusVolume, countBusEffects, ignoreSnapshot,
+                                 countSnapshot, countMusic, countStopAll,   nullptr,         nullptr};
 
 AudioService installed = nullAudio;
 
@@ -171,6 +171,22 @@ void playMusic(assets::AssetId track, MusicTransition transition)
 void stopAll(float fadeSeconds)
 {
     installed.stopAll(fadeSeconds);
+}
+
+void pauseAll(bool paused)
+{
+    if (installed.pauseAll != nullptr)
+    {
+        installed.pauseAll(paused);
+    }
+}
+
+void advancePaused(float seconds)
+{
+    if (installed.advancePaused != nullptr)
+    {
+        installed.advancePaused(seconds);
+    }
 }
 
 NullAudioCounts nullAudioCounts()

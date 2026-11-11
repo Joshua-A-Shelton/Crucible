@@ -15,6 +15,8 @@ namespace Crucible.Editor;
 // scene loads; saving a .cs file rebuilds it and hot-reloads it. Play saves
 // the scene to memory and runs the game's systems in the same world (through
 // one editor system per phase, PlayPhaseSystems.cs); Stop puts the scene back.
+// Pause (ADR 0088) holds the gameplay phases and the game's sound while the
+// game still draws; Step runs one fixed tick.
 internal sealed partial class Shell
 {
     private const string JitOnly = "The editor loads games at runtime, which only JIT builds do (ADR 0001).";
@@ -28,9 +30,22 @@ internal sealed partial class Shell
     private HashSet<ulong> _keptAtPlay = []; // entities without scene IDs that were there before Play
     private UndoHistory.Saved? _historyAtPlay;
     private InputEvent[] _hiddenEvents = [];
+    // Pause and Step (ADR 0088): a step asked for, the frame running it, and
+    // the fixed ticks it has run (one, whatever the editor's loop gives).
+    private bool _stepPending;
+    private bool _stepping;
+    private int _stepTicks;
+    private bool _skippingTick;
 
     /// <summary>Whether the game is playing.</summary>
     public bool IsPlaying { get; private set; }
+
+    /// <summary>
+    /// Whether Pause is on (ADR 0088): while playing, the game's gameplay
+    /// phases and sound hold; on before Play, Play runs the first tick and
+    /// holds. It stays on across Stop.
+    /// </summary>
+    public bool IsPaused { get; private set; }
 
     /// <summary>Play started or stopped.</summary>
     public event Action? PlayStateChanged;
@@ -58,6 +73,46 @@ internal sealed partial class Shell
             Shortcut = new Shortcut(KeyModifiers.Ctrl, Keycode.P),
             IsChecked = () => IsPlaying,
         });
+        Commands.Add(new Command("Play.Pause", "Pause", () => Pause(!IsPaused), () => _context.HasWorld)
+        {
+            Shortcut = new Shortcut(KeyModifiers.Ctrl | KeyModifiers.Shift, Keycode.P),
+            IsChecked = () => IsPaused,
+        });
+        Commands.Add(new Command("Play.Step", "Step", Step, () => IsPlaying && IsPaused)
+        {
+            Shortcut = new Shortcut(KeyModifiers.Ctrl | KeyModifiers.Alt, Keycode.P),
+        });
+    }
+
+    /// <summary>Turns Pause on or off (ADR 0088); while playing, the game holds or goes on from where it was.</summary>
+    public void Pause(bool paused)
+    {
+        if (paused == IsPaused)
+        {
+            return;
+        }
+        IsPaused = paused;
+        if (IsPlaying)
+        {
+            Audio.Api.PauseAll(paused);
+        }
+        if (!paused)
+        {
+            _stepPending = false;
+        }
+        UpdateTitle();
+        PlayStateChanged?.Invoke();
+        Status(paused ? "Paused" : IsPlaying ? $"Playing {_builder?.AssemblyName}" : "Pause off");
+    }
+
+    /// <summary>While paused, runs the game for one fixed tick on the next frame, sound included.</summary>
+    public void Step()
+    {
+        if (!IsPlaying || !IsPaused || _stepPending)
+        {
+            return;
+        }
+        _stepPending = true;
     }
 
     private void TogglePlay()
@@ -206,6 +261,12 @@ internal sealed partial class Shell
             .Where(entity => SceneIds.IdOf(world, entity) == 0).Select(entity => entity.Value)];
         _historyAtPlay = History.Save();
         IsPlaying = true;
+        if (IsPaused)
+        {
+            // Started paused: the first tick runs, then it holds.
+            Audio.Api.PauseAll(true);
+            _stepPending = true;
+        }
         StartSystems();
         // The Game panel shown, with the input.
         if (_open.GetValueOrDefault("Game") is GamePanel game)
@@ -226,7 +287,13 @@ internal sealed partial class Shell
             return;
         }
         StopSystems();
-        // The game's sounds stop with it, music and sources too (ADR 0082).
+        // The game's sounds stop with it, music and sources too (ADR 0082);
+        // let go first if paused, so their fades run.
+        if (IsPaused)
+        {
+            Audio.Api.PauseAll(false);
+        }
+        _stepPending = _stepping = false;
         Audio.Api.StopAll(0.1f);
         IsPlaying = false;
         GameInput = null;
@@ -312,7 +379,75 @@ internal sealed partial class Shell
     /// </summary>
     internal void RunPlayPhase(string phase, FrameContext context)
     {
-        if (!IsPlaying || !_playPhases.TryGetValue(phase, out GameSystem[]? systems) || systems.Length == 0)
+        if (!IsPlaying)
+        {
+            return;
+        }
+        if (phase == Phases.BeginFrame)
+        {
+            _stepping = IsPaused && _stepPending;
+            if (_stepping)
+            {
+                _stepPending = false;
+                _stepTicks = 0;
+                Audio.Api.AdvancePaused((float)context.FixedStepSeconds);
+            }
+        }
+        bool drawing = phase is Phases.RenderPrepare or Phases.RenderSubmit;
+        if (IsPaused && !_stepping && !drawing)
+        {
+            return; // paused: gameplay holds, drawing goes on
+        }
+        if (!_stepping || drawing)
+        {
+            RunPlaySystems(phase, context);
+            return;
+        }
+        // A step: exactly one fixed tick, whatever the editor's loop runs
+        // this frame, and the rest of the frame as one tick long.
+        bool fixedPhase = phase is Phases.PrePhysics or Phases.Physics or Phases.PostPhysics;
+        if (phase == Phases.PrePhysics)
+        {
+            _skippingTick = _stepTicks > 0;
+            _stepTicks = 1;
+        }
+        if (fixedPhase && _skippingTick)
+        {
+            return;
+        }
+        double delta = context.DeltaSeconds, alpha = context.FixedAlpha;
+        int steps = context.FixedSteps;
+        context.DeltaSeconds = context.FixedStepSeconds;
+        context.FixedSteps = 1;
+        context.FixedAlpha = fixedPhase ? alpha : 1;
+        try
+        {
+            if (phase == Phases.Update && _stepTicks == 0)
+            {
+                // The editor's loop ran no tick this frame: the step's runs now.
+                _stepTicks = 1;
+                RunPlaySystems(Phases.PrePhysics, context);
+                RunPlaySystems(Phases.Physics, context);
+                RunPlaySystems(Phases.PostPhysics, context);
+            }
+            RunPlaySystems(phase, context);
+        }
+        finally
+        {
+            context.DeltaSeconds = delta;
+            context.FixedSteps = steps;
+            context.FixedAlpha = alpha;
+            if (phase == Phases.EndFrame)
+            {
+                _stepping = false;
+                Status("Stepped one tick");
+            }
+        }
+    }
+
+    private void RunPlaySystems(string phase, FrameContext context)
+    {
+        if (!_playPhases.TryGetValue(phase, out GameSystem[]? systems) || systems.Length == 0)
         {
             return;
         }
