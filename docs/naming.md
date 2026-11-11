@@ -842,8 +842,8 @@ Settled as drafted: crucible/Log.h (`log::info`, `warning`, `error`,
 section with "Apply" and "Revert"; the Collider's "*model* has no *Kind*
 collision data" and "Cook *Kind* collision"; ADR 0087 "Editor import
 settings and messages", `docs/learning/engine-messages.md`; `LogTests`;
-CTest's `launcher.jit.import-settings`. Names added while building are
-placeholders (*):
+CTest's `launcher.jit.import-settings`. Names added while building (marked
+*) settled as drafted too, after the owner tried step 1 by hand:
 
 | Name | What it is |
 |---|---|
@@ -867,7 +867,8 @@ model wasn't imported with it"); the notice "*model* isn't imported with
 warning "a *Kind* collider's model isn't imported with *Kind* collision (set
 its Collision import setting, or the collider's Generate If Missing)"; the
 asset browser's "Import Settings…" and "Collision" ▸ "None", "Mesh",
-"Convex". Names added while building are placeholders (*):
+"Convex". Names added while building (marked *) settled as drafted
+too, after the owner tried step 1 by hand:
 
 | Name | What it is |
 |---|---|
@@ -885,8 +886,8 @@ generated", its button "Generate *Kind* collision for *model*"; the
 right-click "Generate Collision" ▸ "None", "Mesh", "Convex"; the warning "a
 *Kind* collider's model has no *Kind* collision generated (set the model's
 Generate Collision, or the collider's Generate If Missing)". These replace
-the "isn't imported with" wording above. Names added while building are
-placeholders (*):
+the "isn't imported with" wording above. Names added while building (marked
+*) settled as drafted too, after the owner tried step 1 by hand:
 
 | Name | What it is |
 |---|---|
@@ -896,4 +897,4 @@ placeholders (*):
 | `ColliderNotice.GenerateButton`* (was `ReimportButton`), `FieldEditor.Warns`*, the style `field-warning`* | The notice by the Mesh field |
 
 The collider's tooltip also changes, to "Generate the collision data at load
-if the model has none generated"*.
+if the model has none generated"* (settled as drafted).

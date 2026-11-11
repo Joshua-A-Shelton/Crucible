@@ -646,6 +646,9 @@ and its cook button; checked by launcher.jit.import-settings. Amended after
 the owner's try (ADRs 0086, 0087): no "cook" in the editor; a Collider's
 Generate If Missing builds data at load when the model wasn't imported with
 it; the asset browser's right-click has Import Settings… and Collision.
+Amended again: "generate", not "import" (the setting shown as Generate
+Collision), and the notice right under the Collider's Mesh fields, marked.
+Tried by hand by the owner on KWin. Step 1 is done.
 
 ## M10 — Shipping
 

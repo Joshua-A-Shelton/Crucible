@@ -1,8 +1,10 @@
 # 0087 — Editor import settings and messages
 
-**Status:** Accepted (2026-11-11); editor usability step 1 built. Names
-settled by the owner as drafted (docs/naming.md); names added while
-building are marked *.
+**Status:** Accepted (2026-11-11); editor usability step 1 built, amended
+twice after the owner's tries, then tried by hand by the owner (Generate
+Collision from the asset browser and the inspector, the notice by the Mesh
+field, Generate If Missing). Names, including those added while building,
+settled by the owner as drafted (docs/naming.md).
 
 ## Context
 
