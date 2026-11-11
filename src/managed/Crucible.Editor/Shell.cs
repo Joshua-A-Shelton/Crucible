@@ -55,6 +55,14 @@ internal sealed partial class Shell
         BuildMenus();
         RestoreLayout(Settings.Layout);
         History.Changed += _ => SceneEdited();
+        Crucible.Log.Api.Received += EngineMessage;
+        Selection.Changed += selection =>
+        {
+            if (!selection.Selected.IsNull)
+            {
+                _inspectedAsset = AssetId.None; // an entity picked: the inspector shows it instead
+            }
+        };
         Status("No project open");
         Log($"{EngineInfo.Name} editor started (window drags: {Platform.Api.WindowDragSupport()})");
     }
@@ -81,6 +89,26 @@ internal sealed partial class Shell
 
     /// <summary>What's selected: picked in a viewport, outlined, and moved by its handles.</summary>
     public Selection Selection { get; } = new();
+
+    /// <summary>
+    /// The asset whose import settings the inspector shows (ADR 0087), or
+    /// <see cref="AssetId.None"/>: chosen in the Assets panel, which clears
+    /// the entity selection; selecting an entity clears it.
+    /// </summary>
+    public AssetId InspectedAsset
+    {
+        get => _inspectedAsset;
+        set
+        {
+            _inspectedAsset = value;
+            if (!value.IsNone)
+            {
+                Selection.Selected = Entity.Null;
+            }
+        }
+    }
+
+    private AssetId _inspectedAsset;
 
     /// <summary>The open scene's file, or null.</summary>
     public string? ScenePath { get; private set; }
@@ -187,6 +215,7 @@ internal sealed partial class Shell
             return;
         }
         _stopped = true;
+        Crucible.Log.Api.Received -= EngineMessage;
         _watcher?.Dispose();
         _codeWatcher?.Dispose();
         _nativeWatcher?.Dispose();
@@ -1137,6 +1166,25 @@ internal sealed partial class Shell
         Main.StatusBar.Text = Project is null ? message : $"{Project.Name} — {message}";
     }
 
+    // The core's messages (ADR 0087), already printed to the terminal by
+    // the core: in the Log, warnings and errors marked and coloured.
+    private void EngineMessage(Crucible.Log.LogLevel level, string text)
+    {
+        switch (level)
+        {
+            case Crucible.Log.LogLevel.Warning:
+                LogPanel?.Add($"Warning: {text}", "log-warning");
+                break;
+            case Crucible.Log.LogLevel.Error:
+                LogPanel?.Add($"Error: {text}", "log-error");
+                Main.StatusBar.Text = $"Error: {text}";
+                break;
+            default:
+                LogPanel?.Add(text);
+                break;
+        }
+    }
+
     // Noto Sans, beside the editor (Fonts/, OFL), imported in memory as the
     // asset pipeline would.
     private static FontHandle LoadFont()
@@ -1181,6 +1229,8 @@ internal sealed partial class Shell
             .Set(UIElement.ForegroundProperty, text)
             .Set(UIElement.BorderColorProperty, accent));
         theme.Add(new Style("Label.placeholder").Set(UIElement.ForegroundProperty, muted));
+        theme.Add(new Style("Label.log-warning").Set(UIElement.ForegroundProperty, Color(0xf0c060)));
+        theme.Add(new Style("Label.log-error").Set(UIElement.ForegroundProperty, Color(0xf07070)));
         theme.Add(new Style("Splitter").Set(UIElement.BackgroundProperty, page));
         theme.Add(new Style("Splitter:hover").Set(UIElement.BackgroundProperty, accent with { W = 0.6f }));
         theme.Add(new Style("Splitter:pressed").Set(UIElement.BackgroundProperty, accent));
@@ -1198,6 +1248,7 @@ internal sealed partial class Shell
             .Set(UIElement.BackgroundProperty, panel));
         theme.Add(new Style("Button.tool:hover").Set(UIElement.BackgroundProperty, hover));
         theme.Add(new Style("Button.on").Set(UIElement.BackgroundProperty, accent with { W = 0.55f }));
+        theme.Add(new Style("Button:disabled").Set(UIElement.ForegroundProperty, muted));
         theme.Add(new Style("Label.frame-time").Set(UIElement.ForegroundProperty, muted).Set(UIElement.MarginProperty, new Thickness(8, 0, 0, 0)));
         // The inspector (ADR 0069): a card per component; prefab overrides in the accent color.
         theme.Add(new Style("DockPanel.inspector-header")

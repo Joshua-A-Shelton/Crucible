@@ -24,6 +24,7 @@ add_executable(crucible_native_tests
     SpatialAudioTests.cpp
     JobTests.cpp
     LightTests.cpp
+    LogTests.cpp
     MaterialTests.cpp
     MathTests.cpp
     MemoryTests.cpp

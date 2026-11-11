@@ -1,4 +1,5 @@
 #include <crucible/Jobs.h>
+#include <crucible/Log.h>
 #include <crucible/Memory.h>
 #include <crucible/SmallVector.h>
 #include <crucible/Vector.h>
@@ -421,7 +422,7 @@ void parallelForManaged(uint64_t jobId, uint32_t count, uint32_t batchSize)
 {
     if (managedTrampoline.load(std::memory_order_acquire) == nullptr)
     {
-        std::fprintf(stderr, "crucible: parallelForManaged before the C# trampoline was set\n");
+        log::warning("parallelForManaged before the C# trampoline was set");
         return;
     }
     parallelFor(count, batchSize, runManagedRange, &jobId);

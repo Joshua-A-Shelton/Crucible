@@ -1,6 +1,7 @@
 #include <crucible/Ecs.h>
 #include <crucible/HashMap.h>
 #include <crucible/Jobs.h>
+#include <crucible/Log.h>
 #include <crucible/Memory.h>
 #include <crucible/SmallVector.h>
 #include <crucible/Vector.h>
@@ -18,7 +19,7 @@ namespace {
 
 [[noreturn]] void fatal(const char* message)
 {
-    std::fprintf(stderr, "crucible: ecs: %s\n", message);
+    log::warning("ecs: %s", message);
     std::fflush(stderr);
     std::abort();
 }

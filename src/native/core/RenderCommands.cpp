@@ -5,6 +5,7 @@
 
 #include "RenderInternal.h"
 
+#include <crucible/Log.h>
 #include <crucible/Memory.h>
 #include <crucible/Render.h>
 #include <crucible/RenderCommands.h>
@@ -287,9 +288,9 @@ namespace {
 
 void report(const StepFrame& frame, const char* format, const char* detail)
 {
-    std::fprintf(stderr, "crucible: render step \"%.*s\": ", static_cast<int>(frame.step.size()), frame.step.data());
-    std::fprintf(stderr, format, detail);
-    std::fputc('\n', stderr);
+    char text[512];
+    std::snprintf(text, sizeof(text), format, detail);
+    log::warning("render step \"%.*s\": %s", static_cast<int>(frame.step.size()), frame.step.data(), text);
 }
 
 // The pass being declared, or null (reported, the frame failed).
@@ -403,9 +404,8 @@ bool checkPass(const StepFrame& frame, const ManagedPass& pass)
     bool pipelineSet = false;
     int32_t labels = 0;
     auto fail = [&](const char* what, RenderCommandType type) {
-        std::fprintf(stderr, "crucible: render step \"%.*s\", pass \"%s\", record %u (%s): %s\n",
-                     static_cast<int>(frame.step.size()), frame.step.data(), pass.name.data(), record,
-                     commandName(type), what);
+        log::warning("render step \"%.*s\", pass \"%s\", record %u (%s): %s", static_cast<int>(frame.step.size()),
+                     frame.step.data(), pass.name.data(), record, commandName(type), what);
         return false;
     };
     while (at < pass.used)

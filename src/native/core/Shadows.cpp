@@ -7,6 +7,7 @@
 #include "RenderInternal.h"
 
 #include <crucible/Lights.h>
+#include <crucible/Log.h>
 #include <crucible/Render.h>
 
 #include <slag/Slag.h>
@@ -507,7 +508,7 @@ void chooseShadowFormat(slag::GraphicsDevice& device)
             return;
         }
     }
-    std::fprintf(stderr, "crucible: no depth format can be filtered here; shadows are off\n");
+    log::warning("no depth format can be filtered here; shadows are off");
 }
 
 slag::PixelFormat shadowFormat()

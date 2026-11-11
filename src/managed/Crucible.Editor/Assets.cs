@@ -140,6 +140,7 @@ public sealed class AssetsPanel : EditorPanel
             other.IsSelected = other == tile;
         }
         AssetEntry? asset = tile.Asset;
+        _shell.InspectedAsset = asset?.Id ?? AssetId.None;
         _shell.Status(tile.IsFolder ? tile.Path
             : asset is null ? $"{tile.Path} (not an asset)"
             : $"{tile.Path} — {(asset.Importer.Length > 0 ? asset.Importer : "no importer")}" +

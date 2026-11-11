@@ -5,6 +5,7 @@
 
 #include "RenderInternal.h"
 
+#include <crucible/Log.h>
 #include <crucible/MaterialFile.h>
 #include <crucible/Render.h>
 #include <crucible/Shader.h>
@@ -186,7 +187,7 @@ Result<slag::Pipeline*> createPipeline(const char* shader, const char* vertexEnt
     Result<ShaderFile*> file = loadShaderFile(engineShader(shader));
     if (!file)
     {
-        std::fprintf(stderr, "crucible: the embedded %s shader can't be read\n", shader);
+        log::warning("the embedded %s shader can't be read", shader);
         return file.status();
     }
     const int32_t vertex = findShaderEntry(*file.value(), vertexEntry);
@@ -521,7 +522,7 @@ Result<GameShader*> loadGameShader(const assets::AssetId& id)
     Vector<uint8_t> bytes(MemoryTag::Render);
     if (Status read = readAsset(id, bytes); read != Status::Ok)
     {
-        std::fprintf(stderr, "crucible: a material's shader couldn't be read (status %d)\n", static_cast<int>(read));
+        log::warning("a material's shader couldn't be read (status %d)", static_cast<int>(read));
         return read;
     }
     Result<GameShader*> made = makeGameShader(bytes.span());
@@ -661,7 +662,7 @@ Result<MaterialHandle> createMaterial(const MaterialInfo& info, std::span<const 
         uint32_t size = 0;
         if (typeName(*loaded.value(), info.type, &size).empty() || parameters.size() != size)
         {
-            std::fprintf(stderr, "crucible: a material doesn't match its shader's material type (reimport it)\n");
+            log::warning("a material doesn't match its shader's material type (reimport it)");
             return Status::InvalidData;
         }
     }
@@ -685,7 +686,7 @@ Result<MaterialHandle> createMaterial(const MaterialInfo& info, std::span<const 
     if (material->offset == UINT32_MAX)
     {
         destroy(MemoryTag::Render, material);
-        std::fprintf(stderr, "crucible: the material buffer is full\n");
+        log::warning("the material buffer is full");
         return Status::OutOfDeviceMemory;
     }
     // Parameters with each texture's slot written in; a texture that can't
@@ -839,7 +840,7 @@ void releaseMaterial(MaterialHandle handle)
     }
     if (!material->acquired)
     {
-        std::fprintf(stderr, "crucible: releaseMaterial on a material that wasn't acquired; ignored\n");
+        log::warning("releaseMaterial on a material that wasn't acquired; ignored");
         return;
     }
     if (--material->uses == 0)
@@ -864,7 +865,7 @@ Result<void> setMaterialParameters(MaterialHandle handle, std::span<const uint8_
     const uint32_t offset = allocateRange(material->size);
     if (offset == UINT32_MAX)
     {
-        std::fprintf(stderr, "crucible: the material buffer is full\n");
+        log::warning("the material buffer is full");
         return Status::OutOfDeviceMemory;
     }
     std::memcpy(static_cast<uint8_t*>(state.buffer->mappedData()) + offset, parameters.data(), parameters.size());
@@ -997,9 +998,8 @@ Result<bool> reloadGameShader(const assets::AssetId& id)
     }
     if (mismatched > 0)
     {
-        std::fprintf(stderr,
-                     "crucible: %u materials no longer match their reloaded shader; they draw as the fallback "
-                     "until they're reimported\n",
+        log::warning("%u materials no longer match their reloaded shader; they draw as the fallback "
+                     "until they're reimported",
                      mismatched);
     }
     return true;

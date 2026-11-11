@@ -154,13 +154,19 @@ public sealed class LogPanel : EditorPanel
 
     public int LineCount => _lines.Children.Count;
 
-    public void Add(string message)
+    /// <summary>A line, with a style class (log-warning, log-error) if given.</summary>
+    public void Add(string message, string? style = null)
     {
         if (_lines.Children.Count == MaxLines)
         {
             _lines.Remove(_lines.Children[0]);
         }
-        _lines.Add(new Label(message) { Wrap = true });
+        Label line = new(message) { Wrap = true };
+        if (style is not null)
+        {
+            line.Classes.Add(style);
+        }
+        _lines.Add(line);
         _scroll.ScrollTo(Orientation.Vertical, float.PositiveInfinity);
     }
 }

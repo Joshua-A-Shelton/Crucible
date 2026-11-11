@@ -1,6 +1,7 @@
 // Native modules (ADR 0074): a project's shared library, loaded and started,
 // kept loaded until the process ends.
 
+#include <crucible/Log.h>
 #include <crucible/Memory.h>
 #include <crucible/Module.h>
 #include <crucible/Vector.h>
@@ -70,7 +71,7 @@ void* openLibrary(std::string_view utf8Path)
     void* library = dlopen(path.data(), RTLD_NOW | RTLD_LOCAL);
     if (library == nullptr)
     {
-        std::fprintf(stderr, "crucible: %s\n", dlerror());
+        log::warning("%s", dlerror());
     }
     return library;
 #endif
@@ -101,8 +102,7 @@ Result<void> loadModule(std::string_view utf8Path)
     void* library = openLibrary(utf8Path);
     if (library == nullptr)
     {
-        std::fprintf(stderr, "crucible: the module %.*s couldn't be loaded\n", static_cast<int>(utf8Path.size()),
-                     utf8Path.data());
+        log::error("the module %.*s couldn't be loaded", static_cast<int>(utf8Path.size()), utf8Path.data());
         return Status::NotFound;
     }
     LoadedModule& module = state.loaded.emplaceBack();
@@ -112,8 +112,8 @@ Result<void> loadModule(std::string_view utf8Path)
     module.stop = reinterpret_cast<StopFunction>(symbol(library, "crucibleModuleStop"));
     if (start == nullptr || module.stop == nullptr)
     {
-        std::fprintf(stderr, "crucible: %.*s has no crucibleModuleStart or crucibleModuleStop\n",
-                     static_cast<int>(utf8Path.size()), utf8Path.data());
+        log::warning("%.*s has no crucibleModuleStart or crucibleModuleStop", static_cast<int>(utf8Path.size()),
+                     utf8Path.data());
         module.stop = nullptr;
         return Status::InvalidData;
     }
@@ -122,7 +122,7 @@ Result<void> loadModule(std::string_view utf8Path)
     loop::markModuleSystems(false);
     if (!started)
     {
-        std::fprintf(stderr, "crucible: %.*s failed to start\n", static_cast<int>(utf8Path.size()), utf8Path.data());
+        log::error("%.*s failed to start", static_cast<int>(utf8Path.size()), utf8Path.data());
         return Status::InvalidData;
     }
     return {};

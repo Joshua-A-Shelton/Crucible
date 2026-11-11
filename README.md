@@ -142,3 +142,6 @@ Longer explanations of decisions, written to be reread:
 - [Collision meshes](docs/learning/collision-meshes.md) (ADR 0086): triangle
   meshes and convex hulls, cooking bounding-volume trees at import, building
   them at run time, and which way a triangle faces.
+- [Engine messages](docs/learning/engine-messages.md) (ADR 0087): one sink
+  for the core's warnings, a fixed ring that never allocates, pulling them
+  into C# each frame, and holding import settings until Apply.

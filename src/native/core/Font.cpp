@@ -7,6 +7,7 @@
 
 #include <crucible/BinaryFile.h>
 #include <crucible/HashMap.h>
+#include <crucible/Log.h>
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -286,9 +287,8 @@ void removeFont(FontHandle handle, bool acquired)
     }
     if (slot->acquired != acquired)
     {
-        std::fprintf(stderr, "crucible: %s\n",
-                     acquired ? "release of a font loaded from bytes (use unloadFont)"
-                              : "unload of a font acquired by asset ID (use releaseFont)");
+        log::warning("%s", acquired ? "release of a font loaded from bytes (use unloadFont)"
+                                    : "unload of a font acquired by asset ID (use releaseFont)");
         return;
     }
     if (acquired && --slot->uses > 0)
@@ -348,7 +348,7 @@ Result<FontHandle> acquireFont(assets::AssetId font)
     {
         if (read == Status::Unsupported)
         {
-            std::fprintf(stderr, "crucible: a font was acquired before C# set the asset reader\n");
+            log::warning("a font was acquired before C# set the asset reader");
         }
         return Status::NotFound;
     }

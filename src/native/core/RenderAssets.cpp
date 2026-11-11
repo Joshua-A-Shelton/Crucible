@@ -2,6 +2,7 @@
 
 #include <crucible/BinaryFile.h>
 #include <crucible/HashMap.h>
+#include <crucible/Log.h>
 #include <crucible/Memory.h>
 #include <crucible/RenderAssets.h>
 #include <crucible/TextureFile.h>
@@ -243,7 +244,7 @@ Status createMaterials(LoadedMesh& mesh, const Vector<uint8_t>& generated, const
             }
             // The generated one stands in: a missing material shouldn't
             // keep the model from loading.
-            std::fprintf(stderr, "crucible: a model's slot %u names a material that can't be loaded (status %d)\n", m,
+            log::warning("a model's slot %u names a material that can't be loaded (status %d)", m,
                          static_cast<int>(material.status()));
         }
         Result<MaterialHandle> material = createMaterialFromRecords(generated.span(), m);
@@ -686,7 +687,7 @@ Result<uint32_t> acquire(Table<T>& table, const AssetId& id, Create create)
     }
     if (!assets::assetSourceInstalled())
     {
-        std::fprintf(stderr, "crucible: an asset was acquired before an asset source was installed\n");
+        log::warning("an asset was acquired before an asset source was installed");
         return Status::NotFound;
     }
     struct Load
@@ -727,9 +728,8 @@ void release(Table<T>& table, uint32_t index, uint32_t generation, bool acquired
     }
     if (slot->acquired != acquired)
     {
-        std::fprintf(stderr, "crucible: %s\n",
-                     acquired ? "release of something loaded from bytes (use unload)"
-                              : "unload of something acquired by asset ID (use release)");
+        log::warning("%s", acquired ? "release of something loaded from bytes (use unload)"
+                                    : "unload of something acquired by asset ID (use release)");
         return;
     }
     if (acquired && --slot->uses > 0)
@@ -1080,8 +1080,7 @@ Status reloadMesh(Slot<LoadedMesh>& slot)
     LoadedMesh* old = slot.value;
     if (made.value()->data.meshes.size() < old->data.meshes.size())
     {
-        std::fprintf(stderr,
-                     "crucible: a reloaded model has %zu meshes, not %zu: instances of the others draw nothing\n",
+        log::warning("a reloaded model has %zu meshes, not %zu: instances of the others draw nothing",
                      made.value()->data.meshes.size(), old->data.meshes.size());
     }
     waitForGpu();

@@ -39,6 +39,7 @@ target_sources(crucible_core_objects PRIVATE
     Ecs.cpp
     Jobs.cpp
     Launch.cpp
+    Log.cpp
     Math.cpp
     MathProbe.cpp
     Memory.cpp

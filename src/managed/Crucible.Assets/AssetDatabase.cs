@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Nodes;
 using Crucible.Binary;
 using Crucible.Scenes;
 using Crucible.Serialization;
@@ -144,6 +145,44 @@ public sealed class AssetDatabase
             : [];
 
     public AssetEntry? Find(string assetPath) => _byPath.GetValueOrDefault(assetPath);
+
+    // ---------------------------------------------------------------------
+    // Import settings (ADR 0087)
+    // ---------------------------------------------------------------------
+
+    /// <summary>
+    /// An asset's import settings, every field, as its sidecar holds them; null
+    /// for an asset without them (a sub-asset, a file of Crucible's own, one
+    /// whose importer isn't installed).
+    /// </summary>
+    public JsonObject? SettingsOf(AssetId id) =>
+        SettingsImporter(id) is not null ? JsonNode.Parse(_byId[id].Settings) as JsonObject : null;
+
+    /// <summary>The fields of an asset's import settings (empty when it has none), for the inspector.</summary>
+    public IReadOnlyList<SerializedField> SettingsFieldsOf(AssetId id) => SettingsImporter(id)?.SettingsFields ?? [];
+
+    /// <summary>
+    /// Replaces an asset's import settings and writes its sidecar. The next
+    /// <see cref="ImportAll"/> (or <see cref="Import"/>) imports it with them.
+    /// Throws if it has no settings or the importer can't read these.
+    /// </summary>
+    public void SetSettings(AssetId id, JsonObject settings)
+    {
+        Importer importer = SettingsImporter(id) ?? throw new ArgumentException($"{id} has no import settings.", nameof(id));
+        AssetEntry entry = _byId[id];
+        byte[] canonical = importer.CanonicalSettings(Encoding.UTF8.GetBytes(settings.ToJsonString()));
+        AssetEntry updated = entry with { Settings = canonical };
+        _byId[id] = updated;
+        _byPath[entry.Path] = updated;
+        string sidecarPath = FullPath(Project.AssetsFolder, entry.Path) + Sidecar.Extension;
+        Files.WriteAtomically(sidecarPath, new Sidecar(entry.Id, entry.Importer, canonical) { SubAssets = entry.SubAssets }.Write(importer));
+    }
+
+    // Own files have no settings (empty), and sub-assets are their parent's.
+    private Importer? SettingsImporter(AssetId id) =>
+        _byId.TryGetValue(id, out AssetEntry? entry) && entry.Parent.IsNone && entry.Settings.Length > 0
+            ? _importersByName.GetValueOrDefault(entry.Importer)
+            : null;
 
     private string StampsPath => Path.Combine(Project.CacheFolder, "stamps.json");
     private string RecordsPath => Path.Combine(Project.CacheFolder, "imports.json");

@@ -38,6 +38,7 @@ public sealed class EditorSystem : GameSystem
         {
             return;
         }
+        Crucible.Log.Api.Pump();
         _shell.ProcessEvents(context.Events, context.PolledText);
         _shell.RenderFloating();
     }

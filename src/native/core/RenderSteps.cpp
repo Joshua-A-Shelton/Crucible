@@ -13,6 +13,7 @@
 
 #include <crucible/DebugLines.h>
 #include <crucible/Lights.h>
+#include <crucible/Log.h>
 #include <crucible/Render.h>
 #include <crucible/Shader.h>
 
@@ -34,7 +35,7 @@ Result<slag::Pipeline*> createPipeline(slag::GraphicsDevice& device, const char*
     Result<ShaderFile*> file = loadShaderFile(engineShader(shader));
     if (!file)
     {
-        std::fprintf(stderr, "crucible: the embedded %s shader can't be read\n", shader);
+        log::warning("the embedded %s shader can't be read", shader);
         return file.status();
     }
     const int32_t vertex = findShaderEntry(*file.value(), vertexEntry);

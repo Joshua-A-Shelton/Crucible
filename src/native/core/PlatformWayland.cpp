@@ -44,6 +44,8 @@
 
 #include "PlatformInternal.h"
 
+#include <crucible/Log.h>
+
 #include <dlfcn.h>
 #include <unistd.h>
 
@@ -509,7 +511,7 @@ void start()
     if (state.display == nullptr || !loadLibrary())
     {
         state.display = nullptr;
-        std::fprintf(stderr, "crucible: no Wayland window drags (libwayland-client not loaded)\n");
+        log::warning("no Wayland window drags (libwayland-client not loaded)");
         return;
     }
     state.queue = wl_display_create_queue(state.display);

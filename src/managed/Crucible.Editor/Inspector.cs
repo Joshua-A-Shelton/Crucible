@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Numerics;
 using System.Text;
 using System.Text.Json.Nodes;
+using Crucible.Assets;
 using Crucible.Ecs;
 using Crucible.Scenes;
 using Crucible.Serialization;
@@ -60,6 +61,7 @@ public sealed class InspectorPanel : EditorPanel
     protected override void OnAttached(UIRoot root)
     {
         _shell.SceneChanged += Invalidate;
+        _shell.AssetsChanged += Invalidate;
         _shell.GameReloading += Forget;
         _stale = true;
     }
@@ -67,6 +69,7 @@ public sealed class InspectorPanel : EditorPanel
     protected override void OnDetached(UIRoot root)
     {
         _shell.SceneChanged -= Invalidate;
+        _shell.AssetsChanged -= Invalidate;
         _shell.GameReloading -= Forget;
     }
 
@@ -105,23 +108,34 @@ public sealed class InspectorPanel : EditorPanel
         Entity selected = _shell.HasWorld && _shell.Selection.Selected.Value != 0 && _shell.World.IsAlive(_shell.Selection.Selected)
             ? _shell.Selection.Selected
             : Entity.Null;
-        string shape = selected.IsNull ? "" : $"{selected.Value}:{string.Join(",", Components(selected))}";
+        AssetEntry? asset = selected.IsNull ? _shell.Database?.Find(_shell.InspectedAsset) : null;
+        string shape = !selected.IsNull ? $"{selected.Value}:{string.Join(",", Components(selected))}"
+            : asset is not null ? $"asset:{asset.Id}"
+            : "";
         if (shape != _shape || (_stale && selected.Value != _entity.Value))
         {
-            Rebuild(selected, shape);
+            Rebuild(selected, asset, shape);
         }
         else if (_stale)
         {
             _prefab = selected.IsNull ? null : PrefabValues.Of(_shell.World, selected, _shell.Prefabs);
+            if (asset is not null && ImportSettings is { } settings)
+            {
+                settings.Reload(_shell.Database!.SettingsOf(asset.Id));
+            }
         }
         _stale = false;
         _add.Visibility = selected.IsNull ? Visibility.Collapsed : Visibility.Visible;
-        _title.Text = selected.IsNull ? "" : _shell.LabelOf(selected);
+        _title.Text = !selected.IsNull ? _shell.LabelOf(selected) : asset?.Path ?? "";
         foreach (ComponentSection section in _sections.Children.OfType<ComponentSection>())
         {
             section.Update();
         }
+        ImportSettings?.Update();
     }
+
+    /// <summary>The inspected asset's import settings section, if one is shown.</summary>
+    public ImportSettingsSection? ImportSettings => _sections.Children.OfType<ImportSettingsSection>().FirstOrDefault();
 
     // The saved components it has, the transform first, then by name.
     private string[] Components(Entity entity)
@@ -136,7 +150,7 @@ public sealed class InspectorPanel : EditorPanel
         ];
     }
 
-    private void Rebuild(Entity entity, string shape)
+    private void Rebuild(Entity entity, AssetEntry? asset, string shape)
     {
         _entity = entity;
         _shape = shape;
@@ -144,7 +158,20 @@ public sealed class InspectorPanel : EditorPanel
         if (entity.IsNull)
         {
             _prefab = null;
-            _sections.Add(_empty);
+            if (asset is null)
+            {
+                _sections.Add(_empty);
+            }
+            else if (_shell.Database!.SettingsOf(asset.Id) is { } settings)
+            {
+                _sections.Add(new ImportSettingsSection(this, asset.Id, _shell.Database.SettingsFieldsOf(asset.Id), settings));
+            }
+            else
+            {
+                Label none = new("No import settings") { HorizontalAlignment = HorizontalAlignment.Center };
+                none.Classes.Add("placeholder");
+                _sections.Add(none);
+            }
             return;
         }
         _prefab = PrefabValues.Of(_shell.World, entity, _shell.Prefabs);
@@ -200,7 +227,7 @@ public sealed class InspectorPanel : EditorPanel
 /// <see cref="FieldEditor"/> for each field. It reads the component's JSON
 /// each frame and hands each editor its part.
 /// </summary>
-public sealed class ComponentSection : UIElement
+public sealed class ComponentSection : UIElement, IFieldOwner
 {
     private readonly InspectorPanel _inspector;
     private readonly SavedComponent _saved;
@@ -208,6 +235,7 @@ public sealed class ComponentSection : UIElement
     private readonly IconButton _fold = new(IconButton.Icon.Open);
     private readonly Label _name;
     private readonly List<FieldEditor> _editors = [];
+    private readonly ColliderNotice? _notice;
     private JsonNode? _value;
 
     internal ComponentSection(InspectorPanel inspector, SavedComponent saved)
@@ -242,6 +270,11 @@ public sealed class ComponentSection : UIElement
         body.Classes.Add("component");
         body.Add(header);
         body.Add(_fields);
+        if (saved.Type == typeof(Crucible.Physics.Collider))
+        {
+            _notice = new ColliderNotice(inspector.Shell);
+            body.Add(_notice);
+        }
         AddChild(body);
         foreach (SerializedField field in saved.Fields)
         {
@@ -290,6 +323,7 @@ public sealed class ComponentSection : UIElement
             bool overridden = added || (prefab is not null && !JsonNode.DeepEquals(value, prefab[editor.Field.Name]));
             editor.Update(value, overridden);
         }
+        _notice?.Update(_value);
     }
 
     /// <summary>Sets the value at a path inside the component (keys and list indices) and records it.</summary>
@@ -314,6 +348,17 @@ public sealed class ComponentSection : UIElement
             Edit([field], value?.DeepClone(), "Revert");
         }
     }
+
+    Shell IFieldOwner.Shell => Shell;
+
+    void IFieldOwner.Edit(IReadOnlyList<object> path, JsonNode? value, string title) => Edit(path, value, title);
+
+    void IFieldOwner.Revert(string field) => Revert(field);
+
+    // A drag (a number scrubbed, a slider, a color picked) is one undo step.
+    void IFieldOwner.BeginGroup(string title) => Shell.History.BeginGroup(title);
+
+    void IFieldOwner.EndGroup() => Shell.History.EndGroup();
 
     private void ShowMenu(UIElement at, Vector2? position = null)
     {
@@ -378,6 +423,170 @@ public sealed class ComponentSection : UIElement
     }
 }
 
+/// <summary>What a <see cref="FieldEditor"/> edits: a component, or an asset's import settings.</summary>
+internal interface IFieldOwner
+{
+    Shell Shell { get; }
+
+    /// <summary>Sets the value at a path (keys and list indices).</summary>
+    void Edit(IReadOnlyList<object> path, JsonNode? value, string title);
+
+    /// <summary>A top-level field back to its reference value (the prefab's, the applied settings').</summary>
+    void Revert(string field);
+
+    void BeginGroup(string title);
+
+    void EndGroup();
+}
+
+/// <summary>
+/// An asset's import settings in the inspector (ADR 0087): a
+/// <see cref="FieldEditor"/> for each field of its importer's settings,
+/// edits held until Apply, which saves the sidecar and imports it again, or
+/// Revert, which drops them. Fields that differ from the applied settings
+/// are marked, with Revert in their right-click menu.
+/// </summary>
+public sealed class ImportSettingsSection : UIElement, IFieldOwner
+{
+    private readonly InspectorPanel _inspector;
+    private readonly List<FieldEditor> _editors = [];
+    private readonly Button _apply = new("Apply");
+    private readonly Button _revert = new("Revert");
+    private JsonObject _applied;
+    private JsonObject _edited;
+
+    internal ImportSettingsSection(InspectorPanel inspector, AssetId asset, IReadOnlyList<SerializedField> fields,
+        JsonObject applied)
+    {
+        _inspector = inspector;
+        Asset = asset;
+        _applied = applied;
+        _edited = (JsonObject)applied.DeepClone();
+        Label title = new("Import Settings") { VerticalAlignment = VerticalAlignment.Center };
+        title.Classes.Add("component-title");
+        DockPanel header = new();
+        header.Classes.Add("component-header");
+        header.Add(title);
+        StackPanel list = new() { Spacing = 3 };
+        foreach (SerializedField field in fields)
+        {
+            if (field.Header is { } heading)
+            {
+                Label label = new(heading);
+                label.Classes.Add("field-header");
+                list.Add(label);
+            }
+            FieldEditor editor = new(this, field, InspectorPanel.Pretty(field.Name), [field.Name]);
+            _editors.Add(editor);
+            list.Add(editor);
+        }
+        if (fields.Count == 0)
+        {
+            Label tag = new("No fields");
+            tag.Classes.Add("placeholder");
+            list.Add(tag);
+        }
+        _apply.Clicked += _ => Apply();
+        _revert.Clicked += _ => Revert();
+        StackPanel buttons = new()
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            HorizontalAlignment = HorizontalAlignment.End,
+        };
+        buttons.Add(_revert);
+        buttons.Add(_apply);
+        StackPanel body = new() { Spacing = 4 };
+        body.Classes.Add("component");
+        body.Add(header);
+        body.Add(list);
+        body.Add(buttons);
+        AddChild(body);
+    }
+
+    public AssetId Asset { get; }
+
+    public IReadOnlyList<FieldEditor> Editors => _editors;
+
+    /// <summary>Whether there are edits not yet applied.</summary>
+    public bool HasChanges => !JsonNode.DeepEquals(_edited, _applied);
+
+    public Button ApplyButton => _apply;
+
+    public Button RevertButton => _revert;
+
+    internal Shell Shell => _inspector.Shell;
+
+    /// <summary>Saves the edits to the sidecar and imports the asset with them.</summary>
+    public void Apply()
+    {
+        if (HasChanges)
+        {
+            Shell.ApplyImportSettings(Asset, (JsonObject)_edited.DeepClone());
+        }
+    }
+
+    /// <summary>Drops the edits.</summary>
+    public void Revert()
+    {
+        _edited = (JsonObject)_applied.DeepClone();
+        Update();
+    }
+
+    // The applied settings read again (the assets changed: applied here, or
+    // the sidecar edited by hand); edits not yet applied are kept.
+    internal void Reload(JsonObject? applied)
+    {
+        if (applied is null || JsonNode.DeepEquals(applied, _applied))
+        {
+            return;
+        }
+        bool changed = HasChanges;
+        _applied = applied;
+        if (!changed)
+        {
+            _edited = (JsonObject)applied.DeepClone();
+        }
+    }
+
+    internal void Update()
+    {
+        foreach (FieldEditor editor in _editors)
+        {
+            JsonNode? value = _edited[editor.Field.Name];
+            editor.Update(value, !JsonNode.DeepEquals(value, _applied[editor.Field.Name]));
+        }
+        UIState disabled = HasChanges ? 0 : UIState.Disabled;
+        _apply.State = (_apply.State & ~UIState.Disabled) | disabled;
+        _revert.State = (_revert.State & ~UIState.Disabled) | disabled;
+    }
+
+    Shell IFieldOwner.Shell => Shell;
+
+    void IFieldOwner.Edit(IReadOnlyList<object> path, JsonNode? value, string title)
+    {
+        if (ComponentSection.Json.Set(_edited, path, value))
+        {
+            Update();
+        }
+    }
+
+    void IFieldOwner.Revert(string field)
+    {
+        _edited[field] = _applied[field]?.DeepClone();
+        Update();
+    }
+
+    // Edits aren't undo steps until applied: nothing to group.
+    void IFieldOwner.BeginGroup(string title)
+    {
+    }
+
+    void IFieldOwner.EndGroup()
+    {
+    }
+}
+
 /// <summary>
 /// One field's editor (ADR 0069), chosen by its kind: a toggle, number
 /// fields (with a slider for a range), text, a drop-down for an enum, an
@@ -391,7 +600,7 @@ public sealed class FieldEditor : UIElement
 {
     private const float LabelWidth = 92;
 
-    private readonly ComponentSection _section;
+    private readonly IFieldOwner _section;
     private readonly object[] _path;
     private readonly string _label;
     private readonly Label _name;
@@ -404,7 +613,7 @@ public sealed class FieldEditor : UIElement
     private Quaternion _shownRotation = new(float.NaN, 0, 0, 0);
     private JsonNode? _value;
 
-    internal FieldEditor(ComponentSection section, SerializedField field, string label, object[] path)
+    internal FieldEditor(IFieldOwner section, SerializedField field, string label, object[] path)
     {
         _section = section;
         Field = field;
@@ -484,13 +693,13 @@ public sealed class FieldEditor : UIElement
 
     private void Commit(JsonNode? value, string? title = null) => _section.Edit(_path, value, title ?? $"Edit {_label}");
 
-    // A drag (a number scrubbed, a slider, a color picked) is one undo step.
+    // A drag (a number scrubbed, a slider, a color picked) is one edit.
     private void BeginDrag()
     {
         if (!_grouped)
         {
             _grouped = true;
-            _section.Shell.History.BeginGroup($"Edit {_label}");
+            _section.BeginGroup($"Edit {_label}");
         }
     }
 
@@ -499,7 +708,7 @@ public sealed class FieldEditor : UIElement
         if (_grouped)
         {
             _grouped = false;
-            _section.Shell.History.EndGroup();
+            _section.EndGroup();
         }
     }
 

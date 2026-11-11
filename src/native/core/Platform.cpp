@@ -1,5 +1,6 @@
 #include "PlatformInternal.h"
 
+#include <crucible/Log.h>
 #include <crucible/Platform.h>
 #include <crucible/SmallVector.h>
 #include <crucible/Vector.h>
@@ -444,7 +445,7 @@ Result<void> initialize()
     SDL_SetHint(SDL_HINT_WINDOWS_RAW_KEYBOARD, "1");
     if (!SDL_Init(SDL_INIT_VIDEO))
     {
-        std::fprintf(stderr, "crucible: SDL_Init failed: %s\n", SDL_GetError());
+        log::error("SDL_Init failed: %s", SDL_GetError());
         return Status::Unsupported;
     }
     const uint32_t types = SDL_RegisterEvents(2);
@@ -456,7 +457,7 @@ Result<void> initialize()
     // Gamepads are optional: without them the UI works by mouse and keyboard.
     if (!SDL_InitSubSystem(SDL_INIT_GAMEPAD))
     {
-        std::fprintf(stderr, "crucible: no gamepad support: %s\n", SDL_GetError());
+        log::warning("no gamepad support: %s", SDL_GetError());
     }
     return {};
 }
@@ -495,7 +496,7 @@ Result<WindowHandle> createWindow(uint32_t width, uint32_t height, std::string_v
                                           SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
     if (window == nullptr)
     {
-        std::fprintf(stderr, "crucible: SDL_CreateWindow failed: %s\n", SDL_GetError());
+        log::error("SDL_CreateWindow failed: %s", SDL_GetError());
         return Status::Unsupported;
     }
     return WindowHandle{SDL_GetWindowID(window)};

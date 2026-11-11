@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Crucible.Assets;
 using Crucible.Platform;
 using Crucible.Render;
@@ -108,6 +109,29 @@ internal sealed partial class Shell
         ReloadOnGpu([result]);
         Prefabs = database.Prefabs();
         AssetsChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// An asset's import settings saved to its sidecar and imported with them
+    /// (ADR 0087): the inspector's Apply, and the Collider's cook button.
+    /// </summary>
+    public void ApplyImportSettings(AssetId id, JsonObject settings)
+    {
+        if (Database is not { } database || database.Find(id) is not { } entry)
+        {
+            return;
+        }
+        try
+        {
+            database.SetSettings(id, settings);
+        }
+        catch (Exception exception) when (exception is ArgumentException or System.Text.Json.JsonException)
+        {
+            Log($"Can't apply {entry.Path}'s import settings: {exception.Message}");
+            return;
+        }
+        Log($"Applied {entry.Path}'s import settings");
+        RefreshAssets();
     }
 
     // What was imported again, reloaded where it's loaded. Shaders first, so

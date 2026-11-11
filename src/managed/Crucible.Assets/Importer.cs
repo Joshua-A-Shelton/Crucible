@@ -27,6 +27,9 @@ public abstract class Importer
     /// </summary>
     public abstract string OutputExtension { get; }
 
+    /// <summary>Its settings type's fields, for the editor's inspector (ADR 0087).</summary>
+    public abstract IReadOnlyList<SerializedField> SettingsFields { get; }
+
     // Settings cross the database as JSON: canonical (re-serialized) bytes,
     // so formatting a sidecar by hand doesn't reimport anything.
     internal abstract byte[] CanonicalSettings(ReadOnlySpan<byte> settingsJson);
@@ -54,6 +57,8 @@ public abstract class Importer<TSettings> : Importer where TSettings : IJsonSeri
     /// unless an importer knows better from the file (an .hdr image wants HDR).
     /// </summary>
     protected virtual TSettings Defaults(string assetPath) => new();
+
+    public override IReadOnlyList<SerializedField> SettingsFields => TSettings.SerializedFields;
 
     internal override byte[] CanonicalSettings(ReadOnlySpan<byte> settingsJson) =>
         Json.Serialize(Parse(settingsJson));

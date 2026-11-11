@@ -10,6 +10,7 @@
 #include <crucible/Ecs.h>
 #include <crucible/HashMap.h>
 #include <crucible/Jobs.h>
+#include <crucible/Log.h>
 #include <crucible/MeshInstance.h>
 #include <crucible/Transform.h>
 
@@ -139,7 +140,7 @@ MeshHandle resolve(const AssetId& id)
     {
         char text[33];
         printId(id, text);
-        std::fprintf(stderr, "crucible: mesh instances use model %s, which couldn't be loaded (status %d)\n", text,
+        log::warning("mesh instances use model %s, which couldn't be loaded (status %d)", text,
                      static_cast<int>(acquired.status()));
     }
     cache.models.insertOrAssign(id, model);

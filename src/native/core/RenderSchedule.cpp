@@ -1,5 +1,6 @@
 #include "RenderInternal.h"
 
+#include <crucible/Log.h>
 #include <crucible/Memory.h>
 #include <crucible/RenderSchedule.h>
 #include <crucible/Vector.h>
@@ -162,9 +163,8 @@ FrameState::Entry* slot(void* frameState, BlackboardKey key)
 void reportMissing(FrameState& state, BlackboardKey key, const char* kind)
 {
     const std::string_view name = blackboardKeyName(key);
-    std::fprintf(stderr,
-                 "crucible: render step %.*s reads the %s %.*s from the blackboard, which no earlier step "
-                 "published\n",
+    log::warning("render step %.*s reads the %s %.*s from the blackboard, which no earlier step "
+                 "published",
                  static_cast<int>(state.step.size()), state.step.data(), kind, static_cast<int>(name.size()),
                  name.data());
     state.failed = true;

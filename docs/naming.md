@@ -834,3 +834,25 @@ building are placeholders (*):
 | `MeshSettings::collision`*, `maxHullVertices`* (native) | The importer's settings |
 | Box3dPhysics.cpp's `CollisionData`*, `acquireData`*, `releaseData`*, `retire`*, `readCooked`*, `makeMesh`*, `makeHull`*, `adopt`* | The runtime's collision cache |
 | The made IDs' "crcoll" prefix* | Telling made data from a model's |
+
+## Editor import settings and messages (2026-11-11, editor usability step 1)
+
+Settled as drafted: crucible/Log.h (`log::info`, `warning`, `error`,
+`LogLevel`, `LogSink`, `setSink`); the inspector's "Import Settings"
+section with "Apply" and "Revert"; the Collider's "*model* has no *Kind*
+collision data" and "Cook *Kind* collision"; ADR 0087 "Editor import
+settings and messages", `docs/learning/engine-messages.md`; `LogTests`;
+CTest's `launcher.jit.import-settings`. Names added while building are
+placeholders (*):
+
+| Name | What it is |
+|---|---|
+| `takeMessages`*, `takenLevel`*, `takenText`* | The core's messages taken for C# |
+| `Crucible.Log.Api.Pump`*, `Received`* (on `Api`: the generated bindings make `Crucible.Log` a namespace) | The messages in C# |
+| "Warning: "*, "Error: "* prefixes; styles `log-warning`*, `log-error`*; `LogPanel.Add`'s `style`* | The Log's lines |
+| `Importer.SettingsFields`*, `AssetDatabase.SettingsOf`*, `SettingsFieldsOf`*, `SetSettings`* | Settings in the database |
+| `Shell.InspectedAsset`*, `Shell.ApplyImportSettings`* | The inspected asset, and Apply |
+| `IFieldOwner`*, `ImportSettingsSection`* (`Asset`, `Editors`, `HasChanges`, `ApplyButton`, `RevertButton`, `Apply`, `Revert`), `InspectorPanel.ImportSettings`* | The inspector |
+| `ColliderNotice`* (`Text`, `CookButton`), "(replaces *Kind*)"* | The Collider's notice |
+| "No import settings"*, "Applied *path*'s import settings"*, "Can't apply *path*'s import settings"* | Text users see |
+| `ImportSettingsChecks`*, `--game-arg check-import-settings=` | The check |

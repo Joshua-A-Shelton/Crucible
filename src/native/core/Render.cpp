@@ -2,6 +2,7 @@
 #include "TextInternal.h" // updateGlyphCache
 
 #include <crucible/Jobs.h>
+#include <crucible/Log.h>
 #include <crucible/Memory.h>
 #include <crucible/Render.h>
 #include <crucible/Version.h>
@@ -141,8 +142,14 @@ void printMessage(const slag::DebugMessage& message, void*)
     {
         return;
     }
-    const char* severity = message.severity == slag::MessageSeverity::Error ? "error" : "warning";
-    std::fprintf(stderr, "crucible: [%s] %s\n", severity, message.text);
+    if (message.severity == slag::MessageSeverity::Error)
+    {
+        log::error("[error] %s", message.text);
+    }
+    else
+    {
+        log::warning("[warning] %s", message.text);
+    }
 }
 
 bool inUse(const Surface& surface)
@@ -312,7 +319,7 @@ Surface* freeSlot()
                               [](const Surface& surface) { return !inUse(surface); });
     if (found == renderer.surfaces.end())
     {
-        std::fprintf(stderr, "crucible: at most %u surfaces\n", maxSurfaces);
+        log::warning("at most %u surfaces", maxSurfaces);
         return nullptr;
     }
     return &*found;
@@ -456,7 +463,7 @@ PresentChoice choosePresentMode(std::span<const slag::PresentMode> modes, Presen
     {
         if (preference == PresentPreference::Mailbox)
         {
-            std::fprintf(stderr, "crucible: the window doesn't support Mailbox; using Fifo\n");
+            log::warning("the window doesn't support Mailbox; using Fifo");
         }
         return {slag::PresentMode::Fifo, 2};
     }
@@ -469,7 +476,7 @@ Result<void> initialize(slag::Backend backend, PresentPreference presentMode)
     renderer.started = std::chrono::steady_clock::now();
     if (!slag::isBackendAvailable(backend))
     {
-        std::fprintf(stderr, "crucible: the %s backend isn't available in this build\n",
+        log::warning("the %s backend isn't available in this build",
                      backend == slag::Backend::D3D12 ? "D3D12" : "Vulkan");
         return Status::Unsupported;
     }
@@ -489,7 +496,7 @@ Result<void> initialize(slag::Backend backend, PresentPreference presentMode)
     slag::Result<slag::Instance*> instance = slag::createInstance(desc);
     if (!instance)
     {
-        std::fprintf(stderr, "crucible: Slag could not start\n");
+        log::error("Slag could not start");
         return toStatus(instance.status());
     }
     renderer.instance = instance.value();
@@ -497,14 +504,14 @@ Result<void> initialize(slag::Backend backend, PresentPreference presentMode)
     std::span<slag::GraphicsDevice* const> devices = renderer.instance->graphicsDevices();
     if (devices.empty())
     {
-        std::fprintf(stderr, "crucible: no graphics device meets Slag's requirements\n");
+        log::error("no graphics device meets Slag's requirements");
         shutdown();
         return Status::Unsupported;
     }
     slag::GraphicsDevice* device = devices[0];
     if (slag::Result<void> initialized = device->initialize({}); !initialized)
     {
-        std::fprintf(stderr, "crucible: %s could not be initialized\n", device->info().name);
+        log::error("%s could not be initialized", device->info().name);
         shutdown();
         return toStatus(initialized.status());
     }
@@ -512,26 +519,25 @@ Result<void> initialize(slag::Backend backend, PresentPreference presentMode)
     renderer.queue = device->commandQueue(slag::CommandQueueType::Graphics);
     if (Result<void> started = startAssets(*device, *renderer.queue); !started)
     {
-        std::fprintf(stderr, "crucible: GPU assets could not start\n");
+        log::error("GPU assets could not start");
         shutdown();
         return started;
     }
     chooseShadowFormat(*device); // before materials make their shadow pipelines
     if (Result<void> started = startMaterials(*device); !started)
     {
-        std::fprintf(stderr, "crucible: materials could not start\n");
+        log::error("materials could not start");
         shutdown();
         return started;
     }
     // The render steps' pipelines, created now, never during frames (ADR 0025).
     if (Result<void> prepared = prepareSchedules(*device); !prepared)
     {
-        std::fprintf(stderr, "crucible: the render steps could not be prepared\n");
+        log::error("the render steps could not be prepared");
         shutdown();
         return prepared;
     }
-    std::printf("crucible: rendering with %s on %s\n", backend == slag::Backend::D3D12 ? "D3D12" : "Vulkan",
-                device->info().name);
+    log::info("rendering with %s on %s", backend == slag::Backend::D3D12 ? "D3D12" : "Vulkan", device->info().name);
     // Flushed so it keeps its place among C#'s output, which isn't buffered,
     // when stdout is a pipe.
     std::fflush(stdout);
@@ -624,9 +630,9 @@ Result<SurfaceHandle> createSurface(platform::WindowHandle window)
     }
     // Drivers may return more images than asked for; a third Fifo image would
     // queue a frame (ADR 0003's open item), so it's worth seeing.
-    std::printf("crucible: surface %ux%u, %s, %u images (asked for %u), pacing: %s\n", surface.width, surface.height,
-                name(choice.mode), surface.swapchain->imageCount(), choice.minImageCount,
-                device->capabilities().frameLatency ? "frame latency" : "previous GPU frame");
+    log::info("surface %ux%u, %s, %u images (asked for %u), pacing: %s", surface.width, surface.height,
+              name(choice.mode), surface.swapchain->imageCount(), choice.minImageCount,
+              device->capabilities().frameLatency ? "frame latency" : "previous GPU frame");
     std::fflush(stdout);
 
     *slot = surface;

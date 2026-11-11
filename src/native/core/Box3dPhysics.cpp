@@ -24,6 +24,7 @@
 #include <crucible/DebugLines.h>
 #include <crucible/HashMap.h>
 #include <crucible/Jobs.h>
+#include <crucible/Log.h>
 #include <crucible/Memory.h>
 #include <crucible/MeshFile.h>
 #include <crucible/Systems.h>
@@ -370,9 +371,8 @@ CollisionData* acquireData(const assets::AssetId& id, int32_t meshIndex, bool hu
         {
             found = create<CollisionData>(tag); // none: remembered, so it's said and read once
             found->hull = hull;
-            std::fprintf(stderr,
-                         "crucible: a %s collider's model has no cooked %s data for mesh %d (set its Collision "
-                         "import setting to %s)\n",
+            log::warning("a %s collider's model has no cooked %s data for mesh %d (set its Collision "
+                         "import setting to %s)",
                          hull ? "Convex" : "Mesh", hull ? "hull" : "mesh", meshIndex, hull ? "Convex" : "Mesh");
         }
         found->id = id;
@@ -564,8 +564,7 @@ void buildShape(Body& body, ecs::Entity entity, const Collider& collider, Vector
         // Box3D collides triangle meshes only on static bodies.
         if (body.kind != BodyKind::Static)
         {
-            std::fprintf(stderr,
-                         "crucible: a Mesh collider is only for static bodies; use Convex for one that moves\n");
+            log::warning("a Mesh collider is only for static bodies; use Convex for one that moves");
             break;
         }
         body.data = acquireData(collider.mesh, collider.meshIndex, false);
