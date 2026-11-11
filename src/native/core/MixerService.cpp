@@ -6,6 +6,7 @@
 
 #include "Mixer.h"
 
+#include <crucible/Adpcm.h>
 #include <crucible/AssetSource.h>
 #include <crucible/BinaryFile.h>
 #include <crucible/HashMap.h>
@@ -79,10 +80,50 @@ uint32_t frameMark = 0;
 
 // --- Sounds -----------------------------------------------------------------
 
-bool valid(const assets::SoundInfo& info, size_t samples)
+// Whether a sound's info and data agree, so the mixer needn't check.
+bool valid(const Sound& sound)
 {
-    return info.sampleRate > 0 && (info.channels == 1 || info.channels == 2) &&
-           info.encoding == assets::SoundEncoding::Pcm16 && uint64_t{info.frameCount} * info.channels <= samples;
+    const assets::SoundInfo& info = sound.info;
+    if (info.sampleRate == 0 || (info.channels != 1 && info.channels != 2))
+    {
+        return false;
+    }
+    switch (info.encoding)
+    {
+    case assets::SoundEncoding::Pcm16:
+        return uint64_t{info.frameCount} * info.channels <= sound.samples.size();
+    case assets::SoundEncoding::ImaAdpcm:
+    {
+        if (info.blockFrames < 2 || info.blockFrames % 2 != 0 || info.blockFrames > assets::maxAdpcmBlockFrames)
+        {
+            return false;
+        }
+        const uint64_t blocks = (uint64_t{info.frameCount} + info.blockFrames - 1) / info.blockFrames;
+        return blocks * adpcm::blockBytes(info.blockFrames, info.channels) <= sound.data.size();
+    }
+    case assets::SoundEncoding::Vorbis:
+    {
+        VorbisDecoder* decoder = openVorbis(sound.data.span());
+        const bool agrees = decoder != nullptr && vorbisInfo(*decoder).channels == info.channels &&
+                            vorbisInfo(*decoder).sampleRate == info.sampleRate && info.frameCount > 0;
+        closeVorbis(decoder);
+        return agrees;
+    }
+    }
+    return false;
+}
+
+template <class T>
+bool readSection(const binary::File& file, uint32_t tagOf, Vector<T>& out)
+{
+    const int32_t index = binary::findSection(file, tagOf);
+    if (index < 0)
+    {
+        return false;
+    }
+    out.resize(static_cast<size_t>(binary::sectionInfo(file, static_cast<uint32_t>(index)).size) / sizeof(T));
+    return static_cast<bool>(binary::readSection(
+        file, static_cast<uint32_t>(index), std::span(reinterpret_cast<uint8_t*>(out.data()), out.size() * sizeof(T))));
 }
 
 Sound* loadSound(const assets::AssetId& id)
@@ -102,26 +143,141 @@ Sound* loadSound(const assets::AssetId& id)
     }
     binary::File* file = opened.value();
     Sound* sound = create<Sound>(tag);
-    bool read = false;
-    const int32_t info = binary::findSection(*file, binary::tag("INFO"));
-    const int32_t samples = binary::findSection(*file, binary::tag("PCMS"));
-    if (info >= 0 && samples >= 0 &&
-        binary::sectionInfo(*file, static_cast<uint32_t>(info)).size == sizeof(assets::SoundInfo))
+    Vector<assets::SoundInfo> info(tag);
+    bool read = readSection(*file, binary::tag("INFO"), info) && info.size() == 1;
+    if (read)
     {
-        sound->samples.resize(static_cast<size_t>(binary::sectionInfo(*file, static_cast<uint32_t>(samples)).size) / 2);
-        read = binary::readSection(*file, static_cast<uint32_t>(info),
-                                   std::span(reinterpret_cast<uint8_t*>(&sound->info), sizeof(assets::SoundInfo))) &&
-               binary::readSection(
-                   *file, static_cast<uint32_t>(samples),
-                   std::span(reinterpret_cast<uint8_t*>(sound->samples.data()), sound->samples.size() * 2));
+        sound->info = info[0];
+        switch (sound->info.encoding)
+        {
+        case assets::SoundEncoding::Pcm16:
+            read = readSection(*file, binary::tag("PCMS"), sound->samples);
+            break;
+        case assets::SoundEncoding::ImaAdpcm:
+            read = readSection(*file, binary::tag("ADPC"), sound->data);
+            break;
+        case assets::SoundEncoding::Vorbis:
+            read = readSection(*file, binary::tag("OGGV"), sound->data);
+            break;
+        default:
+            read = false;
+        }
     }
     binary::closeFile(file);
-    if (!read || !valid(sound->info, sound->samples.size()))
+    if (!read || !valid(*sound))
     {
         destroy(tag, sound);
         return nullptr;
     }
     return sound;
+}
+
+// --- Streams (ADR 0083) -----------------------------------------------------
+
+Vector<Stream*> streams{tag};
+
+// The job: decode into the ring as far as the voice has let go of it.
+void fill(void* data)
+{
+    Stream& stream = *static_cast<Stream*>(data);
+    const uint32_t channels = stream.channels;
+    const uint32_t piece = static_cast<uint32_t>(stream.scratch.size() / channels);
+    while (!stream.finished.load(std::memory_order_relaxed))
+    {
+        const uint64_t written = stream.written.load(std::memory_order_relaxed);
+        const uint64_t room = stream.capacity - (written - stream.released.load(std::memory_order_acquire));
+        if (room == 0)
+        {
+            return;
+        }
+        uint32_t frames = decodeVorbis(
+            *stream.decoder,
+            stream.scratch.span().subspan(0, static_cast<size_t>(std::min<uint64_t>(room, piece)) * channels));
+        if (frames == 0)
+        {
+            if (!stream.loop || !rewindVorbis(*stream.decoder))
+            {
+                stream.finished.store(true, std::memory_order_release);
+                return;
+            }
+            continue;
+        }
+        for (uint32_t f = 0; f < frames; ++f)
+        {
+            const size_t at = static_cast<size_t>((written + f) % stream.capacity) * channels;
+            for (uint32_t c = 0; c < channels; ++c)
+            {
+                stream.ring[at + c] = stream.scratch[size_t{f} * channels + c];
+            }
+        }
+        stream.written.store(written + frames, std::memory_order_release);
+    }
+}
+
+// A Vorbis sound's stream for a new voice, its first half second decoded
+// here so the voice can start at once. Null for other encodings.
+Stream* streamFor(const Sound* sound, bool loop)
+{
+    if (sound == nullptr || sound->info.encoding != assets::SoundEncoding::Vorbis)
+    {
+        return nullptr;
+    }
+    Stream* stream = create<Stream>(tag);
+    stream->sound = sound;
+    stream->decoder = openVorbis(sound->data.span());
+    stream->loop = loop;
+    stream->channels = sound->info.channels;
+    stream->capacity = sound->info.sampleRate * streamSeconds;
+    stream->ring.resize(size_t{stream->capacity} * stream->channels);
+    stream->scratch.resize(size_t{4096} * stream->channels);
+    if (stream->decoder == nullptr)
+    {
+        stream->finished = true;
+    }
+    else
+    {
+        // Prime half the ring: the job's work, run here once.
+        stream->released = 0;
+        const uint32_t capacity = stream->capacity;
+        stream->capacity = capacity / 2;
+        fill(stream);
+        stream->capacity = capacity;
+    }
+    streams.pushBack(stream);
+    return stream;
+}
+
+void freeStream(Stream* stream)
+{
+    jobs::wait(stream->job);
+    closeVorbis(stream->decoder);
+    for (size_t i = 0; i < streams.size(); ++i)
+    {
+        if (streams[i] == stream)
+        {
+            streams.removeSwap(i);
+            break;
+        }
+    }
+    destroy(tag, stream);
+}
+
+// Streams less than half full get a job, on the background priority.
+void topUpStreams()
+{
+    for (Stream* stream : streams)
+    {
+        if (stream->finished.load(std::memory_order_acquire) || !jobs::isDone(stream->job))
+        {
+            continue;
+        }
+        const uint64_t ahead = stream->written.load() - stream->released.load();
+        if (ahead < stream->capacity / 2)
+        {
+            const jobs::Job job{fill, stream};
+            jobs::run(std::span(&job, 1), jobs::JobPriority::Background, stream->job);
+        }
+    }
 }
 
 const Sound* soundOf(const assets::AssetId& id)
@@ -135,7 +291,8 @@ const Sound* soundOf(const assets::AssetId& id)
     return loaded;
 }
 
-// What the audio thread said: voices that ended, sounds it let go of.
+// What the audio thread said: voices that ended (their streams freed),
+// sounds it let go of; then the streams topped up.
 void pump()
 {
     Feedback feedback;
@@ -150,6 +307,10 @@ void pump()
                     entry.value.voice = 0;
                 }
             }
+            if (feedback.stream != nullptr)
+            {
+                freeStream(feedback.stream);
+            }
             continue;
         }
         for (size_t i = 0; i < forgetting.size(); ++i)
@@ -162,6 +323,21 @@ void pump()
             }
         }
     }
+    topUpStreams();
+}
+
+// Sends a play; a voice that can't be queued gives its stream back.
+bool sendPlay(Command& command)
+{
+    if (send(*mixer, command))
+    {
+        return true;
+    }
+    if (command.stream != nullptr)
+    {
+        freeStream(command.stream);
+    }
+    return false;
 }
 
 // --- The service --------------------------------------------------------------
@@ -174,12 +350,16 @@ uint32_t mixerPlayOneShot(assets::AssetId clip, uint64_t atNs, Vector3 position,
     {
         return 0;
     }
-    Command command{.kind = CommandKind::Play, .voice = nextVoice++, .sound = sound, .atNs = atNs};
+    Command command{.kind = CommandKind::Play,
+                    .voice = nextVoice++,
+                    .sound = sound,
+                    .stream = streamFor(sound, false),
+                    .atNs = atNs};
     command.volume = volume;
     command.bus = bus;
     command.spatial = true;
     command.position = position;
-    return send(*mixer, command) ? command.voice : 0;
+    return sendPlay(command) ? command.voice : 0;
 }
 
 void mixerStop(uint32_t voice, float fadeSeconds)
@@ -243,9 +423,11 @@ void mixerBlendToSnapshot(std::string_view name, float seconds)
 
 void mixerPlayMusic(assets::AssetId track, MusicTransition transition)
 {
-    Command command{.kind = CommandKind::Music, .voice = nextVoice++, .sound = soundOf(track)};
+    pump();
+    const Sound* sound = soundOf(track);
+    Command command{.kind = CommandKind::Music, .voice = nextVoice++, .sound = sound, .stream = streamFor(sound, true)};
     command.transition = transition;
-    (void)send(*mixer, command);
+    (void)sendPlay(command);
 }
 
 void mixerStopAll(float fadeSeconds)
@@ -381,7 +563,10 @@ bool updateMixerSources(const loop::SystemContext& context)
                     {
                         continue;
                     }
-                    Command play{.kind = CommandKind::Play, .voice = nextVoice++, .sound = sound};
+                    Command play{.kind = CommandKind::Play,
+                                 .voice = nextVoice++,
+                                 .sound = sound,
+                                 .stream = streamFor(sound, source.loop)};
                     play.volume = source.volume;
                     play.pitch = source.pitch;
                     play.bus = source.bus;
@@ -391,7 +576,7 @@ bool updateMixerSources(const loop::SystemContext& context)
                     play.minDistance = source.minDistance;
                     play.maxDistance = source.maxDistance;
                     play.rolloff = source.rolloff;
-                    state->voice = send(*mixer, play) ? play.voice : 0;
+                    state->voice = sendPlay(play) ? play.voice : 0;
                     continue;
                 }
                 if (state->voice != 0)
@@ -500,6 +685,10 @@ void stopMixing()
     }
     destroyMixer(mixer);
     mixer = nullptr;
+    while (!streams.empty())
+    {
+        freeStream(streams.back());
+    }
     // Nothing plays any sound now.
     for (Sound* sound : forgetting)
     {
@@ -533,13 +722,20 @@ MixerStats mixerStats()
 
 assets::AssetId createSound(assets::SoundInfo info, std::span<const int16_t> samples)
 {
-    if (!valid(info, samples.size()))
+    if (info.encoding != assets::SoundEncoding::Pcm16 || info.channels < 1 || info.channels > 2 ||
+        uint64_t{info.frameCount} * info.channels > samples.size())
     {
         return {};
     }
     Sound* sound = create<Sound>(tag);
     sound->info = info;
+    sound->info.blockFrames = 0;
     sound->samples.assign(samples.subspan(0, size_t{info.frameCount} * info.channels));
+    if (!valid(*sound))
+    {
+        destroy(tag, sound);
+        return {};
+    }
     // An ID no imported asset has: "crsound" and a count.
     assets::AssetId id{};
     std::memcpy(id.bytes, "crsound", 7);

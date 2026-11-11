@@ -13,6 +13,8 @@
 
 #include "Mixer.h"
 
+#include <crucible/Adpcm.h>
+
 #include <algorithm>
 #include <cmath>
 
@@ -128,8 +130,10 @@ struct Voice
     bool music = false;
     uint32_t id = 0;
     const Sound* sound = nullptr;
-    double position = 0; // in the sound's frames
-    uint64_t start = 0;  // the mix frame it starts at
+    Stream* stream = nullptr; // a Vorbis sound's decoded frames
+    bool starved = false;     // this block read past what was decoded
+    double position = 0;      // in the sound's frames (a stream's: from its start, laps included)
+    uint64_t start = 0;       // the mix frame it starts at
     float volume = 1;
     float pitch = 1;
     uint32_t bus = masterBus;
@@ -201,11 +205,16 @@ public:
     uint32_t lastFrames = 0;
     bool anchored = false;
     int32_t music = -1; // the voice playing the current track
+    // Each voice's last two decoded ADPCM blocks (the four samples cubic
+    // Hermite reads span at most two), by block number.
+    int64_t cachedBlock[maxVoices][2];
+    int16_t cache[maxVoices][2][assets::maxAdpcmBlockFrames * 2];
     std::atomic<float> delaySeconds{defaultScheduleDelay};
     std::atomic<uint32_t> playing{0};
     std::atomic<uint32_t> lateStarts{0};
     std::atomic<uint32_t> underruns{0};
     std::atomic<uint32_t> dropped{0};
+    std::atomic<uint32_t> starved{0};
     std::atomic<float> latency{0};
 };
 
@@ -216,7 +225,7 @@ namespace {
 void end(Mixer& mixer, Voice& voice)
 {
     voice.active = false;
-    (void)mixer.feedback.push({FeedbackKind::VoiceEnded, voice.id, voice.sound});
+    (void)mixer.feedback.push({FeedbackKind::VoiceEnded, voice.id, voice.sound, voice.stream});
     if (mixer.music >= 0 && &mixer.voices[mixer.music] == &voice)
     {
         mixer.music = -1;
@@ -241,10 +250,21 @@ Voice* freeVoice(Mixer& mixer)
     {
         if (!voice.active)
         {
+            const size_t index = static_cast<size_t>(&voice - mixer.voices);
+            mixer.cachedBlock[index][0] = mixer.cachedBlock[index][1] = -1;
             return &voice;
         }
     }
     return nullptr;
+}
+
+// A voice that couldn't start: its stream goes back to be freed.
+void refuse(Mixer& mixer, const Command& command)
+{
+    if (command.stream != nullptr)
+    {
+        (void)mixer.feedback.push({FeedbackKind::VoiceEnded, command.voice, command.sound, command.stream});
+    }
 }
 
 // The mix frame a moment on the input clock falls on.
@@ -309,6 +329,7 @@ void playMusic(Mixer& mixer, const Command& command)
     Voice* voice = command.sound != nullptr ? freeVoice(mixer) : nullptr;
     if (voice == nullptr)
     {
+        refuse(mixer, command);
         return;
     }
     *voice = Voice{};
@@ -316,6 +337,7 @@ void playMusic(Mixer& mixer, const Command& command)
     voice->music = true;
     voice->id = command.voice;
     voice->sound = command.sound;
+    voice->stream = command.stream;
     voice->start = at;
     voice->volume = command.volume;
     voice->bus = musicBus;
@@ -333,15 +355,17 @@ void apply(Mixer& mixer, const Command& command)
     {
     case CommandKind::Play:
     {
-        Voice* voice = freeVoice(mixer);
-        if (voice == nullptr || command.sound == nullptr)
+        Voice* voice = command.sound != nullptr ? freeVoice(mixer) : nullptr;
+        if (voice == nullptr)
         {
+            refuse(mixer, command);
             return;
         }
         *voice = Voice{};
         voice->active = true;
         voice->id = command.voice;
         voice->sound = command.sound;
+        voice->stream = command.stream;
         voice->start = scheduled(mixer, command.atNs);
         voice->volume = command.volume;
         voice->pitch = command.pitch;
@@ -438,26 +462,60 @@ void apply(Mixer& mixer, const Command& command)
                 end(mixer, voice);
             }
         }
-        (void)mixer.feedback.push({FeedbackKind::Forgotten, 0, command.sound});
+        (void)mixer.feedback.push({FeedbackKind::Forgotten, 0, command.sound, nullptr});
         return;
     }
 }
 
 // --- Voices -----------------------------------------------------------------
 
-float sampleOf(const Sound& sound, uint32_t channel, int64_t frame, bool loop)
+// A voice's sample at a frame of its sound (silence outside it, unless it
+// loops), whatever its encoding.
+float sampleOf(Mixer& mixer, Voice& voice, uint32_t channel, int64_t frame)
 {
+    const Sound& sound = *voice.sound;
+    const uint32_t channels = sound.info.channels;
+    if (voice.stream != nullptr)
+    {
+        // A stream counts frames from the voice's start, laps included.
+        const Stream& stream = *voice.stream;
+        if (frame < 0)
+        {
+            return 0;
+        }
+        if (static_cast<uint64_t>(frame) >= stream.written.load(std::memory_order_acquire))
+        {
+            voice.starved = !stream.finished.load(std::memory_order_acquire);
+            return 0;
+        }
+        const size_t at = static_cast<size_t>(static_cast<uint64_t>(frame) % stream.capacity) * channels + channel;
+        return stream.ring[at] * (1.0f / 32768.0f);
+    }
     const int64_t count = sound.info.frameCount;
     if (frame < 0 || frame >= count)
     {
-        if (!loop || count == 0)
+        if (!voice.loop || count == 0)
         {
             return 0;
         }
         frame %= count;
         frame = frame < 0 ? frame + count : frame;
     }
-    return sound.samples[static_cast<size_t>(frame) * sound.info.channels + channel] * (1.0f / 32768.0f);
+    if (sound.info.encoding == assets::SoundEncoding::ImaAdpcm)
+    {
+        const uint32_t blockFrames = sound.info.blockFrames;
+        const int64_t block = frame / blockFrames;
+        const size_t index = static_cast<size_t>(&voice - mixer.voices);
+        int16_t* decoded = mixer.cache[index][block & 1];
+        if (mixer.cachedBlock[index][block & 1] != block)
+        {
+            const size_t bytes = adpcm::blockBytes(blockFrames, channels);
+            adpcm::decodeBlock(sound.data.data() + static_cast<size_t>(block) * bytes, channels, blockFrames, decoded);
+            mixer.cachedBlock[index][block & 1] = block;
+        }
+        return decoded[static_cast<size_t>(frame % blockFrames) * channels + channel] * (1.0f / 32768.0f);
+    }
+    return sound.samples[static_cast<size_t>(frame) * channels + channel] * (1.0f / 32768.0f);
 }
 
 // Cubic Hermite (Catmull-Rom) through four neighbouring samples: smooth, and
@@ -472,13 +530,13 @@ float hermite(float before, float at, float next, float after, float t)
     return ((a * t - b) * t + c) * t + at;
 }
 
-float sampleAt(const Sound& sound, uint32_t channel, double position, bool loop)
+float sampleAt(Mixer& mixer, Voice& voice, uint32_t channel)
 {
-    const double whole = std::floor(position);
+    const double whole = std::floor(voice.position);
     const int64_t frame = static_cast<int64_t>(whole);
-    return hermite(sampleOf(sound, channel, frame - 1, loop), sampleOf(sound, channel, frame, loop),
-                   sampleOf(sound, channel, frame + 1, loop), sampleOf(sound, channel, frame + 2, loop),
-                   static_cast<float>(position - whole));
+    return hermite(sampleOf(mixer, voice, channel, frame - 1), sampleOf(mixer, voice, channel, frame),
+                   sampleOf(mixer, voice, channel, frame + 1), sampleOf(mixer, voice, channel, frame + 2),
+                   static_cast<float>(voice.position - whole));
 }
 
 // Distance attenuation by the voice's rolloff.
@@ -572,8 +630,8 @@ void render(Mixer& mixer, Voice& voice, uint32_t frames)
         const float t = static_cast<float>(i - first + 1) / span;
         const float gl = (startLeft + (left - startLeft) * t) * voice.fade;
         const float gr = (startRight + (right - startRight) * t) * voice.fade;
-        const float a = sampleAt(sound, 0, voice.position, voice.loop);
-        const float b = stereo ? sampleAt(sound, 1, voice.position, voice.loop) : a;
+        const float a = sampleAt(mixer, voice, 0);
+        const float b = stereo ? sampleAt(mixer, voice, 1) : a;
         if (voice.spatial && stereo)
         {
             const float middle = (a + b) * 0.5f;
@@ -586,13 +644,27 @@ void render(Mixer& mixer, Voice& voice, uint32_t frames)
             out[i * 2 + 1] += b * gr;
         }
         voice.position += step;
-        if (voice.loop && voice.position >= sound.info.frameCount)
+        if (voice.loop && voice.stream == nullptr && voice.position >= sound.info.frameCount)
         {
             voice.position = std::fmod(voice.position, static_cast<double>(sound.info.frameCount));
         }
     }
     voice.gainLeft = left;
     voice.gainRight = right;
+    if (voice.stream != nullptr)
+    {
+        // Frames behind the voice (but the one Hermite reads before it) are free.
+        const double behind = std::floor(voice.position) - 2;
+        if (behind > static_cast<double>(voice.stream->released.load(std::memory_order_relaxed)))
+        {
+            voice.stream->released.store(static_cast<uint64_t>(behind), std::memory_order_release);
+        }
+        if (voice.starved)
+        {
+            ++mixer.starved;
+            voice.starved = false;
+        }
+    }
     if (ended)
     {
         end(mixer, voice);
@@ -731,8 +803,8 @@ float delay(const Mixer& mixer)
 
 MixerStats stats(const Mixer& mixer)
 {
-    return {mixer.playing.load(), mixer.lateStarts.load(), mixer.underruns.load(), mixer.latency.load(),
-            mixer.dropped.load()};
+    return {mixer.playing.load(), mixer.lateStarts.load(), mixer.underruns.load(),
+            mixer.latency.load(), mixer.dropped.load(),    mixer.starved.load()};
 }
 
 void noteUnderrun(Mixer& mixer)

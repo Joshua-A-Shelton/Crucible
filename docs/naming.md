@@ -751,3 +751,27 @@ step 5):
 | The `startOfflineMixing` argument `startNs`* | When offline frame 0 is |
 | The Metronome's `MetronomeSystem`*, its options `seconds`* and `check`*, the test `samples.metronome`* | The sample |
 | tests/native/AudioTestSupport.h*: `Offline`*, `TestSound`*, `steady`*, `sine`*, `frameOf`*, `centre`*, `here`* | Test support |
+
+## Audio assets (2026-11-10, M8 step 6)
+
+Settled as drafted: the importer "Sound" (C# `SoundImporter`) for `.wav`,
+`.flac`, `.ogg`; crucible/importers/Sound.h, `importSound`, `SoundImport`;
+`SoundImportSettings` (`Encoding`, `AdpcmAfterSeconds`, `BeatsPerMinute`,
+`BeatsPerBar`, `Mono`, `Normalize`, `NormalizePeak`, `TrimSilence`,
+`SilenceThreshold`), `SoundImportEncoding` (`Auto`, `Pcm`, `Adpcm`,
+`Vorbis`); `SoundEncoding::ImaAdpcm`, `SoundEncoding::Vorbis`,
+`SoundInfo::blockFrames`, the sections `ADPC` and `OGGV`;
+`MixerStats::starvedBlocks`; tests/native/data/sounds (`tone.wav`,
+`tone.flac`, `tone.ogg`, `make_sounds.sh`); ADR 0083 "Audio assets",
+`docs/learning/audio-codecs.md`; `SoundImportTests`, `AdpcmTests`,
+`VorbisStreamingTests`, `SoundImporterTests`. Names added while building
+are placeholders (*):
+
+| Name | What it is |
+|---|---|
+| crucible/Adpcm.h*: `audio::adpcm`*, `stepSizes`*, `indexSteps`*, `channelBytes`*, `blockBytes`*, `State`*, `decodeNibble`*, `encodeSample`*, `encodeBlock`*, `decodeBlock`*; `assets::maxAdpcmBlockFrames`* | IMA ADPCM |
+| crucible/Vorbis.h*, src/native/core/Vorbis.cpp*: `VorbisDecoder`*, `openVorbis`*, `closeVorbis`*, `vorbisInfo`*, `decodeVorbis`*, `rewindVorbis`* | Decoding Ogg Vorbis |
+| `SoundSettings`* (native), `destroySoundImport`*, `soundImportInfo`*, `soundDataTag`*, `soundDataSize`*, `copySoundData`*, `soundWarningCount`*, `soundWarning`*; src/native/importers/Sound.cpp*, DrLibs.c* | The native importer |
+| `Stream`*, `streamSeconds`*, `Sound::data`* | The mixer's Vorbis streams |
+| CMake `dr_libs`*, `crucible_dr_libs`*, `crucible_stb_vorbis`* | The libraries' targets |
+| tests/native/SoundTestSupport.h*: `testSound`*, `defaults`*, `Imported`*, `SoundAssets`*, `asFloats`*; `CRUCIBLE_SOUNDS_DIR`*, `CRUCIBLE_SOUNDS`* | Test support |

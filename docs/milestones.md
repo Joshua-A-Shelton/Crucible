@@ -558,7 +558,10 @@ plus a fixed 50 ms delay, to the frame; buses with low-pass, ducking, and a
 Freeverb send; constant-power 3D panning; music switching on a beat or
 bar; .crsound and sounds made in code; samples/Metronome and its headless
 check.
-Listened to by the owner on KWin. Step 5 is done.
+Listened to by the owner on KWin. Step 5 is done. Step 6 built (ADR
+0083): WAV, FLAC, and OGG imported into .crsound (dr_wav, dr_flac,
+stb_vorbis); PCM, IMA ADPCM, and Vorbis kept from .ogg and streamed from
+memory on background jobs; mono, trim, and normalize at import.
 
 ## M9 — Physics
 

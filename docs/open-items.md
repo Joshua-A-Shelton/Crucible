@@ -224,6 +224,8 @@ is, and record which version fixed it.
 - Audio output latency is estimated from buffer sizes, not measured (ADR
   0028 asks for it per platform): measure it with a loopback cable (output
   to input, a click timed both ways) on Linux and Windows. → 0082
+- Vorbis streams from memory (the whole file loaded); streaming from disk
+  needs ranged reads in the asset source (ADR 0076), with pack files. → 0083
 - Audio dropouts are estimated from late callbacks; SDL doesn't report
   them. → 0082
 - The AudioSource `occlusion` field is ignored by Crucible's mixer (a

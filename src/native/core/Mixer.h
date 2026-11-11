@@ -8,19 +8,42 @@
 // device, sounds, the service, and "Audio.Update".
 
 #include <crucible/Audio.h>
+#include <crucible/Jobs.h>
 #include <crucible/Systems.h>
 #include <crucible/Vector.h>
+#include <crucible/Vorbis.h>
 
 #include <atomic>
 #include <cstdint>
 
 namespace crucible::audio {
 
-// A sound in memory: its samples, interleaved, ready to play.
+// A sound in memory, ready to play: PCM samples (interleaved), or its
+// encoded data (ADPCM blocks, an Ogg Vorbis file).
 struct Sound
 {
     assets::SoundInfo info{};
     Vector<int16_t> samples{MemoryTag::Audio};
+    Vector<uint8_t> data{MemoryTag::Audio};
+};
+
+// A Vorbis voice's decoded frames (ADR 0083): a ring a background job fills
+// ahead of the voice and the audio thread reads. Frames are counted from the
+// voice's start, laps included; the job writes them (`written`), the audio
+// thread lets them go (`released`), each only moving its own count.
+struct Stream
+{
+    const Sound* sound = nullptr;
+    VorbisDecoder* decoder = nullptr;
+    bool loop = false;
+    uint32_t channels = 1;
+    uint32_t capacity = 0; // frames
+    Vector<int16_t> ring{MemoryTag::Audio};
+    Vector<int16_t> scratch{MemoryTag::Audio}; // the job decodes here first
+    std::atomic<uint64_t> written{0};
+    std::atomic<uint64_t> released{0};
+    std::atomic<bool> finished{false}; // decoded to the end, not looping
+    jobs::JobCounter job;
 };
 
 // One producer, one consumer: a ring of slots, the producer moving `tail`
@@ -74,12 +97,17 @@ enum class CommandKind : uint32_t
     Forget, // a sound about to be freed: stop what plays it, then say so
 };
 
+// Frames of a Vorbis voice decoded ahead: a second's worth, topped up when
+// half is left.
+inline constexpr uint32_t streamSeconds = 1;
+
 struct Command
 {
     CommandKind kind = CommandKind::Play;
     uint32_t voice = 0;
     const Sound* sound = nullptr;
-    uint64_t atNs = 0; // 0: now
+    Stream* stream = nullptr; // a Vorbis sound's, made by the main thread
+    uint64_t atNs = 0;        // 0: now
     float volume = 1;
     float pitch = 1;
     uint32_t bus = masterBus;
@@ -107,6 +135,7 @@ struct Feedback
     FeedbackKind kind;
     uint32_t voice;
     const Sound* sound;
+    Stream* stream; // a voice's, for the main thread to free
 };
 
 class Mixer;

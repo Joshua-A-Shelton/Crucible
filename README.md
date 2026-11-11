@@ -130,3 +130,6 @@ Longer explanations of decisions, written to be reread:
 - [Mixing audio](docs/learning/mixing-audio.md) (ADR 0082): the audio
   thread's deadline, lock-free rings, resampling, constant-power panning,
   a low-pass, ducking, Freeverb, and sample-exact scheduling.
+- [Audio codecs](docs/learning/audio-codecs.md) (ADR 0083): PCM, IMA ADPCM's
+  adaptive steps, Vorbis's perceptual coding, and streaming ahead through a
+  ring.

@@ -35,7 +35,10 @@ target_include_directories(crucible_mikktspace SYSTEM PUBLIC "${mikktspace_SOURC
 add_library(crucible_ufbx STATIC "${ufbx_SOURCE_DIR}/ufbx.c")
 target_include_directories(crucible_ufbx SYSTEM PUBLIC "${ufbx_SOURCE_DIR}")
 target_compile_definitions(crucible_ufbx PUBLIC UFBX_NO_STDIO)
-foreach(thirdParty crucible_meshopt crucible_mikktspace crucible_ufbx)
+# dr_wav and dr_flac (ADR 0083), likewise, as C.
+add_library(crucible_dr_libs STATIC DrLibs.c)
+target_include_directories(crucible_dr_libs SYSTEM PUBLIC "${dr_libs_SOURCE_DIR}")
+foreach(thirdParty crucible_meshopt crucible_mikktspace crucible_ufbx crucible_dr_libs)
     set_target_properties(${thirdParty} PROPERTIES POSITION_INDEPENDENT_CODE ON)
     if(MSVC)
         target_compile_options(${thirdParty} PRIVATE /W0)
@@ -51,6 +54,7 @@ add_library(crucible_importers_objects OBJECT
     Gltf.cpp
     Mesh.cpp
     ShaderCompiler.cpp
+    Sound.cpp
     StbImage.cpp
     Texture.cpp
     "${CRUCIBLE_GENERATED_DIR}/native/ImportersBindings.g.cpp")
@@ -62,7 +66,8 @@ set_target_properties(crucible_importers_objects PROPERTIES
     POSITION_INDEPENDENT_CODE ON
     CXX_VISIBILITY_PRESET hidden
     VISIBILITY_INLINES_HIDDEN ON)
-target_link_libraries(crucible_importers_objects PRIVATE crucible_bc7enc crucible_meshopt crucible_mikktspace crucible_ufbx)
+target_link_libraries(crucible_importers_objects PRIVATE crucible_bc7enc crucible_meshopt crucible_mikktspace crucible_ufbx
+    crucible_dr_libs)
 # Slang (ADR 0047), from its release binaries: a shared library the
 # importers load, with DXC beside it on Windows for DXIL.
 target_link_libraries(crucible_importers_objects PUBLIC slang::slang)
@@ -93,6 +98,7 @@ crucible_generate_bindings(
     EXTERN_HEADERS "${PROJECT_SOURCE_DIR}/src/native/core/include/crucible/Result.h"
         "${PROJECT_SOURCE_DIR}/src/native/core/include/crucible/MeshFile.h"
         "${PROJECT_SOURCE_DIR}/src/native/core/include/crucible/TextureFile.h"
+        "${PROJECT_SOURCE_DIR}/src/native/core/include/crucible/SoundFile.h"
     LIBRARY crucible_importers
     INTEROP_NAMESPACE Crucible.Assets.Interop
     EXPORT_MACRO CRUCIBLE_IMPORTERS_EXPORT

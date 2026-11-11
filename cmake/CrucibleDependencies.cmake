@@ -96,6 +96,8 @@ set_target_properties(libzstd_static PROPERTIES POSITION_INDEPENDENT_CODE ON)
 # Editor-only importers (ADR 0022, 0042), built into crucible_importers and
 # never shipped. Neither project tags releases, so both are pinned by commit.
 #   stb_image (MIT or public domain): decodes PNG, JPEG, TGA, and Radiance HDR.
+#     The same pinned repository gives the shipped core stb_vorbis (MIT or
+#     public domain), which decodes Ogg Vorbis sounds as they play (ADR 0083).
 #   bc7enc_rdo (MIT or public domain; its optional ISPC encoder, Apache 2.0,
 #     and LodePNG aren't used): BC7, BC4, and BC5 encoding and decoding, and
 #     ERT, its rate-distortion pass. Its own build makes a command-line tool
@@ -135,7 +137,14 @@ FetchContent_Declare(ufbx
     URL https://github.com/ufbx/ufbx/archive/refs/tags/v0.23.1.tar.gz
     URL_HASH SHA256=21edd1021dfb430e37aa6214c9b3bbaa5634b1859cbbef7231e738af4f19c956
     SOURCE_SUBDIR do-not-build)
-FetchContent_MakeAvailable(stb bc7enc_rdo cgltf meshoptimizer mikktspace ufbx)
+#   dr_wav 0.14.6 and dr_flac 0.13.4 (public domain or MIT-0): read WAV and
+#     FLAC sounds (ADR 0083). One repository, pinned at the commit both
+#     released from.
+FetchContent_Declare(dr_libs
+    URL https://github.com/mackron/dr_libs/archive/35b5c392cc15456736c440a68dbe073178bbffe0.tar.gz
+    URL_HASH SHA256=d46fa0a831a65b16fcf2b169e6b739c66536437ee78049893788582eb93e39de
+    SOURCE_SUBDIR do-not-build)
+FetchContent_MakeAvailable(stb bc7enc_rdo cgltf meshoptimizer mikktspace ufbx dr_libs)
 
 # ---------------------------------------------------------------------------
 # Shader compilers (ADR 0025, 0047): build time and the editor, never shipped.

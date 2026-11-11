@@ -49,7 +49,8 @@ target_sources(crucible_core_objects PRIVATE
     Shader.cpp
     StateMachine.cpp
     Systems.cpp
-    Transform.cpp)
+    Transform.cpp
+    Vorbis.cpp)
 
 # Only CRUCIBLE_EXPORT symbols are visible from the shared library.
 target_compile_definitions(crucible_core_objects PRIVATE CRUCIBLE_CORE_EXPORTS)
@@ -65,6 +66,19 @@ if(CRUCIBLE_FORCE_SCALAR_SIMD)
 endif()
 # SDL stays private: it never appears in a public header (ADR 0018).
 target_link_libraries(crucible_core_objects PRIVATE SDL3::SDL3-static)
+# stb_vorbis (ADR 0083), as a third-party library in C: its warnings are its
+# own. No stdio (sounds come from memory), no push API; its memory comes from
+# buffers Vorbis.cpp gives it.
+add_library(crucible_stb_vorbis STATIC "${stb_SOURCE_DIR}/stb_vorbis.c")
+target_compile_definitions(crucible_stb_vorbis PRIVATE STB_VORBIS_NO_STDIO STB_VORBIS_NO_PUSHDATA_API)
+set_target_properties(crucible_stb_vorbis PROPERTIES POSITION_INDEPENDENT_CODE ON)
+if(MSVC)
+    target_compile_options(crucible_stb_vorbis PRIVATE /W0)
+else()
+    target_compile_options(crucible_stb_vorbis PRIVATE -w)
+endif()
+target_include_directories(crucible_core_objects SYSTEM PRIVATE "${stb_SOURCE_DIR}")
+target_link_libraries(crucible_core_objects PRIVATE crucible_stb_vorbis)
 # Compression for binary files (ADR 0039).
 target_link_libraries(crucible_core_objects PRIVATE libzstd_static)
 # Loading native modules (ADR 0074).

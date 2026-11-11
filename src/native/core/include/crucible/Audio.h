@@ -150,6 +150,7 @@ struct CRUCIBLE_EXPOSE MixerStats
     uint32_t underruns;       // times the device found nothing queued (an estimate of dropouts)
     float latencyEstimate;    // seconds from mixing to the speaker: the device's buffer and what's queued
     uint32_t droppedCommands; // commands the full queue turned away
+    uint32_t starvedBlocks;   // blocks a Vorbis voice had nothing decoded for (ADR 0083)
 };
 
 // Opens the default audio device and installs the mixer; false (the null

@@ -8,7 +8,8 @@ crucible_add_dotnet_test(Crucible.Engine.HotReloadTests)
 crucible_add_dotnet_test(Crucible.Assets.Tests)
 # ufbx's sample files (ADR 0044), for the FBX importer's tests.
 set_property(TEST Crucible.Assets.Tests APPEND PROPERTY ENVIRONMENT "CRUCIBLE_UFBX_DATA=${ufbx_SOURCE_DIR}/data"
-    "CRUCIBLE_WALKER_PROJECT=${PROJECT_SOURCE_DIR}/samples/Walker/Project")
+    "CRUCIBLE_WALKER_PROJECT=${PROJECT_SOURCE_DIR}/samples/Walker/Project"
+    "CRUCIBLE_SOUNDS=${PROJECT_SOURCE_DIR}/tests/native/data/sounds")
 
 # The editor's tests (ADR 0066): the editor runs on a JIT (ADR 0016).
 crucible_add_dotnet_test(Crucible.Editor.Tests)
