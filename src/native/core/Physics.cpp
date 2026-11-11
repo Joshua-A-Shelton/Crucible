@@ -1,6 +1,6 @@
 // The physics contract's engine side (ADR 0075): the installed service and
-// its default, Box3D (ADR 0085, Box3dPhysics.cpp), whose queries and
-// character moves answer as the null physics did until they're built.
+// its default, Box3D (ADR 0085, Box3dPhysics.cpp; its queries ADR 0090),
+// whose character moves answer as the null physics did until they're built.
 
 #include "Box3dPhysics.h"
 
@@ -11,22 +11,6 @@
 namespace crucible::physics {
 
 namespace {
-
-// Queries find nothing (until M9 step 3).
-RayHit noHit(ecs::World&, Vector3, Vector3, float, uint32_t)
-{
-    return {};
-}
-
-RayHit noCastHit(ecs::World&, QueryShape, Vector3, Quaternion, Vector3, float, uint32_t)
-{
-    return {};
-}
-
-uint32_t noOverlap(ecs::World&, QueryShape, Vector3, Quaternion, uint32_t, std::span<ecs::Entity>)
-{
-    return 0;
-}
 
 // Straight through everything, never on the ground (until M9 step 4).
 CharacterMove moveFreely(ecs::World& world, ecs::Entity character, Vector3 displacement, float)
@@ -40,7 +24,7 @@ CharacterMove moveFreely(ecs::World& world, ecs::Entity character, Vector3 displ
     return {transform->position, false, {0, 1, 0}};
 }
 
-constexpr PhysicsService defaultPhysics{noHit, noCastHit, noOverlap, box3d::contacts, moveFreely};
+constexpr PhysicsService defaultPhysics{box3d::raycast, box3d::shapeCast, box3d::overlap, box3d::contacts, moveFreely};
 
 PhysicsService installed = defaultPhysics;
 
@@ -56,21 +40,26 @@ const PhysicsService& physicsService()
     return installed;
 }
 
-RayHit raycast(ecs::World& world, Vector3 from, Vector3 direction, float distance, uint32_t layers)
+QueryFilter defaultQueryFilter()
 {
-    return installed.raycast(world, from, direction, distance, layers);
+    return {allLayers, {}, false};
+}
+
+RayHit raycast(ecs::World& world, Vector3 from, Vector3 direction, float distance, QueryFilter filter)
+{
+    return installed.raycast(world, from, direction, distance, filter);
 }
 
 RayHit shapeCast(ecs::World& world, QueryShape shape, Vector3 from, Quaternion rotation, Vector3 direction,
-                 float distance, uint32_t layers)
+                 float distance, QueryFilter filter)
 {
-    return installed.shapeCast(world, shape, from, rotation, direction, distance, layers);
+    return installed.shapeCast(world, shape, from, rotation, direction, distance, filter);
 }
 
-uint32_t overlap(ecs::World& world, QueryShape shape, Vector3 at, Quaternion rotation, uint32_t layers,
+uint32_t overlap(ecs::World& world, QueryShape shape, Vector3 at, Quaternion rotation, QueryFilter filter,
                  std::span<ecs::Entity> into)
 {
-    return installed.overlap(world, shape, at, rotation, layers, into);
+    return installed.overlap(world, shape, at, rotation, filter, into);
 }
 
 uint32_t contacts(ecs::World& world, std::span<ContactEvent> into)

@@ -621,7 +621,9 @@ setting (COLM, COLH) or built at run time; hulls of at most 32 vertices by
 default; meshes on static bodies only; outlines from the data.
 Tried by hand by the owner, who found testing in the editor too obtuse:
 editor usability came next (below), then step 2's try, through it. Step 2
-is done.
+is done. Step 3 built (ADR 0090): raycast, shapeCast, and overlap on
+Box3D with a QueryFilter (layers, an entity left out, triggers when asked),
+seeing the last tick's world; their C# side; View > Queries.
 
 **Editor usability** (agreed with the owner, 2026-11-11, between M9 steps 2
 and 3; one commit each, tried by hand like a milestone's steps):

@@ -30,7 +30,7 @@ TEST_CASE("A module replaces physics and audio")
     audio::registerAudio();
     CHECK(userDataOf("Physics.Step") == nullptr);
     ecs::World* world = ecs::createWorld();
-    CHECK_FALSE(physics::raycast(*world, {0, 0, 0}, {0, 0, 1}, 100, physics::allLayers).hit);
+    CHECK_FALSE(physics::raycast(*world, {0, 0, 0}, {0, 0, 1}, 100, physics::defaultQueryFilter()).hit);
 
     REQUIRE(loadModule(CRUCIBLE_TEST_SUBSYSTEMS));
     for (std::string_view name : {"Physics.Sync", "Physics.Step", "Physics.WriteBack", "Audio.Update"})
@@ -39,7 +39,7 @@ TEST_CASE("A module replaces physics and audio")
         CHECK(userDataOf(name) != nullptr);
         CHECK(loop::nativeSystemIsGameplay(static_cast<uint32_t>(test::systemIndex(name))));
     }
-    const physics::RayHit hit = physics::raycast(*world, {0, 0, 0}, {0, 0, 1}, 100, physics::allLayers);
+    const physics::RayHit hit = physics::raycast(*world, {0, 0, 0}, {0, 0, 1}, 100, physics::defaultQueryFilter());
     CHECK(hit.hit);
     CHECK(hit.distance == 42);
     CHECK(audio::playOneShot({}, 0, {0, 0, 0}, 1, audio::masterBus) == 9);

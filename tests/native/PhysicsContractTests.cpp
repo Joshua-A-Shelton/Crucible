@@ -45,11 +45,12 @@ TEST_CASE("The null physics finds nothing and moves characters freely")
     {
         test::runSystem(name, *world);
     }
-    CHECK_FALSE(raycast(*world, {0, 10, 0}, {0, -1, 0}, 100, allLayers).hit);
-    CHECK_FALSE(
-        shapeCast(*world, {ShapeKind::Sphere, {0.5f, 0, 0}}, {0, 10, 0}, {0, 0, 0, 1}, {0, -1, 0}, 100, allLayers).hit);
+    CHECK_FALSE(raycast(*world, {0, 10, 0}, {0, -1, 0}, 100, defaultQueryFilter()).hit);
+    CHECK_FALSE(shapeCast(*world, {ShapeKind::Sphere, {0.5f, 0, 0}}, {0, 10, 0}, {0, 0, 0, 1}, {0, -1, 0}, 100,
+                          defaultQueryFilter())
+                    .hit);
     ecs::Entity found[4];
-    CHECK(overlap(*world, {ShapeKind::Box, {10, 10, 10}}, {0, 0, 0}, {0, 0, 0, 1}, allLayers, found) == 0);
+    CHECK(overlap(*world, {ShapeKind::Box, {10, 10, 10}}, {0, 0, 0}, {0, 0, 0, 1}, defaultQueryFilter(), found) == 0);
     ContactEvent events[4];
     CHECK(contacts(*world, events) == 0);
 
@@ -63,7 +64,7 @@ TEST_CASE("The null physics finds nothing and moves characters freely")
 
 namespace {
 
-RayHit alwaysHit(ecs::World&, Vector3, Vector3, float distance, uint32_t)
+RayHit alwaysHit(ecs::World&, Vector3, Vector3, float distance, QueryFilter)
 {
     return {true, {}, {0, 0, 0}, {0, 1, 0}, distance / 2};
 }
@@ -77,10 +78,10 @@ TEST_CASE("An installed physics service answers the calls")
     replacement.raycast = alwaysHit;
     installPhysics(replacement);
     ecs::World* world = ecs::createWorld();
-    const RayHit hit = raycast(*world, {0, 0, 0}, {0, 0, 1}, 10, allLayers);
+    const RayHit hit = raycast(*world, {0, 0, 0}, {0, 0, 1}, 10, defaultQueryFilter());
     CHECK(hit.hit);
     CHECK(hit.distance == 5);
     installPhysics(before);
-    CHECK_FALSE(raycast(*world, {0, 0, 0}, {0, 0, 1}, 10, allLayers).hit);
+    CHECK_FALSE(raycast(*world, {0, 0, 0}, {0, 0, 1}, 10, defaultQueryFilter()).hit);
     ecs::destroyWorld(world);
 }

@@ -157,3 +157,10 @@ nothing predictably.
     replacing physics and audio; its systems take the names as gameplay
     systems and its services answer; the defaults registered again leave
     them in place.
+
+## Amendment (2026-11-11): queries take a QueryFilter
+
+M9 step 3 (ADR 0090) replaced each query's `layers` parameter with a
+`QueryFilter` (`layers`, `ignore`, `triggers`; `defaultQueryFilter()`), and
+the engine's Box3D physics now answers them.
+

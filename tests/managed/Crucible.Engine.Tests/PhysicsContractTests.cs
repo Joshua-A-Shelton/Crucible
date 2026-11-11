@@ -33,7 +33,7 @@ public class PhysicsContractTests
     public async Task TheNullPhysicsAnswersThroughTheBindings()
     {
         using World world = new();
-        RayHit hit = Crucible.Physics.Api.Raycast(world.Handle, Vector3.Zero, Vector3.UnitZ, 100, uint.MaxValue);
+        RayHit hit = Crucible.Physics.Api.Raycast(world.Handle, Vector3.Zero, Vector3.UnitZ, 100, QueryFilter.Default);
         await Assert.That(hit.Hit).IsFalse();
     }
 

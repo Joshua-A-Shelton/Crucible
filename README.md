@@ -151,3 +151,6 @@ Longer explanations of decisions, written to be reread:
 - [Editor field hints](docs/learning/editor-field-hints.md) (ADR 0089):
   metadata that tells the inspector what a field means, hints in C++ and
   C#, asset kinds by extension, and lists that depend on other fields.
+- [Physics queries](docs/learning/physics-queries.md) (ADR 0090): rays,
+  shape casts, and overlaps, filtering them, why they see the last tick,
+  and rays that start inside something.

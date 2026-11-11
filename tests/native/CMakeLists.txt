@@ -18,6 +18,10 @@ add_executable(crucible_native_tests
     ConvexColliderTests.cpp
     MeshColliderTests.cpp
     PhysicsBodyTests.cpp
+    RaycastTests.cpp
+    ShapeCastTests.cpp
+    OverlapTests.cpp
+    QueryFilterTests.cpp
     PhysicsInterpolationTests.cpp
     PhysicsSyncTests.cpp
     MixerTests.cpp

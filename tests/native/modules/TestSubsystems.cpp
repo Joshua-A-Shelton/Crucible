@@ -13,7 +13,8 @@ int marker = 0; // its systems' user data: what the tests look for
 
 void nothing(const crucible::loop::SystemContext&, void*) {}
 
-crucible::physics::RayHit alwaysAt42(crucible::ecs::World&, crucible::Vector3, crucible::Vector3, float, uint32_t)
+crucible::physics::RayHit alwaysAt42(crucible::ecs::World&, crucible::Vector3, crucible::Vector3, float,
+                                     crucible::physics::QueryFilter)
 {
     return {true, {}, {0, 0, 0}, {0, 1, 0}, 42};
 }

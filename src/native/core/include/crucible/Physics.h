@@ -17,9 +17,9 @@
 //
 // An implementation (a native module, ADR 0074) registers the three systems
 // under the same names, replacing the defaults, and installs its service.
-// The engine's own is Box3D (ADR 0085); queries and character moves join it
-// in later steps, and until then answer as the null physics does: queries
-// find nothing, characters move straight through everything.
+// The engine's own is Box3D (ADR 0085); its queries (ADR 0090) see the
+// last tick's world. Character moves join it in a later step, and until
+// then move straight through everything, as the null physics does.
 //
 // Units are meters, seconds, and kilograms; Y is up (ADR 0024).
 
@@ -135,6 +135,18 @@ struct CRUCIBLE_EXPOSE QueryShape
     Vector3 size;
 };
 
+// What a query hits (ADR 0090): colliders on its layers, except one
+// entity's and, unless asked for, triggers.
+struct CRUCIBLE_EXPOSE QueryFilter
+{
+    uint32_t layers;    // the layers it hits (a collider on any of them)
+    ecs::Entity ignore; // an entity left out (the one casting it), or none
+    bool triggers;      // trigger colliders too
+};
+
+// All layers, nothing left out, no triggers.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE QueryFilter defaultQueryFilter();
+
 struct CRUCIBLE_EXPOSE RayHit
 {
     bool hit;
@@ -172,10 +184,10 @@ struct CRUCIBLE_EXPOSE CharacterMove
 // main thread, between phases or in a system.
 struct PhysicsService
 {
-    RayHit (*raycast)(ecs::World& world, Vector3 from, Vector3 direction, float distance, uint32_t layers);
+    RayHit (*raycast)(ecs::World& world, Vector3 from, Vector3 direction, float distance, QueryFilter filter);
     RayHit (*shapeCast)(ecs::World& world, QueryShape shape, Vector3 from, Quaternion rotation, Vector3 direction,
-                        float distance, uint32_t layers);
-    uint32_t (*overlap)(ecs::World& world, QueryShape shape, Vector3 at, Quaternion rotation, uint32_t layers,
+                        float distance, QueryFilter filter);
+    uint32_t (*overlap)(ecs::World& world, QueryShape shape, Vector3 at, Quaternion rotation, QueryFilter filter,
                         std::span<ecs::Entity> into);
     uint32_t (*contacts)(ecs::World& world, std::span<ContactEvent> into);
     CharacterMove (*moveCharacter)(ecs::World& world, ecs::Entity character, Vector3 displacement, float seconds);
@@ -186,15 +198,22 @@ CRUCIBLE_EXPORT void installPhysics(const PhysicsService& service);
 // The installed service.
 CRUCIBLE_EXPORT const PhysicsService& physicsService();
 
-// The first hit along a ray (direction normalized), on the given layers.
+// Queries (ADR 0090) see where bodies were at the last tick: a body the
+// game moves is seen there after the next Physics.Sync. Only while the game
+// plays is there a world to hit.
+//
+// The first hit along a ray (direction normalized), or none. A ray starting
+// inside a collider doesn't hit it; a mesh's back faces are never hit.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE RayHit raycast(ecs::World& world, Vector3 from, Vector3 direction, float distance,
-                                               uint32_t layers);
-// The first hit of a shape swept along a ray: hitboxes (ADR 0027).
+                                               QueryFilter filter);
+// The first hit of a shape swept along a ray: hitboxes (ADR 0027). One
+// already touching something at the start hits it at distance 0.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE RayHit shapeCast(ecs::World& world, QueryShape shape, Vector3 from, Quaternion rotation,
-                                                 Vector3 direction, float distance, uint32_t layers);
-// The entities whose colliders overlap the shape, as many as fit; returns how many there are.
+                                                 Vector3 direction, float distance, QueryFilter filter);
+// The entities whose colliders overlap the shape, each once, as many as
+// fit; returns how many there are.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t overlap(ecs::World& world, QueryShape shape, Vector3 at, Quaternion rotation,
-                                                 uint32_t layers, std::span<ecs::Entity> into);
+                                                 QueryFilter filter, std::span<ecs::Entity> into);
 // The contact events of every tick since the last frame, as many as fit;
 // returns how many there are.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t contacts(ecs::World& world, std::span<ContactEvent> into);
@@ -218,6 +237,12 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE BodyPose bodyPose(const ecs::World& world, ecs::
 // Adds debug lines (crucible/DebugLines.h) along every collider's outline,
 // from the components, so it works while editing too.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void drawColliders(const ecs::World& world, Vector4 color);
+// The editor's View > Queries (ADR 0090): while on, Box3D's queries are
+// kept, and drawQueries adds debug lines for each kept since the last call
+// (a ray's or cast's path, its hit point and normal, a shape's outline at
+// its start and end), in `hit` where it found something, then forgets them.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void recordQueries(bool on);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void drawQueries(Vector4 missed, Vector4 hit);
 
 // --- Mesh and Convex colliders (ADR 0086) -----------------------------------
 

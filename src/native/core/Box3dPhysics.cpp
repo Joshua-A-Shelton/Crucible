@@ -1126,6 +1126,188 @@ void registerSystems()
         {.name = interpolateSystemName, .phase = "Update", .function = interpolate, .gameplay = true});
 }
 
+// --- Queries (ADR 0090) -----------------------------------------------------
+//
+// Box3D's world queries on the last tick's world. A query's layers are its
+// Box3D mask, against each shape's category bits (its layers, low 32; see
+// Shapes); a shape's own mask doesn't count. Triggers and the ignored
+// entity are filtered in the callbacks.
+
+// The queries of the frame, while the editor draws them (View > Queries).
+struct QueryRecord
+{
+    bool cast = false;     // a ray or a shape cast; else an overlap
+    bool hasShape = false; // a shape cast or an overlap
+    QueryShape shape{};
+    Vector3 from{};
+    Quaternion rotation = Quaternion::identity();
+    Vector3 direction{};
+    float distance = 0;
+    RayHit hit{};
+    uint32_t found = 0;
+};
+
+bool recordingQueries = false;
+Vector<QueryRecord> recordedQueries{tag};
+
+void record(const QueryRecord& query)
+{
+    if (recordingQueries && recordedQueries.size() < 4096)
+    {
+        recordedQueries.pushBack(query);
+    }
+}
+
+b3QueryFilter queryFilter(const QueryFilter& filter)
+{
+    b3QueryFilter b3 = b3DefaultQueryFilter();
+    b3.categoryBits = UINT64_MAX;
+    b3.maskBits = filter.layers;
+    return b3;
+}
+
+bool admits(b3ShapeId shape, const QueryFilter& filter)
+{
+    return (filter.triggers || !b3Shape_IsSensor(shape)) &&
+           (filter.ignore.value == 0 || entityOf(shape).value != filter.ignore.value);
+}
+
+// A query shape as Box3D's point cloud, around the origin, rotated: a box's
+// corners, a sphere's center, a capsule's two cap centers (along its Y).
+struct Proxy
+{
+    b3Vec3 points[8];
+    b3ShapeProxy proxy{};
+};
+
+bool makeProxy(const QueryShape& shape, Quaternion rotation, Proxy& out)
+{
+    out.proxy.points = out.points;
+    switch (shape.kind)
+    {
+    case ShapeKind::Box:
+    {
+        const Vector3 half = shape.size * 0.5f;
+        for (int i = 0; i < 8; ++i)
+        {
+            const Vector3 corner{(i & 1) ? half.x : -half.x, (i & 2) ? half.y : -half.y, (i & 4) ? half.z : -half.z};
+            out.points[i] = toB3(rotate(corner, rotation));
+        }
+        out.proxy.count = 8;
+        out.proxy.radius = 0;
+        return true;
+    }
+    case ShapeKind::Sphere:
+        out.points[0] = {0, 0, 0};
+        out.proxy.count = 1;
+        out.proxy.radius = std::max(shape.size.x, 0.0f);
+        return true;
+    case ShapeKind::Capsule:
+    {
+        const float half = std::max(shape.size.y, 0.0f) * 0.5f;
+        out.points[0] = toB3(rotate(Vector3{0, -half, 0}, rotation));
+        out.points[1] = toB3(rotate(Vector3{0, half, 0}, rotation));
+        out.proxy.count = 2;
+        out.proxy.radius = std::max(shape.size.x, 0.0f);
+        return true;
+    }
+    default:
+        return false; // Mesh and Convex aren't query shapes
+    }
+}
+
+struct Closest
+{
+    QueryFilter filter;
+    float distance;
+    bool hitsAtStart = true; // a shape cast's; a ray's doesn't hit the collider it starts in (Box3D reports it at 0)
+    RayHit hit{};
+};
+
+float keepClosest(b3ShapeId shape, b3Pos point, b3Vec3 normal, float fraction, uint64_t, int, int, void* context)
+{
+    Closest& closest = *static_cast<Closest*>(context);
+    if (!admits(shape, closest.filter) || (!closest.hitsAtStart && fraction <= 0))
+    {
+        return -1; // not this one: go on
+    }
+    closest.hit = {true, entityOf(shape), fromB3(point), fromB3(normal), fraction * closest.distance};
+    return fraction; // nothing past it
+}
+
+RayHit raycast(ecs::World& world, Vector3 from, Vector3 direction, float distance, QueryFilter filter)
+{
+    const PhysicsWorld* physics = find(world);
+    Closest closest{filter, distance, false};
+    if (physics != nullptr && distance > 0)
+    {
+        b3World_CastRay(physics->id, toB3(from), toB3(direction * distance), queryFilter(filter), keepClosest,
+                        &closest);
+    }
+    record({true, false, {}, from, Quaternion::identity(), direction, distance, closest.hit, 0});
+    return closest.hit;
+}
+
+RayHit shapeCast(ecs::World& world, QueryShape shape, Vector3 from, Quaternion rotation, Vector3 direction,
+                 float distance, QueryFilter filter)
+{
+    const PhysicsWorld* physics = find(world);
+    Closest closest{filter, distance};
+    Proxy proxy;
+    if (physics != nullptr && distance >= 0 && makeProxy(shape, rotation, proxy))
+    {
+        b3World_CastShape(physics->id, toB3(from), &proxy.proxy, toB3(direction * distance), queryFilter(filter),
+                          keepClosest, &closest);
+    }
+    record({true, true, shape, from, rotation, direction, distance, closest.hit, 0});
+    return closest.hit;
+}
+
+struct Overlaps
+{
+    QueryFilter filter;
+    std::span<ecs::Entity> into;
+    Vector<uint64_t> found{tag};
+};
+
+bool gather(b3ShapeId shape, void* context)
+{
+    Overlaps& overlaps = *static_cast<Overlaps*>(context);
+    if (!admits(shape, overlaps.filter))
+    {
+        return true;
+    }
+    const ecs::Entity entity = entityOf(shape);
+    for (const uint64_t seen : overlaps.found)
+    {
+        if (seen == entity.value)
+        {
+            return true; // each entity once
+        }
+    }
+    if (overlaps.found.size() < overlaps.into.size())
+    {
+        overlaps.into[overlaps.found.size()] = entity;
+    }
+    overlaps.found.pushBack(entity.value);
+    return true;
+}
+
+uint32_t overlap(ecs::World& world, QueryShape shape, Vector3 at, Quaternion rotation, QueryFilter filter,
+                 std::span<ecs::Entity> into)
+{
+    const PhysicsWorld* physics = find(world);
+    Overlaps overlaps{filter, into};
+    Proxy proxy;
+    if (physics != nullptr && makeProxy(shape, rotation, proxy))
+    {
+        b3World_OverlapShape(physics->id, toB3(at), &proxy.proxy, queryFilter(filter), gather, &overlaps);
+    }
+    const uint32_t count = static_cast<uint32_t>(overlaps.found.size());
+    record({false, true, shape, at, rotation, {}, 0, {}, count});
+    return count;
+}
+
 uint32_t contacts(ecs::World& world, std::span<ContactEvent> into)
 {
     const PhysicsWorld* physics = find(world);
@@ -1387,6 +1569,52 @@ void outline(const Collider& collider, const Matrix4x4& toWorld, Vector4 color)
 }
 
 } // namespace
+
+void recordQueries(bool on)
+{
+    recordingQueries = on;
+    if (!on)
+    {
+        recordedQueries.clear();
+    }
+}
+
+void drawQueries(Vector4 missed, Vector4 hit)
+{
+    for (const QueryRecord& query : recordedQueries)
+    {
+        const bool struck = query.cast ? query.hit.hit : query.found > 0;
+        const Vector4 color = struck ? hit : missed;
+        const Vector3 end = query.from + query.direction * (struck && query.cast ? query.hit.distance : query.distance);
+        if (query.cast)
+        {
+            debug::drawLine(query.from, end, color);
+            if (struck)
+            {
+                // Where it hit, and the surface's normal there.
+                debug::drawLine(query.hit.point, query.hit.point + query.hit.normal * 0.25f, color);
+                const Vector3 x{0.05f, 0, 0}, y{0, 0.05f, 0}, z{0, 0, 0.05f};
+                debug::drawLine(query.hit.point - x, query.hit.point + x, color);
+                debug::drawLine(query.hit.point - y, query.hit.point + y, color);
+                debug::drawLine(query.hit.point - z, query.hit.point + z, color);
+            }
+        }
+        if (query.hasShape)
+        {
+            // The shape where it started (an overlap's) and where it stopped (a cast's).
+            Collider shape{};
+            shape.shape = query.shape.kind;
+            shape.size = query.shape.size;
+            const Matrix4x4 turn = Matrix4x4::rotation(query.rotation);
+            outline(shape, turn * Matrix4x4::translation(query.from), color);
+            if (query.cast)
+            {
+                outline(shape, turn * Matrix4x4::translation(end), color);
+            }
+        }
+    }
+    recordedQueries.clear();
+}
 
 void drawColliders(const ecs::World& world, Vector4 color)
 {

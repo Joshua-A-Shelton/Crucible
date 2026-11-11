@@ -411,6 +411,12 @@ internal sealed partial class Shell
             // Every collider's outline (ADR 0085), from its components.
             Crucible.Physics.Collider.DrawColliders(world, _colliderColor);
         }
+        // The frame's queries (ADR 0090), kept by the core only while shown.
+        Crucible.Physics.Api.RecordQueries(ShowsQueries);
+        if (ShowsQueries)
+        {
+            Crucible.Physics.Api.DrawQueries(_queryMissColor, _queryHitColor);
+        }
         foreach (EditorPanel panel in _open.Values)
         {
             if (panel is ViewportPanel viewport && viewport.Root is not null)
@@ -571,6 +577,10 @@ internal sealed partial class Shell
         {
             IsChecked = () => ShowsColliders,
         });
+        Commands.Add(new Command("View.Queries", "Queries", () => ShowsQueries = !ShowsQueries)
+        {
+            IsChecked = () => ShowsQueries,
+        });
         Commands.Add(new Command("Help.About", $"About {EngineInfo.Name}",
             () => Log($"{EngineInfo.Name} editor, M7 (ADR 0016, 0066)")));
     }
@@ -586,6 +596,13 @@ internal sealed partial class Shell
 
     /// <summary>Whether the views draw every collider's outline (View > Colliders, ADR 0085).</summary>
     public bool ShowsColliders { get; set; }
+
+    // A query's path in a stronger green than the colliders', red where it hit.
+    private static readonly Vector4 _queryMissColor = new(0.1f, 0.85f, 0.1f, 1.0f);
+    private static readonly Vector4 _queryHitColor = new(1.0f, 0.25f, 0.2f, 1.0f);
+
+    /// <summary>Whether the views draw the game's physics queries each frame (View > Queries, ADR 0090).</summary>
+    public bool ShowsQueries { get; set; }
 
     private void BuildMenus()
     {
@@ -620,6 +637,7 @@ internal sealed partial class Shell
         Menu viewMenu = Main.MenuBar.Add("View");
         viewMenu.Add(Commands.Find("View.Skeletons")!);
         viewMenu.Add(Commands.Find("View.Colliders")!);
+        viewMenu.Add(Commands.Find("View.Queries")!);
 
         Menu window = Main.MenuBar.Add("Window");
         foreach ((string id, _) in Panels.Panels)

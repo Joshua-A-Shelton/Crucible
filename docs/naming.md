@@ -943,3 +943,19 @@ step 3 by hand:
 | "Mesh *n*"* (a mesh without a name) | Text users see |
 | `FieldTableTests.PickerHintsComeFromTheAttributes`*, `EngineComponentsCarryPickerHintsFromTheirHeaders`*; `PickerSample`*; `--game-arg check-pickers=` | The tests |
 
+## Physics queries (2026-11-11, M9 step 3)
+
+Settled as drafted: `QueryFilter` (`layers`, `ignore`, `triggers`) replacing
+each call's layers parameter, `defaultQueryFilter()`; C# `Physics.Raycast`,
+`Physics.ShapeCast`, `Physics.Overlap`, `QueryFilter.Default`; the editor's
+View > Queries (`View.Queries`, `Shell.ShowsQueries`); ADR 0090 "Physics
+queries", `docs/learning/physics-queries.md`; `RaycastTests`,
+`ShapeCastTests`, `OverlapTests`, `QueryFilterTests`, `PhysicsQueryTests`.
+Names added while building are placeholders (*):
+
+| Name | What it is |
+|---|---|
+| `recordQueries`*, `drawQueries`* (internal; C# `Api.RecordQueries`, `Api.DrawQueries`) | View > Queries' side in the core |
+| Box3dPhysics.cpp's `QueryRecord`*, `queryFilter`*, `admits`*, `Proxy`*, `makeProxy`*, `Closest`* (`hitsAtStart`*), `keepClosest`*, `Overlaps`*, `gather`* | The queries on Box3D |
+| The editor's "Queries" menu item; `_queryMissColor`*, `_queryHitColor`* | Text users see, and the view's colors |
+
