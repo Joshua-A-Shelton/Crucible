@@ -679,3 +679,46 @@ owner tried step 3 by hand):
 | `geometryBuffer`* (material.slang) | Where draws read the four skinned streams from |
 | `QuadOptions::skinned`*, `armRest`* | The test models' two-joint skin |
 
+
+## State machines, events, root motion, and IK (2026-11-10, M8 step 4)
+
+Settled as drafted: the source `.crstates` (JSON) imported into
+`.crstatemachine` (kind `STAT`) by the importer "StateMachine" (C#
+`StateMachineImporter`); `Animator.stateMachine`, `Animator.rootMotion`;
+the JSON's `"Parameters"` (`"Name"`, `"Type"`: `"Float"`/`"Bool"`/`"Trigger"`,
+`"Default"`), `"States"` (`"Name"`, `"Clip"` or `"Blend"` with
+`"Parameters"` and `"Clips"` of `"Clip"` and `"At"`, `"Speed"`, `"Loop"`),
+`"Start"`, `"Transitions"` (`"From"` or `"Any"`, `"To"`, `"Blend"`,
+`"ExitTime"`, `"Conditions"` of `"Parameter"`, `"Op"` (`>`, `<`, `==`,
+`!=`), `"Value"`); `animation::setFloat`, `setBool`, `trigger`,
+`currentState`, `findState` and C# `Animator.SetFloat`, `SetBool`,
+`Trigger`, `CurrentState`, `FindState`; the sidecar's per-clip `"Clips"`
+with `"Events"` (`"Name"`, `"Time"`) and `"Windows"` (`"Name"`, `"Start"`,
+`"End"`); the clip sections `EVNT` and `WNDW`; `AnimationEvent` (`entity`,
+`kind`: `Event`, `WindowOpen`, `WindowClose`; `name`, `clipTime`,
+`timestamp`), `animation::events`, `openWindows`, `OpenWindow` (`name`,
+`opened`, `closes`), `eventName`; `RootMotion` (`translation`, `rotation`),
+`animation::rootMotion`; the Walker's "WalkForward"; `setTwoBoneIk`,
+`TwoBoneIkDesc` (`joint`, `target`, `pole`, `usePole`, `weight`,
+`fadeSeconds`), `setLookAt`, `LookAtDesc` (`joint`, `target`, `aim`,
+`maxAngle`, `weight`, `fadeSeconds`), `clearIk`, `maxIkSlots`, C#
+`Animator.SetTwoBoneIk`, `SetLookAt`, `ClearIk`; ADR 0081 "State machines,
+events, root motion, and IK", `docs/learning/state-machines-and-events.md`,
+`docs/learning/root-motion-and-ik.md`; `StateMachineTests`,
+`BlendSpaceTests`, `AnimationEventTests`, `RootMotionTests`, `IkTests`,
+`StateMachineImporterTests`; `Walker.crstates`. Names added while building
+are placeholders (*):
+
+| Name | What it is |
+|---|---|
+| C# `AnimationEvent.NameOf`* | The hash of a name; `AnimationEvent.Name`, as drafted, clashes with the struct's `Name` field |
+| C# `Animator.LastRootMotion`*, `Animator.Events`*, `Animator.OpenWindows`* | The C# side of `rootMotion` (`RootMotion` is the Animator's field), `events`, and `openWindows` |
+| crucible/StateMachineFile.h*: `stateMachineFileKind`*, `stateMachineFileVersion`*, `maxBlendDimensions`*, `StateMachineInfo`* (`start`, `parameterCount`, `stateCount`, `transitionCount`), `ParameterType`* (`Float`, `Bool`, `Trigger`), `StateParameter`* (`defaultValue`), `StateEntry`* (`firstMotion`, `motionCount`, `dimensions`, `blendParameters`, `speed`, `loop`), `StateMotion`* (`clip`, `position`), `StateTransition`* (`from`, `to`, `blendSeconds`, `exitTime`, `firstCondition`, `conditionCount`), `ConditionOp`* (`Greater`, `Less`, `Equal`, `NotEqual`, `Set`), `TransitionCondition`* (`parameter`, `op`, `value`); the sections `INFO`, `PARM`, `STAT`, `MOTN`, `TRAN`, `COND`, `NAME`* | The state machine file |
+| `ClipEvent`* (`time`, `name`), `ClipWindow`* (`start`, `end`, `name`) | Events and windows in a clip file |
+| C# `MeshImportSettings.Clips`*, `ClipImportSettings`* (`Events`, `Windows`), `ClipEventSettings`*, `ClipWindowSettings`*, `MeshImporter.ClipEventSection`*, `ClipWindowSection`*, `ClipInfoSection`* | Clip events in the import settings |
+| C# `StateMachineImportSettings`*, `StateMachineImporter.Build`* | The importer's settings (none) and its JSON-to-sections step |
+| `AnimationEventKind`* | Whether an event is an event or a window opening or closing |
+| `loop::SystemContext::frameStartNs`* | The frame's start on the input clock, for native systems |
+| `advancePoses`' `frameStartNs`*; the parameters `setting`* (`setFloat`, `setBool`) | Arguments (`value` is reserved by the binding generator) |
+| src/native/core/StateMachine.h* and .cpp*, `StateMachine`*, `parseStateMachine`*, `stateClips`*, `chooseTransition`*, `consumeTriggers`*, `StateProgress`*, `ClipWeight`*, `maxStateClips`* | The runtime's state machine half |
+| tests/native `markClip`*, `MachineBuilder`*, `worstJoint`* (moved), `blendPoses`*, `Character::pose`*, `Character::clock`* | Test support |

@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Text;
 using Crucible.Assets;
 using Crucible.Assets.Importers;
@@ -191,11 +192,29 @@ public class SubAssetTests
             database.ImportAll();
             await Assert.That(database.ImportedFile(model.Id)).IsNotNull();
             await Assert.That(string.Join(" ", database.SubAssetsOf(model.Id).Select(clip => clip.SubAssetName)))
-                .IsEqualTo("Idle Walk");
+                .IsEqualTo("Idle Walk WalkForward");
             await Assert.That(string.Join(" ", database.SubAssetsOf(model.Id).Select(clip => clip.Id)))
                 .IsEqualTo(string.Join(" ", clips.Select(clip => clip.Id)));
-            await Assert.That(clips.Length).IsEqualTo(2);
+            await Assert.That(clips.Length).IsEqualTo(3);
             await Assert.That(File.ReadAllText(sidecar)).IsEqualTo(before);
+
+            // Walk's footsteps, from the sidecar, hashed as the runtime knows them.
+            AssetEntry walk = clips.Single(clip => clip.SubAssetName == "Walk");
+            using (ImportedFile file = ImportedFile.Open(database.ImportedFile(walk.Id)!, MeshImporter.ClipKind,
+                       MeshImporter.ClipVersion))
+            {
+                ClipEvent[] events = MemoryMarshal.Cast<byte, ClipEvent>(
+                    file.Read(file.Find(MeshImporter.ClipEventSection))).ToArray();
+                await Assert.That(string.Join(" ", events.Select(e => e.Time))).IsEqualTo("0 0.5");
+                await Assert.That(events.All(e => e.Name == Animation.AnimationEvent.NameOf("Footstep"))).IsTrue();
+                await Assert.That(file.Find(MeshImporter.ClipWindowSection)).IsLessThan(0);
+            }
+            AssetEntry idle = clips.Single(clip => clip.SubAssetName == "Idle");
+            using (ImportedFile file = ImportedFile.Open(database.ImportedFile(idle.Id)!, MeshImporter.ClipKind,
+                       MeshImporter.ClipVersion))
+            {
+                await Assert.That(file.Find(MeshImporter.ClipEventSection)).IsLessThan(0);
+            }
         }
         finally
         {

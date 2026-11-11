@@ -1,0 +1,24 @@
+{
+  "$guid": "154c11ed-0836-4df7-ab30-572bcd3a4db1",
+  "Parameters": [
+    { "Name": "Speed", "Type": "Float", "Default": 1.7 }
+  ],
+  "States": [
+    { "Name": "Idle", "Clip": "5b2d9abd-9735-4e60-a088-9e28ed3d37ea" },
+    {
+      "Name": "Walk",
+      "Blend": {
+        "Parameters": ["Speed"],
+        "Clips": [
+          { "Clip": "10880ff6-b22a-451e-a23a-d6729d1f813d", "At": [0] },
+          { "Clip": "9c157526-fac4-4ead-a5f6-ad6bd1cf1e93", "At": [1.7] }
+        ]
+      }
+    }
+  ],
+  "Start": "Idle",
+  "Transitions": [
+    { "From": "Idle", "To": "Walk", "Blend": 0.25, "ExitTime": 1 },
+    { "From": "Walk", "To": "Idle", "Blend": 0.25, "ExitTime": 1 }
+  ]
+}

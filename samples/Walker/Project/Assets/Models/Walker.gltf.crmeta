@@ -1,9 +1,25 @@
 {
   "Guid": "56dc8cab-d989-4bc0-87bf-f2754d45a10a",
   "Importer": "Mesh",
-  "Settings": {},
+  "Settings": {
+    "Clips": {
+      "Walk": {
+        "Events": [
+          { "Name": "Footstep", "Time": 0 },
+          { "Name": "Footstep", "Time": 0.5 }
+        ]
+      },
+      "WalkForward": {
+        "Events": [
+          { "Name": "Footstep", "Time": 0 },
+          { "Name": "Footstep", "Time": 0.5 }
+        ]
+      }
+    }
+  },
   "SubAssets": {
     "Idle": "5b2d9abd-9735-4e60-a088-9e28ed3d37ea",
-    "Walk": "10880ff6-b22a-451e-a23a-d6729d1f813d"
+    "Walk": "10880ff6-b22a-451e-a23a-d6729d1f813d",
+    "WalkForward": "9c157526-fac4-4ead-a5f6-ad6bd1cf1e93"
   }
 }

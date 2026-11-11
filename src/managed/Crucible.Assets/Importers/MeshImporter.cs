@@ -72,6 +72,34 @@ public partial class MeshImportSettings
 
     /// <summary>Samples per second the model's animation clips are resampled at (ADR 0078).</summary>
     public float ClipSampleRate = 30;
+
+    /// <summary>Events and windows on the model's clips, by clip name (ADR 0081).</summary>
+    public Dictionary<string, ClipImportSettings> Clips = [];
+}
+
+/// <summary>A clip's events and windows, marked on its timeline (ADR 0081).</summary>
+[Serialized]
+public partial class ClipImportSettings
+{
+    public List<ClipEventSettings> Events = [];
+    public List<ClipWindowSettings> Windows = [];
+}
+
+/// <summary>A named moment on a clip, in seconds from its start (a footstep).</summary>
+[Serialized]
+public partial class ClipEventSettings
+{
+    public string Name = "";
+    public float Time;
+}
+
+/// <summary>A named range on a clip, open from <see cref="Start"/> until <see cref="End"/> (a parry window).</summary>
+[Serialized]
+public partial class ClipWindowSettings
+{
+    public string Name = "";
+    public float Start;
+    public float End;
 }
 
 /// <summary>
@@ -96,8 +124,9 @@ public sealed class MeshImporter : Importer<MeshImportSettings>
 
     public override string Name => "Mesh";
 
-    // 2: generated materials (MTLS); 3: remapped slots (MRMP); 5: skins and clips.
-    public override int Version => 5;
+    // 2: generated materials (MTLS); 3: remapped slots (MRMP); 5: skins and
+    // clips; 6: clip events and windows.
+    public override int Version => 6;
 
     public override IReadOnlyList<string> Extensions => [".gltf", ".glb"];
 
@@ -213,23 +242,75 @@ public sealed class MeshImporter : Importer<MeshImportSettings>
             output.Add(RemappedMaterialsSection, 1, remap);
         }
 
-        // Each clip a sub-asset, found by its name across reimports.
+        // Each clip a sub-asset, found by its name across reimports, with
+        // its events and windows from the settings.
+        HashSet<string> clipNames = [];
         for (uint c = 0; c < ImportersApi.MeshClipCount(mesh); ++c)
         {
-            ImportedFileWriter clip = context.AddSubAsset(ImportersApi.MeshClipName(mesh, c), ClipKind, ClipVersion,
-                ClipExtension);
+            string name = ImportersApi.MeshClipName(mesh, c);
+            clipNames.Add(name);
+            ImportedFileWriter clip = context.AddSubAsset(name, ClipKind, ClipVersion, ClipExtension);
+            float duration = 0;
             for (uint i = 0; i < ImportersApi.MeshClipSectionCount(mesh, c); ++i)
             {
                 MeshSectionInfo section = ImportersApi.MeshClipSection(mesh, c, i);
                 byte[] bytes = new byte[section.Size];
                 ImportersApi.CopyMeshClipSection(mesh, c, i, bytes);
                 clip.Add(section.Tag, section.Version, bytes);
+                if (section.Tag == ClipInfoSection)
+                {
+                    duration = MemoryMarshal.Read<ClipInfo>(bytes).Duration;
+                }
             }
+            if (settings.Clips.TryGetValue(name, out ClipImportSettings? marks))
+            {
+                AddClipMarks(clip, name, duration, marks);
+            }
+        }
+        foreach (string named in settings.Clips.Keys.Where(named => !clipNames.Contains(named)))
+        {
+            context.Warn($"Clips names {named}, but the model has no clip of that name");
         }
 
         for (uint i = 0; i < ImportersApi.MeshWarningCount(mesh); ++i)
         {
             context.Warn(ImportersApi.MeshWarning(mesh, i));
+        }
+    }
+
+    public static readonly uint ClipInfoSection = Tag.Of("INFO");
+    public static readonly uint ClipEventSection = Tag.Of("EVNT");
+    public static readonly uint ClipWindowSection = Tag.Of("WNDW");
+
+    // A clip's events (by time) and windows (by start), as ClipFile.h lays
+    // them out; each named by its hash, as the runtime reports it.
+    private static void AddClipMarks(ImportedFileWriter clip, string name, float duration, ClipImportSettings marks)
+    {
+        foreach (ClipEventSettings mark in marks.Events.Where(mark => mark.Time < 0 || mark.Time > duration))
+        {
+            throw new InvalidDataException($"{name}: event {mark.Name} at {mark.Time} s is outside the clip (0 to {duration} s)");
+        }
+        foreach (ClipWindowSettings window in marks.Windows.Where(w => w.Start < 0 || w.End > duration || w.End <= w.Start))
+        {
+            throw new InvalidDataException(
+                $"{name}: window {window.Name} ({window.Start} to {window.End} s) must end after it starts, within the clip (0 to {duration} s)");
+        }
+        if (marks.Events.Count > 0)
+        {
+            ClipEvent[] events = marks.Events.OrderBy(mark => mark.Time)
+                .Select(mark => new ClipEvent { Time = mark.Time, Name = Animation.AnimationEvent.NameOf(mark.Name) })
+                .ToArray();
+            clip.Add(ClipEventSection, 1, MemoryMarshal.AsBytes(events.AsSpan()));
+        }
+        if (marks.Windows.Count > 0)
+        {
+            ClipWindow[] windows = marks.Windows.OrderBy(window => window.Start)
+                .Select(window => new ClipWindow
+                {
+                    Start = window.Start, End = window.End, Name = Animation.AnimationEvent.NameOf(window.Name),
+                })
+                .ToArray();
+            clip.Add(ClipWindowSection, 1, MemoryMarshal.AsBytes(windows.AsSpan()));
         }
     }
 

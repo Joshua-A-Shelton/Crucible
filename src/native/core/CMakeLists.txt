@@ -45,6 +45,7 @@ target_sources(crucible_core_objects PRIVATE
     Physics.cpp
     Platform.cpp
     Shader.cpp
+    StateMachine.cpp
     Systems.cpp
     Transform.cpp)
 

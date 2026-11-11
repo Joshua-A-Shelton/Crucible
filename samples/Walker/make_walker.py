@@ -11,6 +11,8 @@ the sample project's Assets folder.
            rearmost point: the left at 0.5 s, the right at 0.0 s.
   Idle     a two-second loop moving the spine only (breathing), so every
            other joint's tracks are constant.
+  WalkForward  Walk travelling: the hips move forward (+Z) at 1.7 m/s, about
+           the speed the planted foot moves back, for root motion (ADR 0081).
 
 glTF's convention: right-handed, Y up, counter-clockwise front faces, the
 figure facing +Z. Keys every 1/16 s, linearly interpolated.
@@ -126,6 +128,15 @@ def walk(t):
     return rotations, hips
 
 
+STRIDE_SPEED = 1.7  # metres a second
+
+
+def walk_forward(t):
+    rotations, hips = walk(t)
+    hips[2] = STRIDE_SPEED * t
+    return rotations, hips
+
+
 def idle(t):
     return {"Spine": quat_axis((1, 0, 0), 0.04 * math.sin(math.pi * t))}, None
 
@@ -184,7 +195,7 @@ def main():
             nodes[1 + INDEX[parent]].setdefault("children", []).append(1 + i)
 
     animations = []
-    for clip, duration, pose in (("Walk", 1.0, walk), ("Idle", 2.0, idle)):
+    for clip, duration, pose in (("Walk", 1.0, walk), ("Idle", 2.0, idle), ("WalkForward", 1.0, walk_forward)):
         keys = int(duration * 16) + 1
         times = [i / 16 for i in range(keys)]
         time_accessor = buffer.add(times, 5126, "SCALAR", "f", keys, bounds=False)

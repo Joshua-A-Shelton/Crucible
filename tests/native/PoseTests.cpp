@@ -9,22 +9,6 @@ using namespace crucible;
 using namespace crucible::animation;
 using namespace crucible::animation::testing;
 
-namespace {
-
-// Every joint's model matrix against the reference pose.
-float worstJoint(const Character& walker, const Reference& reference, const LocalPose& expected)
-{
-    const std::vector<Matrix> model = reference.modelOf(expected);
-    float worst = 0;
-    for (size_t j = 0; j < model.size(); ++j)
-    {
-        worst = std::max(worst, difference(walker.model(static_cast<int32_t>(j)), model[j]));
-    }
-    return worst;
-}
-
-} // namespace
-
 TEST_CASE("While editing a character holds its clip's first sample")
 {
     const Reference reference;

@@ -55,6 +55,11 @@ is, and record which version fixed it.
   translations and scales within each track's range). The owner asked to
   revisit it: keyframes as authored, other rates or precisions, and ACL
   (ADR 0026) when clip memory matters.
+- 2D blend spaces (M8 step 4, ADR 0081): the owner asked for 1D now and 2D
+  later, built so 2D needs no rework. The file already has room for two
+  blend parameters and two-number positions; what's left is a weighting
+  function (a triangulation or gradient bands) returning up to three
+  weighted clips, and lifting the importer's refusal.
 
 ## Small editor fixes noticed in M7 (ADR 0077)
 
@@ -214,6 +219,10 @@ is, and record which version fixed it.
 - EXR input and BC6H compression for HDR textures, when needed. → 0022
 - ACL for clip compression, when clip memory matters. → 0026
 - Animation state machine graph editor, when the action RPG starts. → 0026
+- Root motion from a clip that turns isn't tested: the Walker walks
+  straight. Test it with the first turning clip. → 0081
+- Foot IK leaves the foot turned with the shin; flattening it to the ground
+  (a third joint) when foot planting needs it. → 0081
 - **Box3D checkpoint, before the action RPG starts:** ragdoll-capable
   joints, character mover maturity, stability and release cadence. Switch
   to Jolt if any fall short. → 0027

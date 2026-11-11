@@ -9,7 +9,9 @@
 
 #include <crucible/Animation.h>
 #include <crucible/AssetSource.h>
+#include <crucible/ClipFile.h>
 #include <crucible/Ecs.h>
+#include <crucible/StateMachineFile.h>
 #include <crucible/Transform.h>
 
 namespace crucible::animation::testing {
@@ -27,10 +29,12 @@ inline assets::AssetId idOf(uint8_t n)
 }
 
 // The Walker's model and clips as files, by the first byte of their ID: 1
-// the model, 2 Walk, 3 Idle.
+// the model, 2 Walk, 3 Idle, 4 WalkForward; tests add more (state machines).
 struct WalkerAssets
 {
     inline static std::map<uint8_t, std::vector<uint8_t>> files;
+    // Each clip's sections as imported, so events can be added to them.
+    inline static std::map<uint8_t, std::pair<std::vector<MeshSectionInfo>, std::vector<std::vector<uint8_t>>>> clips;
 
     static std::vector<uint8_t> file(uint32_t kind, uint32_t version, const std::vector<MeshSectionInfo>& infos,
                                      const std::vector<std::vector<uint8_t>>& sections)
@@ -75,6 +79,7 @@ struct WalkerAssets
                 }
                 files[static_cast<uint8_t>(2 + c)] =
                     file(assets::clipFileKind, assets::clipFileVersion, infos, sections);
+                clips[static_cast<uint8_t>(2 + c)] = {infos, sections};
             }
             destroyMeshImport(&mesh);
         }
@@ -87,6 +92,125 @@ struct WalkerAssets
             deliver(context, found->second.data(), found->second.size());
             return 0;
         }});
+    }
+};
+
+template <class T>
+std::vector<uint8_t> bytesOf(const std::vector<T>& items)
+{
+    const auto* data = reinterpret_cast<const uint8_t*>(items.data());
+    return {data, data + items.size() * sizeof(T)};
+}
+
+// Gives a clip events and windows (or takes them away), as the importer
+// would from the sidecar, and makes the runtime read it again.
+inline void markClip(uint8_t clip, const std::vector<assets::ClipEvent>& events,
+                     const std::vector<assets::ClipWindow>& windows)
+{
+    WalkerAssets::install();
+    auto [infos, sections] = WalkerAssets::clips.at(clip);
+    if (!events.empty())
+    {
+        infos.push_back({binary::tag("EVNT"), 1, static_cast<uint64_t>(events.size() * sizeof(assets::ClipEvent))});
+        sections.push_back(bytesOf(events));
+    }
+    if (!windows.empty())
+    {
+        infos.push_back({binary::tag("WNDW"), 1, static_cast<uint64_t>(windows.size() * sizeof(assets::ClipWindow))});
+        sections.push_back(bytesOf(windows));
+    }
+    WalkerAssets::files[clip] = WalkerAssets::file(assets::clipFileKind, assets::clipFileVersion, infos, sections);
+    (void)reloadAnimationAsset(idOf(clip));
+}
+
+// A state machine file, laid out as the importer lays it out.
+struct MachineBuilder
+{
+    std::vector<assets::StateParameter> parameters;
+    std::vector<assets::StateEntry> states;
+    std::vector<assets::StateMotion> motions;
+    std::vector<assets::StateTransition> transitions;
+    std::vector<assets::TransitionCondition> conditions;
+    std::vector<char> names;
+    uint32_t start = 0;
+
+    std::pair<uint32_t, uint32_t> name(std::string_view text)
+    {
+        const auto offset = static_cast<uint32_t>(names.size());
+        names.insert(names.end(), text.begin(), text.end());
+        return {offset, static_cast<uint32_t>(text.size())};
+    }
+
+    uint32_t parameter(std::string_view text, assets::ParameterType type, float initial = 0)
+    {
+        const auto [offset, length] = name(text);
+        parameters.push_back({offset, length, type, initial});
+        return static_cast<uint32_t>(parameters.size() - 1);
+    }
+
+    // A state playing one clip.
+    uint32_t state(std::string_view text, uint8_t clip, float speed = 1, bool loop = true)
+    {
+        return blend(text, -1, {{clip, 0.0f}}, speed, loop);
+    }
+
+    // A 1D blend space over `by` (or one clip, with by -1).
+    uint32_t blend(std::string_view text, int32_t by, std::vector<std::pair<uint8_t, float>> clips, float speed = 1,
+                   bool loop = true)
+    {
+        const auto [offset, length] = name(text);
+        assets::StateEntry entry{offset,
+                                 length,
+                                 static_cast<uint32_t>(motions.size()),
+                                 static_cast<uint32_t>(clips.size()),
+                                 by >= 0 ? 1u : 0u,
+                                 {by, -1},
+                                 speed,
+                                 loop ? 1u : 0u};
+        for (const auto& [clip, at] : clips)
+        {
+            motions.push_back({idOf(clip), {at, 0}});
+        }
+        states.push_back(entry);
+        return static_cast<uint32_t>(states.size() - 1);
+    }
+
+    void transition(int32_t from, uint32_t to, float blendSeconds, float exitTime,
+                    std::vector<assets::TransitionCondition> tests = {})
+    {
+        transitions.push_back({from, to, blendSeconds, exitTime, static_cast<uint32_t>(conditions.size()),
+                               static_cast<uint32_t>(tests.size())});
+        conditions.insert(conditions.end(), tests.begin(), tests.end());
+    }
+
+    std::vector<uint8_t> build() const
+    {
+        const assets::StateMachineInfo info{start, static_cast<uint32_t>(parameters.size()),
+                                            static_cast<uint32_t>(states.size()),
+                                            static_cast<uint32_t>(transitions.size())};
+        const std::vector<std::vector<uint8_t>> sections = {bytesOf(std::vector<assets::StateMachineInfo>{info}),
+                                                            bytesOf(parameters),
+                                                            bytesOf(states),
+                                                            bytesOf(motions),
+                                                            bytesOf(transitions),
+                                                            bytesOf(conditions),
+                                                            bytesOf(names)};
+        const uint32_t tags[] = {binary::tag("INFO"), binary::tag("PARM"), binary::tag("STAT"), binary::tag("MOTN"),
+                                 binary::tag("TRAN"), binary::tag("COND"), binary::tag("NAME")};
+        std::vector<MeshSectionInfo> infos;
+        for (size_t i = 0; i < sections.size(); ++i)
+        {
+            infos.push_back({tags[i], 1, static_cast<uint64_t>(sections[i].size())});
+        }
+        return WalkerAssets::file(assets::stateMachineFileKind, assets::stateMachineFileVersion, infos, sections);
+    }
+
+    // Installs it as asset `id` (read again if it was read before).
+    void install(uint8_t id) const
+    {
+        WalkerAssets::install();
+        WalkerAssets::files[id] = build();
+        (void)reloadAnimationAsset(idOf(id));
     }
 };
 
@@ -106,6 +230,7 @@ struct Character
                                                ecs::componentIdOf<scenes::WorldTransform>};
         entity = ecs::createEntity(*world, components);
         *ecs::get<Animator>(*world, entity) = {idOf(1), clip == 0 ? assets::AssetId{} : idOf(clip), 1.0f, loop};
+        *ecs::get<scenes::LocalTransform>(*world, entity) = {{0, 0, 0}, Quaternion::identity(), {1, 1, 1}};
     }
 
     ~Character()
@@ -117,10 +242,20 @@ struct Character
     Character(const Character&) = delete;
     Character& operator=(const Character&) = delete;
 
+    // The input clock: each step's frame starts `seconds` after the last's.
+    uint64_t clock = 1'000'000'000;
+
     // Advances (as "Animation.Update" does) then poses (as "Animation.Pose").
     void step(float seconds)
     {
-        advancePoses(*world, seconds);
+        clock += static_cast<uint64_t>(static_cast<double>(seconds) * 1e9);
+        advancePoses(*world, seconds, clock);
+        evaluatePoses(*world);
+    }
+
+    // Poses again without time passing (as while editing).
+    void pose()
+    {
         evaluatePoses(*world);
     }
 
@@ -269,6 +404,31 @@ inline float difference(const Matrix4x4& posed, const Matrix& expected)
         }
     }
     return worst;
+}
+
+// Every joint's model matrix against the reference pose.
+inline float worstJoint(const Character& walker, const Reference& reference, const LocalPose& expected)
+{
+    const std::vector<Matrix> model = reference.modelOf(expected);
+    float worst = 0;
+    for (size_t j = 0; j < model.size(); ++j)
+    {
+        worst = std::max(worst, difference(walker.model(static_cast<int32_t>(j)), model[j]));
+    }
+    return worst;
+}
+
+// A local pose blended toward another by t, as the runtime blends.
+inline LocalPose blendPoses(const LocalPose& a, const LocalPose& b, float t)
+{
+    LocalPose result = a;
+    for (size_t j = 0; j < a.rotations.size(); ++j)
+    {
+        result.rotations[j] = Reference::nlerp(a.rotations[j], b.rotations[j], t);
+        result.positions[j] = Reference::lerp(a.positions[j], b.positions[j], t);
+        result.scales[j] = Reference::lerp(a.scales[j], b.scales[j], t);
+    }
+    return result;
 }
 
 } // namespace crucible::animation::testing

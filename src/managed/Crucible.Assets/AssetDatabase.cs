@@ -223,7 +223,8 @@ public sealed class AssetDatabase
         if (path.EndsWith(Scene.Extension, StringComparison.OrdinalIgnoreCase) ||
             path.EndsWith(Prefab.Extension, StringComparison.OrdinalIgnoreCase) ||
             path.EndsWith(Importers.MaterialImporter.FileExtension, StringComparison.OrdinalIgnoreCase) ||
-            path.EndsWith(Importers.StyleImporter.FileExtension, StringComparison.OrdinalIgnoreCase))
+            path.EndsWith(Importers.StyleImporter.FileExtension, StringComparison.OrdinalIgnoreCase) ||
+            path.EndsWith(Importers.StateMachineImporter.FileExtension, StringComparison.OrdinalIgnoreCase))
         {
             AddOwnFile(path, fullPath);
             return;

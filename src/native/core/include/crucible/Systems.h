@@ -30,6 +30,7 @@ struct CRUCIBLE_EXPOSE SystemContext
     // loop advances the version after every system, so writes since then,
     // by anyone, are newer.
     uint32_t lastRunVersion;
+    uint64_t frameStartNs; // when the frame started, on the input clock (platform::timestampNow)
 };
 
 // Runs on the loop's thread, like a C# system; split work across cores with

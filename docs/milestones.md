@@ -546,7 +546,11 @@ compute pre-skinning, a Skinning step per view deforming every skinned
 instance with a pose into the frame's skinned vertices, which every pass
 (shadows included) draws like a static mesh; posed bounds from each joint's
 reach; a draw per skinned instance.
-Tried by hand by the owner on KWin. Step 3 is done.
+Tried by hand by the owner on KWin. Step 3 is done. Step 4 built (ADR
+0081): state machines as imported JSON (.crstates) with Float, Bool and
+Trigger parameters, exit times, and 1D blend spaces kept in phase; events
+and windows from the model's sidecar, timestamped where the clip passed
+them; root motion through moveCharacter; two-bone and look-at IK slots.
 
 ## M9 — Physics
 

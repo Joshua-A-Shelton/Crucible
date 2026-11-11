@@ -226,6 +226,7 @@ public sealed unsafe class FrameContext
         NativeContext->FixedStepSeconds = FixedStepSeconds;
         NativeContext->FixedAlpha = FixedAlpha;
         NativeContext->LastRunVersion = LastRunVersion;
+        NativeContext->FrameStartNs = FrameStartNs;
     }
 
     /// <summary>This frame's input and window events, in arrival order.</summary>

@@ -121,3 +121,9 @@ Longer explanations of decisions, written to be reread:
 - [Compute skinning](docs/learning/compute-skinning.md) (ADR 0080): deforming
   once and drawing many times, the palette, keeping the formats, culling by
   joint reach, and barriers from a render graph.
+- [State machines and events](docs/learning/state-machines-and-events.md)
+  (ADR 0081): rules as data, kinds of parameter, exit times, blend spaces
+  in phase, and events timestamped where they really happened.
+- [Root motion and IK](docs/learning/root-motion-and-ik.md) (ADR 0081):
+  moving the character by its animation, the law of cosines for two-bone
+  IK, poles, look-at, and weights.

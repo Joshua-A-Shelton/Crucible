@@ -9,17 +9,6 @@ using namespace crucible::animation::testing;
 
 namespace {
 
-float worstJoint(const Character& walker, const Reference& reference, const LocalPose& expected)
-{
-    const std::vector<Matrix> model = reference.modelOf(expected);
-    float worst = 0;
-    for (size_t j = 0; j < model.size(); ++j)
-    {
-        worst = std::max(worst, difference(walker.model(static_cast<int32_t>(j)), model[j]));
-    }
-    return worst;
-}
-
 LayerDesc layer(uint8_t clip, float weight, LayerBlend blend = LayerBlend::Override, float fade = 0)
 {
     return {idOf(clip), weight, blend, 1.0f, true, fade};

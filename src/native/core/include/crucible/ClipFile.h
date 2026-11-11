@@ -11,6 +11,8 @@
 //   POSS  uint16 x3 per sample: a translation, within its track's range
 //   SCLS  uint16 x3 per sample: a scale, within its track's range
 //   NAME  UTF-8 names, referenced by offset and length
+//   EVNT  ClipEvent, by time (optional; from the model's sidecar, ADR 0081)
+//   WNDW  ClipWindow, by start (optional; likewise)
 // Every track is resampled at the clip's sample rate: sample i at time
 // i / sampleRate, the last at or just past the duration; a channel that
 // never changes is stored as one sample (ClipTrack::constant). Times are seconds; transforms are relative to
@@ -59,6 +61,23 @@ struct CRUCIBLE_EXPOSE ClipTrack
     float translationMax[3];
     float scaleMin[3];
     float scaleMax[3];
+};
+
+// A named moment on the clip's timeline (a footstep). The name is its hash,
+// animation::eventName, as the runtime reports it.
+struct CRUCIBLE_EXPOSE ClipEvent
+{
+    float time; // seconds, 0 to the duration
+    uint32_t name;
+};
+
+// A named range on the clip's timeline (a parry window): open from start
+// until end.
+struct CRUCIBLE_EXPOSE ClipWindow
+{
+    float start; // seconds
+    float end;
+    uint32_t name;
 };
 
 } // namespace crucible::assets
