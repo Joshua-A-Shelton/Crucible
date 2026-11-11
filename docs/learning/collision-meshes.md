@@ -34,6 +34,23 @@ carries a format version. When a new Box3D changes its format, old data is
 refused and models must be reimported. That's why the importer's version
 moves with the Box3D pin.
 
+## When the model wasn't imported with it
+
+Loading prepared data is the normal path: it costs nothing at load. But a
+collider can also say **Generate If Missing**: if its model wasn't imported
+with that kind of collision, the data is built from the model's own
+triangles when the collider loads, just as the importer would have. That's
+handy while trying things out, or for a model that's only sometimes used
+for collision. It's off by default, so a forgotten import setting shows up
+as a warning (and a notice in the inspector) rather than as a silent cost
+at load; a build that takes more than 10 ms says so in the Log, since
+that's a sign the model should be prepared at import instead.
+
+The model's Collision import setting can be changed in the inspector (select
+the model) or straight from the asset browser: right-click, Collision.
+Reimport on its own imports with the settings the model already has, so it
+won't add collision data that the setting doesn't ask for.
+
 ## Building at run time
 
 Some geometry doesn't exist until the game runs: generated terrain, a wall

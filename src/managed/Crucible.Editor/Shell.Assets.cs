@@ -113,7 +113,7 @@ internal sealed partial class Shell
 
     /// <summary>
     /// An asset's import settings saved to its sidecar and imported with them
-    /// (ADR 0087): the inspector's Apply, and the Collider's cook button.
+    /// (ADR 0087): the inspector's Apply, and the Collider's reimport button.
     /// </summary>
     public void ApplyImportSettings(AssetId id, JsonObject settings)
     {

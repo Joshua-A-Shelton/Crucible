@@ -9,16 +9,17 @@ using Crucible.UI;
 namespace Crucible.Editor;
 
 /// <summary>
-/// Under a Mesh or Convex Collider whose model has no cooked data of that
-/// kind for its mesh (ADR 0087): says so, with a button that sets the
-/// model's Collision import setting and imports it again. A model cooks one
-/// kind for all its meshes, so cooking the other kind replaces it.
+/// Under a Mesh or Convex Collider whose model isn't imported with that
+/// kind of collision for its mesh (ADR 0087), unless the collider's Generate
+/// If Missing builds it at load: says so, with a button that sets the
+/// model's Collision import setting and reimports it. A model is imported
+/// with one kind for all its meshes, so the other kind replaces it.
 /// </summary>
 internal sealed class ColliderNotice : UIElement
 {
     private readonly Shell _shell;
     private readonly Label _text = new() { Wrap = true };
-    private readonly Button _cook = new("");
+    private readonly Button _reimport = new("");
     private string? _checked; // the model, kind, and mesh last looked at
     private AssetId _model;
     private ShapeKind _kind;
@@ -27,18 +28,18 @@ internal sealed class ColliderNotice : UIElement
     {
         _shell = shell;
         _text.Classes.Add("log-warning");
-        _cook.Clicked += _ => Cook();
-        _cook.HorizontalAlignment = HorizontalAlignment.Start;
+        _reimport.Clicked += _ => Reimport();
+        _reimport.HorizontalAlignment = HorizontalAlignment.Start;
         StackPanel body = new() { Spacing = 4, Margin = new Thickness(0, 4, 0, 0) };
         body.Add(_text);
-        body.Add(_cook);
+        body.Add(_reimport);
         AddChild(body);
         Visibility = Visibility.Collapsed;
     }
 
     public Label Text => _text;
 
-    public Button CookButton => _cook;
+    public Button ReimportButton => _reimport;
 
     protected override void OnAttached(UIRoot root) => _shell.AssetsChanged += Forget;
 
@@ -52,7 +53,8 @@ internal sealed class ColliderNotice : UIElement
         ShapeKind kind = Shape(collider?["Shape"]);
         AssetId.TryParse(collider?["Mesh"]?.GetValue<string>(), out AssetId model);
         int index = collider?["MeshIndex"] is JsonValue value && value.TryGetValue(out int number) ? number : 0;
-        string key = $"{model}:{kind}:{index}";
+        bool generates = collider?["GenerateIfMissing"] is JsonValue flag && flag.TryGetValue(out bool on) && on;
+        string key = $"{model}:{kind}:{index}:{generates}";
         if (key == _checked)
         {
             return;
@@ -61,19 +63,19 @@ internal sealed class ColliderNotice : UIElement
         _model = model;
         _kind = kind;
         AssetEntry? entry = _shell.Database?.Find(model);
-        bool missing = kind is ShapeKind.Mesh or ShapeKind.Convex && entry is not null &&
+        bool missing = kind is ShapeKind.Mesh or ShapeKind.Convex && !generates && entry is not null &&
                        entry.Importer is "Mesh" or "Fbx" && !HasData(entry.Id, kind, index);
         Visibility = missing ? Visibility.Visible : Visibility.Collapsed;
         if (!missing)
         {
             return;
         }
-        string cooked = _shell.Database!.SettingsOf(model)?["Collision"]?.GetValue<string>() ?? "None";
+        string imported = _shell.Database!.SettingsOf(model)?["Collision"]?.GetValue<string>() ?? "None";
         string name = Path.GetFileName(entry!.Path);
-        _text.Text = $"{name} has no {kind} collision data";
-        _cook.Text = cooked is "None" || cooked == kind.ToString()
-            ? $"Cook {kind} collision"
-            : $"Cook {kind} collision (replaces {cooked})";
+        _text.Text = $"{name} isn't imported with {kind} collision";
+        _reimport.Text = imported is "None" || imported == kind.ToString()
+            ? $"Reimport {name} with {kind} collision"
+            : $"Reimport {name} with {kind} collision (replaces {imported})";
     }
 
     // Whether the model's imported file has data of the kind for the mesh;
@@ -101,7 +103,7 @@ internal sealed class ColliderNotice : UIElement
         }
     }
 
-    private void Cook()
+    private void Reimport()
     {
         if (_shell.Database?.SettingsOf(_model) is not { } settings)
         {

@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Numerics;
+using System.Text.Json.Nodes;
 using Crucible.Assets;
 using Crucible.Render;
 using Crucible.Scenes;
@@ -161,7 +162,7 @@ public sealed class AssetsPanel : EditorPanel
         }
     }
 
-    internal void ShowMenu(AssetTile tile, Vector2 at)
+    internal ContextMenu ShowMenu(AssetTile tile, Vector2 at)
     {
         ContextMenu menu = new();
         if (tile.IsFolder || tile.Path.EndsWith(Scene.Extension, StringComparison.OrdinalIgnoreCase))
@@ -171,9 +172,30 @@ public sealed class AssetsPanel : EditorPanel
         if (tile.Asset is { Importer.Length: > 0 } asset)
         {
             menu.Add("Reimport", () => _shell.Reimport(asset.Id));
+            // Its settings in the inspector (ADR 0087); a model's Collision
+            // also here, applied and reimported at once.
+            if (_shell.Database?.SettingsOf(asset.Id) is { } settings)
+            {
+                menu.Add("Import Settings…", () => Select(tile));
+                if (settings["Collision"] is JsonValue current && current.TryGetValue(out string? chosen))
+                {
+                    Menu collision = new();
+                    foreach (string kind in (string[])["None", "Mesh", "Convex"])
+                    {
+                        MenuItem item = collision.Add(kind, () =>
+                        {
+                            settings["Collision"] = kind;
+                            _shell.ApplyImportSettings(asset.Id, settings);
+                        });
+                        item.IsChecked = kind == chosen;
+                    }
+                    menu.Add(new MenuItem("Collision") { Submenu = collision });
+                }
+            }
         }
         menu.Add("Refresh", _shell.RefreshAssets);
         menu.Open(tile, at);
+        return menu;
     }
 
     private void ExpandTo(string folder)

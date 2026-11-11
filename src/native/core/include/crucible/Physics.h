@@ -61,7 +61,7 @@ enum class CRUCIBLE_EXPOSE ShapeKind : uint32_t
     Box,     // size: the full extents
     Sphere,  // size.x: the radius
     Capsule, // size.x: the radius; size.y: the height between the end caps' centers, along Y
-    Mesh,    // a model's triangles, cooked at import (its Collision setting) or made at run time; static
+    Mesh,    // a model's triangles, imported (its Collision setting), built at load, or made at run time; static
              // bodies only (Box3D collides meshes only there); scaled, not offset
     Convex,  // the convex hull of a model's mesh's vertices, likewise; scaled and offset
 };
@@ -89,6 +89,8 @@ struct CRUCIBLE_EXPOSE Collider
     bool isTrigger;                              // reports contacts but doesn't collide
     assets::AssetId mesh;                        // Mesh and Convex: the model
     int32_t meshIndex;                           // which of its meshes
+    CRUCIBLE_HINT_TOOLTIP("Build the collision data at load if the model wasn't imported with it")
+    bool generateIfMissing; // Mesh and Convex: build from the model's triangles when not imported (ADR 0086)
 };
 
 enum class CRUCIBLE_EXPOSE JointKind : uint32_t

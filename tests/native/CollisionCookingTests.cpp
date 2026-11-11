@@ -1,6 +1,8 @@
 // Collision cooked at import (ADR 0086): the Walker imported with its
 // Collision setting gets a COLM or COLH section, one entry per mesh, Box3D's
-// format; served as an asset, its colliders collide.
+// format; served as an asset, its colliders collide. Imported without it, a
+// collider with Generate If Missing builds the same at load, and one without
+// makes no shape.
 
 #include "MeshTestSupport.h"
 #include "PhysicsTestSupport.h"
@@ -109,4 +111,31 @@ TEST_CASE("Cooked colliders collide when their model is served")
     CHECK(length(ecs::read<RigidBody>(*scene.world, figure)->linearVelocity) < 0.05f);
     (void)reloadCollisionAsset(meshModel);
     (void)reloadCollisionAsset(hullModel);
+}
+
+TEST_CASE("Generate If Missing builds collision at load from a model imported without it")
+{
+    Result<MeshImport*> plain = importWalker(settings());
+    REQUIRE(plain);
+    const assets::AssetId model = serve(3, *plain.value());
+    destroyMeshImport(plain.value());
+
+    Scene scene;
+    ground(scene);
+    const RigidBody body = dynamic();
+    // Built at load: a ball lands on the head, and the hull comes to rest.
+    scene.add({ShapeKind::Mesh, {}, {}, 0.6f, 0, false, model, 0, true}, {5, 0, 0});
+    const ecs::Entity landing = scene.add(sphere(0.05f), {5, 3, 0}, &body);
+    const ecs::Entity figure = scene.add({ShapeKind::Convex, {}, {}, 0.6f, 0, false, model, 0, true}, {0, 1, 0}, &body);
+    // Not asked to: no shape, so a ball falls through to the ground, even
+    // though the data was built for the others.
+    scene.add({ShapeKind::Mesh, {}, {}, 0.6f, 0, false, model, 0, false}, {-5, 0, 0});
+    const ecs::Entity falling = scene.add(sphere(0.05f), {-5, 3, 0}, &body);
+    scene.seconds(3.0);
+    CHECK(bodyPose(*scene.world, landing).position.y == doctest::Approx(1.89f + 0.05f).epsilon(0.02));
+    const float standing = bodyPose(*scene.world, figure).position.y;
+    CHECK(standing > -0.05f);
+    CHECK(standing < 0.2f);
+    CHECK(bodyPose(*scene.world, falling).position.y < 0.2f);
+    (void)reloadCollisionAsset(model);
 }

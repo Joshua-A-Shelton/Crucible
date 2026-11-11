@@ -34,6 +34,7 @@
 #include <box3d/box3d.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -184,7 +185,7 @@ bool same(const Collider& a, const Collider& b)
 {
     return a.shape == b.shape && same(a.size, b.size) && same(a.offset, b.offset) && a.friction == b.friction &&
            a.restitution == b.restitution && a.isTrigger == b.isTrigger && a.mesh == b.mesh &&
-           a.meshIndex == b.meshIndex;
+           a.meshIndex == b.meshIndex && a.generateIfMissing == b.generateIfMissing;
 }
 
 // --- Worlds and bodies ------------------------------------------------------
@@ -235,6 +236,7 @@ struct CollisionData
     size_t size = 0;
     uint32_t refs = 0;
     bool retired = false;
+    bool generated = false; // built at load (Generate If Missing), not imported
 };
 
 Vector<CollisionData*> collisionData{tag}; // every live and retired entry
@@ -313,8 +315,149 @@ bool validBlob(const void* blob, size_t size, bool hull)
            static_cast<size_t>(data->byteCount) <= size;
 }
 
-// A model's mesh's cooked data, from its MESH file; null if it has none.
-CollisionData* readCooked(const assets::AssetId& id, int32_t meshIndex, bool hull)
+// Box3D's mesh from triangles, owned by the caller (b3DestroyMesh); null if
+// it can't be made. Crucible's front faces are clockwise as seen in its
+// left-handed space, which is the order whose cross product (b - a) x (c - a)
+// points out of the front: Box3D's default winding, whatever the handedness.
+b3MeshData* makeMesh(std::span<const Vector3> positions, std::span<const uint32_t> indices)
+{
+    if (positions.empty() || indices.size() < 3 || positions.size() > INT32_MAX || indices.size() / 3 > INT32_MAX)
+    {
+        return nullptr;
+    }
+    for (const uint32_t index : indices)
+    {
+        if (index >= positions.size())
+        {
+            return nullptr;
+        }
+    }
+    static_assert(sizeof(Vector3) == sizeof(b3Vec3));
+    b3MeshDef def{};
+    def.vertices = const_cast<b3Vec3*>(reinterpret_cast<const b3Vec3*>(positions.data()));
+    def.stride = sizeof(b3Vec3);
+    def.indices = const_cast<int32_t*>(reinterpret_cast<const int32_t*>(indices.data()));
+    def.vertexCount = static_cast<int>(positions.size());
+    def.triangleCount = static_cast<int>(indices.size() / 3);
+    def.weldTolerance = 0.0001f;
+    def.weldVertices = true;
+    def.identifyEdges = true;
+    def.clockWiseWinding = false;
+    return b3CreateMesh(&def, nullptr, 0);
+}
+
+b3HullData* makeHull(std::span<const Vector3> points, uint32_t maxVertices)
+{
+    if (points.size() < 4 || points.size() > INT32_MAX)
+    {
+        return nullptr;
+    }
+    return b3CreateHull(reinterpret_cast<const b3Vec3*>(points.data()), static_cast<int>(points.size()),
+                        static_cast<int>(std::clamp(maxVertices, 4u, 128u)));
+}
+
+constexpr uint32_t generatedHullVertices = 32;      // as the importer's MaxHullVertices default
+constexpr double slowGenerationMilliseconds = 10.0; // a build at load longer than this says so
+
+template <typename T>
+bool readArray(binary::File& file, uint32_t tag, Vector<T>& out)
+{
+    const int32_t index = binary::findSection(file, tag);
+    if (index < 0)
+    {
+        return false;
+    }
+    const uint64_t size = binary::sectionInfo(file, static_cast<uint32_t>(index)).size;
+    out.resize(static_cast<size_t>(size / sizeof(T)));
+    return static_cast<bool>(binary::readSection(
+        file, static_cast<uint32_t>(index), std::span(reinterpret_cast<uint8_t*>(out.data()), out.size() * sizeof(T))));
+}
+
+// A mesh's data built from its level 0, as the importer builds it; null if
+// it can't be made.
+CollisionData* generate(binary::File& file, int32_t meshIndex, bool hull)
+{
+    Vector<assets::MeshEntry> meshes(tag);
+    Vector<assets::MeshLod> lods(tag);
+    Vector<assets::MeshRange> ranges(tag);
+    Vector<Vector3> positions(tag);
+    Vector<uint8_t> indexBytes(tag);
+    if (!readArray(file, binary::tag("MSHS"), meshes) || meshIndex < 0 ||
+        static_cast<size_t>(meshIndex) >= meshes.size() || !readArray(file, binary::tag("POSN"), positions))
+    {
+        return nullptr;
+    }
+    const assets::MeshEntry& mesh = meshes[static_cast<size_t>(meshIndex)];
+    if (uint64_t{mesh.vertexOffset} + mesh.vertexCount > positions.size())
+    {
+        return nullptr;
+    }
+    const std::span<const Vector3> points(positions.data() + mesh.vertexOffset, mesh.vertexCount);
+    void* blob = nullptr;
+    if (hull)
+    {
+        blob = makeHull(points, generatedHullVertices);
+    }
+    else
+    {
+        if (!readArray(file, binary::tag("LODS"), lods) || !readArray(file, binary::tag("RNGS"), ranges) ||
+            !readArray(file, binary::tag("INDX"), indexBytes) || mesh.lodCount == 0 || mesh.lodOffset >= lods.size())
+        {
+            return nullptr;
+        }
+        Vector<uint32_t> indices(tag);
+        const uint32_t first = lods[mesh.lodOffset].rangeOffset;
+        for (uint32_t r = first; r < first + mesh.submeshCount && r < ranges.size(); ++r)
+        {
+            const assets::MeshRange& range = ranges[r];
+            if (uint64_t{range.indexByteOffset} + uint64_t{range.indexCount} * mesh.indexSize > indexBytes.size())
+            {
+                return nullptr;
+            }
+            for (uint32_t i = 0; i < range.indexCount; ++i)
+            {
+                const uint8_t* at = indexBytes.data() + range.indexByteOffset + size_t{i} * mesh.indexSize;
+                uint32_t index = 0;
+                if (mesh.indexSize == 2)
+                {
+                    uint16_t small;
+                    std::memcpy(&small, at, sizeof(small));
+                    index = small;
+                }
+                else
+                {
+                    std::memcpy(&index, at, sizeof(index));
+                }
+                indices.pushBack(index);
+            }
+        }
+        blob = makeMesh(points, indices.span());
+    }
+    if (blob == nullptr)
+    {
+        return nullptr;
+    }
+    const size_t size = hull ? static_cast<size_t>(static_cast<b3HullData*>(blob)->byteCount)
+                             : static_cast<size_t>(static_cast<b3MeshData*>(blob)->byteCount);
+    CollisionData* made = holding(blob, size, hull);
+    if (hull)
+    {
+        b3DestroyHull(static_cast<b3HullData*>(blob));
+    }
+    else
+    {
+        b3DestroyMesh(static_cast<b3MeshData*>(blob));
+    }
+    if (made != nullptr)
+    {
+        made->generated = true;
+    }
+    return made;
+}
+
+// A model's mesh's data from its MESH file: imported, or else (if asked)
+// built from its triangles; null if there's none.
+CollisionData* readModel(const assets::AssetId& id, int32_t meshIndex, bool hull, bool generateIfMissing)
 {
     Vector<uint8_t> bytes(tag);
     auto deliver = [](void* context, const uint8_t* data, uint64_t size) {
@@ -348,32 +491,67 @@ CollisionData* readCooked(const assets::AssetId& id, int32_t meshIndex, bool hul
             }
         }
     }
+    if (made == nullptr && generateIfMissing)
+    {
+        const auto started = std::chrono::steady_clock::now();
+        made = generate(*file, meshIndex, hull);
+        const double elapsed =
+            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - started).count();
+        if (made != nullptr && elapsed > slowGenerationMilliseconds)
+        {
+            // The runtime knows assets by ID, not by file: the editor's Log names the time.
+            log::info("built a model's %s collision for mesh %d at load (%.0f ms); set its Collision import "
+                      "setting to prepare it at import",
+                      hull ? "convex" : "mesh", meshIndex, elapsed);
+        }
+    }
     binary::closeFile(file);
     return made;
 }
 
 // The live data for a collider, read if it hasn't been; null if there's
-// none (said once).
-CollisionData* acquireData(const assets::AssetId& id, int32_t meshIndex, bool hull)
+// none (said once). Data built at load (Generate If Missing) serves only
+// colliders that ask for it, so one that doesn't still says it's missing.
+CollisionData* acquireData(const assets::AssetId& id, int32_t meshIndex, bool hull, bool generateIfMissing = false)
 {
     CollisionData* found = nullptr;
     for (CollisionData* data : collisionData)
     {
-        if (!data->retired && data->id == id && data->meshIndex == meshIndex && data->hull == hull)
+        if (!data->retired && data->id == id && data->meshIndex == meshIndex && data->hull == hull &&
+            (data->bytes == nullptr || !data->generated || generateIfMissing))
         {
             found = data;
         }
     }
+    if (found != nullptr && found->bytes == nullptr && generateIfMissing)
+    {
+        // Missing for a collider that didn't ask; this one does.
+        if (CollisionData* made = readModel(id, meshIndex, hull, true))
+        {
+            made->id = id;
+            made->meshIndex = meshIndex;
+            collisionData.pushBack(made);
+            found = made;
+        }
+    }
     if (found == nullptr)
     {
-        found = readCooked(id, meshIndex, hull);
+        found = readModel(id, meshIndex, hull, generateIfMissing);
         if (found == nullptr)
         {
             found = create<CollisionData>(tag); // none: remembered, so it's said and read once
             found->hull = hull;
-            log::warning("a %s collider's model has no cooked %s data for mesh %d (set its Collision "
-                         "import setting to %s)",
-                         hull ? "Convex" : "Mesh", hull ? "hull" : "mesh", meshIndex, hull ? "Convex" : "Mesh");
+            if (!generateIfMissing)
+            {
+                log::warning("a %s collider's model isn't imported with %s collision (set its Collision import "
+                             "setting, or the collider's Generate If Missing)",
+                             hull ? "Convex" : "Mesh", hull ? "Convex" : "Mesh");
+            }
+            else
+            {
+                log::warning("a %s collider's model has no mesh %d to build collision from", hull ? "Convex" : "Mesh",
+                             meshIndex);
+            }
         }
         found->id = id;
         found->meshIndex = meshIndex;
@@ -567,7 +745,7 @@ void buildShape(Body& body, ecs::Entity entity, const Collider& collider, Vector
             log::warning("a Mesh collider is only for static bodies; use Convex for one that moves");
             break;
         }
-        body.data = acquireData(collider.mesh, collider.meshIndex, false);
+        body.data = acquireData(collider.mesh, collider.meshIndex, false, collider.generateIfMissing);
         if (body.data != nullptr)
         {
             body.shape =
@@ -575,7 +753,7 @@ void buildShape(Body& body, ecs::Entity entity, const Collider& collider, Vector
         }
         break;
     case ShapeKind::Convex:
-        body.data = acquireData(collider.mesh, collider.meshIndex, true);
+        body.data = acquireData(collider.mesh, collider.meshIndex, true, collider.generateIfMissing);
         if (body.data != nullptr)
         {
             // Cloned, scaled, and offset; the data could go now, but it's
@@ -979,46 +1157,8 @@ using namespace box3d;
 
 namespace {
 
-// Box3D's mesh from triangles, owned by the caller (b3DestroyMesh); null if
-// it can't be made. Crucible's front faces are clockwise as seen in its
-// left-handed space, which is the order whose cross product (b - a) x (c - a)
-// points out of the front: Box3D's default winding, whatever the handedness.
-b3MeshData* makeMesh(std::span<const Vector3> positions, std::span<const uint32_t> indices)
-{
-    if (positions.empty() || indices.size() < 3 || positions.size() > INT32_MAX || indices.size() / 3 > INT32_MAX)
-    {
-        return nullptr;
-    }
-    for (const uint32_t index : indices)
-    {
-        if (index >= positions.size())
-        {
-            return nullptr;
-        }
-    }
-    static_assert(sizeof(Vector3) == sizeof(b3Vec3));
-    b3MeshDef def{};
-    def.vertices = const_cast<b3Vec3*>(reinterpret_cast<const b3Vec3*>(positions.data()));
-    def.stride = sizeof(b3Vec3);
-    def.indices = const_cast<int32_t*>(reinterpret_cast<const int32_t*>(indices.data()));
-    def.vertexCount = static_cast<int>(positions.size());
-    def.triangleCount = static_cast<int>(indices.size() / 3);
-    def.weldTolerance = 0.0001f;
-    def.weldVertices = true;
-    def.identifyEdges = true;
-    def.clockWiseWinding = false;
-    return b3CreateMesh(&def, nullptr, 0);
-}
-
-b3HullData* makeHull(std::span<const Vector3> points, uint32_t maxVertices)
-{
-    if (points.size() < 4 || points.size() > INT32_MAX)
-    {
-        return nullptr;
-    }
-    return b3CreateHull(reinterpret_cast<const b3Vec3*>(points.data()), static_cast<int>(points.size()),
-                        static_cast<int>(std::clamp(maxVertices, 4u, 128u)));
-}
+using box3d::makeHull;
+using box3d::makeMesh;
 
 // A made shape under a new ID: "crcoll" and a count.
 assets::AssetId adopt(const void* blob, size_t size, bool hull)
@@ -1201,7 +1341,7 @@ void outline(const Collider& collider, const Matrix4x4& toWorld, Vector4 color)
     case ShapeKind::Mesh:
     {
         // The triangles' edges, from the collision data itself (what Box3D sees).
-        CollisionData* data = acquireData(collider.mesh, collider.meshIndex, false);
+        CollisionData* data = acquireData(collider.mesh, collider.meshIndex, false, collider.generateIfMissing);
         if (data == nullptr)
         {
             break;
@@ -1223,7 +1363,7 @@ void outline(const Collider& collider, const Matrix4x4& toWorld, Vector4 color)
     }
     case ShapeKind::Convex:
     {
-        CollisionData* data = acquireData(collider.mesh, collider.meshIndex, true);
+        CollisionData* data = acquireData(collider.mesh, collider.meshIndex, true, collider.generateIfMissing);
         if (data == nullptr)
         {
             break;

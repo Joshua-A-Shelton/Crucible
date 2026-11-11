@@ -93,14 +93,14 @@ internal sealed class ImportSettingsChecks : GameSystem
         yield return 2;
         ColliderNotice? notice = H.Descendants(inspector).OfType<ColliderNotice>().FirstOrDefault();
         Check(notice is { Visibility: Visibility.Visible }, "a Convex collider on a model without hulls shows the notice");
-        Check(notice?.Text.Text == "Walker.gltf has no Convex collision data", "the notice names the model and the kind",
-            notice?.Text.Text ?? "");
-        Check(notice?.CookButton.Text == "Cook Convex collision", "the button offers to cook it",
-            notice?.CookButton.Text ?? "");
+        Check(notice?.Text.Text == "Walker.gltf isn't imported with Convex collision",
+            "the notice names the model and the kind", notice?.Text.Text ?? "");
+        Check(notice?.ReimportButton.Text == "Reimport Walker.gltf with Convex collision", "the button offers to reimport it",
+            notice?.ReimportButton.Text ?? "");
 
         // In play, the core's warning (stderr before) reaches the Log.
         shell.Play();
-        string warning = "Warning: a Convex collider's model has no cooked hull data for mesh 0";
+        string warning = "Warning: a Convex collider's model isn't imported with Convex collision";
         long started = Environment.TickCount64;
         while (!Log(shell).Contains(warning, StringComparison.Ordinal) && Environment.TickCount64 - started < 20000)
         {
@@ -123,9 +123,9 @@ internal sealed class ImportSettingsChecks : GameSystem
         notice = H.Descendants(inspector).OfType<ColliderNotice>().FirstOrDefault();
         if (notice is not null)
         {
-            notice.CookButton.Focus(); // scrolled into view
+            notice.ReimportButton.Focus(); // scrolled into view
             yield return 1;
-            Press(notice.CookButton);
+            Press(notice.ReimportButton);
         }
         yield return 3;
         Check(File.ReadAllText(sidecar).Contains("\"Collision\": \"Convex\"", StringComparison.Ordinal),
@@ -185,6 +185,62 @@ internal sealed class ImportSettingsChecks : GameSystem
         shell.Selection.Selected = entity;
         yield return 2;
         Check(shell.InspectedAsset.IsNone && inspector.ImportSettings is null, "selecting an entity replaces the asset");
+
+        // The asset browser's right-click: Import Settings… and, on a model,
+        // Collision, which applies and reimports at once.
+        AssetsPanel assets = shell.Main.DockSpace.Panels.OfType<AssetsPanel>().Single();
+        assets.Group?.Activate(assets);
+        assets.ShowFolder("Models");
+        yield return 2;
+        AssetTile? tile = assets.Tiles.FirstOrDefault(found => found.Path == modelPath);
+        Check(tile is not null, "the model is in the asset browser");
+        if (tile is null)
+        {
+            yield break;
+        }
+        ContextMenu menu = assets.ShowMenu(tile, ViewportChecks.Center(tile));
+        yield return 2;
+        MenuItem[] items = [.. menu.Items.OfType<MenuItem>()];
+        Check(items.Any(item => item.Title == "Import Settings…"), "the menu has Import Settings…",
+            string.Join(", ", items.Select(item => item.Title)));
+        MenuItem? collision = items.FirstOrDefault(item => item.Title == "Collision");
+        MenuItem[] kinds = collision?.Submenu is { } submenu ? [.. submenu.Items.OfType<MenuItem>()] : [];
+        Check(string.Join(",", kinds.Select(item => item.Title)) == "None,Mesh,Convex", "a model's Collision offers each kind",
+            string.Join(",", kinds.Select(item => item.Title)));
+        Check(kinds.FirstOrDefault(item => item.IsChecked)?.Title == "Convex", "with the applied one checked");
+        if (collision is null || kinds.Length < 2)
+        {
+            yield break;
+        }
+        ViewportChecks.Click(menu.Root!, ViewportChecks.Center(collision));
+        yield return 2;
+        ViewportChecks.Click(kinds[1].Root!, ViewportChecks.Center(kinds[1]));
+        yield return 3;
+        Check(File.ReadAllText(sidecar).Contains("\"Collision\": \"Mesh\"", StringComparison.Ordinal),
+            "choosing Mesh sets the model's Collision", File.ReadAllText(sidecar));
+
+        // Now imported with Mesh, the Convex collider's notice says it'd replace it...
+        shell.Selection.Selected = entity;
+        yield return 2;
+        notice = H.Descendants(inspector).OfType<ColliderNotice>().FirstOrDefault();
+        Check(notice is { Visibility: Visibility.Visible } &&
+              notice.ReimportButton.Text == "Reimport Walker.gltf with Convex collision (replaces Mesh)",
+            "the notice says reimporting replaces the other kind", notice?.ReimportButton.Text ?? "");
+
+        // ...and hides while the collider builds its own at load.
+        JsonObject generating = new()
+        {
+            ["Shape"] = "Convex",
+            ["Mesh"] = model.ToString(),
+            ["MeshIndex"] = 0,
+            ["GenerateIfMissing"] = true,
+        };
+        shell.SetComponent(entity, collider, generating, "Edit");
+        yield return 2;
+        notice = H.Descendants(inspector).OfType<ColliderNotice>().FirstOrDefault();
+        Check(notice is { Visibility: Visibility.Collapsed }, "Generate If Missing hides the notice");
+        Check(H.Descendants(inspector).OfType<FieldEditor>().Any(editor => editor.Field.Name == "GenerateIfMissing"),
+            "the collider shows Generate If Missing");
     }
 
     // A real click at the button's center: it must be on screen (focused

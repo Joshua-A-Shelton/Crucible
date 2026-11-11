@@ -85,3 +85,22 @@ Decided by the owner (2026-11-11):
   `log-error`*.
 - Tests: `LogTests` (native), `ImportSettingsChecks`* (CTest's
   `launcher.jit.import-settings`, on a copy of the Walker's project).
+
+## Amendment (2026-11-11): wording, Generate If Missing, and the asset browser
+
+After trying it by hand, the owner found "cook" and the notice's button
+confusing: Reimport in the asset browser (which keeps the settings) seemed
+the way to make collision data. Decided by the owner:
+
+- **No more "cook".** The notice reads "Walker.gltf isn't imported with
+  Convex collision", and its button "Reimport Walker.gltf with Convex
+  collision" (with "(replaces Mesh)" when the model has the other kind). It
+  hides while the collider's Generate If Missing is on (ADR 0086's
+  amendment).
+- **The asset browser's right-click** offers, beside Reimport, "Import
+  Settings…" for any asset with settings (selecting it, so the inspector
+  shows them), and on a model "Collision" ▸ None, Mesh, Convex, applied and
+  reimported at once (the applied one checked). `AssetsPanel.ShowMenu`
+  returns its menu*, for the check.
+- `ImportSettingsChecks` also chooses Collision from the right-click menu,
+  sees the "(replaces Mesh)" button, and turns Generate If Missing on.

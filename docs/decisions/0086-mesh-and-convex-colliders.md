@@ -80,3 +80,27 @@ Decided by the owner (2026-11-11):
   `CollisionCookingTests` (the Walker cooked both ways and served: a ball
   lands on its mesh's head, its hull comes to rest), and
   `MeshImporterTests.TheCollisionSettingCooksEachMesh`.
+
+## Amendment (2026-11-11): Generate If Missing
+
+Decided by the owner after trying editor usability step 1: loading imported
+data stays the default, with building at load as a fallback a collider asks
+for.
+
+- `Collider::generateIfMissing`* (C# `GenerateIfMissing`, off by default):
+  when the model wasn't imported with the collider's kind, its data is built
+  at load from the model's level 0 (its positions and, for a mesh, its level
+  0 ranges' indices, as the importer does), hulls keeping at most 32
+  vertices. It's cached like imported data, marked built, and serves only
+  colliders that ask for it, so one that doesn't still has no shape and says
+  so. A model is still imported with one kind; the other kind can be built
+  at load.
+- A build longer than 10 ms says so in the Log (information): "built a
+  model's convex collision for mesh 0 at load (14 ms); set its Collision
+  import setting to prepare it at import"*. The runtime knows assets by ID,
+  not by file, so the model isn't named (drafted with its file name).
+- The warning for missing data now reads "a Convex collider's model isn't
+  imported with Convex collision (set its Collision import setting, or the
+  collider's Generate If Missing)".
+- Tested by `CollisionCookingTests`' "Generate If Missing builds collision at
+  load from a model imported without it".

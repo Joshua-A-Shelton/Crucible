@@ -853,6 +853,26 @@ placeholders (*):
 | `Importer.SettingsFields`*, `AssetDatabase.SettingsOf`*, `SettingsFieldsOf`*, `SetSettings`* | Settings in the database |
 | `Shell.InspectedAsset`*, `Shell.ApplyImportSettings`* | The inspected asset, and Apply |
 | `IFieldOwner`*, `ImportSettingsSection`* (`Asset`, `Editors`, `HasChanges`, `ApplyButton`, `RevertButton`, `Apply`, `Revert`), `InspectorPanel.ImportSettings`* | The inspector |
-| `ColliderNotice`* (`Text`, `CookButton`), "(replaces *Kind*)"* | The Collider's notice |
+| `ColliderNotice`* (`Text`, `ReimportButton`), "(replaces *Kind*)"* | The Collider's notice |
 | "No import settings"*, "Applied *path*'s import settings"*, "Can't apply *path*'s import settings"* | Text users see |
 | `ImportSettingsChecks`*, `--game-arg check-import-settings=` | The check |
+
+## Generate If Missing and the asset browser (2026-11-11, editor usability step 1, amended)
+
+Settled as drafted: `Collider::generateIfMissing` (C# `GenerateIfMissing`,
+"Generate If Missing", its tooltip "Build the collision data at load if the
+model wasn't imported with it"); the notice "*model* isn't imported with
+*Kind* collision" and its button "Reimport *model* with *Kind* collision"
+(replacing "has no *Kind* collision data" and "Cook *Kind* collision"); the
+warning "a *Kind* collider's model isn't imported with *Kind* collision (set
+its Collision import setting, or the collider's Generate If Missing)"; the
+asset browser's "Import Settings…" and "Collision" ▸ "None", "Mesh",
+"Convex". Names added while building are placeholders (*):
+
+| Name | What it is |
+|---|---|
+| "built a model's *kind* collision for mesh *n* at load (*t* ms); set its Collision import setting to prepare it at import"* (drafted naming the model's file, which the runtime doesn't know) | The slow-build information |
+| "(replaces *Kind*)"* on the button | Reimporting replaces the other kind |
+| "a *Kind* collider's model has no mesh *n* to build collision from"* | Generate If Missing finding nothing to build from |
+| Box3dPhysics.cpp's `generate`*, `readModel`* (was `readCooked`), `CollisionData::generated`*, `generatedHullVertices`*, `slowGenerationMilliseconds`* | Building at load |
+| `AssetsPanel.ShowMenu` returning its `ContextMenu`* | For the check |

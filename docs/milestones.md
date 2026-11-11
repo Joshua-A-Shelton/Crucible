@@ -642,7 +642,10 @@ and 3; one commit each, tried by hand like a milestone's steps):
 Step 1 built (ADR 0087): the core's messages through one sink
 (crucible/Log.h) and into the editor's Log; a selected asset's import
 settings in the inspector, held until Apply or Revert; the Collider's notice
-and its cook button; checked by launcher.jit.import-settings.
+and its cook button; checked by launcher.jit.import-settings. Amended after
+the owner's try (ADRs 0086, 0087): no "cook" in the editor; a Collider's
+Generate If Missing builds data at load when the model wasn't imported with
+it; the asset browser's right-click has Import Settings… and Collision.
 
 ## M10 — Shipping
 
