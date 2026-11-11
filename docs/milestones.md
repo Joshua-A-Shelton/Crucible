@@ -615,6 +615,7 @@ core, its tasks on the job system and its memory through Crucible's
 allocator; bodies synced by kind, written back, and interpolated between
 ticks; contacts and sensors over the frame's ticks; the contract's layers
 through a custom filter; View > Colliders.
+Tried by hand by the owner on KWin. Step 1 is done.
 
 ## M10 — Shipping
 

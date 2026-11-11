@@ -1,7 +1,10 @@
 # 0085 — Box3D in the core
 
-**Status:** Accepted (2026-11-11); M9 step 1 built. Names settled by the
-owner as drafted (docs/naming.md); names added while building are marked *.
+**Status:** Accepted (2026-11-11); M9 step 1 built, then tried by hand by
+the owner in the Diorama (a prop given a collider and body falling onto
+the ground's, View > Colliders, Stop putting it back). Names, including
+those added while building, settled by the owner as drafted
+(docs/naming.md).
 
 ## Context
 

@@ -801,7 +801,8 @@ Settled as drafted: src/native/core/Box3dPhysics.cpp; "Physics.Interpolate"; `ph
 the editor's View > "Colliders"; `MemoryTag::Physics`; ADR 0085 "Box3D in
 the core", `docs/learning/fixed-step-physics.md`; `PhysicsBodyTests`,
 `PhysicsSyncTests`, `ContactEventTests`, `PhysicsInterpolationTests`. Names
-added while building are placeholders (*):
+added while building (marked *) settled as drafted too (after the owner
+tried step 1 by hand), `box3d` in place of `crucible_box3d`:
 
 | Name | What it is |
 |---|---|
