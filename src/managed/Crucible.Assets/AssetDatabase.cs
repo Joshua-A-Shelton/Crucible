@@ -147,6 +147,75 @@ public sealed class AssetDatabase
     public AssetEntry? Find(string assetPath) => _byPath.GetValueOrDefault(assetPath);
 
     // ---------------------------------------------------------------------
+    // What an asset is (ADR 0089)
+    // ---------------------------------------------------------------------
+
+    // A model's imported file, read for what it holds, by the file's path
+    // (a new import is a new path).
+    private readonly Dictionary<string, (bool Skinned, string[] Meshes)> _models = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// An asset's kind, as its imported file's extension (".crmesh",
+    /// ".crclip"); a file read as it is (a scene, a prefab) by its own.
+    /// Empty for a sub-asset not imported yet.
+    /// </summary>
+    public string KindOf(AssetId id)
+    {
+        if (Find(id) is not { } entry)
+        {
+            return "";
+        }
+        if (!entry.Parent.IsNone)
+        {
+            return _records.Assets.TryGetValue(id.ToString(), out ImportRecord? record) ? record.Extension : "";
+        }
+        return _importersByName.TryGetValue(entry.Importer, out Importer? importer)
+            ? importer.OutputExtension
+            : System.IO.Path.GetExtension(entry.Path).ToLowerInvariant();
+    }
+
+    /// <summary>Whether a model's import has a skeleton (false if it isn't imported).</summary>
+    public bool HasSkeleton(AssetId id) => ModelOf(id).Skinned;
+
+    /// <summary>A model's meshes' names, in order (empty if it isn't imported).</summary>
+    public IReadOnlyList<string> MeshNamesOf(AssetId id) => ModelOf(id).Meshes;
+
+    private (bool Skinned, string[] Meshes) ModelOf(AssetId id)
+    {
+        if (KindOf(id) != Importers.MeshImporter.FileExtension || ImportedFile(id) is not { } path)
+        {
+            return (false, []);
+        }
+        if (_models.TryGetValue(path, out (bool, string[]) known))
+        {
+            return known;
+        }
+        (bool, string[]) read = (false, []);
+        try
+        {
+            using ImportedFile file = Binary.ImportedFile.Open(path, Importers.MeshImporter.Kind, Importers.MeshImporter.KindVersion);
+            int meshes = file.Find(Tag.Of("MSHS")), names = file.Find(Tag.Of("NAME"));
+            byte[] text = names >= 0 ? file.Read(names) : [];
+            string[] found = meshes < 0
+                ? []
+                :
+                [
+                    .. System.Runtime.InteropServices.MemoryMarshal.Cast<byte, MeshEntry>(file.Read(meshes)).ToArray()
+                        .Select(mesh => (long)mesh.NameOffset + mesh.NameLength <= text.Length
+                            ? Encoding.UTF8.GetString(text, (int)mesh.NameOffset, (int)mesh.NameLength)
+                            : ""),
+                ];
+            read = (file.Find(Tag.Of("SKIN")) >= 0, found);
+        }
+        catch (CrucibleException)
+        {
+            // Unreadable: nothing known.
+        }
+        _models[path] = read;
+        return read;
+    }
+
+    // ---------------------------------------------------------------------
     // Import settings (ADR 0087)
     // ---------------------------------------------------------------------
 

@@ -19,6 +19,7 @@ namespace Walker;
 public partial struct Footsteps
 {
     [Tooltip("The footstep sound.")]
+    [AssetKind(".crsound")]
     public AssetId Sound;
 
     [Range(0, 2)]

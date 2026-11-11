@@ -20,6 +20,10 @@ internal sealed class Parser
     private const string HintRangePrefix = "crucible_hint_range:";
     private const string HintTooltipPrefix = "crucible_hint_tooltip:";
     private const string HintHeaderPrefix = "crucible_hint_header:";
+    private const string HintAssetPrefix = "crucible_hint_asset:";
+    private const string HintAssetSkinned = "crucible_hint_asset_skinned";
+    private const string HintEntityWithPrefix = "crucible_hint_entity_with:";
+    private const string HintMeshOfPrefix = "crucible_hint_mesh_of:";
 
     private readonly HashSet<string> _headerFiles;
     // The namespace exposed declarations are under: crucible, or a native
@@ -265,8 +269,9 @@ internal sealed class Parser
     // or the comment lines just above it.
     private FieldHints? HintsOf(CXCursor field, string display)
     {
-        string? tooltip = null, header = null, min = null, max = null;
-        bool color = false, layers = false;
+        string? tooltip = null, header = null, min = null, max = null, meshOf = null;
+        bool color = false, layers = false, skinned = false;
+        List<string> assetKinds = [], entityWith = [];
         foreach (string annotation in Libclang.Children(field).Where(child => child.Kind == CursorKind.AnnotateAttr)
                      .Select(Libclang.Spelling))
         {
@@ -294,11 +299,45 @@ internal sealed class Parser
             {
                 header = annotation[HintHeaderPrefix.Length..];
             }
+            else if (annotation == HintAssetSkinned)
+            {
+                skinned = true;
+            }
+            else if (annotation.StartsWith(HintAssetPrefix, StringComparison.Ordinal))
+            {
+                // The macro's arguments as spelled: ".crmesh", ".crprefab"
+                foreach (string kind in annotation[HintAssetPrefix.Length..].Split(','))
+                {
+                    string trimmed = kind.Trim();
+                    if (trimmed.Length < 3 || trimmed[0] != '"' || trimmed[^1] != '"' || trimmed[1] != '.')
+                    {
+                        Error(field, $"{display}: CRUCIBLE_HINT_ASSET takes extensions in quotes (\".crmesh\")");
+                        continue;
+                    }
+                    assetKinds.Add(trimmed[1..^1]);
+                }
+            }
+            else if (annotation.StartsWith(HintEntityWithPrefix, StringComparison.Ordinal))
+            {
+                entityWith.AddRange(annotation[HintEntityWithPrefix.Length..].Split(',').Select(name => name.Trim())
+                    .Where(name => name.Length > 0));
+            }
+            else if (annotation.StartsWith(HintMeshOfPrefix, StringComparison.Ordinal))
+            {
+                meshOf = annotation[HintMeshOfPrefix.Length..].Trim();
+            }
         }
         tooltip ??= CommentOf(field);
-        return tooltip is null && header is null && min is null && !color && !layers
+        return tooltip is null && header is null && min is null && !color && !layers && !skinned &&
+               assetKinds.Count == 0 && entityWith.Count == 0 && meshOf is null
             ? null
-            : new FieldHints(tooltip, header, min, max, color, layers);
+            : new FieldHints(tooltip, header, min, max, color, layers)
+            {
+                AssetKinds = assetKinds,
+                Skinned = skinned,
+                EntityWith = entityWith,
+                MeshOf = meshOf,
+            };
     }
 
     // A number as the macro spelled it ("0", "-1", "3.14159f"), as a C# float literal.

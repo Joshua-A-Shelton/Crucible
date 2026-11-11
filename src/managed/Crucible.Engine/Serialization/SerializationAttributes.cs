@@ -58,6 +58,41 @@ public sealed class TooltipAttribute(string text) : Attribute
 }
 
 /// <summary>
+/// Editor hint (ADR 0089): an asset field (or a list of them) accepts only
+/// these kinds, by their imported files' extensions (".crmesh", ".crclip",
+/// ".crprefab"); its picker lists only them.
+/// </summary>
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false)]
+public sealed class AssetKindAttribute(params string[] extensions) : Attribute
+{
+    public IReadOnlyList<string> Extensions { get; } = extensions;
+}
+
+/// <summary>Editor hint (ADR 0089): an asset field accepts only models with a skeleton.</summary>
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false)]
+public sealed class SkinnedAttribute : Attribute;
+
+/// <summary>
+/// Editor hint (ADR 0089): an entity field accepts only entities with these
+/// components, and not its own entity; its picker lists only them.
+/// </summary>
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false)]
+public sealed class EntityWithAttribute(params Type[] components) : Attribute
+{
+    public IReadOnlyList<Type> Components { get; } = components;
+}
+
+/// <summary>
+/// Editor hint (ADR 0089): an int field is the index of a mesh of the model
+/// in another field of the same type (named), picked by the mesh's name.
+/// </summary>
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false)]
+public sealed class MeshOfAttribute(string field) : Attribute
+{
+    public string Field { get; } = field;
+}
+
+/// <summary>
 /// Editor hint (ADR 0087): the name the inspector shows for the member, in
 /// place of its own (which stays its JSON key).
 /// </summary>

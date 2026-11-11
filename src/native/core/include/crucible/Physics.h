@@ -85,10 +85,10 @@ struct CRUCIBLE_EXPOSE Collider
     Vector3 size;   // see ShapeKind
     Vector3 offset; // from the entity's origin
     CRUCIBLE_HINT_RANGE(0, 2) float friction;
-    CRUCIBLE_HINT_RANGE(0, 1) float restitution; // bounciness
-    bool isTrigger;                              // reports contacts but doesn't collide
-    assets::AssetId mesh;                        // Mesh and Convex: the model
-    int32_t meshIndex;                           // which of its meshes
+    CRUCIBLE_HINT_RANGE(0, 1) float restitution;         // bounciness
+    bool isTrigger;                                      // reports contacts but doesn't collide
+    CRUCIBLE_HINT_ASSET(".crmesh") assets::AssetId mesh; // Mesh and Convex: the model
+    CRUCIBLE_HINT_MESH_OF(mesh) int32_t meshIndex;       // which of its meshes
     CRUCIBLE_HINT_TOOLTIP("Generate the collision data at load if the model has none generated")
     bool generateIfMissing; // Mesh and Convex: build from the model's triangles when not imported (ADR 0086)
 };
@@ -106,10 +106,10 @@ enum class CRUCIBLE_EXPOSE JointKind : uint32_t
 struct CRUCIBLE_EXPOSE Joint
 {
     JointKind kind;
-    ecs::Entity other;
-    Vector3 anchor;      // in this entity's space
-    Vector3 otherAnchor; // in the other's
-    Vector3 axis;        // in this entity's space
+    CRUCIBLE_HINT_ENTITY_WITH(Collider) ecs::Entity other; // the body it's joined to
+    Vector3 anchor;                                        // in this entity's space
+    Vector3 otherAnchor;                                   // in the other's
+    Vector3 axis;                                          // in this entity's space
     float lowerLimit;
     float upperLimit;
     CRUCIBLE_HINT_RANGE(0, 3.14159f) float swingLimit; // radians

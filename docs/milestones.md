@@ -653,7 +653,10 @@ Tried by hand by the owner on KWin. Step 1 is done. Step 2 built (ADR
 paused, gameplay holds and drawing runs, the mixer holds its sounds in
 place; Step runs one fixed tick; Pause works before Play; checked by
 launcher.jit.play-toolbar. Tried by hand by the owner on KWin. Step 2 is
-done.
+done. Step 3 built (ADR 0089): asset pickers by the kinds they accept,
+Animator.Skeleton by skinned models, Joint.Other by entities with a
+Collider, and mesh indices as their model's meshes by name; lists read
+again on opening; checked by launcher.jit.pickers.
 
 ## M10 — Shipping
 

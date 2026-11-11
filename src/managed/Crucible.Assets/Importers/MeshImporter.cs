@@ -45,6 +45,7 @@ public partial class MeshImportSettings
     /// <see cref="AssetId.None"/>, or a slot past the list's end, keeps its
     /// generated material (ADR 0052).
     /// </summary>
+    [AssetKind(".crmat")]
     public List<AssetId> Materials = [];
 
     /// <summary>Order triangles for the vertex cache and overdraw, and vertices for fetching.</summary>

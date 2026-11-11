@@ -15,6 +15,7 @@ namespace Crucible.Scenes;
 /// </summary>
 public struct PrefabInstance
 {
+    [AssetKind(".crprefab", ".crmesh")]
     public AssetId Prefab;
 }
 

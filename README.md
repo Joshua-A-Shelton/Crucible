@@ -148,3 +148,6 @@ Longer explanations of decisions, written to be reread:
 - [Pausing a game](docs/learning/pausing-a-game.md) (ADR 0088): stopping the
   simulation but not the drawing, resuming without a jump, stepping one
   fixed tick, and holding the mixer's sounds in place.
+- [Editor field hints](docs/learning/editor-field-hints.md) (ADR 0089):
+  metadata that tells the inspector what a field means, hints in C++ and
+  C#, asset kinds by extension, and lists that depend on other fields.

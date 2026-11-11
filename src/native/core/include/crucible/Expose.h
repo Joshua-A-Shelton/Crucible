@@ -32,6 +32,17 @@
 //     CRUCIBLE_HINT_RANGE(0, 3.14159f) float innerConeAngle;
 //     CRUCIBLE_HINT_LAYERS uint32_t mask; // a layer mask, shown by layer name
 //
+// Pickers (ADR 0089) offer only valid choices: an asset field names the
+// imported extensions it accepts (or only models with a skeleton), an
+// entity field the components its entity needs (its own left out), and a
+// mesh index the field holding its model ([AssetKind], [Skinned],
+// [EntityWith], [MeshOf] in C#).
+//
+//     CRUCIBLE_HINT_ASSET(".crmesh") assets::AssetId model;
+//     CRUCIBLE_HINT_ASSET_SKINNED assets::AssetId skeleton;
+//     CRUCIBLE_HINT_ENTITY_WITH(Collider) ecs::Entity other;
+//     CRUCIBLE_HINT_MESH_OF(model) int32_t mesh;
+//
 // Names are placeholders (docs/naming.md).
 
 #if defined(CRUCIBLE_BINDGEN)
@@ -45,6 +56,10 @@
 #define CRUCIBLE_HINT_TOOLTIP(text) __attribute__((annotate("crucible_hint_tooltip:" text)))
 #define CRUCIBLE_HINT_HEADER(text) __attribute__((annotate("crucible_hint_header:" text)))
 #define CRUCIBLE_HINT_LAYERS __attribute__((annotate("crucible_hint_layers")))
+#define CRUCIBLE_HINT_ASSET(...) __attribute__((annotate("crucible_hint_asset:" #__VA_ARGS__)))
+#define CRUCIBLE_HINT_ASSET_SKINNED __attribute__((annotate("crucible_hint_asset_skinned")))
+#define CRUCIBLE_HINT_ENTITY_WITH(...) __attribute__((annotate("crucible_hint_entity_with:" #__VA_ARGS__)))
+#define CRUCIBLE_HINT_MESH_OF(field) __attribute__((annotate("crucible_hint_mesh_of:" #field)))
 #else
 #define CRUCIBLE_EXPOSE
 #define CRUCIBLE_EXPOSE_STATUS
@@ -55,4 +70,8 @@
 #define CRUCIBLE_HINT_TOOLTIP(text)
 #define CRUCIBLE_HINT_HEADER(text)
 #define CRUCIBLE_HINT_LAYERS
+#define CRUCIBLE_HINT_ASSET(...)
+#define CRUCIBLE_HINT_ASSET_SKINNED
+#define CRUCIBLE_HINT_ENTITY_WITH(...)
+#define CRUCIBLE_HINT_MESH_OF(field)
 #endif

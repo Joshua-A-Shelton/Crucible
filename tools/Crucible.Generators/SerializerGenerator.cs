@@ -27,6 +27,10 @@ public sealed class SerializerGenerator : IIncrementalGenerator
     private const string TooltipName = "Crucible.Serialization.TooltipAttribute";
     private const string HeaderName = "Crucible.Serialization.HeaderAttribute";
     private const string LabelName = "Crucible.Serialization.LabelAttribute";
+    private const string AssetKindName = "Crucible.Serialization.AssetKindAttribute";
+    private const string SkinnedName = "Crucible.Serialization.SkinnedAttribute";
+    private const string EntityWithName = "Crucible.Serialization.EntityWithAttribute";
+    private const string MeshOfName = "Crucible.Serialization.MeshOfAttribute";
     private const string ColorName = "Crucible.Serialization.ColorAttribute";
     private const string LayersName = "Crucible.Serialization.LayersAttribute";
     private const string InterfaceName = "Crucible.Serialization.IJsonSerialized`1";
@@ -222,8 +226,9 @@ public sealed class SerializerGenerator : IIncrementalGenerator
         Action<DiagnosticDescriptor, LocationInfo?, string[]> report)
     {
         float min = float.NaN, max = float.NaN;
-        string? tooltip = null, header = null, label = null;
-        bool color = false, layers = false;
+        string? tooltip = null, header = null, label = null, meshOf = null;
+        bool color = false, layers = false, skinned = false;
+        string[] assetKinds = [], entityWith = [];
         foreach (AttributeData attribute in member.GetAttributes())
         {
             switch (attribute.AttributeClass?.ToDisplayString())
@@ -251,6 +256,18 @@ public sealed class SerializerGenerator : IIncrementalGenerator
                 case LabelName when attribute.ConstructorArguments.Length == 1:
                     label = attribute.ConstructorArguments[0].Value as string;
                     break;
+                case AssetKindName when attribute.ConstructorArguments.Length == 1:
+                    assetKinds = [.. attribute.ConstructorArguments[0].Values.Select(value => value.Value as string ?? "")];
+                    break;
+                case SkinnedName:
+                    skinned = true;
+                    break;
+                case EntityWithName when attribute.ConstructorArguments.Length == 1:
+                    entityWith = [.. attribute.ConstructorArguments[0].Values.Select(value => (value.Value as ITypeSymbol)?.ToDisplayString() ?? "")];
+                    break;
+                case MeshOfName when attribute.ConstructorArguments.Length == 1:
+                    meshOf = attribute.ConstructorArguments[0].Value as string;
+                    break;
                 case ColorName:
                     color = true;
                     if (shape.Kind is not (ShapeKind.Vector3 or ShapeKind.Vector4))
@@ -267,7 +284,13 @@ public sealed class SerializerGenerator : IIncrementalGenerator
                     break;
             }
         }
-        return new HintModel(min, max, tooltip, header, color, layers, label);
+        return new HintModel(min, max, tooltip, header, color, layers, label)
+        {
+            AssetKinds = new EquatableArray<string>(assetKinds),
+            Skinned = skinned,
+            EntityWith = new EquatableArray<string>(entityWith),
+            MeshOf = meshOf,
+        };
     }
 
     // Why the type can't carry generated serialization, or null if it can.
@@ -547,7 +570,8 @@ public sealed class SerializerGenerator : IIncrementalGenerator
         List<string> arguments = [Literal(name), $"global::Crucible.Serialization.FieldKind.{shape.Kind}"];
         if (shape.Element is { } element)
         {
-            arguments.Add($"element: {FieldExpression("", element, null)}");
+            // A list's items pick as the list says (a model's materials).
+            arguments.Add($"element: {FieldExpression("", element, hints?.ForItems())}");
         }
         if (shape.EnumNames.Length > 0)
         {
@@ -583,6 +607,22 @@ public sealed class SerializerGenerator : IIncrementalGenerator
             if (hints.Label is { } label)
             {
                 arguments.Add($"label: {Literal(label)}");
+            }
+            if (hints.AssetKinds.Length > 0)
+            {
+                arguments.Add($"assetKinds: [{string.Join(", ", hints.AssetKinds.Select(Literal))}]");
+            }
+            if (hints.Skinned)
+            {
+                arguments.Add("needsSkeleton: true");
+            }
+            if (hints.EntityWith.Length > 0)
+            {
+                arguments.Add($"entityComponents: [{string.Join(", ", hints.EntityWith.Select(Literal))}]");
+            }
+            if (hints.MeshOf is { } meshOf)
+            {
+                arguments.Add($"meshOf: {Literal(meshOf)}");
             }
         }
         return $"new {Field}({string.Join(", ", arguments)})";
@@ -805,7 +845,18 @@ internal sealed record TypeShape(ShapeKind Kind, string Type, TypeShape? Element
 
 // A member's editor hints (ADR 0069); NaN for no range.
 internal sealed record HintModel(float Min, float Max, string? Tooltip, string? Header, bool IsColor, bool IsLayers = false,
-    string? Label = null);
+    string? Label = null)
+{
+    public EquatableArray<string> AssetKinds { get; init; } = new([]);
+    public bool Skinned { get; init; }
+    public EquatableArray<string> EntityWith { get; init; } = new([]);
+    public string? MeshOf { get; init; }
+
+    // What a collection's items keep: only what picks them.
+    public HintModel? ForItems() => AssetKinds.Length == 0 && !Skinned && EntityWith.Length == 0
+        ? null
+        : new HintModel(float.NaN, float.NaN, null, null, false) { AssetKinds = AssetKinds, Skinned = Skinned, EntityWith = EntityWith };
+}
 
 internal sealed record MemberModel(string Name, EquatableArray<string> FormerNames, TypeShape Shape, HintModel Hints);
 

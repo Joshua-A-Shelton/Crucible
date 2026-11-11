@@ -205,6 +205,9 @@ public class ComboBox : ButtonBase
 
     public event Action<ComboBox>? SelectionChanged;
 
+    /// <summary>Just before its list opens: the moment to bring its options up to date.</summary>
+    public event Action<ComboBox>? Opening;
+
     public Popup Popup => _popup;
 
     public ListBox List => _list;
@@ -218,6 +221,7 @@ public class ComboBox : ButtonBase
             _popup.Close();
             return;
         }
+        Opening?.Invoke(this);
         if (Root is not { } root || _options.Count == 0)
         {
             return;

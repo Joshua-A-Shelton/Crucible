@@ -46,7 +46,8 @@ public sealed class SerializedField
     public SerializedField(string name, FieldKind kind, SerializedField? element = null, string[]? enumNames = null,
         Func<IReadOnlyList<SerializedField>>? fields = null, float min = float.NaN, float max = float.NaN,
         string? tooltip = null, string? header = null, bool isColor = false, bool isLayers = false,
-        string? label = null)
+        string? label = null, string[]? assetKinds = null, bool needsSkeleton = false,
+        string[]? entityComponents = null, string? meshOf = null)
     {
         Name = name;
         Kind = kind;
@@ -60,6 +61,11 @@ public sealed class SerializedField
         IsColor = isColor;
         IsLayers = isLayers;
         Label = label;
+        // A skinned model is a model, whatever else it names.
+        AssetKinds = assetKinds ?? (needsSkeleton ? [".crmesh"] : []);
+        NeedsSkeleton = needsSkeleton;
+        EntityComponents = entityComponents ?? [];
+        MeshOf = meshOf;
     }
 
     /// <summary>The member's name and JSON key; empty for a list's or dictionary's items.</summary>
@@ -97,4 +103,16 @@ public sealed class SerializedField
 
     /// <summary>From <see cref="LabelAttribute"/>: the name the inspector shows, or null for its own.</summary>
     public string? Label { get; }
+
+    /// <summary>From <see cref="AssetKindAttribute"/>: the imported extensions an asset field accepts; empty for any.</summary>
+    public IReadOnlyList<string> AssetKinds { get; }
+
+    /// <summary>From <see cref="SkinnedAttribute"/>: only models with a skeleton.</summary>
+    public bool NeedsSkeleton { get; }
+
+    /// <summary>From <see cref="EntityWithAttribute"/>: the components (full type names) an entity field's entity needs.</summary>
+    public IReadOnlyList<string> EntityComponents { get; }
+
+    /// <summary>From <see cref="MeshOfAttribute"/>: the field holding the model this mesh index is of.</summary>
+    public string? MeshOf { get; }
 }

@@ -86,7 +86,19 @@ internal sealed record Field(string Name, TypeRef Type, long Offset, FieldHints?
 /// A field's editor hints (ADR 0070), from CRUCIBLE_HINT_* annotations and its
 /// comment, written onto the C# mirror as the serializer's attributes.
 /// </summary>
-internal sealed record FieldHints(string? Tooltip, string? Header, string? Min, string? Max, bool Color, bool Layers = false);
+internal sealed record FieldHints(string? Tooltip, string? Header, string? Min, string? Max, bool Color, bool Layers = false)
+{
+    /// <summary>CRUCIBLE_HINT_ASSET's extensions (ADR 0089).</summary>
+    public IReadOnlyList<string> AssetKinds { get; init; } = [];
+
+    public bool Skinned { get; init; }
+
+    /// <summary>CRUCIBLE_HINT_ENTITY_WITH's components, as C++ struct names.</summary>
+    public IReadOnlyList<string> EntityWith { get; init; } = [];
+
+    /// <summary>CRUCIBLE_HINT_MESH_OF's field, as C++ names it.</summary>
+    public string? MeshOf { get; init; }
+}
 
 /// <summary>
 /// A struct declared but not defined in the headers, marked CRUCIBLE_EXPOSE:

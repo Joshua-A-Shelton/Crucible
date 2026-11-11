@@ -45,12 +45,12 @@ inline constexpr uint32_t maxIkSlots = 4;
 // A character: the skeleton its pose has, and what its base plays.
 struct CRUCIBLE_EXPOSE Animator
 {
-    assets::AssetId skeleton; // a model asset whose MESH file has the skeleton (JNTS)
-    assets::AssetId clip;     // a .crclip, or none for the bind pose
+    CRUCIBLE_HINT_ASSET_SKINNED assets::AssetId skeleton; // a model asset whose MESH file has the skeleton (JNTS)
+    CRUCIBLE_HINT_ASSET(".crclip") assets::AssetId clip;  // a .crclip, or none for the bind pose
     CRUCIBLE_HINT_RANGE(0, 4) float speed;
     bool loop;
     // A .crstatemachine; when set, it plays the base instead of the clip.
-    assets::AssetId stateMachine;
+    CRUCIBLE_HINT_ASSET(".crstatemachine") assets::AssetId stateMachine;
     // Move the entity by the base's root motion (moveCharacter) instead of
     // letting the root joint travel.
     bool rootMotion;
@@ -71,7 +71,7 @@ enum class CRUCIBLE_EXPOSE LayerBlend : uint32_t
 
 struct CRUCIBLE_EXPOSE LayerDesc
 {
-    assets::AssetId clip;
+    CRUCIBLE_HINT_ASSET(".crclip") assets::AssetId clip;
     float weight; // 0 to 1
     LayerBlend blend;
     float speed;

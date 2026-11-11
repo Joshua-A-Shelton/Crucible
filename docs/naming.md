@@ -920,3 +920,24 @@ hand:
 | The style classes `play-toolbar`*; the status "Pause off"* | The toolbar's look, and Pause turned off while stopped |
 | The capture `play-toolbar.png`*, `--game-arg check-play-toolbar=` | The check |
 
+## Pickers that offer only valid choices (2026-11-11, editor usability step 3)
+
+Settled as drafted: `CRUCIBLE_HINT_ASSET(".crmesh", ...)`,
+`CRUCIBLE_HINT_ASSET_SKINNED`, `CRUCIBLE_HINT_ENTITY_WITH(Component)`,
+`CRUCIBLE_HINT_MESH_OF(field)`; `[AssetKind(...)]`, `[Skinned]`,
+`[EntityWith(typeof(...))]`, `[MeshOf(nameof(...))]`;
+`SerializedField.AssetKinds`, `NeedsSkeleton`, `EntityComponents`,
+`MeshOf`; `AssetDatabase.KindOf`, `HasSkeleton`; "Choose a model first",
+"*Name* (*n*)", "Mesh *n* (missing)"; ADR 0089 "Pickers that offer only
+valid choices", `docs/learning/editor-field-hints.md`; `PickerChecks`
+(CTest's `launcher.jit.pickers`) and the field table tests. Names added
+while building are placeholders (*):
+
+| Name | What it is |
+|---|---|
+| `AssetDatabase.MeshNamesOf`* | A model's meshes' names |
+| `ComboBox.Opening`* | Refreshing a drop-down's choices as it opens |
+| `IFieldOwner.Entity`*, `IFieldOwner.ValueAt`* | What a field's picker needs from its section |
+| "Mesh *n*"* (a mesh without a name) | Text users see |
+| `FieldTableTests.PickerHintsComeFromTheAttributes`*, `EngineComponentsCarryPickerHintsFromTheirHeaders`*; `PickerSample`*; `--game-arg check-pickers=` | The tests |
+

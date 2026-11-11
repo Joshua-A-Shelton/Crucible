@@ -15,9 +15,9 @@ namespace crucible::scenes {
 // One mesh of an imported model (ADR 0043, 0045).
 struct CRUCIBLE_EXPOSE MeshInstance
 {
-    assets::AssetId model; // the model's asset: its imported MESH file
-    int32_t mesh;          // which of the model's meshes
-    bool noShadows;        // casts no shadows (ADR 0054); zero, the default, casts
+    CRUCIBLE_HINT_ASSET(".crmesh") assets::AssetId model; // the model's asset: its imported MESH file
+    CRUCIBLE_HINT_MESH_OF(model) int32_t mesh;            // which of the model's meshes
+    bool noShadows;                                       // casts no shadows (ADR 0054); zero, the default, casts
 };
 
 // The loaded model a MeshInstance resolved to. The renderer adds it before

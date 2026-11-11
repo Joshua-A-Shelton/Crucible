@@ -361,6 +361,10 @@ public sealed class ComponentSection : UIElement, IFieldOwner
 
     Shell IFieldOwner.Shell => Shell;
 
+    Entity IFieldOwner.Entity => Entity;
+
+    JsonNode? IFieldOwner.ValueAt(IReadOnlyList<object> path) => Json.Get(_value, path);
+
     void IFieldOwner.Edit(IReadOnlyList<object> path, JsonNode? value, string title) => Edit(path, value, title);
 
     void IFieldOwner.Revert(string field) => Revert(field);
@@ -437,6 +441,12 @@ public sealed class ComponentSection : UIElement, IFieldOwner
 internal interface IFieldOwner
 {
     Shell Shell { get; }
+
+    /// <summary>The entity whose component it edits; <see cref="Entity.Null"/> for none.</summary>
+    Entity Entity { get; }
+
+    /// <summary>The value at a path (keys and list indices), as shown: another field's, for pickers that depend on it.</summary>
+    JsonNode? ValueAt(IReadOnlyList<object> path);
 
     /// <summary>Sets the value at a path (keys and list indices).</summary>
     void Edit(IReadOnlyList<object> path, JsonNode? value, string title);
@@ -572,6 +582,10 @@ public sealed class ImportSettingsSection : UIElement, IFieldOwner
     }
 
     Shell IFieldOwner.Shell => Shell;
+
+    Entity IFieldOwner.Entity => Entity.Null;
+
+    JsonNode? IFieldOwner.ValueAt(IReadOnlyList<object> path) => ComponentSection.Json.Get(_edited, path);
 
     void IFieldOwner.Edit(IReadOnlyList<object> path, JsonNode? value, string title)
     {
@@ -782,6 +796,9 @@ public sealed class FieldEditor : UIElement
                     };
                     break;
                 }
+            case FieldKind.Int32 when Field.MeshOf is not null:
+                MeshChoice(Field.MeshOf);
+                break;
             case FieldKind.Byte or FieldKind.SByte or FieldKind.Int16 or FieldKind.UInt16 or FieldKind.Int32
                 or FieldKind.UInt32 or FieldKind.Int64 or FieldKind.UInt64 or FieldKind.Single or FieldKind.Double:
                 {
@@ -869,34 +886,11 @@ public sealed class FieldEditor : UIElement
                 Choice([.. Field.EnumNames], [.. Field.EnumNames], value => value is JsonValue v && v.TryGetValue(out string? s) ? s : "");
                 break;
             case FieldKind.AssetId:
-                {
-                    (string Label, string Value)[] assets = _section.Shell.Database is { } database
-                        ? [
-                            .. database.Assets.SelectMany(asset => (IEnumerable<(string, string)>)
-                            [
-                                (asset.Path, asset.Id.ToString()),
-                                // Its sub-assets (a model's clips, ADR 0078) after it.
-                                .. database.SubAssetsOf(asset.Id)
-                                    .Select(sub => ($"{asset.Path}: {sub.SubAssetName}", sub.Id.ToString())),
-                            ]),
-                        ]
-                        : [];
-                    Choice(["None", .. assets.Select(asset => asset.Label)], ["", .. assets.Select(asset => asset.Value)],
-                        value => value is JsonValue v && v.TryGetValue(out string? s) ? s : "");
-                    break;
-                }
+                Choice(AssetChoices, value => value is JsonValue v && v.TryGetValue(out string? s) ? s : "");
+                break;
             case FieldKind.Entity:
                 {
-                    World world = _section.Shell.World;
-                    SceneIds ids = SceneIds.Of(world);
-                    (string Label, string Value)[] entities =
-                    [
-                        .. ids.Entities.Select(entity => (Entity: entity, Id: ids.TryToScene(entity, out ulong id) ? id : 0))
-                            .OrderBy(item => _section.Shell.LabelOf(item.Entity), StringComparer.Ordinal)
-                            .Select(item => (_section.Shell.LabelOf(item.Entity), item.Id.ToString("x16"))),
-                    ];
-                    Choice(["None", .. entities.Select(entity => entity.Label)], ["", .. entities.Select(entity => entity.Value)],
-                        value => value is JsonValue v && v.TryGetValue(out string? s) ? s : "");
+                    Choice(EntityChoices, value => value is JsonValue v && v.TryGetValue(out string? s) ? s : "");
                     break;
                 }
             case FieldKind.Vector2 or FieldKind.Vector3 or FieldKind.Vector4 when Field.IsColor:
@@ -1070,6 +1064,159 @@ public sealed class FieldEditor : UIElement
     }
 
     // A drop-down of labels standing for JSON strings ("" for null).
+    // A drop-down whose choices are read again each time it opens (ADR
+    // 0089): what's there now, and the value it holds even if it no longer
+    // qualifies, so nothing set is hidden.
+    private void Choice(Func<string, (string Label, string Value)[]> choices, Func<JsonNode?, string> current)
+    {
+        ComboBox box = new() { VerticalAlignment = VerticalAlignment.Center };
+        string[] values = [];
+        bool showing = false;
+        void Refresh()
+        {
+            (string Label, string Value)[] found = choices(current(_value));
+            values = [.. found.Select(choice => choice.Value)];
+            showing = true;
+            box.Options = [.. found.Select(choice => choice.Label)];
+            box.SelectedIndex = Array.IndexOf(values, current(_value));
+            showing = false;
+        }
+        box.Opening += _ => Refresh();
+        box.SelectionChanged += b =>
+        {
+            if (!showing && b.SelectedIndex >= 0)
+            {
+                string chosen = values[b.SelectedIndex];
+                Commit(chosen.Length == 0 ? null : JsonValue.Create(chosen));
+            }
+        };
+        Add(box);
+        Refresh();
+        _show = value =>
+        {
+            if (Array.IndexOf(values, current(value)) < 0)
+            {
+                Refresh(); // set elsewhere (undo, a drop): its label, too
+            }
+            showing = true;
+            box.SelectedIndex = Array.IndexOf(values, current(value));
+            showing = false;
+        };
+    }
+
+    // An asset field's choices: None, then the assets of the kinds it
+    // accepts (any, without a hint), a model's sub-assets after it.
+    private (string Label, string Value)[] AssetChoices(string held)
+    {
+        if (_section.Shell.Database is not { } database)
+        {
+            return [("None", "")];
+        }
+        IReadOnlyList<string> kinds = Field.AssetKinds;
+        bool Accepts(AssetEntry asset) =>
+            (kinds.Count == 0 || kinds.Contains(database.KindOf(asset.Id))) &&
+            (!Field.NeedsSkeleton || database.HasSkeleton(asset.Id));
+        List<(string, string)> found = [("None", "")];
+        foreach (AssetEntry asset in database.Assets)
+        {
+            if (Accepts(asset) || asset.Id.ToString() == held)
+            {
+                found.Add((asset.Path, asset.Id.ToString()));
+            }
+            // Its sub-assets (a model's clips, ADR 0078) after it.
+            foreach (AssetEntry sub in database.SubAssetsOf(asset.Id))
+            {
+                if (Accepts(sub) || sub.Id.ToString() == held)
+                {
+                    found.Add(($"{asset.Path}: {sub.SubAssetName}", sub.Id.ToString()));
+                }
+            }
+        }
+        return [.. found];
+    }
+
+    // An entity field's choices: None, then the scene's entities with the
+    // components it needs (its own entity left out when it needs any).
+    private (string Label, string Value)[] EntityChoices(string held)
+    {
+        World world = _section.Shell.World;
+        SceneIds ids = SceneIds.Of(world);
+        ComponentId[] needed =
+        [
+            .. Field.EntityComponents.Select(name => SavedComponents.Find(name)).OfType<SavedComponent>().Select(saved => saved.Id),
+        ];
+        Entity self = _section.Entity;
+        return
+        [
+            ("None", ""),
+            .. ids.Entities.Select(entity => (Entity: entity, Id: ids.TryToScene(entity, out ulong id) ? id.ToString("x16") : ""))
+                .Where(item => item.Id == held || (needed.All(component => world.Has(item.Entity, component)) &&
+                                                   (needed.Length == 0 || item.Entity.Value != self.Value)))
+                .OrderBy(item => _section.Shell.LabelOf(item.Entity), StringComparer.Ordinal)
+                .Select(item => (_section.Shell.LabelOf(item.Entity), item.Id)),
+        ];
+    }
+
+    // A mesh index as the model's meshes by name (ADR 0089), the model read
+    // from a field beside it: "Body (0)"; disabled until there's a model;
+    // an index past its meshes shown as missing.
+    private void MeshChoice(string modelField)
+    {
+        ComboBox box = new() { VerticalAlignment = VerticalAlignment.Center };
+        object[] modelPath = [.. _path[..^1], modelField];
+        string shownModel = "\0";
+        int shownCount = -1;
+        bool showing = false;
+        void Refresh(JsonNode? value)
+        {
+            string model = _section.ValueAt(modelPath) is JsonValue m && m.TryGetValue(out string? text) ? text : "";
+            int index = value is JsonValue v && v.TryGetValue(out int i) ? i : 0;
+            IReadOnlyList<string> names = AssetId.TryParse(model, out AssetId id) && _section.Shell.Database is { } database
+                ? database.MeshNamesOf(id)
+                : [];
+            showing = true;
+            if (model.Length == 0)
+            {
+                box.Options = ["Choose a model first"];
+                box.SelectedIndex = 0;
+                box.State |= UIState.Disabled;
+            }
+            else
+            {
+                box.State &= ~UIState.Disabled;
+                List<string> labels = [.. names.Select((name, n) => name.Length > 0 ? $"{name} ({n})" : $"Mesh {n}")];
+                if (index >= names.Count)
+                {
+                    labels.Add($"Mesh {index} (missing)");
+                }
+                box.Options = labels;
+                box.SelectedIndex = index >= names.Count ? labels.Count - 1 : index;
+            }
+            showing = false;
+            shownModel = model;
+            shownCount = names.Count;
+        }
+        box.Opening += _ => Refresh(_value);
+        box.SelectionChanged += b =>
+        {
+            if (!showing && b.SelectedIndex >= 0 && b.SelectedIndex < shownCount)
+            {
+                Commit(JsonValue.Create(b.SelectedIndex));
+            }
+        };
+        Add(box);
+        _show = value =>
+        {
+            string model = _section.ValueAt(modelPath) is JsonValue m && m.TryGetValue(out string? text) ? text : "";
+            int index = value is JsonValue v && v.TryGetValue(out int i) ? i : 0;
+            int expected = model.Length == 0 ? 0 : Math.Min(index, shownCount); // past the meshes: the "missing" entry
+            if (model != shownModel || box.SelectedIndex != expected)
+            {
+                Refresh(value);
+            }
+        };
+    }
+
     private void Choice(string[] labels, string[] values, Func<JsonNode?, string> current)
     {
         ComboBox box = new() { Options = labels, VerticalAlignment = VerticalAlignment.Center };

@@ -61,7 +61,7 @@ enum class CRUCIBLE_EXPOSE Rolloff : uint32_t
 // A sound at its entity's position (or everywhere, unless spatial).
 struct CRUCIBLE_EXPOSE AudioSource
 {
-    assets::AssetId clip;
+    CRUCIBLE_HINT_ASSET(".crsound") assets::AssetId clip;
     CRUCIBLE_HINT_RANGE(0, 2) float volume;
     CRUCIBLE_HINT_RANGE(0.25f, 4) float pitch;
     bool loop;

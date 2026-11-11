@@ -120,9 +120,14 @@ internal sealed class PlayToolbarChecks : GameSystem
         Check(shell.Main.StatusBar.Text.Contains("Stepped one tick", StringComparison.Ordinal),
             "the status bar says it stepped", shell.Main.StatusBar.Text);
 
-        // Pause off: it falls on.
+        // Pause off: it falls on (for a moment of real time: headless frames
+        // can come far faster than ticks).
         Click(toolbar.PauseButton);
-        yield return 30;
+        long resumed = Environment.TickCount64;
+        while (Speed(shell, ball) <= 5 * g * tick && Environment.TickCount64 - resumed < 10000)
+        {
+            yield return 1;
+        }
         Check(!shell.IsPaused && !toolbar.PauseButton.Classes.Contains("on"), "Pause is off");
         Check(Speed(shell, ball) > 5 * g * tick, "unpaused, it falls on", $"{Speed(shell, ball):0.0000} m/s");
         Check(!toolbar.StepButton.IsEnabled, "Step is off while running");
