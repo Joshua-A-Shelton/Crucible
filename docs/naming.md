@@ -765,7 +765,7 @@ Settled as drafted: the importer "Sound" (C# `SoundImporter`) for `.wav`,
 `tone.flac`, `tone.ogg`, `make_sounds.sh`); ADR 0083 "Audio assets",
 `docs/learning/audio-codecs.md`; `SoundImportTests`, `AdpcmTests`,
 `VorbisStreamingTests`, `SoundImporterTests`. Names added while building
-are placeholders (*):
+(marked *) settled as drafted too (after the owner tried step 6 by hand):
 
 | Name | What it is |
 |---|---|

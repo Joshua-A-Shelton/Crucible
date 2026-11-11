@@ -562,6 +562,7 @@ Listened to by the owner on KWin. Step 5 is done. Step 6 built (ADR
 0083): WAV, FLAC, and OGG imported into .crsound (dr_wav, dr_flac,
 stb_vorbis); PCM, IMA ADPCM, and Vorbis kept from .ogg and streamed from
 memory on background jobs; mono, trim, and normalize at import.
+Tried by hand by the owner on KWin. Step 6 is done.
 
 ## M9 — Physics
 

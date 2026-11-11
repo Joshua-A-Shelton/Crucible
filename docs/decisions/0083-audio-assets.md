@@ -1,7 +1,9 @@
 # 0083 — Audio assets
 
-**Status:** Accepted (2026-11-10); M8 step 6 built. Names settled by the
-owner as drafted (docs/naming.md); names added while building are marked *.
+**Status:** Accepted (2026-11-10); M8 step 6 built, then tried by hand by
+the owner (an .ogg and a WAV of their own imported in the editor, settings
+changed and reimported, played by an AudioSource). Names, including those
+added while building, settled by the owner as drafted (docs/naming.md).
 
 ## Context
 
