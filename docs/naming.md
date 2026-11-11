@@ -736,7 +736,8 @@ C# `AudioMixer.Stats`; `startOfflineMixing`, `mixOffline`; `createSound`,
 `destroySound`; samples/Metronome; ADR 0082 "The mixer",
 `docs/learning/mixing-audio.md`; `MixerTests`, `AudioSchedulingTests`,
 `AudioEffectTests`, `SpatialAudioTests`, `MusicTests`. Names added while
-building are placeholders (*):
+building (marked *) settled as drafted too (after the owner listened to
+step 5):
 
 | Name | What it is |
 |---|---|

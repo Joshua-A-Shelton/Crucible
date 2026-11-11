@@ -558,6 +558,7 @@ plus a fixed 50 ms delay, to the frame; buses with low-pass, ducking, and a
 Freeverb send; constant-power 3D panning; music switching on a beat or
 bar; .crsound and sounds made in code; samples/Metronome and its headless
 check.
+Listened to by the owner on KWin. Step 5 is done.
 
 ## M9 — Physics
 

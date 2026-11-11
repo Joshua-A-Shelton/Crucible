@@ -1,7 +1,9 @@
 # 0082 — The mixer
 
-**Status:** Accepted (2026-11-10); M8 step 5 built. Names settled by the
-owner as drafted (docs/naming.md); names added while building are marked *.
+**Status:** Accepted (2026-11-10); M8 step 5 built, then listened to by
+the owner (the Metronome: even clicks, the tone circling, the effects and
+the chord changes). Names, including those added while building, settled
+by the owner as drafted (docs/naming.md).
 
 ## Context
 
