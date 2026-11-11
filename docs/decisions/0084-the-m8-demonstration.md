@@ -1,7 +1,9 @@
 # 0084 — The M8 demonstration
 
-**Status:** Accepted (2026-11-11); M8 step 7 built. Names settled by the
-owner as drafted (docs/naming.md); names added while building are marked *.
+**Status:** Accepted (2026-11-11); M8 step 7 built, then tried by hand by
+the owner on KWin (the Walker idling, walking its circle, thumping on each
+foot; Stop putting it back); M8 signed off. Names, including those added
+while building, settled by the owner as drafted (docs/naming.md).
 
 ## Context
 

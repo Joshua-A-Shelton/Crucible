@@ -783,8 +783,8 @@ Settled as drafted: the launcher's `--frame-rate N`; the Walker project's
 `CircleSystem`, `Assets/Sounds/Footstep.wav` and `samples/Walker/make_footstep.py`;
 the events `LeftFoot` and `RightFoot`; the game options `check` and
 `seconds`; the CTest `samples.walker`; ADR 0084 "The M8 demonstration",
-`docs/learning/frame-rate-independence.md`. Names added while building are
-placeholders (*):
+`docs/learning/frame-rate-independence.md`. Names added while building
+(marked *) settled as drafted too (after the owner tried step 7 by hand):
 
 | Name | What it is |
 |---|---|

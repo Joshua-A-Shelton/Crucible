@@ -567,6 +567,9 @@ Tried by hand by the owner on KWin. Step 6 is done. Step 7 built (ADR
 at each planted foot as it circles; `--frame-rate`; samples.walker running it
 standalone at 30 and 144 fps, every step on its time to the frame, the two
 runs agreeing; a transition-timing leak it found, fixed.
+Tried by hand by the owner on KWin: the Walker idles, walks its circle, and
+thumps on each foot, panned; Stop puts it back. Step 7 is done. Signed off
+by the owner on 2026-11-11; M8 is done.
 
 ## M9 — Physics
 
