@@ -1,7 +1,9 @@
 # 0081 — State machines, events, root motion, and IK
 
-**Status:** Accepted (2026-11-10); M8 step 4 built. Names settled by the
-owner as drafted (docs/naming.md); names added while building are marked *.
+**Status:** Accepted (2026-11-10); M8 step 4 built, then tried by hand by
+the owner (the Walker's state machine taking turns between Idle and a walk
+that moves it by root motion). Names, including those added while
+building, settled by the owner as drafted (docs/naming.md).
 
 ## Context
 

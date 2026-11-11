@@ -707,7 +707,7 @@ events, root motion, and IK", `docs/learning/state-machines-and-events.md`,
 `docs/learning/root-motion-and-ik.md`; `StateMachineTests`,
 `BlendSpaceTests`, `AnimationEventTests`, `RootMotionTests`, `IkTests`,
 `StateMachineImporterTests`; `Walker.crstates`. Names added while building
-are placeholders (*):
+(marked *) settled as drafted too (after the owner tried step 4 by hand):
 
 | Name | What it is |
 |---|---|
