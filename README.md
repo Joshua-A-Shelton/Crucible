@@ -157,3 +157,6 @@ Longer explanations of decisions, written to be reread:
 - [Character controllers](docs/learning/character-controllers.md) (ADR
   0091): collide and slide, riding over steps, slopes that are walls, who
   makes a character fall, and meeting rigid bodies.
+- [Joints](docs/learning/joints.md) (ADR 0092): the five kinds, frames,
+  where angles start, joints to the world, and why jointed bodies don't
+  collide.

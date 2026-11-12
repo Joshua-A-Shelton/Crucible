@@ -243,10 +243,6 @@ is, and record which version fixed it.
   low-pass per voice would honour it). → 0075, 0082
 - Foot IK leaves the foot turned with the shin; flattening it to the ground
   (a third joint) when foot planting needs it. → 0081
-- Box3D's backend reports ball-and-socket and swing-twist joints as
-  unsupported (owner, 2026-11-11, from Box3D's README). But Box3D at the
-  pinned commit has a spherical joint with cone and twist limits: step 5's
-  design revisits this. → 0027, 0075, 0085
 - **Box3D checkpoint, before the action RPG starts:** ragdoll-capable
   joints, character mover maturity, stability and release cadence. Switch
   to Jolt if any fall short. → 0027

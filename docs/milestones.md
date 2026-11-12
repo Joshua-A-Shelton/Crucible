@@ -629,7 +629,10 @@ built (ADR 0091): characters on Box3D's mover, colliding and sliding,
 riding over steps, walls for slopes too steep, falling under gravity times
 their scale, jumps by launchCharacter, a kinematic capsule for bodies to
 meet; the Walker's Characters scene; Step Smoothing easing them up steps.
-Tried by hand by the owner on KWin. Step 4 is done.
+Tried by hand by the owner on KWin. Step 4 is done. Step 5 built (ADR
+0092): all five joint kinds on Box3D (BallSocket and SwingTwist on its
+spherical joint), joints to the world, limits off unless set, drawn with
+the colliders; the Walker's Joints scene.
 
 **Editor usability** (agreed with the owner, 2026-11-11, between M9 steps 2
 and 3; one commit each, tried by hand like a milestone's steps):

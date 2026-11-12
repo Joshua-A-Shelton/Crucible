@@ -11,6 +11,7 @@
 
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <vector>
 
@@ -148,6 +149,23 @@ inline CharacterMove walk(Scene& scene, ecs::Entity entity, Vector3 perMove, int
         scene.step();
     }
     return last;
+}
+
+// Gives an entity a Joint (ADR 0092).
+inline void join(Scene& scene, ecs::Entity entity, const Joint& joint)
+{
+    if (ecs::read<Joint>(*scene.world, entity) == nullptr)
+    {
+        ecs::addComponent(*scene.world, entity, ecs::componentIdOf<Joint>);
+    }
+    *ecs::get<Joint>(*scene.world, entity) = joint;
+}
+
+// How far a body has turned from upright: the angle between its up and the world's.
+inline float tilt(Scene& scene, ecs::Entity entity)
+{
+    const Vector3 up = rotate(Vector3{0, 1, 0}, bodyPose(*scene.world, entity).rotation);
+    return std::acos(std::clamp(up.y, -1.0f, 1.0f));
 }
 
 // The ground: a static box whose top is at y = 0.

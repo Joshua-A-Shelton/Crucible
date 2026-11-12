@@ -19,6 +19,11 @@ add_executable(crucible_native_tests
     MeshColliderTests.cpp
     PhysicsBodyTests.cpp
     CharacterMoveTests.cpp
+    DistanceJointTests.cpp
+    FixedJointTests.cpp
+    HingeJointTests.cpp
+    JointLifetimeTests.cpp
+    SphericalJointTests.cpp
     CharacterStepTests.cpp
     CharacterGravityTests.cpp
     RaycastTests.cpp

@@ -585,12 +585,27 @@ struct Character
     uint32_t seen = 0;
 };
 
+// A joint (ADR 0092): the Box3D joint made from a Joint component, between
+// the bodies it was made for, and what it was made from.
+struct JointState
+{
+    b3JointId id = b3_nullJointId;
+    Joint joint{};
+    b3BodyId a = b3_nullBodyId;
+    b3BodyId b = b3_nullBodyId;
+    Vector3 worldAnchor{}; // where a joint to the world holds on (Other none)
+    bool toWorld = false;
+    uint32_t seen = 0;
+};
+
 struct PhysicsWorld
 {
     const ecs::World* world = nullptr;
     b3WorldId id = b3_nullWorldId;
     HashMap<uint64_t, Body> bodies{tag};
     HashMap<uint64_t, Character> characters{tag};
+    HashMap<uint64_t, JointState> joints{tag};
+    b3BodyId ground = b3_nullBodyId; // the static body joints to the world hold on to
     Vector<ContactEvent> events{tag};
     uint64_t eventsFrame = UINT64_MAX;
     uint32_t mark = 0;
@@ -1000,6 +1015,203 @@ void syncCharacter(ecs::World& world, PhysicsWorld& physics, ecs::Entity entity,
     }
 }
 
+// --- Joints (ADR 0092) --------------------------------------------------------
+
+// Box3D's distance joints need a length: held to the world, where its two
+// ends start together, a distance joint is this long at least.
+constexpr float minimumLength = 0.01f;
+
+bool sameJoint(const Joint& a, const Joint& b)
+{
+    return a.kind == b.kind && a.other.value == b.other.value && same(a.anchor, b.anchor) &&
+           same(a.otherAnchor, b.otherAnchor) && same(a.axis, b.axis) && a.lowerLimit == b.lowerLimit &&
+           a.upperLimit == b.upperLimit && a.swingLimit == b.swingLimit && a.twistLimit == b.twistLimit;
+}
+
+// The turn taking +Z to `axis` (the joint frame's z, Box3D's hinge, cone,
+// and twist axis); +Z for no axis.
+Quaternion frameTurn(Vector3 axis)
+{
+    const float size = length(axis);
+    if (size < 1e-6f)
+    {
+        return Quaternion::identity();
+    }
+    const Vector3 to = axis * (1 / size);
+    const Vector3 z{0, 0, 1};
+    const float d = dot(z, to);
+    if (d < -0.99999f)
+    {
+        return {1, 0, 0, 0}; // half a turn about X
+    }
+    const Vector3 c = cross(z, to);
+    return normalize(Quaternion{c.x, c.y, c.z, 1 + d});
+}
+
+b3Transform b3Frame(Vector3 position, Quaternion rotation)
+{
+    return {toB3(position), toB3(rotation)};
+}
+
+b3BodyId groundOf(PhysicsWorld& physics)
+{
+    if (B3_IS_NULL(physics.ground))
+    {
+        b3BodyDef def = b3DefaultBodyDef();
+        def.type = b3_staticBody;
+        physics.ground = b3CreateBody(physics.id, &def);
+    }
+    return physics.ground;
+}
+
+void destroyJoint(JointState& state)
+{
+    if (!B3_IS_NULL(state.id) && b3Joint_IsValid(state.id))
+    {
+        b3DestroyJoint(state.id, true);
+    }
+    state.id = b3_nullJointId;
+}
+
+// Makes the Box3D joint: frame A at the anchor, its z along the axis; frame
+// B where frame A is now, so angles count from how the bodies sit when it's
+// made (and the anchors are pulled together if apart).
+void makeJoint(PhysicsWorld& physics, ecs::World& world, ecs::Entity entity, const Joint& joint, b3BodyId a, b3BodyId b,
+               JointState& state)
+{
+    const Pose poseA = worldPose(world, entity);
+    const Vector3 anchorA{joint.anchor.x * poseA.scale.x, joint.anchor.y * poseA.scale.y,
+                          joint.anchor.z * poseA.scale.z};
+    const Quaternion turnA = frameTurn(joint.axis);
+    const Vector3 worldAnchorA = poseA.position + rotate(anchorA, poseA.rotation);
+    const Quaternion worldTurn = normalize(concatenate(turnA, poseA.rotation));
+    Vector3 anchorB{};
+    Quaternion turnB = Quaternion::identity();
+    Vector3 worldAnchorB{};
+    if (state.toWorld)
+    {
+        // Held where it is now.
+        anchorB = worldAnchorA;
+        turnB = worldTurn;
+        worldAnchorB = worldAnchorA;
+        state.worldAnchor = worldAnchorA;
+    }
+    else
+    {
+        const Pose poseB = worldPose(world, joint.other);
+        anchorB = {joint.otherAnchor.x * poseB.scale.x, joint.otherAnchor.y * poseB.scale.y,
+                   joint.otherAnchor.z * poseB.scale.z};
+        turnB = normalize(concatenate(worldTurn, inverse(poseB.rotation)));
+        worldAnchorB = poseB.position + rotate(anchorB, poseB.rotation);
+    }
+    // Each kind's own defaults (Box3D marks them valid), with the bodies and frames.
+    const auto fill = [&](b3JointDef& base) {
+        base.userData = entityData(entity);
+        base.bodyIdA = a;
+        base.bodyIdB = b;
+        base.localFrameA = b3Frame(anchorA, turnA);
+        base.localFrameB = b3Frame(anchorB, turnB);
+        base.collideConnected = false;
+    };
+    switch (joint.kind)
+    {
+    case JointKind::Fixed:
+    {
+        b3WeldJointDef def = b3DefaultWeldJointDef();
+        fill(def.base);
+        state.id = b3CreateWeldJoint(physics.id, &def);
+        break;
+    }
+    case JointKind::Hinge:
+    {
+        b3RevoluteJointDef def = b3DefaultRevoluteJointDef();
+        fill(def.base);
+        // Limits off while the range is empty (ADR 0092); Box3D's within 0.99 pi.
+        def.enableLimit = joint.lowerLimit < joint.upperLimit;
+        def.lowerAngle = std::clamp(joint.lowerLimit, -3.11f, 3.11f);
+        def.upperAngle = std::clamp(joint.upperLimit, -3.11f, 3.11f);
+        state.id = b3CreateRevoluteJoint(physics.id, &def);
+        break;
+    }
+    case JointKind::Distance:
+    {
+        b3DistanceJointDef def = b3DefaultDistanceJointDef();
+        fill(def.base);
+        const float now = length(worldAnchorB - worldAnchorA);
+        if (joint.lowerLimit < joint.upperLimit)
+        {
+            // A rope or rod between the limits: free inside them.
+            def.enableSpring = true;
+            def.hertz = 0;
+            def.enableLimit = true;
+            def.minLength = std::max(joint.lowerLimit, minimumLength);
+            def.maxLength = std::max(joint.upperLimit, def.minLength);
+            def.length = std::clamp(now, def.minLength, def.maxLength);
+        }
+        else
+        {
+            def.length = std::max(now, minimumLength); // the length it starts with, held
+        }
+        state.id = b3CreateDistanceJoint(physics.id, &def);
+        break;
+    }
+    case JointKind::BallSocket:
+    case JointKind::SwingTwist:
+    {
+        b3SphericalJointDef def = b3DefaultSphericalJointDef();
+        fill(def.base);
+        if (joint.kind == JointKind::SwingTwist)
+        {
+            // Each limit on when set: a cone round the axis, a twist about it.
+            def.enableConeLimit = joint.swingLimit > 0;
+            def.coneAngle = std::clamp(joint.swingLimit, 0.0f, 3.14159f);
+            def.enableTwistLimit = joint.twistLimit > 0;
+            def.lowerTwistAngle = -std::clamp(joint.twistLimit, 0.0f, 3.11f);
+            def.upperTwistAngle = std::clamp(joint.twistLimit, 0.0f, 3.11f);
+        }
+        state.id = b3CreateSphericalJoint(physics.id, &def);
+        break;
+    }
+    }
+    state.joint = joint;
+    state.a = a;
+    state.b = b;
+}
+
+// Each Joint's Box3D joint, made once both bodies exist (Other none: the
+// world), made again when the component or either body changes.
+void syncJoint(PhysicsWorld& physics, ecs::World& world, ecs::Entity entity)
+{
+    const Joint& joint = *ecs::read<Joint>(world, entity);
+    JointState* state = physics.joints.find(entity.value);
+    if (state == nullptr)
+    {
+        physics.joints.insertOrAssign(entity.value, JointState{});
+        state = physics.joints.find(entity.value);
+    }
+    state->seen = physics.mark;
+    const Body* own = physics.bodies.find(entity.value);
+    const bool toWorld = joint.other.value == 0;
+    const Body* other = toWorld ? nullptr : physics.bodies.find(joint.other.value);
+    if (own == nullptr || B3_IS_NULL(own->body) || (!toWorld && (other == nullptr || B3_IS_NULL(other->body))) ||
+        joint.other.value == entity.value)
+    {
+        destroyJoint(*state); // nothing to join yet
+        return;
+    }
+    const b3BodyId a = own->body;
+    const b3BodyId b = toWorld ? groundOf(physics) : other->body;
+    const bool valid = !B3_IS_NULL(state->id) && b3Joint_IsValid(state->id);
+    if (valid && sameJoint(joint, state->joint) && B3_ID_EQUALS(a, state->a) && B3_ID_EQUALS(b, state->b) &&
+        state->toWorld == toWorld)
+    {
+        return;
+    }
+    destroyJoint(*state);
+    state->toWorld = toWorld;
+    makeJoint(physics, world, entity, joint, a, b, *state);
+}
+
 float stepOf(const loop::SystemContext& context)
 {
     return context.fixedStepSeconds > 0 ? static_cast<float>(context.fixedStepSeconds) : 1.0f / 60;
@@ -1058,6 +1270,41 @@ void sync(const loop::SystemContext& context, void*)
             b3DestroyBody(body->body);
         }
         physics.bodies.erase(key);
+    }
+
+    // Joints (ADR 0092), after the bodies they join; and those whose entity,
+    // component, or bodies are gone.
+    Vector<ecs::Entity> jointed(tag);
+    const ecs::ComponentId joints[] = {ecs::componentIdOf<Joint>, ecs::componentIdOf<scenes::LocalTransform>};
+    ecs::Query* joining = ecs::createQuery(world, {.required = joints});
+    ecs::forEachChunk(
+        *joining,
+        [](const ecs::ChunkView& view, void* data) {
+            const ecs::Entity* chunk = ecs::entitiesOf(view);
+            const size_t count = ecs::readColumn<Joint>(view).size();
+            for (size_t i = 0; i < count; ++i)
+            {
+                static_cast<Vector<ecs::Entity>*>(data)->pushBack(chunk[i]);
+            }
+        },
+        &jointed);
+    ecs::destroyQuery(joining);
+    for (const ecs::Entity entity : jointed)
+    {
+        syncJoint(physics, world, entity);
+    }
+    gone.clear();
+    for (const auto& entry : physics.joints)
+    {
+        if (entry.value.seen != physics.mark)
+        {
+            gone.pushBack(entry.key);
+        }
+    }
+    for (const uint64_t key : gone)
+    {
+        destroyJoint(*physics.joints.find(key));
+        physics.joints.erase(key);
     }
 
     // Characters (ADR 0091), and those whose entity or controller is gone.
@@ -1968,6 +2215,73 @@ void drawQueries(Vector4 missed, Vector4 hit)
     recordedQueries.clear();
 }
 
+void drawCross(Vector3 at, float size, Vector4 color)
+{
+    for (const Vector3 axis : {Vector3{size, 0, 0}, Vector3{0, size, 0}, Vector3{0, 0, size}})
+    {
+        debug::drawLine(at - axis, at + axis, color);
+    }
+}
+
+void drawJoint(const ecs::World& world, ecs::Entity entity, const Joint& joint, Vector4 color)
+{
+    const Matrix4x4 own = scenes::computeWorldTransform(world, entity);
+    const Vector3 a = transformPoint(joint.anchor, own);
+    Vector3 b = a;
+    if (joint.other.value != 0 && ecs::read<scenes::LocalTransform>(world, joint.other) != nullptr)
+    {
+        b = transformPoint(joint.otherAnchor, scenes::computeWorldTransform(world, joint.other));
+    }
+    else if (const PhysicsWorld* physics = find(world))
+    {
+        // Held to the world: where it was made.
+        if (const JointState* state = physics->joints.find(entity.value); state != nullptr && state->toWorld)
+        {
+            b = state->worldAnchor;
+        }
+    }
+    drawCross(a, 0.06f, color);
+    drawCross(b, 0.06f, color);
+    debug::drawLine(a, b, color);
+    if (joint.kind == JointKind::Fixed || joint.kind == JointKind::Distance)
+    {
+        return;
+    }
+    Vector3 axis =
+        transformPoint(length(joint.axis) > 1e-6f ? joint.axis : Vector3{0, 0, 1}, own) - transformPoint({}, own);
+    if (length(axis) < 1e-6f)
+    {
+        return;
+    }
+    axis = axis * (1 / length(axis));
+    debug::drawLine(a, a + axis * 0.4f, color);
+    if (joint.kind != JointKind::Hinge || !(joint.lowerLimit < joint.upperLimit))
+    {
+        return;
+    }
+    // The arc from the lower limit to the upper, round the axis, from a
+    // direction across it.
+    const Vector3 across0 = std::fabs(axis.y) < 0.9f ? Vector3{0, 1, 0} : Vector3{1, 0, 0};
+    Vector3 across = cross(axis, across0);
+    across = across * (1 / length(across));
+    const int segments = 16;
+    Vector3 last{};
+    for (int i = 0; i <= segments; ++i)
+    {
+        const float angle = joint.lowerLimit + (joint.upperLimit - joint.lowerLimit) * static_cast<float>(i) / segments;
+        const Vector3 point = a + rotate(across, Quaternion::fromAxisAngle(axis, angle)) * 0.3f;
+        if (i == 0 || i == segments)
+        {
+            debug::drawLine(a, point, color);
+        }
+        if (i > 0)
+        {
+            debug::drawLine(last, point, color);
+        }
+        last = point;
+    }
+}
+
 void drawColliders(const ecs::World& world, Vector4 color)
 {
     struct Gather
@@ -1986,6 +2300,23 @@ void drawColliders(const ecs::World& world, Vector4 color)
             for (size_t i = 0; i < colliders.size(); ++i)
             {
                 outline(colliders[i], scenes::computeWorldTransform(*gather.world, entities[i]), gather.color);
+            }
+        },
+        &gather);
+    ecs::destroyQuery(query);
+    // Joints (ADR 0092): each anchor, the line between them, the axis, and a
+    // hinge's limits as an arc round it.
+    const ecs::ComponentId jointed[] = {ecs::componentIdOf<Joint>, ecs::componentIdOf<scenes::LocalTransform>};
+    query = ecs::createQuery(const_cast<ecs::World&>(world), {.required = jointed});
+    ecs::forEachChunk(
+        *query,
+        [](const ecs::ChunkView& view, void* data) {
+            const Gather& gather = *static_cast<const Gather*>(data);
+            const std::span<const Joint> joints = ecs::readColumn<Joint>(view);
+            const ecs::Entity* entities = ecs::entitiesOf(view);
+            for (size_t i = 0; i < joints.size(); ++i)
+            {
+                drawJoint(*gather.world, entities[i], joints[i], gather.color);
             }
         },
         &gather);

@@ -1,0 +1,958 @@
+{
+  "$guid": "05cd6b7c-6a0d-4d6f-980d-6408a5ff4b14",
+  "Entities": [
+    {
+      "Id": "a01e7a0000000001",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Sky"
+        },
+        "Crucible.Render.Sky": {
+          "ZenithColor": [
+            0.18,
+            0.32,
+            0.7
+          ],
+          "HorizonColor": [
+            0.95,
+            0.75,
+            0.55
+          ],
+          "GroundColor": [
+            0.3,
+            0.26,
+            0.22
+          ],
+          "Intensity": 1,
+          "SunSize": 0.04,
+          "SunIntensity": 6
+        },
+        "Crucible.Render.AmbientLight": {
+          "SkyColor": [
+            0.35,
+            0.4,
+            0.55
+          ],
+          "GroundColor": [
+            0.22,
+            0.2,
+            0.16
+          ],
+          "Intensity": 0.75
+        }
+      }
+    },
+    {
+      "Id": "a01e7a0000000002",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Sun"
+        },
+        "Crucible.Render.DirectionalLight": {
+          "Color": [
+            1,
+            0.9,
+            0.8
+          ],
+          "Intensity": 1,
+          "CastsShadows": true,
+          "ShadowDistance": 40
+        },
+        "Crucible.Scenes.LocalTransform": {
+          "Position": [
+            0,
+            10,
+            0
+          ],
+          "Rotation": [
+            -0.415538,
+            0.2661,
+            0.128541,
+            0.86023
+          ],
+          "Scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "Id": "a01e7a0000000003",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Camera"
+        },
+        "Crucible.Render.Camera": {
+          "Projection": "Perspective",
+          "FieldOfViewY": 0.8,
+          "OrthographicHeight": 0,
+          "NearPlane": 0.1,
+          "FarPlane": 1000,
+          "Priority": 0
+        },
+        "Crucible.Audio.AudioListener": {},
+        "Crucible.Scenes.LocalTransform": {
+          "Position": [
+            0,
+            4,
+            -13
+          ],
+          "Rotation": [
+            -0.1305,
+            0,
+            0,
+            0.9914
+          ],
+          "Scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "Id": "a01e7a0000000004",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Floor"
+        },
+        "Crucible.Scenes.LocalTransform": {
+          "Position": [
+            0,
+            -0.5,
+            0
+          ],
+          "Rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "Scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        "Crucible.Physics.Collider": {
+          "Shape": "Box",
+          "Size": [
+            30,
+            1,
+            12
+          ],
+          "Offset": [
+            0,
+            0,
+            0
+          ],
+          "Friction": 0.5,
+          "Restitution": 0,
+          "IsTrigger": false
+        }
+      }
+    },
+    {
+      "Id": "a01e7a0000000005",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Lamp"
+        },
+        "Crucible.Scenes.LocalTransform": {
+          "Position": [
+            -6,
+            3,
+            0
+          ],
+          "Rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "Scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        "Crucible.Physics.Collider": {
+          "Shape": "Sphere",
+          "Size": [
+            0.3,
+            0,
+            0
+          ],
+          "Offset": [
+            0,
+            0,
+            0
+          ],
+          "Friction": 0.5,
+          "Restitution": 0,
+          "IsTrigger": false
+        },
+        "Crucible.Physics.RigidBody": {
+          "Kind": "Dynamic",
+          "Mass": 1,
+          "LinearVelocity": [
+            4,
+            0,
+            2
+          ],
+          "AngularVelocity": [
+            0,
+            0,
+            0
+          ],
+          "GravityScale": 1,
+          "Layers": 1,
+          "Mask": 4294967295
+        },
+        "Crucible.Physics.Joint": {
+          "Kind": "BallSocket",
+          "Other": null,
+          "Anchor": [
+            0,
+            1.5,
+            0
+          ],
+          "OtherAnchor": [
+            0,
+            0,
+            0
+          ],
+          "Axis": [
+            0,
+            0,
+            1
+          ],
+          "LowerLimit": 0,
+          "UpperLimit": 0,
+          "SwingLimit": 0,
+          "TwistLimit": 0
+        }
+      }
+    },
+    {
+      "Id": "a01e7a0000000006",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Door"
+        },
+        "Crucible.Scenes.LocalTransform": {
+          "Position": [
+            -3,
+            1.05,
+            0
+          ],
+          "Rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "Scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        "Crucible.Physics.Collider": {
+          "Shape": "Box",
+          "Size": [
+            1.2,
+            2,
+            0.1
+          ],
+          "Offset": [
+            0,
+            0,
+            0
+          ],
+          "Friction": 0.5,
+          "Restitution": 0,
+          "IsTrigger": false
+        },
+        "Crucible.Physics.RigidBody": {
+          "Kind": "Dynamic",
+          "Mass": 1,
+          "LinearVelocity": [
+            0,
+            0,
+            3
+          ],
+          "AngularVelocity": [
+            0,
+            0,
+            0
+          ],
+          "GravityScale": 1,
+          "Layers": 1,
+          "Mask": 4294967295
+        },
+        "Crucible.Physics.Joint": {
+          "Kind": "Hinge",
+          "Other": null,
+          "Anchor": [
+            -0.6,
+            0,
+            0
+          ],
+          "OtherAnchor": [
+            0,
+            0,
+            0
+          ],
+          "Axis": [
+            0,
+            1,
+            0
+          ],
+          "LowerLimit": -1.2,
+          "UpperLimit": 1.2,
+          "SwingLimit": 0,
+          "TwistLimit": 0
+        }
+      }
+    },
+    {
+      "Id": "a01e7a0000000007",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Hook"
+        },
+        "Crucible.Scenes.LocalTransform": {
+          "Position": [
+            0,
+            5,
+            0
+          ],
+          "Rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "Scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        "Crucible.Physics.Collider": {
+          "Shape": "Sphere",
+          "Size": [
+            0.1,
+            0,
+            0
+          ],
+          "Offset": [
+            0,
+            0,
+            0
+          ],
+          "Friction": 0.5,
+          "Restitution": 0,
+          "IsTrigger": false
+        }
+      }
+    },
+    {
+      "Id": "a01e7a0000000008",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Link 1"
+        },
+        "Crucible.Scenes.LocalTransform": {
+          "Position": [
+            0,
+            4.4,
+            0
+          ],
+          "Rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "Scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        "Crucible.Physics.Collider": {
+          "Shape": "Sphere",
+          "Size": [
+            0.12,
+            0,
+            0
+          ],
+          "Offset": [
+            0,
+            0,
+            0
+          ],
+          "Friction": 0.5,
+          "Restitution": 0,
+          "IsTrigger": false
+        },
+        "Crucible.Physics.RigidBody": {
+          "Kind": "Dynamic",
+          "Mass": 0.3,
+          "LinearVelocity": [
+            0,
+            0,
+            0
+          ],
+          "AngularVelocity": [
+            0,
+            0,
+            0
+          ],
+          "GravityScale": 1,
+          "Layers": 1,
+          "Mask": 4294967295
+        },
+        "Crucible.Physics.Joint": {
+          "Kind": "Distance",
+          "Other": "a01e7a0000000007",
+          "Anchor": [
+            0,
+            0,
+            0
+          ],
+          "OtherAnchor": [
+            0,
+            0,
+            0
+          ],
+          "Axis": [
+            0,
+            0,
+            1
+          ],
+          "LowerLimit": 0,
+          "UpperLimit": 0,
+          "SwingLimit": 0,
+          "TwistLimit": 0
+        }
+      }
+    },
+    {
+      "Id": "a01e7a0000000009",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Link 2"
+        },
+        "Crucible.Scenes.LocalTransform": {
+          "Position": [
+            0,
+            3.8,
+            0
+          ],
+          "Rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "Scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        "Crucible.Physics.Collider": {
+          "Shape": "Sphere",
+          "Size": [
+            0.12,
+            0,
+            0
+          ],
+          "Offset": [
+            0,
+            0,
+            0
+          ],
+          "Friction": 0.5,
+          "Restitution": 0,
+          "IsTrigger": false
+        },
+        "Crucible.Physics.RigidBody": {
+          "Kind": "Dynamic",
+          "Mass": 0.3,
+          "LinearVelocity": [
+            0,
+            0,
+            0
+          ],
+          "AngularVelocity": [
+            0,
+            0,
+            0
+          ],
+          "GravityScale": 1,
+          "Layers": 1,
+          "Mask": 4294967295
+        },
+        "Crucible.Physics.Joint": {
+          "Kind": "Distance",
+          "Other": "a01e7a0000000008",
+          "Anchor": [
+            0,
+            0,
+            0
+          ],
+          "OtherAnchor": [
+            0,
+            0,
+            0
+          ],
+          "Axis": [
+            0,
+            0,
+            1
+          ],
+          "LowerLimit": 0,
+          "UpperLimit": 0,
+          "SwingLimit": 0,
+          "TwistLimit": 0
+        }
+      }
+    },
+    {
+      "Id": "a01e7a000000000a",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Link 3"
+        },
+        "Crucible.Scenes.LocalTransform": {
+          "Position": [
+            0,
+            3.2,
+            0
+          ],
+          "Rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "Scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        "Crucible.Physics.Collider": {
+          "Shape": "Sphere",
+          "Size": [
+            0.12,
+            0,
+            0
+          ],
+          "Offset": [
+            0,
+            0,
+            0
+          ],
+          "Friction": 0.5,
+          "Restitution": 0,
+          "IsTrigger": false
+        },
+        "Crucible.Physics.RigidBody": {
+          "Kind": "Dynamic",
+          "Mass": 0.3,
+          "LinearVelocity": [
+            0,
+            0,
+            0
+          ],
+          "AngularVelocity": [
+            0,
+            0,
+            0
+          ],
+          "GravityScale": 1,
+          "Layers": 1,
+          "Mask": 4294967295
+        },
+        "Crucible.Physics.Joint": {
+          "Kind": "Distance",
+          "Other": "a01e7a0000000009",
+          "Anchor": [
+            0,
+            0,
+            0
+          ],
+          "OtherAnchor": [
+            0,
+            0,
+            0
+          ],
+          "Axis": [
+            0,
+            0,
+            1
+          ],
+          "LowerLimit": 0,
+          "UpperLimit": 0,
+          "SwingLimit": 0,
+          "TwistLimit": 0
+        }
+      }
+    },
+    {
+      "Id": "a01e7a000000000b",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Link 4"
+        },
+        "Crucible.Scenes.LocalTransform": {
+          "Position": [
+            0,
+            2.6,
+            0
+          ],
+          "Rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "Scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        "Crucible.Physics.Collider": {
+          "Shape": "Sphere",
+          "Size": [
+            0.12,
+            0,
+            0
+          ],
+          "Offset": [
+            0,
+            0,
+            0
+          ],
+          "Friction": 0.5,
+          "Restitution": 0,
+          "IsTrigger": false
+        },
+        "Crucible.Physics.RigidBody": {
+          "Kind": "Dynamic",
+          "Mass": 0.3,
+          "LinearVelocity": [
+            3,
+            0,
+            0
+          ],
+          "AngularVelocity": [
+            0,
+            0,
+            0
+          ],
+          "GravityScale": 1,
+          "Layers": 1,
+          "Mask": 4294967295
+        },
+        "Crucible.Physics.Joint": {
+          "Kind": "Distance",
+          "Other": "a01e7a000000000a",
+          "Anchor": [
+            0,
+            0,
+            0
+          ],
+          "OtherAnchor": [
+            0,
+            0,
+            0
+          ],
+          "Axis": [
+            0,
+            0,
+            1
+          ],
+          "LowerLimit": 0,
+          "UpperLimit": 0,
+          "SwingLimit": 0,
+          "TwistLimit": 0
+        }
+      }
+    },
+    {
+      "Id": "a01e7a000000000c",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Welded A"
+        },
+        "Crucible.Scenes.LocalTransform": {
+          "Position": [
+            3,
+            4,
+            0
+          ],
+          "Rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "Scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        "Crucible.Physics.Collider": {
+          "Shape": "Box",
+          "Size": [
+            0.8,
+            0.8,
+            0.8
+          ],
+          "Offset": [
+            0,
+            0,
+            0
+          ],
+          "Friction": 0.5,
+          "Restitution": 0,
+          "IsTrigger": false
+        },
+        "Crucible.Physics.RigidBody": {
+          "Kind": "Dynamic",
+          "Mass": 1,
+          "LinearVelocity": [
+            0,
+            0,
+            0
+          ],
+          "AngularVelocity": [
+            0,
+            2,
+            3
+          ],
+          "GravityScale": 1,
+          "Layers": 1,
+          "Mask": 4294967295
+        }
+      }
+    },
+    {
+      "Id": "a01e7a000000000d",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Welded B"
+        },
+        "Crucible.Scenes.LocalTransform": {
+          "Position": [
+            3.8,
+            4,
+            0
+          ],
+          "Rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "Scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        "Crucible.Physics.Collider": {
+          "Shape": "Box",
+          "Size": [
+            0.8,
+            0.8,
+            0.8
+          ],
+          "Offset": [
+            0,
+            0,
+            0
+          ],
+          "Friction": 0.5,
+          "Restitution": 0,
+          "IsTrigger": false
+        },
+        "Crucible.Physics.RigidBody": {
+          "Kind": "Dynamic",
+          "Mass": 1,
+          "LinearVelocity": [
+            0,
+            0,
+            0
+          ],
+          "AngularVelocity": [
+            0,
+            0,
+            0
+          ],
+          "GravityScale": 1,
+          "Layers": 1,
+          "Mask": 4294967295
+        },
+        "Crucible.Physics.Joint": {
+          "Kind": "Fixed",
+          "Other": "a01e7a000000000c",
+          "Anchor": [
+            -0.4,
+            0,
+            0
+          ],
+          "OtherAnchor": [
+            0.4,
+            0,
+            0
+          ],
+          "Axis": [
+            0,
+            0,
+            1
+          ],
+          "LowerLimit": 0,
+          "UpperLimit": 0,
+          "SwingLimit": 0,
+          "TwistLimit": 0
+        }
+      }
+    },
+    {
+      "Id": "a01e7a000000000e",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Beam"
+        },
+        "Crucible.Scenes.LocalTransform": {
+          "Position": [
+            6,
+            5,
+            0
+          ],
+          "Rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "Scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        "Crucible.Physics.Collider": {
+          "Shape": "Box",
+          "Size": [
+            1,
+            0.2,
+            1
+          ],
+          "Offset": [
+            0,
+            0,
+            0
+          ],
+          "Friction": 0.5,
+          "Restitution": 0,
+          "IsTrigger": false
+        }
+      }
+    },
+    {
+      "Id": "a01e7a000000000f",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Arm"
+        },
+        "Crucible.Scenes.LocalTransform": {
+          "Position": [
+            6,
+            4.15,
+            0
+          ],
+          "Rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "Scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        "Crucible.Physics.Collider": {
+          "Shape": "Box",
+          "Size": [
+            0.2,
+            1.5,
+            0.2
+          ],
+          "Offset": [
+            0,
+            0,
+            0
+          ],
+          "Friction": 0.5,
+          "Restitution": 0,
+          "IsTrigger": false
+        },
+        "Crucible.Physics.RigidBody": {
+          "Kind": "Dynamic",
+          "Mass": 1,
+          "LinearVelocity": [
+            5,
+            0,
+            3
+          ],
+          "AngularVelocity": [
+            0,
+            0,
+            0
+          ],
+          "GravityScale": 1,
+          "Layers": 1,
+          "Mask": 4294967295
+        },
+        "Crucible.Physics.Joint": {
+          "Kind": "SwingTwist",
+          "Other": "a01e7a000000000e",
+          "Anchor": [
+            0,
+            0.75,
+            0
+          ],
+          "OtherAnchor": [
+            0,
+            -0.1,
+            0
+          ],
+          "Axis": [
+            0,
+            -1,
+            0
+          ],
+          "LowerLimit": 0,
+          "UpperLimit": 0,
+          "SwingLimit": 0.6,
+          "TwistLimit": 0.3
+        }
+      }
+    }
+  ]
+}

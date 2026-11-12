@@ -85,7 +85,7 @@ Decided by the owner (2026-11-11):
 
 - Box3D at this commit has a spherical joint (`b3SphericalJointDef`, with
   cone and twist limits): ball-and-socket and swing-twist, which its README
-  doesn't list. Step 5's design revisits "unsupported for now".
+  doesn't list. Step 5's design revisits "unsupported for now". (Step 5, ADR 0092, built them on it.)
 
 ## As built
 

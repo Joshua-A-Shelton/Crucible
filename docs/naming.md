@@ -990,3 +990,17 @@ hand:
 default in C#) was added after the owner's try, as drafted; Box3dPhysics.cpp's
 `settle`* eases the feet up (settled as drafted).
 
+## Joints on Box3D (2026-11-11, M9 step 5)
+
+Settled as drafted: no new public names (the five `JointKind`s and
+`Joint`'s fields stay); ADR 0092 "Joints on Box3D", `docs/learning/joints.md`;
+`FixedJointTests`, `HingeJointTests`, `DistanceJointTests`,
+`SphericalJointTests`, `JointLifetimeTests`, `JointTests`; the Walker's
+Joints.crscene. Names added while building are placeholders (*):
+
+| Name | What it is |
+|---|---|
+| Box3dPhysics.cpp's `JointState`*, `PhysicsWorld::joints`*, `ground`*, `sameJoint`*, `frameTurn`*, `b3Frame`*, `groundOf`*, `destroyJoint`*, `makeJoint`*, `syncJoint`*, `minimumLength`*, `drawJoint`*, `drawCross`* | Joints on Box3D, and their drawing |
+| tests/native/PhysicsTestSupport.h's `join`*, `tilt`* | Test support |
+| Joints.crscene's entities: "Lamp"*, "Door"*, "Hook"*, "Link 1"* to "Link 4"*, "Welded A"*, "Welded B"*, "Beam"*, "Arm"* | The scene |
+
