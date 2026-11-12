@@ -616,7 +616,8 @@ decision made at its start):
    transform system and the editor's handles; RigidBody2D and Collider2D
    (box, circle, capsule, polygon) synced, stepped, written back, and
    interpolated; 2D queries and contacts; drawn with View > Colliders and
-   Queries; the Walker's Physics2D scene.
+   Queries; the Walker's Physics2D scene. Tried by hand by the owner on
+   KWin; its placeholder names are still to settle. Next: 6b.
 7. Swept hitboxes: a hitbox shape on a joint, active during an animation
    window (ADR 0081), swept each frame by shape cast; hits reported with
    exact times, interpolated between frame timestamps.
