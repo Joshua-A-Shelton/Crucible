@@ -996,7 +996,8 @@ Settled as drafted: no new public names (the five `JointKind`s and
 `Joint`'s fields stay); ADR 0092 "Joints on Box3D", `docs/learning/joints.md`;
 `FixedJointTests`, `HingeJointTests`, `DistanceJointTests`,
 `SphericalJointTests`, `JointLifetimeTests`, `JointTests`; the Walker's
-Joints.crscene. Names added while building are placeholders (*):
+Joints.crscene. Names added while building (marked *) settled as drafted
+too, after the owner tried step 5 by hand:
 
 | Name | What it is |
 |---|---|

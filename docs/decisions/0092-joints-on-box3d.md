@@ -1,7 +1,8 @@
 # 0092 — Joints on Box3D
 
-**Status:** Accepted (2026-11-11); M9 step 5 built. Names settled by the
-owner as drafted (docs/naming.md); names added while building are marked *.
+**Status:** Accepted (2026-11-11); M9 step 5 built, then tried by hand by
+the owner in the Walker's Joints scene. Names, including those added while
+building, settled by the owner as drafted (docs/naming.md).
 
 ## Context
 
