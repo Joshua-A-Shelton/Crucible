@@ -66,3 +66,10 @@ Decided by the owner (2026-11-11):
   the editor's `View.Queries`, `Shell.ShowsQueries`.
 - Tests: `RaycastTests`, `ShapeCastTests`, `OverlapTests`,
   `QueryFilterTests` (native), `PhysicsQueryTests` (C#, JIT and AOT).
+- For trying it by hand (asked for by the owner): the Walker's
+  Queries.crscene, a floor, a block, a falling ball, a target, a trigger
+  zone, and the Walker with a Convex collider (Generate If Missing), probed
+  by seven Probe entities (Code/Probes.cs: a ray, sphere, or box cast, or
+  an overlap, each frame from where the probe is, its result written into
+  the component); with `--game-arg probes=<seconds>` it prints each
+  probe's result and quits.

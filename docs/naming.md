@@ -959,3 +959,10 @@ Names added while building are placeholders (*):
 | Box3dPhysics.cpp's `QueryRecord`*, `queryFilter`*, `admits`*, `Proxy`*, `makeProxy`*, `Closest`* (`hitsAtStart`*), `keepClosest`*, `Overlaps`*, `gather`* | The queries on Box3D |
 | The editor's "Queries" menu item; `_queryMissColor`*, `_queryHitColor`* | Text users see, and the view's colors |
 
+The Walker's query scene, added for the owner's try (placeholders, *):
+
+| Name | What it is |
+|---|---|
+| Queries.crscene*, its entities' names ("Floor"*, "Block"*, "Ball"*, "Target"*, "Trigger Zone"*, and the probes "Ray at the block"* and the rest) | The scene |
+| `Walker.Probe`* (`Kind`*, `Direction`*, `Distance`*, `Size`*, `Triggers`*, `Result`*), `ProbeKind`* (`Ray`, `Sphere`, `Box`, `Overlap`), `ProbeSystem`*, `--game-arg probes=`* | Its game code (Code/Probes.cs) |
+
