@@ -411,6 +411,17 @@ public sealed class SerializerGenerator : IIncrementalGenerator
                     ? new TypeShape(ShapeKind.Dictionary, expression, value)
                     : null;
         }
+        // An inline array (the binding generator's mirror of a C++ array, ADR
+        // 0093): its one field's type, its length times.
+        if (named.TypeKind == TypeKind.Struct && named.GetAttributes().FirstOrDefault(attribute =>
+                attribute.AttributeClass?.ToDisplayString() == "System.Runtime.CompilerServices.InlineArrayAttribute") is
+            { ConstructorArguments.Length: 1 } inline &&
+            inline.ConstructorArguments[0].Value is int fixedLength &&
+            named.GetMembers().OfType<IFieldSymbol>().FirstOrDefault(field => !field.IsStatic) is { } storage &&
+            ShapeOf(storage.Type) is { } stored)
+        {
+            return new TypeShape(ShapeKind.FixedArray, expression, stored, default, fixedLength);
+        }
         // A type with generated serialization: marked in this compilation, or
         // already implementing the interface (from another assembly).
         if (HasAttribute(named, SerializedName) ||
@@ -582,6 +593,10 @@ public sealed class SerializerGenerator : IIncrementalGenerator
             // Read lazily, so a type can hold itself; '!' since its own table isn't set yet while it's built.
             arguments.Add($"fields: static () => {shape.Type}.SerializedFields!");
         }
+        if (shape.Kind == ShapeKind.FixedArray)
+        {
+            arguments.Add($"fixedLength: {shape.Length}");
+        }
         if (hints is not null)
         {
             if (!float.IsNaN(hints.Min))
@@ -683,6 +698,16 @@ public sealed class SerializerGenerator : IIncrementalGenerator
                     code.Close();
                     break;
                 }
+            case ShapeKind.FixedArray:
+                {
+                    string index = $"i{counter++}";
+                    code.Line("writer.WriteStartArray();");
+                    code.Open($"for (int {index} = 0; {index} < {shape.Length}; ++{index})");
+                    WriteValue(code, shape.Element!, $"{value}[{index}]", ref counter);
+                    code.Close();
+                    code.Line("writer.WriteEndArray();");
+                    break;
+                }
             case ShapeKind.Array or ShapeKind.List:
                 {
                     string local = $"a{counter++}";
@@ -746,6 +771,29 @@ public sealed class SerializerGenerator : IIncrementalGenerator
                     code.Line($"{shape.Element!.Type} {inner};");
                     ReadValue(code, shape.Element, inner, ref counter);
                     code.Line($"{target} = {inner};");
+                    code.Close();
+                    break;
+                }
+            case ShapeKind.FixedArray:
+                {
+                    // As many as it holds; more are skipped, fewer stay at their defaults.
+                    string index = $"i{counter++}";
+                    string item = $"e{counter++}";
+                    code.Line($"{target} = default;");
+                    code.Line($"{Values}.Expect(reader, global::System.Text.Json.JsonTokenType.StartArray, \"an array\");");
+                    code.Line($"int {index} = 0;");
+                    code.Open("while (true)");
+                    code.Line("reader.Read();");
+                    code.Open("if (reader.TokenType == global::System.Text.Json.JsonTokenType.EndArray)");
+                    code.Line("break;");
+                    code.Close();
+                    code.Open($"if ({index} >= {shape.Length})");
+                    code.Line("reader.Skip();");
+                    code.Line("continue;");
+                    code.Close();
+                    code.Line($"{shape.Element!.Type} {item};");
+                    ReadValue(code, shape.Element, item, ref counter);
+                    code.Line($"{target}[{index}++] = {item};");
                     code.Close();
                     break;
                 }
@@ -836,12 +884,13 @@ internal enum ShapeKind
     List,
     Dictionary,
     Serialized,
+    FixedArray,
 }
 
 // How one member type is written and read; Element is the inner type of a
-// nullable, array, list, or dictionary.
+// nullable, array, list, dictionary, or fixed array (Length its length).
 internal sealed record TypeShape(ShapeKind Kind, string Type, TypeShape? Element,
-    EquatableArray<string> EnumNames = default);
+    EquatableArray<string> EnumNames = default, int Length = 0);
 
 // A member's editor hints (ADR 0069); NaN for no range.
 internal sealed record HintModel(float Min, float Max, string? Tooltip, string? Header, bool IsColor, bool IsLayers = false,

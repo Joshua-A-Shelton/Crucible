@@ -27,6 +27,20 @@ struct CRUCIBLE_EXPOSE LocalTransform
     Vector3 scale;
 };
 
+// A 2D entity's place relative to its parent (ADR 0093): in the XY plane, Y
+// up, turned by `angle` radians about Z (+X toward +Y, counterclockwise as
+// the default camera sees it), scaled in X and Y, at Z = `depth` (draw
+// order and layering). It makes the same WorldTransform as LocalTransform,
+// so whatever draws 3D draws 2D; an entity has one or the other
+// (LocalTransform wins if both), and either kind can parent either.
+struct CRUCIBLE_EXPOSE Transform2D
+{
+    Vector2 position;
+    float angle;
+    Vector2 scale;
+    float depth;
+};
+
 // Object to world, for row vectors (worldPoint = point * matrix): the
 // entity's scale, rotation, and translation, then its parent's world matrix.
 struct CRUCIBLE_EXPOSE WorldTransform
@@ -47,7 +61,7 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL Matrix4x4 computeWorldTransform(const e
 // without them is placed as a root. Not during iteration.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void updateWorldTransforms(ecs::World& world);
 
-// Registers LocalTransform and WorldTransform. Registering again is harmless.
+// Registers LocalTransform, Transform2D, and WorldTransform. Registering again is harmless.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void registerTransforms();
 
 // The system "crucible.TransformPropagation", as the function address C#'s

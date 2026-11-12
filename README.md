@@ -160,3 +160,6 @@ Longer explanations of decisions, written to be reread:
 - [Joints](docs/learning/joints.md) (ADR 0092): the five kinds, frames,
   where angles start, joints to the world, and why jointed bodies don't
   collide.
+- [2D physics](docs/learning/physics-2d.md) (ADR 0093): why 2D physics is
+  its own engine, a 2D transform that becomes the same world matrix,
+  angles, and convex polygons.

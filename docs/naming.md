@@ -1005,3 +1005,30 @@ too, after the owner tried step 5 by hand:
 | tests/native/PhysicsTestSupport.h's `join`*, `tilt`* | Test support |
 | Joints.crscene's entities: "Lamp"*, "Door"*, "Hook"*, "Link 1"* to "Link 4"*, "Welded A"*, "Welded B"*, "Beam"*, "Arm"* | The scene |
 
+## 2D physics on Box2D (2026-11-11, M9 step 6a)
+
+Settled as drafted: `Transform2D` (`Position`, `Angle`, `Scale`, `Depth`) in
+crucible/Transform.h; crucible/Physics2D.h, `crucible::physics2d` (C#
+`Crucible.Physics2D`): `RigidBody2D` (`Kind`, `Mass`, `LinearVelocity`,
+`AngularVelocity`, `GravityScale`, `Layers`, `Mask`), `Collider2D` (`Shape`:
+`Box`, `Circle`, `Capsule`, `Polygon`; `Size`, `Offset`, `Friction`,
+`Restitution`, `IsTrigger`, `Points`, `PointCount`), `QueryShape2D`,
+`RayHit2D`, `ContactEvent2D`, `Physics2DService`; `raycast`, `shapeCast`,
+`overlap`, `contacts`, `bodyPose`; the systems `Physics2D.Sync`, `.Step`,
+`.WriteBack`, `.Interpolate`; C# `Physics2D.Raycast`, `ShapeCast`,
+`Overlap`; Box2dPhysics.cpp, CMake target `box2d`; ADR 0093 "2D physics on
+Box2D", `docs/learning/physics-2d.md`; `Transform2DTests`,
+`Physics2DBodyTests`, `Physics2DQueryTests`, `Physics2DContactTests`,
+`Physics2DTests`; the Walker's Physics2D.crscene. Names added while
+building are placeholders (*):
+
+| Name | What it is |
+|---|---|
+| `ShapeKind2D`* (the Shape enum), `BodyPose2D`*, `gravity`* (2D), `maxPolygonPoints`* | The contract's other types and constants |
+| `installPhysics2D`*, `physics2DService`*, `registerPhysics2D`*, `releasePhysics2D`*, `drawColliders2D`*, `recordQueries2D`*, `drawQueries2D`* | Its other calls |
+| C# `Physics2D.Contacts`*, `RigidBody2D.Pose`*, `Collider2D.DrawColliders`*, `Transform2D.Identity`* | The C# side |
+| `FieldKind.FixedArray`*, `SerializedField.FixedLength`*; BindGen's `Names.Namespace`* | Fixed arrays in saving and the inspector; namespaces like Physics2D |
+| Box2dPhysics.cpp's `Pose2D`*, `poseOf`*, `lerpAngle`*, and its 3D-named helpers | The backend |
+| tests/native/Physics2DTestSupport.h's `Scene2D`*, `box2D`*, `circle2D`*, `dynamic2D`*, `ground2D`* | Test support |
+| Physics2D.crscene's entities: "Ground"*, "Ramp"*, "Left Wall"*, "Right Wall"*, "Crate 1"* to "Crate 4"*, "Ball"*, "Pill"*, "Wedge"*, "Bouncer"*, "Sensor Zone"* | The scene |
+

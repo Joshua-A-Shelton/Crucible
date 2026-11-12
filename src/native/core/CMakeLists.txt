@@ -31,6 +31,7 @@ target_sources(crucible_core_objects PRIVATE
     AssetSource.cpp
     Audio.cpp
     BindingProbe.cpp
+    Box2dPhysics.cpp
     Box3dPhysics.cpp
     Checksum.cpp
     Core.cpp
@@ -81,8 +82,8 @@ else()
 endif()
 target_include_directories(crucible_core_objects SYSTEM PRIVATE "${stb_SOURCE_DIR}")
 target_link_libraries(crucible_core_objects PRIVATE crucible_stb_vorbis)
-# Box3D (ADR 0085).
-target_link_libraries(crucible_core_objects PRIVATE box3d)
+# Box3D (ADR 0085) and Box2D (ADR 0093).
+target_link_libraries(crucible_core_objects PRIVATE box3d box2d)
 # Compression for binary files (ADR 0039).
 target_link_libraries(crucible_core_objects PRIVATE libzstd_static)
 # Loading native modules (ADR 0074).

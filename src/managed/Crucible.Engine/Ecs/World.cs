@@ -33,6 +33,7 @@ public sealed unsafe class World : IDisposable
         {
             Crucible.Animation.Api.ReleasePoses(Handle);
             Crucible.Physics.Api.ReleasePhysics(Handle);
+            Crucible.Physics2D.Api.ReleasePhysics2D(Handle);
             Api.DestroyWorld(Handle);
             Handle = default;
         }

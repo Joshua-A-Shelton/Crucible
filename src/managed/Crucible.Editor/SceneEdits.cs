@@ -251,7 +251,11 @@ internal sealed class ParentEdit(string title, ulong entity, (ulong Parent, int 
         }
         Entity parent = ids.ToWorld(place.Parent);
         world.SetParent(child, parent, place.Index < 0 ? uint.MaxValue : (uint)place.Index);
-        world.Set(child, place.Local);
+        // A 2D entity (ADR 0093) keeps its Transform2D as it is.
+        if (world.Has(child, Components.Of<LocalTransform>()))
+        {
+            world.Set(child, place.Local);
+        }
     }
 
     /// <summary>The local transform that keeps an entity's world transform under a new parent.</summary>

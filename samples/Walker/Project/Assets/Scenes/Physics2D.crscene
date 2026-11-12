@@ -1,0 +1,1110 @@
+{
+  "$guid": "6ac54cdf-08e7-4e16-8bc8-33790d860d9f",
+  "Entities": [
+    {
+      "Id": "2d2d0c0000000001",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Sky"
+        },
+        "Crucible.Render.Sky": {
+          "ZenithColor": [
+            0.18,
+            0.32,
+            0.7
+          ],
+          "HorizonColor": [
+            0.95,
+            0.75,
+            0.55
+          ],
+          "GroundColor": [
+            0.3,
+            0.26,
+            0.22
+          ],
+          "Intensity": 1,
+          "SunSize": 0.04,
+          "SunIntensity": 6
+        },
+        "Crucible.Render.AmbientLight": {
+          "SkyColor": [
+            0.35,
+            0.4,
+            0.55
+          ],
+          "GroundColor": [
+            0.22,
+            0.2,
+            0.16
+          ],
+          "Intensity": 0.75
+        }
+      }
+    },
+    {
+      "Id": "2d2d0c0000000002",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Sun"
+        },
+        "Crucible.Render.DirectionalLight": {
+          "Color": [
+            1,
+            0.9,
+            0.8
+          ],
+          "Intensity": 1,
+          "CastsShadows": true,
+          "ShadowDistance": 40
+        },
+        "Crucible.Scenes.LocalTransform": {
+          "Position": [
+            0,
+            10,
+            0
+          ],
+          "Rotation": [
+            -0.415538,
+            0.2661,
+            0.128541,
+            0.86023
+          ],
+          "Scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "Id": "2d2d0c0000000003",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Camera"
+        },
+        "Crucible.Render.Camera": {
+          "Projection": "Perspective",
+          "FieldOfViewY": 0.8,
+          "OrthographicHeight": 0,
+          "NearPlane": 0.1,
+          "FarPlane": 1000,
+          "Priority": 0
+        },
+        "Crucible.Audio.AudioListener": {},
+        "Crucible.Scenes.LocalTransform": {
+          "Position": [
+            0,
+            4,
+            -14
+          ],
+          "Rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "Scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "Id": "2d2d0c0000000004",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Ground"
+        },
+        "Crucible.Scenes.Transform2D": {
+          "Position": [
+            0,
+            -0.5
+          ],
+          "Angle": 0,
+          "Scale": [
+            1,
+            1
+          ],
+          "Depth": 0
+        },
+        "Crucible.Physics2D.Collider2D": {
+          "Shape": "Box",
+          "Size": [
+            24,
+            1
+          ],
+          "Offset": [
+            0,
+            0
+          ],
+          "Friction": 0.5,
+          "Restitution": 0,
+          "IsTrigger": false,
+          "Points": [
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ],
+          "PointCount": 0
+        }
+      }
+    },
+    {
+      "Id": "2d2d0c0000000005",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Ramp"
+        },
+        "Crucible.Scenes.Transform2D": {
+          "Position": [
+            -6,
+            0
+          ],
+          "Angle": 0,
+          "Scale": [
+            1,
+            1
+          ],
+          "Depth": 0
+        },
+        "Crucible.Physics2D.Collider2D": {
+          "Shape": "Polygon",
+          "Size": [
+            1,
+            1
+          ],
+          "Offset": [
+            0,
+            0
+          ],
+          "Friction": 0.5,
+          "Restitution": 0,
+          "IsTrigger": false,
+          "Points": [
+            [
+              -3,
+              0
+            ],
+            [
+              3,
+              0
+            ],
+            [
+              -3,
+              2
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ],
+          "PointCount": 3
+        }
+      }
+    },
+    {
+      "Id": "2d2d0c0000000006",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Right Wall"
+        },
+        "Crucible.Scenes.Transform2D": {
+          "Position": [
+            10,
+            2
+          ],
+          "Angle": 0,
+          "Scale": [
+            1,
+            1
+          ],
+          "Depth": 0
+        },
+        "Crucible.Physics2D.Collider2D": {
+          "Shape": "Box",
+          "Size": [
+            1,
+            4
+          ],
+          "Offset": [
+            0,
+            0
+          ],
+          "Friction": 0.5,
+          "Restitution": 0,
+          "IsTrigger": false,
+          "Points": [
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ],
+          "PointCount": 0
+        }
+      }
+    },
+    {
+      "Id": "2d2d0c0000000007",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Crate 1"
+        },
+        "Crucible.Scenes.Transform2D": {
+          "Position": [
+            2,
+            0.5
+          ],
+          "Angle": 0,
+          "Scale": [
+            1,
+            1
+          ],
+          "Depth": 0
+        },
+        "Crucible.Physics2D.Collider2D": {
+          "Shape": "Box",
+          "Size": [
+            1,
+            1
+          ],
+          "Offset": [
+            0,
+            0
+          ],
+          "Friction": 0.5,
+          "Restitution": 0,
+          "IsTrigger": false,
+          "Points": [
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ],
+          "PointCount": 0
+        },
+        "Crucible.Physics2D.RigidBody2D": {
+          "Kind": "Dynamic",
+          "Mass": 1,
+          "LinearVelocity": [
+            0,
+            0
+          ],
+          "AngularVelocity": 0,
+          "GravityScale": 1,
+          "Layers": 1,
+          "Mask": 4294967295
+        }
+      }
+    },
+    {
+      "Id": "2d2d0c0000000008",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Crate 2"
+        },
+        "Crucible.Scenes.Transform2D": {
+          "Position": [
+            2,
+            1.55
+          ],
+          "Angle": 0,
+          "Scale": [
+            1,
+            1
+          ],
+          "Depth": 0
+        },
+        "Crucible.Physics2D.Collider2D": {
+          "Shape": "Box",
+          "Size": [
+            1,
+            1
+          ],
+          "Offset": [
+            0,
+            0
+          ],
+          "Friction": 0.5,
+          "Restitution": 0,
+          "IsTrigger": false,
+          "Points": [
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ],
+          "PointCount": 0
+        },
+        "Crucible.Physics2D.RigidBody2D": {
+          "Kind": "Dynamic",
+          "Mass": 1,
+          "LinearVelocity": [
+            0,
+            0
+          ],
+          "AngularVelocity": 0,
+          "GravityScale": 1,
+          "Layers": 1,
+          "Mask": 4294967295
+        }
+      }
+    },
+    {
+      "Id": "2d2d0c0000000009",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Crate 3"
+        },
+        "Crucible.Scenes.Transform2D": {
+          "Position": [
+            2,
+            2.6
+          ],
+          "Angle": 0,
+          "Scale": [
+            1,
+            1
+          ],
+          "Depth": 0
+        },
+        "Crucible.Physics2D.Collider2D": {
+          "Shape": "Box",
+          "Size": [
+            1,
+            1
+          ],
+          "Offset": [
+            0,
+            0
+          ],
+          "Friction": 0.5,
+          "Restitution": 0,
+          "IsTrigger": false,
+          "Points": [
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ],
+          "PointCount": 0
+        },
+        "Crucible.Physics2D.RigidBody2D": {
+          "Kind": "Dynamic",
+          "Mass": 1,
+          "LinearVelocity": [
+            0,
+            0
+          ],
+          "AngularVelocity": 0,
+          "GravityScale": 1,
+          "Layers": 1,
+          "Mask": 4294967295
+        }
+      }
+    },
+    {
+      "Id": "2d2d0c000000000a",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Crate 4"
+        },
+        "Crucible.Scenes.Transform2D": {
+          "Position": [
+            2,
+            3.65
+          ],
+          "Angle": 0,
+          "Scale": [
+            1,
+            1
+          ],
+          "Depth": 0
+        },
+        "Crucible.Physics2D.Collider2D": {
+          "Shape": "Box",
+          "Size": [
+            1,
+            1
+          ],
+          "Offset": [
+            0,
+            0
+          ],
+          "Friction": 0.5,
+          "Restitution": 0,
+          "IsTrigger": false,
+          "Points": [
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ],
+          "PointCount": 0
+        },
+        "Crucible.Physics2D.RigidBody2D": {
+          "Kind": "Dynamic",
+          "Mass": 1,
+          "LinearVelocity": [
+            0,
+            0
+          ],
+          "AngularVelocity": 0,
+          "GravityScale": 1,
+          "Layers": 1,
+          "Mask": 4294967295
+        }
+      }
+    },
+    {
+      "Id": "2d2d0c000000000b",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Ball"
+        },
+        "Crucible.Scenes.Transform2D": {
+          "Position": [
+            -8.5,
+            4
+          ],
+          "Angle": 0,
+          "Scale": [
+            1,
+            1
+          ],
+          "Depth": 0
+        },
+        "Crucible.Physics2D.Collider2D": {
+          "Shape": "Circle",
+          "Size": [
+            0.4,
+            0
+          ],
+          "Offset": [
+            0,
+            0
+          ],
+          "Friction": 0.5,
+          "Restitution": 0.5,
+          "IsTrigger": false,
+          "Points": [
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ],
+          "PointCount": 0
+        },
+        "Crucible.Physics2D.RigidBody2D": {
+          "Kind": "Dynamic",
+          "Mass": 1,
+          "LinearVelocity": [
+            1,
+            0
+          ],
+          "AngularVelocity": 0,
+          "GravityScale": 1,
+          "Layers": 1,
+          "Mask": 4294967295
+        }
+      }
+    },
+    {
+      "Id": "2d2d0c000000000c",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Pill"
+        },
+        "Crucible.Scenes.Transform2D": {
+          "Position": [
+            -5,
+            7
+          ],
+          "Angle": 0,
+          "Scale": [
+            1,
+            1
+          ],
+          "Depth": 0
+        },
+        "Crucible.Physics2D.Collider2D": {
+          "Shape": "Capsule",
+          "Size": [
+            0.3,
+            1.0
+          ],
+          "Offset": [
+            0,
+            0
+          ],
+          "Friction": 0.5,
+          "Restitution": 0,
+          "IsTrigger": false,
+          "Points": [
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ],
+          "PointCount": 0
+        },
+        "Crucible.Physics2D.RigidBody2D": {
+          "Kind": "Dynamic",
+          "Mass": 1,
+          "LinearVelocity": [
+            0,
+            0
+          ],
+          "AngularVelocity": 2,
+          "GravityScale": 1,
+          "Layers": 1,
+          "Mask": 4294967295
+        }
+      }
+    },
+    {
+      "Id": "2d2d0c000000000d",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Wedge"
+        },
+        "Crucible.Scenes.Transform2D": {
+          "Position": [
+            0,
+            8
+          ],
+          "Angle": 0,
+          "Scale": [
+            1,
+            1
+          ],
+          "Depth": 0
+        },
+        "Crucible.Physics2D.Collider2D": {
+          "Shape": "Polygon",
+          "Size": [
+            1,
+            1
+          ],
+          "Offset": [
+            0,
+            0
+          ],
+          "Friction": 0.5,
+          "Restitution": 0,
+          "IsTrigger": false,
+          "Points": [
+            [
+              -0.6,
+              -0.4
+            ],
+            [
+              0.6,
+              -0.4
+            ],
+            [
+              0,
+              0.6
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ],
+          "PointCount": 3
+        },
+        "Crucible.Physics2D.RigidBody2D": {
+          "Kind": "Dynamic",
+          "Mass": 1,
+          "LinearVelocity": [
+            0,
+            0
+          ],
+          "AngularVelocity": -1,
+          "GravityScale": 1,
+          "Layers": 1,
+          "Mask": 4294967295
+        }
+      }
+    },
+    {
+      "Id": "2d2d0c000000000e",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Bouncer"
+        },
+        "Crucible.Scenes.Transform2D": {
+          "Position": [
+            6,
+            6
+          ],
+          "Angle": 0,
+          "Scale": [
+            1,
+            1
+          ],
+          "Depth": 0
+        },
+        "Crucible.Physics2D.Collider2D": {
+          "Shape": "Circle",
+          "Size": [
+            0.5,
+            0
+          ],
+          "Offset": [
+            0,
+            0
+          ],
+          "Friction": 0.5,
+          "Restitution": 0.9,
+          "IsTrigger": false,
+          "Points": [
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ],
+          "PointCount": 0
+        },
+        "Crucible.Physics2D.RigidBody2D": {
+          "Kind": "Dynamic",
+          "Mass": 1,
+          "LinearVelocity": [
+            -1,
+            0
+          ],
+          "AngularVelocity": 0,
+          "GravityScale": 1,
+          "Layers": 1,
+          "Mask": 4294967295
+        }
+      }
+    },
+    {
+      "Id": "2d2d0c000000000f",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Sensor Zone"
+        },
+        "Crucible.Scenes.Transform2D": {
+          "Position": [
+            6,
+            1
+          ],
+          "Angle": 0,
+          "Scale": [
+            1,
+            1
+          ],
+          "Depth": 0
+        },
+        "Crucible.Physics2D.Collider2D": {
+          "Shape": "Box",
+          "Size": [
+            2,
+            2
+          ],
+          "Offset": [
+            0,
+            0
+          ],
+          "Friction": 0.5,
+          "Restitution": 0,
+          "IsTrigger": true,
+          "Points": [
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ],
+          "PointCount": 0
+        }
+      }
+    },
+    {
+      "Id": "2d2d0c0000000010",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
+          "Value": "Left Wall"
+        },
+        "Crucible.Scenes.Transform2D": {
+          "Position": [
+            -12,
+            2
+          ],
+          "Angle": 0,
+          "Scale": [
+            1,
+            1
+          ],
+          "Depth": 0
+        },
+        "Crucible.Physics2D.Collider2D": {
+          "Shape": "Box",
+          "Size": [
+            1,
+            4
+          ],
+          "Offset": [
+            0,
+            0
+          ],
+          "Friction": 0.5,
+          "Restitution": 0,
+          "IsTrigger": false,
+          "Points": [
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ],
+          "PointCount": 0
+        }
+      }
+    }
+  ]
+}

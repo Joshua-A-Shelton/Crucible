@@ -144,7 +144,7 @@ public sealed class InspectorPanel : EditorPanel
         return
         [
             .. SavedComponents.All().Where(saved => world.Has(entity, saved.Id))
-                .OrderBy(saved => saved.Type != typeof(LocalTransform))
+                .OrderBy(saved => saved.Type != typeof(LocalTransform) && saved.Type != typeof(Transform2D))
                 .ThenBy(saved => saved.Name, StringComparer.Ordinal)
                 .Select(saved => saved.Name),
         ];
@@ -708,7 +708,7 @@ public sealed class FieldEditor : UIElement
                 _items[i].Update(item?[_items[i].Field.Name], overridden);
             }
         }
-        else if (Field.Kind is FieldKind.List or FieldKind.Array)
+        else if (Field.Kind is FieldKind.List or FieldKind.Array or FieldKind.FixedArray)
         {
             JsonArray? list = value as JsonArray;
             if ((list?.Count ?? 0) != _itemCount)
@@ -1004,6 +1004,14 @@ public sealed class FieldEditor : UIElement
                     Add(add);
                     Add(count);
                     _show = value => count.Text = $"{(value as JsonArray)?.Count ?? 0} items";
+                    break;
+                }
+            case FieldKind.FixedArray:
+                {
+                    // Its items, always all of them: nothing to add or remove.
+                    Label count = new($"{Field.FixedLength} items") { VerticalAlignment = VerticalAlignment.Center };
+                    count.Classes.Add("placeholder");
+                    Add(count);
                     break;
                 }
             case FieldKind.Dictionary:
@@ -1410,6 +1418,8 @@ public sealed class FieldEditor : UIElement
         FieldKind.Quaternion => Floats([0, 0, 0, 1]),
         FieldKind.Matrix4x4 => Floats([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
         FieldKind.Array or FieldKind.List => new JsonArray(),
+        FieldKind.FixedArray when depth < 8 => new JsonArray(
+            [.. Enumerable.Range(0, field.FixedLength).Select(_ => DefaultJson(field.Element!, depth + 1))]),
         FieldKind.Dictionary => new JsonObject(),
         FieldKind.Serialized when depth < 8 => new JsonObject(
             field.Fields.Select(inner => KeyValuePair.Create(inner.Name, DefaultJson(inner, depth + 1)))),

@@ -76,6 +76,7 @@ file(GENERATE OUTPUT "${CRUCIBLE_NATIVE_PROPS}" CONTENT "<Project>
     <NativeLibrary Include=\"$<TARGET_LINKER_FILE:libzstd_static>\" />
     <NativeLibrary Include=\"$<TARGET_LINKER_FILE:crucible_stb_vorbis>\" />
     <NativeLibrary Include=\"$<TARGET_LINKER_FILE:box3d>\" />
+    <NativeLibrary Include=\"$<TARGET_LINKER_FILE:box2d>\" />
     <NativeLibrary Include=\"$<TARGET_LINKER_FILE:crucible_harfbuzz>\" />
     <NativeLibrary Include=\"$<TARGET_LINKER_FILE:crucible_msdfgen>\" />
     <NativeLibrary Include=\"$<TARGET_LINKER_FILE:freetype>\" />

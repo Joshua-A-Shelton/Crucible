@@ -17,6 +17,9 @@ add_executable(crucible_native_tests
     ContactEventTests.cpp
     ConvexColliderTests.cpp
     MeshColliderTests.cpp
+    Physics2DBodyTests.cpp
+    Physics2DContactTests.cpp
+    Physics2DQueryTests.cpp
     PhysicsBodyTests.cpp
     CharacterMoveTests.cpp
     DistanceJointTests.cpp
@@ -41,6 +44,7 @@ add_executable(crucible_native_tests
     MaterialTests.cpp
     MathTests.cpp
     MemoryTests.cpp
+    Transform2DTests.cpp
     PhysicsContractTests.cpp
     PlatformTests.cpp
     RenderAssetReloadTests.cpp

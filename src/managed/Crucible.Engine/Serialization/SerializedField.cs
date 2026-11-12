@@ -29,6 +29,9 @@ public enum FieldKind
     List,
     Dictionary,
     Serialized,
+
+    /// <summary>An inline array of a set length (a C++ array's mirror, ADR 0093): saved as a JSON array, never resized.</summary>
+    FixedArray,
 }
 
 /// <summary>
@@ -47,7 +50,7 @@ public sealed class SerializedField
         Func<IReadOnlyList<SerializedField>>? fields = null, float min = float.NaN, float max = float.NaN,
         string? tooltip = null, string? header = null, bool isColor = false, bool isLayers = false,
         string? label = null, string[]? assetKinds = null, bool needsSkeleton = false,
-        string[]? entityComponents = null, string? meshOf = null)
+        string[]? entityComponents = null, string? meshOf = null, int fixedLength = 0)
     {
         Name = name;
         Kind = kind;
@@ -66,6 +69,7 @@ public sealed class SerializedField
         NeedsSkeleton = needsSkeleton;
         EntityComponents = entityComponents ?? [];
         MeshOf = meshOf;
+        FixedLength = fixedLength;
     }
 
     /// <summary>The member's name and JSON key; empty for a list's or dictionary's items.</summary>
@@ -115,4 +119,7 @@ public sealed class SerializedField
 
     /// <summary>From <see cref="MeshOfAttribute"/>: the field holding the model this mesh index is of.</summary>
     public string? MeshOf { get; }
+
+    /// <summary>A <see cref="FieldKind.FixedArray"/>'s length; 0 for other kinds.</summary>
+    public int FixedLength { get; }
 }

@@ -45,6 +45,9 @@ is, and record which version fixed it.
   release: before each release, look for a newer release (or a commit at
   least two weeks old), check its changes, and move the pin with its
   SHA-256 (cmake/CrucibleDependencies.cmake). → 0085
+- **Box2D is pinned at v3.2.0** (2026-10-18): before each release, look for
+  a newer release, check its changes, and move the pin with its SHA-256
+  (cmake/CrucibleDependencies.cmake). → 0093
 
 ## Needs a decision from the project owner
 

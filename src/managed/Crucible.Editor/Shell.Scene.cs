@@ -14,6 +14,7 @@ namespace Crucible.Editor;
 internal sealed partial class Shell
 {
     private static readonly string _transformName = Components.NameOf(typeof(LocalTransform));
+    private static readonly string _transform2DName = Components.NameOf(typeof(Transform2D));
     private static readonly string _nameName = Components.NameOf(typeof(EntityName));
 
     private bool _savingAs;      // the save dialog is open

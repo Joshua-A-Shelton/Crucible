@@ -410,12 +410,15 @@ internal sealed partial class Shell
         {
             // Every collider's outline (ADR 0085), from its components.
             Crucible.Physics.Collider.DrawColliders(world, _colliderColor);
+            Crucible.Physics2D.Collider2D.DrawColliders(world, _colliderColor);
         }
         // The frame's queries (ADR 0090), kept by the core only while shown.
         Crucible.Physics.Api.RecordQueries(ShowsQueries);
+        Crucible.Physics2D.Api.RecordQueries2D(ShowsQueries);
         if (ShowsQueries)
         {
             Crucible.Physics.Api.DrawQueries(_queryMissColor, _queryHitColor);
+            Crucible.Physics2D.Api.DrawQueries2D(_queryMissColor, _queryHitColor);
         }
         foreach (EditorPanel panel in _open.Values)
         {
@@ -485,7 +488,8 @@ internal sealed partial class Shell
     internal Matrix4x4? SelectedTransform()
     {
         if (!_context.HasWorld || Selection.Selected.Value == 0 || !_context.World.IsAlive(Selection.Selected) ||
-            !_context.World.Has(Selection.Selected, Components.Of<LocalTransform>()))
+            (!_context.World.Has(Selection.Selected, Components.Of<LocalTransform>()) &&
+             !_context.World.Has(Selection.Selected, Components.Of<Transform2D>())))
         {
             return null;
         }
@@ -508,6 +512,21 @@ internal sealed partial class Shell
             local = worldMatrix * inverse;
         }
         Matrix4x4.Decompose(local, out Vector3 scale, out Quaternion rotation, out Vector3 position);
+        if (!world.Has(entity, Components.Of<LocalTransform>()))
+        {
+            // A 2D entity (ADR 0093): the handles' result in its XY plane, Z
+            // as its depth and the turn about Z as its angle.
+            JsonNode? flatBefore = SceneIds.Read(world, entity, _transform2DName);
+            world.Set(entity, new Transform2D
+            {
+                Position = new Vector2(position.X, position.Y),
+                Angle = MathF.Atan2(local.M12, local.M11),
+                Scale = new Vector2(scale.X, scale.Y),
+                Depth = position.Z,
+            });
+            RecordComponent(entity, _transform2DName, flatBefore, "Move");
+            return;
+        }
         JsonNode? before = SceneIds.Read(world, entity, _transformName);
         world.Set(entity, new LocalTransform { Position = position, Rotation = rotation, Scale = scale });
         RecordComponent(entity, _transformName, before, "Move");

@@ -28,7 +28,7 @@ enum class CRUCIBLE_EXPOSE MemoryTag : uint8_t
     Text,      // fonts, layouts, and the glyph cache, FreeType's and HarfBuzz's included (ADR 0057)
     Animation, // skeletons, clips, and poses (ADR 0079)
     Audio,     // sounds and the mixer (ADR 0082)
-    Physics,   // Box3D's worlds and bodies (ADR 0085)
+    Physics,   // Box3D's and Box2D's worlds and bodies (ADR 0085, 0093)
     Count,
 };
 

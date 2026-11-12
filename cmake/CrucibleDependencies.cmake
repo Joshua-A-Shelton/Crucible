@@ -114,6 +114,26 @@ else()
 endif()
 
 # ---------------------------------------------------------------------------
+# Box2D (MIT; by Erin Catto): 2D physics behind Crucible's 2D physics
+# contract (ADR 0027, 0093), in the shipped core. Pinned at the v3.2.0
+# release (2026-10-18), rechecked before every release. Single precision;
+# its samples, tests, and validation are top-level only, so they stay off.
+# ---------------------------------------------------------------------------
+
+set(BOX2D_DOUBLE_PRECISION OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(box2d
+    URL https://github.com/erincatto/box2d/archive/refs/tags/v3.2.0.tar.gz
+    URL_HASH SHA256=ffec747b27a2267016f8d0240d658c82d187fb2271fa0f69fcbe53fbc067180d)
+FetchContent_MakeAvailable(box2d)
+# Linked into the shared core, so position-independent; its warnings are its own.
+set_target_properties(box2d PROPERTIES POSITION_INDEPENDENT_CODE ON)
+if(MSVC)
+    target_compile_options(box2d PRIVATE /W0)
+else()
+    target_compile_options(box2d PRIVATE -w)
+endif()
+
+# ---------------------------------------------------------------------------
 # Editor-only importers (ADR 0022, 0042), built into crucible_importers and
 # never shipped. Neither project tags releases, so both are pinned by commit.
 #   stb_image (MIT or public domain): decodes PNG, JPEG, TGA, and Radiance HDR.

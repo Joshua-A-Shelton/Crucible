@@ -70,7 +70,7 @@ internal sealed record Scope(IReadOnlyList<string> Namespaces)
     /// <summary>The C++ prefix, "crucible::platform::".</summary>
     public string Cpp => string.Concat(Namespaces.Select(name => $"{name}::"));
 
-    public string CSharp => string.Join('.', Namespaces.Select(Names.Pascal));
+    public string CSharp => string.Join('.', Namespaces.Select(Names.Namespace));
 
     /// <summary>The namespaces below the root (crucible, or a module's), joined for C and raw C# names.</summary>
     public IEnumerable<string> Inner => Namespaces.Skip(1);
@@ -191,6 +191,24 @@ internal sealed class BindingModel
 internal static class Names
 {
     public static string Pascal(string name) => name.Length == 0 ? name : char.ToUpperInvariant(name[0]) + name[1..];
+
+    /// <summary>
+    /// A namespace's C# name: Pascal, and a letter after a digit capitalized
+    /// too, so crucible::physics2d is Crucible.Physics2D (ADR 0093).
+    /// </summary>
+    public static string Namespace(string name)
+    {
+        string pascal = Pascal(name);
+        char[] letters = pascal.ToCharArray();
+        for (int i = 1; i < letters.Length; ++i)
+        {
+            if (char.IsDigit(letters[i - 1]) && char.IsLetter(letters[i]))
+            {
+                letters[i] = char.ToUpperInvariant(letters[i]);
+            }
+        }
+        return new string(letters);
+    }
 }
 
 /// <summary>C ABI and C# spellings of each primitive.</summary>
