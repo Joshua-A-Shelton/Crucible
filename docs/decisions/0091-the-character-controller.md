@@ -1,7 +1,9 @@
 # 0091 — The character controller
 
-**Status:** Accepted (2026-11-11); M9 step 4 built. Names settled by the
-owner as drafted (docs/naming.md); names added while building are marked *.
+**Status:** Accepted (2026-11-11); M9 step 4 built, amended (Step
+Smoothing), then tried by hand by the owner in the Walker's Characters
+scene. Names, including those added while building, settled by the owner
+as drafted (docs/naming.md).
 
 ## Context
 

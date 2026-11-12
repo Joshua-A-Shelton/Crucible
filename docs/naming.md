@@ -976,7 +976,8 @@ by default), `launchCharacter(world, character, upwardSpeed)` (C#
 ADR 0091 "The character controller", `docs/learning/character-controllers.md`;
 `CharacterMoveTests`, `CharacterStepTests`, `CharacterGravityTests`,
 `CharacterTests`; the Walker's Characters.crscene. Names added while
-building are placeholders (*):
+building (marked *) settled as drafted too, after the owner tried step 4 by
+hand:
 
 | Name | What it is |
 |---|---|
@@ -987,5 +988,5 @@ building are placeholders (*):
 
 `CharacterController.stepSmoothing` ("Step Smoothing", seconds; 0.1 by
 default in C#) was added after the owner's try, as drafted; Box3dPhysics.cpp's
-`settle`* eases the feet up.
+`settle`* eases the feet up (settled as drafted).
 

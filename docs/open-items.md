@@ -67,8 +67,10 @@ is, and record which version fixed it.
   weighted clips, and lifting the importer's refusal.
 - Easing characters down steps too (M9 step 4, ADR 0091's amendment):
   Step Smoothing eases them up onto a step; going down, the ground cast
-  still puts the feet on the lower step at once. The owner asked to revisit
-  easing both ways (the feet would float briefly above each lower step).
+  still puts the feet on the lower step at once, which the owner found
+  jerky, as expected. The owner expects to include easing down too, and
+  asked to revisit it later (the feet would float briefly above each lower
+  step).
 
 ## Small editor fixes noticed in M7 (ADR 0077)
 
