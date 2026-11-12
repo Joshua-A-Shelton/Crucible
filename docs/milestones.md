@@ -603,7 +603,14 @@ decision made at its start):
    ball-and-socket and swing-twist reported as unsupported (the contract
    keeps them; recorded for the Jolt checkpoint).
 6. Box2D v3: 2D bodies, colliders, and queries behind a 2D contract of the
-   same shape, on the job system.
+   same shape, on the job system. Widened and split by the owner
+   (2026-11-11; Box2D v3.2.0, MIT, approved): 2D entities have their own
+   Transform2D (position, angle, scale, depth), and 2D gets everything 3D
+   has, plus chains:
+   - 6a: Transform2D, Box2D in the core, RigidBody2D and Collider2D (box,
+     circle, capsule, polygon), queries, contacts, editor drawing.
+   - 6b: Joint2D and CharacterController2D on Box2D's joints and mover.
+   - 6c: chain colliders from a JSON asset (.crchain).
 7. Swept hitboxes: a hitbox shape on a joint, active during an animation
    window (ADR 0081), swept each frame by shape cast; hits reported with
    exact times, interpolated between frame timestamps.
