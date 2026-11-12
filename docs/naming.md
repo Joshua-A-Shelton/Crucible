@@ -951,7 +951,8 @@ each call's layers parameter, `defaultQueryFilter()`; C# `Physics.Raycast`,
 View > Queries (`View.Queries`, `Shell.ShowsQueries`); ADR 0090 "Physics
 queries", `docs/learning/physics-queries.md`; `RaycastTests`,
 `ShapeCastTests`, `OverlapTests`, `QueryFilterTests`, `PhysicsQueryTests`.
-Names added while building are placeholders (*):
+Names added while building (marked *) settled as drafted too, after the
+owner tried step 3 by hand:
 
 | Name | What it is |
 |---|---|
@@ -959,7 +960,8 @@ Names added while building are placeholders (*):
 | Box3dPhysics.cpp's `QueryRecord`*, `queryFilter`*, `admits`*, `Proxy`*, `makeProxy`*, `Closest`* (`hitsAtStart`*), `keepClosest`*, `Overlaps`*, `gather`* | The queries on Box3D |
 | The editor's "Queries" menu item; `_queryMissColor`*, `_queryHitColor`* | Text users see, and the view's colors |
 
-The Walker's query scene, added for the owner's try (placeholders, *):
+The Walker's query scene, added for the owner's try (marked *, settled as
+drafted too):
 
 | Name | What it is |
 |---|---|
