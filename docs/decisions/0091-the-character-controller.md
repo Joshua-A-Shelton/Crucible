@@ -88,3 +88,16 @@ Unreal, and Box3D:
   by root motion over three steps, off a ledge, up a 20 degree ramp and off
   its end, nudging a ball on the way, to a wall; a second Walker dropped on
   a 60 degree slope slides off it and walks to a wall of its own.
+
+## Amendment (2026-11-11): Step Smoothing
+
+Tried by hand, going up stairs was jerky: the ground cast put the feet on
+each step's top within one move. Decided by the owner: a new
+`CharacterController.stepSmoothing` (seconds; 0.1 in C#, 0 snaps) eases
+the feet up onto higher ground, an exponential approach nine-tenths of the
+way in that time, the same at any frame rate. The capsule rides a step
+height above the feet, so feet still below a step's top don't catch on it.
+Down steps, and landing from a fall, aren't eased; easing both ways is in
+open-items to revisit. Tested by `CharacterStepTests`' "Step Smoothing
+eases a character up onto a step"; the Characters scene's Walkers use 0.1.
+

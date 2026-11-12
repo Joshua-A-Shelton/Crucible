@@ -985,3 +985,7 @@ building are placeholders (*):
 | tests/native/PhysicsTestSupport.h's `character`*, `walk`* | Test support |
 | Characters.crscene's entities: "Step 1"* to "Step 3"*, "Ramp"*, "Steep Slope"*, "Ball"*, "End Wall"*, "Side Wall"*, "Second Walker"* | The scene |
 
+`CharacterController.stepSmoothing` ("Step Smoothing", seconds; 0.1 by
+default in C#) was added after the owner's try, as drafted; Box3dPhysics.cpp's
+`settle`* eases the feet up.
+

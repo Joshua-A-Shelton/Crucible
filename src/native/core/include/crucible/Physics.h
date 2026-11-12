@@ -132,6 +132,8 @@ struct CRUCIBLE_EXPOSE CharacterController
     CRUCIBLE_HINT_LAYERS uint32_t mask;               // the layers it collides with
     // Of the world's gravity; 0 leaves moving up and down to the game.
     CRUCIBLE_HINT_RANGE(0, 4) float gravityScale;
+    // Seconds to rise onto a step (nine-tenths of the way); 0 snaps up at once.
+    CRUCIBLE_HINT_RANGE(0, 0.5) float stepSmoothing;
 };
 
 // A shape for casts and overlaps: Box, Sphere, or Capsule, sized as a Collider.

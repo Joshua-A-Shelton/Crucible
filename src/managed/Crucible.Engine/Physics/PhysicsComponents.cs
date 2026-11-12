@@ -87,5 +87,6 @@ public partial struct CharacterController
         Layers = 1;
         Mask = uint.MaxValue;
         GravityScale = 1;
+        StepSmoothing = 0.1f;
     }
 }

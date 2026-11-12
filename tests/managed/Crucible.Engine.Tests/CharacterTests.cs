@@ -15,10 +15,11 @@ public class CharacterTests
     public static void Register() => EngineComponents.Register();
 
     [Test]
-    public async Task ACharacterFallsWithTheWorldsGravityByDefault()
+    public async Task ACharacterFallsWithTheWorldsGravityAndEasesUpStepsByDefault()
     {
         await Assert.That(new CharacterController().GravityScale).IsEqualTo(1f);
         await Assert.That(Crucible.Serialization.Json.Deserialize<CharacterController>("{}").GravityScale).IsEqualTo(1f);
+        await Assert.That(new CharacterController().StepSmoothing).IsEqualTo(0.1f);
     }
 
     [Test]

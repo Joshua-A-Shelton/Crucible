@@ -465,7 +465,8 @@
               "SlopeLimit": 0.785,
               "Layers": 1,
               "Mask": 4294967295,
-              "GravityScale": 1
+              "GravityScale": 1,
+              "StepSmoothing": 0.1
             }
           }
         }
@@ -512,7 +513,8 @@
               "SlopeLimit": 0.785,
               "Layers": 1,
               "Mask": 4294967295,
-              "GravityScale": 1
+              "GravityScale": 1,
+              "StepSmoothing": 0.1
             }
           }
         }

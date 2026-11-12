@@ -35,6 +35,38 @@ TEST_CASE("A character climbs a step lower than its step height")
     CHECK(moved.grounded);
 }
 
+TEST_CASE("Step Smoothing eases a character up onto a step")
+{
+    Scene scene;
+    ground(scene);
+    scene.add(box({4, 0.2f, 4}), {3, 0.1f, 0}); // a 0.2 m step from x = 1
+    const ecs::Entity walker = character(scene, {0.7f, 0, 0});
+    ecs::get<CharacterController>(*scene.world, walker)->stepSmoothing = 0.1f;
+    scene.step();
+    walk(scene, walker, {}, 2);
+    // Onto the step: the feet start rising, but aren't there yet...
+    float first = 0;
+    for (int i = 0; i < 20 && first == 0; ++i)
+    {
+        first = walk(scene, walker, {0.05f, 0, 0}, 1).position.y;
+    }
+    CHECK(first > 0.01f);
+    CHECK(first < 0.12f);
+    // ...walking on, it closes on the step's top over about 0.1 s, never
+    // snapping, and is there soon after.
+    float previous = first, biggest = 0;
+    CharacterMove later{};
+    for (int i = 0; i < 12; ++i)
+    {
+        later = walk(scene, walker, {0.05f, 0, 0}, 1);
+        biggest = std::max(biggest, later.position.y - previous);
+        previous = later.position.y;
+    }
+    CHECK(later.grounded);
+    CHECK(later.position.y == doctest::Approx(0.2f).epsilon(0.02));
+    CHECK(biggest < 0.1f);
+}
+
 TEST_CASE("A step higher than its step height blocks it")
 {
     Scene scene;

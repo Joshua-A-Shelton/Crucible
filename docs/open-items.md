@@ -65,6 +65,10 @@ is, and record which version fixed it.
   blend parameters and two-number positions; what's left is a weighting
   function (a triangulation or gradient bands) returning up to three
   weighted clips, and lifting the importer's refusal.
+- Easing characters down steps too (M9 step 4, ADR 0091's amendment):
+  Step Smoothing eases them up onto a step; going down, the ground cast
+  still puts the feet on the lower step at once. The owner asked to revisit
+  easing both ways (the feet would float briefly above each lower step).
 
 ## Small editor fixes noticed in M7 (ADR 0077)
 

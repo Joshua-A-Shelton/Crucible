@@ -1486,6 +1486,21 @@ bool gatherPlanes(b3ShapeId shape, const b3PlaneResult* results, int count, void
     return true;
 }
 
+// The feet's height on ground found at `ground`: down at once (the cast
+// keeps them on it), and up onto a step eased over the step smoothing, so a
+// character rises rather than snaps (an exponential approach, nine-tenths
+// of the way in that time, the same at any frame rate). Landing from a
+// fall isn't eased.
+float settle(float feet, float ground, const CharacterController& controller, bool wasGrounded, float seconds)
+{
+    if (ground <= feet || !wasGrounded || controller.stepSmoothing <= 0 || seconds <= 0)
+    {
+        return ground;
+    }
+    const float closed = 1 - std::exp(-seconds * 2.302585f / controller.stepSmoothing);
+    return feet + (ground - feet) * closed;
+}
+
 Character* characterOf(PhysicsWorld& physics, ecs::Entity entity)
 {
     Character* character = physics.characters.find(entity.value);
@@ -1605,7 +1620,7 @@ CharacterMove moveCharacter(ecs::World& world, ecs::Entity entity, Vector3 displ
                           &closest);
         if (closest.hit.hit && closest.hit.normal.y >= mover.walkable)
         {
-            at.y = from.y - closest.hit.distance - radius;
+            at.y = settle(at.y, from.y - closest.hit.distance - radius, *controller, wasGrounded, time);
             character.grounded = true;
             character.groundNormal = closest.hit.normal;
             character.fallSpeed = 0;
@@ -1620,7 +1635,7 @@ CharacterMove moveCharacter(ecs::World& world, ecs::Entity entity, Vector3 displ
                             &below);
             if (below.hit.hit && below.hit.normal.y >= mover.walkable && below.hit.distance <= ride + reach)
             {
-                at.y = middle.y - below.hit.distance;
+                at.y = settle(at.y, middle.y - below.hit.distance, *controller, wasGrounded, time);
                 character.grounded = true;
                 character.groundNormal = below.hit.normal;
                 character.fallSpeed = 0;
