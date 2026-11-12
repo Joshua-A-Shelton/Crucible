@@ -1,6 +1,6 @@
 // The physics contract's engine side (ADR 0075): the installed service and
-// its default, Box3D (ADR 0085, Box3dPhysics.cpp; its queries ADR 0090),
-// whose character moves answer as the null physics did until they're built.
+// its default, Box3D (ADR 0085, Box3dPhysics.cpp; its queries ADR 0090, its
+// characters ADR 0091).
 
 #include "Box3dPhysics.h"
 
@@ -12,19 +12,8 @@ namespace crucible::physics {
 
 namespace {
 
-// Straight through everything, never on the ground (until M9 step 4).
-CharacterMove moveFreely(ecs::World& world, ecs::Entity character, Vector3 displacement, float)
-{
-    scenes::LocalTransform* transform = ecs::get<scenes::LocalTransform>(world, character);
-    if (transform == nullptr)
-    {
-        return {};
-    }
-    transform->position = transform->position + displacement;
-    return {transform->position, false, {0, 1, 0}};
-}
-
-constexpr PhysicsService defaultPhysics{box3d::raycast, box3d::shapeCast, box3d::overlap, box3d::contacts, moveFreely};
+constexpr PhysicsService defaultPhysics{box3d::raycast,  box3d::shapeCast,     box3d::overlap,
+                                        box3d::contacts, box3d::moveCharacter, box3d::launchCharacter};
 
 PhysicsService installed = defaultPhysics;
 
@@ -70,6 +59,14 @@ uint32_t contacts(ecs::World& world, std::span<ContactEvent> into)
 CharacterMove moveCharacter(ecs::World& world, ecs::Entity character, Vector3 displacement, float seconds)
 {
     return installed.moveCharacter(world, character, displacement, seconds);
+}
+
+void launchCharacter(ecs::World& world, ecs::Entity character, float upwardSpeed)
+{
+    if (installed.launchCharacter != nullptr)
+    {
+        installed.launchCharacter(world, character, upwardSpeed);
+    }
 }
 
 void registerPhysics()

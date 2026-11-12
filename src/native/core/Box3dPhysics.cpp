@@ -38,6 +38,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 
 namespace crucible::physics {
 
@@ -570,11 +571,26 @@ struct Task
     jobs::JobCounter counter;
 };
 
+// A character (ADR 0091): what moveCharacter keeps between moves, and the
+// kinematic capsule bodies meet it as, following it from tick to tick.
+struct Character
+{
+    b3BodyId body = b3_nullBodyId;
+    b3ShapeId shape = b3_nullShapeId;
+    CharacterController controller{}; // what the capsule was made from
+    Vector3 position{};               // where the body was last sent
+    float fallSpeed = 0;
+    bool grounded = false;
+    Vector3 groundNormal{0, 1, 0};
+    uint32_t seen = 0;
+};
+
 struct PhysicsWorld
 {
     const ecs::World* world = nullptr;
     b3WorldId id = b3_nullWorldId;
     HashMap<uint64_t, Body> bodies{tag};
+    HashMap<uint64_t, Character> characters{tag};
     Vector<ContactEvent> events{tag};
     uint64_t eventsFrame = UINT64_MAX;
     uint32_t mark = 0;
@@ -638,7 +654,7 @@ PhysicsWorld& worldOf(const ecs::World& world)
     PhysicsWorld* made = create<PhysicsWorld>(tag);
     made->world = &world;
     b3WorldDef def = b3DefaultWorldDef();
-    def.gravity = {0, -9.81f, 0};
+    def.gravity = {gravity.x, gravity.y, gravity.z};
     def.workerCount = std::max(jobs::workerCount(), 1u);
     def.enqueueTask = enqueueTask;
     def.finishTask = finishTask;
@@ -916,6 +932,74 @@ void syncBody(ecs::World& world, PhysicsWorld& physics, ecs::Entity entity, floa
     }
 }
 
+// A character's capsule from its feet: the bottom cap's center a step
+// height and a radius up (it rides above the ground, ADR 0091), the top's
+// its height above that; or, for its body, reaching down to the feet.
+b3Capsule characterCapsule(const CharacterController& controller, bool toFeet)
+{
+    const float radius = std::max(controller.radius, 0.01f);
+    const float bottom = radius + (toFeet ? 0.0f : std::max(controller.stepHeight, 0.0f));
+    const float top = radius + std::max(controller.stepHeight, 0.0f) + std::max(controller.height, 0.0f);
+    return {{0, bottom, 0}, {0, std::max(top, bottom), 0}, radius};
+}
+
+bool sameController(const CharacterController& a, const CharacterController& b)
+{
+    return a.radius == b.radius && a.height == b.height && a.stepHeight == b.stepHeight && a.layers == b.layers &&
+           a.mask == b.mask;
+}
+
+// The kinematic capsule a character's body is: made, reshaped, and sent to
+// where the character is over the tick, pushing what's in the way.
+void syncCharacter(ecs::World& world, PhysicsWorld& physics, ecs::Entity entity, float step)
+{
+    const CharacterController& controller = *ecs::read<CharacterController>(world, entity);
+    const Vector3 at = ecs::read<scenes::LocalTransform>(world, entity)->position;
+    Character* character = physics.characters.find(entity.value);
+    if (character == nullptr)
+    {
+        physics.characters.insertOrAssign(entity.value, Character{});
+        character = physics.characters.find(entity.value);
+    }
+    character->seen = physics.mark;
+    if (B3_IS_NULL(character->body))
+    {
+        b3BodyDef def = b3DefaultBodyDef();
+        def.type = b3_kinematicBody;
+        def.position = toB3(at);
+        def.userData = entityData(entity);
+        character->body = b3CreateBody(physics.id, &def);
+        character->position = at;
+    }
+    if (B3_IS_NULL(character->shape) || !sameController(controller, character->controller))
+    {
+        if (!B3_IS_NULL(character->shape))
+        {
+            b3DestroyShape(character->shape, false);
+        }
+        b3ShapeDef def = b3DefaultShapeDef();
+        def.userData = entityData(entity);
+        def.filter = {uint64_t{controller.layers} | (uint64_t{controller.mask} << 32), UINT64_MAX, 0};
+        def.enableCustomFiltering = true;
+        def.enableContactEvents = true;
+        def.enableSensorEvents = true;
+        def.updateBodyMass = false;
+        const b3Capsule capsule = characterCapsule(controller, true);
+        character->shape = b3CreateCapsuleShape(character->body, &def, &capsule);
+        b3Body_ApplyMassFromShapes(character->body);
+        character->controller = controller;
+    }
+    if (!same(at, character->position))
+    {
+        b3Body_SetTargetTransform(character->body, {toB3(at), {{0, 0, 0}, 1}}, step, true);
+        character->position = at;
+    }
+    else
+    {
+        b3Body_SetLinearVelocity(character->body, {0, 0, 0});
+    }
+}
+
 float stepOf(const loop::SystemContext& context)
 {
     return context.fixedStepSeconds > 0 ? static_cast<float>(context.fixedStepSeconds) : 1.0f / 60;
@@ -974,6 +1058,45 @@ void sync(const loop::SystemContext& context, void*)
             b3DestroyBody(body->body);
         }
         physics.bodies.erase(key);
+    }
+
+    // Characters (ADR 0091), and those whose entity or controller is gone.
+    Vector<ecs::Entity> characters(tag);
+    const ecs::ComponentId controlled[] = {ecs::componentIdOf<CharacterController>,
+                                           ecs::componentIdOf<scenes::LocalTransform>};
+    ecs::Query* moving = ecs::createQuery(world, {.required = controlled});
+    ecs::forEachChunk(
+        *moving,
+        [](const ecs::ChunkView& view, void* data) {
+            const ecs::Entity* chunk = ecs::entitiesOf(view);
+            const size_t count = ecs::readColumn<CharacterController>(view).size();
+            for (size_t i = 0; i < count; ++i)
+            {
+                static_cast<Vector<ecs::Entity>*>(data)->pushBack(chunk[i]);
+            }
+        },
+        &characters);
+    ecs::destroyQuery(moving);
+    for (const ecs::Entity entity : characters)
+    {
+        syncCharacter(world, physics, entity, step);
+    }
+    gone.clear();
+    for (const auto& entry : physics.characters)
+    {
+        if (entry.value.seen != physics.mark)
+        {
+            gone.pushBack(entry.key);
+        }
+    }
+    for (const uint64_t key : gone)
+    {
+        Character* character = physics.characters.find(key);
+        if (!B3_IS_NULL(character->body))
+        {
+            b3DestroyBody(character->body);
+        }
+        physics.characters.erase(key);
     }
 }
 
@@ -1308,6 +1431,220 @@ uint32_t overlap(ecs::World& world, QueryShape shape, Vector3 at, Quaternion rot
     return count;
 }
 
+// --- Characters (ADR 0091) --------------------------------------------------
+//
+// Box3D's mover: the capsule (riding a step height above the feet) gathers
+// the planes it touches, solves the move against them, and casts what's
+// left, a few times over; then a short sphere cast down puts the feet on
+// walkable ground. Its own kinematic capsule and triggers are left out.
+
+constexpr int maxCharacterPlanes = 16;
+constexpr int moveIterations = 5;
+constexpr float groundSkin = 0.02f; // how far below the feet still counts as standing
+
+struct Mover
+{
+    ecs::Entity self;
+    float walkable; // the cosine of the slope limit
+    int count = 0;
+    b3CollisionPlane planes[maxCharacterPlanes];
+    b3ShapeId shapes[maxCharacterPlanes];
+    Vector3 points[maxCharacterPlanes]; // relative to the origin
+};
+
+bool moverAccepts(b3ShapeId shape, void* context)
+{
+    const Mover& mover = *static_cast<const Mover*>(context);
+    return !b3Shape_IsSensor(shape) && entityOf(shape).value != mover.self.value;
+}
+
+bool gatherPlanes(b3ShapeId shape, const b3PlaneResult* results, int count, void* context)
+{
+    Mover& mover = *static_cast<Mover*>(context);
+    if (!moverAccepts(shape, context))
+    {
+        return true;
+    }
+    for (int i = 0; i < count && mover.count < maxCharacterPlanes; ++i)
+    {
+        b3Plane plane = results[i].plane;
+        // Too steep to walk up: a wall, pushing only sideways, so the solver
+        // doesn't slide the character up it.
+        if (plane.normal.y > 0 && plane.normal.y < mover.walkable)
+        {
+            const float side = std::sqrt(plane.normal.x * plane.normal.x + plane.normal.z * plane.normal.z);
+            if (side > 1e-4f)
+            {
+                plane.normal = {plane.normal.x / side, 0, plane.normal.z / side};
+            }
+        }
+        mover.planes[mover.count] = {plane, std::numeric_limits<float>::max(), 0, true}; // rigid
+        mover.shapes[mover.count] = shape;
+        mover.points[mover.count] = fromB3(results[i].point);
+        ++mover.count;
+    }
+    return true;
+}
+
+Character* characterOf(PhysicsWorld& physics, ecs::Entity entity)
+{
+    Character* character = physics.characters.find(entity.value);
+    if (character == nullptr)
+    {
+        physics.characters.insertOrAssign(entity.value, Character{});
+        character = physics.characters.find(entity.value);
+    }
+    return character;
+}
+
+// Dynamic bodies the character walked into are pushed (as Box3D's sample
+// does): an impulse along each plane to stop closing on it.
+void pushBodies(const Mover& mover, Vector3 origin, Vector3 velocity)
+{
+    for (int i = 0; i < mover.count; ++i)
+    {
+        const b3BodyId body = b3Shape_GetBody(mover.shapes[i]);
+        if (b3Body_GetType(body) != b3_dynamicBody)
+        {
+            continue;
+        }
+        const b3Vec3 point = toB3(origin + mover.points[i]);
+        const b3Vec3 normal = toB3(-fromB3(mover.planes[i].plane.normal));
+        const b3Vec3 arm = toB3(fromB3(point) - fromB3(b3Body_GetWorldCenter(body)));
+        const b3Vec3 armNormal = b3Cross(arm, normal);
+        const b3Matrix3 inverseInertia = b3Body_GetWorldInverseRotationalInertia(body);
+        const float k = b3Body_GetInverseMass(body) + b3Dot(armNormal, b3MulMV(inverseInertia, armNormal));
+        if (k <= 0)
+        {
+            continue;
+        }
+        const b3Vec3 bodyVelocity =
+            b3Add(b3Body_GetLinearVelocity(body), b3Cross(b3Body_GetAngularVelocity(body), arm));
+        const float closing = b3Dot(b3Sub(bodyVelocity, toB3(velocity)), normal);
+        const float impulse = std::max(-closing / k, 0.0f);
+        if (impulse > 0)
+        {
+            b3Body_ApplyLinearImpulse(body, b3MulSV(impulse, normal), point, true);
+        }
+    }
+}
+
+CharacterMove moveCharacter(ecs::World& world, ecs::Entity entity, Vector3 displacement, float seconds)
+{
+    scenes::LocalTransform* transform = ecs::get<scenes::LocalTransform>(world, entity);
+    if (transform == nullptr)
+    {
+        return {};
+    }
+    const CharacterController* controller = ecs::read<CharacterController>(world, entity);
+    PhysicsWorld* physics = find(world);
+    if (controller == nullptr || physics == nullptr)
+    {
+        // No character, or nothing to collide with yet: it just moves.
+        transform->position = transform->position + displacement;
+        return {transform->position, false, {0, 1, 0}, 0};
+    }
+    Character& character = *characterOf(*physics, entity);
+    const float time = std::max(seconds, 0.0f);
+    // Falling: off the ground, or going up; on it, the fall's over.
+    if (!character.grounded || character.fallSpeed > 0)
+    {
+        character.fallSpeed += gravity.y * controller->gravityScale * time;
+    }
+    else
+    {
+        character.fallSpeed = 0;
+    }
+    const float limit = std::clamp(controller->slopeLimit, 0.0f, 1.5707963f);
+    Mover mover{entity, std::cos(limit)};
+    const b3Capsule capsule = characterCapsule(*controller, false);
+    b3QueryFilter filter = b3DefaultQueryFilter();
+    filter.categoryBits = UINT64_MAX;
+    filter.maskBits = controller->mask;
+
+    const Vector3 start = transform->position;
+    const Vector3 target = start + displacement + Vector3{0, character.fallSpeed * time, 0};
+    Vector3 at = start;
+    for (int iteration = 0; iteration < moveIterations; ++iteration)
+    {
+        mover.count = 0;
+        b3World_CollideMover(physics->id, toB3(at), &capsule, filter, gatherPlanes, &mover);
+        const b3PlaneSolverResult solved = b3SolvePlanes(toB3(target - at), mover.planes, mover.count);
+        const float fraction =
+            b3World_CastMover(physics->id, toB3(at), &capsule, solved.delta, filter, moverAccepts, &mover);
+        const Vector3 moved = fromB3(solved.delta) * fraction;
+        at = at + moved;
+        if (length(moved) < 0.001f)
+        {
+            break;
+        }
+    }
+    // A head against a ceiling stops going up.
+    if (character.fallSpeed > 0 && at.y - start.y < character.fallSpeed * time * 0.5f)
+    {
+        character.fallSpeed = 0;
+    }
+
+    // The ground: a sphere a little smaller than the capsule cast down from
+    // its bottom cap, as far as the feet ride (and, standing, a step more,
+    // to follow it down stairs and slopes).
+    const bool wasGrounded = character.grounded;
+    character.grounded = false;
+    character.groundNormal = {0, 1, 0};
+    if (character.fallSpeed <= 0)
+    {
+        const float radius = capsule.radius * 0.95f;
+        const float ride = capsule.center1.y - radius;
+        const float reach = ride + groundSkin + (wasGrounded ? controller->stepHeight : 0.0f);
+        Proxy probe;
+        probe.points[0] = {0, 0, 0};
+        probe.proxy = {probe.points, 1, radius};
+        Closest closest{{controller->mask, entity, false}, reach};
+        const Vector3 from = at + Vector3{0, capsule.center1.y, 0};
+        b3World_CastShape(physics->id, toB3(from), &probe.proxy, toB3(Vector3{0, -reach, 0}), filter, keepClosest,
+                          &closest);
+        if (closest.hit.hit && closest.hit.normal.y >= mover.walkable)
+        {
+            at.y = from.y - closest.hit.distance - radius;
+            character.grounded = true;
+            character.groundNormal = closest.hit.normal;
+            character.fallSpeed = 0;
+        }
+        else
+        {
+            // Over an edge the sphere meets its corner, too steep to stand
+            // on: a ray straight down from the middle finds the step below.
+            Closest below{{controller->mask, entity, false}, ride + reach, false};
+            const Vector3 middle = at + Vector3{0, ride, 0};
+            b3World_CastRay(physics->id, toB3(middle), toB3(Vector3{0, -(ride + reach), 0}), filter, keepClosest,
+                            &below);
+            if (below.hit.hit && below.hit.normal.y >= mover.walkable && below.hit.distance <= ride + reach)
+            {
+                at.y = middle.y - below.hit.distance;
+                character.grounded = true;
+                character.groundNormal = below.hit.normal;
+                character.fallSpeed = 0;
+            }
+        }
+    }
+    if (time > 0)
+    {
+        pushBodies(mover, at, (at - start) * (1 / time));
+    }
+    transform->position = at;
+    return {at, character.grounded, character.groundNormal, character.fallSpeed};
+}
+
+void launchCharacter(ecs::World& world, ecs::Entity entity, float upwardSpeed)
+{
+    if (PhysicsWorld* physics = find(world))
+    {
+        Character& character = *characterOf(*physics, entity);
+        character.fallSpeed = upwardSpeed;
+        character.grounded = false;
+    }
+}
+
 uint32_t contacts(ecs::World& world, std::span<ContactEvent> into)
 {
     const PhysicsWorld* physics = find(world);
@@ -1634,6 +1971,28 @@ void drawColliders(const ecs::World& world, Vector4 color)
             for (size_t i = 0; i < colliders.size(); ++i)
             {
                 outline(colliders[i], scenes::computeWorldTransform(*gather.world, entities[i]), gather.color);
+            }
+        },
+        &gather);
+    ecs::destroyQuery(query);
+    // Characters' capsules (ADR 0091), from their feet up.
+    const ecs::ComponentId controlled[] = {ecs::componentIdOf<CharacterController>,
+                                           ecs::componentIdOf<scenes::LocalTransform>};
+    query = ecs::createQuery(const_cast<ecs::World&>(world), {.required = controlled});
+    ecs::forEachChunk(
+        *query,
+        [](const ecs::ChunkView& view, void* data) {
+            const Gather& gather = *static_cast<const Gather*>(data);
+            const std::span<const CharacterController> controllers = ecs::readColumn<CharacterController>(view);
+            const std::span<const scenes::LocalTransform> transforms = ecs::readColumn<scenes::LocalTransform>(view);
+            for (size_t i = 0; i < controllers.size(); ++i)
+            {
+                const b3Capsule capsule = characterCapsule(controllers[i], true);
+                Collider shape{};
+                shape.shape = ShapeKind::Capsule;
+                shape.size = {capsule.radius, capsule.center2.y - capsule.center1.y, 0};
+                shape.offset = {0, (capsule.center1.y + capsule.center2.y) * 0.5f, 0};
+                outline(shape, Matrix4x4::translation(transforms[i].position), gather.color);
             }
         },
         &gather);

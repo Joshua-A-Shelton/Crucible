@@ -18,8 +18,7 @@
 // An implementation (a native module, ADR 0074) registers the three systems
 // under the same names, replacing the defaults, and installs its service.
 // The engine's own is Box3D (ADR 0085); its queries (ADR 0090) see the
-// last tick's world. Character moves join it in a later step, and until
-// then move straight through everything, as the null physics does.
+// last tick's world, and its characters (ADR 0091) collide and slide.
 //
 // Units are meters, seconds, and kilograms; Y is up (ADR 0024).
 
@@ -48,6 +47,9 @@ inline constexpr std::string_view interpolateSystemName = "Physics.Interpolate";
 // ("PhysicsLayers"); the inspector shows them by name.
 inline constexpr uint32_t layerCount = 32;
 inline constexpr uint32_t allLayers = 0xFFFFFFFFu;
+
+// The world's gravity, for bodies and characters (meters per second squared).
+inline constexpr Vector3 gravity{0, -9.81f, 0};
 
 enum class CRUCIBLE_EXPOSE BodyKind : uint32_t
 {
@@ -117,15 +119,19 @@ struct CRUCIBLE_EXPOSE Joint
 };
 
 // A capsule moved by the game with moveCharacter, sliding along what it
-// hits and climbing steps (ADR 0027); not a RigidBody.
+// hits, climbing steps, and falling (ADR 0027, 0091); not a RigidBody,
+// though bodies meet it as a kinematic capsule. Its entity's position is its
+// feet: the capsule's bottom. Characters are at the top of the hierarchy.
 struct CRUCIBLE_EXPOSE CharacterController
 {
     CRUCIBLE_HINT_RANGE(0, 2) float radius;
-    CRUCIBLE_HINT_RANGE(0, 4) float height; // between the end caps' centers
-    CRUCIBLE_HINT_RANGE(0, 1) float stepHeight;
+    CRUCIBLE_HINT_RANGE(0, 4) float height;           // between the end caps' centers
+    CRUCIBLE_HINT_RANGE(0, 1) float stepHeight;       // anything lower is stepped over
     CRUCIBLE_HINT_RANGE(0, 1.5708f) float slopeLimit; // radians; steeper is a wall
     CRUCIBLE_HINT_LAYERS uint32_t layers;             // the layers it's on
     CRUCIBLE_HINT_LAYERS uint32_t mask;               // the layers it collides with
+    // Of the world's gravity; 0 leaves moving up and down to the game.
+    CRUCIBLE_HINT_RANGE(0, 4) float gravityScale;
 };
 
 // A shape for casts and overlaps: Box, Sphere, or Capsule, sized as a Collider.
@@ -175,9 +181,10 @@ struct CRUCIBLE_EXPOSE ContactEvent
 
 struct CRUCIBLE_EXPOSE CharacterMove
 {
-    Vector3 position; // where it ended up
+    Vector3 position; // where it ended up (its feet)
     bool grounded;    // standing on something walkable
     Vector3 groundNormal;
+    float fallSpeed; // its speed up (positive) or down after the move, meters per second
 };
 
 // What an implementation provides for the calls below. Each runs on the
@@ -191,6 +198,7 @@ struct PhysicsService
                         std::span<ecs::Entity> into);
     uint32_t (*contacts)(ecs::World& world, std::span<ContactEvent> into);
     CharacterMove (*moveCharacter)(ecs::World& world, ecs::Entity character, Vector3 displacement, float seconds);
+    void (*launchCharacter)(ecs::World& world, ecs::Entity character, float upwardSpeed);
 };
 
 // Replaces the service; the default is the null physics's. Main thread.
@@ -217,10 +225,16 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t overlap(ecs::World& world, QueryShape s
 // The contact events of every tick since the last frame, as many as fit;
 // returns how many there are.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t contacts(ecs::World& world, std::span<ContactEvent> into);
-// Moves a character by a displacement over a time, sliding and climbing,
-// and writes its LocalTransform.
+// Moves a character by a displacement over a time (ADR 0091), sliding
+// along what it hits and stepping over what's lower than its step height,
+// falling under gravity (times its gravityScale) off the ground and
+// following the ground down slopes and steps; writes its LocalTransform.
+// Dynamic bodies in its way are pushed. An entity without a
+// CharacterController, or before the physics has a world, just moves.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE CharacterMove moveCharacter(ecs::World& world, ecs::Entity character,
                                                             Vector3 displacement, float seconds);
+// Sets a character's speed up (a jump), off the ground from its next move.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void launchCharacter(ecs::World& world, ecs::Entity character, float upwardSpeed);
 
 // A dynamic body's pose as of the last tick (its LocalTransform is
 // interpolated, up to a tick behind), in world space; found false for an

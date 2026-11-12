@@ -18,6 +18,9 @@ add_executable(crucible_native_tests
     ConvexColliderTests.cpp
     MeshColliderTests.cpp
     PhysicsBodyTests.cpp
+    CharacterMoveTests.cpp
+    CharacterStepTests.cpp
+    CharacterGravityTests.cpp
     RaycastTests.cpp
     ShapeCastTests.cpp
     OverlapTests.cpp

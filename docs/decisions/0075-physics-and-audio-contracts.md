@@ -164,3 +164,10 @@ M9 step 3 (ADR 0090) replaced each query's `layers` parameter with a
 `QueryFilter` (`layers`, `ignore`, `triggers`; `defaultQueryFilter()`), and
 the engine's Box3D physics now answers them.
 
+## Amendment (2026-11-11): characters fall
+
+M9 step 4 (ADR 0091) added `gravity`, `CharacterController.gravityScale`,
+`CharacterMove.fallSpeed`, and `launchCharacter` (with its
+`PhysicsService` entry), and the engine's Box3D physics now moves
+characters.
+

@@ -125,6 +125,31 @@ inline RigidBody dynamic(float mass = 1)
     return {BodyKind::Dynamic, mass, {}, {}, 1, 1, allLayers};
 }
 
+// A character (ADR 0091): 0.4 m by 1 m between its caps, 0.3 m steps, 45
+// degree slopes, falling under gravity; its feet at `at`.
+inline ecs::Entity character(Scene& scene, Vector3 at, float gravityScale = 1)
+{
+    const ecs::ComponentId set[] = {ecs::componentIdOf<CharacterController>, ecs::componentIdOf<scenes::LocalTransform>,
+                                    ecs::componentIdOf<scenes::WorldTransform>};
+    const ecs::Entity entity = ecs::createEntity(*scene.world, set);
+    *ecs::get<CharacterController>(*scene.world, entity) = {0.4f, 1, 0.3f, 0.785398f, 1, allLayers, gravityScale};
+    *ecs::get<scenes::LocalTransform>(*scene.world, entity) = {at, Quaternion::identity(), {1, 1, 1}};
+    return entity;
+}
+
+// A character's moves, one a tick, each followed by the tick (so its body
+// follows, and bodies move); the last move's result.
+inline CharacterMove walk(Scene& scene, ecs::Entity entity, Vector3 perMove, int moves)
+{
+    CharacterMove last{};
+    for (int i = 0; i < moves; ++i)
+    {
+        last = moveCharacter(*scene.world, entity, perMove, static_cast<float>(tickSeconds));
+        scene.step();
+    }
+    return last;
+}
+
 // The ground: a static box whose top is at y = 0.
 inline ecs::Entity ground(Scene& scene)
 {

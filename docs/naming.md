@@ -968,3 +968,20 @@ drafted too):
 | Queries.crscene*, its entities' names ("Floor"*, "Block"*, "Ball"*, "Target"*, "Trigger Zone"*, and the probes "Ray at the block"* and the rest) | The scene |
 | `Walker.Probe`* (`Kind`*, `Direction`*, `Distance`*, `Size`*, `Triggers`*, `Result`*), `ProbeKind`* (`Ray`, `Sphere`, `Box`, `Overlap`), `ProbeSystem`*, `--game-arg probes=`* | Its game code (Code/Probes.cs) |
 
+## The character controller (2026-11-11, M9 step 4)
+
+Settled as drafted: `CharacterController.gravityScale` ("Gravity Scale", 1
+by default), `launchCharacter(world, character, upwardSpeed)` (C#
+`CharacterController.Launch`), `CharacterMove.fallSpeed`, `physics::gravity`;
+ADR 0091 "The character controller", `docs/learning/character-controllers.md`;
+`CharacterMoveTests`, `CharacterStepTests`, `CharacterGravityTests`,
+`CharacterTests`; the Walker's Characters.crscene. Names added while
+building are placeholders (*):
+
+| Name | What it is |
+|---|---|
+| `PhysicsService::launchCharacter`* | The service's entry |
+| Box3dPhysics.cpp's `Character`*, `characterCapsule`*, `sameController`*, `syncCharacter`*, `Mover`*, `gatherPlanes`*, `moverAccepts`*, `pushBodies`*, `characterOf`*, `maxCharacterPlanes`*, `moveIterations`*, `groundSkin`* | The characters on Box3D |
+| tests/native/PhysicsTestSupport.h's `character`*, `walk`* | Test support |
+| Characters.crscene's entities: "Step 1"* to "Step 3"*, "Ramp"*, "Steep Slope"*, "Ball"*, "End Wall"*, "Side Wall"*, "Second Walker"* | The scene |
+

@@ -66,10 +66,18 @@ public partial struct Collider
 [Serialized]
 public partial struct Joint;
 
-/// <summary>A capsule the game moves with <c>Api.MoveCharacter</c>, sliding along what it hits.</summary>
+/// <summary>
+/// A capsule the game moves with <c>Api.MoveCharacter</c> (ADR 0091), sliding along what
+/// it hits, stepping over what's lower than its step height, and falling; its
+/// entity's position is its feet.
+/// </summary>
 [Serialized]
 public partial struct CharacterController
 {
+    /// <summary>Sets a character's speed up (a jump), off the ground from its next move.</summary>
+    public static void Launch(Ecs.World world, Ecs.Entity character, float upwardSpeed) =>
+        Api.LaunchCharacter(world.Live, character, upwardSpeed);
+
     public CharacterController()
     {
         Radius = 0.4f;
@@ -78,5 +86,6 @@ public partial struct CharacterController
         SlopeLimit = 0.785f; // 45 degrees
         Layers = 1;
         Mask = uint.MaxValue;
+        GravityScale = 1;
     }
 }

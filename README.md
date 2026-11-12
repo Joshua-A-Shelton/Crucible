@@ -154,3 +154,6 @@ Longer explanations of decisions, written to be reread:
 - [Physics queries](docs/learning/physics-queries.md) (ADR 0090): rays,
   shape casts, and overlaps, filtering them, why they see the last tick,
   and rays that start inside something.
+- [Character controllers](docs/learning/character-controllers.md) (ADR
+  0091): collide and slide, riding over steps, slopes that are walls, who
+  makes a character fall, and meeting rigid bodies.

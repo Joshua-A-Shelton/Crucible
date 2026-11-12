@@ -624,7 +624,11 @@ editor usability came next (below), then step 2's try, through it. Step 2
 is done. Step 3 built (ADR 0090): raycast, shapeCast, and overlap on
 Box3D with a QueryFilter (layers, an entity left out, triggers when asked),
 seeing the last tick's world; their C# side; View > Queries. Tried by hand
-by the owner on KWin in the Walker's Queries scene. Step 3 is done.
+by the owner on KWin in the Walker's Queries scene. Step 3 is done. Step 4
+built (ADR 0091): characters on Box3D's mover, colliding and sliding,
+riding over steps, walls for slopes too steep, falling under gravity times
+their scale, jumps by launchCharacter, a kinematic capsule for bodies to
+meet; the Walker's Characters scene.
 
 **Editor usability** (agreed with the owner, 2026-11-11, between M9 steps 2
 and 3; one commit each, tried by hand like a milestone's steps):
