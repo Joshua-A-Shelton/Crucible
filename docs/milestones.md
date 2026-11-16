@@ -624,6 +624,23 @@ decision made at its start):
    3D; hinge and slider limits as the entity's own movement (3D's hinge
    fixed to match); the Walker's Characters2D scene. Tried by hand by the
    owner (2026-11-16).
+
+   Step 6c designed (2026-11-16, names settled before building): a Chain
+   shape (`ShapeKind2D::Chain`, Collider2D's `chain` asset) on Box2D's
+   chain shape, from an authored `.crchain` (JSON: `$guid`, `Points`,
+   `Loop`) imported into `.crchn` (kind `CHAN`) by the "Chain" importer.
+   Box2D's winding (solid on the right of the points' direction, so
+   counterclockwise is solid inside, like polygons); ghost points made by
+   extending the end segments; one material; a chain on a dynamic body or
+   marked as a trigger is a validation warning and skipped. Point handles
+   in the editor: an "Edit Points" toggle (key P) under Collider2D hides
+   the transform gizmo; drag points, drag a segment's midpoint dot to
+   insert, Delete removes the selected point (at least 2, or 3 for a
+   loop); each edit is a step in the undo history ("Move Point", "Insert
+   Point", "Delete Point") and writes and reimports the file at once,
+   without marking the scene modified. Assets > Create > Chain makes
+   "New Chain.crchain". ADR 0095 "Chain colliders"; the Walker's
+   Chains2D scene (Hills.crchain, Cave.crchain).
 7. Swept hitboxes: a hitbox shape on a joint, active during an animation
    window (ADR 0081), swept each frame by shape cast; hits reported with
    exact times, interpolated between frame timestamps.
