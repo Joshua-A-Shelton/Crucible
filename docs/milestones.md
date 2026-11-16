@@ -617,7 +617,7 @@ decision made at its start):
    (box, circle, capsule, polygon) synced, stepped, written back, and
    interpolated; 2D queries and contacts; drawn with View > Colliders and
    Queries; the Walker's Physics2D scene. Tried by hand by the owner on
-   KWin; its placeholder names are still to settle. Next: 6b.
+   KWin; names settled as drafted. Step 6a is done.
 7. Swept hitboxes: a hitbox shape on a joint, active during an animation
    window (ADR 0081), swept each frame by shape cast; hits reported with
    exact times, interpolated between frame timestamps.

@@ -1020,7 +1020,8 @@ crucible/Transform.h; crucible/Physics2D.h, `crucible::physics2d` (C#
 Box2D", `docs/learning/physics-2d.md`; `Transform2DTests`,
 `Physics2DBodyTests`, `Physics2DQueryTests`, `Physics2DContactTests`,
 `Physics2DTests`; the Walker's Physics2D.crscene. Names added while
-building are placeholders (*):
+building (marked *) settled as drafted too (2026-11-16), after the owner
+tried step 6a by hand:
 
 | Name | What it is |
 |---|---|

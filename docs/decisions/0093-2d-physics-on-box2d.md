@@ -1,7 +1,9 @@
 # 0093 — 2D physics on Box2D
 
-**Status:** Accepted (2026-11-11); M9 step 6a built. Names settled by the
-owner as drafted (docs/naming.md); names added while building are marked *.
+**Status:** Accepted (2026-11-11); M9 step 6a built, then tried by hand by
+the owner in the Walker's Physics2D scene. Names, including those added
+while building, settled by the owner as drafted (2026-11-16,
+docs/naming.md).
 
 ## Context
 
