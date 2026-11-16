@@ -1041,8 +1041,8 @@ Settled as drafted before building: `Joint2D` (`Kind`: `Fixed`, `Hinge`,
 `LowerLimit`, `UpperLimit`), `CharacterController2D` (`Radius`, `Height`,
 `StepHeight`, `SlopeLimit`, `Layers`, `Mask`, `GravityScale`,
 `StepSmoothing`; C# `Move`, `Launch`); ADR 0094 "2D joints and characters".
-Names added while building (marked *) are placeholders until the owner
-tries step 6b by hand:
+Names added while building (marked *) settled as drafted too (2026-11-16),
+after the owner tried step 6b by hand:
 
 | Name | What it is |
 |---|---|

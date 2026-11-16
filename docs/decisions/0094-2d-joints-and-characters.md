@@ -1,8 +1,9 @@
 # 0094 — 2D joints and characters
 
 **Status:** Accepted (2026-11-16); M9 step 6b built, then tried by hand by
-the owner in the Walker's Characters2D scene (2026-11-16). Names marked * were added
-while building and are placeholders until then.
+the owner in the Walker's Characters2D scene (2026-11-16). Names, including those added
+while building (marked *), settled by the owner as drafted (2026-11-16,
+docs/naming.md).
 
 ## Context
 
