@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using Crucible.Assets;
+using Crucible.Assets.Importers;
 using Crucible.Platform;
 using Crucible.Render;
 using Crucible.UI;
@@ -95,20 +96,61 @@ internal sealed partial class Shell
         AssetsChanged?.Invoke();
     }
 
-    /// <summary>Imports one asset again, even if it's up to date.</summary>
-    public void Reimport(AssetId id)
+    /// <summary>Imports one asset again, even if it's up to date; quietly, only a failure is logged.</summary>
+    public void Reimport(AssetId id, bool quiet = false)
     {
         if (Database is not { } database || database.Find(id) is null)
         {
             return;
         }
         ImportResult result = database.Import(id, force: true);
-        Log(result.Outcome == ImportOutcome.Imported
-            ? $"Reimported {result.Path}"
-            : $"Can't reimport {result.Path}: {result.Outcome} {result.Error}");
+        if (result.Outcome != ImportOutcome.Imported)
+        {
+            Log($"Can't reimport {result.Path}: {result.Outcome} {result.Error}");
+        }
+        else if (!quiet)
+        {
+            Log($"Reimported {result.Path}");
+        }
         ReloadOnGpu([result]);
         Prefabs = database.Prefabs();
         AssetsChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// A new chain (ADR 0095) in a folder of the Assets folder: "New
+    /// Chain.crchain" (numbered if taken), two points of ground solid below,
+    /// imported at once. Returns its path in the Assets folder; null if it
+    /// can't be made.
+    /// </summary>
+    public string? CreateChain(string folder)
+    {
+        if (Project is not { } project)
+        {
+            return null;
+        }
+        string directory = Path.Combine(project.AssetsFolder, folder);
+        string name = "New Chain" + ChainImporter.FileExtension;
+        for (int n = 2; File.Exists(Path.Combine(directory, name)); ++n)
+        {
+            name = $"New Chain {n}{ChainImporter.FileExtension}";
+        }
+        string file = Path.Combine(directory, name);
+        try
+        {
+            File.WriteAllText(file, ChainHandles.Format(
+                new JsonObject { ["$guid"] = AssetId.New().ToString(), ["Points"] = null, ["Loop"] = false },
+                [new System.Numerics.Vector2(1, 0), new System.Numerics.Vector2(-1, 0)]));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            Log($"Can't make {name}: {exception.Message}");
+            return null;
+        }
+        RefreshAssets();
+        string path = folder.Length == 0 ? name : $"{folder}/{name}";
+        Log($"Made {path}");
+        return path;
     }
 
     /// <summary>
@@ -162,6 +204,8 @@ internal sealed partial class Shell
             }
             // Its collision data, and the colliders built from it (ADR 0086).
             Crucible.Physics.Api.ReloadCollisionAsset(result.Id);
+            // A chain's points, and the Chain colliders made from them (ADR 0095).
+            Crucible.Physics2D.Api.ReloadChainAsset(result.Id);
             try
             {
                 if (RenderAssets.Reload(result.Id))

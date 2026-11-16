@@ -274,7 +274,7 @@ internal sealed partial class Shell
         AssetDatabase database = AssetDatabase.Open(project,
             [
                 new TextureImporter(), new MeshImporter(), new ShaderImporter(), new FontImporter(), new StyleImporter(),
-                new StateMachineImporter(), new SoundImporter(),
+                new StateMachineImporter(), new SoundImporter(), new ChainImporter(),
             ]);
         int imported = 0, failed = 0;
         foreach (ImportResult result in database.ImportAll())

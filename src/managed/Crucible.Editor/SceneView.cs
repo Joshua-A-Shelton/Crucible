@@ -14,7 +14,8 @@ namespace Crucible.Editor;
 /// Unity's controls: the right button held looks around and flies (WASD, Q
 /// and E; the wheel sets the speed), Alt and the left button orbit, the
 /// middle button pans, the wheel dollies, F frames the selection, W, E, and
-/// R pick the handles. A click picks what's under it.
+/// R pick the handles, P edits a chain's points instead (ADR 0095). A click
+/// picks what's under it.
 /// </summary>
 public sealed class SceneView : UIElement
 {
@@ -40,6 +41,7 @@ public sealed class SceneView : UIElement
         Orbit,
         Pan,
         Handle,
+        Chain,
     }
 
     internal SceneView(Shell shell)
@@ -140,7 +142,12 @@ public sealed class SceneView : UIElement
             return;
         }
         canvas.DrawImage(_texture, Vector2.Zero, ActualSize);
-        if (_shell.SelectedTransform() is { } world)
+        _shell.Chains.Update();
+        if (_shell.Chains.IsEditing)
+        {
+            _shell.Chains.Draw(canvas, Camera, ActualSize);
+        }
+        else if (_shell.SelectedTransform() is { } world)
         {
             Handles.Draw(canvas, Camera, ActualSize, world, _hot);
         }
@@ -153,6 +160,11 @@ public sealed class SceneView : UIElement
         {
             Handles.EndDrag();
             _shell.History.EndGroup();
+            _mode = Mode.None;
+        }
+        if (_mode == Mode.Chain)
+        {
+            _shell.Chains.EndDrag();
             _mode = Mode.None;
         }
         if (_surface.Value != 0)
@@ -183,8 +195,12 @@ public sealed class SceneView : UIElement
             case PointerButton.Left when (e.Modifiers & KeyModifiers.Alt) != 0:
                 _mode = Mode.Orbit;
                 break;
+            case PointerButton.Left when _shell.Chains.IsEditing && _shell.Chains.BeginDrag(Camera, ActualSize, at):
+                _mode = Mode.Chain;
+                InvalidateVisual();
+                break;
             case PointerButton.Left:
-                if (_shell.SelectedTransform() is { } world &&
+                if (!_shell.Chains.IsEditing && _shell.SelectedTransform() is { } world &&
                     Handles.HitTest(Camera, ActualSize, world, at) is var part && part != HandlePart.None)
                 {
                     Handles.BeginDrag(part, Camera, ActualSize, world, at);
@@ -218,7 +234,18 @@ public sealed class SceneView : UIElement
             case Mode.Handle:
                 _shell.SetSelectedTransform(Handles.Drag(Camera, ActualSize, Local(e), (e.Modifiers & KeyModifiers.Ctrl) != 0));
                 break;
+            case Mode.Chain:
+                _shell.Chains.Drag(Camera, ActualSize, Local(e), (e.Modifiers & KeyModifiers.Ctrl) != 0);
+                break;
             default:
+                if (_shell.Chains.IsEditing)
+                {
+                    if (_shell.Chains.Hover(Camera, ActualSize, Local(e)))
+                    {
+                        InvalidateVisual();
+                    }
+                    return;
+                }
                 HandlePart hot = _shell.SelectedTransform() is { } world
                     ? Handles.HitTest(Camera, ActualSize, world, Local(e))
                     : HandlePart.None;
@@ -239,6 +266,11 @@ public sealed class SceneView : UIElement
         {
             Handles.EndDrag();
             _shell.History.EndGroup();
+        }
+        else if (_mode == Mode.Chain)
+        {
+            _shell.Chains.EndDrag();
+            InvalidateVisual();
         }
         _mode = Mode.None;
         _flying = Vector3.Zero;
@@ -281,6 +313,11 @@ public sealed class SceneView : UIElement
                 break;
             case Keycode.F:
                 _shell.FrameSelection(this);
+                break;
+            case Keycode.P:
+                _shell.Chains.Toggle();
+                break;
+            case Keycode.Delete when _shell.Chains.DeleteSelected():
                 break;
             default:
                 if (e.Scancode == ScancodeEscape && _shell.Selection.Selected.Value != 0)

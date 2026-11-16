@@ -236,6 +236,7 @@ public sealed class ComponentSection : UIElement, IFieldOwner
     private readonly Label _name;
     private readonly List<FieldEditor> _editors = [];
     private readonly ColliderNotice? _notice;
+    private readonly Button? _editPoints;
     private JsonNode? _value;
 
     internal ComponentSection(InspectorPanel inspector, SavedComponent saved)
@@ -289,6 +290,23 @@ public sealed class ComponentSection : UIElement, IFieldOwner
                 _notice = new ColliderNotice(inspector.Shell);
                 _fields.Add(_notice);
             }
+            // A Chain collider's points, edited in the viewports (ADR 0095).
+            if (saved.Type == typeof(Crucible.Physics2D.Collider2D) && field.Name == "Chain")
+            {
+                _editPoints = new Button("Edit Points") { HorizontalAlignment = HorizontalAlignment.Start };
+                _editPoints.Clicked += _ =>
+                {
+                    if (Shell.Chains.IsEditing)
+                    {
+                        Shell.Chains.Stop();
+                    }
+                    else
+                    {
+                        Shell.Chains.Start(Entity);
+                    }
+                };
+                _fields.Add(_editPoints);
+            }
         }
         if (saved.Fields.Count == 0)
         {
@@ -324,6 +342,11 @@ public sealed class ComponentSection : UIElement, IFieldOwner
             JsonNode? value = (_value as JsonObject)?[editor.Field.Name];
             bool overridden = added || (prefab is not null && !JsonNode.DeepEquals(value, prefab[editor.Field.Name]));
             editor.Update(value, overridden);
+        }
+        if (_editPoints is not null)
+        {
+            _editPoints.Visibility = Shell.Chains.CanEdit(Entity) ? Visibility.Visible : Visibility.Collapsed;
+            _editPoints.Classes.Set("on", Shell.Chains.IsEditing && Shell.Chains.Entity.Value == Entity.Value);
         }
         if (_notice is not null)
         {

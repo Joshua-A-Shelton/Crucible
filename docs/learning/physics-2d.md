@@ -65,3 +65,28 @@ other's mask. Character capsules and triggers leave one reserved bit out of
 their masks, and the sweep uses only that bit as its category, so it sees
 the level and bodies, and no character, including itself. The cost is that
 characters walk through each other.
+
+## Chains: ghost collisions and the solid side
+
+Build a floor from boxes laid end to end and slide something along it, and
+now and then it snags at a join, though the floor is flat. Each box is
+solid on its own: where two meet, the sliding shape can touch the corner of
+the next box first and get pushed back, a "ghost collision" off an edge
+that isn't really there. A **chain** is a run of line segments that know
+their neighbors: when something crosses a join, the collision with the next
+segment is checked against the one before, and corners that are inside the
+surface are ignored. Things roll and slide across joins as if the surface
+were one piece. An open chain has no neighbor past its ends, so Crucible
+gives it imaginary "ghost" points there, the end segments carried straight
+on.
+
+A segment is a line, with no inside, so a chain is **one-sided**: it only
+pushes back from one side. Box2D's rule is that the solid side is on the
+right as you walk along the points. Walking a floor's surface from right to
+left, your right hand points down into the ground. Walking counterclockwise
+around a loop, your right hand points inward, so a counterclockwise loop is
+a solid island (the same order convex polygons use); clockwise, it points
+out, and the loop is a cave you're inside. From the open side, things pass
+straight through.
+Mirroring a chain would turn its right into its left, so Crucible runs a
+mirrored chain's points backwards to keep the solid side where it's drawn.

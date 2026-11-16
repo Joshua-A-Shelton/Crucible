@@ -641,6 +641,12 @@ decision made at its start):
    without marking the scene modified. Assets > Create > Chain makes
    "New Chain.crchain". ADR 0095 "Chain colliders"; the Walker's
    Chains2D scene (Hills.crchain, Cave.crchain).
+
+   Step 6c built (ADR 0095): Chain colliders on Box2D's chains from
+   `.crchain` assets, drawn with their solid side, reloaded on reimport;
+   Edit Points in the editor; Create > Chain; mirrored 2D entities fixed
+   for every shape; the Walker's Chains2D scene. Awaiting the owner's try
+   by hand.
 7. Swept hitboxes: a hitbox shape on a joint, active during an animation
    window (ADR 0081), swept each frame by shape cast; hits reported with
    exact times, interpolated between frame timestamps.

@@ -1051,3 +1051,24 @@ after the owner tried step 6b by hand:
 | `Joint2DTests`*, `CharacterController2DTests`*, `Physics2DCharacterTests`*; Physics2DTestSupport.h's `join2D`*, `character2D`*, `walk2D`* | Tests and test support |
 | The Walker's Characters2D.crscene*, Code/Patrol.cs*, `Patroller`* (`Speed`, `Distance`, `Interval`), `PatrolSystem`* | Trying it by hand |
 | Characters2D.crscene's entities: "Ground"*, "Step 1"* to "Step 3"*, "Hill"*, "Trigger Zone"*, "Patroller"*, "Pusher"*, "Ball"*, "Gate"*, "Hook"*, "Link 1"* to "Link 3"*, "Cart"*, "Left Wall"*, "Right Wall"* | The scene |
+
+## Chain colliders (2026-11-16, M9 step 6c)
+
+Settled as drafted before building: `ShapeKind2D::Chain`, `Collider2D`'s
+`chain` (C# `Chain`); the authored `.crchain` (keys `$guid`, `Points`,
+`Loop`) imported into `.crchn` (kind `CHAN`) by the importer "Chain"
+(`ChainImporter`, `ChainImportSettings`), crucible/ChainFile.h; the
+inspector's "Edit Points" (key P); Assets > Create > "Chain" making
+"New Chain.crchain"; undo titles "Move Point", "Insert Point", "Delete
+Point"; `ChainHandles`, `ChainHandleChecks`; ADR 0095 "Chain colliders";
+`ChainImporterTests`, `Chain2DTests`; the Walker's Chains2D.crscene with
+Hills.crchain and Cave.crchain. Names added while building (marked *) are
+placeholders until the owner tries step 6c by hand:
+
+| Name | What it is |
+|---|---|
+| ChainFile.h's `chainFileKind`*, `chainFileVersion`*, `minChainPointSpacing`*, `ChainInfo`* (`pointCount`, `loop`), sections `INFO`*, `PNTS`*; C# `ChainImporter.Read`*, `Build`*, `MinPointSpacing`*, `Kind`*, `KindVersion`*, `FileExtension`* | The file and its importer |
+| `reloadChainAsset`* | Reading a chain again after a reimport |
+| Box2dPhysics.cpp's `ChainData`*, `chainData`*, `chainVersions`*, `readChain`*, `chainOf`*, `freeChains`*, `isNone`*, `Body::chain`*, `Body::chainVersion`* | The backend |
+| `UndoStep.ChangesScene`*; `ChainHandles`' `ChainEdit`*, `IsEditing`*, `Entity`*, `Points`*, `Selected`*, `CanEdit`*, `Toggle`*, `Start`*, `Stop`*, `DeleteSelected`*, `Format`*; `Shell.Chains`*, `Shell.CreateChain`*, `Reimport`'s `quiet`* | The editor |
+| CTest `launcher.jit.chain-handles`*, `chain-handles.png`*; Chains2D.crscene's entities: "Hills"*, "Cave"*, "Cave Ball"*, "Patroller"*, "Ball 1"* to "Ball 3"*, "Crate"*; the folder Assets/Chains* | Tests and the scene |

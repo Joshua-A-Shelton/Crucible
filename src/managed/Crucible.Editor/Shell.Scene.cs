@@ -24,6 +24,11 @@ internal sealed partial class Shell
 
     public UndoHistory History { get; } = new();
 
+    /// <summary>Edit Points: a Chain collider's points over the viewports (ADR 0095).</summary>
+    internal ChainHandles Chains => _chains ??= new ChainHandles(this);
+
+    private ChainHandles? _chains;
+
     /// <summary>The scene's own asset ID, written into its file.</summary>
     public AssetId SceneId { get; private set; } = AssetId.New();
 
@@ -66,7 +71,14 @@ internal sealed partial class Shell
         {
             Shortcut = new Shortcut(KeyModifiers.Ctrl, Keycode.D),
         });
-        Commands.Add(new Command("Edit.Delete", "Delete", () => Delete(Selection.Selected), HasSelection)
+        // With a chain's point selected (Edit Points, ADR 0095), the point.
+        Commands.Add(new Command("Edit.Delete", "Delete", () =>
+        {
+            if (!Chains.DeleteSelected())
+            {
+                Delete(Selection.Selected);
+            }
+        }, HasSelection)
         {
             Shortcut = new Shortcut(KeyModifiers.None, Keycode.Delete),
         });

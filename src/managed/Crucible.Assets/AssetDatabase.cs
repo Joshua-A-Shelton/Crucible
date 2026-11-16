@@ -332,7 +332,8 @@ public sealed class AssetDatabase
             path.EndsWith(Prefab.Extension, StringComparison.OrdinalIgnoreCase) ||
             path.EndsWith(Importers.MaterialImporter.FileExtension, StringComparison.OrdinalIgnoreCase) ||
             path.EndsWith(Importers.StyleImporter.FileExtension, StringComparison.OrdinalIgnoreCase) ||
-            path.EndsWith(Importers.StateMachineImporter.FileExtension, StringComparison.OrdinalIgnoreCase))
+            path.EndsWith(Importers.StateMachineImporter.FileExtension, StringComparison.OrdinalIgnoreCase) ||
+            path.EndsWith(Importers.ChainImporter.FileExtension, StringComparison.OrdinalIgnoreCase))
         {
             AddOwnFile(path, fullPath);
             return;

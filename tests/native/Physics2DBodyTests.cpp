@@ -108,3 +108,25 @@ TEST_CASE("A 2D body's Transform2D is interpolated between ticks and keeps its d
     CHECK(scene.transform(mover).depth == 3);
     CHECK(scene.transform(mover).scale.x == 2);
 }
+
+TEST_CASE("A mirrored 2D collider is mirrored and not turned")
+{
+    Scene2D scene;
+    // A wedge high on its left; mirrored by a negative X scale, high on its right.
+    Collider2D wedge{};
+    wedge.shape = ShapeKind2D::Polygon;
+    wedge.points[0] = {-1, 0};
+    wedge.points[1] = {1, 0};
+    wedge.points[2] = {-1, 2};
+    wedge.pointCount = 3;
+    const ecs::Entity entity = scene.add(wedge, {0, 0});
+    ecs::get<scenes::Transform2D>(*scene.world, entity)->scale = {-1, 1};
+    scenes::updateWorldTransforms(*scene.world);
+    scene.step();
+    const RayHit2D right = physics2d::raycast(*scene.world, {0.9f, 5}, {0, -1}, 10, physics::defaultQueryFilter());
+    REQUIRE(right.hit);
+    CHECK(right.point.y == doctest::Approx(1.9f).epsilon(0.01));
+    const RayHit2D left = physics2d::raycast(*scene.world, {-0.9f, 5}, {0, -1}, 10, physics::defaultQueryFilter());
+    REQUIRE(left.hit);
+    CHECK(left.point.y == doctest::Approx(0.1f).epsilon(0.01));
+}

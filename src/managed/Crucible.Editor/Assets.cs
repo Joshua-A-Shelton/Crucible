@@ -193,6 +193,11 @@ public sealed class AssetsPanel : EditorPanel
                 }
             }
         }
+        // New assets beside it, or in it if it's a folder.
+        string folder = tile.IsFolder ? tile.Path : Path.GetDirectoryName(tile.Path)?.Replace('\\', '/') ?? "";
+        Menu create = new();
+        create.Add("Chain", () => _shell.CreateChain(folder));
+        menu.Add(new MenuItem("Create") { Submenu = create });
         menu.Add("Refresh", _shell.RefreshAssets);
         menu.Open(tile, at);
         return menu;

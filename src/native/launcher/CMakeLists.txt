@@ -373,6 +373,18 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "PlayToolbarChecks: all [0-9]+ checks passed")
 
+    # A chain's point handles checking themselves (ADR 0095): a copy of the
+    # Walker's project (in the test's folder), a chain made, its points
+    # inserted, moved, and deleted by drags and keys, undone and redone.
+    add_test(NAME launcher.jit.chain-handles
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
+            --project "${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject"
+            --game-arg "check-chain-handles=${CMAKE_CURRENT_BINARY_DIR}"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/chain-handles-settings.json")
+    set_tests_properties(launcher.jit.chain-handles PROPERTIES LABELS "integration;gpu" TIMEOUT 300
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "ChainHandleChecks: all [0-9]+ checks passed")
+
     # Pickers offering only valid choices (ADR 0089): a copy of the Walker's
     # project (in the test's folder), with the Diorama's house as a model
     # without a skeleton, each drop-down opened and its choices read.

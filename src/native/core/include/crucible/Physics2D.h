@@ -17,6 +17,7 @@
 // meters, seconds, and kilograms; Y is up. Layers and query filters are 3D's
 // (the project's 32 named layers, physics::QueryFilter).
 
+#include <crucible/AssetSource.h>
 #include <crucible/Ecs.h>
 #include <crucible/Export.h>
 #include <crucible/Expose.h>
@@ -46,6 +47,7 @@ enum class CRUCIBLE_EXPOSE ShapeKind2D : uint32_t
     Circle,  // size.x: the radius
     Capsule, // size.x: the radius; size.y: the length between the end caps' centers, along Y
     Polygon, // points[0..pointCount): their convex hull (3 to 8 points)
+    Chain,   // chain: its imported .crchain's segments (ADR 0095); not on dynamic bodies, never a trigger
 };
 
 // An entity simulated by 2D physics; it needs a Collider2D too (on itself).
@@ -71,6 +73,7 @@ struct CRUCIBLE_EXPOSE Collider2D
     bool isTrigger;                              // reports contacts but doesn't collide
     Vector2 points[maxPolygonPoints];            // Polygon: its points, in the entity's space
     CRUCIBLE_HINT_RANGE(0, 8) int32_t pointCount;
+    CRUCIBLE_HINT_ASSET(".crchn") assets::AssetId chain; // Chain: the chain's asset
 };
 
 enum class CRUCIBLE_EXPOSE JointKind2D : uint32_t
@@ -199,6 +202,10 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE CharacterMove2D moveCharacter2D(ecs::World& worl
                                                                 Vector2 displacement, float seconds);
 // Sets a 2D character's speed up (a jump), off the ground from its next move.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void launchCharacter2D(ecs::World& world, ecs::Entity character, float upwardSpeed);
+
+// Reads a chain asset again after a reimport; the colliders using it are
+// rebuilt at the next sync (ADR 0095). False if no collider had read it.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE bool reloadChainAsset(assets::AssetId chain);
 
 // A dynamic body's pose as of the last tick (its Transform2D is
 // interpolated), in the world; found false without a body.

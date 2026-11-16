@@ -15,6 +15,12 @@ public abstract class UndoStep
     /// <summary>What the Edit menu says: "Undo Move".</summary>
     public string Title { get; }
 
+    /// <summary>
+    /// Whether it changes the scene, so the scene needs saving; false for a
+    /// change saved as it's made, like a chain's points (ADR 0095).
+    /// </summary>
+    public virtual bool ChangesScene => true;
+
     public abstract void Undo(World world);
 
     public abstract void Redo(World world);
@@ -60,7 +66,7 @@ public sealed class UndoHistory
 
     /// <summary>Whether what's done differs from when <see cref="MarkSaved"/> was last called.</summary>
     public bool IsDirty =>
-        _savedLost || (_open is not null && _open.Steps.Count > 0) || (_done.Count > 0 ? _done[^1] : null) != _saved;
+        _savedLost || (_open is not null && _open.Steps.Exists(step => step.ChangesScene)) || NewestSceneStep() != _saved;
 
     /// <summary>A step was recorded, undone, or redone, or the history was cleared or saved.</summary>
     public event Action<UndoHistory>? Changed;
@@ -152,7 +158,7 @@ public sealed class UndoHistory
     /// <summary>What's done now is what's saved.</summary>
     public void MarkSaved()
     {
-        _saved = _done.Count > 0 ? _done[^1] : null;
+        _saved = NewestSceneStep();
         _savedLost = false;
         Changed?.Invoke(this);
     }
@@ -197,16 +203,31 @@ public sealed class UndoHistory
         if (_done.Count > Limit)
         {
             // Saved with nothing done: undoing all that's kept no longer gets back there.
-            _savedLost |= _saved is null;
+            _savedLost |= _saved is null && _done[0].ChangesScene;
             _done.RemoveAt(0);
         }
         Changed?.Invoke(this);
+    }
+
+    // Steps that don't change the scene are left out of whether it's saved.
+    private UndoStep? NewestSceneStep()
+    {
+        for (int i = _done.Count - 1; i >= 0; --i)
+        {
+            if (_done[i].ChangesScene)
+            {
+                return _done[i];
+            }
+        }
+        return null;
     }
 
     // Steps undone and redone as one: undone newest first.
     private sealed class Group(string title) : UndoStep(title)
     {
         public readonly List<UndoStep> Steps = [];
+
+        public override bool ChangesScene => Steps.Exists(step => step.ChangesScene);
 
         public override void Undo(World world)
         {

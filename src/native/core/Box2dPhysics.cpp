@@ -10,9 +10,12 @@
 // position and angle (its depth and scale are kept; scale shapes the
 // colliders).
 
+#include <crucible/BinaryFile.h>
+#include <crucible/ChainFile.h>
 #include <crucible/DebugLines.h>
 #include <crucible/HashMap.h>
 #include <crucible/Jobs.h>
+#include <crucible/Log.h>
 #include <crucible/Memory.h>
 #include <crucible/Physics2D.h>
 #include <crucible/Systems.h>
@@ -106,12 +109,17 @@ struct Pose2D
     Vector2 scale{1, 1};
 };
 
+// A mirrored matrix (one negative scale) comes out as a negative X scale,
+// as a Transform2D scales before it turns: otherwise a mirror would read as
+// half a turn, and shapes and write-backs would come out turned.
 Pose2D poseOf(const Matrix4x4& m)
 {
     Pose2D pose;
     pose.position = {m.rows[3].x, m.rows[3].y};
-    pose.angle = std::atan2(m.rows[0].y, m.rows[0].x);
-    pose.scale = {std::sqrt(m.rows[0].x * m.rows[0].x + m.rows[0].y * m.rows[0].y),
+    const bool mirrored = m.rows[0].x * m.rows[1].y - m.rows[0].y * m.rows[1].x < 0;
+    const float sign = mirrored ? -1.0f : 1.0f;
+    pose.angle = std::atan2(sign * m.rows[0].y, sign * m.rows[0].x);
+    pose.scale = {sign * std::sqrt(m.rows[0].x * m.rows[0].x + m.rows[0].y * m.rows[0].y),
                   std::sqrt(m.rows[1].x * m.rows[1].x + m.rows[1].y * m.rows[1].y)};
     return pose;
 }
@@ -153,7 +161,8 @@ bool same(const scenes::Transform2D& a, const scenes::Transform2D& b)
 bool same(const Collider2D& a, const Collider2D& b)
 {
     if (a.shape != b.shape || !same(a.size, b.size) || !same(a.offset, b.offset) || a.friction != b.friction ||
-        a.restitution != b.restitution || a.isTrigger != b.isTrigger || a.pointCount != b.pointCount)
+        a.restitution != b.restitution || a.isTrigger != b.isTrigger || a.pointCount != b.pointCount ||
+        !(a.chain == b.chain))
     {
         return false;
     }
@@ -173,6 +182,8 @@ struct Body
 {
     b2BodyId body = b2_nullBodyId;
     b2ShapeId shape = b2_nullShapeId;
+    b2ChainId chain = b2_nullChainId; // a Chain collider's, instead of a shape
+    uint32_t chainVersion = 0;        // of the chain's points it was made from
     BodyKind kind = BodyKind::Static; // a Collider2D alone is static
     Collider2D collider{};
     Vector2 scale{1, 1};
@@ -301,6 +312,108 @@ PhysicsWorld& worldOf(const ecs::World& world)
     return *made;
 }
 
+// --- Chains (ADR 0095) ---------------------------------------------------------
+//
+// Chain assets' points, read from their CHAN files when a collider first
+// uses them and kept for every world. A reload reads them again under a new
+// version, so the bodies made from the old points rebuild at their next sync.
+
+struct ChainData
+{
+    assets::AssetId id{};
+    Vector<Vector2> points{tag}; // empty: unreadable (said once)
+    bool loop = false;
+    uint32_t version = 0;
+};
+
+Vector<ChainData*> chainData{tag};
+uint32_t chainVersions = 0;
+
+bool isNone(const assets::AssetId& id)
+{
+    return id == assets::AssetId{};
+}
+
+// Its points from the asset source; false if it has none or they're wrong.
+bool readChain(ChainData& data)
+{
+    data.points.clear();
+    data.version = ++chainVersions;
+    Vector<uint8_t> bytes(tag);
+    auto deliver = [](void* context, const uint8_t* source, uint64_t size) {
+        static_cast<Vector<uint8_t>*>(context)->assign(std::span<const uint8_t>(source, static_cast<size_t>(size)));
+    };
+    if (assets::assetSource().read(&data.id, &bytes, deliver) != 0)
+    {
+        return false;
+    }
+    Result<binary::File*> opened = binary::parseFile(bytes.span(), assets::chainFileKind, assets::chainFileVersion);
+    if (!opened)
+    {
+        return false;
+    }
+    binary::File* file = opened.value();
+    const int32_t info = binary::findSection(*file, binary::tag("INFO"));
+    const int32_t points = binary::findSection(*file, binary::tag("PNTS"));
+    assets::ChainInfo header{};
+    bool good = info >= 0 && points >= 0 &&
+                binary::sectionInfo(*file, static_cast<uint32_t>(info)).size == sizeof(header) &&
+                binary::readSection(*file, static_cast<uint32_t>(info),
+                                    std::span(reinterpret_cast<uint8_t*>(&header), sizeof(header)));
+    if (good && header.pointCount >= (header.loop != 0 ? 3u : 2u) &&
+        binary::sectionInfo(*file, static_cast<uint32_t>(points)).size == header.pointCount * sizeof(Vector2))
+    {
+        data.points.resize(header.pointCount);
+        data.loop = header.loop != 0;
+        good = static_cast<bool>(binary::readSection(
+            *file, static_cast<uint32_t>(points),
+            std::span(reinterpret_cast<uint8_t*>(data.points.data()), data.points.size() * sizeof(Vector2))));
+    }
+    else
+    {
+        good = false;
+    }
+    binary::closeFile(file);
+    if (!good)
+    {
+        data.points.clear();
+    }
+    return good;
+}
+
+// A chain asset's points, read if they haven't been; null for none.
+const ChainData* chainOf(const assets::AssetId& id)
+{
+    if (isNone(id))
+    {
+        return nullptr;
+    }
+    for (const ChainData* data : chainData)
+    {
+        if (data->id == id)
+        {
+            return data;
+        }
+    }
+    ChainData* data = create<ChainData>(tag);
+    data->id = id;
+    if (!readChain(*data))
+    {
+        log::warning("a Chain collider's chain can't be read (reimport it)");
+    }
+    chainData.pushBack(data);
+    return data;
+}
+
+void freeChains()
+{
+    for (ChainData* data : chainData)
+    {
+        destroy(tag, data);
+    }
+    chainData.clear();
+}
+
 b2BodyType typeOf(BodyKind kind)
 {
     return kind == BodyKind::Dynamic ? b2_dynamicBody : kind == BodyKind::Kinematic ? b2_kinematicBody : b2_staticBody;
@@ -321,6 +434,11 @@ void buildShape(Body& body, ecs::Entity entity, const Collider2D& collider, Vect
     {
         b2DestroyShape(body.shape, true);
         body.shape = b2_nullShapeId;
+    }
+    if (B2_IS_NON_NULL(body.chain))
+    {
+        b2DestroyChain(body.chain);
+        body.chain = b2_nullChainId;
     }
     body.collider = collider;
     body.scale = scale;
@@ -376,6 +494,45 @@ void buildShape(Body& body, ecs::Entity entity, const Collider2D& collider, Vect
             const b2Polygon polygon = b2MakePolygon(&hull, 0);
             body.shape = b2CreatePolygonShape(body.body, &def, &polygon);
         }
+        break;
+    }
+    case ShapeKind2D::Chain:
+    {
+        const ChainData* data = chainOf(collider.chain);
+        body.chainVersion = data != nullptr ? data->version : 0;
+        if (data == nullptr || data->points.empty())
+        {
+            break;
+        }
+        // Box2D's chains have no mass, and can't be sensors.
+        if (body.kind == BodyKind::Dynamic || collider.isTrigger)
+        {
+            log::warning("a Chain collider is only for static and kinematic bodies, and can't be a trigger");
+            break;
+        }
+        // Mirrored (one negative scale), the points run the other way, so
+        // the solid side stays the one drawn.
+        const bool mirrored = (scale.x < 0) != (scale.y < 0);
+        const size_t count = data->points.size();
+        Vector<b2Vec2> points(tag);
+        points.resize(count);
+        for (size_t i = 0; i < count; ++i)
+        {
+            points[i] = toB2(scaled(data->points[mirrored ? count - 1 - i : i], scale) + offset);
+        }
+        b2ChainDef chain = b2DefaultChainDef();
+        chain.userData = def.userData;
+        chain.points = points.data();
+        chain.pointCount = static_cast<int>(count);
+        chain.materials = &def.material;
+        chain.materialCount = 1;
+        chain.filter = def.filter;
+        chain.isLoop = data->loop;
+        chain.enableSensorEvents = true;
+        // An open chain's ends, extended straight on, so nothing catches there.
+        chain.ghost1 = b2Add(points[0], b2Sub(points[0], points[1]));
+        chain.ghost2 = b2Add(points[count - 1], b2Sub(points[count - 1], points[count - 2]));
+        body.chain = b2CreateChain(body.body, &chain);
         break;
     }
     }
@@ -451,7 +608,9 @@ void syncBody(ecs::World& world, PhysicsWorld& physics, ecs::Entity entity, floa
     }
     if (!same(collider, body->collider) ||
         std::fabs(pose.scale.x - body->scale.x) + std::fabs(pose.scale.y - body->scale.y) > 1e-5f ||
-        layers != body->layers || mask != body->mask || kindChanged)
+        layers != body->layers || mask != body->mask || kindChanged ||
+        (collider.shape == ShapeKind2D::Chain && chainOf(collider.chain) != nullptr &&
+         chainOf(collider.chain)->version != body->chainVersion))
     {
         buildShape(*body, entity, collider, pose.scale, layers, mask);
         applyMass(*body, rigid != nullptr ? rigid->mass : 0);
@@ -1455,6 +1614,33 @@ void outline(const Collider2D& collider, const Matrix4x4& toWorld, Vector4 color
         polyline(std::span(corners, static_cast<size_t>(hull.count)), true, toWorld, color);
         break;
     }
+    case ShapeKind2D::Chain:
+        if (const ChainData* data = chainOf(collider.chain); data != nullptr && data->points.size() >= 2)
+        {
+            Vector<Vector2> points(tag);
+            points.resize(data->points.size());
+            for (size_t i = 0; i < points.size(); ++i)
+            {
+                points[i] = data->points[i] + o;
+            }
+            polyline(points.span(), data->loop, toWorld, color);
+            // A tick at each segment's middle on its solid side (the right).
+            const size_t segments = data->loop ? points.size() : points.size() - 1;
+            for (size_t i = 0; i < segments; ++i)
+            {
+                const Vector2 a = points[i], b = points[(i + 1) % points.size()];
+                const Vector2 along = b - a;
+                const float length = std::sqrt(along.x * along.x + along.y * along.y);
+                if (length > 0)
+                {
+                    const Vector2 middle = (a + b) * 0.5f;
+                    const float tick = std::min(0.15f, length * 0.25f) / length;
+                    debug::drawLine(at(toWorld, middle), at(toWorld, middle + Vector2{along.y, -along.x} * tick),
+                                    color);
+                }
+            }
+        }
+        break;
     }
 }
 
@@ -1539,9 +1725,29 @@ void releasePhysics2D(const ecs::World& world)
             b2DestroyWorld(worlds[i]->id);
             destroy(tag, worlds[i]);
             worlds.removeSwap(i);
+            if (worlds.empty())
+            {
+                freeChains(); // nothing is made from them now
+            }
             return;
         }
     }
+}
+
+bool reloadChainAsset(assets::AssetId chain)
+{
+    for (ChainData* data : chainData)
+    {
+        if (data->id == chain)
+        {
+            if (!readChain(*data))
+            {
+                log::warning("a Chain collider's chain can't be read (reimport it)");
+            }
+            return true;
+        }
+    }
+    return false;
 }
 
 void drawColliders2D(const ecs::World& world, Vector4 color)
