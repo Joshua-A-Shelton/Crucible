@@ -618,6 +618,12 @@ decision made at its start):
    interpolated; 2D queries and contacts; drawn with View > Colliders and
    Queries; the Walker's Physics2D scene. Tried by hand by the owner on
    KWin; names settled as drafted. Step 6a is done.
+
+   Step 6b built (ADR 0094): Joint2D (Fixed, Hinge, Distance, Slider) and
+   CharacterController2D on Box2D's joints and mover, the same rules as
+   3D; hinge and slider limits as the entity's own movement (3D's hinge
+   fixed to match); the Walker's Characters2D scene. Awaiting the owner's
+   try by hand.
 7. Swept hitboxes: a hitbox shape on a joint, active during an animation
    window (ADR 0081), swept each frame by shape cast; hits reported with
    exact times, interpolated between frame timestamps.

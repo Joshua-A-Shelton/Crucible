@@ -79,6 +79,8 @@ internal static class EngineComponents
         Components.Register<Crucible.Physics.CharacterController>();
         Components.Register<Crucible.Physics2D.RigidBody2D>();
         Components.Register<Crucible.Physics2D.Collider2D>();
+        Components.Register<Crucible.Physics2D.Joint2D>();
+        Components.Register<Crucible.Physics2D.CharacterController2D>();
         Components.Register<Crucible.Audio.AudioSource>();
         Components.RegisterTag<Crucible.Audio.AudioListener>();
         Components.Register<Crucible.Animation.Animator>();
@@ -103,6 +105,8 @@ internal static class EngineComponents
         SavedComponents.Add<Crucible.Physics.CharacterController>();
         SavedComponents.Add<Crucible.Physics2D.RigidBody2D>();
         SavedComponents.Add<Crucible.Physics2D.Collider2D>();
+        SavedComponents.Add<Crucible.Physics2D.Joint2D>();
+        SavedComponents.Add<Crucible.Physics2D.CharacterController2D>();
         SavedComponents.Add<Crucible.Audio.AudioSource>();
         SavedComponents.AddTag<Crucible.Audio.AudioListener>();
         SavedComponents.Add<Crucible.Animation.Animator>();

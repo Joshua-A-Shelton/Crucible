@@ -162,4 +162,5 @@ Longer explanations of decisions, written to be reread:
   collide.
 - [2D physics](docs/learning/physics-2d.md) (ADR 0093): why 2D physics is
   its own engine, a 2D transform that becomes the same world matrix,
-  angles, and convex polygons.
+  angles, convex polygons, and (ADR 0094) whose movement a joint's limits
+  measure, and how a character is kept from seeing itself.

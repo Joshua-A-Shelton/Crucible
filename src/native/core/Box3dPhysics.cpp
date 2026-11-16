@@ -1126,10 +1126,13 @@ void makeJoint(PhysicsWorld& physics, ecs::World& world, ecs::Entity entity, con
     {
         b3RevoluteJointDef def = b3DefaultRevoluteJointDef();
         fill(def.base);
-        // Limits off while the range is empty (ADR 0092); Box3D's within 0.99 pi.
+        // Limits off while the range is empty (ADR 0092); Box3D's within 0.99
+        // pi. Box3D measures body B (the other) against body A (this one):
+        // the entity's own turn is the opposite, so its limits are swapped
+        // and negated.
         def.enableLimit = joint.lowerLimit < joint.upperLimit;
-        def.lowerAngle = std::clamp(joint.lowerLimit, -3.11f, 3.11f);
-        def.upperAngle = std::clamp(joint.upperLimit, -3.11f, 3.11f);
+        def.lowerAngle = std::clamp(-joint.upperLimit, -3.11f, 3.11f);
+        def.upperAngle = std::clamp(-joint.lowerLimit, -3.11f, 3.11f);
         state.id = b3CreateRevoluteJoint(physics.id, &def);
         break;
     }

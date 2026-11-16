@@ -41,6 +41,38 @@ public partial struct Collider2D
     }
 }
 
+/// <summary>Joins its entity's body to another's, or (Other none) to the world (ADR 0094).</summary>
+[Serialized]
+public partial struct Joint2D;
+
+/// <summary>
+/// A capsule the game moves with <see cref="Move"/> (ADR 0094), sliding, stepping, and
+/// falling as 3D's does; its entity's position is its feet.
+/// </summary>
+[Serialized]
+public partial struct CharacterController2D
+{
+    /// <summary>Moves a character by a displacement over a time; where it ended up, and whether it's on the ground.</summary>
+    public static CharacterMove2D Move(World world, Entity character, Vector2 displacement, float seconds) =>
+        Api.MoveCharacter2D(world.Live, character, displacement, seconds);
+
+    /// <summary>Sets a character's speed up (a jump), off the ground from its next move.</summary>
+    public static void Launch(World world, Entity character, float upwardSpeed) =>
+        Api.LaunchCharacter2D(world.Live, character, upwardSpeed);
+
+    public CharacterController2D()
+    {
+        Radius = 0.4f;
+        Height = 1;
+        StepHeight = 0.3f;
+        SlopeLimit = 0.785f; // 45 degrees
+        Layers = 1;
+        Mask = uint.MaxValue;
+        GravityScale = 1;
+        StepSmoothing = 0.1f;
+    }
+}
+
 /// <summary>
 /// 2D physics queries (ADR 0093), as 3D's (<see cref="Crucible.Physics.Physics"/>): on the
 /// last tick's world, filtered by a <see cref="QueryFilter"/>.

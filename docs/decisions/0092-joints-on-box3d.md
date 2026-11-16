@@ -51,6 +51,13 @@ Decided by the owner (2026-11-11):
   off), the usual default.
 - **Left out:** motors, springs, and breaking (not in the contract).
 
+## Amendment (2026-11-16, ADR 0094)
+
+A hinge's limits are its own entity's turn relative to the other body
+(or the world): Box3D measures the other way round, so its limits are
+now swapped and negated. Before, a hinge limited 0..1 turned the wrong
+way; symmetric limits, as the Joints scene's door has, behaved the same.
+
 ## As built
 
 - Box3dPhysics.cpp: `JointState`*, `PhysicsWorld::joints`*, `ground`*,

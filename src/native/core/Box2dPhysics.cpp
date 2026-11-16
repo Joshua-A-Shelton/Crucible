@@ -34,6 +34,10 @@ using physics::ContactKind;
 using physics::QueryFilter;
 
 constexpr MemoryTag tag = MemoryTag::Physics;
+// Box2D's mover cast has no shape filter, so what characters move through
+// (triggers, characters' own capsules) leaves this bit out of its shapes'
+// Box2D masks, and character moves query with only it (ADR 0094).
+constexpr uint64_t moverBit = uint64_t{1} << 63;
 constexpr int subSteps = 4;
 constexpr uint32_t maxTasks = 64;
 
@@ -188,11 +192,41 @@ struct Body
     uint32_t seen = 0;
 };
 
+// A joint (ADR 0094): the Box2D joint made from a Joint2D, between the
+// bodies it was made for, and what it was made from.
+struct JointState
+{
+    b2JointId id = b2_nullJointId;
+    Joint2D joint{};
+    b2BodyId a = b2_nullBodyId;
+    b2BodyId b = b2_nullBodyId;
+    Vector2 worldAnchor{}; // where a joint to the world holds on
+    bool toWorld = false;
+    uint32_t seen = 0;
+};
+
+// A character (ADR 0094): what moveCharacter2D keeps between moves, and
+// its kinematic capsule.
+struct Character
+{
+    b2BodyId body = b2_nullBodyId;
+    b2ShapeId shape = b2_nullShapeId;
+    CharacterController2D controller{};
+    Vector2 position{};
+    float fallSpeed = 0;
+    bool grounded = false;
+    Vector2 groundNormal{0, 1};
+    uint32_t seen = 0;
+};
+
 struct PhysicsWorld
 {
     const ecs::World* world = nullptr;
     b2WorldId id = b2_nullWorldId;
     HashMap<uint64_t, Body> bodies{tag};
+    HashMap<uint64_t, JointState> joints{tag};
+    HashMap<uint64_t, Character> characters{tag};
+    b2BodyId ground = b2_nullBodyId; // the static body joints to the world hold on to
     Vector<ContactEvent2D> events{tag};
     uint64_t eventsFrame = UINT64_MAX;
     uint32_t mark = 0;
@@ -296,7 +330,7 @@ void buildShape(Body& body, ecs::Entity entity, const Collider2D& collider, Vect
     def.userData = entityData(entity);
     def.material.friction = std::max(collider.friction, 0.0f);
     def.material.restitution = std::clamp(collider.restitution, 0.0f, 1.0f);
-    def.filter = {uint64_t{layers} | (uint64_t{mask} << 32), UINT64_MAX, 0};
+    def.filter = {uint64_t{layers} | (uint64_t{mask} << 32), collider.isTrigger ? ~moverBit : UINT64_MAX, 0};
     def.enableCustomFiltering = true;
     def.isSensor = collider.isTrigger;
     def.enableSensorEvents = true;
@@ -484,6 +518,228 @@ void syncBody(ecs::World& world, PhysicsWorld& physics, ecs::Entity entity, floa
     }
 }
 
+// --- Joints (ADR 0094) ---------------------------------------------------------
+
+constexpr float minimumLength = 0.01f; // Box2D's distance joints need a length
+
+bool sameJoint(const Joint2D& a, const Joint2D& b)
+{
+    return a.kind == b.kind && a.other.value == b.other.value && same(a.anchor, b.anchor) &&
+           same(a.otherAnchor, b.otherAnchor) && same(a.axis, b.axis) && a.lowerLimit == b.lowerLimit &&
+           a.upperLimit == b.upperLimit;
+}
+
+b2BodyId groundOf(PhysicsWorld& physics)
+{
+    if (B2_IS_NULL(physics.ground))
+    {
+        b2BodyDef def = b2DefaultBodyDef();
+        def.type = b2_staticBody;
+        physics.ground = b2CreateBody(physics.id, &def);
+    }
+    return physics.ground;
+}
+
+void destroyJoint(JointState& state)
+{
+    if (B2_IS_NON_NULL(state.id) && b2Joint_IsValid(state.id))
+    {
+        b2DestroyJoint(state.id);
+    }
+    state.id = b2_nullJointId;
+}
+
+// Frame A at the anchor, turned along the axis (a slider moves along its
+// x); frame B where frame A is now, so angles and positions count from how
+// the bodies sit when it's made.
+void makeJoint(PhysicsWorld& physics, ecs::World& world, ecs::Entity entity, const Joint2D& joint, b2BodyId a,
+               b2BodyId b, JointState& state)
+{
+    const Pose2D poseA = worldPose(world, entity);
+    const Vector2 anchorA = scaled(joint.anchor, poseA.scale);
+    const float turnA = length(joint.axis) > 1e-6f ? std::atan2(joint.axis.y, joint.axis.x) : 0;
+    const b2Rot rotA = b2MakeRot(poseA.angle);
+    const Vector2 worldAnchorA = poseA.position + fromB2(b2RotateVector(rotA, toB2(anchorA)));
+    const float worldTurn = poseA.angle + turnA;
+    Vector2 anchorB{}, worldAnchorB{};
+    float turnB = 0;
+    if (state.toWorld)
+    {
+        anchorB = worldAnchorB = state.worldAnchor = worldAnchorA;
+        turnB = worldTurn;
+    }
+    else
+    {
+        const Pose2D poseB = worldPose(world, joint.other);
+        anchorB = scaled(joint.otherAnchor, poseB.scale);
+        turnB = worldTurn - poseB.angle;
+        worldAnchorB = poseB.position + fromB2(b2RotateVector(b2MakeRot(poseB.angle), toB2(anchorB)));
+    }
+    const auto fill = [&](b2JointDef& base) {
+        base.userData = entityData(entity);
+        base.bodyIdA = a;
+        base.bodyIdB = b;
+        base.localFrameA = {toB2(anchorA), b2MakeRot(turnA)};
+        base.localFrameB = {toB2(anchorB), b2MakeRot(turnB)};
+        base.collideConnected = false;
+    };
+    const bool limited = joint.lowerLimit < joint.upperLimit; // off unless set (ADR 0094)
+    switch (joint.kind)
+    {
+    case JointKind2D::Fixed:
+    {
+        b2WeldJointDef def = b2DefaultWeldJointDef();
+        fill(def.base);
+        state.id = b2CreateWeldJoint(physics.id, &def);
+        break;
+    }
+    case JointKind2D::Hinge:
+    {
+        b2RevoluteJointDef def = b2DefaultRevoluteJointDef();
+        fill(def.base);
+        // Box2D measures body B (the other) against body A (this one): the
+        // entity's own turn is the opposite, so its limits are swapped and negated.
+        def.enableLimit = limited;
+        def.lowerAngle = std::clamp(-joint.upperLimit, -3.11f, 3.11f);
+        def.upperAngle = std::clamp(-joint.lowerLimit, -3.11f, 3.11f);
+        state.id = b2CreateRevoluteJoint(physics.id, &def);
+        break;
+    }
+    case JointKind2D::Distance:
+    {
+        b2DistanceJointDef def = b2DefaultDistanceJointDef();
+        fill(def.base);
+        const float now = length(worldAnchorB - worldAnchorA);
+        if (limited)
+        {
+            def.enableSpring = true; // free between the limits: a rope or rod
+            def.hertz = 0;
+            def.enableLimit = true;
+            def.minLength = std::max(joint.lowerLimit, minimumLength);
+            def.maxLength = std::max(joint.upperLimit, def.minLength);
+            def.length = std::clamp(now, def.minLength, def.maxLength);
+        }
+        else
+        {
+            def.length = std::max(now, minimumLength);
+        }
+        state.id = b2CreateDistanceJoint(physics.id, &def);
+        break;
+    }
+    case JointKind2D::Slider:
+    {
+        b2PrismaticJointDef def = b2DefaultPrismaticJointDef();
+        fill(def.base);
+        def.enableLimit = limited; // the entity's own movement, as a hinge's
+        def.lowerTranslation = -joint.upperLimit;
+        def.upperTranslation = -joint.lowerLimit;
+        state.id = b2CreatePrismaticJoint(physics.id, &def);
+        break;
+    }
+    }
+    state.joint = joint;
+    state.a = a;
+    state.b = b;
+}
+
+void syncJoint(PhysicsWorld& physics, ecs::World& world, ecs::Entity entity)
+{
+    const Joint2D& joint = *ecs::read<Joint2D>(world, entity);
+    JointState* state = physics.joints.find(entity.value);
+    if (state == nullptr)
+    {
+        physics.joints.insertOrAssign(entity.value, JointState{});
+        state = physics.joints.find(entity.value);
+    }
+    state->seen = physics.mark;
+    const Body* own = physics.bodies.find(entity.value);
+    const bool toWorld = joint.other.value == 0;
+    const Body* other = toWorld ? nullptr : physics.bodies.find(joint.other.value);
+    if (own == nullptr || B2_IS_NULL(own->body) || (!toWorld && (other == nullptr || B2_IS_NULL(other->body))) ||
+        joint.other.value == entity.value)
+    {
+        destroyJoint(*state);
+        return;
+    }
+    const b2BodyId a = own->body;
+    const b2BodyId b = toWorld ? groundOf(physics) : other->body;
+    const bool valid = B2_IS_NON_NULL(state->id) && b2Joint_IsValid(state->id);
+    if (valid && sameJoint(joint, state->joint) && B2_ID_EQUALS(a, state->a) && B2_ID_EQUALS(b, state->b) &&
+        state->toWorld == toWorld)
+    {
+        return;
+    }
+    destroyJoint(*state);
+    state->toWorld = toWorld;
+    makeJoint(physics, world, entity, joint, a, b, *state);
+}
+
+// --- Characters (ADR 0094) -----------------------------------------------------
+
+// A character's capsule from its feet: riding a step height above them, or
+// (its body) reaching down to them.
+b2Capsule characterCapsule(const CharacterController2D& controller, bool toFeet)
+{
+    const float radius = std::max(controller.radius, 0.01f);
+    const float bottom = radius + (toFeet ? 0.0f : std::max(controller.stepHeight, 0.0f));
+    const float top = radius + std::max(controller.stepHeight, 0.0f) + std::max(controller.height, 0.0f);
+    return {{0, bottom}, {0, std::max(top, bottom)}, radius};
+}
+
+bool sameController(const CharacterController2D& a, const CharacterController2D& b)
+{
+    return a.radius == b.radius && a.height == b.height && a.stepHeight == b.stepHeight && a.layers == b.layers &&
+           a.mask == b.mask;
+}
+
+void syncCharacter(ecs::World& world, PhysicsWorld& physics, ecs::Entity entity, float step)
+{
+    const CharacterController2D& controller = *ecs::read<CharacterController2D>(world, entity);
+    const Vector2 at = ecs::read<scenes::Transform2D>(world, entity)->position;
+    Character* character = physics.characters.find(entity.value);
+    if (character == nullptr)
+    {
+        physics.characters.insertOrAssign(entity.value, Character{});
+        character = physics.characters.find(entity.value);
+    }
+    character->seen = physics.mark;
+    if (B2_IS_NULL(character->body))
+    {
+        b2BodyDef def = b2DefaultBodyDef();
+        def.type = b2_kinematicBody;
+        def.position = toB2(at);
+        def.userData = entityData(entity);
+        character->body = b2CreateBody(physics.id, &def);
+        character->position = at;
+    }
+    if (B2_IS_NULL(character->shape) || !sameController(controller, character->controller))
+    {
+        if (B2_IS_NON_NULL(character->shape))
+        {
+            b2DestroyShape(character->shape, false);
+        }
+        b2ShapeDef def = b2DefaultShapeDef();
+        def.userData = entityData(entity);
+        // Not for movers: its own moves (and others') pass it by.
+        def.filter = {uint64_t{controller.layers} | (uint64_t{controller.mask} << 32), ~moverBit, 0};
+        def.enableCustomFiltering = true;
+        def.enableContactEvents = true;
+        def.enableSensorEvents = true;
+        const b2Capsule capsule = characterCapsule(controller, true);
+        character->shape = b2CreateCapsuleShape(character->body, &def, &capsule);
+        character->controller = controller;
+    }
+    if (!same(at, character->position))
+    {
+        b2Body_SetTargetTransform(character->body, {toB2(at), b2Rot_identity}, step, true);
+        character->position = at;
+    }
+    else
+    {
+        b2Body_SetLinearVelocity(character->body, {0, 0});
+    }
+}
+
 float stepOf(const loop::SystemContext& context)
 {
     return context.fixedStepSeconds > 0 ? static_cast<float>(context.fixedStepSeconds) : 1.0f / 60;
@@ -541,6 +797,67 @@ void sync(const loop::SystemContext& context, void*)
             b2DestroyBody(body->body);
         }
         physics.bodies.erase(key);
+    }
+
+    // Joints, after the bodies they join; characters; and those gone.
+    const auto gatherEntities = [&](std::span<const ecs::ComponentId> components, Vector<ecs::Entity>& into) {
+        ecs::Query* found = ecs::createQuery(world, {.required = components});
+        ecs::forEachChunk(
+            *found,
+            [](const ecs::ChunkView& view, void* data) {
+                const ecs::Entity* chunk = ecs::entitiesOf(view);
+                for (uint32_t i = 0; i < ecs::entityCountOf(view); ++i)
+                {
+                    static_cast<Vector<ecs::Entity>*>(data)->pushBack(chunk[i]);
+                }
+            },
+            &into);
+        ecs::destroyQuery(found);
+    };
+    Vector<ecs::Entity> jointed(tag);
+    const ecs::ComponentId joints[] = {ecs::componentIdOf<Joint2D>, ecs::componentIdOf<scenes::Transform2D>};
+    gatherEntities(joints, jointed);
+    for (const ecs::Entity entity : jointed)
+    {
+        syncJoint(physics, world, entity);
+    }
+    gone.clear();
+    for (const auto& entry : physics.joints)
+    {
+        if (entry.value.seen != physics.mark)
+        {
+            gone.pushBack(entry.key);
+        }
+    }
+    for (const uint64_t key : gone)
+    {
+        destroyJoint(*physics.joints.find(key));
+        physics.joints.erase(key);
+    }
+    Vector<ecs::Entity> characters(tag);
+    const ecs::ComponentId controlled[] = {ecs::componentIdOf<CharacterController2D>,
+                                           ecs::componentIdOf<scenes::Transform2D>};
+    gatherEntities(controlled, characters);
+    for (const ecs::Entity entity : characters)
+    {
+        syncCharacter(world, physics, entity, step);
+    }
+    gone.clear();
+    for (const auto& entry : physics.characters)
+    {
+        if (entry.value.seen != physics.mark)
+        {
+            gone.pushBack(entry.key);
+        }
+    }
+    for (const uint64_t key : gone)
+    {
+        Character* character = physics.characters.find(key);
+        if (B2_IS_NON_NULL(character->body))
+        {
+            b2DestroyBody(character->body);
+        }
+        physics.characters.erase(key);
     }
 }
 
@@ -856,7 +1173,214 @@ uint32_t contactsBox2D(ecs::World& world, std::span<ContactEvent2D> into)
     return static_cast<uint32_t>(physics->events.size());
 }
 
-constexpr Physics2DService box2dPhysics{raycastBox2D, shapeCastBox2D, overlapBox2D, contactsBox2D};
+// --- Character moves (ADR 0094, as 3D's, ADR 0091) -------------------------------
+
+constexpr int maxCharacterPlanes = 16;
+constexpr int moveIterations = 5;
+constexpr float groundSkin = 0.02f;
+
+struct Mover
+{
+    ecs::Entity self;
+    float walkable; // the cosine of the slope limit
+    int count = 0;
+    b2CollisionPlane planes[maxCharacterPlanes];
+    b2ShapeId shapes[maxCharacterPlanes];
+    Vector2 points[maxCharacterPlanes]; // relative to the origin
+};
+
+bool gatherPlanes(b2ShapeId shape, const b2PlaneResult* result, void* context)
+{
+    Mover& mover = *static_cast<Mover*>(context);
+    if (b2Shape_IsSensor(shape) || entityOf(shape).value == mover.self.value || mover.count == maxCharacterPlanes)
+    {
+        return true;
+    }
+    b2Plane plane = result->plane;
+    // Too steep to walk up: a wall, pushing only sideways.
+    if (plane.normal.y > 0 && plane.normal.y < mover.walkable && std::fabs(plane.normal.x) > 1e-4f)
+    {
+        plane.normal = {plane.normal.x > 0 ? 1.0f : -1.0f, 0};
+    }
+    mover.planes[mover.count] = {plane, 3.4e38f, 0, true};
+    mover.shapes[mover.count] = shape;
+    mover.points[mover.count] = fromB2(result->point);
+    ++mover.count;
+    return true;
+}
+
+Character& characterOf(PhysicsWorld& physics, ecs::Entity entity)
+{
+    Character* character = physics.characters.find(entity.value);
+    if (character == nullptr)
+    {
+        physics.characters.insertOrAssign(entity.value, Character{});
+        character = physics.characters.find(entity.value);
+    }
+    return *character;
+}
+
+// Feet up onto higher ground eased over the step smoothing; down at once.
+float settle(float feet, float ground, const CharacterController2D& controller, bool wasGrounded, float seconds)
+{
+    if (ground <= feet || !wasGrounded || controller.stepSmoothing <= 0 || seconds <= 0)
+    {
+        return ground;
+    }
+    return feet + (ground - feet) * (1 - std::exp(-seconds * 2.302585f / controller.stepSmoothing));
+}
+
+float cross2(Vector2 a, Vector2 b)
+{
+    return a.x * b.y - a.y * b.x;
+}
+
+// Dynamic bodies walked into get an impulse along each plane to stop closing on them.
+void pushBodies(const Mover& mover, Vector2 origin, Vector2 velocity)
+{
+    for (int i = 0; i < mover.count; ++i)
+    {
+        const b2BodyId body = b2Shape_GetBody(mover.shapes[i]);
+        if (b2Body_GetType(body) != b2_dynamicBody)
+        {
+            continue;
+        }
+        const Vector2 point = origin + mover.points[i];
+        const Vector2 normal = -fromB2(mover.planes[i].plane.normal);
+        const Vector2 arm = point - fromB2(b2Body_GetWorldCenter(body));
+        const float mass = b2Body_GetMass(body), inertia = b2Body_GetRotationalInertia(body);
+        const float armNormal = cross2(arm, normal);
+        const float k = (mass > 0 ? 1 / mass : 0) + (inertia > 0 ? armNormal * armNormal / inertia : 0);
+        if (k <= 0)
+        {
+            continue;
+        }
+        const float spin = b2Body_GetAngularVelocity(body);
+        const Vector2 bodyVelocity = fromB2(b2Body_GetLinearVelocity(body)) + Vector2{-spin * arm.y, spin * arm.x};
+        const float closing = dot(bodyVelocity - velocity, normal);
+        const float impulse = std::max(-closing / k, 0.0f);
+        if (impulse > 0)
+        {
+            b2Body_ApplyLinearImpulse(body, toB2(normal * impulse), toB2(point), true);
+        }
+    }
+}
+
+CharacterMove2D moveCharacterBox2D(ecs::World& world, ecs::Entity entity, Vector2 displacement, float seconds)
+{
+    scenes::Transform2D* transform = ecs::get<scenes::Transform2D>(world, entity);
+    if (transform == nullptr)
+    {
+        return {};
+    }
+    const CharacterController2D* controller = ecs::read<CharacterController2D>(world, entity);
+    PhysicsWorld* physics = find(world);
+    if (controller == nullptr || physics == nullptr)
+    {
+        transform->position = transform->position + displacement;
+        return {transform->position, false, {0, 1}, 0};
+    }
+    Character& character = characterOf(*physics, entity);
+    const float time = std::max(seconds, 0.0f);
+    if (!character.grounded || character.fallSpeed > 0)
+    {
+        character.fallSpeed += gravity.y * controller->gravityScale * time;
+    }
+    else
+    {
+        character.fallSpeed = 0;
+    }
+    Mover mover{entity, std::cos(std::clamp(controller->slopeLimit, 0.0f, 1.5707963f))};
+    const b2Capsule capsule = characterCapsule(*controller, false);
+    b2QueryFilter filter = b2DefaultQueryFilter();
+    filter.categoryBits = moverBit;
+    filter.maskBits = controller->mask;
+
+    const Vector2 start = transform->position;
+    const Vector2 target = start + displacement + Vector2{0, character.fallSpeed * time};
+    Vector2 at = start;
+    for (int iteration = 0; iteration < moveIterations; ++iteration)
+    {
+        mover.count = 0;
+        b2World_CollideMover(physics->id, toB2(at), &capsule, filter, gatherPlanes, &mover);
+        const b2PlaneSolverResult solved = b2SolvePlanes(toB2(target - at), mover.planes, mover.count);
+        const float fraction = b2World_CastMover(physics->id, toB2(at), &capsule, solved.delta, filter);
+        const Vector2 moved = fromB2(solved.delta) * fraction;
+        at = at + moved;
+        if (length(moved) < 0.001f)
+        {
+            break;
+        }
+    }
+    if (character.fallSpeed > 0 && at.y - start.y < character.fallSpeed * time * 0.5f)
+    {
+        character.fallSpeed = 0; // a head against a ceiling
+    }
+
+    // The ground: a circle a little smaller than the capsule cast down from
+    // its bottom cap; over an edge, a ray straight down from the middle.
+    const bool wasGrounded = character.grounded;
+    character.grounded = false;
+    character.groundNormal = {0, 1};
+    if (character.fallSpeed <= 0)
+    {
+        const float radius = capsule.radius * 0.95f;
+        const float ride = capsule.center1.y - radius;
+        const float reach = ride + groundSkin + (wasGrounded ? controller->stepHeight : 0.0f);
+        const physics::QueryFilter own{controller->mask, entity, false};
+        b2QueryFilter probeFilter = b2DefaultQueryFilter();
+        probeFilter.categoryBits = UINT64_MAX;
+        probeFilter.maskBits = controller->mask;
+        const b2Vec2 center{0, 0};
+        const b2ShapeProxy probe = b2MakeProxy(&center, 1, radius);
+        Closest closest{own, reach};
+        const Vector2 from = at + Vector2{0, capsule.center1.y};
+        b2World_CastShape(physics->id, toB2(from), &probe, toB2(Vector2{0, -reach}), probeFilter, keepClosest,
+                          &closest);
+        if (closest.hit.hit && closest.hit.normal.y >= mover.walkable)
+        {
+            at.y = settle(at.y, from.y - closest.hit.distance - radius, *controller, wasGrounded, time);
+            character.grounded = true;
+            character.groundNormal = closest.hit.normal;
+        }
+        else
+        {
+            Closest below{own, ride + reach, false};
+            const Vector2 middle = at + Vector2{0, ride};
+            b2World_CastRay(physics->id, toB2(middle), toB2(Vector2{0, -(ride + reach)}), probeFilter, keepClosest,
+                            &below);
+            if (below.hit.hit && below.hit.normal.y >= mover.walkable)
+            {
+                at.y = settle(at.y, middle.y - below.hit.distance, *controller, wasGrounded, time);
+                character.grounded = true;
+                character.groundNormal = below.hit.normal;
+            }
+        }
+        if (character.grounded)
+        {
+            character.fallSpeed = 0;
+        }
+    }
+    if (time > 0)
+    {
+        pushBodies(mover, at, (at - start) * (1 / time));
+    }
+    transform->position = at;
+    return {at, character.grounded, character.groundNormal, character.fallSpeed};
+}
+
+void launchCharacterBox2D(ecs::World& world, ecs::Entity entity, float upwardSpeed)
+{
+    if (PhysicsWorld* physics = find(world))
+    {
+        Character& character = characterOf(*physics, entity);
+        character.fallSpeed = upwardSpeed;
+        character.grounded = false;
+    }
+}
+
+constexpr Physics2DService box2dPhysics{raycastBox2D,  shapeCastBox2D,     overlapBox2D,
+                                        contactsBox2D, moveCharacterBox2D, launchCharacterBox2D};
 
 Physics2DService installed = box2dPhysics;
 
@@ -968,6 +1492,19 @@ uint32_t contacts(ecs::World& world, std::span<ContactEvent2D> into)
     return installed.contacts(world, into);
 }
 
+CharacterMove2D moveCharacter2D(ecs::World& world, ecs::Entity character, Vector2 displacement, float seconds)
+{
+    return installed.moveCharacter(world, character, displacement, seconds);
+}
+
+void launchCharacter2D(ecs::World& world, ecs::Entity character, float upwardSpeed)
+{
+    if (installed.launchCharacter != nullptr)
+    {
+        installed.launchCharacter(world, character, upwardSpeed);
+    }
+}
+
 BodyPose2D bodyPose(const ecs::World& world, ecs::Entity entity)
 {
     const PhysicsWorld* physics = find(world);
@@ -983,6 +1520,8 @@ void registerPhysics2D()
 {
     ecs::registerComponent<RigidBody2D>("Crucible.Physics2D.RigidBody2D");
     ecs::registerComponent<Collider2D>("Crucible.Physics2D.Collider2D");
+    ecs::registerComponent<Joint2D>("Crucible.Physics2D.Joint2D");
+    ecs::registerComponent<CharacterController2D>("Crucible.Physics2D.CharacterController2D");
     loop::registerDefaultSystem({.name = syncSystemName, .phase = "PrePhysics", .function = sync, .gameplay = true});
     loop::registerDefaultSystem({.name = stepSystemName, .phase = "Physics", .function = stepWorld, .gameplay = true});
     loop::registerDefaultSystem(
@@ -1023,6 +1562,96 @@ void drawColliders2D(const ecs::World& world, Vector4 color)
             for (size_t i = 0; i < colliders.size(); ++i)
             {
                 outline(colliders[i], scenes::computeWorldTransform(*gather.world, entities[i]), gather.color);
+            }
+        },
+        &gather);
+    ecs::destroyQuery(query);
+    // Characters' capsules, from their feet up.
+    const ecs::ComponentId controlled[] = {ecs::componentIdOf<CharacterController2D>,
+                                           ecs::componentIdOf<scenes::Transform2D>};
+    query = ecs::createQuery(const_cast<ecs::World&>(world), {.required = controlled});
+    ecs::forEachChunk(
+        *query,
+        [](const ecs::ChunkView& view, void* data) {
+            const Gather& gather = *static_cast<const Gather*>(data);
+            const std::span<const CharacterController2D> controllers = ecs::readColumn<CharacterController2D>(view);
+            const std::span<const scenes::Transform2D> transforms = ecs::readColumn<scenes::Transform2D>(view);
+            for (size_t i = 0; i < controllers.size(); ++i)
+            {
+                const b2Capsule capsule = characterCapsule(controllers[i], true);
+                Collider2D shape{};
+                shape.shape = ShapeKind2D::Capsule;
+                shape.size = {capsule.radius, capsule.center2.y - capsule.center1.y};
+                shape.offset = {0, (capsule.center1.y + capsule.center2.y) * 0.5f};
+                Matrix4x4 placed = Matrix4x4::identity();
+                placed.rows[3] = {transforms[i].position.x, transforms[i].position.y, transforms[i].depth, 1};
+                outline(shape, placed, gather.color);
+            }
+        },
+        &gather);
+    ecs::destroyQuery(query);
+    // Joints: each anchor, the line between, a slider's axis, a hinge's limits.
+    const ecs::ComponentId jointed[] = {ecs::componentIdOf<Joint2D>, ecs::componentIdOf<scenes::Transform2D>};
+    query = ecs::createQuery(const_cast<ecs::World&>(world), {.required = jointed});
+    ecs::forEachChunk(
+        *query,
+        [](const ecs::ChunkView& view, void* data) {
+            const Gather& gather = *static_cast<const Gather*>(data);
+            const std::span<const Joint2D> joints = ecs::readColumn<Joint2D>(view);
+            const ecs::Entity* entities = ecs::entitiesOf(view);
+            for (size_t i = 0; i < joints.size(); ++i)
+            {
+                const Joint2D& joint = joints[i];
+                const Matrix4x4 own = scenes::computeWorldTransform(*gather.world, entities[i]);
+                const Vector3 a = transformPoint(Vector3{joint.anchor.x, joint.anchor.y, 0}, own);
+                Vector3 b = a;
+                if (joint.other.value != 0 && ecs::read<scenes::Transform2D>(*gather.world, joint.other) != nullptr)
+                {
+                    b = transformPoint(Vector3{joint.otherAnchor.x, joint.otherAnchor.y, 0},
+                                       scenes::computeWorldTransform(*gather.world, joint.other));
+                }
+                else if (const PhysicsWorld* physics = find(*gather.world))
+                {
+                    if (const JointState* state = physics->joints.find(entities[i].value);
+                        state != nullptr && state->toWorld)
+                    {
+                        b = {state->worldAnchor.x, state->worldAnchor.y, a.z};
+                    }
+                }
+                for (const Vector3 end : {a, b})
+                {
+                    debug::drawLine(end - Vector3{0.06f, 0, 0}, end + Vector3{0.06f, 0, 0}, gather.color);
+                    debug::drawLine(end - Vector3{0, 0.06f, 0}, end + Vector3{0, 0.06f, 0}, gather.color);
+                }
+                debug::drawLine(a, b, gather.color);
+                if (joint.kind == JointKind2D::Slider && length(joint.axis) > 1e-6f)
+                {
+                    Vector3 axis =
+                        transformPoint(Vector3{joint.axis.x, joint.axis.y, 0}, own) - transformPoint({}, own);
+                    axis = axis * (1 / length(axis));
+                    const float from = joint.lowerLimit < joint.upperLimit ? joint.lowerLimit : -0.5f;
+                    const float to = joint.lowerLimit < joint.upperLimit ? joint.upperLimit : 0.5f;
+                    debug::drawLine(a + axis * from, a + axis * to, gather.color);
+                }
+                if (joint.kind == JointKind2D::Hinge && joint.lowerLimit < joint.upperLimit)
+                {
+                    const float base = std::atan2(own.rows[0].y, own.rows[0].x);
+                    Vector3 last{};
+                    for (int s = 0; s <= 16; ++s)
+                    {
+                        const float angle = base + joint.lowerLimit + (joint.upperLimit - joint.lowerLimit) * s / 16.0f;
+                        const Vector3 point = a + Vector3{std::cos(angle), std::sin(angle), 0} * 0.3f;
+                        if (s == 0 || s == 16)
+                        {
+                            debug::drawLine(a, point, gather.color);
+                        }
+                        if (s > 0)
+                        {
+                            debug::drawLine(last, point, gather.color);
+                        }
+                        last = point;
+                    }
+                }
             }
         },
         &gather);

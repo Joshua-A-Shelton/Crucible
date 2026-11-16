@@ -86,6 +86,8 @@ inline void linkEngineComponents()
     ecs::registerComponent<physics::CharacterController>("Crucible.Physics.CharacterController");
     ecs::registerComponent<physics2d::RigidBody2D>("Crucible.Physics2D.RigidBody2D");
     ecs::registerComponent<physics2d::Collider2D>("Crucible.Physics2D.Collider2D");
+    ecs::registerComponent<physics2d::Joint2D>("Crucible.Physics2D.Joint2D");
+    ecs::registerComponent<physics2d::CharacterController2D>("Crucible.Physics2D.CharacterController2D");
     ecs::registerComponent<audio::AudioSource>("Crucible.Audio.AudioSource");
     ecs::registerComponent<audio::AudioListener>("Crucible.Audio.AudioListener");
     ecs::registerComponent<animation::Animator>("Crucible.Animation.Animator");

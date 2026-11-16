@@ -127,6 +127,40 @@ inline RigidBody2D dynamic2D(float mass = 1)
     return {physics::BodyKind::Dynamic, mass, {}, 0, 1, 1, physics::allLayers};
 }
 
+inline void join2D(Scene2D& scene, ecs::Entity entity, const Joint2D& joint)
+{
+    if (ecs::read<Joint2D>(*scene.world, entity) == nullptr)
+    {
+        ecs::addComponent(*scene.world, entity, ecs::componentIdOf<Joint2D>);
+    }
+    *ecs::get<Joint2D>(*scene.world, entity) = joint;
+}
+
+// A 2D character: 0.4 m by 1 m between its caps, 0.3 m steps, 45 degree
+// slopes, falling under gravity; its feet at `at`.
+inline ecs::Entity character2D(Scene2D& scene, Vector2 at, float gravityScale = 1)
+{
+    const ecs::ComponentId set[] = {ecs::componentIdOf<CharacterController2D>, ecs::componentIdOf<scenes::Transform2D>,
+                                    ecs::componentIdOf<scenes::WorldTransform>};
+    const ecs::Entity entity = ecs::createEntity(*scene.world, set);
+    *ecs::get<CharacterController2D>(*scene.world, entity) = {0.4f,         1, 0.3f, 0.785398f, 1, physics::allLayers,
+                                                              gravityScale, 0};
+    *ecs::get<scenes::Transform2D>(*scene.world, entity) = {at, 0, {1, 1}, 0};
+    return entity;
+}
+
+// A character's moves, one a tick, each followed by the tick.
+inline CharacterMove2D walk2D(Scene2D& scene, ecs::Entity entity, Vector2 perMove, int moves)
+{
+    CharacterMove2D last{};
+    for (int i = 0; i < moves; ++i)
+    {
+        last = moveCharacter2D(*scene.world, entity, perMove, static_cast<float>(tickSeconds));
+        scene.step();
+    }
+    return last;
+}
+
 // The ground: a static box whose top is at y = 0.
 inline ecs::Entity ground2D(Scene2D& scene)
 {

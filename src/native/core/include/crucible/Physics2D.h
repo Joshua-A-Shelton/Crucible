@@ -2,14 +2,15 @@
 
 // The 2D physics contract (ADR 0093), the same shape as the 3D one
 // (crucible/Physics.h, ADR 0075) for entities with a Transform2D:
-//   - Components, the data: RigidBody2D, Collider2D.
+//   - Components, the data: RigidBody2D, Collider2D, Joint2D,
+//     CharacterController2D (ADR 0094).
 //   - Systems, by name: "Physics2D.Sync" (PrePhysics) makes, changes, and
 //     removes bodies to match; "Physics2D.Step" (Physics) advances it;
 //     "Physics2D.WriteBack" (PostPhysics) writes dynamic bodies back; and
 //     once a frame "Physics2D.Interpolate" (Update) sets each dynamic body's
 //     Transform2D between its last two ticks. Gameplay systems, like 3D's.
-//   - A service, the calls: queries and contacts. The functions below
-//     forward to the installed Physics2DService.
+//   - A service, the calls: queries, contacts, and character moves. The
+//     functions below forward to the installed Physics2DService.
 //
 // The engine's own is Box2D (Box2dPhysics.cpp). Bodies live in the XY plane:
 // a Transform2D's position and angle; its depth is left alone. Units are
@@ -72,6 +73,57 @@ struct CRUCIBLE_EXPOSE Collider2D
     CRUCIBLE_HINT_RANGE(0, 8) int32_t pointCount;
 };
 
+enum class CRUCIBLE_EXPOSE JointKind2D : uint32_t
+{
+    Fixed,    // no relative movement
+    Hinge,    // turns about Z, within lowerLimit..upperLimit radians
+    Distance, // keeps the anchors lowerLimit..upperLimit meters apart
+    Slider,   // moves along axis, within lowerLimit..upperLimit meters, without turning
+};
+
+// Joins its entity's body to another's, or (other none) to the world where
+// it is when made (ADR 0094, as 3D's, ADR 0092): limits off unless set
+// (lower < upper), angles and positions counted from how the bodies sit
+// when it's made.
+struct CRUCIBLE_EXPOSE Joint2D
+{
+    JointKind2D kind;
+    CRUCIBLE_HINT_ENTITY_WITH(Collider2D) ecs::Entity other; // the body it's joined to
+    Vector2 anchor;                                          // in this entity's space
+    Vector2 otherAnchor;                                     // in the other's
+    Vector2 axis;                                            // Slider: in this entity's space
+    float lowerLimit;
+    float upperLimit;
+};
+
+// A capsule moved by the game with moveCharacter2D (ADR 0094), as 3D's
+// (ADR 0091) in the plane: sliding, riding a step height above the ground,
+// steeper than the slope limit a wall, falling under gravity times its
+// scale, eased up steps; bodies meet it as a kinematic capsule. Its
+// entity's position is its feet. Characters are at the top of the
+// hierarchy, and pass through each other.
+struct CRUCIBLE_EXPOSE CharacterController2D
+{
+    CRUCIBLE_HINT_RANGE(0, 2) float radius;
+    CRUCIBLE_HINT_RANGE(0, 4) float height;           // between the end caps' centers
+    CRUCIBLE_HINT_RANGE(0, 1) float stepHeight;       // anything lower is stepped over
+    CRUCIBLE_HINT_RANGE(0, 1.5708f) float slopeLimit; // radians; steeper is a wall
+    CRUCIBLE_HINT_LAYERS uint32_t layers;             // the layers it's on
+    CRUCIBLE_HINT_LAYERS uint32_t mask;               // the layers it collides with
+    // Of 2D gravity; 0 leaves moving up and down to the game.
+    CRUCIBLE_HINT_RANGE(0, 4) float gravityScale;
+    // Seconds to rise onto a step (nine-tenths of the way); 0 snaps up at once.
+    CRUCIBLE_HINT_RANGE(0, 0.5) float stepSmoothing;
+};
+
+struct CRUCIBLE_EXPOSE CharacterMove2D
+{
+    Vector2 position; // where it ended up (its feet)
+    bool grounded;    // standing on something walkable
+    Vector2 groundNormal;
+    float fallSpeed; // its speed up (positive) or down after the move, meters per second
+};
+
 // A shape for casts and overlaps: Box, Circle, or Capsule, sized as a Collider2D.
 struct CRUCIBLE_EXPOSE QueryShape2D
 {
@@ -116,6 +168,8 @@ struct Physics2DService
     uint32_t (*overlap)(ecs::World& world, QueryShape2D shape, Vector2 at, float angle, physics::QueryFilter filter,
                         std::span<ecs::Entity> into);
     uint32_t (*contacts)(ecs::World& world, std::span<ContactEvent2D> into);
+    CharacterMove2D (*moveCharacter)(ecs::World& world, ecs::Entity character, Vector2 displacement, float seconds);
+    void (*launchCharacter)(ecs::World& world, ecs::Entity character, float upwardSpeed);
 };
 
 // Replaces the service; the default is Box2D's. Main thread.
@@ -136,6 +190,15 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t overlap(ecs::World& world, QueryShape2D
 // The contact events of every tick since the last frame, as many as fit;
 // returns how many there are.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t contacts(ecs::World& world, std::span<ContactEvent2D> into);
+
+// Moves a 2D character by a displacement over a time (ADR 0094), as
+// physics::moveCharacter does in 3D; writes its Transform2D. An entity
+// without a CharacterController2D, or before the physics has a world, just
+// moves.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE CharacterMove2D moveCharacter2D(ecs::World& world, ecs::Entity character,
+                                                                Vector2 displacement, float seconds);
+// Sets a 2D character's speed up (a jump), off the ground from its next move.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void launchCharacter2D(ecs::World& world, ecs::Entity character, float upwardSpeed);
 
 // A dynamic body's pose as of the last tick (its Transform2D is
 // interpolated), in the world; found false without a body.

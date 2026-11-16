@@ -17,6 +17,8 @@ add_executable(crucible_native_tests
     ContactEventTests.cpp
     ConvexColliderTests.cpp
     MeshColliderTests.cpp
+    CharacterController2DTests.cpp
+    Joint2DTests.cpp
     Physics2DBodyTests.cpp
     Physics2DContactTests.cpp
     Physics2DQueryTests.cpp

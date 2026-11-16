@@ -41,6 +41,37 @@ TEST_CASE("A hinge turns about its axis round its anchor")
     CHECK(most > 1.5f); // swung well up, unlimited
 }
 
+TEST_CASE("A hinge's limits are the entity's own turn")
+{
+    // A plank held at its left end, turning about +Z, limited to 0..0.8:
+    // pushed either way, it stays within them, reaching 0.8 the positive way.
+    for (const float push : {-8.0f, 8.0f})
+    {
+        CAPTURE(push);
+        Scene scene;
+        RigidBody body = dynamic();
+        body.gravityScale = 0;
+        body.angularVelocity = {0, 0, push};
+        const ecs::Entity plank = scene.add(box({2, 0.2f, 0.2f}), {1, 4, 0}, &body);
+        join(scene, plank, {JointKind::Hinge, {}, {-1, 0, 0}, {}, {0, 0, 1}, 0, 0.8f});
+        float lowest = 0, highest = 0;
+        for (int i = 0; i < 60; ++i)
+        {
+            scene.step();
+            const Quaternion q = bodyPose(*scene.world, plank).rotation;
+            const float angle = 2 * std::atan2(q.z, q.w); // about +Z
+            lowest = std::min(lowest, angle);
+            highest = std::max(highest, angle);
+        }
+        CHECK(lowest > -0.05f);
+        CHECK(highest < 0.85f);
+        if (push > 0)
+        {
+            CHECK(highest > 0.7f);
+        }
+    }
+}
+
 TEST_CASE("A hinge's limits hold it within them")
 {
     Scene scene;

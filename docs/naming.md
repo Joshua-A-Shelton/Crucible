@@ -1033,3 +1033,21 @@ tried step 6a by hand:
 | tests/native/Physics2DTestSupport.h's `Scene2D`*, `box2D`*, `circle2D`*, `dynamic2D`*, `ground2D`* | Test support |
 | Physics2D.crscene's entities: "Ground"*, "Ramp"*, "Left Wall"*, "Right Wall"*, "Crate 1"* to "Crate 4"*, "Ball"*, "Pill"*, "Wedge"*, "Bouncer"*, "Sensor Zone"* | The scene |
 
+
+## 2D joints and characters (2026-11-16, M9 step 6b)
+
+Settled as drafted before building: `Joint2D` (`Kind`: `Fixed`, `Hinge`,
+`Distance`, `Slider`; `Other`, `Anchor`, `OtherAnchor`, `Axis`,
+`LowerLimit`, `UpperLimit`), `CharacterController2D` (`Radius`, `Height`,
+`StepHeight`, `SlopeLimit`, `Layers`, `Mask`, `GravityScale`,
+`StepSmoothing`; C# `Move`, `Launch`); ADR 0094 "2D joints and characters".
+Names added while building (marked *) are placeholders until the owner
+tries step 6b by hand:
+
+| Name | What it is |
+|---|---|
+| `JointKind2D`*, `CharacterMove2D`* (`Position`, `Grounded`, `GroundNormal`, `FallSpeed`), `moveCharacter2D`*, `launchCharacter2D`*, the service's `moveCharacter`*, `launchCharacter`* | The contract's other types and calls |
+| Box2dPhysics.cpp's `JointState`*, `Character`*, `moverBit`*, `makeJoint`*, `syncJoint`*, `syncCharacter`*, `characterCapsule`*, `Mover`*, `gatherPlanes`*, `pushBodies`*, `moveCharacterBox2D`*, `launchCharacterBox2D`* | The backend |
+| `Joint2DTests`*, `CharacterController2DTests`*, `Physics2DCharacterTests`*; Physics2DTestSupport.h's `join2D`*, `character2D`*, `walk2D`* | Tests and test support |
+| The Walker's Characters2D.crscene*, Code/Patrol.cs*, `Patroller`* (`Speed`, `Distance`, `Interval`), `PatrolSystem`* | Trying it by hand |
+| Characters2D.crscene's entities: "Ground"*, "Step 1"* to "Step 3"*, "Hill"*, "Trigger Zone"*, "Patroller"*, "Pusher"*, "Ball"*, "Gate"*, "Hook"*, "Link 1"* to "Link 3"*, "Cart"*, "Left Wall"*, "Right Wall"* | The scene |
