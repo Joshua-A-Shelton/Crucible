@@ -73,7 +73,9 @@ is, and record which version fixed it.
   still puts the feet on the lower step at once, which the owner found
   jerky, as expected. The owner expects to include easing down too, and
   asked to revisit it later (the feet would float briefly above each lower
-  step).
+  step). The 2D character controller (M9 step 6b, ADR 0094) has the same
+  behavior; the owner asked (2026-11-16) to ease it down too when this is
+  revisited for 3D.
 
 ## Small editor fixes noticed in M7 (ADR 0077)
 

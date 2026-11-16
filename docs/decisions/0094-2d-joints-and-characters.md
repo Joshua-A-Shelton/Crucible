@@ -1,7 +1,7 @@
 # 0094 — 2D joints and characters
 
-**Status:** Accepted (2026-11-16); M9 step 6b built, awaiting the owner's
-try by hand in the Walker's Characters2D scene. Names marked * were added
+**Status:** Accepted (2026-11-16); M9 step 6b built, then tried by hand by
+the owner in the Walker's Characters2D scene (2026-11-16). Names marked * were added
 while building and are placeholders until then.
 
 ## Context
@@ -52,8 +52,8 @@ the same rules as 3D for both.
 ## Known limitations
 
 - 2D characters don't block each other (above).
-- As in 3D, stepping down off a step drops rather than eases (the open
-  item from ADR 0091).
+- As in 3D, stepping down off a step drops rather than eases; the owner
+  asked to ease 2D down too when 3D's is revisited (docs/open-items.md).
 
 ## As built
 
