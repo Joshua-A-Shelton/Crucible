@@ -650,6 +650,36 @@ decision made at its start):
 7. Swept hitboxes: a hitbox shape on a joint, active during an animation
    window (ADR 0081), swept each frame by shape cast; hits reported with
    exact times, interpolated between frame timestamps.
+
+   Step 7 designed (2026-11-16, names settled before building), widened by
+   the owner to 2D and to joint sockets:
+   - `Socket` (animation module; `Joint` name, `Position`, `Rotation`
+     offset): a child entity follows a joint of its parent's skeleton, so
+     weapons, lights, and colliders can ride joints too. Its system
+     "Animation.Sockets" runs after "Animation.Pose".
+   - `Hitbox` (`Shape` Box, Sphere, Capsule; `Size`; `Mask`; `Window`;
+     `Enabled`) and `Hitbox2D` (Box, Circle, Capsule): a shape on its own
+     entity, wherever that is (on a socket, or a projectile). Active while
+     the nearest animated ancestor has its `Window` open; with no window,
+     whenever it's enabled. Swept by "Physics.Hitboxes" (and 2D's) from
+     last frame's place to this one's in interpolated pieces (position in
+     a line, rotation turned smoothly), split so no piece turns more than
+     about 15 degrees or moves more than the shape's own size.
+   - Hits: every collider a sweep touches, triggers included, each entity
+     once per activation, never the owner (the nearest animated ancestor,
+     or the root) or anything under it. `HitboxHit` (`Hitbox`, `Owner`,
+     `Target`, `Point`, `Normal`, `Timestamp`) from `physics::hitboxHits`,
+     `HitboxHit2D` from `physics2d::hitboxHits`; C# `Physics.HitboxHits`,
+     `Physics2D.HitboxHits`. A hit's share of the way along the sweep is
+     that share of the way between the two frame starts, on the input
+     clock, as animation events are. The service gains `shapeCastAll`
+     (both namespaces). View > Colliders draws hitboxes, brighter while
+     active.
+   - ADR 0096 "Swept hitboxes"; tests `SocketTests`, `HitboxTests`,
+     `Hitbox2DTests`; the Walker's Hitboxes.crscene: the Walker walks its
+     circle with "Foot Socket" and "Kick Hitbox" on a foot, active in a
+     "Kick" window around each step, knocking over "Crate 1" onward;
+     Code/Kicks.cs logs each hit's time.
 8. The demonstration: the Walker walks a mesh level; a scripted swing's hit
    lands at the same moment at 30 and 240 fps.
 

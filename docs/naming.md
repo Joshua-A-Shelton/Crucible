@@ -1072,3 +1072,16 @@ after the owner tried step 6c by hand:
 | Box2dPhysics.cpp's `ChainData`*, `chainData`*, `chainVersions`*, `readChain`*, `chainOf`*, `freeChains`*, `isNone`*, `Body::chain`*, `Body::chainVersion`* | The backend |
 | `UndoStep.ChangesScene`*; `ChainHandles`' `ChainEdit`*, `IsEditing`*, `Entity`*, `Points`*, `Selected`*, `CanEdit`*, `Toggle`*, `Start`*, `Stop`*, `DeleteSelected`*, `Format`*; `Shell.Chains`*, `Shell.CreateChain`*, `Reimport`'s `quiet`* | The editor |
 | CTest `launcher.jit.chain-handles`*, `chain-handles.png`*; Chains2D.crscene's entities: "Hills"*, "Cave"*, "Cave Ball"*, "Patroller"*, "Ball 1"* to "Ball 3"*, "Crate"*; the folder Assets/Chains* | Tests and the scene |
+
+## Swept hitboxes (2026-11-16, M9 step 7)
+
+Settled as drafted before building: `Socket` (`Joint`, `Position`,
+`Rotation`) and its system "Animation.Sockets"; `Hitbox` (`Shape`, `Size`,
+`Mask`, `Window`, `Enabled`), `Hitbox2D`, and the systems
+"Physics.Hitboxes" (and 2D's, in its namespace); `HitboxHit` (`Hitbox`,
+`Owner`, `Target`, `Point`, `Normal`, `Timestamp`), `physics::hitboxHits`,
+`HitboxHit2D`, `physics2d::hitboxHits`, the service's `shapeCastAll` (both
+namespaces), C# `Physics.HitboxHits` and `Physics2D.HitboxHits`; ADR 0096
+"Swept hitboxes"; `SocketTests`, `HitboxTests`, `Hitbox2DTests`; the
+Walker's Hitboxes.crscene, Code/Kicks.cs, the window "Kick", and the
+entities "Foot Socket", "Kick Hitbox", "Crate 1" onward.
