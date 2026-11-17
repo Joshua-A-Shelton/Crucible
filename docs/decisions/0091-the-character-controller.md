@@ -4,8 +4,7 @@
 Smoothing), then tried by hand by the owner in the Walker's Characters
 scene. Names, including those added while building, settled by the owner
 as drafted (docs/naming.md). Amended again (2026-11-17, easing down),
-awaiting the owner's try; its test names (marked *) are placeholders until
-then.
+then tried by hand by the owner; its test names settled as drafted.
 
 ## Context
 
@@ -116,8 +115,8 @@ one); landing from a fall still isn't eased. While settling the feet
 float briefly above the lower ground; the ground cast reaches a step
 below them, so the character stays grounded. 2D does the same (ADR 0094).
 Tested by `CharacterStepTests`' "Step Smoothing eases a character down off
-a step"* (the biggest drop in one move about 0.1 m snapped, under 0.05 m
-eased) and "Easing down settles the same at 30 and 240 fps"*, and
+a step" (the biggest drop in one move about 0.1 m snapped, under 0.05 m
+eased) and "Easing down settles the same at 30 and 240 fps", and
 `CharacterController2DTests`' "Step Smoothing eases a 2D character up onto
-a step and down off it"*.
+a step and down off it".
 
