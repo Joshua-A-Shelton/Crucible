@@ -403,7 +403,7 @@ internal sealed partial class Shell
         Entity[] outlined = Outlined(world);
         if (ShowsSkeletons)
         {
-            // Every posed character's joints (ADR 0079), in every view.
+            // Every posed character's bones (ADR 0079), in every view.
             Crucible.Animation.Animator.DrawSkeletons(world, _skeletonColor);
         }
         if (ShowsColliders)

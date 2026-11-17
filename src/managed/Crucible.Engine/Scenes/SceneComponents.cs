@@ -87,7 +87,7 @@ internal static class EngineComponents
         Components.RegisterTag<Crucible.Audio.AudioListener>();
         Components.Register<Crucible.Animation.Animator>();
         Components.Register<Crucible.Animation.PoseHandle>();
-        Components.Register<Crucible.Animation.Socket>();
+        Components.Register<Crucible.Animation.BoneAttachment>();
         Components.Register<SceneEntityId>();
         Components.RegisterManaged<EntityName>();
         Components.Register<PrefabInstance>();
@@ -115,7 +115,7 @@ internal static class EngineComponents
         SavedComponents.Add<Crucible.Audio.AudioSource>();
         SavedComponents.AddTag<Crucible.Audio.AudioListener>();
         SavedComponents.Add<Crucible.Animation.Animator>();
-        SavedComponents.Add<Crucible.Animation.Socket>();
+        SavedComponents.Add<Crucible.Animation.BoneAttachment>();
         return true;
     });
 

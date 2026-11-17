@@ -5,6 +5,10 @@ the owner (the Walker's state machine taking turns between Idle and a walk
 that moves it by root motion). Names, including those added while
 building, settled by the owner as drafted (docs/naming.md).
 
+**Renamed (2026-11-16, ADR 0096):** the skeleton's joints are bones
+throughout, in code, file tags, and this record; physics joints keep
+their name.
+
 ## Context
 
 Step 2 (ADR 0079) plays clips with crossfades and layers, step 3 (ADR 0080)
@@ -92,7 +96,7 @@ Decided by the owner (2026-11-10):
 
 ## Root motion
 
-- **What's extracted:** the skeleton's root joint's travel along the ground
+- **What's extracted:** the skeleton's root bone's travel along the ground
   (x and z of its model position) and its turn about up (from the axis of
   its matrix that lies flattest at the clip's start). Its height stays in
   the pose, so the hips still bob.
@@ -102,7 +106,7 @@ Decided by the owner (2026-11-10):
   scale into its parent's space, and handed to `moveCharacter`; the turn is
   applied to the entity's rotation. `animation::rootMotion` (C#
   `Animator.LastRootMotion`*) returns it.
-- **Out of the pose:** after the hierarchy pass, every joint is moved back
+- **Out of the pose:** after the hierarchy pass, every bone is moved back
   by the base's travel so far and turned back about the root's starting
   point, so the root stays over the entity as it was at its clip's start.
   Layers don't contribute root motion.
@@ -117,14 +121,14 @@ Decided by the owner (2026-11-10):
   transform as it is now (root motion included; propagation comes later in
   the frame). A slot's weight fades like a layer's (set again with the same
   weight, the fade goes on); `clearIk` fades it out.
-- **Two-bone IK** (`setTwoBoneIk`, `TwoBoneIkDesc`): the end joint, its
-  parent, and theirs. The law of cosines gives the angle at the root joint;
-  the pole (or the chain's current bend) gives the plane. The root joint
-  turns, then the middle joint, each turning everything below it. Weight
-  moves the target from where the pose has the end joint. A target out of
-  reach straightens the chain toward it. The end joint keeps its turn from
+- **Two-bone IK** (`setTwoBoneIk`, `TwoBoneIkDesc`): the end bone, its
+  parent, and theirs. The law of cosines gives the angle at the root bone;
+  the pole (or the chain's current bend) gives the plane. The root bone
+  turns, then the middle bone, each turning everything below it. Weight
+  moves the target from where the pose has the end bone. A target out of
+  reach straightens the chain toward it. The end bone keeps its turn from
   the chain (a foot isn't flattened to the ground yet).
-- **Look-at** (`setLookAt`, `LookAtDesc`): the joint turns so its aim axis
+- **Look-at** (`setLookAt`, `LookAtDesc`): the bone turns so its aim axis
   (in its own space) points at the target, at most `maxAngle` (radians)
   from where the pose points it, scaled by the weight.
 

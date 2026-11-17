@@ -125,12 +125,12 @@ public sealed class ColorAttribute : Attribute;
 public sealed class LayersAttribute : Attribute;
 
 /// <summary>
-/// Editor hint (ADR 0096): a <c>uint</c> is a joint's name hash
+/// Editor hint (ADR 0096): a <c>uint</c> is a bone's name hash
 /// (<c>AnimationEvent.NameOf</c>; 0 for none), picked by name from the
 /// skeleton of the nearest Animator above the entity.
 /// </summary>
 [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false)]
-public sealed class JointNameAttribute : Attribute;
+public sealed class BoneNameAttribute : Attribute;
 
 /// <summary>
 /// Editor hint (ADR 0096): a <c>uint</c> is an animation window's name hash

@@ -36,17 +36,17 @@ TEST_CASE("A 1D blend space blends the two clips either side of the parameter")
     // Idle is 2 s and WalkForward 1 s, half each: 1.5 s long, so 0.4 s is a
     // share of 0.4 / 1.5 through both.
     const float phase = 0.4f / 1.5f;
-    CHECK(worstJoint(walker, reference,
-                     blendPoses(reference.sample(reference.clip(1), phase * 2), reference.sample(forward, phase),
-                                0.5f)) < 1e-4f);
+    CHECK(worstBone(walker, reference,
+                    blendPoses(reference.sample(reference.clip(1), phase * 2), reference.sample(forward, phase),
+                               0.5f)) < 1e-4f);
 
     // Past either end, the end clip alone.
     REQUIRE(setFloat(*walker.world, walker.entity, "Speed", -1.0f));
     walker.pose();
-    CHECK(worstJoint(walker, reference, reference.sample(walk, phase)) < 1e-4f);
+    CHECK(worstBone(walker, reference, reference.sample(walk, phase)) < 1e-4f);
     REQUIRE(setFloat(*walker.world, walker.entity, "Speed", 5.0f));
     walker.pose();
-    CHECK(worstJoint(walker, reference, reference.sample(forward, phase)) < 1e-4f);
+    CHECK(worstBone(walker, reference, reference.sample(forward, phase)) < 1e-4f);
 }
 
 TEST_CASE("A blend space's weights follow the parameter between two clips")
@@ -61,10 +61,10 @@ TEST_CASE("A blend space's weights follow the parameter between two clips")
         CAPTURE(speed);
         REQUIRE(setFloat(*walker.world, walker.entity, "Speed", speed));
         walker.pose();
-        CHECK(worstJoint(walker, reference,
-                         blendPoses(reference.sample(walk, 0), reference.sample(forward, 0), speed / 1.7f)) < 1e-4f);
+        CHECK(worstBone(walker, reference,
+                        blendPoses(reference.sample(walk, 0), reference.sample(forward, 0), speed / 1.7f)) < 1e-4f);
     }
     walker.step(0.3f);
-    CHECK(worstJoint(walker, reference,
-                     blendPoses(reference.sample(walk, 0.3f), reference.sample(forward, 0.3f), 1.0f)) < 1e-4f);
+    CHECK(worstBone(walker, reference,
+                    blendPoses(reference.sample(walk, 0.3f), reference.sample(forward, 0.3f), 1.0f)) < 1e-4f);
 }

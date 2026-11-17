@@ -2,19 +2,23 @@
 
 **Status:** Accepted (2026-10-25).
 
+**Renamed (2026-11-16, ADR 0096):** the skeleton's joints are bones
+throughout, in code, file tags, and this record; physics joints keep
+their name.
+
 ## Context
 
 Both target games need skeletal animation (ADR 0009), and the action RPG
 depends on tightly tuned parry and cancel windows (ADR 0010).
 
-Data: a **skeleton** (joint hierarchy and bind pose), a **skinned mesh**
-(per-vertex joint influences and weights), and **clips** (per-joint
+Data: a **skeleton** (bone hierarchy and bind pose), a **skinned mesh**
+(per-vertex bone influences and weights), and **clips** (per-bone
 translation, rotation, and scale tracks; the main memory cost, so usually
 compressed). Each frame, per character: sample clips into a local pose,
 blend poses (crossfades, blend trees, layers, additive), apply procedural
 adjustments (IK, look-at), convert local to model space through the
 hierarchy (`local * parent`, ADR 0024), build skinning matrices (model
-joint × inverse bind), and skin on the GPU. A **state machine** (states,
+bone × inverse bind), and skin on the GPU. A **state machine** (states,
 transitions with blend times, parameters) drives it, with **events**
 marked on clip timelines.
 
@@ -35,7 +39,7 @@ shadows, forward); compute pre-skinning does it once per frame.
    character into a buffer; later passes treat the result like a static
    mesh.
 2. **Poses live in native pose buffers outside the ECS columns,**
-   referenced from a blittable component by index (joint counts vary, so a
+   referenced from a blittable component by index (bone counts vary, so a
    pose can't be a fixed-size component; same pattern as ADR 0012's
    pools). The Animation phase (ADR 0013) animates characters in parallel,
    one job per character (ADR 0014).

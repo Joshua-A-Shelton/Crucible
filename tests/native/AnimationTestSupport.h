@@ -259,9 +259,9 @@ struct Character
         evaluatePoses(*world);
     }
 
-    Matrix4x4 model(int32_t joint) const
+    Matrix4x4 model(int32_t bone) const
     {
-        return jointModelTransform(*world, entity, joint);
+        return boneModelTransform(*world, entity, bone);
     }
 };
 
@@ -277,19 +277,19 @@ struct LocalPose
 struct Reference
 {
     Imported model{importWalker(withClips(settings(), 30.0f))};
-    std::vector<assets::JointEntry> joints = model.table<assets::JointEntry>("JNTS");
+    std::vector<assets::BoneEntry> bones = model.table<assets::BoneEntry>("BONE");
     std::vector<MeshNode> nodes = model.table<MeshNode>("NODE");
 
-    std::string_view jointName(size_t j) const
+    std::string_view boneName(size_t j) const
     {
-        return model.name(joints[j].nameOffset, joints[j].nameLength);
+        return model.name(bones[j].nameOffset, bones[j].nameLength);
     }
 
-    int32_t joint(std::string_view name) const
+    int32_t bone(std::string_view name) const
     {
-        for (size_t j = 0; j < joints.size(); ++j)
+        for (size_t j = 0; j < bones.size(); ++j)
         {
-            if (jointName(j) == name)
+            if (boneName(j) == name)
             {
                 return static_cast<int32_t>(j);
             }
@@ -300,9 +300,9 @@ struct Reference
     LocalPose rest() const
     {
         LocalPose pose;
-        for (const assets::JointEntry& joint : joints)
+        for (const assets::BoneEntry& bone : bones)
         {
-            const MeshNode& node = nodes[joint.node];
+            const MeshNode& node = nodes[bone.node];
             pose.rotations.push_back({node.rotation[0], node.rotation[1], node.rotation[2], node.rotation[3]});
             pose.positions.push_back({node.translation[0], node.translation[1], node.translation[2]});
             pose.scales.push_back({node.scale[0], node.scale[1], node.scale[2]});
@@ -316,7 +316,7 @@ struct Reference
     }
 
     // A clip at a time: its two nearest samples, interpolated (rotations by
-    // normalized lerp); joints it doesn't move at rest.
+    // normalized lerp); bones it doesn't move at rest.
     LocalPose sample(const Clip& clip, float time) const
     {
         LocalPose pose = rest();
@@ -327,7 +327,7 @@ struct Reference
         const float t = std::clamp(at - static_cast<float>(i0), 0.0f, 1.0f);
         for (const assets::ClipTrack& track : clip.table<assets::ClipTrack>("TRCK"))
         {
-            const int32_t j = joint(clip.trackName(track));
+            const int32_t j = bone(clip.trackName(track));
             if (j < 0)
             {
                 continue;
@@ -339,14 +339,14 @@ struct Reference
         return pose;
     }
 
-    // Model space, parents first (the Walker has no nodes between joints).
+    // Model space, parents first (the Walker has no nodes between bones).
     std::vector<Matrix> modelOf(const LocalPose& pose) const
     {
-        std::vector<Matrix> result(joints.size());
-        for (size_t j = 0; j < joints.size(); ++j)
+        std::vector<Matrix> result(bones.size());
+        for (size_t j = 0; j < bones.size(); ++j)
         {
             const Matrix local = compose(pose.positions[j], pose.rotations[j], pose.scales[j]);
-            result[j] = joints[j].parent >= 0 ? importers::testing::multiply(local, result[joints[j].parent]) : local;
+            result[j] = bones[j].parent >= 0 ? importers::testing::multiply(local, result[bones[j].parent]) : local;
         }
         return result;
     }
@@ -390,7 +390,7 @@ struct Reference
     }
 };
 
-// How far a posed joint is from the reference: the largest difference of
+// How far a posed bone is from the reference: the largest difference of
 // any matrix element.
 inline float difference(const Matrix4x4& posed, const Matrix& expected)
 {
@@ -406,8 +406,8 @@ inline float difference(const Matrix4x4& posed, const Matrix& expected)
     return worst;
 }
 
-// Every joint's model matrix against the reference pose.
-inline float worstJoint(const Character& walker, const Reference& reference, const LocalPose& expected)
+// Every bone's model matrix against the reference pose.
+inline float worstBone(const Character& walker, const Reference& reference, const LocalPose& expected)
 {
     const std::vector<Matrix> model = reference.modelOf(expected);
     float worst = 0;

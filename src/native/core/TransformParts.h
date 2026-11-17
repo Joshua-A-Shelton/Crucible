@@ -1,7 +1,7 @@
 #pragma once
 
 // A world matrix taken apart into a place, a turn, and a scale, and put back
-// together: for code that works with rigid poses (physics, sockets,
+// together: for code that works with rigid poses (physics, attachments,
 // hitboxes) on matrices made by the transform hierarchy (ADR 0050). Row
 // vectors, as Matrix4x4 everywhere: scale, then rotation, then translation.
 

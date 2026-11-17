@@ -14,10 +14,10 @@ LayerDesc layer(uint8_t clip, float weight, LayerBlend blend = LayerBlend::Overr
     return {idOf(clip), weight, blend, 1.0f, true, fade};
 }
 
-// Whether joint j is `root` or below it.
+// Whether bone j is `root` or below it.
 bool under(const Reference& reference, int32_t j, int32_t root)
 {
-    for (; j >= 0; j = reference.joints[j].parent)
+    for (; j >= 0; j = reference.bones[j].parent)
     {
         if (j == root)
         {
@@ -35,15 +35,15 @@ TEST_CASE("A full override layer replaces the pose below it")
     Character walker;
     REQUIRE(setLayer(*walker.world, walker.entity, 0, layer(3, 1.0f), {}));
     walker.step(0.4f);
-    CHECK(worstJoint(walker, reference, reference.sample(reference.clip(1), 0.4f)) < 1e-4f);
+    CHECK(worstBone(walker, reference, reference.sample(reference.clip(1), 0.4f)) < 1e-4f);
 }
 
-TEST_CASE("A mask limits a layer to joint subtrees")
+TEST_CASE("A mask limits a layer to bone subtrees")
 {
     const Reference reference;
     const Clip walk = reference.clip(0), idle = reference.clip(1);
     Character walker;
-    const int32_t spine = findJoint(*walker.world, walker.entity, "Spine");
+    const int32_t spine = findBone(*walker.world, walker.entity, "Spine");
     REQUIRE(spine >= 0);
     const MaskEntry mask[] = {{spine, 1.0f}};
     // Walk on the layer, over Idle at the base: the spine and above walk,
@@ -62,7 +62,7 @@ TEST_CASE("A mask limits a layer to joint subtrees")
             expected.scales[j] = over.scales[j];
         }
     }
-    CHECK(worstJoint(walker, reference, expected) < 1e-4f);
+    CHECK(worstBone(walker, reference, expected) < 1e-4f);
 }
 
 TEST_CASE("Later mask entries win where subtrees overlap")
@@ -70,8 +70,8 @@ TEST_CASE("Later mask entries win where subtrees overlap")
     const Reference reference;
     const Clip walk = reference.clip(0);
     Character walker(0);
-    const int32_t spine = findJoint(*walker.world, walker.entity, "Spine");
-    const int32_t arm = findJoint(*walker.world, walker.entity, "LeftUpperArm");
+    const int32_t spine = findBone(*walker.world, walker.entity, "Spine");
+    const int32_t arm = findBone(*walker.world, walker.entity, "LeftUpperArm");
     const MaskEntry mask[] = {{spine, 1.0f}, {arm, 0.0f}};
     REQUIRE(setLayer(*walker.world, walker.entity, 0, layer(2, 1.0f), mask));
     walker.step(0.3f);
@@ -79,15 +79,15 @@ TEST_CASE("Later mask entries win where subtrees overlap")
     LocalPose expected = rest;
     for (size_t j = 0; j < expected.rotations.size(); ++j)
     {
-        const int32_t joint = static_cast<int32_t>(j);
-        if (under(reference, joint, spine) && !under(reference, joint, arm))
+        const int32_t bone = static_cast<int32_t>(j);
+        if (under(reference, bone, spine) && !under(reference, bone, arm))
         {
             expected.rotations[j] = over.rotations[j];
             expected.positions[j] = over.positions[j];
             expected.scales[j] = over.scales[j];
         }
     }
-    CHECK(worstJoint(walker, reference, expected) < 1e-4f);
+    CHECK(worstBone(walker, reference, expected) < 1e-4f);
 }
 
 TEST_CASE("A layer's weight fades in and clearing fades it out")
@@ -105,11 +105,11 @@ TEST_CASE("A layer's weight fades in and clearing fades it out")
         half.positions[j] = Reference::lerp(base.positions[j], over.positions[j], 0.5f);
         half.scales[j] = Reference::lerp(base.scales[j], over.scales[j], 0.5f);
     }
-    CHECK(worstJoint(walker, reference, half) < 1e-4f);
+    CHECK(worstBone(walker, reference, half) < 1e-4f);
     REQUIRE(clearLayer(*walker.world, walker.entity, 0, 0.5f));
     walker.step(0.25f); // back to a quarter
     walker.step(0.5f);  // gone
-    CHECK(worstJoint(walker, reference, reference.sample(walk, 0.25f)) < 1e-4f);
+    CHECK(worstBone(walker, reference, reference.sample(walk, 0.25f)) < 1e-4f);
 }
 
 TEST_CASE("An additive layer adds its clip's difference from its first sample")
@@ -120,7 +120,7 @@ TEST_CASE("An additive layer adds its clip's difference from its first sample")
     REQUIRE(setLayer(*walker.world, walker.entity, 0, layer(3, 1.0f, LayerBlend::Additive), {}));
     // At its first sample an additive layer changes nothing.
     walker.step(0.0f);
-    CHECK(worstJoint(walker, reference, reference.sample(walk, 0)) < 1e-4f);
+    CHECK(worstBone(walker, reference, reference.sample(walk, 0)) < 1e-4f);
     walker.step(0.6f);
     const LocalPose base = reference.sample(walk, 0.6f), at = reference.sample(idle, 0.6f),
                     first = reference.sample(idle, 0);
@@ -135,7 +135,7 @@ TEST_CASE("An additive layer adds its clip's difference from its first sample")
             expected.scales[j][c] = base.scales[j][c] * at.scales[j][c] / first.scales[j][c];
         }
     }
-    CHECK(worstJoint(walker, reference, expected) < 1e-4f);
+    CHECK(worstBone(walker, reference, expected) < 1e-4f);
 }
 
 TEST_CASE("Layers past the last are refused")

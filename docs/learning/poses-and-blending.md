@@ -1,21 +1,21 @@
-# Poses and blending: from clips to joint matrices
+# Poses and blending: from clips to bone matrices
 
 A learning note for M8 step 2 (ADR 0079).
 
 ## A pose, twice
 
-A pose is where every joint of one character is, and it's kept in two
+A pose is where every bone of one character is, and it's kept in two
 forms because they're good at different things:
 
-- **Local:** each joint's position, rotation, and scale relative to its
+- **Local:** each bone's position, rotation, and scale relative to its
   parent. Clips store this, and blending works on it: blending two elbow
   angles gives an elbow angle in between.
-- **Model space:** a matrix per joint relative to the character's root. This
+- **Model space:** a matrix per bone relative to the character's root. This
   is what skinning and gameplay need ("where is the hand?").
 
-The *hierarchy pass* turns one into the other. Because joints are stored
+The *hierarchy pass* turns one into the other. Because bones are stored
 parents first, one loop does it: `model[j] = local[j] × model[parent]`. Each
-joint waits for its parent, which is why this part stays scalar while
+bone waits for its parent, which is why this part stays scalar while
 sampling and blending go wide.
 
 ## Sampling
@@ -34,13 +34,13 @@ point apart (negative dot product). That's "taking the shorter way".
 ## Blending is the same operation everywhere
 
 A crossfade, an override layer, and a masked layer are all the same thing:
-a weighted blend of two local poses, joint by joint. Only the weight
+a weighted blend of two local poses, bone by bone. Only the weight
 differs:
 
 - a **crossfade** ramps one weight from 0 to 1 over the fade time;
 - an **override layer** uses its weight, times the mask's weight for that
-  joint;
-- a **mask** is just a per-joint weight table, built once from "this joint
+  bone;
+- a **mask** is just a per-bone weight table, built once from "this bone
   and everything below it" entries.
 
 An **additive** layer is different: it adds a *difference*. The layer's
@@ -50,14 +50,14 @@ then works on top of walking, sitting, or anything else.
 
 ## Structure of arrays
 
-Most per-joint math is the same operation repeated for every joint, which is
-what SIMD is for. Instead of storing joints one after another (each with x,
-y, z, w), a pose stores blocks of 8 joints with all their x values together,
-then all their y values, and so on. One instruction then blends eight joints
+Most per-bone math is the same operation repeated for every bone, which is
+what SIMD is for. Instead of storing bones one after another (each with x,
+y, z, w), a pose stores blocks of 8 bones with all their x values together,
+then all their y values, and so on. One instruction then blends eight bones
 at once. The data layout is the optimization; the code reads almost like the
 scalar version, with `QuaternionWide` in place of `Quaternion`.
 
-The tests keep the plain scalar version and compare every joint's matrix
+The tests keep the plain scalar version and compare every bone's matrix
 against it. That's a good habit for any SIMD code: the simple version is the
 specification, and the fast one has to match it.
 
@@ -72,7 +72,7 @@ again and again in editors.
 ## Seeing what you can't draw yet
 
 Until the mesh is skinned (step 3), a pose is invisible. Debug lines (one
-line per bone, from each joint to its parent) make it visible with almost
+line per bone, from each bone to its parent) make it visible with almost
 no machinery: a list of lines anyone can add to during a frame, drawn over
 the image at the end. Being able to draw a line from anywhere is one of the
 most useful debugging tools an engine can have.

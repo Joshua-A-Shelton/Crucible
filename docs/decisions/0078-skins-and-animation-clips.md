@@ -1,15 +1,19 @@
 # 0078 — Skins and animation clips
 
 **Status:** Accepted (2026-11-09); M8 step 1 built, then tried by hand by
-the owner (the Walker placed, its joints left out of the hierarchy). Names,
+the owner (the Walker placed, its bones left out of the hierarchy). Names,
 including those added while building, settled by the owner as drafted
 (docs/naming.md).
+
+**Renamed (2026-11-16, ADR 0096):** the skeleton's joints are bones
+throughout, in code, file tags, and this record; physics joints keep
+their name.
 
 ## Context
 
 M8 animates characters (ADR 0026). Before anything can play, the importers
-have to bring in what a character is made of: which joints each vertex
-follows and how strongly (the skin), how the joints hang together and where
+have to bring in what a character is made of: which bones each vertex
+follows and how strongly (the skin), how the bones hang together and where
 they were when the mesh was bound to them (the skeleton), and how they move
 over time (the clips). glTF and FBX both carry all three, in different
 shapes; this step decides the shape Crucible keeps them in. The pose
@@ -24,9 +28,9 @@ Decided by the owner (2026-11-09):
    without touching its mesh. Each clip is a *sub-asset* of the model it
    came from: an output of the model's import with an ID of its own, kept by
    name in the model's sidecar (below).
-2. **Joints aren't entities.** A model's prefab leaves out its joint nodes
-   and everything below them; the pose (step 2) holds joint transforms in
-   native buffers. Sixty joints per character as entities would be sixty
+2. **Bones aren't entities.** A model's prefab leaves out its bone nodes
+   and everything below them; the pose (step 2) holds bone transforms in
+   native buffers. Sixty bones per character as entities would be sixty
    transforms through the ECS hierarchy pass for data only the animation
    system reads.
 3. **Clips are resampled and simply quantized:** every track sampled at a
@@ -36,11 +40,11 @@ Decided by the owner (2026-11-09):
    and a lerp), about a quarter of the size of float keys. Revisit with
    curve fitting or ACL-style compression if memory or quality calls for
    it (docs/open-items.md).
-4. **16-bit joint indices and 8-bit weights,** 4 per vertex, or 8 as an
+4. **16-bit bone indices and 8-bit weights,** 4 per vertex, or 8 as an
    import option for faces and cloth; each vertex keeps its strongest
    influences, renormalized so they sum to 255.
-5. **A clip's tracks find joints by name,** so a clip plays on any skeleton
-   with joints of the same names (retargeting between different skeletons
+5. **A clip's tracks find bones by name,** so a clip plays on any skeleton
+   with bones of the same names (retargeting between different skeletons
    is later work).
 6. **Both formats in this step:** cgltf for glTF skins and animations, ufbx
    for FBX skin deformers and animation stacks.
@@ -51,14 +55,14 @@ The MESH file goes to version 3 (crucible/MeshFile.h):
 
 | Section | Holds |
 |---|---|
-| `JIDX` | uint16 × 4 (or 8) per vertex: joint indices, into JNTS |
-| `JWGT` | unorm8 × 4 (or 8) per vertex: weights, summing to 255 |
-| `SKIN` | `SkinInfo`: joint count, influences per vertex |
-| `JNTS` | `JointEntry` per joint, each after its parent: parent joint, node, inverse bind matrix, name |
+| `BIDX` | uint16 × 4 (or 8) per vertex: bone indices, into BONE |
+| `BWGT` | unorm8 × 4 (or 8) per vertex: weights, summing to 255 |
+| `SKIN` | `SkinInfo`: bone count, influences per vertex |
+| `BONE` | `BoneEntry` per bone, each after its parent: parent bone, node, inverse bind matrix, name |
 
 A skinned mesh has `MeshAttribute::Skinned`. A file has one skeleton: the
-union of every skin's joints (glTF files with several skins that share
-joints are common; conflicting inverse binds get a warning). Joints stay
+union of every skin's bones (glTF files with several skins that share
+bones are common; conflicting inverse binds get a warning). Bones stay
 nodes in NODE too, so their rest transforms and names are in one place.
 
 The clip file, .crclip (kind CLIP, crucible/ClipFile.h):
@@ -66,10 +70,10 @@ The clip file, .crclip (kind CLIP, crucible/ClipFile.h):
 | Section | Holds |
 |---|---|
 | `INFO` | `ClipInfo`: duration, sample rate, sample count, track count |
-| `TRCK` | `ClipTrack` per joint the clip moves: its name, its constant channels, offsets into the samples, ranges |
+| `TRCK` | `ClipTrack` per bone the clip moves: its name, its constant channels, offsets into the samples, ranges |
 | `ROTS` | uint16 × 4 per sample: smallest three plus the dropped index |
 | `POSS`, `SCLS` | uint16 × 3 per sample, within the track's range |
-| `NAME` | the joints' names |
+| `NAME` | the bones' names |
 
 Sample *i* is at time *i* / rate; the last is at or just past the duration.
 Everything is in Crucible's space: mirrored on X like the model (inverse
@@ -103,13 +107,13 @@ importers' versions went up, so every model reimports once.
 ## As built
 
 - glTF: `JOINTS_0/1` and `WEIGHTS_0/1`; samplers evaluated as linear (slerp
-  for rotations), step, or cubic spline; each animated joint's track starts
+  for rotations), step, or cubic spline; each animated bone's track starts
   from its rest transform, so channels a clip doesn't animate hold still.
-- FBX: each skin cluster's bone is a joint, bound by ufbx's
-  `geometry_to_bone`; each animation stack is a clip, every joint evaluated
+- FBX: each skin cluster's bone node is a bone, bound by ufbx's
+  `geometry_to_bone`; each animation stack is a clip, every bone evaluated
   with `ufbx_evaluate_transform`. Meshes with more than one skin keep the
   first (warned); blend shapes still warn.
-- `samples/Walker`: a 13-joint character written by `make_walker.py`, with
+- `samples/Walker`: a 13-bone character written by `make_walker.py`, with
   a "Walk" clip (1 s, feet planted at 0.0 and 0.5 s) for the footstep
   check, and an "Idle".
 - Tests: `SkinImportTests` (skeleton order, weights, the rest pose skinning
@@ -117,4 +121,4 @@ importers' versions went up, so every model reimports once.
   constant channels, and ufbx's 3ds Max skin posed by its clip against
   Max's own exports of frames 5 and 15, within half a percent),
   `SubAssetTests` (stable IDs, the sidecar, importing through the parent,
-  the cache, copies, and model prefabs without joints).
+  the cache, copies, and model prefabs without bones).

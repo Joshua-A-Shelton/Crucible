@@ -109,7 +109,7 @@ struct BuiltMesh
     Vector<float> uv0{MemoryTag::Assets};
     Vector<float> uv1{MemoryTag::Assets};
     Vector<float> colors{MemoryTag::Assets};
-    Vector<float> joints{MemoryTag::Assets};  // 8 per vertex
+    Vector<float> bones{MemoryTag::Assets};   // 8 per vertex
     Vector<float> weights{MemoryTag::Assets}; // 8 per vertex
     // Every level's indices, back to back; per level and submesh, a range.
     Vector<uint32_t> indices{MemoryTag::Assets};
@@ -217,7 +217,7 @@ void buildMesh(SourceMesh& mesh, const char* meshName, const MeshSettings& setti
         anySkin |= submesh.hasSkin;
     }
     // Readers that don't skin leave the skin streams empty: zeros.
-    corners.joints.resize(static_cast<size_t>(corners.count()) * 8);
+    corners.bones.resize(static_cast<size_t>(corners.count()) * 8);
     corners.weights.resize(static_cast<size_t>(corners.count()) * 8);
     const bool tangentsWanted = anyTangents || (settings.generateTangents && anyUv0);
 
@@ -288,7 +288,7 @@ void buildMesh(SourceMesh& mesh, const char* meshName, const MeshSettings& setti
     // and mirroring (and the cross products above) can leave -0.0 where
     // another corner has 0.0: adding 0.0 turns every -0.0 into 0.0 first.
     for (Vector<float>* stream : {&corners.positions, &corners.normals, &corners.tangents, &corners.uv0, &corners.uv1,
-                                  &corners.colors, &corners.joints, &corners.weights})
+                                  &corners.colors, &corners.bones, &corners.weights})
     {
         for (float& value : *stream)
         {
@@ -298,7 +298,7 @@ void buildMesh(SourceMesh& mesh, const char* meshName, const MeshSettings& setti
     meshopt_Stream streams[8] = {
         {corners.positions.data(), 12, 12}, {corners.normals.data(), 12, 12}, {corners.tangents.data(), 16, 16},
         {corners.uv0.data(), 8, 8},         {corners.uv1.data(), 8, 8},       {corners.colors.data(), 16, 16},
-        {corners.joints.data(), 32, 32},    {corners.weights.data(), 32, 32},
+        {corners.bones.data(), 32, 32},     {corners.weights.data(), 32, 32},
     };
     Vector<uint32_t> remap(MemoryTag::Assets);
     remap.resize(cornerCount);
@@ -317,7 +317,7 @@ void buildMesh(SourceMesh& mesh, const char* meshName, const MeshSettings& setti
     weld(corners.uv0, 2, built.uv0);
     weld(corners.uv1, 2, built.uv1);
     weld(corners.colors, 4, built.colors);
-    weld(corners.joints, 8, built.joints);
+    weld(corners.bones, 8, built.bones);
     weld(corners.weights, 8, built.weights);
 
     // LOD 0: each submesh ordered for the vertex cache, then for overdraw.
@@ -424,7 +424,7 @@ void buildMesh(SourceMesh& mesh, const char* meshName, const MeshSettings& setti
         reorder(built.uv0, 2);
         reorder(built.uv1, 2);
         reorder(built.colors, 4);
-        reorder(built.joints, 8);
+        reorder(built.bones, 8);
         reorder(built.weights, 8);
         built.vertexCount = static_cast<uint32_t>(kept);
     }
@@ -569,7 +569,7 @@ void mirror(SourceScene& scene)
             swapCorners(corners.uv0, 2, i + 1, i + 2);
             swapCorners(corners.uv1, 2, i + 1, i + 2);
             swapCorners(corners.colors, 4, i + 1, i + 2);
-            swapCorners(corners.joints, 8, i + 1, i + 2);
+            swapCorners(corners.bones, 8, i + 1, i + 2);
             swapCorners(corners.weights, 8, i + 1, i + 2);
         }
     }
@@ -581,11 +581,11 @@ void mirror(SourceScene& scene)
     }
     // A matrix M becomes S M S, S mirroring X: the first row's and column's
     // other elements change sign.
-    for (SourceJoint& joint : scene.joints)
+    for (SourceBone& bone : scene.bones)
     {
         for (int i : {1, 2, 3, 4, 8, 12})
         {
-            joint.inverseBind[i] = -joint.inverseBind[i];
+            bone.inverseBind[i] = -bone.inverseBind[i];
         }
     }
     for (SourceClip* clip : scene.clips)
@@ -609,7 +609,7 @@ void mirror(SourceScene& scene)
 // Skins and clips (ADR 0078)
 // ---------------------------------------------------------------------------
 
-// The skeleton in an order where every joint comes after its parent joint,
+// The skeleton in an order where every bone comes after its parent bone,
 // the nearest ancestor node that is one.
 struct Skeleton
 {
@@ -618,35 +618,35 @@ struct Skeleton
     Vector<int32_t> parent{MemoryTag::Assets};   // by new index: the parent's new index, or -1
 };
 
-void orderJoints(const SourceScene& scene, Skeleton& skeleton)
+void orderBones(const SourceScene& scene, Skeleton& skeleton)
 {
-    const size_t count = scene.joints.size();
-    Vector<int32_t> jointOfNode(MemoryTag::Assets);
-    jointOfNode.resize(scene.nodes.size());
-    for (int32_t& joint : jointOfNode)
+    const size_t count = scene.bones.size();
+    Vector<int32_t> boneOfNode(MemoryTag::Assets);
+    boneOfNode.resize(scene.nodes.size());
+    for (int32_t& bone : boneOfNode)
     {
-        joint = -1;
+        bone = -1;
     }
     for (size_t j = 0; j < count; ++j)
     {
-        jointOfNode[static_cast<size_t>(scene.joints[j].node)] = static_cast<int32_t>(j);
+        boneOfNode[static_cast<size_t>(scene.bones[j].node)] = static_cast<int32_t>(j);
     }
     Vector<int32_t> parentOf(MemoryTag::Assets);
     for (size_t j = 0; j < count; ++j)
     {
-        int32_t node = scene.nodes[static_cast<size_t>(scene.joints[j].node)].parent;
-        while (node >= 0 && jointOfNode[static_cast<size_t>(node)] < 0)
+        int32_t node = scene.nodes[static_cast<size_t>(scene.bones[j].node)].parent;
+        while (node >= 0 && boneOfNode[static_cast<size_t>(node)] < 0)
         {
             node = scene.nodes[static_cast<size_t>(node)].parent;
         }
-        parentOf.pushBack(node >= 0 ? jointOfNode[static_cast<size_t>(node)] : -1);
+        parentOf.pushBack(node >= 0 ? boneOfNode[static_cast<size_t>(node)] : -1);
     }
     skeleton.newIndex.resize(count);
     for (int32_t& index : skeleton.newIndex)
     {
         index = -1;
     }
-    // Repeatedly take, in the scene's order, every joint whose parent is placed.
+    // Repeatedly take, in the scene's order, every bone whose parent is placed.
     while (skeleton.order.size() < count)
     {
         bool placed = false;
@@ -669,12 +669,12 @@ void orderJoints(const SourceScene& scene, Skeleton& skeleton)
 }
 
 // A vertex's strongest influences, renormalized to weights summing to 255.
-void packSkin(const BuiltMesh& mesh, uint32_t vertex, uint32_t influences, const Skeleton& skeleton, Blob& joints,
+void packSkin(const BuiltMesh& mesh, uint32_t vertex, uint32_t influences, const Skeleton& skeleton, Blob& bones,
               Blob& weights)
 {
     struct Influence
     {
-        uint32_t joint;
+        uint32_t bone;
         float weight;
     };
     Influence all[8];
@@ -684,7 +684,7 @@ void packSkin(const BuiltMesh& mesh, uint32_t vertex, uint32_t influences, const
         const float weight = mesh.weights[vertex * 8 + k];
         if (weight > 0.0f)
         {
-            all[used++] = {static_cast<uint32_t>(mesh.joints[vertex * 8 + k]), weight};
+            all[used++] = {static_cast<uint32_t>(mesh.bones[vertex * 8 + k]), weight};
         }
     }
     std::sort(all, all + used, [](const Influence& a, const Influence& b) { return a.weight > b.weight; });
@@ -707,8 +707,8 @@ void packSkin(const BuiltMesh& mesh, uint32_t vertex, uint32_t influences, const
     }
     for (uint32_t k = 0; k < influences; ++k)
     {
-        const uint32_t joint = k < used ? all[k].joint : 0;
-        joints.add(static_cast<uint16_t>(joint < skeleton.newIndex.size() ? skeleton.newIndex[joint] : 0));
+        const uint32_t bone = k < used ? all[k].bone : 0;
+        bones.add(static_cast<uint16_t>(bone < skeleton.newIndex.size() ? skeleton.newIndex[bone] : 0));
         weights.add(quantized[k]);
     }
 }
@@ -864,7 +864,7 @@ Result<MeshImport*> buildMeshImport(SourceScene& scene, MeshSettings settings)
     settings.maxInfluences = settings.maxInfluences > 4 ? 8u : 4u;
     mirror(scene);
     Skeleton skeleton;
-    orderJoints(scene, skeleton);
+    orderBones(scene, skeleton);
 
     MeshImport* result = create<MeshImport>(MemoryTag::Assets);
     result->warnings = static_cast<StringList&&>(scene.warnings);
@@ -904,7 +904,7 @@ Result<MeshImport*> buildMeshImport(SourceScene& scene, MeshSettings settings)
     }
 
     Blob info, entries, lods, ranges, positions, normals, tangents, uv0, uv1, colors, outline, indices, nodes;
-    Blob jointIndices, jointWeights, skin, joints;
+    Blob boneIndices, boneWeights, skin, bones;
     uint32_t vertexOffset = 0;
     for (uint32_t m = 0; m < built.size(); ++m)
     {
@@ -994,7 +994,7 @@ Result<MeshImport*> buildMeshImport(SourceScene& scene, MeshSettings settings)
             colors.add(toByte(color[3]));
             if ((streams & bit(MeshAttribute::Skinned)) != 0)
             {
-                packSkin(mesh, v, settings.maxInfluences, skeleton, jointIndices, jointWeights);
+                packSkin(mesh, v, settings.maxInfluences, skeleton, boneIndices, boneWeights);
             }
         }
         vertexOffset += mesh.vertexCount;
@@ -1010,14 +1010,14 @@ Result<MeshImport*> buildMeshImport(SourceScene& scene, MeshSettings settings)
         nodes.add(out);
     }
 
-    // The skeleton, each joint after its parent; its name is its node's.
+    // The skeleton, each bone after its parent; its name is its node's.
     for (uint32_t j = 0; j < skeleton.order.size(); ++j)
     {
-        const SourceJoint& source = scene.joints[static_cast<size_t>(skeleton.order[j])];
-        assets::JointEntry out{skeleton.parent[j], source.node};
+        const SourceBone& source = scene.bones[static_cast<size_t>(skeleton.order[j])];
+        assets::BoneEntry out{skeleton.parent[j], source.node};
         std::memcpy(out.inverseBind, source.inverseBind, sizeof(out.inverseBind));
         addName(scene.nodes[static_cast<size_t>(source.node)].name, out.nameOffset, out.nameLength);
-        joints.add(out);
+        bones.add(out);
     }
     skin.add(assets::SkinInfo{static_cast<uint32_t>(skeleton.order.size()), settings.maxInfluences});
 
@@ -1071,15 +1071,15 @@ Result<MeshImport*> buildMeshImport(SourceScene& scene, MeshSettings settings)
     }
     if ((streams & bit(MeshAttribute::Skinned)) != 0)
     {
-        result->addSection(binary::tag("JIDX"), jointIndices.bytes);
-        result->addSection(binary::tag("JWGT"), jointWeights.bytes);
+        result->addSection(binary::tag("BIDX"), boneIndices.bytes);
+        result->addSection(binary::tag("BWGT"), boneWeights.bytes);
     }
     result->addSection(binary::tag("INDX"), indices.bytes);
     result->addSection(binary::tag("NODE"), nodes.bytes);
     if (!skeleton.order.empty())
     {
         result->addSection(binary::tag("SKIN"), skin.bytes);
-        result->addSection(binary::tag("JNTS"), joints.bytes);
+        result->addSection(binary::tag("BONE"), bones.bytes);
     }
     result->addSection(binary::tag("NAME"), names.bytes);
 

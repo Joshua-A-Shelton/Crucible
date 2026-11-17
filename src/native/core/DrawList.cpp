@@ -243,8 +243,8 @@ struct FrameBuffers
     uint32_t transformCapacity = 0;
     slag::Buffer* instances = nullptr;
     uint32_t instanceCapacity = 0;
-    slag::Buffer* palettes = nullptr; // skinning's (ADR 0080), three rows per joint
-    uint32_t paletteCapacity = 0;     // in joints
+    slag::Buffer* palettes = nullptr; // skinning's (ADR 0080), three rows per bone
+    uint32_t paletteCapacity = 0;     // in bones
 };
 
 // What one worker (or the calling thread) found; reused frame to frame.
@@ -349,7 +349,7 @@ struct DrawState
     uint32_t instanceSlot = 0;
     uint32_t transformSlot = 0;
     // Skinning (ADR 0080): this frame's skinned instances, by skin; which
-    // skin an entity index has; the palettes; and each skin's joints in its
+    // skin an entity index has; the palettes; and each skin's bones in its
     // pose's skeleton, by model and skeleton (rebuilt after a reload).
     Vector<SkinnedInstance> skinned{MemoryTag::Render};
     Vector<SkinRecord> skinRecords{MemoryTag::Render};
@@ -640,7 +640,7 @@ uint32_t poseOf(const ecs::World& world, ecs::Entity entity)
     return 0;
 }
 
-// The model's joints in the pose's skeleton, by name (-1 where it has none).
+// The model's bones in the pose's skeleton, by name (-1 where it has none).
 const Vector<int32_t>& remapOf(DrawState& state, const MeshData& model, uint32_t pose)
 {
     const RemapKey key{&model, animation::poseSkeletonKey(pose)};
@@ -649,11 +649,11 @@ const Vector<int32_t>& remapOf(DrawState& state, const MeshData& model, uint32_t
         return **found;
     }
     auto* remap = create<Vector<int32_t>>(MemoryTag::Render, MemoryTag::Render);
-    for (const assets::JointEntry& joint : model.joints)
+    for (const assets::BoneEntry& bone : model.bones)
     {
-        const bool named = uint64_t{joint.nameOffset} + joint.nameLength <= model.names.size();
-        remap->pushBack(
-            named ? animation::poseJointIndex(pose, {model.names.data() + joint.nameOffset, joint.nameLength}) : -1);
+        const bool named = uint64_t{bone.nameOffset} + bone.nameLength <= model.names.size();
+        remap->pushBack(named ? animation::poseBoneIndex(pose, {model.names.data() + bone.nameOffset, bone.nameLength})
+                              : -1);
     }
     state.remaps.insertOrAssign(key, remap);
     return *remap;
@@ -669,7 +669,7 @@ void clearRemaps(DrawState& state)
 }
 
 // The world's skinned instances that have a pose (ADR 0080): each skin's
-// palette (inverse bind, then the posed joint, then the pose's entity to the
+// palette (inverse bind, then the posed bone, then the pose's entity to the
 // mesh's, so skinned vertices are in the mesh's own space and draw with its
 // transform), its posed bounds, and its place in the skinned vertices.
 Result<void> gatherSkins(DrawState& state, ecs::World& world, uint32_t frameSlot)
@@ -723,12 +723,12 @@ Result<void> gatherSkins(DrawState& state, ecs::World& world, uint32_t frameSlot
                     continue;
                 }
                 const uint32_t pose = poseOf(world, entities[i]);
-                const std::span<const Matrix4x4> joints = animation::poseJoints(pose);
-                if (joints.empty())
+                const std::span<const Matrix4x4> bones = animation::poseBones(pose);
+                if (bones.empty())
                 {
                     continue; // drawn as it was bound
                 }
-                // From the pose's entity (whose space the joints are in) to the mesh's.
+                // From the pose's entity (whose space the bones are in) to the mesh's.
                 Matrix4x4 meshInverse;
                 ecs::Entity owner = entities[i];
                 while (owner != ecs::nullEntity)
@@ -751,14 +751,14 @@ Result<void> gatherSkins(DrawState& state, ecs::World& world, uint32_t frameSlot
                 const uint32_t paletteOffset = static_cast<uint32_t>(state.palette.size());
                 Vector3 lo{1e30f, 1e30f, 1e30f}, hi{-1e30f, -1e30f, -1e30f};
                 uint64_t hash = 0xcbf29ce484222325ull;
-                for (size_t j = 0; j < model->joints.size(); ++j)
+                for (size_t j = 0; j < model->bones.size(); ++j)
                 {
-                    Matrix4x4 skinning = Matrix4x4::identity(); // a joint the pose lacks stays as bound
-                    if (remap[j] >= 0 && static_cast<size_t>(remap[j]) < joints.size())
+                    Matrix4x4 skinning = Matrix4x4::identity(); // a bone the pose lacks stays as bound
+                    if (remap[j] >= 0 && static_cast<size_t>(remap[j]) < bones.size())
                     {
                         Matrix4x4 inverseBind;
-                        std::memcpy(&inverseBind, model->joints[j].inverseBind, sizeof(inverseBind));
-                        skinning = inverseBind * joints[static_cast<size_t>(remap[j])] * toMesh;
+                        std::memcpy(&inverseBind, model->bones[j].inverseBind, sizeof(inverseBind));
+                        skinning = inverseBind * bones[static_cast<size_t>(remap[j])] * toMesh;
                     }
                     InstanceTransform& row = state.palette.emplaceBack();
                     writeTransform(row, skinning);
@@ -768,11 +768,11 @@ Result<void> gatherSkins(DrawState& state, ecs::World& world, uint32_t frameSlot
                     {
                         hash = (hash ^ b) * 0x100000001b3ull;
                     }
-                    if (model->jointReach[j] < 0)
+                    if (model->boneReach[j] < 0)
                     {
                         continue;
                     }
-                    // The joint's vertices are within its reach of it, scaled
+                    // The bone's vertices are within its reach of it, scaled
                     // as it is; blended ones within the union of those spheres.
                     float scale = 0;
                     for (int axis = 0; axis < 3; ++axis)
@@ -780,8 +780,8 @@ Result<void> gatherSkins(DrawState& state, ecs::World& world, uint32_t frameSlot
                         const Vector4 r = skinning.rows[axis];
                         scale = std::max(scale, r.x * r.x + r.y * r.y + r.z * r.z);
                     }
-                    const float reach = model->jointReach[j] * std::sqrt(scale);
-                    const Vector3 at = transformPoint(model->jointOrigins[j], skinning);
+                    const float reach = model->boneReach[j] * std::sqrt(scale);
+                    const Vector3 at = transformPoint(model->boneOrigins[j], skinning);
                     lo = {std::min(lo.x, at.x - reach), std::min(lo.y, at.y - reach), std::min(lo.z, at.z - reach)};
                     hi = {std::max(hi.x, at.x + reach), std::max(hi.y, at.y + reach), std::max(hi.z, at.z + reach)};
                 }
@@ -793,7 +793,7 @@ Result<void> gatherSkins(DrawState& state, ecs::World& world, uint32_t frameSlot
                 state.skinned.pushBack({.model = model,
                                         .mesh = static_cast<uint32_t>(meshIndex),
                                         .paletteOffset = paletteOffset,
-                                        .jointCount = static_cast<uint32_t>(model->joints.size()),
+                                        .boneCount = static_cast<uint32_t>(model->bones.size()),
                                         .deformedOffset = state.skinnedVertexCount,
                                         .vertexCount = mesh.vertexCount});
                 state.skinRecords.pushBack({handle.index, lo, hi, hash});
@@ -807,8 +807,8 @@ Result<void> gatherSkins(DrawState& state, ecs::World& world, uint32_t frameSlot
     {
         return {};
     }
-    const uint32_t joints = static_cast<uint32_t>(state.palette.size());
-    if (Result<void> made = ensurePalettes(state, frameSlot, std::max(joints + joints / 2, 256u)); !made)
+    const uint32_t bones = static_cast<uint32_t>(state.palette.size());
+    if (Result<void> made = ensurePalettes(state, frameSlot, std::max(bones + bones / 2, 256u)); !made)
     {
         state.skinned.clear();
         state.skinOf.clear();

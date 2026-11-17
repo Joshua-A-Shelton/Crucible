@@ -155,10 +155,10 @@ struct CRUCIBLE_EXPOSE ContactEvent2D
     Vector2 normal; // from a to b
 };
 
-// A 2D shape that strikes (ADR 0096), as physics::Hitbox does in 3D, swept
-// by "Physics2D.Hitboxes" (in the Animation phase after
-// "Animation.Sockets", while the game plays) in pieces that turn at most 15
-// degrees.
+// A 2D shape that strikes (ADR 0096), as physics::Hitbox does in 3D, swept by
+// "Physics2D.Hitboxes" (in the Animation phase after
+// "Animation.BoneAttachments", while the game plays) in pieces that turn at
+// most 15 degrees.
 struct CRUCIBLE_EXPOSE Hitbox2D
 {
     ShapeKind2D shape;                    // Box, Circle, or Capsule

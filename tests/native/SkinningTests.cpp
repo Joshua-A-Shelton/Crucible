@@ -103,7 +103,7 @@ TEST_SUITE("gpu")
                 *get<Camera>(*scene.world, camera) = {
                     .projection = CameraProjection::Perspective, .fieldOfViewY = 0.8f, .nearPlane = 0.1f};
                 // The mesh entity is scaled by 2, which a posed skin ignores
-                // (as glTF does: it follows its joints, in the Animator's
+                // (as glTF does: it follows its bones, in the Animator's
                 // space): the quad spans 0.5 each way from (-3, 0), and Arm's
                 // edge moves up 1.5.
                 const Entity root = character(scene, arm, {-3, 0, 0}, 2);

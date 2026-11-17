@@ -66,7 +66,7 @@ public partial class MeshImportSettings
     public float LodMaxError = 0.05f;
 
     /// <summary>
-    /// Joints a skinned vertex follows, at most: 4, or 8 for the faces and
+    /// Bones a skinned vertex follows, at most: 4, or 8 for the faces and
     /// cloth that need more (ADR 0078). Each vertex keeps its strongest.
     /// </summary>
     public int MaxInfluences = 4;
@@ -129,7 +129,7 @@ public sealed class MeshImporter : Importer<MeshImportSettings>
 {
     public static readonly uint Kind = Tag.Of("MESH");
     public static readonly uint MaterialSection = Tag.Of("MATL");
-    public const uint KindVersion = 3; // as meshFileVersion
+    public const uint KindVersion = 4; // as meshFileVersion
 
     /// <summary>An animation clip's file (ADR 0078), as ClipFile.h lays it out.</summary>
     public static readonly uint ClipKind = Tag.Of("CLIP");
@@ -140,8 +140,9 @@ public sealed class MeshImporter : Importer<MeshImportSettings>
 
     // 2: generated materials (MTLS); 3: remapped slots (MRMP); 5: skins and
     // clips; 6: clip events and windows; 7: collision data (COLM, COLH; moving
-    // the Box3D pin to a changed data format bumps it too).
-    public override int Version => 7;
+    // the Box3D pin to a changed data format bumps it too); 8: skin sections
+    // renamed from joints to bones (BONE, BIDX, BWGT).
+    public override int Version => 8;
 
     public override IReadOnlyList<string> Extensions => [".gltf", ".glb"];
 

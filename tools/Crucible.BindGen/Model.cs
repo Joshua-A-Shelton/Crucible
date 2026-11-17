@@ -99,8 +99,8 @@ internal sealed record FieldHints(string? Tooltip, string? Header, string? Min, 
     /// <summary>CRUCIBLE_HINT_MESH_OF's field, as C++ names it.</summary>
     public string? MeshOf { get; init; }
 
-    /// <summary>CRUCIBLE_HINT_JOINT: a joint's name hash (ADR 0096).</summary>
-    public bool Joint { get; init; }
+    /// <summary>CRUCIBLE_HINT_BONE: a bone's name hash (ADR 0096).</summary>
+    public bool Bone { get; init; }
 
     /// <summary>CRUCIBLE_HINT_WINDOW: a window's name hash (ADR 0096).</summary>
     public bool Window { get; init; }

@@ -33,7 +33,7 @@ public sealed class SerializerGenerator : IIncrementalGenerator
     private const string MeshOfName = "Crucible.Serialization.MeshOfAttribute";
     private const string ColorName = "Crucible.Serialization.ColorAttribute";
     private const string LayersName = "Crucible.Serialization.LayersAttribute";
-    private const string JointNameName = "Crucible.Serialization.JointNameAttribute";
+    private const string BoneNameName = "Crucible.Serialization.BoneNameAttribute";
     private const string WindowNameName = "Crucible.Serialization.WindowNameAttribute";
     private const string InterfaceName = "Crucible.Serialization.IJsonSerialized`1";
     private const string VersionProperty = "$version";
@@ -229,7 +229,7 @@ public sealed class SerializerGenerator : IIncrementalGenerator
     {
         float min = float.NaN, max = float.NaN;
         string? tooltip = null, header = null, label = null, meshOf = null;
-        bool color = false, layers = false, skinned = false, jointName = false, windowName = false;
+        bool color = false, layers = false, skinned = false, boneName = false, windowName = false;
         string[] assetKinds = [], entityWith = [];
         foreach (AttributeData attribute in member.GetAttributes())
         {
@@ -284,11 +284,11 @@ public sealed class SerializerGenerator : IIncrementalGenerator
                         report(Diagnostics.MisplacedAttribute, location, [display, "[Layers] applies to a uint"]);
                     }
                     break;
-                case JointNameName:
-                    jointName = true;
+                case BoneNameName:
+                    boneName = true;
                     if (shape.Kind is not ShapeKind.UInt32)
                     {
-                        report(Diagnostics.MisplacedAttribute, location, [display, "[JointName] applies to a uint"]);
+                        report(Diagnostics.MisplacedAttribute, location, [display, "[BoneName] applies to a uint"]);
                     }
                     break;
                 case WindowNameName:
@@ -306,7 +306,7 @@ public sealed class SerializerGenerator : IIncrementalGenerator
             Skinned = skinned,
             EntityWith = new EquatableArray<string>(entityWith),
             MeshOf = meshOf,
-            IsJointName = jointName,
+            IsBoneName = boneName,
             IsWindowName = windowName,
         };
     }
@@ -657,9 +657,9 @@ public sealed class SerializerGenerator : IIncrementalGenerator
             {
                 arguments.Add($"meshOf: {Literal(meshOf)}");
             }
-            if (hints.IsJointName)
+            if (hints.IsBoneName)
             {
-                arguments.Add("isJointName: true");
+                arguments.Add("isBoneName: true");
             }
             if (hints.IsWindowName)
             {
@@ -926,7 +926,7 @@ internal sealed record HintModel(float Min, float Max, string? Tooltip, string? 
     public bool Skinned { get; init; }
     public EquatableArray<string> EntityWith { get; init; } = new([]);
     public string? MeshOf { get; init; }
-    public bool IsJointName { get; init; }
+    public bool IsBoneName { get; init; }
     public bool IsWindowName { get; init; }
 
     // What a collection's items keep: only what picks them.

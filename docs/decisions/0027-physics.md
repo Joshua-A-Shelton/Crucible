@@ -51,7 +51,7 @@ callbacks, SIMD), or our own.
    or Jolt's `CharacterVirtual`), with collide-and-slide movement; root
    motion (ADR 0026) supplies its desired movement.
 6. **Combat hit detection uses swept, query-based hitboxes.** During an
-   active window (ADR 0026), each hitbox shape attached to a joint is swept
+   active window (ADR 0026), each hitbox shape attached to a bone is swept
    from its previous to its current position with a shape cast; a hit's
    position along the sweep gives an exact time, comparable with input and
    animation times. Hitboxes are queries, not simulated bodies.

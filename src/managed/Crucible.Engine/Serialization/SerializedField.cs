@@ -50,7 +50,7 @@ public sealed class SerializedField
         Func<IReadOnlyList<SerializedField>>? fields = null, float min = float.NaN, float max = float.NaN,
         string? tooltip = null, string? header = null, bool isColor = false, bool isLayers = false,
         string? label = null, string[]? assetKinds = null, bool needsSkeleton = false,
-        string[]? entityComponents = null, string? meshOf = null, int fixedLength = 0, bool isJointName = false,
+        string[]? entityComponents = null, string? meshOf = null, int fixedLength = 0, bool isBoneName = false,
         bool isWindowName = false)
     {
         Name = name;
@@ -71,7 +71,7 @@ public sealed class SerializedField
         EntityComponents = entityComponents ?? [];
         MeshOf = meshOf;
         FixedLength = fixedLength;
-        IsJointName = isJointName;
+        IsBoneName = isBoneName;
         IsWindowName = isWindowName;
     }
 
@@ -126,8 +126,8 @@ public sealed class SerializedField
     /// <summary>A <see cref="FieldKind.FixedArray"/>'s length; 0 for other kinds.</summary>
     public int FixedLength { get; }
 
-    /// <summary>From <see cref="JointNameAttribute"/>: a uint picked as a joint's name.</summary>
-    public bool IsJointName { get; }
+    /// <summary>From <see cref="BoneNameAttribute"/>: a uint picked as a bone's name.</summary>
+    public bool IsBoneName { get; }
 
     /// <summary>From <see cref="WindowNameAttribute"/>: a uint picked as an animation window's name.</summary>
     public bool IsWindowName { get; }

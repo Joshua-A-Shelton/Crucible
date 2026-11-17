@@ -1,6 +1,6 @@
-// Sockets (ADR 0096): an entity riding a joint of the nearest Animator above
-// it, at an offset, keeping its own scale; a socket under a socket follows
-// both; without a joint to ride, it's left where it is.
+// Bone attachments (ADR 0096): an entity riding a bone of the nearest
+// Animator above it, at an offset, keeping its own scale; an attachment under
+// an attachment follows both; without a bone to ride, it's left where it is.
 
 #include "AnimationTestSupport.h"
 
@@ -12,12 +12,13 @@ using namespace crucible::animation::testing;
 
 namespace {
 
-ecs::Entity socketed(Character& walker, ecs::Entity parent, Socket socket, Vector3 scale = {1, 1, 1})
+ecs::Entity attached(Character& walker, ecs::Entity parent, BoneAttachment attachment, Vector3 scale = {1, 1, 1})
 {
-    const ecs::ComponentId components[] = {ecs::componentIdOf<Socket>, ecs::componentIdOf<scenes::LocalTransform>,
+    const ecs::ComponentId components[] = {ecs::componentIdOf<BoneAttachment>,
+                                           ecs::componentIdOf<scenes::LocalTransform>,
                                            ecs::componentIdOf<scenes::WorldTransform>};
     const ecs::Entity entity = ecs::createEntity(*walker.world, components);
-    *ecs::get<Socket>(*walker.world, entity) = socket;
+    *ecs::get<BoneAttachment>(*walker.world, entity) = attachment;
     *ecs::get<scenes::LocalTransform>(*walker.world, entity) = {{0, 0, 0}, Quaternion::identity(), scale};
     REQUIRE(ecs::setParent(*walker.world, entity, parent));
     return entity;
@@ -33,10 +34,10 @@ Vector3 axisOf(const Matrix4x4& m, int row)
     return normalize(Vector3{m.rows[row].x, m.rows[row].y, m.rows[row].z});
 }
 
-// Where the offset from a joint is in the world, as the socket should be.
-Matrix4x4 expectedAt(Character& walker, const char* joint, Vector3 offset, Quaternion turn)
+// Where the offset from a bone is in the world, as the attachment should be.
+Matrix4x4 expectedAt(Character& walker, const char* bone, Vector3 offset, Quaternion turn)
 {
-    const int32_t index = findJoint(*walker.world, walker.entity, joint);
+    const int32_t index = findBone(*walker.world, walker.entity, bone);
     REQUIRE(index >= 0);
     Matrix4x4 at = Matrix4x4::rotation(turn);
     at.rows[3] = {offset.x, offset.y, offset.z, 1};
@@ -57,53 +58,53 @@ void checkPlaced(Character& walker, ecs::Entity entity, const Matrix4x4& expecte
 
 } // namespace
 
-TEST_CASE("A socket rides its joint at its offset and keeps its own scale")
+TEST_CASE("An attachment rides its bone at its offset and keeps its own scale")
 {
     Character walker;
     *ecs::get<scenes::LocalTransform>(*walker.world, walker.entity) = {
         {1, 0, 2}, Quaternion::fromAxisAngle({0, 1, 0}, 0.7f), {1, 1, 1}};
     const Quaternion tilt = Quaternion::fromAxisAngle({1, 0, 0}, 0.4f);
     const ecs::Entity sword =
-        socketed(walker, walker.entity, {eventName("RightLowerArm"), {0, -0.3f, 0.05f}, tilt}, {2, 2, 2});
+        attached(walker, walker.entity, {eventName("RightLowerArm"), {0, -0.3f, 0.05f}, tilt}, {2, 2, 2});
     for (const float seconds : {0.1f, 0.35f, 0.2f})
     {
         walker.step(seconds);
-        placeSockets(*walker.world);
+        placeBoneAttachments(*walker.world);
         checkPlaced(walker, sword, expectedAt(walker, "RightLowerArm", {0, -0.3f, 0.05f}, tilt), 2);
     }
     CHECK(ecs::read<scenes::LocalTransform>(*walker.world, sword)->scale.x == 2);
 }
 
-TEST_CASE("A socket under a socket follows both however the entities were made")
+TEST_CASE("An attachment under an attachment follows both however the entities were made")
 {
     Character walker;
     // The inner one is made first, so it comes first unless parents are placed first.
-    const ecs::Entity tip = socketed(walker, walker.entity, {eventName("RightFoot"), {0, 0, 0.2f}, {0, 0, 0, 1}});
-    const ecs::Entity foot = socketed(walker, walker.entity, {eventName("RightLowerLeg"), {}, {0, 0, 0, 1}});
+    const ecs::Entity tip = attached(walker, walker.entity, {eventName("RightFoot"), {0, 0, 0.2f}, {0, 0, 0, 1}});
+    const ecs::Entity foot = attached(walker, walker.entity, {eventName("RightLowerLeg"), {}, {0, 0, 0, 1}});
     REQUIRE(ecs::setParent(*walker.world, tip, foot));
     *ecs::get<scenes::LocalTransform>(*walker.world, walker.entity) = {{0, 0, 0}, Quaternion::identity(), {1, 1, 1}};
     walker.step(0.3f);
-    placeSockets(*walker.world);
+    placeBoneAttachments(*walker.world);
     checkPlaced(walker, foot, expectedAt(walker, "RightLowerLeg", {}, Quaternion::identity()), 1);
     checkPlaced(walker, tip, expectedAt(walker, "RightFoot", {0, 0, 0.2f}, Quaternion::identity()), 1);
 }
 
-TEST_CASE("A socket without a joint to ride is left where it is")
+TEST_CASE("An attachment without a bone to ride is left where it is")
 {
     Character walker;
-    const ecs::Entity unnamed = socketed(walker, walker.entity, {0, {}, {0, 0, 0, 1}});
-    const ecs::Entity missing = socketed(walker, walker.entity, {eventName("Tail"), {}, {0, 0, 0, 1}});
+    const ecs::Entity unnamed = attached(walker, walker.entity, {0, {}, {0, 0, 0, 1}});
+    const ecs::Entity missing = attached(walker, walker.entity, {eventName("Tail"), {}, {0, 0, 0, 1}});
     const ecs::ComponentId components[] = {ecs::componentIdOf<scenes::LocalTransform>,
                                            ecs::componentIdOf<scenes::WorldTransform>};
     const ecs::Entity plain = ecs::createEntity(*walker.world, components);
     *ecs::get<scenes::LocalTransform>(*walker.world, plain) = {{0, 0, 0}, Quaternion::identity(), {1, 1, 1}};
-    const ecs::Entity orphan = socketed(walker, plain, {eventName("RightFoot"), {}, {0, 0, 0, 1}});
+    const ecs::Entity orphan = attached(walker, plain, {eventName("RightFoot"), {}, {0, 0, 0, 1}});
     for (const ecs::Entity entity : {unnamed, missing, orphan})
     {
         ecs::get<scenes::LocalTransform>(*walker.world, entity)->position = {5, 6, 7};
     }
     walker.step(0.2f);
-    placeSockets(*walker.world);
+    placeBoneAttachments(*walker.world);
     for (const ecs::Entity entity : {unnamed, missing, orphan})
     {
         const Vector3 at = ecs::read<scenes::LocalTransform>(*walker.world, entity)->position;

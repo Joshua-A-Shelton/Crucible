@@ -127,7 +127,7 @@ public class SubAssetTests
     }
 
     [Test]
-    public async Task ModelClipsAreSubAssetsAndJointsArentEntities()
+    public async Task ModelClipsAreSubAssetsAndBonesArentEntities()
     {
         string? samples = Environment.GetEnvironmentVariable("CRUCIBLE_UFBX_DATA")
             ?? throw new InvalidOperationException("CRUCIBLE_UFBX_DATA isn't set: run these tests through CTest");
@@ -153,16 +153,16 @@ public class SubAssetTests
             Entity model = Prefab.Instantiate(world, result.Id, database.Prefabs());
             List<string> names = [];
             Collect(world, model, names);
-            int nodes, joints;
+            int nodes, bones;
             using (ImportedFile mesh = ImportedFile.Open(database.ImportedFile(result.Id)!, MeshImporter.Kind,
                        MeshImporter.KindVersion))
             {
                 nodes = (int)mesh.Section(mesh.Find(Tag.Of("NODE"))).Size / 56; // MeshNode
-                joints = (int)mesh.Section(mesh.Find(Tag.Of("JNTS"))).Size / 80; // JointEntry
+                bones = (int)mesh.Section(mesh.Find(Tag.Of("BONE"))).Size / 80; // BoneEntry
             }
-            await Assert.That(joints).IsGreaterThan(0);
+            await Assert.That(bones).IsGreaterThan(0);
             await Assert.That(names.Count).IsGreaterThan(0);
-            await Assert.That(names.Count).IsLessThanOrEqualTo(nodes - joints);
+            await Assert.That(names.Count).IsLessThanOrEqualTo(nodes - bones);
         }
         finally
         {

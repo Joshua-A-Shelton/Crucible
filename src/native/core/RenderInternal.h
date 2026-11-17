@@ -58,7 +58,7 @@ inline constexpr uint32_t entityIdsDescriptor = frameDataDescriptor + framesInFl
 // DebugLines (ADR 0079): the frame's lines, a StructuredBuffer<DebugVertex>.
 inline constexpr uint32_t debugLinesDescriptor = entityIdsDescriptor + framesInFlight; // + frame slot
 // Skinning (ADR 0080): the palettes (StructuredBuffer<float4>, three rows per
-// joint), and the skinned vertices as draws read them (ByteAddressBuffer)
+// bone), and the skinned vertices as draws read them (ByteAddressBuffer)
 // and as the compute pass writes them (RWByteAddressBuffer).
 inline constexpr uint32_t skinPaletteDescriptor = debugLinesDescriptor + framesInFlight;            // + frame slot
 inline constexpr uint32_t skinnedVerticesDescriptor = skinPaletteDescriptor + framesInFlight;       // + frame slot

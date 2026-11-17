@@ -182,11 +182,11 @@ struct CRUCIBLE_EXPOSE ContactEvent
     Vector3 normal; // from a to b
 };
 
-// A shape that strikes (ADR 0027, 0096), on its own entity: a Socket on a
-// joint, or anything that moves (a projectile). While active, each frame
+// A shape that strikes (ADR 0027, 0096), on its own entity: a BoneAttachment
+// on a bone, or anything that moves (a projectile). While active, each frame
 // sweeps it from where it was to where it is ("Physics.Hitboxes", in the
-// Animation phase after "Animation.Sockets", while the game plays), in
-// pieces that turn at most 15 degrees, so a swing's arc is followed at any
+// Animation phase after "Animation.BoneAttachments", while the game plays),
+// in pieces that turn at most 15 degrees, so a swing's arc is followed at any
 // frame rate. Active while enabled and, with a window, while the nearest
 // Animator at or above it has that window open (from when it opened to when
 // it closed, within the frame). Each entity it touches is hit once per

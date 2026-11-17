@@ -10,9 +10,9 @@ using namespace crucible::animation::testing;
 
 namespace {
 
-Vector3 at(const Character& walker, int32_t joint)
+Vector3 at(const Character& walker, int32_t bone)
 {
-    const Vector4& row = walker.model(joint).rows[3];
+    const Vector4& row = walker.model(bone).rows[3];
     return {row.x, row.y, row.z};
 }
 
@@ -20,9 +20,9 @@ Vector3 at(const Character& walker, int32_t joint)
 struct Leg
 {
     Character walker{0};
-    int32_t hip = findJoint(*walker.world, walker.entity, "LeftUpperLeg");
-    int32_t knee = findJoint(*walker.world, walker.entity, "LeftLowerLeg");
-    int32_t foot = findJoint(*walker.world, walker.entity, "LeftFoot");
+    int32_t hip = findBone(*walker.world, walker.entity, "LeftUpperLeg");
+    int32_t knee = findBone(*walker.world, walker.entity, "LeftLowerLeg");
+    int32_t foot = findBone(*walker.world, walker.entity, "LeftFoot");
 
     Leg()
     {
@@ -38,7 +38,7 @@ struct Leg
 
 } // namespace
 
-TEST_CASE("Two-bone IK puts the end joint on a target in reach")
+TEST_CASE("Two-bone IK puts the end bone on a target in reach")
 {
     Leg leg;
     const Vector3 hip = at(leg.walker, leg.hip), rest = at(leg.walker, leg.foot);
@@ -109,10 +109,10 @@ TEST_CASE("IK targets are in world space")
     CHECK(length(at(leg.walker, leg.foot) - model) < 1e-4f);
 }
 
-TEST_CASE("Look-at turns a joint toward the target within its limit")
+TEST_CASE("Look-at turns a bone toward the target within its limit")
 {
     Character walker(0);
-    const int32_t head = findJoint(*walker.world, walker.entity, "Head");
+    const int32_t head = findBone(*walker.world, walker.entity, "Head");
     walker.step(0);
     const Vector3 eyes = at(walker, head);
     const Vector3 target = eyes + Vector3{2, 0, 2}; // 45 degrees to the side
@@ -130,16 +130,16 @@ TEST_CASE("Look-at turns a joint toward the target within its limit")
     CHECK(std::acos(std::clamp(dot(aim(), Vector3{0, 0, 1}), -1.0f, 1.0f)) == doctest::Approx(0.3f).epsilon(1e-3));
 }
 
-TEST_CASE("IK needs a joint with enough of a chain above it")
+TEST_CASE("IK needs a bone with enough of a chain above it")
 {
     Leg leg;
     ecs::World& world = *leg.walker.world;
     const ecs::Entity entity = leg.walker.entity;
-    const int32_t hips = findJoint(world, entity, "Hips");
+    const int32_t hips = findBone(world, entity, "Hips");
     CHECK(setTwoBoneIk(world, entity, 0, leg.reach({0, 0, 0})));
     CHECK(setTwoBoneIk(world, entity, maxIkSlots, leg.reach({0, 0, 0})).status() == Status::NotFound);
     TwoBoneIkDesc desc = leg.reach({0, 0, 0});
-    desc.joint = leg.hip; // its parent is the root: one ancestor short
+    desc.bone = leg.hip; // its parent is the root: one ancestor short
     CHECK(setTwoBoneIk(world, entity, 0, desc).status() == Status::NotFound);
     CHECK(setLookAt(world, entity, 0, {hips, {0, 0, 1}, {0, 0, 1}, 1, 1, 0}));
     CHECK(setLookAt(world, entity, 0, {99, {0, 0, 1}, {0, 0, 1}, 1, 1, 0}).status() == Status::NotFound);

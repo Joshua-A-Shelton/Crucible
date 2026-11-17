@@ -171,13 +171,13 @@ void rowMajor(const ufbx_matrix& m, float* out)
     }
 }
 
-// A corner's influences (ADR 0078): the vertex's eight strongest, as joints
+// A corner's influences (ADR 0078): the vertex's eight strongest, as bones
 // of the scene's skeleton; zeros without a skin.
-void pushSkin(const ufbx_mesh& mesh, uint32_t index, const Vector<int32_t>& jointOfNode, Corners& corners)
+void pushSkin(const ufbx_mesh& mesh, uint32_t index, const Vector<int32_t>& boneOfNode, Corners& corners)
 {
     struct Influence
     {
-        int32_t joint;
+        int32_t bone;
         float weight;
     };
     Influence strongest[8] = {};
@@ -193,11 +193,11 @@ void pushSkin(const ufbx_mesh& mesh, uint32_t index, const Vector<int32_t>& join
             {
                 const ufbx_skin_weight& weight = skin.weights.data[weights.weight_begin + w];
                 const ufbx_skin_cluster* cluster = skin.clusters.data[weight.cluster_index];
-                if (cluster->bone_node == nullptr || jointOfNode[cluster->bone_node->typed_id] < 0)
+                if (cluster->bone_node == nullptr || boneOfNode[cluster->bone_node->typed_id] < 0)
                 {
                     continue;
                 }
-                const Influence influence{jointOfNode[cluster->bone_node->typed_id], static_cast<float>(weight.weight)};
+                const Influence influence{boneOfNode[cluster->bone_node->typed_id], static_cast<float>(weight.weight)};
                 if (used < 8)
                 {
                     strongest[used++] = influence;
@@ -220,13 +220,13 @@ void pushSkin(const ufbx_mesh& mesh, uint32_t index, const Vector<int32_t>& join
     }
     for (uint32_t k = 0; k < 8; ++k)
     {
-        corners.joints.pushBack(static_cast<float>(k < used ? strongest[k].joint : 0));
+        corners.bones.pushBack(static_cast<float>(k < used ? strongest[k].bone : 0));
         corners.weights.pushBack(k < used ? strongest[k].weight : 0.0f);
     }
 }
 
 // One FBX mesh's polygons, triangulated, one submesh per material.
-void readMesh(const ufbx_mesh& mesh, const Vector<int32_t>& jointOfNode, SourceMesh& out, StringList& warnings)
+void readMesh(const ufbx_mesh& mesh, const Vector<int32_t>& boneOfNode, SourceMesh& out, StringList& warnings)
 {
     const char* name = nameOf(mesh.name.data, "(unnamed)");
     if (mesh.blend_deformers.count > 0)
@@ -317,7 +317,7 @@ void readMesh(const ufbx_mesh& mesh, const Vector<int32_t>& jointOfNode, SourceM
                         corners.colors.pushBack(1.0f);
                     }
                 }
-                pushSkin(mesh, i, jointOfNode, corners);
+                pushSkin(mesh, i, boneOfNode, corners);
             }
         }
         out.submeshes.pushBack(
@@ -356,29 +356,29 @@ Result<MeshImport*> importFbx(std::span<const uint8_t> bytes, MeshSettings setti
     }
     // The skeleton (ADR 0078): every skin cluster's bone, each once, bound by
     // its geometry-to-bone matrix (the inverse bind matrix).
-    Vector<int32_t> jointOfNode(MemoryTag::Assets);
-    jointOfNode.resize(fbx->nodes.count);
-    for (int32_t& joint : jointOfNode)
+    Vector<int32_t> boneOfNode(MemoryTag::Assets);
+    boneOfNode.resize(fbx->nodes.count);
+    for (int32_t& bone : boneOfNode)
     {
-        joint = -1;
+        bone = -1;
     }
     for (size_t c = 0; c < fbx->skin_clusters.count; ++c)
     {
         const ufbx_skin_cluster& cluster = *fbx->skin_clusters.data[c];
         if (cluster.bone_node == nullptr || nodeIndex[cluster.bone_node->typed_id] < 0 ||
-            jointOfNode[cluster.bone_node->typed_id] >= 0)
+            boneOfNode[cluster.bone_node->typed_id] >= 0)
         {
             continue;
         }
-        SourceJoint joint{nodeIndex[cluster.bone_node->typed_id], {}};
-        rowMajor(cluster.geometry_to_bone, joint.inverseBind);
-        jointOfNode[cluster.bone_node->typed_id] = static_cast<int32_t>(scene.joints.size());
-        scene.joints.pushBack(joint);
+        SourceBone bone{nodeIndex[cluster.bone_node->typed_id], {}};
+        rowMajor(cluster.geometry_to_bone, bone.inverseBind);
+        boneOfNode[cluster.bone_node->typed_id] = static_cast<int32_t>(scene.bones.size());
+        scene.bones.pushBack(bone);
     }
     for (size_t m = 0; m < fbx->meshes.count; ++m)
     {
         const ufbx_mesh& mesh = *fbx->meshes.data[m];
-        readMesh(mesh, jointOfNode, scene.addMesh(view(mesh.name)), scene.warnings);
+        readMesh(mesh, boneOfNode, scene.addMesh(view(mesh.name)), scene.warnings);
     }
     for (size_t i = 0; i < fbx->materials.count; ++i)
     {
@@ -412,10 +412,10 @@ Result<MeshImport*> importFbx(std::span<const uint8_t> bytes, MeshSettings setti
         scene.nodes.pushBack(out);
     }
 
-    // Each animation stack a clip: every joint's local transform, evaluated
+    // Each animation stack a clip: every bone's local transform, evaluated
     // by ufbx at the clip rate.
     const float sampleRate = std::clamp(settings.clipSampleRate, 1.0f, 240.0f);
-    for (size_t a = 0; a < fbx->anim_stacks.count && !scene.joints.empty(); ++a)
+    for (size_t a = 0; a < fbx->anim_stacks.count && !scene.bones.empty(); ++a)
     {
         const ufbx_anim_stack& stack = *fbx->anim_stacks.data[a];
         SourceClip& clip = scene.addClip(view(stack.name));
@@ -424,7 +424,7 @@ Result<MeshImport*> importFbx(std::span<const uint8_t> bytes, MeshSettings setti
         clip.sampleCount = static_cast<uint32_t>(std::ceil(clip.duration * sampleRate - 1e-3f)) + 1;
         for (size_t n = 0; n < fbx->nodes.count; ++n)
         {
-            if (jointOfNode[n] < 0)
+            if (boneOfNode[n] < 0)
             {
                 continue;
             }

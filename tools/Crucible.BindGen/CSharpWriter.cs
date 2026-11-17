@@ -489,9 +489,9 @@ internal static class CSharpWriter
         {
             attributes.Add($"global::Crucible.Serialization.MeshOf({Literal(Names.Pascal(meshOf))})");
         }
-        if (hints.Joint)
+        if (hints.Bone)
         {
-            attributes.Add("global::Crucible.Serialization.JointName");
+            attributes.Add("global::Crucible.Serialization.BoneName");
         }
         if (hints.Window)
         {

@@ -120,7 +120,7 @@ Longer explanations of decisions, written to be reread:
   of arrays, and debug lines.
 - [Compute skinning](docs/learning/compute-skinning.md) (ADR 0080): deforming
   once and drawing many times, the palette, keeping the formats, culling by
-  joint reach, and barriers from a render graph.
+  bone reach, and barriers from a render graph.
 - [State machines and events](docs/learning/state-machines-and-events.md)
   (ADR 0081): rules as data, kinds of parameter, exit times, blend spaces
   in phase, and events timestamped where they really happened.
@@ -167,4 +167,4 @@ Longer explanations of decisions, written to be reread:
   chains: ghost collisions and which side is solid.
 - [Swept hitboxes](docs/learning/swept-hitboxes.md) (ADR 0096): why a hit
   checked once a frame depends on the frame rate, sweeping instead, curved
-  paths as screws, activations, owners, and sockets.
+  paths as screws, activations, owners, and bone attachments.

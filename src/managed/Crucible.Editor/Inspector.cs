@@ -822,8 +822,8 @@ public sealed class FieldEditor : UIElement
             case FieldKind.Int32 when Field.MeshOf is not null:
                 MeshChoice(Field.MeshOf);
                 break;
-            case FieldKind.UInt32 when Field.IsJointName:
-                NameChoice(JointNames, "No Animator above it");
+            case FieldKind.UInt32 when Field.IsBoneName:
+                NameChoice(BoneNames, "No Animator above it");
                 break;
             case FieldKind.UInt32 when Field.IsWindowName:
                 NameChoice(() => _section.Shell.Database?.WindowNames() ?? [], null);
@@ -1254,9 +1254,9 @@ public sealed class FieldEditor : UIElement
         };
     }
 
-    // The joints of the nearest Animator above the entity (ADR 0096); none
+    // The bones of the nearest Animator above the entity (ADR 0096); none
     // without one, or before its skeleton is imported.
-    private IReadOnlyList<string>? JointNames()
+    private IReadOnlyList<string>? BoneNames()
     {
         if (!_section.Shell.HasWorld || _section.Entity.IsNull || _section.Shell.Database is not { } database)
         {
@@ -1267,7 +1267,7 @@ public sealed class FieldEditor : UIElement
         {
             if (world.Has(at, Components.Of<Crucible.Animation.Animator>()))
             {
-                return database.JointNamesOf(world.Read<Crucible.Animation.Animator>(at).Skeleton);
+                return database.BoneNamesOf(world.Read<Crucible.Animation.Animator>(at).Skeleton);
             }
         }
         return null;

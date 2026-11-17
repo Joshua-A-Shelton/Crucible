@@ -5,6 +5,10 @@ the owner on KWin (the Walker idling, walking its circle, thumping on each
 foot; Stop putting it back); M8 signed off. Names, including those added
 while building, settled by the owner as drafted (docs/naming.md).
 
+**Renamed (2026-11-16, ADR 0096):** the skeleton's joints are bones
+throughout, in code, file tags, and this record; physics joints keep
+their name.
+
 ## Context
 
 M8's "done when": a character walks with footstep events scheduling
@@ -26,7 +30,7 @@ Decided by the owner (2026-11-10):
    meets real frame-time jitter rather than a simulated clock.
 3. **Footsteps at each foot:** the sidecar's events are `LeftFoot` (0.5 s)
    and `RightFoot` (0 s) on Walk and WalkForward, and each step is heard at
-   that foot's joint, in world space.
+   that foot's bone, in world space.
 4. **A circle:** the game turns the Walker by the distance root motion
    carried it over a radius, so it walks round in front of the camera.
 
@@ -39,7 +43,7 @@ Decided by the owner (2026-11-10):
 - **`FootstepSystem`** (LateUpdate, after "Animation.Update"):
   - It reads the frame's animation events.
   - For each `LeftFoot` or `RightFoot` it plays the footstep at that foot's
-    joint (model matrix times the Walker's world transform), scheduled at
+    bone (model matrix times the Walker's world transform), scheduled at
     the event's timestamp.
 - **`CircleSystem`** turns the Walker by `distance / radius` about up each
   frame.

@@ -133,24 +133,24 @@ struct MeshData
     Stream uv1;
     Stream colors;
     Stream outlineNormals; // ADR 0055
-    Stream jointIndices;   // ADR 0078: uint16 x skinInfluences per vertex
-    Stream jointWeights;   // unorm8 x skinInfluences per vertex
+    Stream boneIndices;    // ADR 0078: uint16 x skinInfluences per vertex
+    Stream boneWeights;    // unorm8 x skinInfluences per vertex
     Stream indices;        // each MeshRange's indexByteOffset is from here
     std::span<const assets::MeshEntry> meshes;
     std::span<const assets::MeshLod> lods;
     std::span<const assets::MeshRange> ranges;
     std::span<const assets::MeshNode> nodes;
     std::span<const assets::MaterialEntry> materials;
-    // The skin (ADR 0078, 0080), empty without one: its joints, their names
-    // (JointEntry's offsets are into it), each joint's bind-pose origin in
+    // The skin (ADR 0078, 0080), empty without one: its bones, their names
+    // (BoneEntry's offsets are into it), each bone's bind-pose origin in
     // the model's space, and its reach: how far its vertices are from that
-    // origin (negative for a joint no vertex follows), for culling posed
+    // origin (negative for a bone no vertex follows), for culling posed
     // instances.
     uint32_t skinInfluences;
-    std::span<const assets::JointEntry> joints;
+    std::span<const assets::BoneEntry> bones;
     std::span<const char> names;
-    std::span<const Vector3> jointOrigins;
-    std::span<const float> jointReach;
+    std::span<const Vector3> boneOrigins;
+    std::span<const float> boneReach;
 };
 
 // Null for a stale handle.

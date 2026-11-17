@@ -247,7 +247,7 @@ is, and record which version fixed it.
 - The AudioSource `occlusion` field is ignored by Crucible's mixer (a
   low-pass per voice would honour it). → 0075, 0082
 - Foot IK leaves the foot turned with the shin; flattening it to the ground
-  (a third joint) when foot planting needs it. → 0081
+  (a third bone) when foot planting needs it. → 0081
 - **Box3D checkpoint, before the action RPG starts:** ragdoll-capable
   joints, character mover maturity, stability and release cadence. Switch
   to Jolt if any fall short. → 0027

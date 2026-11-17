@@ -7,27 +7,27 @@ using namespace crucible;
 using namespace crucible::importers;
 using namespace crucible::importers::testing;
 
-TEST_CASE("The Walker's skeleton lists each joint after its parent")
+TEST_CASE("The Walker's skeleton lists each bone after its parent")
 {
     const Imported walker(importWalker());
     REQUIRE(walker.has("SKIN"));
-    const std::vector<assets::JointEntry> joints = walker.table<assets::JointEntry>("JNTS");
-    REQUIRE(joints.size() == 13);
-    CHECK(walker.table<assets::SkinInfo>("SKIN")[0].jointCount == 13);
-    CHECK(walker.name(joints[0].nameOffset, joints[0].nameLength) == "Hips");
-    CHECK(joints[0].parent == -1);
+    const std::vector<assets::BoneEntry> bones = walker.table<assets::BoneEntry>("BONE");
+    REQUIRE(bones.size() == 13);
+    CHECK(walker.table<assets::SkinInfo>("SKIN")[0].boneCount == 13);
+    CHECK(walker.name(bones[0].nameOffset, bones[0].nameLength) == "Hips");
+    CHECK(bones[0].parent == -1);
     const std::vector<MeshNode> nodes = walker.table<MeshNode>("NODE");
-    for (size_t j = 0; j < joints.size(); ++j)
+    for (size_t j = 0; j < bones.size(); ++j)
     {
         CAPTURE(j);
-        CHECK(joints[j].parent < static_cast<int32_t>(j));
-        // A joint's parent joint is its node's parent node.
-        if (joints[j].parent >= 0)
+        CHECK(bones[j].parent < static_cast<int32_t>(j));
+        // A bone's parent bone is its node's parent node.
+        if (bones[j].parent >= 0)
         {
-            CHECK(nodes[joints[j].node].parent == joints[joints[j].parent].node);
+            CHECK(nodes[bones[j].node].parent == bones[bones[j].parent].node);
         }
     }
-    // The mesh's node isn't a joint.
+    // The mesh's node isn't a bone.
     const MeshEntry mesh = walker.table<MeshEntry>("MSHS")[0];
     CHECK((mesh.attributes & static_cast<uint32_t>(MeshAttribute::Skinned)) != 0);
 }
@@ -39,8 +39,8 @@ TEST_CASE("Skinned vertices keep their strongest influences summing to 255")
         CAPTURE(influences);
         const Imported walker(importWalker(withClips(settings(), 30.0f, influences)));
         CHECK(walker.table<assets::SkinInfo>("SKIN")[0].influences == influences);
-        const std::vector<uint16_t> indices = walker.table<uint16_t>("JIDX");
-        const std::vector<uint8_t> weights = walker.table<uint8_t>("JWGT");
+        const std::vector<uint16_t> indices = walker.table<uint16_t>("BIDX");
+        const std::vector<uint8_t> weights = walker.table<uint8_t>("BWGT");
         const size_t vertexCount = walker.sections.at(binary::tag("POSN")).size() / 12;
         REQUIRE(indices.size() == vertexCount * influences);
         REQUIRE(weights.size() == vertexCount * influences);
@@ -64,7 +64,7 @@ TEST_CASE("Skinned vertices keep their strongest influences summing to 255")
 
 TEST_CASE("The rest pose skins every vertex to where it was")
 {
-    // The inverse binds undo the joints' rest transforms, mirrored with them.
+    // The inverse binds undo the bones' rest transforms, mirrored with them.
     const Imported walker(importWalker());
     const std::vector<Vec3> posed = skinned(walker, nullptr, 0);
     for (uint32_t v = 0; v < posed.size(); ++v)
@@ -77,9 +77,9 @@ TEST_CASE("The rest pose skins every vertex to where it was")
 TEST_CASE("A model without a skin has no skin sections or clips")
 {
     const Imported cube(importUfbx("maya_cube_7500_binary.fbx"));
-    CHECK_FALSE(cube.has("JIDX"));
-    CHECK_FALSE(cube.has("JWGT"));
+    CHECK_FALSE(cube.has("BIDX"));
+    CHECK_FALSE(cube.has("BWGT"));
     CHECK_FALSE(cube.has("SKIN"));
-    CHECK_FALSE(cube.has("JNTS"));
+    CHECK_FALSE(cube.has("BONE"));
     CHECK(meshClipCount(*cube.mesh) == 0);
 }

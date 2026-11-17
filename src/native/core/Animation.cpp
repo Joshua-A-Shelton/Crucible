@@ -1,8 +1,8 @@
 // The pose runtime (ADR 0079, 0081): skeletons, clips, and state machines
 // read through the asset source and cached by ID, a pool of poses, and the
 // two systems. Poses are structure of arrays (ADR 0026): blocks of
-// wideLanes joints, sampled and blended with the wide types; the hierarchy
-// pass, root motion, and IK are per joint, in model space.
+// wideLanes bones, sampled and blended with the wide types; the hierarchy
+// pass, root motion, and IK are per bone, in model space.
 
 #include "StateMachine.h"
 #include "TransformParts.h"
@@ -81,23 +81,23 @@ Matrix4x4 trsMatrix(Vector3 position, Quaternion rotation, Vector3 scale)
 struct Skeleton
 {
     uint64_t key = 0; // unique to this load, for caches (poseSkeletonKey)
-    uint32_t jointCount = 0;
-    uint32_t blocks = 0; // jointCount in wideLanes, rounded up
+    uint32_t boneCount = 0;
+    uint32_t blocks = 0; // boneCount in wideLanes, rounded up
     Vector<int32_t> parents{tag};
-    // The rest pose, by joint (padded to blocks).
+    // The rest pose, by bone (padded to blocks).
     Vector<Quaternion> restRotations{tag};
     Vector<Vector3> restPositions{tag};
     Vector<Vector3> restScales{tag};
-    // Nodes that aren't joints between a joint and its parent joint (an
+    // Nodes that aren't bones between a bone and its parent bone (an
     // "Armature" above the root): their rest matrices, folded into one.
     Vector<Matrix4x4> offsets{tag};
     Vector<uint8_t> hasOffset{tag};
     Vector<char> names{tag};
-    Vector<uint32_t> nameOffsets{tag}; // jointCount + 1
-    Vector<uint32_t> nameHashes{tag};  // eventName of each, for sockets
-    std::string_view name(uint32_t joint) const
+    Vector<uint32_t> nameOffsets{tag}; // boneCount + 1
+    Vector<uint32_t> nameHashes{tag};  // eventName of each, for attachments
+    std::string_view name(uint32_t bone) const
     {
-        return {names.data() + nameOffsets[joint], nameOffsets[joint + 1] - nameOffsets[joint]};
+        return {names.data() + nameOffsets[bone], nameOffsets[bone + 1] - nameOffsets[bone]};
     }
 };
 
@@ -117,9 +117,9 @@ struct Clip
     }
 };
 
-// A clip on a skeleton: each joint's track (-1: it holds its rest pose),
+// A clip on a skeleton: each bone's track (-1: it holds its rest pose),
 // and the first sample, which additive layers subtract.
-// Where a clip has the skeleton's root joint at a time, in model space:
+// Where a clip has the skeleton's root bone at a time, in model space:
 // its position, and its facing as a turn about the up axis.
 struct RootSample
 {
@@ -134,7 +134,7 @@ struct Binding
     Vector<Quaternion> firstRotations{tag};
     Vector<Vector3> firstPositions{tag};
     Vector<Vector3> firstScales{tag};
-    // Root motion (ADR 0081): the skeleton's root joint, if the clip moves
+    // Root motion (ADR 0081): the skeleton's root bone, if the clip moves
     // it (-1 if not); the row of its model matrix whose direction is its
     // facing (z, or x for a root whose z points up); and the root at the
     // clip's start and end.
@@ -158,57 +158,57 @@ Skeleton* loadSkeleton(const AssetId& id)
     }
     binary::File* file = opened.value();
     Vector<assets::MeshNode> nodes(tag);
-    Vector<assets::JointEntry> joints(tag);
+    Vector<assets::BoneEntry> bones(tag);
     Vector<char> names(tag);
     const bool read =
-        readTable(*file, "NODE", nodes) && readTable(*file, "JNTS", joints) && readTable(*file, "NAME", names);
+        readTable(*file, "NODE", nodes) && readTable(*file, "BONE", bones) && readTable(*file, "NAME", names);
     binary::closeFile(file);
-    if (!read || joints.empty())
+    if (!read || bones.empty())
     {
         return nullptr;
     }
     Skeleton* skeleton = create<Skeleton>(tag);
     static uint64_t loads = 0;
     skeleton->key = ++loads;
-    skeleton->jointCount = static_cast<uint32_t>(joints.size());
-    skeleton->blocks = (skeleton->jointCount + wideLanes - 1) / wideLanes;
+    skeleton->boneCount = static_cast<uint32_t>(bones.size());
+    skeleton->blocks = (skeleton->boneCount + wideLanes - 1) / wideLanes;
     const size_t padded = size_t{skeleton->blocks} * wideLanes;
     skeleton->restRotations.resize(padded);
     skeleton->restPositions.resize(padded);
     skeleton->restScales.resize(padded);
-    for (size_t j = skeleton->jointCount; j < padded; ++j)
+    for (size_t j = skeleton->boneCount; j < padded; ++j)
     {
         skeleton->restRotations[j] = Quaternion::identity();
         skeleton->restScales[j] = {1, 1, 1};
     }
-    Vector<int32_t> jointOfNode(tag);
-    jointOfNode.resize(nodes.size());
-    std::fill(jointOfNode.begin(), jointOfNode.end(), -1);
-    for (size_t j = 0; j < joints.size(); ++j)
+    Vector<int32_t> boneOfNode(tag);
+    boneOfNode.resize(nodes.size());
+    std::fill(boneOfNode.begin(), boneOfNode.end(), -1);
+    for (size_t j = 0; j < bones.size(); ++j)
     {
-        if (joints[j].node >= 0 && static_cast<size_t>(joints[j].node) < nodes.size())
+        if (bones[j].node >= 0 && static_cast<size_t>(bones[j].node) < nodes.size())
         {
-            jointOfNode[joints[j].node] = static_cast<int32_t>(j);
+            boneOfNode[bones[j].node] = static_cast<int32_t>(j);
         }
     }
     skeleton->nameOffsets.pushBack(0);
-    for (size_t j = 0; j < joints.size(); ++j)
+    for (size_t j = 0; j < bones.size(); ++j)
     {
-        const assets::JointEntry& joint = joints[j];
+        const assets::BoneEntry& bone = bones[j];
         const bool valid =
-            joint.node >= 0 && static_cast<size_t>(joint.node) < nodes.size() && joint.parent < static_cast<int32_t>(j);
-        skeleton->parents.pushBack(valid ? joint.parent : -1);
+            bone.node >= 0 && static_cast<size_t>(bone.node) < nodes.size() && bone.parent < static_cast<int32_t>(j);
+        skeleton->parents.pushBack(valid ? bone.parent : -1);
         Matrix4x4 offset = Matrix4x4::identity();
         bool hasOffset = false;
         if (valid)
         {
-            const assets::MeshNode& node = nodes[joint.node];
+            const assets::MeshNode& node = nodes[bone.node];
             skeleton->restPositions[j] = {node.translation[0], node.translation[1], node.translation[2]};
             skeleton->restRotations[j] = {node.rotation[0], node.rotation[1], node.rotation[2], node.rotation[3]};
             skeleton->restScales[j] = {node.scale[0], node.scale[1], node.scale[2]};
-            // Up from the joint's node to its parent joint's (or the top).
+            // Up from the bone's node to its parent bone's (or the top).
             for (int32_t n = node.parent, steps = 0;
-                 n >= 0 && static_cast<size_t>(n) < nodes.size() && jointOfNode[n] != joint.parent && steps < 1024;
+                 n >= 0 && static_cast<size_t>(n) < nodes.size() && boneOfNode[n] != bone.parent && steps < 1024;
                  n = nodes[n].parent, ++steps)
             {
                 const assets::MeshNode& above = nodes[n];
@@ -226,8 +226,8 @@ Skeleton* loadSkeleton(const AssetId& id)
         }
         skeleton->offsets.pushBack(offset);
         skeleton->hasOffset.pushBack(hasOffset ? 1 : 0);
-        const uint32_t start = std::min<uint32_t>(joint.nameOffset, static_cast<uint32_t>(names.size()));
-        const uint32_t length = std::min<uint32_t>(joint.nameLength, static_cast<uint32_t>(names.size()) - start);
+        const uint32_t start = std::min<uint32_t>(bone.nameOffset, static_cast<uint32_t>(names.size()));
+        const uint32_t length = std::min<uint32_t>(bone.nameLength, static_cast<uint32_t>(names.size()) - start);
         for (uint32_t c = 0; c < length; ++c)
         {
             skeleton->names.pushBack(names[start + c]);
@@ -345,8 +345,8 @@ Quaternion nlerpScalar(Quaternion a, Quaternion b, float t)
                                 a.z * (1 - t) + b.z * side * t, a.w * (1 - t) + b.w * side * t});
 }
 
-// The root joint's model matrix at a time: its own track sampled (the root
-// has no parent joint, only, perhaps, nodes above it).
+// The root bone's model matrix at a time: its own track sampled (the root
+// has no parent bone, only, perhaps, nodes above it).
 Matrix4x4 rootMatrix(const Binding& binding, const Skeleton& skeleton, float time)
 {
     const Clip& clip = *binding.clip;
@@ -384,7 +384,7 @@ Binding* bind(const Clip& clip, const Skeleton& skeleton)
     for (size_t j = 0; j < padded; ++j)
     {
         int32_t found = -1;
-        for (size_t t = 0; j < skeleton.jointCount && t < clip.tracks.size() && found < 0; ++t)
+        for (size_t t = 0; j < skeleton.boneCount && t < clip.tracks.size() && found < 0; ++t)
         {
             found = clip.trackName(clip.tracks[t]) == skeleton.name(static_cast<uint32_t>(j)) ? static_cast<int32_t>(t)
                                                                                               : -1;
@@ -404,7 +404,7 @@ Binding* bind(const Clip& clip, const Skeleton& skeleton)
             binding->firstScales[j] = skeleton.restScales[j];
         }
     }
-    for (uint32_t j = 0; j < skeleton.jointCount && binding->root < 0; ++j)
+    for (uint32_t j = 0; j < skeleton.boneCount && binding->root < 0; ++j)
     {
         if (skeleton.parents[j] < 0)
         {
@@ -613,7 +613,7 @@ struct Layer
     float fadeRate = 0; // weight per second toward desc.weight (or 0 when clearing)
     bool clearing = false;
     Vector<MaskEntry> mask{tag};
-    Vector<float> jointWeights{tag}; // from the mask, per joint (padded); empty: unmasked
+    Vector<float> boneWeights{tag}; // from the mask, per bone (padded); empty: unmasked
     bool masked = false;
 };
 
@@ -665,7 +665,7 @@ struct Pose
     Vector<Vector3Wide> fadePositions{tag};
     Vector<Vector3Wide> fadeScales{tag};
     Vector<Matrix4x4> model{tag};
-    Vector<uint8_t> marks{tag}; // per joint: IK's subtree
+    Vector<uint8_t> marks{tag}; // per bone: IK's subtree
     // From the Animator, each frame.
     float speed = 1;
     bool loop = true;
@@ -692,16 +692,16 @@ struct Pose
         {
             set->resize(blocks);
         }
-        model.resize(next != nullptr ? next->jointCount : 0);
+        model.resize(next != nullptr ? next->boneCount : 0);
         std::fill(model.begin(), model.end(), Matrix4x4::identity());
         marks.resize(model.size());
         std::fill(marks.begin(), marks.end(), uint8_t{0});
         for (Layer& layer : layers)
         {
-            layer.jointWeights.clear();
+            layer.boneWeights.clear();
             layer.masked = false;
         }
-        // Joints by index mean nothing on another skeleton.
+        // Bones by index mean nothing on another skeleton.
         for (IkSlot& slot : ik)
         {
             slot = IkSlot{};
@@ -851,34 +851,34 @@ bool playsMachine(const Pose& pose)
     return pose.machine.machine != nullptr && pose.machine.current.state >= 0;
 }
 
-// Per-joint weights from a layer's mask: each entry's joint and everything
+// Per-bone weights from a layer's mask: each entry's bone and everything
 // below it, later entries over earlier ones.
 void buildMask(Layer& layer, const Skeleton& skeleton)
 {
     layer.masked = !layer.mask.empty();
     if (!layer.masked)
     {
-        layer.jointWeights.clear();
+        layer.boneWeights.clear();
         return;
     }
-    layer.jointWeights.resize(size_t{skeleton.blocks} * wideLanes);
-    std::fill(layer.jointWeights.begin(), layer.jointWeights.end(), 0.0f);
+    layer.boneWeights.resize(size_t{skeleton.blocks} * wideLanes);
+    std::fill(layer.boneWeights.begin(), layer.boneWeights.end(), 0.0f);
     for (const MaskEntry& entry : layer.mask)
     {
-        if (entry.joint < 0 || static_cast<uint32_t>(entry.joint) >= skeleton.jointCount)
+        if (entry.bone < 0 || static_cast<uint32_t>(entry.bone) >= skeleton.boneCount)
         {
             continue;
         }
-        for (uint32_t j = static_cast<uint32_t>(entry.joint); j < skeleton.jointCount; ++j)
+        for (uint32_t j = static_cast<uint32_t>(entry.bone); j < skeleton.boneCount; ++j)
         {
             int32_t up = static_cast<int32_t>(j);
-            while (up > entry.joint)
+            while (up > entry.bone)
             {
                 up = skeleton.parents[up];
             }
-            if (up == entry.joint)
+            if (up == entry.bone)
             {
-                layer.jointWeights[j] = std::clamp(entry.weight, 0.0f, 1.0f);
+                layer.boneWeights[j] = std::clamp(entry.weight, 0.0f, 1.0f);
             }
         }
     }
@@ -986,7 +986,7 @@ Vector3Wide multiplyWide(const Vector3Wide& a, const Vector3Wide& b)
     return {a.x * b.x, a.y * b.y, a.z * b.z};
 }
 
-// Samples a binding at a time into a set, wideLanes joints at a time: each
+// Samples a binding at a time into a set, wideLanes bones at a time: each
 // lane's two samples are decoded, then interpolated together.
 void sample(const Skeleton& skeleton, const Binding* binding, float time, QuaternionWide* rotations,
             Vector3Wide* positions, Vector3Wide* scales)
@@ -1127,7 +1127,7 @@ void applyLayer(Pose& pose, const Layer& layer)
         FloatWide w = FloatWide::splat(layer.weight);
         if (layer.masked)
         {
-            w = w * FloatWide::load(layer.jointWeights.data() + size_t{b} * wideLanes);
+            w = w * FloatWide::load(layer.boneWeights.data() + size_t{b} * wideLanes);
         }
         if (layer.desc.blend == LayerBlend::Override)
         {
@@ -1172,7 +1172,7 @@ void hierarchy(Pose& pose)
         for (int lane = 0; lane < wideLanes; ++lane)
         {
             const uint32_t j = b * wideLanes + lane;
-            if (j >= skeleton.jointCount)
+            if (j >= skeleton.boneCount)
             {
                 break;
             }
@@ -1491,7 +1491,7 @@ void applyRootMotion(ecs::World& world, Pose& pose, const Contribution* contribu
     pose.moved = {displacement, turn};
 }
 
-// The base's travel so far, taken out of the posed joints: the entity moved
+// The base's travel so far, taken out of the posed bones: the entity moved
 // by it instead (applyRootMotion), so the root stays over the entity where
 // it was at its clip's start, facing as it did.
 void removeRootMotion(Pose& pose)
@@ -1520,9 +1520,9 @@ void removeRootMotion(Pose& pose)
     const Matrix4x4 back = Matrix4x4::translation(-moved) * Matrix4x4::translation(-pivot) *
                            Matrix4x4::rotation(Quaternion::fromAxisAngle({0, 1, 0}, -yaw)) *
                            Matrix4x4::translation(pivot);
-    for (Matrix4x4& joint : pose.model)
+    for (Matrix4x4& bone : pose.model)
     {
-        joint = joint * back;
+        bone = bone * back;
     }
 }
 
@@ -1550,14 +1550,14 @@ Quaternion turnBetween(Vector3 from, Vector3 to)
     return normalize(Quaternion{axis.x, axis.y, axis.z, 1 + d});
 }
 
-// Turns a joint and everything below it about a point, in model space.
-void turnSubtree(Pose& pose, uint32_t joint, Vector3 pivot, Quaternion turn)
+// Turns a bone and everything below it about a point, in model space.
+void turnSubtree(Pose& pose, uint32_t bone, Vector3 pivot, Quaternion turn)
 {
     const Matrix4x4 about = Matrix4x4::translation(-pivot) * Matrix4x4::rotation(turn) * Matrix4x4::translation(pivot);
     const Skeleton& skeleton = *pose.skeleton;
-    pose.marks[joint] = 1;
-    pose.model[joint] = pose.model[joint] * about;
-    for (uint32_t j = joint + 1; j < skeleton.jointCount; ++j)
+    pose.marks[bone] = 1;
+    pose.model[bone] = pose.model[bone] * about;
+    for (uint32_t j = bone + 1; j < skeleton.boneCount; ++j)
     {
         const int32_t parent = skeleton.parents[j];
         pose.marks[j] = parent >= 0 && pose.marks[parent] != 0 ? 1 : 0;
@@ -1566,27 +1566,27 @@ void turnSubtree(Pose& pose, uint32_t joint, Vector3 pivot, Quaternion turn)
             pose.model[j] = pose.model[j] * about;
         }
     }
-    std::fill(pose.marks.begin() + joint, pose.marks.end(), uint8_t{0});
+    std::fill(pose.marks.begin() + bone, pose.marks.end(), uint8_t{0});
 }
 
 // Two-bone IK by the law of cosines: with the chain's two lengths and the
 // distance to the target, the triangle's angle at the root says where the
-// middle joint goes; the pole (or the current bend) says which way.
+// middle bone goes; the pole (or the current bend) says which way.
 void solveTwoBone(Pose& pose, const TwoBoneIkDesc& desc, float weight)
 {
     const Skeleton& skeleton = *pose.skeleton;
-    if (desc.joint < 0 || static_cast<uint32_t>(desc.joint) >= skeleton.jointCount)
+    if (desc.bone < 0 || static_cast<uint32_t>(desc.bone) >= skeleton.boneCount)
     {
         return;
     }
-    const uint32_t c = static_cast<uint32_t>(desc.joint);
-    const int32_t middleJoint = skeleton.parents[c];
-    const int32_t rootJoint = middleJoint >= 0 ? skeleton.parents[middleJoint] : -1;
-    if (rootJoint < 0)
+    const uint32_t c = static_cast<uint32_t>(desc.bone);
+    const int32_t middleBone = skeleton.parents[c];
+    const int32_t rootBone = middleBone >= 0 ? skeleton.parents[middleBone] : -1;
+    if (rootBone < 0)
     {
         return;
     }
-    const uint32_t b = static_cast<uint32_t>(middleJoint), a = static_cast<uint32_t>(rootJoint);
+    const uint32_t b = static_cast<uint32_t>(middleBone), a = static_cast<uint32_t>(rootBone);
     const Vector3 rootAtPos = positionOf(pose.model[a]);
     const Vector3 middleAt = positionOf(pose.model[b]);
     const Vector3 endAt = positionOf(pose.model[c]);
@@ -1625,12 +1625,12 @@ void solveTwoBone(Pose& pose, const TwoBoneIkDesc& desc, float weight)
 
 void solveLookAt(Pose& pose, const LookAtDesc& desc, float weight)
 {
-    if (desc.joint < 0 || static_cast<uint32_t>(desc.joint) >= pose.skeleton->jointCount)
+    if (desc.bone < 0 || static_cast<uint32_t>(desc.bone) >= pose.skeleton->boneCount)
     {
         return;
     }
-    const uint32_t joint = static_cast<uint32_t>(desc.joint);
-    const Matrix4x4& m = pose.model[joint];
+    const uint32_t bone = static_cast<uint32_t>(desc.bone);
+    const Matrix4x4& m = pose.model[bone];
     const Vector3 at = positionOf(m);
     const Vector3 aim = transformDirection(desc.aim, m);
     const Vector3 wanted = transformPoint(desc.target, pose.toModel) - at;
@@ -1650,7 +1650,7 @@ void solveLookAt(Pose& pose, const LookAtDesc& desc, float weight)
         axis = cross(from, std::fabs(from.y) < 0.9f ? Vector3{0, 1, 0} : Vector3{1, 0, 0});
     }
     const float turn = std::min(angle, std::max(desc.maxAngle, 0.0f)) * weight;
-    turnSubtree(pose, joint, at, Quaternion::fromAxisAngle(normalize(axis), turn));
+    turnSubtree(pose, bone, at, Quaternion::fromAxisAngle(normalize(axis), turn));
 }
 
 void evaluate(Pose& pose)
@@ -1731,7 +1731,7 @@ void resolveAll(Pose& pose)
         if (layer.active)
         {
             resolve(layer.player, pose);
-            if (layer.masked != !layer.mask.empty() || (layer.masked && layer.jointWeights.empty()))
+            if (layer.masked != !layer.mask.empty() || (layer.masked && layer.boneWeights.empty()))
             {
                 buildMask(layer, *pose.skeleton);
             }
@@ -2022,7 +2022,7 @@ void poseSystem(const loop::SystemContext& context, void*)
     }
 }
 
-// --- Sockets (ADR 0096) -----------------------------------------------------
+// --- Bone attachments (ADR 0096) -------------------------------------------
 
 // The pose of the nearest Animator above the entity, if it's posed.
 const Pose* poseAbove(const ecs::World& world, ecs::Entity entity)
@@ -2038,9 +2038,9 @@ const Pose* poseAbove(const ecs::World& world, ecs::Entity entity)
     return nullptr;
 }
 
-int32_t jointNamed(const Skeleton& skeleton, uint32_t hash)
+int32_t boneNamed(const Skeleton& skeleton, uint32_t hash)
 {
-    for (uint32_t j = 0; j < skeleton.jointCount; ++j)
+    for (uint32_t j = 0; j < skeleton.boneCount; ++j)
     {
         if (skeleton.nameHashes[j] == hash)
         {
@@ -2050,7 +2050,7 @@ int32_t jointNamed(const Skeleton& skeleton, uint32_t hash)
     return -1;
 }
 
-void placeSocketsOf(ecs::World& world)
+void placeBoneAttachmentsOf(ecs::World& world)
 {
     struct Found
     {
@@ -2058,7 +2058,8 @@ void placeSocketsOf(ecs::World& world)
         uint32_t depth;
     };
     Vector<Found> found(tag);
-    const ecs::ComponentId required[] = {ecs::componentIdOf<Socket>, ecs::componentIdOf<scenes::LocalTransform>};
+    const ecs::ComponentId required[] = {ecs::componentIdOf<BoneAttachment>,
+                                         ecs::componentIdOf<scenes::LocalTransform>};
     ecs::Query* query = ecs::createQuery(world, {.required = required});
     ecs::forEachChunk(
         *query,
@@ -2075,33 +2076,33 @@ void placeSocketsOf(ecs::World& world)
     {
         return;
     }
-    // Parents first, so a socket under a socket (a hitbox on a sword in a
-    // hand) sees its parent already placed.
-    for (Found& socket : found)
+    // Parents first, so an attachment under an attachment (a hitbox on a
+    // sword in a hand) sees its parent already placed.
+    for (Found& attachment : found)
     {
-        for (ecs::Entity at = ecs::parentOf(world, socket.entity); at.value != 0 && socket.depth < 1024;
+        for (ecs::Entity at = ecs::parentOf(world, attachment.entity); at.value != 0 && attachment.depth < 1024;
              at = ecs::parentOf(world, at))
         {
-            ++socket.depth;
+            ++attachment.depth;
         }
     }
     std::stable_sort(found.begin(), found.end(), [](const Found& a, const Found& b) { return a.depth < b.depth; });
     for (const Found& entry : found)
     {
-        const Socket socket = *ecs::read<Socket>(world, entry.entity);
-        const Pose* pose = socket.joint != 0 ? poseAbove(world, entry.entity) : nullptr;
-        const int32_t joint = pose != nullptr ? jointNamed(*pose->skeleton, socket.joint) : -1;
+        const BoneAttachment attachment = *ecs::read<BoneAttachment>(world, entry.entity);
+        const Pose* pose = attachment.bone != 0 ? poseAbove(world, entry.entity) : nullptr;
+        const int32_t bone = pose != nullptr ? boneNamed(*pose->skeleton, attachment.bone) : -1;
         Matrix4x4 parentInverse;
-        if (joint < 0 || static_cast<size_t>(joint) >= pose->model.size() ||
+        if (bone < 0 || static_cast<size_t>(bone) >= pose->model.size() ||
             !invert(scenes::computeWorldTransform(world, ecs::parentOf(world, entry.entity)), parentInverse))
         {
             continue;
         }
-        const Quaternion turn =
-            dot(socket.rotation, socket.rotation) > 1e-12f ? normalize(socket.rotation) : Quaternion::identity();
-        // Its place relative to its parent; the joint's scale (and the
+        const Quaternion turn = dot(attachment.rotation, attachment.rotation) > 1e-12f ? normalize(attachment.rotation)
+                                                                                       : Quaternion::identity();
+        // Its place relative to its parent; the bone's scale (and the
         // parent's) is left to the hierarchy, its own kept.
-        const TransformParts parts = decompose(compose(socket.position, turn, {1, 1, 1}) * pose->model[joint] *
+        const TransformParts parts = decompose(compose(attachment.position, turn, {1, 1, 1}) * pose->model[bone] *
                                                scenes::computeWorldTransform(world, pose->entity) * parentInverse);
         const scenes::LocalTransform* current = ecs::read<scenes::LocalTransform>(world, entry.entity);
         if (current->position.x != parts.position.x || current->position.y != parts.position.y ||
@@ -2116,11 +2117,11 @@ void placeSocketsOf(ecs::World& world)
     }
 }
 
-void socketSystem(const loop::SystemContext& context, void*)
+void boneAttachmentSystem(const loop::SystemContext& context, void*)
 {
     if (context.world != nullptr)
     {
-        placeSocketsOf(*context.world);
+        placeBoneAttachmentsOf(*context.world);
     }
 }
 
@@ -2176,21 +2177,21 @@ void aimSlot(IkSlot& slot, IkKind kind, float weight, float fadeSeconds)
     slot.clearing = false;
 }
 
-// The entity's pose with a skeleton that has the joint, and (for two-bone
+// The entity's pose with a skeleton that has the bone, and (for two-bone
 // IK) its parent and theirs.
-Pose* poseWithJoint(ecs::World& world, ecs::Entity entity, uint32_t slot, int32_t joint, uint32_t ancestors)
+Pose* poseWithBone(ecs::World& world, ecs::Entity entity, uint32_t slot, int32_t bone, uint32_t ancestors)
 {
     if (slot >= maxIkSlots)
     {
         return nullptr;
     }
     Pose* pose = currentPose(world, entity);
-    if (pose == nullptr || pose->skeleton == nullptr || joint < 0 ||
-        static_cast<uint32_t>(joint) >= pose->skeleton->jointCount)
+    if (pose == nullptr || pose->skeleton == nullptr || bone < 0 ||
+        static_cast<uint32_t>(bone) >= pose->skeleton->boneCount)
     {
         return nullptr;
     }
-    int32_t up = joint;
+    int32_t up = bone;
     for (uint32_t i = 0; i < ancestors; ++i)
     {
         up = pose->skeleton->parents[static_cast<uint32_t>(up)];
@@ -2356,7 +2357,7 @@ RootMotion rootMotion(const ecs::World& world, ecs::Entity entity)
 
 Result<void> setTwoBoneIk(ecs::World& world, ecs::Entity entity, uint32_t slot, TwoBoneIkDesc desc)
 {
-    Pose* pose = poseWithJoint(world, entity, slot, desc.joint, 2);
+    Pose* pose = poseWithBone(world, entity, slot, desc.bone, 2);
     if (pose == nullptr)
     {
         return Status::NotFound;
@@ -2368,7 +2369,7 @@ Result<void> setTwoBoneIk(ecs::World& world, ecs::Entity entity, uint32_t slot, 
 
 Result<void> setLookAt(ecs::World& world, ecs::Entity entity, uint32_t slot, LookAtDesc desc)
 {
-    Pose* pose = poseWithJoint(world, entity, slot, desc.joint, 0);
+    Pose* pose = poseWithBone(world, entity, slot, desc.bone, 0);
     if (pose == nullptr)
     {
         return Status::NotFound;
@@ -2400,7 +2401,7 @@ Result<void> clearIk(ecs::World& world, ecs::Entity entity, uint32_t slot, float
     return {};
 }
 
-int32_t findJoint(ecs::World& world, ecs::Entity entity, std::string_view name)
+int32_t findBone(ecs::World& world, ecs::Entity entity, std::string_view name)
 {
     const Animator* animator = ecs::read<Animator>(world, entity);
     const Skeleton* skeleton = animator != nullptr ? skeletonOf(animator->skeleton) : nullptr;
@@ -2408,7 +2409,7 @@ int32_t findJoint(ecs::World& world, ecs::Entity entity, std::string_view name)
     {
         return -1;
     }
-    for (uint32_t j = 0; j < skeleton->jointCount; ++j)
+    for (uint32_t j = 0; j < skeleton->boneCount; ++j)
     {
         if (skeleton->name(j) == name)
         {
@@ -2418,14 +2419,14 @@ int32_t findJoint(ecs::World& world, ecs::Entity entity, std::string_view name)
     return -1;
 }
 
-Matrix4x4 jointModelTransform(const ecs::World& world, ecs::Entity entity, int32_t joint)
+Matrix4x4 boneModelTransform(const ecs::World& world, ecs::Entity entity, int32_t bone)
 {
     const Pose* pose = findPose(world, entity);
-    if (pose == nullptr || joint < 0 || static_cast<size_t>(joint) >= pose->model.size())
+    if (pose == nullptr || bone < 0 || static_cast<size_t>(bone) >= pose->model.size())
     {
         return Matrix4x4::identity();
     }
-    return pose->model[joint];
+    return pose->model[bone];
 }
 
 namespace {
@@ -2437,18 +2438,18 @@ const Pose* poseAt(uint32_t pose)
 
 } // namespace
 
-std::span<const Matrix4x4> poseJoints(uint32_t pose)
+std::span<const Matrix4x4> poseBones(uint32_t pose)
 {
     const Pose* found = poseAt(pose);
     return found != nullptr && found->posed && found->skeleton != nullptr ? found->model.span()
                                                                           : std::span<const Matrix4x4>{};
 }
 
-int32_t poseJointIndex(uint32_t pose, std::string_view name)
+int32_t poseBoneIndex(uint32_t pose, std::string_view name)
 {
     const Pose* found = poseAt(pose);
     const Skeleton* skeleton = found != nullptr ? found->skeleton : nullptr;
-    for (uint32_t j = 0; skeleton != nullptr && j < skeleton->jointCount; ++j)
+    for (uint32_t j = 0; skeleton != nullptr && j < skeleton->boneCount; ++j)
     {
         if (skeleton->name(j) == name)
         {
@@ -2474,11 +2475,11 @@ void drawSkeletons(const ecs::World& world, Vector4 color)
         }
         const scenes::WorldTransform* placed = ecs::read<scenes::WorldTransform>(world, pose->entity);
         const Matrix4x4 toWorld = placed != nullptr ? placed->matrix : Matrix4x4::identity();
-        auto at = [&](uint32_t joint) {
-            const Vector4& row = pose->model[joint].rows[3];
+        auto at = [&](uint32_t bone) {
+            const Vector4& row = pose->model[bone].rows[3];
             return transformPoint(Vector3{row.x, row.y, row.z}, toWorld);
         };
-        for (uint32_t j = 0; j < pose->skeleton->jointCount; ++j)
+        for (uint32_t j = 0; j < pose->skeleton->boneCount; ++j)
         {
             const int32_t parent = pose->skeleton->parents[j];
             if (parent >= 0)
@@ -2594,9 +2595,9 @@ void evaluatePoses(ecs::World& world)
     posePoses(world, nullptr);
 }
 
-void placeSockets(ecs::World& world)
+void placeBoneAttachments(ecs::World& world)
 {
-    placeSocketsOf(world);
+    placeBoneAttachmentsOf(world);
 }
 
 void registerAnimation()
@@ -2608,10 +2609,10 @@ void registerAnimation()
     static constexpr std::string_view afterUpdate[] = {updateSystemName};
     loop::registerDefaultSystem(
         {.name = poseSystemName, .phase = "Animation", .function = poseSystem, .after = afterUpdate});
-    ecs::registerComponent<Socket>("Crucible.Animation.Socket");
+    ecs::registerComponent<BoneAttachment>("Crucible.Animation.BoneAttachment");
     static constexpr std::string_view afterPose[] = {poseSystemName};
     loop::registerDefaultSystem(
-        {.name = socketSystemName, .phase = "Animation", .function = socketSystem, .after = afterPose});
+        {.name = boneAttachmentSystemName, .phase = "Animation", .function = boneAttachmentSystem, .after = afterPose});
 }
 
 } // namespace crucible::animation

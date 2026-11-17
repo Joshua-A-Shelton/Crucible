@@ -56,7 +56,7 @@ TEST_CASE("FBX skins and animation stacks pose like their reference exports")
     // second), against Max's OBJ exports of those frames: Y up and
     // centimeters there, so (x, y, z) is (-x, y, z) / 100 in Crucible's space.
     const Imported imported(importUfbx("max7_skin_5000_binary.fbx", withClips(settings(), 30.0f)));
-    REQUIRE(imported.has("JNTS"));
+    REQUIRE(imported.has("BONE"));
     REQUIRE(meshClipCount(*imported.mesh) >= 1);
     const Clip clip(*imported.mesh, 0);
     std::vector<Vec3> expected;

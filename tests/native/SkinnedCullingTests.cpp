@@ -1,5 +1,5 @@
 // Culling skinned instances (ADR 0080): by their posed bounds, from each
-// joint's bind-pose reach, not by where the mesh was bound.
+// bone's bind-pose reach, not by where the mesh was bound.
 
 #include "RenderInternal.h"
 #include "TestModels.h"

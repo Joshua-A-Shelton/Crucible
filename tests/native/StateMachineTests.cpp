@@ -37,7 +37,7 @@ TEST_CASE("A state machine starts in its start state and plays its clip")
     CHECK(currentState(*walker.world, walker.entity) == 1);
     CHECK(findState(*walker.world, walker.entity, "Walk") == 0);
     CHECK(findState(*walker.world, walker.entity, "Run") == -1);
-    CHECK(worstJoint(walker, reference, reference.sample(reference.clip(1), 0.3f)) < 1e-4f);
+    CHECK(worstBone(walker, reference, reference.sample(reference.clip(1), 0.3f)) < 1e-4f);
     // The machine plays the base, so play() can't.
     CHECK(play(*walker.world, walker.entity, idOf(2), 0).status() == Status::Unsupported);
 }
@@ -62,18 +62,18 @@ TEST_CASE("A condition on a parameter takes a transition and crossfades")
     walker.step(0.1f);
     // Taken after Idle played on; Walk starts from its start, faded in from 0.
     CHECK(currentState(*walker.world, walker.entity) == static_cast<int32_t>(walk));
-    CHECK(worstJoint(walker, reference, reference.sample(idleClip, 0.3f)) < 1e-4f);
+    CHECK(worstBone(walker, reference, reference.sample(idleClip, 0.3f)) < 1e-4f);
     walker.step(0.25f);
-    CHECK(worstJoint(walker, reference,
-                     blendPoses(reference.sample(idleClip, 0.55f), reference.sample(walkClip, 0.25f), 0.5f)) < 1e-4f);
+    CHECK(worstBone(walker, reference,
+                    blendPoses(reference.sample(idleClip, 0.55f), reference.sample(walkClip, 0.25f), 0.5f)) < 1e-4f);
     walker.step(0.3f);
-    CHECK(worstJoint(walker, reference, reference.sample(walkClip, 0.55f)) < 1e-4f);
+    CHECK(worstBone(walker, reference, reference.sample(walkClip, 0.55f)) < 1e-4f);
 
     // Without a blend time it cuts.
     REQUIRE(setFloat(*walker.world, walker.entity, "Speed", 0.0f));
     walker.step(0.1f);
     CHECK(currentState(*walker.world, walker.entity) == static_cast<int32_t>(idle));
-    CHECK(worstJoint(walker, reference, reference.sample(idleClip, 0)) < 1e-4f);
+    CHECK(worstBone(walker, reference, reference.sample(idleClip, 0)) < 1e-4f);
 }
 
 TEST_CASE("A Trigger is used up by the transition that tests it")
@@ -173,7 +173,7 @@ TEST_CASE("A state machine read again starts over and one that can't be read lea
     useMachine(walker, 99);
     walker.step(0.2f);
     CHECK(currentState(*walker.world, walker.entity) == -1);
-    CHECK(worstJoint(walker, reference, reference.sample(reference.clip(0), 0.2f)) < 1e-4f);
+    CHECK(worstBone(walker, reference, reference.sample(reference.clip(0), 0.2f)) < 1e-4f);
 }
 
 TEST_CASE("A transition at an exit time carries the frame's time past it")
@@ -197,6 +197,6 @@ TEST_CASE("A transition at an exit time carries the frame's time past it")
             walker.step(step);
         }
         CHECK(currentState(*walker.world, walker.entity) == static_cast<int32_t>(walk));
-        CHECK(worstJoint(walker, reference, reference.sample(reference.clip(0), frames * step - 2.0f)) < 1e-3f);
+        CHECK(worstBone(walker, reference, reference.sample(reference.clip(0), frames * step - 2.0f)) < 1e-3f);
     }
 }

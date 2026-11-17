@@ -24,7 +24,7 @@ internal sealed class Parser
     private const string HintAssetSkinned = "crucible_hint_asset_skinned";
     private const string HintEntityWithPrefix = "crucible_hint_entity_with:";
     private const string HintMeshOfPrefix = "crucible_hint_mesh_of:";
-    private const string HintJoint = "crucible_hint_joint";
+    private const string HintBone = "crucible_hint_bone";
     private const string HintWindow = "crucible_hint_window";
 
     private readonly HashSet<string> _headerFiles;
@@ -272,7 +272,7 @@ internal sealed class Parser
     private FieldHints? HintsOf(CXCursor field, string display)
     {
         string? tooltip = null, header = null, min = null, max = null, meshOf = null;
-        bool color = false, layers = false, skinned = false, joint = false, window = false;
+        bool color = false, layers = false, skinned = false, bone = false, window = false;
         List<string> assetKinds = [], entityWith = [];
         foreach (string annotation in Libclang.Children(field).Where(child => child.Kind == CursorKind.AnnotateAttr)
                      .Select(Libclang.Spelling))
@@ -285,9 +285,9 @@ internal sealed class Parser
             {
                 layers = true;
             }
-            else if (annotation == HintJoint)
+            else if (annotation == HintBone)
             {
-                joint = true;
+                bone = true;
             }
             else if (annotation == HintWindow)
             {
@@ -339,7 +339,7 @@ internal sealed class Parser
         }
         tooltip ??= CommentOf(field);
         return tooltip is null && header is null && min is null && !color && !layers && !skinned &&
-               assetKinds.Count == 0 && entityWith.Count == 0 && meshOf is null && !joint && !window
+               assetKinds.Count == 0 && entityWith.Count == 0 && meshOf is null && !bone && !window
             ? null
             : new FieldHints(tooltip, header, min, max, color, layers)
             {
@@ -347,7 +347,7 @@ internal sealed class Parser
                 Skinned = skinned,
                 EntityWith = entityWith,
                 MeshOf = meshOf,
-                Joint = joint,
+                Bone = bone,
                 Window = window,
             };
     }

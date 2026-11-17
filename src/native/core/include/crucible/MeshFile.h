@@ -4,7 +4,7 @@
 // FBX importers, read by the runtime (RenderAssets.h). Names are in
 // docs/naming.md.
 //
-// A MESH file (kind tag("MESH"), version 1) holds every mesh of one source:
+// A MESH file (kind tag("MESH"), version 4) holds every mesh of one source:
 //   INFO  MeshFileInfo
 //   MSHS  MeshEntry, one per mesh
 //   LODS  MeshLod, each mesh's levels, LOD 0 first
@@ -16,13 +16,13 @@
 //                             vertex at the same position averaged (ADR 0055)
 //   UV0_, UV1_  half x2, or float x2 when MeshFileInfo::floatUvs says so
 //   COLR  uint8 x4            sRGB colour, linear alpha
-//   JIDX  uint16 x4 (or x8)   joint indices, into JNTS (ADR 0078)
-//   JWGT  unorm8 x4 (or x8)   joint weights, summing to 255
+//   BIDX  uint16 x4 (or x8)   bone indices, into BONE (ADR 0078)
+//   BWGT  unorm8 x4 (or x8)   bone weights, summing to 255
 //   INDX  each mesh's indices, 16-bit if it has 65,535 vertices or fewer, else 32-bit
 //   NODE  MeshNode, the source's node hierarchy
 //   MATL  MaterialEntry (written by C#, which knows the textures' asset IDs)
 //   SKIN  SkinInfo, when any mesh is skinned (ADR 0078)
-//   JNTS  JointEntry, the skeleton's joints, each after its parent
+//   BONE  BoneEntry, the skeleton's bones, each after its parent
 //   NAME  UTF-8 names, referenced by offset and length
 //   COLM  collision meshes (optional, ADR 0086): a CollisionEntry per mesh,
 //         then each mesh's Box3D mesh data (b3MeshData), 16-byte aligned
@@ -30,7 +30,7 @@
 // A stream is present when any mesh has the attribute; meshes without it
 // hold zeros there (MeshEntry::attributes says which are real).
 // Positions are in meters; front faces are clockwise. A skinned mesh's
-// positions are its bind pose, in the model's space; its joints are nodes of
+// positions are its bind pose, in the model's space; its bones are nodes of
 // NODE, which a prefab leaves out (the pose holds them, ADR 0026). Animation
 // clips are assets of their own (ClipFile.h).
 
@@ -42,7 +42,9 @@
 namespace crucible::assets {
 
 inline constexpr uint32_t meshFileKind = binary::tag("MESH");
-inline constexpr uint32_t meshFileVersion = 3; // 2: ONRM, MaterialInfo outlines (ADR 0055); 3: skins (ADR 0078)
+// 2: ONRM, MaterialInfo outlines (ADR 0055); 3: skins (ADR 0078); 4: the skin
+// sections renamed from joints to bones (BONE, BIDX, BWGT).
+inline constexpr uint32_t meshFileVersion = 4;
 
 // Bits of MeshEntry::attributes and MeshFileInfo::streams.
 enum class CRUCIBLE_EXPOSE MeshAttribute : uint32_t
@@ -53,7 +55,7 @@ enum class CRUCIBLE_EXPOSE MeshAttribute : uint32_t
     Uv1 = 8,
     Colors = 16,
     OutlineNormals = 32,
-    Skinned = 64, // JIDX and JWGT
+    Skinned = 64, // BIDX and BWGT
 };
 
 struct CRUCIBLE_EXPOSE MeshFileInfo
@@ -145,18 +147,18 @@ struct CRUCIBLE_EXPOSE MaterialEntry
 // The skeleton every skinned mesh of the file shares (ADR 0078).
 struct CRUCIBLE_EXPOSE SkinInfo
 {
-    uint32_t jointCount;
-    uint32_t influences; // per vertex in JIDX and JWGT: 4 or 8
+    uint32_t boneCount;
+    uint32_t influences; // per vertex in BIDX and BWGT: 4 or 8
 };
 
-struct CRUCIBLE_EXPOSE JointEntry
+struct CRUCIBLE_EXPOSE BoneEntry
 {
-    int32_t parent; // into JNTS, or -1 for a root; always before this joint
+    int32_t parent; // into BONE, or -1 for a root; always before this bone
     int32_t node;   // into NODE
-    // From the model's space to the joint's, in its bind pose: row vectors,
+    // From the model's space to the bone's, in its bind pose: row vectors,
     // row-major (as Matrix4x4), mirrored into Crucible's space like the rest.
     float inverseBind[16];
-    uint32_t nameOffset; // into NAME: clips find joints by name
+    uint32_t nameOffset; // into NAME: clips find bones by name
     uint32_t nameLength;
 };
 

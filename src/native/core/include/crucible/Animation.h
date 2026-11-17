@@ -17,9 +17,9 @@
 // A pose is the base (a clip, or a state machine's state) with crossfades,
 // its root motion taken out if the Animator moves by it, then up to
 // maxLayers layers in order, each overriding the pose below it (weighted,
-// masked by joint subtrees) or adding to it (the difference from its clip's
+// masked by bone subtrees) or adding to it (the difference from its clip's
 // first sample), then up to maxIkSlots IK adjustments in model space.
-// Joints are local transforms (relative to the parent joint) and model-space
+// Bones are local transforms (relative to the parent bone) and model-space
 // matrices (relative to the Animator's entity, for row vectors). Main
 // thread, except where noted.
 
@@ -38,7 +38,7 @@ namespace crucible::animation {
 
 inline constexpr std::string_view updateSystemName = "Animation.Update";
 inline constexpr std::string_view poseSystemName = "Animation.Pose";
-inline constexpr std::string_view socketSystemName = "Animation.Sockets";
+inline constexpr std::string_view boneAttachmentSystemName = "Animation.BoneAttachments";
 
 inline constexpr uint32_t maxLayers = 8;
 inline constexpr uint32_t maxIkSlots = 4;
@@ -46,14 +46,14 @@ inline constexpr uint32_t maxIkSlots = 4;
 // A character: the skeleton its pose has, and what its base plays.
 struct CRUCIBLE_EXPOSE Animator
 {
-    CRUCIBLE_HINT_ASSET_SKINNED assets::AssetId skeleton; // a model asset whose MESH file has the skeleton (JNTS)
+    CRUCIBLE_HINT_ASSET_SKINNED assets::AssetId skeleton; // a model asset whose MESH file has the skeleton (BONE)
     CRUCIBLE_HINT_ASSET(".crclip") assets::AssetId clip;  // a .crclip, or none for the bind pose
     CRUCIBLE_HINT_RANGE(0, 4) float speed;
     bool loop;
     // A .crstatemachine; when set, it plays the base instead of the clip.
     CRUCIBLE_HINT_ASSET(".crstatemachine") assets::AssetId stateMachine;
     // Move the entity by the base's root motion (moveCharacter) instead of
-    // letting the root joint travel.
+    // letting the root bone travel.
     bool rootMotion;
 };
 
@@ -64,16 +64,16 @@ struct CRUCIBLE_EXPOSE PoseHandle
     uint32_t pose;
 };
 
-// An entity riding a joint (ADR 0096): a sword in a hand, a hitbox on a
-// foot. "Animation.Sockets" (after "Animation.Pose", every frame, while
+// An entity riding a bone (ADR 0096): a sword in a hand, a hitbox on a foot.
+// "Animation.BoneAttachments" (after "Animation.Pose", every frame, while
 // editing too) sets its LocalTransform's position and rotation so it sits at
-// the offset from the joint of the nearest Animator above it; its own scale
-// is kept. No Animator above it, no such joint, or no pose yet: left alone.
-struct CRUCIBLE_EXPOSE Socket
+// the offset from the bone of the nearest Animator above it; its own scale
+// is kept. No Animator above it, no such bone, or no pose yet: left alone.
+struct CRUCIBLE_EXPOSE BoneAttachment
 {
-    CRUCIBLE_HINT_JOINT uint32_t joint; // the joint it rides (eventName of its name)
-    Vector3 position;                   // from the joint, in its space
-    Quaternion rotation;                // from the joint's
+    CRUCIBLE_HINT_BONE uint32_t bone; // the bone it rides (eventName of its name)
+    Vector3 position;                 // from the bone, in its space
+    Quaternion rotation;              // from the bone's
 };
 
 enum class CRUCIBLE_EXPOSE LayerBlend : uint32_t
@@ -92,11 +92,11 @@ struct CRUCIBLE_EXPOSE LayerDesc
     float fadeSeconds; // to reach the weight (or a new clip, if the layer was playing)
 };
 
-// A mask's entry: a joint (findJoint) and everything below it, at a weight.
+// A mask's entry: a bone (findBone) and everything below it, at a weight.
 // Later entries win where subtrees overlap. A layer without one is unmasked.
 struct CRUCIBLE_EXPOSE MaskEntry
 {
-    int32_t joint;
+    int32_t bone;
     float weight;
 };
 
@@ -188,25 +188,25 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE RootMotion rootMotion(const ecs::World& world, e
 
 // --- IK (ADR 0081) ----------------------------------------------------------
 
-// Two-bone IK: `joint` (a hand, a foot), its parent, and theirs bend so it
+// Two-bone IK: `bone` (a hand, a foot), its parent, and theirs bend so it
 // reaches the target, toward the pole (or as they're bent already).
 struct CRUCIBLE_EXPOSE TwoBoneIkDesc
 {
-    int32_t joint;  // the end of the chain (findJoint)
+    int32_t bone;   // the end of the chain (findBone)
     Vector3 target; // world space
-    Vector3 pole;   // world space: the middle joint bends toward it
+    Vector3 pole;   // world space: the middle bone bends toward it
     bool usePole;
     float weight;      // 0 to 1
     float fadeSeconds; // to reach the weight
 };
 
-// Look-at: `joint` turns so its aim axis points at the target, at most
+// Look-at: `bone` turns so its aim axis points at the target, at most
 // maxAngle from where the pose points it.
 struct CRUCIBLE_EXPOSE LookAtDesc
 {
-    int32_t joint;
+    int32_t bone;
     Vector3 target; // world space
-    Vector3 aim;    // in the joint's own space
+    Vector3 aim;    // in the bone's own space
     float maxAngle; // radians
     float weight;
     float fadeSeconds;
@@ -215,7 +215,7 @@ struct CRUCIBLE_EXPOSE LookAtDesc
 // Sets IK slot `slot` (below maxIkSlots), applied after the layers, in slot
 // order. Call each frame as targets move; a new weight fades in over
 // fadeSeconds. NotFound past maxIkSlots, for an entity without a pose, or
-// a joint without two ancestors (two-bone) or none at all (look-at).
+// a bone without two ancestors (two-bone) or none at all (look-at).
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<void> setTwoBoneIk(ecs::World& world, ecs::Entity entity, uint32_t slot,
                                                           TwoBoneIkDesc desc);
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<void> setLookAt(ecs::World& world, ecs::Entity entity, uint32_t slot,
@@ -224,25 +224,24 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<void> setLookAt(ecs::World& world, ecs::E
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<void> clearIk(ecs::World& world, ecs::Entity entity, uint32_t slot,
                                                      float fadeSeconds);
 
-// --- Joints -----------------------------------------------------------------
+// --- Bones -----------------------------------------------------------------
 
-// A joint of the entity's skeleton by name, or -1.
-CRUCIBLE_EXPORT CRUCIBLE_EXPOSE int32_t findJoint(ecs::World& world, ecs::Entity entity, std::string_view name);
-// The joint's model-space matrix as last posed (relative to the entity);
-// identity if it has no pose or no such joint.
-CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Matrix4x4 jointModelTransform(const ecs::World& world, ecs::Entity entity,
-                                                              int32_t joint);
+// A bone of the entity's skeleton by name, or -1.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE int32_t findBone(ecs::World& world, ecs::Entity entity, std::string_view name);
+// The bone's model-space matrix as last posed (relative to the entity);
+// identity if it has no pose or no such bone.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Matrix4x4 boneModelTransform(const ecs::World& world, ecs::Entity entity, int32_t bone);
 
 // The pose a PoseHandle names (its `pose`, the pool index plus one), for
-// skinning (ADR 0080): its joints' model-space matrices as last posed, empty
-// for none or one not posed yet; a joint of its skeleton by name, or -1; and
+// skinning (ADR 0080): its bones' model-space matrices as last posed, empty
+// for none or one not posed yet; a bone of its skeleton by name, or -1; and
 // its skeleton's identity, never reused, even by the same skeleton read
 // again (0 for none), for caches keyed by it. Main thread, between poses.
-CRUCIBLE_EXPORT std::span<const Matrix4x4> poseJoints(uint32_t pose);
-CRUCIBLE_EXPORT int32_t poseJointIndex(uint32_t pose, std::string_view name);
+CRUCIBLE_EXPORT std::span<const Matrix4x4> poseBones(uint32_t pose);
+CRUCIBLE_EXPORT int32_t poseBoneIndex(uint32_t pose, std::string_view name);
 CRUCIBLE_EXPORT uint64_t poseSkeletonKey(uint32_t pose);
 
-// Adds debug lines (crucible/DebugLines.h) from every posed joint to its
+// Adds debug lines (crucible/DebugLines.h) from every posed bone to its
 // parent, in world space through the entity's WorldTransform.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void drawSkeletons(const ecs::World& world, Vector4 color);
 
@@ -262,8 +261,9 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL uint32_t poseCount();
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void advancePoses(ecs::World& world, float deltaSeconds,
                                                            uint64_t frameStartNs);
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void evaluatePoses(ecs::World& world);
-// "Animation.Sockets"'s body: every Socket placed at its joint as posed.
-CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void placeSockets(ecs::World& world);
+// "Animation.BoneAttachments"'s body: every BoneAttachment placed at its
+// bone as posed.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void placeBoneAttachments(ecs::World& world);
 
 // Registers the components and the three systems. The engine calls it at start-up.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void registerAnimation();

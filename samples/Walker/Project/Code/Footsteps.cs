@@ -88,8 +88,8 @@ public sealed class FootstepSystem : GameSystem
                 continue;
             }
             Footsteps footsteps = world.Read<Footsteps>(step.Entity);
-            int joint = Animator.FindJoint(world, step.Entity, step.Name == _left ? "LeftFoot" : "RightFoot");
-            Vector3 foot = Animator.JointModelTransform(world, step.Entity, joint).Translation;
+            int bone = Animator.FindBone(world, step.Entity, step.Name == _left ? "LeftFoot" : "RightFoot");
+            Vector3 foot = Animator.BoneModelTransform(world, step.Entity, bone).Translation;
             Vector3 at = world.Has(step.Entity, Components.Of<WorldTransform>())
                 ? Vector3.Transform(foot, world.Read<WorldTransform>(step.Entity).Matrix)
                 : foot;

@@ -652,7 +652,7 @@ void system2D(const loop::SystemContext& context, void*)
     }
 }
 
-constexpr std::string_view afterSockets[] = {animation::socketSystemName};
+constexpr std::string_view afterBoneAttachments[] = {animation::boneAttachmentSystemName};
 
 } // namespace
 
@@ -662,7 +662,7 @@ void registerHitboxes()
     loop::registerDefaultSystem({.name = hitboxSystemName,
                                  .phase = "Animation",
                                  .function = system3D,
-                                 .after = afterSockets,
+                                 .after = afterBoneAttachments,
                                  .gameplay = true});
 }
 
@@ -672,7 +672,7 @@ void registerHitboxes2D()
     loop::registerDefaultSystem({.name = physics2d::hitboxSystemName,
                                  .phase = "Animation",
                                  .function = system2D,
-                                 .after = afterSockets,
+                                 .after = afterBoneAttachments,
                                  .gameplay = true});
 }
 

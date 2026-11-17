@@ -195,7 +195,7 @@
             "Id": "41b0c50000000006",
             "Components": {
               "Crucible.Scenes.EntityName": {
-                "Value": "Foot Socket"
+                "Value": "Foot Attachment"
               },
               "Crucible.Scenes.LocalTransform": {
                 "Position": [
@@ -215,8 +215,8 @@
                   1
                 ]
               },
-              "Crucible.Animation.Socket": {
-                "Joint": 2458969465,
+              "Crucible.Animation.BoneAttachment": {
+                "Bone": 2458969465,
                 "Position": [
                   0,
                   0,

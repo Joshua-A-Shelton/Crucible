@@ -35,7 +35,7 @@ public partial struct Animator
     /// <summary>
     /// Sets a layer (0 to 7) over the base: a new clip starts from its start,
     /// and the weight fades to <see cref="LayerDesc.Weight"/>. The mask's
-    /// entries are joints (<see cref="FindJoint"/>) and everything below them;
+    /// entries are bones (<see cref="FindBone"/>) and everything below them;
     /// none masks nothing.
     /// </summary>
     public static void SetLayer(World world, Entity entity, int layer, LayerDesc desc,
@@ -46,13 +46,13 @@ public partial struct Animator
     public static void ClearLayer(World world, Entity entity, int layer, float fadeSeconds = 0) =>
         Api.ClearLayer(world.Live, entity, (uint)layer, fadeSeconds);
 
-    /// <summary>A joint of the entity's skeleton by name, or -1.</summary>
-    public static int FindJoint(World world, Entity entity, string name) =>
-        Api.FindJoint(world.Live, entity, name);
+    /// <summary>A bone of the entity's skeleton by name, or -1.</summary>
+    public static int FindBone(World world, Entity entity, string name) =>
+        Api.FindBone(world.Live, entity, name);
 
-    /// <summary>The joint's matrix relative to the entity, as last posed; identity without a pose.</summary>
-    public static Matrix4x4 JointModelTransform(World world, Entity entity, int joint) =>
-        Api.JointModelTransform(world.Live, entity, joint);
+    /// <summary>The bone's matrix relative to the entity, as last posed; identity without a pose.</summary>
+    public static Matrix4x4 BoneModelTransform(World world, Entity entity, int bone) =>
+        Api.BoneModelTransform(world.Live, entity, bone);
 
     /// <summary>Debug lines (<see cref="Crucible.Debug.DebugLines"/>) along every posed skeleton of the world, this frame.</summary>
     public static void DrawSkeletons(World world, Vector4 color) => Api.DrawSkeletons(world.Live, color);
@@ -102,14 +102,14 @@ public partial struct Animator
 }
 
 /// <summary>
-/// An entity riding a joint (ADR 0096): a sword in a hand, a hitbox on a foot.
-/// Its position and rotation follow the joint of the nearest Animator above
+/// An entity riding a bone (ADR 0096): a sword in a hand, a hitbox on a foot.
+/// Its position and rotation follow the bone of the nearest Animator above
 /// it, at this offset; its own scale is kept.
 /// </summary>
 [Serialized]
-public partial struct Socket
+public partial struct BoneAttachment
 {
-    public Socket()
+    public BoneAttachment()
     {
         Rotation = Quaternion.Identity;
     }
@@ -131,7 +131,7 @@ public partial struct TwoBoneIkDesc
     }
 }
 
-/// <summary>Turning a joint to look at a target, within a cone (ADR 0081).</summary>
+/// <summary>Turning a bone to look at a target, within a cone (ADR 0081).</summary>
 public partial struct LookAtDesc
 {
     public LookAtDesc()

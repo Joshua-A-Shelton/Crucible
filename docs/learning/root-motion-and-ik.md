@@ -17,7 +17,7 @@ motion gets them right for free.
 
 ## Extracting it
 
-The **root joint** (the hips here) is the one everything hangs from. Each
+The **root bone** (the hips here) is the one everything hangs from. Each
 frame:
 
 1. Measure how far the root travelled along the ground during this
@@ -46,7 +46,7 @@ travel each time it wraps, so the entity never jumps backward.
 Animations are authored on flat ground, reaching for nothing. **Inverse
 kinematics** bends the pose so a hand reaches a door handle, a foot stands
 on a step, or a head turns toward whoever is talking. It works in reverse
-of the usual direction: from where the end should be to how the joints
+of the usual direction: from where the end should be to how the bones
 must turn.
 
 ### Two-bone IK
@@ -69,7 +69,7 @@ below it along. A target out of reach just straightens the leg toward it.
 
 ### Look-at
 
-Look-at is one joint turning so an axis of it (the head's forward) points
+Look-at is one bone turning so an axis of it (the head's forward) points
 at a target. A **maximum angle** keeps it human: past it the head turns as
 far as a neck can and no further.
 

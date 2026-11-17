@@ -125,10 +125,10 @@ Vector<float> unpack(const cgltf_accessor* accessor, uint32_t components)
 }
 
 // Reads one glTF mesh's triangle primitives into corners; skinned with
-// `skin` (a node using the mesh names it), whose joints are the scene's by
-// `jointOfNode`.
+// `skin` (a node using the mesh names it), whose bones are the scene's by
+// `boneOfNode`.
 Status readCorners(const cgltf_data& data, const cgltf_mesh& mesh, const cgltf_skin* skin,
-                   const Vector<int32_t>& jointOfNode, SourceMesh& out, StringList& warnings)
+                   const Vector<int32_t>& boneOfNode, SourceMesh& out, StringList& warnings)
 {
     Corners& corners = out.corners;
     const char* meshName = nameOf(mesh.name, "(unnamed)");
@@ -149,14 +149,14 @@ Status readCorners(const cgltf_data& data, const cgltf_mesh& mesh, const cgltf_s
             warnedMorph = true;
         }
         // Skins (ADR 0078): two sets of four influences at most.
-        const cgltf_accessor* jointSets[2] = {findAttribute(primitive, cgltf_attribute_type_joints, 0),
-                                              findAttribute(primitive, cgltf_attribute_type_joints, 1)};
+        const cgltf_accessor* boneSets[2] = {findAttribute(primitive, cgltf_attribute_type_joints, 0),
+                                             findAttribute(primitive, cgltf_attribute_type_joints, 1)};
         Vector<float> weightSets[2] = {unpack(findAttribute(primitive, cgltf_attribute_type_weights, 0), 4),
                                        unpack(findAttribute(primitive, cgltf_attribute_type_weights, 1), 4)};
-        const bool skinned = skin != nullptr && jointSets[0] != nullptr && !weightSets[0].empty();
-        if (jointSets[0] != nullptr && skin == nullptr)
+        const bool skinned = skin != nullptr && boneSets[0] != nullptr && !weightSets[0].empty();
+        if (boneSets[0] != nullptr && skin == nullptr)
         {
-            warnings.addFormat("mesh %s: has joints but no node skins it, so it isn't skinned", meshName);
+            warnings.addFormat("mesh %s: has bones but no node skins it, so it isn't skinned", meshName);
         }
         const cgltf_accessor* positionAccessor = findAttribute(primitive, cgltf_attribute_type_position, 0);
         Vector<float> positions = unpack(positionAccessor, 3);
@@ -219,20 +219,20 @@ Status readCorners(const cgltf_data& data, const cgltf_mesh& mesh, const cgltf_s
                 for (int set = 0; set < 2; ++set)
                 {
                     cgltf_uint local[4] = {0, 0, 0, 0};
-                    const bool present = skinned && jointSets[set] != nullptr && !weightSets[set].empty();
+                    const bool present = skinned && boneSets[set] != nullptr && !weightSets[set].empty();
                     if (present)
                     {
-                        cgltf_accessor_read_uint(jointSets[set], v, local, 4);
+                        cgltf_accessor_read_uint(boneSets[set], v, local, 4);
                     }
                     for (int c = 0; c < 4; ++c)
                     {
                         const float weight = present ? weightSets[set][v * 4 + c] : 0.0f;
-                        int32_t joint = 0;
+                        int32_t bone = 0;
                         if (present && local[c] < skin->joints_count)
                         {
-                            joint = jointOfNode[cgltf_node_index(&data, skin->joints[local[c]])];
+                            bone = boneOfNode[cgltf_node_index(&data, skin->joints[local[c]])];
                         }
-                        corners.joints.pushBack(static_cast<float>(std::max(joint, 0)));
+                        corners.bones.pushBack(static_cast<float>(std::max(bone, 0)));
                         corners.weights.pushBack(weight);
                     }
                 }
@@ -630,12 +630,12 @@ Result<MeshImport*> importGltf(GltfSource& source, MeshSettings settings)
     }
 
     SourceScene scene;
-    // The skeleton (ADR 0078): every skin's joints, each node once.
-    Vector<int32_t> jointOfNode(MemoryTag::Assets);
-    jointOfNode.resize(data.nodes_count);
-    for (int32_t& joint : jointOfNode)
+    // The skeleton (ADR 0078): every skin's bones, each node once.
+    Vector<int32_t> boneOfNode(MemoryTag::Assets);
+    boneOfNode.resize(data.nodes_count);
+    for (int32_t& bone : boneOfNode)
     {
-        joint = -1;
+        bone = -1;
     }
     for (cgltf_size s = 0; s < data.skins_count; ++s)
     {
@@ -644,21 +644,21 @@ Result<MeshImport*> importGltf(GltfSource& source, MeshSettings settings)
         {
             // Read as is, glTF's column-major matrix for column vectors is
             // the row-major one for row vectors that Matrix4x4 is.
-            SourceJoint joint{static_cast<int32_t>(cgltf_node_index(&data, skin.joints[j])),
-                              {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}};
+            SourceBone bone{static_cast<int32_t>(cgltf_node_index(&data, skin.joints[j])),
+                            {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}};
             if (skin.inverse_bind_matrices != nullptr)
             {
-                cgltf_accessor_read_float(skin.inverse_bind_matrices, j, joint.inverseBind, 16);
+                cgltf_accessor_read_float(skin.inverse_bind_matrices, j, bone.inverseBind, 16);
             }
-            int32_t& index = jointOfNode[static_cast<size_t>(joint.node)];
+            int32_t& index = boneOfNode[static_cast<size_t>(bone.node)];
             if (index < 0)
             {
-                index = static_cast<int32_t>(scene.joints.size());
-                scene.joints.pushBack(joint);
+                index = static_cast<int32_t>(scene.bones.size());
+                scene.bones.pushBack(bone);
             }
-            else if (std::memcmp(scene.joints[static_cast<size_t>(index)].inverseBind, joint.inverseBind, 64) != 0)
+            else if (std::memcmp(scene.bones[static_cast<size_t>(index)].inverseBind, bone.inverseBind, 64) != 0)
             {
-                scene.warnings.addFormat("joint %s: two skins bind it differently; the first one's is kept",
+                scene.warnings.addFormat("bone %s: two skins bind it differently; the first one's is kept",
                                          nameOf(skin.joints[j]->name, "(unnamed)"));
             }
         }
@@ -676,7 +676,7 @@ Result<MeshImport*> importGltf(GltfSource& source, MeshSettings settings)
             }
         }
         SourceMesh& out = scene.addMesh(mesh.name != nullptr ? mesh.name : "");
-        if (const Status status = readCorners(data, mesh, skin, jointOfNode, out, scene.warnings); status != Status::Ok)
+        if (const Status status = readCorners(data, mesh, skin, boneOfNode, out, scene.warnings); status != Status::Ok)
         {
             return status;
         }

@@ -1,12 +1,12 @@
 // The Skinning step (ADR 0080): one skinned instance's vertices, blended by
-// their joints' palette matrices, into the frame's skinned vertices, stream
+// their bones' palette matrices, into the frame's skinned vertices, stream
 // by stream in the model's own formats, so draws read them as they would
 // the model's.
 
 struct SkinConstants
 {
     uint model;    // the model buffer (ByteAddressBuffer)
-    uint palettes; // StructuredBuffer<float4>: three rows (x, y, z, with translation in w) per joint
+    uint palettes; // StructuredBuffer<float4>: three rows (x, y, z, with translation in w) per bone
     uint output;   // the skinned vertices (RWByteAddressBuffer)
     uint paletteOffset;
     uint vertexCount;
@@ -17,7 +17,7 @@ struct SkinConstants
     uint normals;
     uint tangents;
     uint outlineNormals;
-    uint joints;  // uint16 per influence
+    uint bones;   // uint16 per influence
     uint weights; // unorm8 per influence
     // Where this instance's vertices start in each skinned stream (bytes).
     uint outPositions;
@@ -86,7 +86,7 @@ void skinVertices(uint3 id : SV_DispatchThreadID)
     StructuredBuffer<float4> palettes = ResourceDescriptorHeap[skin.palettes];
     RWByteAddressBuffer output = ResourceDescriptorHeap[skin.output];
 
-    // The weighted sum of its joints' matrices (weights sum to 255).
+    // The weighted sum of its bones' matrices (weights sum to 255).
     float4 x = 0.0, y = 0.0, z = 0.0;
     for (uint k = 0; k < skin.influences; ++k)
     {
@@ -96,7 +96,7 @@ void skinVertices(uint3 id : SV_DispatchThreadID)
         {
             continue;
         }
-        const uint row = (skin.paletteOffset + loadShort(model, skin.joints + influence * 2)) * 3;
+        const uint row = (skin.paletteOffset + loadShort(model, skin.bones + influence * 2)) * 3;
         x += palettes[row] * weight;
         y += palettes[row + 1] * weight;
         z += palettes[row + 2] * weight;

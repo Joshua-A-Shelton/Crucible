@@ -58,7 +58,7 @@ passes through them. So a hitbox remembers what it has hit during an
 The next swing (the animation window opening again) is a new activation,
 and can hit the same enemy again.
 
-## Windows, owners, and sockets
+## Windows, owners, and bone attachments
 
 - **Windows** (ADR 0081) are named stretches of an animation clip: "the
   blade is dangerous from 0.3 s to 0.45 s of the attack". A hitbox named
@@ -67,10 +67,11 @@ and can hit the same enemy again.
 - **The owner** is the character the hitbox belongs to: the nearest
   Animator above it. A hitbox never hits its owner, or anything under the
   owner (its own hurtboxes, its own shield), however they overlap.
-- **Sockets** make an entity follow a joint of the skeleton: a sword in a
-  hand, a hitbox on a foot. Each frame, after the pose is worked out, the
-  socket's entity is placed at the joint (plus an offset). Anything can go
-  on a socket, not just hitboxes.
+- **Bone attachments** make an entity follow a bone of the skeleton: a
+  sword in a hand, a hitbox on a foot. Each frame, after the pose is worked
+  out, the attachment's entity is placed at the bone (plus an offset).
+  Anything can be attached this way, not just hitboxes. Other engines call
+  the same idea a socket.
 
 ## Queries, not bodies
 
@@ -83,7 +84,7 @@ enemies around whether the game wanted it to or not.
 ## Names stored as numbers
 
 Components on the native side hold only plain data, never strings, so a
-socket can't store "RightFoot". It stores the name's 32-bit hash instead,
-the same hash events and windows already use. The editor turns it back
-into a name by hashing the skeleton's joint names and matching. Scene
+bone attachment can't store "RightFoot". It stores the name's 32-bit hash
+instead, the same hash events and windows already use. The editor turns it
+back into a name by hashing the skeleton's bone names and matching. Scene
 files hold the number, and the inspector shows the name.

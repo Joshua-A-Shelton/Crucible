@@ -5,6 +5,10 @@ the owner (the Walker's mesh walking while the game plays). Names, including
 those added while building, settled by the owner as drafted
 (docs/naming.md).
 
+**Renamed (2026-11-16, ADR 0096):** the skeleton's joints are bones
+throughout, in code, file tags, and this record; physics joints keep
+their name.
+
 ## Context
 
 Step 2 (ADR 0079) poses skeletons. Step 3 makes meshes follow them. ADR
@@ -22,9 +26,9 @@ Decided by the owner (2026-11-10):
    skinned instances that view or its shadow views draw, into a transient
    buffer in that frame's render graph. The editor's viewport and Game panel
    each skin their own; culling keeps it to what's seen.
-2. **Bounds from the pose.** At load, each joint gets a reach: how far the
+2. **Bounds from the pose.** At load, each bone gets a reach: how far the
    vertices it influences are from its bind-pose origin. Each frame a skinned
-   instance's bounds are its posed joints grown by their reaches, in its
+   instance's bounds are its posed bones grown by their reaches, in its
    mesh's space, so a raised arm is never culled and a crouch doesn't waste
    a margin.
 3. **A draw per instance.** Skinned instances get batches of one, each
@@ -32,24 +36,24 @@ Decided by the owner (2026-11-10):
 
 ## How it works
 
-- **Loading.** Models keep their skin's streams (JIDX, JWGT) in their GPU
-  buffer, and its joints, names, origins, and reaches on the CPU
-  (`MeshData::jointIndices`, `jointWeights`, `joints`, `names`,
-  `jointOrigins`*, `jointReach`, `skinInfluences`*).
+- **Loading.** Models keep their skin's streams (BIDX, BWGT) in their GPU
+  buffer, and its bones, names, origins, and reaches on the CPU
+  (`MeshData::boneIndices`, `boneWeights`, `bones`, `names`,
+  `boneOrigins`*, `boneReach`, `skinInfluences`*).
 - **Finding skins.** Building a view's draw list, every mesh instance whose
   mesh is `Skinned` looks for a pose: a `PoseHandle` on its entity or its
   nearest ancestor. One found, its palette is written: for each of the
-  mesh's joints, *inverse bind × posed joint × (the pose's entity's world ×
+  mesh's bones, *inverse bind × posed bone × (the pose's entity's world ×
   the mesh entity's world⁻¹)*. Skinned vertices are then in the mesh
   entity's own space and draw through its transform, so picking, the
   selection outline, and the instance's world matrix work unchanged; and
   the mesh entity's own transform cancels out, as in glTF, where a skinned
   mesh's node transform is ignored. A skinned mesh without a pose (no
   Animator above it) draws as it was bound.
-- **Joints by name.** The mesh's joints are matched to the pose's skeleton
-  by name, once per model and skeleton (`poseJointIndex`*,
+- **Bones by name.** The mesh's bones are matched to the pose's skeleton
+  by name, once per model and skeleton (`poseBoneIndex`*,
   `poseSkeletonKey`*; rebuilt after a reload), so meshes from other files
-  can follow one pose. A joint the pose lacks keeps its vertices as bound.
+  can follow one pose. A bone the pose lacks keeps its vertices as bound.
 - **The step.** One dispatch per skinned instance (`skinVertices`, 64
   vertices a group) blends each vertex's palette rows by its weights and
   writes position, normal, tangent (its handedness kept), and outline normal
@@ -65,7 +69,7 @@ Decided by the owner (2026-11-10):
 ## Details
 
 - The palettes are an upload buffer per frame slot, three `float4` rows per
-  joint (the instance transforms' layout), grown as needed.
+  bone (the instance transforms' layout), grown as needed.
 - Batch keys gained a bit for skinned instances (model indices are now
   below 2²³), with the skin's index in the mesh's place.
 - Each surface reserves six more resource-heap slots (palettes, and the
@@ -73,17 +77,17 @@ Decided by the owner (2026-11-10):
   range below loaded assets grew from 1024 slots to 2048
   (`firstAssetDescriptor`*).
 - Normals are turned by the blended matrix's 3x3 and renormalized, which is
-  right for rotations and uniform scale; non-uniformly scaled joints would
+  right for rotations and uniform scale; non-uniformly scaled bones would
   need the inverse transpose.
 - Reaches are per model, not per mesh: a model with several skinned meshes
-  bounds each by every influencing joint.
+  bounds each by every influencing bone.
 
 ## As built
 
 - shaders/crucible/skinning.slang; the Skinning step (RenderSteps.cpp);
-  skins gathered in DrawList.cpp; joint streams and reaches in
-  RenderAssets.cpp; `animation::poseJoints`.
-- Tests: `SkinningTests` (a two-joint quad, posed and moved, drawn where
+  skins gathered in DrawList.cpp; bone streams and reaches in
+  RenderAssets.cpp; `animation::poseBones`.
+- Tests: `SkinningTests` (a two-bone quad, posed and moved, drawn where
   skinning on the CPU puts it, on every backend; its mesh's scale ignored),
   `SkinnedCullingTests` (culled by its bind bounds until posed, then by its
   posed ones).

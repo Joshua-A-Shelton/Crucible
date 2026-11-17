@@ -5,7 +5,7 @@ A learning note for M8 step 3 (ADR 0080).
 ## Where skinning usually happens
 
 The textbook place to skin is the vertex shader: each vertex reads its four
-joints' matrices, blends them, and transforms itself. It works, but every
+bones' matrices, blends them, and transforms itself. It works, but every
 pass that draws the mesh does it again. A character in Crucible is drawn by
 the depth prepass, up to four shadow cascades, shadow tiles for nearby
 lights, the opaque pass, the outline pass, and, in the editor, the pick
@@ -19,16 +19,16 @@ exists, apart from where they fetch four of their streams from.
 
 ## The palette
 
-Each joint contributes one matrix, the *palette* entry:
+Each bone contributes one matrix, the *palette* entry:
 
-    inverse bind × posed joint × (character root → mesh)
+    inverse bind × posed bone × (character root → mesh)
 
 The first two are the skinning formula from step 1's note: undo the bind
 pose, then apply the current one. The last one moves the result from the
 character's space into the mesh entity's, so the mesh's ordinary world
-matrix can draw it. A vertex blends its joints' palette entries by its
+matrix can draw it. A vertex blends its bones' palette entries by its
 weights and transforms itself once. Because the mesh's own transform is
-undone and redone, it cancels out: a skinned mesh goes where its joints
+undone and redone, it cancels out: a skinned mesh goes where its bones
 are, wherever its node is, just as glTF specifies.
 
 ## Keeping the formats
@@ -44,11 +44,11 @@ correct.
 
 A static mesh's bounds come from its file. A skinned mesh's vertices go
 wherever the pose takes them, so its file bounds lie. The fix is cheap: at
-load, measure for each joint how far its vertices are from it in the bind
+load, measure for each bone how far its vertices are from it in the bind
 pose (its *reach*). However the pose bends, a vertex stays within its
-joint's reach of that joint, and a vertex blended between joints stays
+bone's reach of that bone, and a vertex blended between bones stays
 within the union of their spheres. So each frame, the bounds are the posed
-joints' positions, each grown by its reach. That's a dozen numbers per
+bones' positions, each grown by its reach. That's a dozen numbers per
 character, not a pass over the vertices.
 
 ## One render graph, two kinds of resource
@@ -61,7 +61,7 @@ remember to add it, which is exactly what a render graph is for.
 
 ## Testing what you can see
 
-A two-joint quad makes a good test: bind it flat, rest its second joint 1.5
+A two-bone quad makes a good test: bind it flat, rest its second bone 1.5
 m up, and the quad's right edge rises while its left stays, shearing it into
 a parallelogram. The test checks pixels where skinning on the CPU says the
 quad now is and isn't. When a check like that fails, it's worth redoing the

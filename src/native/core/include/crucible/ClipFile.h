@@ -6,7 +6,7 @@
 //
 // A CLIP file (kind tag("CLIP"), version 1):
 //   INFO  ClipInfo
-//   TRCK  ClipTrack, one per joint the clip moves; it finds the joint by name
+//   TRCK  ClipTrack, one per bone the clip moves; it finds the bone by name
 //   ROTS  uint16 x4 per sample: a rotation, smallest three (see below)
 //   POSS  uint16 x3 per sample: a translation, within its track's range
 //   SCLS  uint16 x3 per sample: a scale, within its track's range
@@ -16,7 +16,7 @@
 // Every track is resampled at the clip's sample rate: sample i at time
 // i / sampleRate, the last at or just past the duration; a channel that
 // never changes is stored as one sample (ClipTrack::constant). Times are seconds; transforms are relative to
-// the joint's parent, in Crucible's space (mirrored on X like the model).
+// the bone's parent, in Crucible's space (mirrored on X like the model).
 //
 // Smallest three: the rotation's largest component (in magnitude) is
 // dropped, after negating the quaternion if it was negative; the other three,
@@ -51,7 +51,7 @@ enum class CRUCIBLE_EXPOSE ClipChannel : uint32_t
 
 struct CRUCIBLE_EXPOSE ClipTrack
 {
-    uint32_t nameOffset; // into NAME: the joint's name
+    uint32_t nameOffset; // into NAME: the bone's name
     uint32_t nameLength;
     uint32_t constant;          // ClipChannel bits
     uint32_t rotationOffset;    // into ROTS, in samples

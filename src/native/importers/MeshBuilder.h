@@ -41,10 +41,10 @@ struct Corners
     Vector<float> uv0{MemoryTag::Assets};       // 2
     Vector<float> uv1{MemoryTag::Assets};       // 2
     Vector<float> colors{MemoryTag::Assets};    // 4, linear
-    // Skins (ADR 0078): up to 8 influences, as joint indices (into
-    // SourceScene::joints, held as floats so they weld like the rest) and
+    // Skins (ADR 0078): up to 8 influences, as bone indices (into
+    // SourceScene::bones, held as floats so they weld like the rest) and
     // weights; zeros where a corner isn't skinned.
-    Vector<float> joints{MemoryTag::Assets};  // 8
+    Vector<float> bones{MemoryTag::Assets};   // 8
     Vector<float> weights{MemoryTag::Assets}; // 8
 
     uint32_t count() const
@@ -92,9 +92,9 @@ struct SourceMaterial
     uint32_t textures[5]; // per TextureRole, into strings; an empty string for none
 };
 
-// A skeleton joint: a node, and its inverse bind matrix (row vectors,
+// A skeleton bone: a node, and its inverse bind matrix (row vectors,
 // row-major, as Matrix4x4).
-struct SourceJoint
+struct SourceBone
 {
     int32_t node;
     float inverseBind[16];
@@ -125,7 +125,7 @@ struct SourceScene
     Vector<SourceMesh*> meshes{MemoryTag::Assets};
     Vector<SourceNode> nodes{MemoryTag::Assets};
     Vector<SourceMaterial> materials{MemoryTag::Assets};
-    Vector<SourceJoint> joints{MemoryTag::Assets};
+    Vector<SourceBone> bones{MemoryTag::Assets};
     Vector<SourceClip*> clips{MemoryTag::Assets};
     StringList strings;
     StringList warnings;

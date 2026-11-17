@@ -608,7 +608,7 @@ building (marked *) settled as drafted too:
 ## Skins and animation clips (2026-11-09, M8 step 1)
 
 Settled as drafted: MESH version 3 with the sections `SKIN` (`SkinInfo`),
-`JNTS` (`JointEntry`), `JIDX`, `JWGT`, and `MeshAttribute::Skinned`; the clip
+`BONE` (`BoneEntry`), `BIDX`, `BWGT`, and `MeshAttribute::Skinned`; the clip
 file .crclip (kind `CLIP`) with `INFO` (`ClipInfo`), `TRCK` (`ClipTrack`),
 `ROTS`, `POSS`, `SCLS`, `NAME`; `MeshSettings::maxInfluences`,
 `clipSampleRate`; the sidecar's `"SubAssets"`, `ImportContext.AddSubAsset`;
@@ -633,14 +633,14 @@ Settled as drafted: crucible/Animation.h, namespace `crucible::animation`;
 `Animator` (`skeleton`, `clip`, `speed`, `loop`), `PoseHandle` (`pose`); the
 system "Animation.Update"; `play`, `setLayer`, `clearLayer`, `LayerDesc`
 (`clip`, `weight`, `blend`, `speed`, `loop`, `fadeSeconds`), `LayerBlend`
-(`Override`, `Additive`), `MaskEntry` (`joint`, `weight`), `findJoint`,
-`jointModelTransform`; crucible/DebugLines.h, `debug::drawLine`,
+(`Override`, `Additive`), `MaskEntry` (`bone`, `weight`), `findBone`,
+`boneModelTransform`; crucible/DebugLines.h, `debug::drawLine`,
 `render::steps::debugLines` and C# `RenderSteps.DebugLines`, C#
 `DebugLines.Draw`; the View menu's "Skeletons"; ADR 0079 "The pose runtime",
 `docs/learning/poses-and-blending.md`; `PoseTests`, `LayerTests`,
 `DebugLineTests`. The C# calls are static methods on `Animator`
-(`Animator.Play`, `SetLayer`, `ClearLayer`, `FindJoint`,
-`JointModelTransform`), since `Crucible.Animation` is the namespace (owner,
+(`Animator.Play`, `SetLayer`, `ClearLayer`, `FindBone`,
+`BoneModelTransform`), since `Crucible.Animation` is the namespace (owner,
 2026-11-10). A layer's mask is a parameter beside `LayerDesc`, since exposed
 structs can't hold spans. Names added while building (marked *) settled as
 drafted too (after the owner tried step 2 by hand):
@@ -663,21 +663,21 @@ Settled as drafted: the render step "Skinning" (`render::steps::skinning`,
 C# `RenderSteps.Skinning`) and its blackboard key "SkinnedVertices"
 (`skinnedVerticesKey()`); shaders/crucible/skinning.slang and its entry
 `skinVertices`; `DrawConstants::deformed`, `DrawBatch::deformedOffset`;
-`MeshData::jointIndices`, `jointWeights`, `jointReach`;
-`animation::poseJoints`; ADR 0080 "Compute pre-skinning",
+`MeshData::boneIndices`, `boneWeights`, `boneReach`;
+`animation::poseBones`; ADR 0080 "Compute pre-skinning",
 `docs/learning/compute-skinning.md`; `SkinningTests`, `SkinnedCullingTests`.
 Names added while building (marked *) settled as drafted too (after the
 owner tried step 3 by hand):
 
 | Name | What it is |
 |---|---|
-| `SkinnedInstance`* (`model`, `mesh`, `paletteOffset`, `jointCount`, `deformedOffset`, `vertexCount`), `DrawList::skinned`*, `palettes`*, `deformed`*, `skinnedVertexCount`* | The frame's skins, as a draw list carries them |
+| `SkinnedInstance`* (`model`, `mesh`, `paletteOffset`, `boneCount`, `deformedOffset`, `vertexCount`), `DrawList::skinned`*, `palettes`*, `deformed`*, `skinnedVertexCount`* | The frame's skins, as a draw list carries them |
 | `skinnedNormalsOffset`*, `skinnedTangentsOffset`*, `skinnedOutlineNormalsOffset`*, `skinnedVerticesSize`* | The skinned vertices' layout |
-| `MeshData::skinInfluences`*, `joints`*, `names`*, `jointOrigins`* | A model's skin on the CPU |
-| `animation::poseJointIndex`*, `poseSkeletonKey`* | Matching a mesh's joints to a pose's |
+| `MeshData::skinInfluences`*, `bones`*, `names`*, `boneOrigins`* | A model's skin on the CPU |
+| `animation::poseBoneIndex`*, `poseSkeletonKey`* | Matching a mesh's bones to a pose's |
 | `firstAssetDescriptor`*, `skinPaletteDescriptor`*, `skinnedVerticesDescriptor`*, `rwSkinnedVerticesDescriptor`* | Resource-heap slots |
 | `geometryBuffer`* (material.slang) | Where draws read the four skinned streams from |
-| `QuadOptions::skinned`*, `armRest`* | The test models' two-joint skin |
+| `QuadOptions::skinned`*, `armRest`* | The test models' two-bone skin |
 
 
 ## State machines, events, root motion, and IK (2026-11-10, M8 step 4)
@@ -699,8 +699,8 @@ with `"Events"` (`"Name"`, `"Time"`) and `"Windows"` (`"Name"`, `"Start"`,
 `timestamp`), `animation::events`, `openWindows`, `OpenWindow` (`name`,
 `opened`, `closes`), `eventName`; `RootMotion` (`translation`, `rotation`),
 `animation::rootMotion`; the Walker's "WalkForward"; `setTwoBoneIk`,
-`TwoBoneIkDesc` (`joint`, `target`, `pole`, `usePole`, `weight`,
-`fadeSeconds`), `setLookAt`, `LookAtDesc` (`joint`, `target`, `aim`,
+`TwoBoneIkDesc` (`bone`, `target`, `pole`, `usePole`, `weight`,
+`fadeSeconds`), `setLookAt`, `LookAtDesc` (`bone`, `target`, `aim`,
 `maxAngle`, `weight`, `fadeSeconds`), `clearIk`, `maxIkSlots`, C#
 `Animator.SetTwoBoneIk`, `SetLookAt`, `ClearIk`; ADR 0081 "State machines,
 events, root motion, and IK", `docs/learning/state-machines-and-events.md`,
@@ -721,7 +721,7 @@ events, root motion, and IK", `docs/learning/state-machines-and-events.md`,
 | `loop::SystemContext::frameStartNs`* | The frame's start on the input clock, for native systems |
 | `advancePoses`' `frameStartNs`*; the parameters `setting`* (`setFloat`, `setBool`) | Arguments (`value` is reserved by the binding generator) |
 | src/native/core/StateMachine.h* and .cpp*, `StateMachine`*, `parseStateMachine`*, `stateClips`*, `chooseTransition`*, `consumeTriggers`*, `StateProgress`*, `ClipWeight`*, `maxStateClips`* | The runtime's state machine half |
-| tests/native `markClip`*, `MachineBuilder`*, `worstJoint`* (moved), `blendPoses`*, `Character::pose`*, `Character::clock`* | Test support |
+| tests/native `markClip`*, `MachineBuilder`*, `worstBone`* (moved), `blendPoses`*, `Character::pose`*, `Character::clock`* | Test support |
 
 ## The mixer (2026-11-10, M8 step 5)
 
@@ -1076,27 +1076,53 @@ after the owner tried step 6c by hand:
 ## Swept hitboxes (2026-11-16, M9 step 7)
 
 Settled as drafted before building: `Socket` (`Joint`, `Position`,
-`Rotation`) and its system "Animation.Sockets"; `Hitbox` (`Shape`, `Size`,
-`Mask`, `Window`, `Enabled`), `Hitbox2D`, and the systems
-"Physics.Hitboxes" (and 2D's, in its namespace); `HitboxHit` (`Hitbox`,
-`Owner`, `Target`, `Point`, `Normal`, `Timestamp`), `physics::hitboxHits`,
-`HitboxHit2D`, `physics2d::hitboxHits`, the service's `shapeCastAll` (both
-namespaces), C# `Physics.HitboxHits` and `Physics2D.HitboxHits`; ADR 0096
-"Swept hitboxes"; `SocketTests`, `HitboxTests`, `Hitbox2DTests`; the
-Walker's Hitboxes.crscene, Code/Kicks.cs, the window "Kick", and the
-entities "Foot Socket", "Kick Hitbox", "Crate 1" onward.
+`Rotation`) and its system "Animation.Sockets", renamed by the owner after
+the try (below); `Hitbox` (`Shape`, `Size`, `Mask`, `Window`, `Enabled`),
+`Hitbox2D`, and the systems "Physics.Hitboxes" (and 2D's, in its
+namespace); `HitboxHit` (`Hitbox`, `Owner`, `Target`, `Point`, `Normal`,
+`Timestamp`), `physics::hitboxHits`, `HitboxHit2D`,
+`physics2d::hitboxHits`, the service's `shapeCastAll` (both namespaces),
+C# `Physics.HitboxHits` and `Physics2D.HitboxHits`; ADR 0096 "Swept
+hitboxes"; `HitboxTests`, `Hitbox2DTests`; the Walker's Hitboxes.crscene,
+Code/Kicks.cs, the window "Kick", and the entities "Kick Hitbox", "Crate
+1" onward.
+
+Renamed by the owner after trying step 7 by hand (2026-11-16): `Socket`
+becomes `BoneAttachment` (C# `Crucible.Animation.BoneAttachment`, field
+`Bone`), its system "Animation.BoneAttachments"
+(`boneAttachmentSystemName`), `placeBoneAttachments`,
+`BoneAttachmentTests`, and the sample's "Foot Attachment".
+`JointAttachment` was tried first, then dropped so "joint" means only a
+physics joint; `Attachment`, `JointFollower`, and `Mount` were the other
+choices.
+
+With it, the skeleton's joints became bones across the animation module
+(the owner, 2026-11-16), renaming names settled in M8 (above, updated in
+place): `findJoint`, `jointModelTransform`, `poseJoints`, `poseJointIndex`
+(C# `FindJoint`, `JointModelTransform`) became `findBone`,
+`boneModelTransform`, `poseBones`, `poseBoneIndex` (`FindBone`,
+`BoneModelTransform`); `MaskEntry`, `TwoBoneIkDesc`, and `LookAtDesc`'s
+`joint` became `bone`; `JointEntry` became `BoneEntry`; `jointCount`,
+`jointIndices`, `jointWeights`, `joints`, `jointOrigins`, `jointReach`
+became `bone...`; the MESH sections JNTS, JIDX, JWGT became BONE, BIDX,
+BWGT (MESH version 4). glTF's and FBX's own words (`skin.joints`,
+`JOINTS_0`) and physics joints (`Joint`, `Joint2D`, `JointKind`) keep
+"joint".
 
 Also settled before building (2026-11-16): the hints `CRUCIBLE_HINT_JOINT`
-and `CRUCIBLE_HINT_WINDOW` (C# `[JointName]`, `[WindowName]`), storing a
-name as its hash and picked by name. Names added while building (marked *)
-are placeholders until the owner tries step 7 by hand:
+and `CRUCIBLE_HINT_WINDOW` (C# `[JointName]`, `[WindowName]`; the joint
+ones renamed `CRUCIBLE_HINT_BONE` and `[BoneName]` after the try), storing
+a name as its hash and picked by name. Names added while building (marked
+*) settled as drafted after the owner tried step 7 by hand, with the joint
+names following the renames (`placeBoneAttachments`,
+`placeBoneAttachmentsOf`, `boneNamed`, `BoneNamesOf`, `IsBoneName`):
 
 | Name | What it is |
 |---|---|
-| `placeSockets`*, `sweepHitboxes`* (both namespaces), `"Physics2D.Hitboxes"`* | The systems' bodies for tests, and 2D's system |
+| `placeBoneAttachments`*, `sweepHitboxes`* (both namespaces), `"Physics2D.Hitboxes"`* | The systems' bodies for tests, and 2D's system |
 | C# `Physics.ShapeCastAll`*, `Physics2D.ShapeCastAll`* | `shapeCastAll` in C# |
 | Hitboxes.h*'s `registerHitboxes`*, `registerHitboxes2D`*, `hitboxActive`*, `forgetHitboxes`*; Hitboxes.cpp*'s `Kept`*, `WorldHitboxes`*, `FrameSpan`*, `Stretch`*, `Screw`*, `Screw2D`*, `screwBetween`*, `stretchesOf`*, `ownerOf`*, `ownedBy`*, `maxPieceTurn`*, `maxPieces`*, `maxStretches`* | The sweeps |
-| TransformParts.h*'s `TransformParts`*; Animation.cpp's `Skeleton::nameHashes`*, `poseAbove`*, `jointNamed`*, `placeSocketsOf`* | Shared and internal helpers |
-| `AssetDatabase.JointNamesOf`*, `AssetDatabase.WindowNames`*; `SerializedField.IsJointName`*, `IsWindowName`*; the inspector's "No Animator above it"*, "#hash (not found)"* | The pickers |
+| TransformParts.h*'s `TransformParts`*; Animation.cpp's `Skeleton::nameHashes`*, `poseAbove`*, `boneNamed`*, `placeBoneAttachmentsOf`* | Shared and internal helpers |
+| `AssetDatabase.BoneNamesOf`*, `AssetDatabase.WindowNames`*; `SerializedField.IsBoneName`*, `IsWindowName`*; the inspector's "No Animator above it"*, "#hash (not found)"* | The pickers |
 | Code/Kicks.cs's `KickSystem`*; the crates' layer 2*; docs/learning/swept-hitboxes.md* | The sample and the note |
 

@@ -260,7 +260,7 @@ void addSkinning(RenderStepContext& context, void*)
             struct SkinConstants
             {
                 uint32_t model, palettes, output, paletteOffset, vertexCount, influences, attributes;
-                uint32_t positions, normals, tangents, outlineNormals, joints, weights;
+                uint32_t positions, normals, tangents, outlineNormals, bones, weights;
                 uint32_t outPositions, outNormals, outTangents, outOutlineNormals;
             };
             static_assert(sizeof(SkinConstants) <= 128);
@@ -284,8 +284,8 @@ void addSkinning(RenderStepContext& context, void*)
                     .normals = static_cast<uint32_t>(model.normals.offset + first * 4),
                     .tangents = static_cast<uint32_t>(model.tangents.offset + first * 8),
                     .outlineNormals = static_cast<uint32_t>(model.outlineNormals.offset + first * 4),
-                    .joints = static_cast<uint32_t>(model.jointIndices.offset + first * influences * 2),
-                    .weights = static_cast<uint32_t>(model.jointWeights.offset + first * influences),
+                    .bones = static_cast<uint32_t>(model.boneIndices.offset + first * influences * 2),
+                    .weights = static_cast<uint32_t>(model.boneWeights.offset + first * influences),
                     .outPositions = static_cast<uint32_t>(at * 12),
                     .outNormals = static_cast<uint32_t>(skinnedNormalsOffset(count) + at * 4),
                     .outTangents = static_cast<uint32_t>(skinnedTangentsOffset(count) + at * 8),

@@ -12,9 +12,9 @@ namespace {
 
 constexpr float strideSpeed = 1.7f; // the WalkForward clip's, make_walker.py
 
-Vector3 hips(const Character& walker, int32_t joint)
+Vector3 hips(const Character& walker, int32_t bone)
 {
-    const Vector4& row = walker.model(joint).rows[3];
+    const Vector4& row = walker.model(bone).rows[3];
     return {row.x, row.y, row.z};
 }
 
@@ -33,7 +33,7 @@ void moveByRoot(Character& walker)
 TEST_CASE("Root motion moves the entity and keeps the root over it")
 {
     const Reference reference;
-    const int32_t root = reference.joint("Hips");
+    const int32_t root = reference.bone("Hips");
     Character walker(4); // WalkForward
     moveByRoot(walker);
     walker.step(0.5f);
@@ -57,7 +57,7 @@ TEST_CASE("Without root motion the root travels and the entity stays")
     Character walker(4);
     walker.step(0.5f);
     CHECK(placed(walker).position.z == 0.0f);
-    CHECK(hips(walker, reference.joint("Hips")).z == doctest::Approx(0.5f * strideSpeed).epsilon(1e-3));
+    CHECK(hips(walker, reference.bone("Hips")).z == doctest::Approx(0.5f * strideSpeed).epsilon(1e-3));
     CHECK(rootMotion(*walker.world, walker.entity).translation.z == 0.0f);
 }
 

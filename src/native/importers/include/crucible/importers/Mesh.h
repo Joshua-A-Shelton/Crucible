@@ -47,7 +47,7 @@ struct CRUCIBLE_EXPOSE MeshSettings
     float lodRatio;    // each level keeps about this share of the last's triangles
     float lodMaxError; // stop when a level deviates more than this share of the mesh's size
     // Skins and clips (ADR 0078):
-    uint32_t maxInfluences; // joints per vertex, 4 or 8; the strongest are kept, renormalized
+    uint32_t maxInfluences; // bones per vertex, 4 or 8; the strongest are kept, renormalized
     float clipSampleRate;   // samples per second clips are resampled at
     // Collision (ADR 0086):
     CollisionImport collision;

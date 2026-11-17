@@ -35,14 +35,14 @@ struct DrawBatch
 };
 
 // A skinned instance the Skinning step deforms this frame (ADR 0080): its
-// mesh's vertices, blended by `jointCount` palette joints from
+// mesh's vertices, blended by `boneCount` palette bones from
 // `paletteOffset`, into the skinned vertices from `deformedOffset`.
 struct SkinnedInstance
 {
     const MeshData* model;
     uint32_t mesh;
-    uint32_t paletteOffset; // in joints, three float4 rows each
-    uint32_t jointCount;
+    uint32_t paletteOffset; // in bones, three float4 rows each
+    uint32_t boneCount;
     uint32_t deformedOffset; // in vertices
     uint32_t vertexCount;
 };

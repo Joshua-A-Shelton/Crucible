@@ -44,10 +44,10 @@
 //     CRUCIBLE_HINT_MESH_OF(model) int32_t mesh;
 //
 // A name hash (animation::eventName; 0 for none) is picked by name (ADR
-// 0096): a joint of the nearest Animator's skeleton above the entity, or a
-// window on the project's clips ([JointName], [WindowName] in C#).
+// 0096): a bone of the nearest Animator's skeleton above the entity, or a
+// window on the project's clips ([BoneName], [WindowName] in C#).
 //
-//     CRUCIBLE_HINT_JOINT uint32_t joint;
+//     CRUCIBLE_HINT_BONE uint32_t bone;
 //     CRUCIBLE_HINT_WINDOW uint32_t window;
 //
 // Names are placeholders (docs/naming.md).
@@ -67,7 +67,7 @@
 #define CRUCIBLE_HINT_ASSET_SKINNED __attribute__((annotate("crucible_hint_asset_skinned")))
 #define CRUCIBLE_HINT_ENTITY_WITH(...) __attribute__((annotate("crucible_hint_entity_with:" #__VA_ARGS__)))
 #define CRUCIBLE_HINT_MESH_OF(field) __attribute__((annotate("crucible_hint_mesh_of:" #field)))
-#define CRUCIBLE_HINT_JOINT __attribute__((annotate("crucible_hint_joint")))
+#define CRUCIBLE_HINT_BONE __attribute__((annotate("crucible_hint_bone")))
 #define CRUCIBLE_HINT_WINDOW __attribute__((annotate("crucible_hint_window")))
 #else
 #define CRUCIBLE_EXPOSE
@@ -83,6 +83,6 @@
 #define CRUCIBLE_HINT_ASSET_SKINNED
 #define CRUCIBLE_HINT_ENTITY_WITH(...)
 #define CRUCIBLE_HINT_MESH_OF(field)
-#define CRUCIBLE_HINT_JOINT
+#define CRUCIBLE_HINT_BONE
 #define CRUCIBLE_HINT_WINDOW
 #endif

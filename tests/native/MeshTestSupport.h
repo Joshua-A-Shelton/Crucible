@@ -391,11 +391,11 @@ inline Vec3 transform(const Vec3& p, const float* m)
 }
 
 // Every vertex of the model, skinned: each node's local transform is its
-// rest transform, or the clip's at `sample` for the joints it moves.
+// rest transform, or the clip's at `sample` for the bones it moves.
 inline std::vector<Vec3> skinned(const Imported& imported, const Clip* clip, uint32_t sample)
 {
     const std::vector<MeshNode> nodes = imported.table<MeshNode>("NODE");
-    const std::vector<assets::JointEntry> joints = imported.table<assets::JointEntry>("JNTS");
+    const std::vector<assets::BoneEntry> bones = imported.table<assets::BoneEntry>("BONE");
     const uint32_t influences = imported.table<assets::SkinInfo>("SKIN")[0].influences;
     std::vector<Matrix> local(nodes.size());
     for (size_t n = 0; n < nodes.size(); ++n)
@@ -409,12 +409,12 @@ inline std::vector<Vec3> skinned(const Imported& imported, const Clip* clip, uin
     {
         for (const assets::ClipTrack& track : clip->table<assets::ClipTrack>("TRCK"))
         {
-            for (const assets::JointEntry& joint : joints)
+            for (const assets::BoneEntry& bone : bones)
             {
-                if (imported.name(joint.nameOffset, joint.nameLength) == clip->trackName(track))
+                if (imported.name(bone.nameOffset, bone.nameLength) == clip->trackName(track))
                 {
-                    local[joint.node] = compose(clip->translation(track, sample), clip->rotation(track, sample),
-                                                clip->scale(track, sample));
+                    local[bone.node] = compose(clip->translation(track, sample), clip->rotation(track, sample),
+                                               clip->scale(track, sample));
                 }
             }
         }
@@ -428,16 +428,16 @@ inline std::vector<Vec3> skinned(const Imported& imported, const Clip* clip, uin
             world[n] = multiply(world[n], local[p]);
         }
     }
-    std::vector<Matrix> skinning(joints.size());
-    for (size_t j = 0; j < joints.size(); ++j)
+    std::vector<Matrix> skinning(bones.size());
+    for (size_t j = 0; j < bones.size(); ++j)
     {
         Matrix inverseBind;
-        std::memcpy(inverseBind.data(), joints[j].inverseBind, sizeof(inverseBind));
-        skinning[j] = multiply(inverseBind, world[joints[j].node]);
+        std::memcpy(inverseBind.data(), bones[j].inverseBind, sizeof(inverseBind));
+        skinning[j] = multiply(inverseBind, world[bones[j].node]);
     }
 
-    const std::vector<uint16_t> indices = imported.table<uint16_t>("JIDX");
-    const std::vector<uint8_t> weights = imported.table<uint8_t>("JWGT");
+    const std::vector<uint16_t> indices = imported.table<uint16_t>("BIDX");
+    const std::vector<uint8_t> weights = imported.table<uint8_t>("BWGT");
     const size_t vertexCount = imported.sections.at(binary::tag("POSN")).size() / 12;
     std::vector<Vec3> result;
     for (uint32_t v = 0; v < vertexCount; ++v)
