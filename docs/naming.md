@@ -1137,8 +1137,8 @@ entities "Level", "Post", and "Waypoint 1" onward; the check
 `check-level`; ADR 0097 "The M9 demonstration";
 docs/learning/walking-a-level.md.
 
-Names added while building (marked *) are placeholders until the owner
-tries step 8 by hand:
+Names added while building (marked *) settled as drafted too (after the
+owner tried step 8 by hand):
 
 | Name | What it is |
 |---|---|

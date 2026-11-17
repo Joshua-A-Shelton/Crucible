@@ -1,9 +1,8 @@
 # 0097 — The M9 demonstration
 
-**Status:** Accepted (2026-11-16); M9 step 8 built, awaiting the owner's
-try by hand in the Walker's Level scene. The design's names were settled
-before building; names marked * were added while building and are
-placeholders until the try.
+**Status:** Accepted (2026-11-16); M9 step 8 built, then tried by hand by
+the owner in the Walker's Level scene. Names, including those added while
+building, settled by the owner as drafted (docs/naming.md).
 
 ## Context
 
@@ -41,15 +40,15 @@ Decided by the owner (2026-11-16):
   right leg winds back with the knee bent until 0.3 s, kicks forward and
   straightens until 0.5 s, and comes back by 1 s, the arms swinging
   against it. Its "Strike" window is 0.3 to 0.55 s (the model's sidecar).
-- **The state machine** (Assets/Models/Level.crstates*): Idle, Swing (not
-  looping), and Walk (WalkForward); a Bool `Arrived`*. Idle goes to Swing
+- **The state machine** (Assets/Models/Level.crstates): Idle, Swing (not
+  looping), and Walk (WalkForward); a Bool `Arrived`. Idle goes to Swing
   at half its 2 s loop while not Arrived, Swing to Walk at its end, Walk to
   Idle once Arrived. The other scenes keep Walker.crstates.
 - **The scene** (Level.crscene): sky, sun, a camera over the level, the
   "Level" (the model with a Mesh Collider), the Walker (Animator on
   Level.crstates with root motion, a CharacterController, Footsteps, a
   `RouteFollower`), "Foot Attachment" on its right foot with a "Strike
-  Hitbox"* under it (window Strike, mask layer 2), a dynamic "Post" on
+  Hitbox" under it (window Strike, mask layer 2), a dynamic "Post" on
   layer 2 in front of its right foot, and "Waypoint 1" to "Waypoint 6":
   round the platform's foot, up the ramp, across, down the stairs, along
   the far side, and back.
@@ -87,8 +86,8 @@ The route takes about 35 s, its end reached within 0.1 s at either rate
 
 ## As built
 
-- samples/Walker: `make_level.py`, `make_walker.py`'s `swing`* and
-  `KICK`*; Assets/Models/Level.gltf, Level.bin, their sidecars, and
-  Level.crstates*; Walker.gltf.crmeta's Swing clip (its sub-asset ID) and
+- samples/Walker: `make_level.py`, `make_walker.py`'s `swing` and
+  `KICK`; Assets/Models/Level.gltf, Level.bin, their sidecars, and
+  Level.crstates; Walker.gltf.crmeta's Swing clip (its sub-asset ID) and
   Strike window; Assets/Scenes/Level.crscene; Code/Route.cs; Code/Kicks.cs.
 - src/managed/Crucible.Editor/LevelChecks.cs; CTest samples.walker-level.

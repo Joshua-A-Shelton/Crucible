@@ -728,8 +728,8 @@ decision made at its start):
    fps the hit lands 0.14 ms earlier than at 60 to 240 fps (which agree
    within 10 µs): the sweep's screw between frames isn't the kick's curve
    (ADR 0096's known limitation). The owner loosened the check from 50 µs
-   to 0.5 ms. samples.walker-level passes. Awaiting the owner's try by
-   hand.
+   to 0.5 ms. samples.walker-level passes. Tried by hand by the owner;
+   names settled as drafted. Step 8 is done.
 
 **Status (2026-11-11):** step 1 built (ADR 0085): Box3D (f36d061) in the
 core, its tasks on the job system and its memory through Crucible's
