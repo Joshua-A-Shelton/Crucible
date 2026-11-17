@@ -11,6 +11,9 @@ namespace Crucible.Editor;
 /// <summary>What an asset drag carries (ADR 0071): the asset, and its path under Assets.</summary>
 public sealed record AssetDrag(AssetId Id, string Path);
 
+/// <summary>What a folder drag carries: its path under Assets (the Build Settings window's include list takes it).</summary>
+public sealed record FolderDrag(string Path);
+
 /// <summary>
 /// The project's assets (ADR 0071): the folders of Assets on the left, the
 /// chosen folder's subfolders and files as <see cref="AssetTile"/>s on the
@@ -245,7 +248,7 @@ public sealed class AssetsPanel : EditorPanel
 
     private static string Join(string folder, string name) => folder.Length == 0 ? name : folder + "/" + name;
 
-    private static bool Visible(string path)
+    internal static bool Visible(string path)
     {
         string name = Path.GetFileName(path);
         return !name.StartsWith('.') && !name.Contains(".tmp-", StringComparison.Ordinal);
@@ -388,14 +391,15 @@ public sealed class AssetTile : UIElement
 
     protected override void OnPointerMove(PointerEvent e)
     {
-        if (_pressedAt is not { } from || Vector2.Distance(from, e.Position) < DragThreshold || Asset is null || Root is not { } root)
+        if (_pressedAt is not { } from || Vector2.Distance(from, e.Position) < DragThreshold || (Asset is null && !IsFolder) ||
+            Root is not { } root)
         {
             return;
         }
         _pressedAt = null;
         Label preview = new(System.IO.Path.GetFileName(Path));
         preview.Classes.Add("drag-preview");
-        root.BeginDrag(new AssetDrag(Asset.Id, Path), preview);
+        root.BeginDrag(Asset is not null ? new AssetDrag(Asset.Id, Path) : new FolderDrag(Path), preview);
     }
 
     protected override void OnPointerUp(PointerEvent e) => _pressedAt = null;

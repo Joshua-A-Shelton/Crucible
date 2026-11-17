@@ -848,7 +848,10 @@ decision made at its start):
    project file; Game.crpak written by ArchiveWriter (crucible/PackFile.h
    for the reader); the Cooker's walk; the Build menu, the Build Settings
    window, and --cook. The Walker's Level scene cooks to 8 assets (about
-   60 KB). Awaiting the owner's try by hand.
+   60 KB). The owner's first try found the Build Settings window hard to
+   read and to add to; it was redesigned (cards, drop-downs of the
+   project's scenes and assets, drops from the Assets panel). Awaiting the
+   owner's next try.
 2. Loading from archives: the runtime reads assets from archives instead
    of the project's Cache, asynchronously on background jobs.
 3. JIT shipping builds: a package folder with the launcher, the core, the

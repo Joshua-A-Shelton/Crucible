@@ -373,6 +373,20 @@ if(CRUCIBLE_BUILD_TESTS)
         PASS_REGULAR_EXPRESSION "Cooked 8 assets [^\n]*walker-cooked[/\\\\]Game.crpak"
         FAIL_REGULAR_EXPRESSION "Can't cook")
 
+    # The Build Settings window checking itself (ADR 0098): on a copy of the
+    # Walker's project (in the test's folder), scenes added from the
+    # drop-down, reordered, and removed; a folder dragged in from the Assets
+    # panel and an asset picked into Always Include; a cook; the window saved
+    # as build-settings.png.
+    add_test(NAME launcher.jit.build-settings
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
+            --project "${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject"
+            --game-arg "check-build-settings=${CMAKE_CURRENT_BINARY_DIR}"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/build-settings-settings.json")
+    set_tests_properties(launcher.jit.build-settings PROPERTIES LABELS "integration;gpu" TIMEOUT 300
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "BuildSettingsChecks: all [0-9]+ checks passed")
+
     # Import settings and engine messages checking themselves (ADR 0087): a
     # copy of the Walker's project (in the test's folder), a collider's
     # notice cooked, the core's warning in the Log, and the model's settings
@@ -449,7 +463,7 @@ if(CRUCIBLE_BUILD_TESTS)
     # 0074): one at a time, or the builds race.
     set_tests_properties(launcher.jit.viewport launcher.jit.hierarchy launcher.jit.inspector launcher.jit.assets
         launcher.jit.play launcher.jit.standalone launcher.jit.native PROPERTIES RESOURCE_LOCK diorama-project-cache)
-    set_tests_properties(samples.walker samples.walker-level samples.walker-cook launcher.jit.import-settings launcher.jit.play-toolbar
+    set_tests_properties(samples.walker samples.walker-level samples.walker-cook launcher.jit.build-settings launcher.jit.import-settings launcher.jit.play-toolbar
         launcher.jit.pickers PROPERTIES
         RESOURCE_LOCK walker-project-cache)
 

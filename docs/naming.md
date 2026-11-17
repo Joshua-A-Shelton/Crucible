@@ -1167,6 +1167,8 @@ tries step 1 by hand:
 | `ArchiveWriter.StartScene`*, `Alignment`*, `ReadIndex`*, `ReadStartScene`* | The writer's extras |
 | `CookResult`* (`ArchivePath`, `AssetCount`, `Size`, `Errors`, `Succeeded`), `Cooker.ArchiveName`* | A cook's outcome |
 | `BuildSettings`*, `Project.SaveBuild`*, `Project.CookedFolder`*, `AssetDatabase.ReferencesOf`* | Settings and references |
-| `BuildSettingsPanel`*, its panel ID `BuildSettings`*, the commands `Build.Settings`* and `Build.Cook`*; the window's "Scenes (the first starts the game)"*, "Add Open Scene"*, "Always include"*, "Up"*, "Remove"*, "Add"* | The editor |
+| `BuildSettingsPanel`*, its panel ID `BuildSettings`*, the commands `Build.Settings`* and `Build.Cook`* | The editor |
+| The window's cards "Scenes"*, "Always Include"*, "Cook"*; hints "The first one starts the game."* and "Assets game code loads by ID, packed whether or not anything names them."*; the "Start"* tag; drop-downs "Add scene…"* and "Add asset or folder…"* ("Nothing left to add"* when empty); rows' "folder, N assets"* and "not found"*; "Writes Game.crpak to Build/Cooked."*; "Last cook: N assets, S at HH:MM"* and "Last cook failed: N problems, see the Log"*; the empty lists' "No scenes yet: …"* and "Nothing yet: …"* | The window's text (redesigned after the owner's first try) |
+| `AddPicker`* (a drop-down that keeps its label), `FolderDrag`* (a folder dragged from the Assets panel), `IconButton.Icon.Up`*, `Down`*, `Remove`*, `Shell.LastCook`*; `BuildSettingsChecks`*, game argument `check-build-settings=`*, CTest `launcher.jit.build-settings`* | The redesign's parts |
 | the game argument `cook=`*; CTest `samples.walker-cook`*; `/Build/`* in projects' .gitignore | Running it |
 

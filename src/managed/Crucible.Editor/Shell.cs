@@ -251,6 +251,7 @@ internal sealed partial class Shell
         try
         {
             Project = Project.Open(projectFile);
+            LastCook = null;
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException
                                               or System.Text.Json.JsonException or ArgumentException)
@@ -1328,6 +1329,7 @@ internal sealed partial class Shell
             .Set(UIElement.ForegroundProperty, muted)
             .Set(UIElement.CornerRadiiProperty, new Vector4(3)));
         theme.Add(new Style("IconButton:hover").Set(UIElement.BackgroundProperty, hover).Set(UIElement.ForegroundProperty, text));
+        theme.Add(new Style("IconButton:disabled").Set(UIElement.OpacityProperty, 0.3f));
         theme.Add(new Style("Label.field-name").Set(UIElement.ForegroundProperty, muted));
         theme.Add(new Style("Label.field-header")
             .Set(UIElement.ForegroundProperty, text)
@@ -1353,6 +1355,30 @@ internal sealed partial class Shell
             .Set(UIElement.BorderWidthProperty, 1f)
             .Set(UIElement.CornerRadiiProperty, new Vector4(4))
             .Set(UIElement.PaddingProperty, new Thickness(8, 3, 8, 3)));
+        // The Build Settings window (ADR 0098): cards with a title over muted hints, rows, and a primary Cook.
+        theme.Add(new Style("BuildCard")
+            .Set(UIElement.BackgroundProperty, strip)
+            .Set(UIElement.CornerRadiiProperty, new Vector4(4))
+            .Set(UIElement.PaddingProperty, new Thickness(10, 8, 10, 10))
+            .Set(UIElement.BorderColorProperty, accent));
+        theme.Add(new Style("BuildCard.drop-over").Set(UIElement.BorderWidthProperty, 2f));
+        theme.Add(new Style("Label.card-title").Set(UIElement.FontSizeProperty, 18f));
+        theme.Add(new Style("Label.hint").Set(UIElement.ForegroundProperty, muted).Set(UIElement.FontSizeProperty, 12f));
+        theme.Add(new Style("DockPanel.build-row")
+            .Set(UIElement.BackgroundProperty, panel)
+            .Set(UIElement.CornerRadiiProperty, new Vector4(3))
+            .Set(UIElement.PaddingProperty, new Thickness(8, 3, 4, 3)));
+        theme.Add(new Style("Label.row-index").Set(UIElement.ForegroundProperty, muted).Set(UIElement.WidthProperty, 18f));
+        theme.Add(new Style("Label.row-detail")
+            .Set(UIElement.ForegroundProperty, muted)
+            .Set(UIElement.FontSizeProperty, 12f)
+            .Set(UIElement.MarginProperty, new Thickness(8, 0, 0, 0)));
+        theme.Add(new Style("Label.start-tag")
+            .Set(UIElement.ForegroundProperty, accent)
+            .Set(UIElement.FontSizeProperty, 12f)
+            .Set(UIElement.MarginProperty, new Thickness(8, 0, 0, 0)));
+        theme.Add(new Style("Button.primary").Set(UIElement.BackgroundProperty, accent with { W = 0.75f }));
+        theme.Add(new Style("Button.primary:hover").Set(UIElement.BackgroundProperty, accent));
         return theme;
     }
 

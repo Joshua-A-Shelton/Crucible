@@ -1566,7 +1566,7 @@ public sealed class FieldEditor : UIElement
     }
 }
 
-/// <summary>A small button drawn as a fold's chevron (open, closed) or a menu's three dots.</summary>
+/// <summary>A small button drawn as a fold's chevron (open, closed), a menu's three dots, an arrow up or down, or a cross.</summary>
 internal sealed class IconButton : ButtonBase
 {
     public enum Icon
@@ -1574,6 +1574,9 @@ internal sealed class IconButton : ButtonBase
         Open,
         Closed,
         Menu,
+        Up,
+        Down,
+        Remove,
     }
 
     private Icon _shows;
@@ -1608,7 +1611,19 @@ internal sealed class IconButton : ButtonBase
             }
             return;
         }
-        Chevron.Draw(canvas, size, Foreground, _shows == Icon.Open ? NavigationDirection.Down : NavigationDirection.Right);
+        if (_shows == Icon.Remove)
+        {
+            Vector2 c = size * 0.5f, d = new(4);
+            canvas.DrawLine(c - d, c + d, 1.5f, Foreground);
+            canvas.DrawLine(c + new Vector2(-4, 4), c + new Vector2(4, -4), 1.5f, Foreground);
+            return;
+        }
+        Chevron.Draw(canvas, size, Foreground, _shows switch
+        {
+            Icon.Open or Icon.Down => NavigationDirection.Down,
+            Icon.Up => NavigationDirection.Up,
+            _ => NavigationDirection.Right,
+        });
     }
 }
 

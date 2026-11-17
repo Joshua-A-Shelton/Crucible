@@ -26,6 +26,9 @@ internal sealed partial class Shell
         }
     }
 
+    /// <summary>The last cook this session, and when it ran; the Build Settings window shows it.</summary>
+    internal (CookResult Result, DateTime At)? LastCook { get; private set; }
+
     /// <summary>
     /// Cooks the project into <paramref name="folder"/> (its
     /// <see cref="Project.CookedFolder"/> by default), importing what changed
@@ -40,6 +43,7 @@ internal sealed partial class Shell
         }
         RefreshAssets();
         CookResult result = new Cooker(database).Cook(folder);
+        LastCook = (result, DateTime.Now);
         if (result.Succeeded)
         {
             Log($"Cooked {result.AssetCount} assets ({result.Size / 1024.0 / 1024.0:0.0} MiB) into {result.ArchivePath}");

@@ -39,14 +39,36 @@ Decided by the owner (2026-11-17):
    they are. More archives (patches, DLC) can come later; the header has a
    start scene of zero for one that isn't a game's own.
 4. **The Build menu and the command line.** Build > Build Settings… opens
-   the Build Settings window (a panel: the scenes, with Up and Remove; Add
-   Open Scene; the include list, with a path field; Cook); every change
-   saves the project file at once (`Project.SaveBuild`*). Build > Cook
+   the Build Settings window (a panel, see below); every change saves the
+   project file at once (`Project.SaveBuild`*). Build > Cook
    imports what changed and cooks into Build/Cooked in the project
    (`Project.CookedFolder`*), logging the count and size, or every problem.
    Headless, the editor's `--cook <folder>` (the game argument `cook=`*)
    cooks there and quits. New projects' .gitignore keeps Build/ out, as the
    samples' do now.
+
+## The Build Settings window
+
+Redesigned after the owner's first try (2026-11-17), which found every
+line looking alike, "Add Open Scene" needing the scene opened first, and
+the include list's path field unclear. Decided by the owner:
+
+- **Cards**, like the Inspector's components: Scenes, Always Include, and
+  Cook, each a title over a muted hint. Rows show the name bright and its
+  folder muted; the first scene's name is followed by a Start tag; Up,
+  Down, and Remove are icon buttons.
+- **Scenes** are added from a drop-down of the project's scenes not yet
+  listed (`AddPicker`*, which keeps its label and reads its choices each
+  time it opens), or by dropping one from the Assets panel.
+- **Always Include** takes the same: a drop-down of the project's folders,
+  then its assets, or a drop from the Assets panel, whose folders can now
+  be dragged (`FolderDrag`*). No paths are typed. A folder's row says how
+  many assets it covers; an entry that matches nothing says "not found".
+- **Cook** says where it writes and how the last cook went (its count,
+  size, and time, or how many problems, with the details in the Log).
+
+`BuildSettingsChecks`* (CTest launcher.jit.build-settings*) drives it on a
+copy of the Walker's project and saves build-settings.png.
 
 ## The walk
 
@@ -91,11 +113,11 @@ scenes or the Walk clip.
   (`ArchivePath`, `AssetCount`, `Size`, `Errors`, `Succeeded`).
 - crucible/PackFile.h*: `PackHeader`*, `PackEntry`*, `packFileKind`*,
   `packFileVersion`*, `packAlignment`*; read at run time from step 2.
-- The editor: Shell.Build.cs (`Build.Settings`*, `Build.Cook`*, `Cook`),
-  BuildSettingsPanel.cs* (panel ID `BuildSettings`*), the Build menu; the
-  launcher's `--cook`.
+- The editor: Shell.Build.cs (`Build.Settings`*, `Build.Cook`*, `Cook`,
+  `LastCook`*), BuildSettingsPanel.cs* (panel ID `BuildSettings`*,
+  `AddPicker`*), `FolderDrag`*, the Build menu; the launcher's `--cook`.
 - Tests: `CookerTests` (the Walker's Level cooks to just what it needs,
   sorted and aligned, the same sections; state machines record their
   clips; included folders; problems), MaterialImporterTests' "A material
   records its shader and textures for cooking"; CTest
-  samples.walker-cook*.
+  samples.walker-cook*; `BuildSettingsChecks`* (launcher.jit.build-settings*).
