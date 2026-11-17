@@ -61,6 +61,42 @@ TEST_CASE("A 2D character climbs a low step and is blocked by a high one")
     }
 }
 
+TEST_CASE("Step Smoothing eases a 2D character up onto a step and down off it")
+{
+    Scene2D scene;
+    ground2D(scene);
+    scene.add(box2D({4, 0.2f}), {3, 0.1f}); // a 0.2 m step from x = 1
+    const ecs::Entity walker = character2D(scene, {0.7f, 0});
+    ecs::get<CharacterController2D>(*scene.world, walker)->stepSmoothing = 0.1f;
+    scene.step();
+    walk2D(scene, walker, {}, 2);
+    // Up: partway on the first frame onto it, on top a little later.
+    float up = 0;
+    for (int i = 0; i < 20 && up == 0; ++i)
+    {
+        up = walk2D(scene, walker, {0.05f, 0}, 1).position.y;
+    }
+    CHECK(up > 0.01f);
+    CHECK(up < 0.12f);
+    CHECK(walk2D(scene, walker, {0.05f, 0}, 12).position.y == doctest::Approx(0.2f).epsilon(0.02));
+    // Down, walking back off it: over the edge, then settling over about
+    // 0.1 s, never dropping more than a little in one move, grounded all
+    // the way.
+    float previous = 0.2f, biggest = 0;
+    bool grounded = true;
+    CharacterMove2D later{};
+    for (int i = 0; i < 60; ++i)
+    {
+        later = walk2D(scene, walker, {-0.05f, 0}, 1);
+        biggest = std::max(biggest, previous - later.position.y);
+        grounded = grounded && later.grounded;
+        previous = later.position.y;
+    }
+    CHECK(grounded);
+    CHECK(biggest < 0.06f);
+    CHECK(later.position.y == doctest::Approx(0.0f).epsilon(0.02));
+}
+
 TEST_CASE("A 2D character walks up a walkable slope but not a steep one")
 {
     {

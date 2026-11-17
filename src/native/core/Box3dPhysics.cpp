@@ -1729,14 +1729,15 @@ bool gatherPlanes(b3ShapeId shape, const b3PlaneResult* results, int count, void
     return true;
 }
 
-// The feet's height on ground found at `ground`: down at once (the cast
-// keeps them on it), and up onto a step eased over the step smoothing, so a
-// character rises rather than snaps (an exponential approach, nine-tenths
-// of the way in that time, the same at any frame rate). Landing from a
-// fall isn't eased.
+// The feet's height on ground found at `ground`: up onto a step or down to
+// the one below eased over the step smoothing, so a character rises and
+// settles rather than snaps (an exponential approach, nine-tenths of the way
+// in that time, the same at any frame rate). Going down, the feet float
+// briefly above the lower ground; the ground cast reaches a step below
+// them, so they stay grounded. Landing from a fall isn't eased.
 float settle(float feet, float ground, const CharacterController& controller, bool wasGrounded, float seconds)
 {
-    if (ground <= feet || !wasGrounded || controller.stepSmoothing <= 0 || seconds <= 0)
+    if (!wasGrounded || controller.stepSmoothing <= 0 || seconds <= 0)
     {
         return ground;
     }

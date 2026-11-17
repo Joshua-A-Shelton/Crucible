@@ -116,7 +116,8 @@ struct CRUCIBLE_EXPOSE CharacterController2D
     CRUCIBLE_HINT_LAYERS uint32_t mask;               // the layers it collides with
     // Of 2D gravity; 0 leaves moving up and down to the game.
     CRUCIBLE_HINT_RANGE(0, 4) float gravityScale;
-    // Seconds to rise onto a step (nine-tenths of the way); 0 snaps up at once.
+    // Seconds to rise onto a step or settle down one (nine-tenths of the way);
+    // 0 snaps at once.
     CRUCIBLE_HINT_RANGE(0, 0.5) float stepSmoothing;
 };
 

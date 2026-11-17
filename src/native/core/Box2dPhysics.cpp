@@ -1432,10 +1432,11 @@ Character& characterOf(PhysicsWorld& physics, ecs::Entity entity)
     return *character;
 }
 
-// Feet up onto higher ground eased over the step smoothing; down at once.
+// Feet up onto higher ground and down to lower ground eased over the step
+// smoothing, as in 3D; landing from a fall isn't.
 float settle(float feet, float ground, const CharacterController2D& controller, bool wasGrounded, float seconds)
 {
-    if (ground <= feet || !wasGrounded || controller.stepSmoothing <= 0 || seconds <= 0)
+    if (!wasGrounded || controller.stepSmoothing <= 0 || seconds <= 0)
     {
         return ground;
     }

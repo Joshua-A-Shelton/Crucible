@@ -41,7 +41,9 @@ the same rules as 3D for both.
   `CharacterController2D.Move`, `.Launch`) as 3D's, returning
   `CharacterMove2D`* (`position`, `grounded`, `groundNormal`,
   `fallSpeed`). Its entity's Transform2D is its feet; bodies meet it as a
-  kinematic capsule, and it pushes dynamic bodies it walks into.
+  kinematic capsule, and it pushes dynamic bodies it walks into. Step
+  Smoothing eases it down to lower ground too, as in 3D (ADR 0091's
+  amendment of 2026-11-17).
 - **Characters pass through each other.** Box2D's `b2World_CastMover`
   takes no filter callback, so a character can't skip its own capsule by
   entity. Instead every character capsule (and trigger shape) leaves the

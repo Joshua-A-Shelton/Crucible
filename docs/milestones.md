@@ -813,6 +813,9 @@ modes.
 **First** (agreed with the owner, 2026-11-17): easing characters down
 steps, in 3D and 2D (open items; ADR 0091's and 0094's step smoothing),
 tried by hand like a step.
+Built (ADR 0091's second amendment): Step Smoothing eases the feet down
+as well as up, slopes included, in 3D and 2D. Awaiting the owner's try by
+hand.
 
 **Steps** (agreed with the owner, 2026-11-17; one commit each, each step's
 decision made at its start):
