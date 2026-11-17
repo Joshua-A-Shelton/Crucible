@@ -41,7 +41,8 @@ public sealed class MaterialImporter : Importer<MaterialImportSettings>
 
     public override string Name => "Material";
 
-    public override int Version => 2;
+    // 3: its shader and textures recorded as references for cooking (ADR 0098).
+    public override int Version => 3;
 
     public override IReadOnlyList<string> Extensions => [FileExtension];
 
@@ -55,6 +56,7 @@ public sealed class MaterialImporter : Importer<MaterialImportSettings>
             ? parsed
             : throw new InvalidDataException("Shader must be a material shader's asset ID");
         string typeName = String(root, "Type");
+        context.Reference(shaderId);
         byte[] shaderFile = context.ReadImported(shaderId) ??
                             throw new InvalidDataException($"its shader, {shaderId}, isn't an asset that imports");
         List<MaterialTypes.Type> types;
@@ -109,6 +111,7 @@ public sealed class MaterialImporter : Importer<MaterialImportSettings>
                     {
                         throw new InvalidDataException($"{texture.Name}: a texture is given by its asset ID");
                     }
+                    context.Reference(id);
                     MaterialTexture entry = new() { Offset = (uint)(parameter.Offset + e * parameter.ArrayStride) };
                     id.Value.TryWriteBytes(entry.Texture);
                     textures.Add(entry);

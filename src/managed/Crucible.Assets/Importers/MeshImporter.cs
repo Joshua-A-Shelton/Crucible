@@ -141,8 +141,9 @@ public sealed class MeshImporter : Importer<MeshImportSettings>
     // 2: generated materials (MTLS); 3: remapped slots (MRMP); 5: skins and
     // clips; 6: clip events and windows; 7: collision data (COLM, COLH; moving
     // the Box3D pin to a changed data format bumps it too); 8: skin sections
-    // renamed from joints to bones (BONE, BIDX, BWGT).
-    public override int Version => 8;
+    // renamed from joints to bones (BONE, BIDX, BWGT); 9: its references
+    // recorded for cooking (ADR 0098).
+    public override int Version => 9;
 
     public override IReadOnlyList<string> Extensions => [".gltf", ".glb"];
 
@@ -236,6 +237,7 @@ public sealed class MeshImporter : Importer<MeshImportSettings>
                     context.Warn($"material {m}: its {role} texture, {looked}, isn't in Assets/");
                     continue;
                 }
+                context.Reference(texture);
                 texture.Value.TryWriteBytes(TextureSlot(ref material, role));
             }
             materials[m] = material;
@@ -250,6 +252,7 @@ public sealed class MeshImporter : Importer<MeshImportSettings>
             {
                 if (!settings.Materials[slot].IsNone)
                 {
+                    context.Reference(settings.Materials[slot]);
                     settings.Materials[slot].Value.TryWriteBytes(remap.AsSpan(16 * slot, 16));
                 }
             }

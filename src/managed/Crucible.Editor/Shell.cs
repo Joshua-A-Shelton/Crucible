@@ -431,6 +431,10 @@ internal sealed partial class Shell
             {
                 game.View.Render(world);
             }
+            else if (panel is BuildSettingsPanel build && build.IsStale)
+            {
+                build.Refresh(); // another project opened
+            }
         }
         if (_pickView is { } view && view.Surface.Value != 0)
         {
@@ -579,6 +583,7 @@ internal sealed partial class Shell
         RegisterAssetCommands();
         RegisterPlayCommands();
         RegisterStandaloneCommands();
+        RegisterBuildCommands();
         Commands.Add(new Command("File.Quit", "Quit", RequestQuit)
         {
             Shortcut = new Shortcut(KeyModifiers.Ctrl, Keycode.Q),
@@ -658,6 +663,10 @@ internal sealed partial class Shell
         viewMenu.Add(Commands.Find("View.Colliders")!);
         viewMenu.Add(Commands.Find("View.Queries")!);
 
+        Menu build = Main.MenuBar.Add("Build");
+        build.Add(Commands.Find("Build.Settings")!);
+        build.Add(Commands.Find("Build.Cook")!);
+
         Menu window = Main.MenuBar.Add("Window");
         foreach ((string id, _) in Panels.Panels)
         {
@@ -700,6 +709,7 @@ internal sealed partial class Shell
         Panels.Register("Assets", "Assets", () => new AssetsPanel(this));
         Panels.Register("Game", "Game", () => new GamePanel(this));
         Panels.Register("Log", "Log", () => new LogPanel());
+        Panels.Register("BuildSettings", "Build Settings", () => new BuildSettingsPanel(this));
     }
 
     // The open panel of an ID, made if it isn't open.

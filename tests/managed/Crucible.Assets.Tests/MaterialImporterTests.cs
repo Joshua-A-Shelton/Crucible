@@ -108,6 +108,16 @@ public class MaterialImporterTests
     }
 
     [Test]
+    public async Task AMaterialRecordsItsShaderAndTexturesForCooking()
+    {
+        using Scratch scratch = new();
+        (AssetDatabase database, AssetId shader, AssetId texture) = Setup(scratch, Wall);
+        AssetId material = database.Find("Materials/wall.crmaterial")!.Id;
+        await Assert.That(database.Import(material).Error).IsNull();
+        await Assert.That(CookerTests.Sorted(database.ReferencesOf(material))).IsEqualTo(CookerTests.Sorted([shader, texture]));
+    }
+
+    [Test]
     public async Task ChangingTheShaderReimportsItsMaterials()
     {
         using Scratch scratch = new();

@@ -10,6 +10,23 @@ public partial class ProjectFile
 
     /// <summary>The physics layers' names, by layer, up to 32 (ADR 0075); "" for an unnamed layer.</summary>
     public List<string> PhysicsLayers = [];
+
+    /// <summary>What a cook packs (ADR 0098).</summary>
+    public BuildSettings Build = new();
+}
+
+/// <summary>What cooking packs (ADR 0098): the project file's "Build" section.</summary>
+[Serialized]
+public partial class BuildSettings
+{
+    /// <summary>The root scenes, by ID; the first is the one the game starts with.</summary>
+    public List<AssetId> Scenes = [];
+
+    /// <summary>
+    /// Assets, or folders of them, always packed, by their paths inside
+    /// <c>Assets/</c>: what game code loads by ID, which no walk sees.
+    /// </summary>
+    public List<string> Include = [];
 }
 
 /// <summary>
@@ -22,18 +39,26 @@ public sealed class Project
 {
     public const string Extension = ".crproject";
 
-    private Project(string projectFile, string name, IReadOnlyList<string>? physicsLayers = null)
+    private Project(string projectFile, string name, IReadOnlyList<string>? physicsLayers = null,
+        BuildSettings? build = null)
     {
         ProjectFilePath = Path.GetFullPath(projectFile);
         Root = Path.GetDirectoryName(ProjectFilePath)!;
         Name = name;
         PhysicsLayers = physicsLayers ?? [];
+        Build = build ?? new BuildSettings();
     }
 
     public string Name { get; }
 
     /// <summary>The physics layers' names, by layer (ADR 0075): what layer masks show.</summary>
     public IReadOnlyList<string> PhysicsLayers { get; }
+
+    /// <summary>What a cook packs (ADR 0098); <see cref="SaveBuild"/> changes it.</summary>
+    public BuildSettings Build { get; private set; }
+
+    /// <summary>The default folder a cook writes to: <c>Build/Cooked</c> in the project.</summary>
+    public string CookedFolder => Path.Combine(Root, "Build", "Cooked");
     public string ProjectFilePath { get; }
     public string Root { get; }
     public string AssetsFolder => Path.Combine(Root, "Assets");
@@ -45,13 +70,25 @@ public sealed class Project
     public static Project Open(string projectFile)
     {
         ProjectFile file = Json.Deserialize<ProjectFile>(File.ReadAllBytes(projectFile));
-        Project project = new(projectFile, file.Name, [.. file.PhysicsLayers.Take(32)]);
+        Project project = new(projectFile, file.Name, [.. file.PhysicsLayers.Take(32)], file.Build);
         Directory.CreateDirectory(project.AssetsFolder);
         Directory.CreateDirectory(project.CacheFolder);
         return project;
     }
 
-    /// <summary>Makes a new project in <paramref name="folder"/>, with a .gitignore keeping the cache out.</summary>
+    /// <summary>
+    /// Saves new build settings into the project file, keeping the rest of
+    /// what it holds as it is.
+    /// </summary>
+    public void SaveBuild(BuildSettings build)
+    {
+        ProjectFile file = Json.Deserialize<ProjectFile>(File.ReadAllBytes(ProjectFilePath));
+        file.Build = build;
+        Files.WriteAtomically(ProjectFilePath, Json.Serialize(file));
+        Build = build;
+    }
+
+    /// <summary>Makes a new project in <paramref name="folder"/>, with a .gitignore keeping the cache and cooked builds out.</summary>
     public static Project Create(string folder, string name)
     {
         Directory.CreateDirectory(folder);
@@ -65,7 +102,7 @@ public sealed class Project
         string ignore = Path.Combine(folder, ".gitignore");
         if (!File.Exists(ignore))
         {
-            File.WriteAllText(ignore, "/Cache/\n");
+            File.WriteAllText(ignore, "/Cache/\n/Build/\n");
         }
         return project;
     }

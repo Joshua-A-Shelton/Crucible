@@ -1,3 +1,7 @@
 {
-  "Name": "Walker"
+  "Name": "Walker",
+  "Build": {
+    "Scenes": ["28fe2d80-33ef-4ee4-a409-cc43b935bcc6"],
+    "Include": []
+  }
 }

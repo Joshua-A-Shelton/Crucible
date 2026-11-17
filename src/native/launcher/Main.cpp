@@ -111,6 +111,8 @@ int run(int argc, ArgumentChar** argv)
     // opens them for a game (ADR 0073), the editor for itself. --module <file>
     // (repeatable) loads a project's native module (ADR 0074) once the
     // engine's native side is up, before the C# engine builds its schedule.
+    // --cook <folder> (the game argument cook=) has the editor cook the
+    // project into the folder and quit (ADR 0098).
     std::filesystem::path managedDirectory = executableDirectory();
     std::vector<std::u8string> modules;
     bool gameGiven = false;
@@ -192,11 +194,14 @@ int run(int argc, ArgumentChar** argv)
             crucible::setGamePath({reinterpret_cast<const char*>(utf8.data()), utf8.size()});
             gameGiven = true;
         }
-        else if (option == CRUCIBLE_ARGUMENT("--project") || option == CRUCIBLE_ARGUMENT("--scene"))
+        else if (option == CRUCIBLE_ARGUMENT("--project") || option == CRUCIBLE_ARGUMENT("--scene") ||
+                 option == CRUCIBLE_ARGUMENT("--cook"))
         {
             std::error_code error;
             const std::filesystem::path path = std::filesystem::absolute(std::filesystem::path(value), error);
-            const std::u8string key = option == CRUCIBLE_ARGUMENT("--project") ? u8"project=" : u8"scene=";
+            const std::u8string key = option == CRUCIBLE_ARGUMENT("--project") ? u8"project="
+                                      : option == CRUCIBLE_ARGUMENT("--scene") ? u8"scene="
+                                                                               : u8"cook=";
             const std::u8string utf8 = key + (error ? std::filesystem::path(value) : path).u8string();
             crucible::addGameArgument({reinterpret_cast<const char*>(utf8.data()), utf8.size()});
         }

@@ -30,6 +30,12 @@ public sealed class EditorSystem : GameSystem
         {
             _shell.OpenScene(scene);
         }
+        // --cook <folder> (ADR 0098): cook the project and quit.
+        if (context.GameArguments.TryGetValue("cook", out string? cook))
+        {
+            _shell.Cook(cook);
+            context.QuitRequested = true;
+        }
     }
 
     public override void Run(FrameContext context)

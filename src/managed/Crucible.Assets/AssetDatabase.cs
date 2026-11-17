@@ -65,6 +65,7 @@ internal partial class ImportRecord
     public string Key = "";
     public Dictionary<string, string> Dependencies = [];
     public string Extension = ""; // a sub-asset's (its importer's is the parent's)
+    public List<string> References = []; // the asset IDs its output names (ADR 0098)
 }
 
 [Serialized]
@@ -544,6 +545,15 @@ public sealed class AssetDatabase
         return output is null ? null : File.ReadAllBytes(output);
     }
 
+    /// <summary>
+    /// The assets an asset's imported file names by ID (ADR 0098), as its
+    /// importer reported them; empty if it isn't imported or names none.
+    /// </summary>
+    public IReadOnlyList<AssetId> ReferencesOf(AssetId id) =>
+        _records.Assets.TryGetValue(id.ToString(), out ImportRecord? record)
+            ? [.. record.References.Select(AssetId.Parse)]
+            : [];
+
     /// <summary>The asset's imported file, if its import is up to date; null otherwise.</summary>
     public string? ImportedFile(AssetId id)
     {
@@ -613,6 +623,7 @@ public sealed class AssetDatabase
             {
                 Key = key,
                 Dependencies = new Dictionary<string, string>(context.Dependencies, StringComparer.Ordinal),
+                References = [.. context.References],
             };
             WriteSubAssets(entry, importer, key, context.SubAssets);
             return new ImportResult(entry.Id, entry.Path, ImportOutcome.Imported, output, null)

@@ -171,3 +171,6 @@ Longer explanations of decisions, written to be reread:
 - [Walking a level](docs/learning/walking-a-level.md) (ADR 0097): a level
   as one mesh, steering on top of root motion, where exact moments come
   from, and comparing two runs.
+- [Cooking](docs/learning/cooking.md) (ADR 0098): source, cached, and
+  cooked data, walking what a game uses, and an archive laid out for
+  reading.

@@ -842,6 +842,13 @@ decision made at its start):
      editor's `--cook <folder>`. The default output is Build/Cooked in the
      project. C# `Cooker` and `ArchiveWriter`; tests `CookerTests`.
    - ADR 0098 "Cooking"; docs/learning/cooking.md.
+
+   Step 1 built (ADR 0098): importers record references (material, mesh,
+   FBX, state machine; their versions raised); BuildSettings in the
+   project file; Game.crpak written by ArchiveWriter (crucible/PackFile.h
+   for the reader); the Cooker's walk; the Build menu, the Build Settings
+   window, and --cook. The Walker's Level scene cooks to 8 assets (about
+   60 KB). Awaiting the owner's try by hand.
 2. Loading from archives: the runtime reads assets from archives instead
    of the project's Cache, asynchronously on background jobs.
 3. JIT shipping builds: a package folder with the launcher, the core, the

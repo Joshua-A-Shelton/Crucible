@@ -1158,3 +1158,15 @@ Settings window) and "Cook"; the editor's `--cook <folder>`; the default
 output Build/Cooked; C# `Cooker` and `ArchiveWriter`; `CookerTests`; ADR
 0098 "Cooking"; docs/learning/cooking.md.
 
+Names added while building (marked *) are placeholders until the owner
+tries step 1 by hand:
+
+| Name | What it is |
+|---|---|
+| crucible/PackFile.h*'s `PackHeader`* (`startScene`*), `PackEntry`*, `packFileKind`*, `packFileVersion`*, `packAlignment`* | The archive's layout, for the reader |
+| `ArchiveWriter.StartScene`*, `Alignment`*, `ReadIndex`*, `ReadStartScene`* | The writer's extras |
+| `CookResult`* (`ArchivePath`, `AssetCount`, `Size`, `Errors`, `Succeeded`), `Cooker.ArchiveName`* | A cook's outcome |
+| `BuildSettings`*, `Project.SaveBuild`*, `Project.CookedFolder`*, `AssetDatabase.ReferencesOf`* | Settings and references |
+| `BuildSettingsPanel`*, its panel ID `BuildSettings`*, the commands `Build.Settings`* and `Build.Cook`*; the window's "Scenes (the first starts the game)"*, "Add Open Scene"*, "Always include"*, "Up"*, "Remove"*, "Add"* | The editor |
+| the game argument `cook=`*; CTest `samples.walker-cook`*; `/Build/`* in projects' .gitignore | Running it |
+

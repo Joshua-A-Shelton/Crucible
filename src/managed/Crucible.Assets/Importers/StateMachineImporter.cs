@@ -48,7 +48,8 @@ public sealed class StateMachineImporter : Importer<StateMachineImportSettings>
 
     public override string Name => "StateMachine";
 
-    public override int Version => 1;
+    // 2: its clips recorded as references for cooking (ADR 0098).
+    public override int Version => 2;
 
     public override IReadOnlyList<string> Extensions => [FileExtension];
 
@@ -61,6 +62,21 @@ public sealed class StateMachineImporter : Importer<StateMachineImportSettings>
         foreach ((string tag, byte[] bytes) in Build(document.RootElement))
         {
             output.Add(Tag.Of(tag), 1, bytes);
+        }
+        // Its states' clips, for cooking (ADR 0098); Build has checked them.
+        foreach (JsonElement state in Array(document.RootElement, "States", required: false))
+        {
+            if (state.TryGetProperty("Clip", out JsonElement clip))
+            {
+                context.Reference(Clip(clip, ""));
+            }
+            if (state.TryGetProperty("Blend", out JsonElement blend))
+            {
+                foreach (JsonElement motion in Array(blend, "Clips", required: false))
+                {
+                    context.Reference(Clip(motion.GetProperty("Clip"), ""));
+                }
+            }
         }
     }
 

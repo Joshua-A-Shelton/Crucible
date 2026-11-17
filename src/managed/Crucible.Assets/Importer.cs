@@ -80,6 +80,7 @@ public sealed class ImportContext : IDisposable
 {
     private readonly string _assetsFolder;
     private readonly SortedDictionary<string, string> _dependencies = new(StringComparer.Ordinal);
+    private readonly SortedSet<string> _references = new(StringComparer.Ordinal);
     private readonly Func<string, AssetId> _idOf;
     private readonly Func<AssetId, (string Path, string Imported, IReadOnlyCollection<string> Dependencies)?> _imported;
     private readonly List<string> _warnings = [];
@@ -121,6 +122,19 @@ public sealed class ImportContext : IDisposable
     /// textures), or <see cref="AssetId.None"/> if there is none.
     /// </summary>
     public AssetId IdOf(string assetPath) => _idOf(assetPath);
+
+    /// <summary>
+    /// Records that the output names another asset by its ID (a material's
+    /// shader and textures), so cooking packs that asset too (ADR 0098).
+    /// <see cref="AssetId.None"/> is ignored.
+    /// </summary>
+    public void Reference(AssetId id)
+    {
+        if (!id.IsNone)
+        {
+            _references.Add(id.ToString());
+        }
+    }
 
     /// <summary>Notes something the import left out or worked around; the import still succeeds.</summary>
     public void Warn(string message) => _warnings.Add(message);
@@ -230,6 +244,8 @@ public sealed class ImportContext : IDisposable
     }
 
     internal IReadOnlyDictionary<string, string> Dependencies => _dependencies;
+
+    internal IReadOnlyCollection<string> References => _references;
 
     internal ImportedFileWriter? Output => _output;
 
