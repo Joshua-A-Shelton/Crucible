@@ -694,6 +694,34 @@ decision made at its start):
 8. The demonstration: the Walker walks a mesh level; a scripted swing's hit
    lands at the same moment at 30 and 240 fps.
 
+   Step 8 designed (2026-11-16, names settled before building):
+   - **The level:** `make_level.py` writes Assets/Models/Level.gltf: a
+     floor, a ramp, a flight of stairs, a slope too steep to climb, walls,
+     and a raised platform. It's imported with Collision: Mesh, so one
+     static Mesh Collider ("Level") is the whole level.
+   - **The swing:** `make_walker.py` gains a "Swing" clip (the right leg
+     kicking forward) with a "Strike" window in the sidecar. The Walker
+     starts standing at a "Post". Idle runs 1 s, then Swing at Idle's exit
+     time, then Walk at Swing's exit time. Exit times start states at
+     exact times, so the swing, and its hit, land at the same moment from
+     Play at any frame rate. A bone attachment on the right foot carries a
+     hitbox on the Strike window. The scene gets its own state machine, so
+     the other scenes keep theirs.
+   - **The route:** Code/Route.cs. `Waypoint` entities (`Next`, an entity
+     picker) placed with the gizmo, from "Waypoint 1" onward, and a
+     `RouteFollower` on the Walker (`First`, `Reach`, `TurnRate`).
+     `RouteSystem` turns the walking Walker toward its waypoint, at most
+     TurnRate, and takes the next one within Reach; root motion drives its
+     CharacterController up the ramp, down the stairs, and along the
+     platform. At the last waypoint it stops.
+   - **The check:** `LevelChecks` (CTest `samples.walker-level`, game arg
+     `check-level`), as samples.walker: Level.crscene run standalone,
+     headless, at 30 and then 240 fps. The Walker reaches every waypoint in
+     order without falling or sticking; the post is hit once per run,
+     inside the Strike window; and the two runs' hits agree within 50 µs.
+   - ADR 0097 "The M9 demonstration"; docs/learning/walking-a-level.md.
+     Then the owner tries it by hand.
+
 **Status (2026-11-11):** step 1 built (ADR 0085): Box3D (f36d061) in the
 core, its tasks on the job system and its memory through Crucible's
 allocator; bodies synced by kind, written back, and interpolated between

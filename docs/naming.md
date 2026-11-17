@@ -1126,3 +1126,13 @@ names following the renames (`placeBoneAttachments`,
 | `AssetDatabase.BoneNamesOf`*, `AssetDatabase.WindowNames`*; `SerializedField.IsBoneName`*, `IsWindowName`*; the inspector's "No Animator above it"*, "#hash (not found)"* | The pickers |
 | Code/Kicks.cs's `KickSystem`*; the crates' layer 2*; docs/learning/swept-hitboxes.md* | The sample and the note |
 
+## The M9 demonstration (2026-11-16, M9 step 8)
+
+Settled as drafted before building: `make_level.py`,
+Assets/Models/Level.gltf, the scene Level.crscene; the clip "Swing" and
+its window "Strike"; Code/Route.cs with `Waypoint` (`Next`),
+`RouteFollower` (`First`, `Reach`, `TurnRate`), and `RouteSystem`; the
+entities "Level", "Post", and "Waypoint 1" onward; the check
+`LevelChecks`, the CTest `samples.walker-level`, the game argument
+`check-level`; ADR 0097 "The M9 demonstration";
+docs/learning/walking-a-level.md.
