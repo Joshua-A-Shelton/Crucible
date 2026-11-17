@@ -822,6 +822,26 @@ decision made at its start):
 
 1. Cooking: a dependency walk from the root scenes packs only what they
    reach into archives, indexed by asset ID, compressed.
+
+   Step 1 designed (2026-11-17, names settled before building):
+   - **References:** each importer reports the asset IDs it embeds
+     (`ImportContext.Reference(id)`), kept in the import record's
+     `References` beside its source dependencies. The cooker walks scenes
+     and prefabs (their AssetId fields and prefab instances, generically)
+     and follows the recorded references.
+   - **Roots:** the project file's "Build" section: `Scenes` (the first is
+     the start scene) and `Include` (assets or folders always packed, for
+     what game code loads by ID). Scenes are packed by their asset ID.
+   - **The archive:** one `Game.crpak` (kind tag PACK), Crucible's own
+     format: a header, an index sorted by asset ID, and each imported file
+     stored whole with its sections recompressed at zstd's high setting;
+     entries aligned to 4 KiB for ranged reads later. Room for more
+     archives (patches, DLC) later.
+   - **Running it:** a Build menu with "Build Settings…" (a Build Settings
+     window for the scenes and include list) and "Cook"; headless, the
+     editor's `--cook <folder>`. The default output is Build/Cooked in the
+     project. C# `Cooker` and `ArchiveWriter`; tests `CookerTests`.
+   - ADR 0098 "Cooking"; docs/learning/cooking.md.
 2. Loading from archives: the runtime reads assets from archives instead
    of the project's Cache, asynchronously on background jobs.
 3. JIT shipping builds: a package folder with the launcher, the core, the

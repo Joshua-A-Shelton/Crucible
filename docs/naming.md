@@ -1148,3 +1148,13 @@ owner tried step 8 by hand):
 | Route.cs's `Progress`*, `Length`*; the reports "Walker.Route: …"* and Kicks' "… ms into its window"* | The game code |
 | `LevelChecks.LastRun`*, `Seconds`*, `WindowMs`* | The check |
 
+## Cooking (2026-11-17, M10 step 1)
+
+Settled as drafted before building: the archive `Game.crpak` (extension
+`.crpak`, kind tag `PACK`); the import record's `References`, filled by
+`ImportContext.Reference(id)`; the project file's "Build" section with
+`Scenes` and `Include`; the Build menu with "Build Settings…" (the Build
+Settings window) and "Cook"; the editor's `--cook <folder>`; the default
+output Build/Cooked; C# `Cooker` and `ArchiveWriter`; `CookerTests`; ADR
+0098 "Cooking"; docs/learning/cooking.md.
+
