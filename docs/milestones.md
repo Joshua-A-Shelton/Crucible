@@ -850,8 +850,8 @@ decision made at its start):
    window, and --cook. The Walker's Level scene cooks to 8 assets (about
    60 KB). The owner's first try found the Build Settings window hard to
    read and to add to; it was redesigned (cards, drop-downs of the
-   project's scenes and assets, drops from the Assets panel). Awaiting the
-   owner's next try.
+   project's scenes and assets, drops from the Assets panel). Tried by hand
+   by the owner; step 1 is done, its names settled as drafted.
 2. Loading from archives: the runtime reads assets from archives instead
    of the project's Cache, asynchronously on background jobs.
 3. JIT shipping builds: a package folder with the launcher, the core, the
