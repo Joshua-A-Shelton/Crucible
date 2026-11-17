@@ -810,6 +810,26 @@ modes.
 
 **Settles:** the Steam Deck check, when a device is available (ADR 0008).
 
+**First** (agreed with the owner, 2026-11-17): easing characters down
+steps, in 3D and 2D (open items; ADR 0091's and 0094's step smoothing),
+tried by hand like a step.
+
+**Steps** (agreed with the owner, 2026-11-17; one commit each, each step's
+decision made at its start):
+
+1. Cooking: a dependency walk from the root scenes packs only what they
+   reach into archives, indexed by asset ID, compressed.
+2. Loading from archives: the runtime reads assets from archives instead
+   of the project's Cache, asynchronously on background jobs.
+3. JIT shipping builds: a package folder with the launcher, the core, the
+   .NET runtime, ReadyToRun engine and game assemblies, any native module,
+   and the archives; plugins registered by their generated entry points.
+4. AOT shipping builds: NativeAOT, the launcher, core, and game statically
+   linked into one executable with a generated bootstrap.
+5. The demonstration: the Walker (its Level scene the root) packaged in
+   both modes, run from its archives, checked headless, then tried by
+   hand.
+
 ## M11 — Pixel-art 2D path
 
 Before the first game: UI tricks may need it, and it is less likely to be
