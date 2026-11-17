@@ -101,6 +101,20 @@ public partial struct Animator
         Api.ClearIk(world.Live, entity, (uint)slot, fadeSeconds);
 }
 
+/// <summary>
+/// An entity riding a joint (ADR 0096): a sword in a hand, a hitbox on a foot.
+/// Its position and rotation follow the joint of the nearest Animator above
+/// it, at this offset; its own scale is kept.
+/// </summary>
+[Serialized]
+public partial struct Socket
+{
+    public Socket()
+    {
+        Rotation = Quaternion.Identity;
+    }
+}
+
 /// <summary>Something an animation update passed: an event, or a window opening or closing (ADR 0081).</summary>
 public partial struct AnimationEvent
 {

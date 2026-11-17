@@ -10,6 +10,8 @@
 // position and angle (its depth and scale are kept; scale shapes the
 // colliders).
 
+#include "Hitboxes.h"
+
 #include <crucible/BinaryFile.h>
 #include <crucible/ChainFile.h>
 #include <crucible/DebugLines.h>
@@ -1305,6 +1307,57 @@ RayHit2D shapeCastBox2D(ecs::World& world, QueryShape2D shape, Vector2 from, flo
     return closest.hit;
 }
 
+// Every shape the cast touches, each entity once at its nearest; returning 1
+// lets the cast go its whole length.
+struct AllHits
+{
+    QueryFilter filter;
+    float distance;
+    Vector<RayHit2D> hits{tag};
+};
+
+float keepAll(b2ShapeId shape, b2Pos point, b2Vec2 normal, float fraction, void* context)
+{
+    AllHits& all = *static_cast<AllHits*>(context);
+    if (!admits(shape, all.filter))
+    {
+        return -1;
+    }
+    const RayHit2D hit{true, entityOf(shape), fromB2(point), fromB2(normal), fraction * all.distance};
+    for (RayHit2D& seen : all.hits)
+    {
+        if (seen.entity.value == hit.entity.value)
+        {
+            if (hit.distance < seen.distance)
+            {
+                seen = hit;
+            }
+            return 1;
+        }
+    }
+    all.hits.pushBack(hit);
+    return 1;
+}
+
+uint32_t shapeCastAllBox2D(ecs::World& world, QueryShape2D shape, Vector2 from, float angle, Vector2 direction,
+                           float distance, QueryFilter filter, std::span<RayHit2D> into)
+{
+    const PhysicsWorld* physics = find(world);
+    AllHits all{filter, distance};
+    b2ShapeProxy proxy;
+    if (physics != nullptr && distance >= 0 && makeProxy(shape, angle, proxy))
+    {
+        b2World_CastShape(physics->id, toB2(from), &proxy, toB2(direction * distance), queryFilter(filter), keepAll,
+                          &all);
+    }
+    std::stable_sort(all.hits.begin(), all.hits.end(),
+                     [](const RayHit2D& a, const RayHit2D& b) { return a.distance < b.distance; });
+    std::copy_n(all.hits.begin(), std::min(all.hits.size(), into.size()), into.begin());
+    const auto count = static_cast<uint32_t>(all.hits.size());
+    record({true, true, shape, from, angle, direction, distance, count > 0 ? all.hits[0] : RayHit2D{}, count});
+    return count;
+}
+
 uint32_t overlapBox2D(ecs::World& world, QueryShape2D shape, Vector2 at, float angle, QueryFilter filter,
                       std::span<ecs::Entity> into)
 {
@@ -1538,8 +1591,8 @@ void launchCharacterBox2D(ecs::World& world, ecs::Entity entity, float upwardSpe
     }
 }
 
-constexpr Physics2DService box2dPhysics{raycastBox2D,  shapeCastBox2D,     overlapBox2D,
-                                        contactsBox2D, moveCharacterBox2D, launchCharacterBox2D};
+constexpr Physics2DService box2dPhysics{raycastBox2D,       shapeCastBox2D,       overlapBox2D,     contactsBox2D,
+                                        moveCharacterBox2D, launchCharacterBox2D, shapeCastAllBox2D};
 
 Physics2DService installed = box2dPhysics;
 
@@ -1667,6 +1720,14 @@ RayHit2D shapeCast(ecs::World& world, QueryShape2D shape, Vector2 from, float an
     return installed.shapeCast(world, shape, from, angle, direction, distance, filter);
 }
 
+uint32_t shapeCastAll(ecs::World& world, QueryShape2D shape, Vector2 from, float angle, Vector2 direction,
+                      float distance, QueryFilter filter, std::span<RayHit2D> into)
+{
+    return installed.shapeCastAll != nullptr
+               ? installed.shapeCastAll(world, shape, from, angle, direction, distance, filter, into)
+               : 0;
+}
+
 uint32_t overlap(ecs::World& world, QueryShape2D shape, Vector2 at, float angle, QueryFilter filter,
                  std::span<ecs::Entity> into)
 {
@@ -1714,6 +1775,7 @@ void registerPhysics2D()
         {.name = writeBackSystemName, .phase = "PostPhysics", .function = writeBack, .gameplay = true});
     loop::registerDefaultSystem(
         {.name = interpolateSystemName, .phase = "Update", .function = interpolate, .gameplay = true});
+    physics::registerHitboxes2D();
 }
 
 void releasePhysics2D(const ecs::World& world)
@@ -1725,6 +1787,7 @@ void releasePhysics2D(const ecs::World& world)
             b2DestroyWorld(worlds[i]->id);
             destroy(tag, worlds[i]);
             worlds.removeSwap(i);
+            physics::forgetHitboxes(world);
             if (worlds.empty())
             {
                 freeChains(); // nothing is made from them now
@@ -1858,6 +1921,35 @@ void drawColliders2D(const ecs::World& world, Vector4 color)
                         last = point;
                     }
                 }
+            }
+        },
+        &gather);
+    ecs::destroyQuery(query);
+    // Hitboxes (ADR 0096): dimmer, and brighter while active.
+    const ecs::ComponentId striking[] = {ecs::componentIdOf<Hitbox2D>};
+    query = ecs::createQuery(const_cast<ecs::World&>(world), {.required = striking});
+    ecs::forEachChunk(
+        *query,
+        [](const ecs::ChunkView& view, void* data) {
+            const Gather& gather = *static_cast<const Gather*>(data);
+            const std::span<const Hitbox2D> hitboxes = ecs::readColumn<Hitbox2D>(view);
+            const ecs::Entity* entities = ecs::entitiesOf(view);
+            const Vector4 c = gather.color;
+            for (size_t i = 0; i < hitboxes.size(); ++i)
+            {
+                if (hitboxes[i].shape != ShapeKind2D::Box && hitboxes[i].shape != ShapeKind2D::Circle &&
+                    hitboxes[i].shape != ShapeKind2D::Capsule)
+                {
+                    continue;
+                }
+                Collider2D shape{};
+                shape.shape = hitboxes[i].shape;
+                shape.size = hitboxes[i].size;
+                const Vector4 shown =
+                    physics::hitboxActive(*gather.world, entities[i])
+                        ? Vector4{c.x + (1 - c.x) * 0.6f, c.y + (1 - c.y) * 0.6f, c.z + (1 - c.z) * 0.6f, 1}
+                        : Vector4{c.x * 0.6f, c.y * 0.6f, c.z * 0.6f, c.w};
+                outline(shape, scenes::computeWorldTransform(*gather.world, entities[i]), shown);
             }
         },
         &gather);

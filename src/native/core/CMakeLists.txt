@@ -38,6 +38,7 @@ target_sources(crucible_core_objects PRIVATE
     DebugLines.cpp
     Demo.cpp
     Ecs.cpp
+    Hitboxes.cpp
     Jobs.cpp
     Launch.cpp
     Log.cpp

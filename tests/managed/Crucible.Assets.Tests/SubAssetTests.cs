@@ -198,7 +198,7 @@ public class SubAssetTests
             await Assert.That(clips.Length).IsEqualTo(3);
             await Assert.That(File.ReadAllText(sidecar)).IsEqualTo(before);
 
-            // Walk's footsteps (each foot's), from the sidecar, hashed as the runtime knows them.
+            // Walk's footsteps (each foot's) and its Kick window (ADR 0096), from the sidecar, hashed as the runtime knows them.
             AssetEntry walk = clips.Single(clip => clip.SubAssetName == "Walk");
             using (ImportedFile file = ImportedFile.Open(database.ImportedFile(walk.Id)!, MeshImporter.ClipKind,
                        MeshImporter.ClipVersion))
@@ -208,7 +208,12 @@ public class SubAssetTests
                 await Assert.That(string.Join(" ", events.Select(e => e.Time))).IsEqualTo("0 0.5");
                 await Assert.That(events[0].Name).IsEqualTo(Animation.AnimationEvent.NameOf("RightFoot"));
                 await Assert.That(events[1].Name).IsEqualTo(Animation.AnimationEvent.NameOf("LeftFoot"));
-                await Assert.That(file.Find(MeshImporter.ClipWindowSection)).IsLessThan(0);
+                ClipWindow[] windows = MemoryMarshal.Cast<byte, ClipWindow>(
+                    file.Read(file.Find(MeshImporter.ClipWindowSection))).ToArray();
+                await Assert.That(windows.Length).IsEqualTo(1);
+                await Assert.That(windows[0].Name).IsEqualTo(Animation.AnimationEvent.NameOf("Kick"));
+                await Assert.That(windows[0].Start).IsEqualTo(0.6f);
+                await Assert.That(windows[0].End).IsEqualTo(0.95f);
             }
             AssetEntry idle = clips.Single(clip => clip.SubAssetName == "Idle");
             using (ImportedFile file = ImportedFile.Open(database.ImportedFile(idle.Id)!, MeshImporter.ClipKind,

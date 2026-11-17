@@ -39,6 +39,7 @@ inline constexpr std::string_view syncSystemName = "Physics.Sync";
 inline constexpr std::string_view stepSystemName = "Physics.Step";
 inline constexpr std::string_view writeBackSystemName = "Physics.WriteBack";
 inline constexpr std::string_view interpolateSystemName = "Physics.Interpolate";
+inline constexpr std::string_view hitboxSystemName = "Physics.Hitboxes";
 
 // Collision layers: 32, as bits of a mask. A body or character is on the
 // layers in its `layers` and collides with those in its `mask`; two collide
@@ -181,6 +182,39 @@ struct CRUCIBLE_EXPOSE ContactEvent
     Vector3 normal; // from a to b
 };
 
+// A shape that strikes (ADR 0027, 0096), on its own entity: a Socket on a
+// joint, or anything that moves (a projectile). While active, each frame
+// sweeps it from where it was to where it is ("Physics.Hitboxes", in the
+// Animation phase after "Animation.Sockets", while the game plays), in
+// pieces that turn at most 15 degrees, so a swing's arc is followed at any
+// frame rate. Active while enabled and, with a window, while the nearest
+// Animator at or above it has that window open (from when it opened to when
+// it closed, within the frame). Each entity it touches is hit once per
+// activation, triggers too; never its owner (that Animator's entity, or
+// without one the top of its hierarchy) or anything under the owner.
+struct CRUCIBLE_EXPOSE Hitbox
+{
+    ShapeKind shape;                      // Box, Sphere, or Capsule
+    Vector3 size;                         // as a Collider's, scaled the same way
+    CRUCIBLE_HINT_LAYERS uint32_t mask;   // the layers it hits
+    CRUCIBLE_HINT_WINDOW uint32_t window; // the animation window it's active in; none: whenever enabled
+    bool enabled;
+};
+
+// A hitbox touching something. The timestamp is when, on the input clock
+// (platform::timestampNow): the sweep covers the time from the last frame's
+// start to this one's, as animation events do, and a hit a share of the way
+// along is that share of the way between them.
+struct CRUCIBLE_EXPOSE HitboxHit
+{
+    ecs::Entity hitbox;
+    ecs::Entity owner;
+    ecs::Entity target; // the collider's entity
+    Vector3 point;
+    Vector3 normal; // the target's surface there
+    uint64_t timestamp;
+};
+
 struct CRUCIBLE_EXPOSE CharacterMove
 {
     Vector3 position; // where it ended up (its feet)
@@ -201,6 +235,9 @@ struct PhysicsService
     uint32_t (*contacts)(ecs::World& world, std::span<ContactEvent> into);
     CharacterMove (*moveCharacter)(ecs::World& world, ecs::Entity character, Vector3 displacement, float seconds);
     void (*launchCharacter)(ecs::World& world, ecs::Entity character, float upwardSpeed);
+    // Optional (none finds nothing): a hitbox's sweep (ADR 0096).
+    uint32_t (*shapeCastAll)(ecs::World& world, QueryShape shape, Vector3 from, Quaternion rotation, Vector3 direction,
+                             float distance, QueryFilter filter, std::span<RayHit> into);
 };
 
 // Replaces the service; the default is the null physics's. Main thread.
@@ -220,6 +257,12 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE RayHit raycast(ecs::World& world, Vector3 from, 
 // already touching something at the start hits it at distance 0.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE RayHit shapeCast(ecs::World& world, QueryShape shape, Vector3 from, Quaternion rotation,
                                                  Vector3 direction, float distance, QueryFilter filter);
+// Every hit of a shape swept along a ray (ADR 0096), nearest first, each
+// entity once (where it's first touched), as many as fit; returns how many
+// there are. Like shapeCast, one touching at the start is hit at 0.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t shapeCastAll(ecs::World& world, QueryShape shape, Vector3 from,
+                                                      Quaternion rotation, Vector3 direction, float distance,
+                                                      QueryFilter filter, std::span<RayHit> into);
 // The entities whose colliders overlap the shape, each once, as many as
 // fit; returns how many there are.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t overlap(ecs::World& world, QueryShape shape, Vector3 at, Quaternion rotation,
@@ -259,6 +302,15 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void drawColliders(const ecs::World& world, Vect
 // its start and end), in `hit` where it found something, then forgets them.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void recordQueries(bool on);
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void drawQueries(Vector4 missed, Vector4 hit);
+
+// The last "Physics.Hitboxes" run's hits in the world, by timestamp, as
+// many as fit; returns how many there are.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t hitboxHits(const ecs::World& world, std::span<HitboxHit> into);
+// "Physics.Hitboxes"' body, for tests and schedules built by hand: sweeps
+// the world's hitboxes over the frame starting at frameStartNs on the input
+// clock, deltaSeconds after the last.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void sweepHitboxes(ecs::World& world, float deltaSeconds,
+                                                            uint64_t frameStartNs);
 
 // --- Mesh and Convex colliders (ADR 0086) -----------------------------------
 

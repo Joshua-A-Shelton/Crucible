@@ -680,6 +680,13 @@ decision made at its start):
      circle with "Foot Socket" and "Kick Hitbox" on a foot, active in a
      "Kick" window around each step, knocking over "Crate 1" onward;
      Code/Kicks.cs logs each hit's time.
+
+   Step 7 built (ADR 0096): Socket on "Animation.Sockets"; Hitbox and
+   Hitbox2D swept by their systems as screws (a swing's arc followed) in
+   pieces of at most 15 degrees; hits once per activation, timed on the
+   input clock (30 and 240 fps 15 µs apart); `shapeCastAll` in both
+   services; the joint and window pickers; the Walker's Hitboxes scene.
+   Awaiting the owner's try by hand.
 8. The demonstration: the Walker walks a mesh level; a scripted swing's hit
    lands at the same moment at 30 and 240 fps.
 

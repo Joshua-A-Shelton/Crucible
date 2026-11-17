@@ -152,7 +152,11 @@ public sealed class AssetDatabase
 
     // A model's imported file, read for what it holds, by the file's path
     // (a new import is a new path).
-    private readonly Dictionary<string, (bool Skinned, string[] Meshes)> _models = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, ModelContents> _models = new(StringComparer.Ordinal);
+
+    private sealed record ModelContents(bool Skinned, string[] Meshes, string[] Joints);
+
+    private static readonly ModelContents _noModel = new(false, [], []);
 
     /// <summary>
     /// An asset's kind, as its imported file's extension (".crmesh",
@@ -180,32 +184,74 @@ public sealed class AssetDatabase
     /// <summary>A model's meshes' names, in order (empty if it isn't imported).</summary>
     public IReadOnlyList<string> MeshNamesOf(AssetId id) => ModelOf(id).Meshes;
 
-    private (bool Skinned, string[] Meshes) ModelOf(AssetId id)
+    /// <summary>A model's skeleton's joints' names, parents first (empty without one), for picking a socket's joint (ADR 0096).</summary>
+    public IReadOnlyList<string> JointNamesOf(AssetId id) => ModelOf(id).Joints;
+
+    /// <summary>
+    /// The windows named on the project's clips (ADR 0081), each once, in order of name:
+    /// what a hitbox's Window picks from (ADR 0096).
+    /// </summary>
+    public IReadOnlyList<string> WindowNames()
+    {
+        SortedSet<string> names = new(StringComparer.Ordinal);
+        foreach (AssetEntry entry in _byId.Values.Where(entry =>
+                     _importersByName.TryGetValue(entry.Importer, out Importer? importer) && importer is Importers.MeshImporter))
+        {
+            if (SettingsOf(entry.Id)?["Clips"] is not JsonObject clips)
+            {
+                continue;
+            }
+            foreach ((string _, JsonNode? clip) in clips)
+            {
+                if (clip?["Windows"] is not JsonArray windows)
+                {
+                    continue;
+                }
+                foreach (JsonNode? window in windows)
+                {
+                    if (window?["Name"] is JsonValue name && name.TryGetValue(out string? text) && text.Length > 0)
+                    {
+                        names.Add(text);
+                    }
+                }
+            }
+        }
+        return [.. names];
+    }
+
+    private ModelContents ModelOf(AssetId id)
     {
         if (KindOf(id) != Importers.MeshImporter.FileExtension || ImportedFile(id) is not { } path)
         {
-            return (false, []);
+            return _noModel;
         }
-        if (_models.TryGetValue(path, out (bool, string[]) known))
+        if (_models.TryGetValue(path, out ModelContents? known))
         {
             return known;
         }
-        (bool, string[]) read = (false, []);
+        ModelContents read = _noModel;
         try
         {
             using ImportedFile file = Binary.ImportedFile.Open(path, Importers.MeshImporter.Kind, Importers.MeshImporter.KindVersion);
-            int meshes = file.Find(Tag.Of("MSHS")), names = file.Find(Tag.Of("NAME"));
+            int meshes = file.Find(Tag.Of("MSHS")), joints = file.Find(Tag.Of("JNTS")), names = file.Find(Tag.Of("NAME"));
             byte[] text = names >= 0 ? file.Read(names) : [];
-            string[] found = meshes < 0
+            string Name(uint offset, uint length) =>
+                (long)offset + length <= text.Length ? Encoding.UTF8.GetString(text, (int)offset, (int)length) : "";
+            string[] meshNames = meshes < 0
                 ? []
                 :
                 [
                     .. System.Runtime.InteropServices.MemoryMarshal.Cast<byte, MeshEntry>(file.Read(meshes)).ToArray()
-                        .Select(mesh => (long)mesh.NameOffset + mesh.NameLength <= text.Length
-                            ? Encoding.UTF8.GetString(text, (int)mesh.NameOffset, (int)mesh.NameLength)
-                            : ""),
+                        .Select(mesh => Name(mesh.NameOffset, mesh.NameLength)),
                 ];
-            read = (file.Find(Tag.Of("SKIN")) >= 0, found);
+            string[] jointNames = joints < 0
+                ? []
+                :
+                [
+                    .. System.Runtime.InteropServices.MemoryMarshal.Cast<byte, JointEntry>(file.Read(joints)).ToArray()
+                        .Select(joint => Name(joint.NameOffset, joint.NameLength)),
+                ];
+            read = new ModelContents(file.Find(Tag.Of("SKIN")) >= 0, meshNames, jointNames);
         }
         catch (CrucibleException)
         {

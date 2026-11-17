@@ -77,14 +77,17 @@ internal static class EngineComponents
         Components.Register<Crucible.Physics.Collider>();
         Components.Register<Crucible.Physics.Joint>();
         Components.Register<Crucible.Physics.CharacterController>();
+        Components.Register<Crucible.Physics.Hitbox>();
         Components.Register<Crucible.Physics2D.RigidBody2D>();
         Components.Register<Crucible.Physics2D.Collider2D>();
         Components.Register<Crucible.Physics2D.Joint2D>();
         Components.Register<Crucible.Physics2D.CharacterController2D>();
+        Components.Register<Crucible.Physics2D.Hitbox2D>();
         Components.Register<Crucible.Audio.AudioSource>();
         Components.RegisterTag<Crucible.Audio.AudioListener>();
         Components.Register<Crucible.Animation.Animator>();
         Components.Register<Crucible.Animation.PoseHandle>();
+        Components.Register<Crucible.Animation.Socket>();
         Components.Register<SceneEntityId>();
         Components.RegisterManaged<EntityName>();
         Components.Register<PrefabInstance>();
@@ -103,13 +106,16 @@ internal static class EngineComponents
         SavedComponents.Add<Crucible.Physics.Collider>();
         SavedComponents.Add<Crucible.Physics.Joint>();
         SavedComponents.Add<Crucible.Physics.CharacterController>();
+        SavedComponents.Add<Crucible.Physics.Hitbox>();
         SavedComponents.Add<Crucible.Physics2D.RigidBody2D>();
         SavedComponents.Add<Crucible.Physics2D.Collider2D>();
         SavedComponents.Add<Crucible.Physics2D.Joint2D>();
         SavedComponents.Add<Crucible.Physics2D.CharacterController2D>();
+        SavedComponents.Add<Crucible.Physics2D.Hitbox2D>();
         SavedComponents.Add<Crucible.Audio.AudioSource>();
         SavedComponents.AddTag<Crucible.Audio.AudioListener>();
         SavedComponents.Add<Crucible.Animation.Animator>();
+        SavedComponents.Add<Crucible.Animation.Socket>();
         return true;
     });
 

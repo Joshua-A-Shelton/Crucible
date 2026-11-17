@@ -1085,3 +1085,18 @@ namespaces), C# `Physics.HitboxHits` and `Physics2D.HitboxHits`; ADR 0096
 "Swept hitboxes"; `SocketTests`, `HitboxTests`, `Hitbox2DTests`; the
 Walker's Hitboxes.crscene, Code/Kicks.cs, the window "Kick", and the
 entities "Foot Socket", "Kick Hitbox", "Crate 1" onward.
+
+Also settled before building (2026-11-16): the hints `CRUCIBLE_HINT_JOINT`
+and `CRUCIBLE_HINT_WINDOW` (C# `[JointName]`, `[WindowName]`), storing a
+name as its hash and picked by name. Names added while building (marked *)
+are placeholders until the owner tries step 7 by hand:
+
+| Name | What it is |
+|---|---|
+| `placeSockets`*, `sweepHitboxes`* (both namespaces), `"Physics2D.Hitboxes"`* | The systems' bodies for tests, and 2D's system |
+| C# `Physics.ShapeCastAll`*, `Physics2D.ShapeCastAll`* | `shapeCastAll` in C# |
+| Hitboxes.h*'s `registerHitboxes`*, `registerHitboxes2D`*, `hitboxActive`*, `forgetHitboxes`*; Hitboxes.cpp*'s `Kept`*, `WorldHitboxes`*, `FrameSpan`*, `Stretch`*, `Screw`*, `Screw2D`*, `screwBetween`*, `stretchesOf`*, `ownerOf`*, `ownedBy`*, `maxPieceTurn`*, `maxPieces`*, `maxStretches`* | The sweeps |
+| TransformParts.h*'s `TransformParts`*; Animation.cpp's `Skeleton::nameHashes`*, `poseAbove`*, `jointNamed`*, `placeSocketsOf`* | Shared and internal helpers |
+| `AssetDatabase.JointNamesOf`*, `AssetDatabase.WindowNames`*; `SerializedField.IsJointName`*, `IsWindowName`*; the inspector's "No Animator above it"*, "#hash (not found)"* | The pickers |
+| Code/Kicks.cs's `KickSystem`*; the crates' layer 2*; docs/learning/swept-hitboxes.md* | The sample and the note |
+

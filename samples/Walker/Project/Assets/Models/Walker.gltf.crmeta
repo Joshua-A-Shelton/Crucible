@@ -7,12 +7,18 @@
         "Events": [
           { "Name": "RightFoot", "Time": 0 },
           { "Name": "LeftFoot", "Time": 0.5 }
+        ],
+        "Windows": [
+          { "Name": "Kick", "Start": 0.6, "End": 0.95 }
         ]
       },
       "WalkForward": {
         "Events": [
           { "Name": "RightFoot", "Time": 0 },
           { "Name": "LeftFoot", "Time": 0.5 }
+        ],
+        "Windows": [
+          { "Name": "Kick", "Start": 0.6, "End": 0.95 }
         ]
       }
     }

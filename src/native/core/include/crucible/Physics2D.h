@@ -34,6 +34,7 @@ inline constexpr std::string_view syncSystemName = "Physics2D.Sync";
 inline constexpr std::string_view stepSystemName = "Physics2D.Step";
 inline constexpr std::string_view writeBackSystemName = "Physics2D.WriteBack";
 inline constexpr std::string_view interpolateSystemName = "Physics2D.Interpolate";
+inline constexpr std::string_view hitboxSystemName = "Physics2D.Hitboxes";
 
 // 2D gravity (meters per second squared).
 inline constexpr Vector2 gravity{0, -9.81f};
@@ -154,6 +155,30 @@ struct CRUCIBLE_EXPOSE ContactEvent2D
     Vector2 normal; // from a to b
 };
 
+// A 2D shape that strikes (ADR 0096), as physics::Hitbox does in 3D, swept
+// by "Physics2D.Hitboxes" (in the Animation phase after
+// "Animation.Sockets", while the game plays) in pieces that turn at most 15
+// degrees.
+struct CRUCIBLE_EXPOSE Hitbox2D
+{
+    ShapeKind2D shape;                    // Box, Circle, or Capsule
+    Vector2 size;                         // as a Collider2D's, scaled the same way
+    CRUCIBLE_HINT_LAYERS uint32_t mask;   // the layers it hits
+    CRUCIBLE_HINT_WINDOW uint32_t window; // the animation window it's active in; none: whenever enabled
+    bool enabled;
+};
+
+// A 2D hitbox touching something, timed as physics::HitboxHit is.
+struct CRUCIBLE_EXPOSE HitboxHit2D
+{
+    ecs::Entity hitbox;
+    ecs::Entity owner;
+    ecs::Entity target; // the collider's entity
+    Vector2 point;
+    Vector2 normal; // the target's surface there
+    uint64_t timestamp;
+};
+
 struct CRUCIBLE_EXPOSE BodyPose2D
 {
     bool found;
@@ -173,6 +198,9 @@ struct Physics2DService
     uint32_t (*contacts)(ecs::World& world, std::span<ContactEvent2D> into);
     CharacterMove2D (*moveCharacter)(ecs::World& world, ecs::Entity character, Vector2 displacement, float seconds);
     void (*launchCharacter)(ecs::World& world, ecs::Entity character, float upwardSpeed);
+    // Optional (none finds nothing): a hitbox's sweep (ADR 0096).
+    uint32_t (*shapeCastAll)(ecs::World& world, QueryShape2D shape, Vector2 from, float angle, Vector2 direction,
+                             float distance, physics::QueryFilter filter, std::span<RayHit2D> into);
 };
 
 // Replaces the service; the default is Box2D's. Main thread.
@@ -186,6 +214,12 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE RayHit2D raycast(ecs::World& world, Vector2 from
 // The first hit of a shape swept along a ray; one touching at its start hits at 0.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE RayHit2D shapeCast(ecs::World& world, QueryShape2D shape, Vector2 from, float angle,
                                                    Vector2 direction, float distance, physics::QueryFilter filter);
+// Every hit of a shape swept along a ray (ADR 0096), nearest first, each
+// entity once (where it's first touched), as many as fit; returns how many
+// there are. One touching at its start is hit at 0.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t shapeCastAll(ecs::World& world, QueryShape2D shape, Vector2 from, float angle,
+                                                      Vector2 direction, float distance, physics::QueryFilter filter,
+                                                      std::span<RayHit2D> into);
 // The entities whose colliders overlap the shape, each once, as many as fit;
 // returns how many there are.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t overlap(ecs::World& world, QueryShape2D shape, Vector2 at, float angle,
@@ -210,6 +244,13 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE bool reloadChainAsset(assets::AssetId chain);
 // A dynamic body's pose as of the last tick (its Transform2D is
 // interpolated), in the world; found false without a body.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE BodyPose2D bodyPose(const ecs::World& world, ecs::Entity entity);
+
+// The last "Physics2D.Hitboxes" run's hits in the world, by timestamp, as
+// many as fit; returns how many there are.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t hitboxHits(const ecs::World& world, std::span<HitboxHit2D> into);
+// "Physics2D.Hitboxes"' body, for tests and schedules built by hand.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void sweepHitboxes(ecs::World& world, float deltaSeconds,
+                                                            uint64_t frameStartNs);
 
 // Registers the components and the four systems (unless an implementation
 // registered systems under those names first). Registering again is harmless.

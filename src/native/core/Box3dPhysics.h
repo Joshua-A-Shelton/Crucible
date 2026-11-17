@@ -18,6 +18,8 @@ uint32_t contacts(ecs::World& world, std::span<ContactEvent> into);
 RayHit raycast(ecs::World& world, Vector3 from, Vector3 direction, float distance, QueryFilter filter);
 RayHit shapeCast(ecs::World& world, QueryShape shape, Vector3 from, Quaternion rotation, Vector3 direction,
                  float distance, QueryFilter filter);
+uint32_t shapeCastAll(ecs::World& world, QueryShape shape, Vector3 from, Quaternion rotation, Vector3 direction,
+                      float distance, QueryFilter filter, std::span<RayHit> into);
 uint32_t overlap(ecs::World& world, QueryShape shape, Vector3 at, Quaternion rotation, QueryFilter filter,
                  std::span<ecs::Entity> into);
 CharacterMove moveCharacter(ecs::World& world, ecs::Entity character, Vector3 displacement, float seconds);

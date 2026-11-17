@@ -123,3 +123,18 @@ public sealed class ColorAttribute : Attribute;
 /// </summary>
 [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false)]
 public sealed class LayersAttribute : Attribute;
+
+/// <summary>
+/// Editor hint (ADR 0096): a <c>uint</c> is a joint's name hash
+/// (<c>AnimationEvent.NameOf</c>; 0 for none), picked by name from the
+/// skeleton of the nearest Animator above the entity.
+/// </summary>
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false)]
+public sealed class JointNameAttribute : Attribute;
+
+/// <summary>
+/// Editor hint (ADR 0096): a <c>uint</c> is an animation window's name hash
+/// (0 for none), picked by name from the windows on the project's clips.
+/// </summary>
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false)]
+public sealed class WindowNameAttribute : Attribute;

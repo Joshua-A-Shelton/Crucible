@@ -822,6 +822,12 @@ public sealed class FieldEditor : UIElement
             case FieldKind.Int32 when Field.MeshOf is not null:
                 MeshChoice(Field.MeshOf);
                 break;
+            case FieldKind.UInt32 when Field.IsJointName:
+                NameChoice(JointNames, "No Animator above it");
+                break;
+            case FieldKind.UInt32 when Field.IsWindowName:
+                NameChoice(() => _section.Shell.Database?.WindowNames() ?? [], null);
+                break;
             case FieldKind.Byte or FieldKind.SByte or FieldKind.Int16 or FieldKind.UInt16 or FieldKind.Int32
                 or FieldKind.UInt32 or FieldKind.Int64 or FieldKind.UInt64 or FieldKind.Single or FieldKind.Double:
                 {
@@ -1242,6 +1248,79 @@ public sealed class FieldEditor : UIElement
             int index = value is JsonValue v && v.TryGetValue(out int i) ? i : 0;
             int expected = model.Length == 0 ? 0 : Math.Min(index, shownCount); // past the meshes: the "missing" entry
             if (model != shownModel || box.SelectedIndex != expected)
+            {
+                Refresh(value);
+            }
+        };
+    }
+
+    // The joints of the nearest Animator above the entity (ADR 0096); none
+    // without one, or before its skeleton is imported.
+    private IReadOnlyList<string>? JointNames()
+    {
+        if (!_section.Shell.HasWorld || _section.Entity.IsNull || _section.Shell.Database is not { } database)
+        {
+            return null;
+        }
+        World world = _section.Shell.World;
+        for (Entity at = world.ParentOf(_section.Entity); !at.IsNull; at = world.ParentOf(at))
+        {
+            if (world.Has(at, Components.Of<Crucible.Animation.Animator>()))
+            {
+                return database.JointNamesOf(world.Read<Crucible.Animation.Animator>(at).Skeleton);
+            }
+        }
+        return null;
+    }
+
+    // A name hash (ADR 0096) picked by name: None (0), the names offered, and
+    // one that isn't among them by its hash.
+    private void NameChoice(Func<IReadOnlyList<string>?> offered, string? unavailable)
+    {
+        ComboBox box = new() { VerticalAlignment = VerticalAlignment.Center };
+        List<uint> hashes = [];
+        bool showing = false;
+        void Refresh(JsonNode? value)
+        {
+            uint current = value is JsonValue v && v.TryGetValue(out uint hash) ? hash : 0;
+            IReadOnlyList<string>? names = offered();
+            showing = true;
+            hashes.Clear();
+            List<string> labels = ["None"];
+            hashes.Add(0);
+            if (names is null && unavailable is not null && current == 0)
+            {
+                labels[0] = unavailable;
+            }
+            foreach (string name in names ?? [])
+            {
+                labels.Add(name);
+                hashes.Add(Crucible.Animation.AnimationEvent.NameOf(name));
+            }
+            int index = hashes.IndexOf(current);
+            if (index < 0)
+            {
+                labels.Add($"#{current:x8} (not found)");
+                hashes.Add(current);
+                index = hashes.Count - 1;
+            }
+            box.Options = labels;
+            box.SelectedIndex = index;
+            showing = false;
+        }
+        box.Opening += _ => Refresh(_value);
+        box.SelectionChanged += b =>
+        {
+            if (!showing && b.SelectedIndex >= 0 && b.SelectedIndex < hashes.Count)
+            {
+                Commit(JsonValue.Create(hashes[b.SelectedIndex]));
+            }
+        };
+        Add(box);
+        _show = value =>
+        {
+            uint current = value is JsonValue v && v.TryGetValue(out uint hash) ? hash : 0;
+            if (box.SelectedIndex < 0 || box.SelectedIndex >= hashes.Count || hashes[box.SelectedIndex] != current)
             {
                 Refresh(value);
             }

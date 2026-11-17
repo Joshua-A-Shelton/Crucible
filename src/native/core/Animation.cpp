@@ -5,6 +5,7 @@
 // pass, root motion, and IK are per joint, in model space.
 
 #include "StateMachine.h"
+#include "TransformParts.h"
 
 #include <crucible/Animation.h>
 #include <crucible/BinaryFile.h>
@@ -93,6 +94,7 @@ struct Skeleton
     Vector<uint8_t> hasOffset{tag};
     Vector<char> names{tag};
     Vector<uint32_t> nameOffsets{tag}; // jointCount + 1
+    Vector<uint32_t> nameHashes{tag};  // eventName of each, for sockets
     std::string_view name(uint32_t joint) const
     {
         return {names.data() + nameOffsets[joint], nameOffsets[joint + 1] - nameOffsets[joint]};
@@ -231,6 +233,7 @@ Skeleton* loadSkeleton(const AssetId& id)
             skeleton->names.pushBack(names[start + c]);
         }
         skeleton->nameOffsets.pushBack(static_cast<uint32_t>(skeleton->names.size()));
+        skeleton->nameHashes.pushBack(eventName(skeleton->name(static_cast<uint32_t>(j))));
     }
     return skeleton;
 }
@@ -2019,6 +2022,108 @@ void poseSystem(const loop::SystemContext& context, void*)
     }
 }
 
+// --- Sockets (ADR 0096) -----------------------------------------------------
+
+// The pose of the nearest Animator above the entity, if it's posed.
+const Pose* poseAbove(const ecs::World& world, ecs::Entity entity)
+{
+    for (ecs::Entity at = ecs::parentOf(world, entity); at.value != 0; at = ecs::parentOf(world, at))
+    {
+        if (ecs::hasComponent(world, at, ecs::componentIdOf<Animator>))
+        {
+            const Pose* pose = findPose(world, at);
+            return pose != nullptr && pose->skeleton != nullptr && pose->posed ? pose : nullptr;
+        }
+    }
+    return nullptr;
+}
+
+int32_t jointNamed(const Skeleton& skeleton, uint32_t hash)
+{
+    for (uint32_t j = 0; j < skeleton.jointCount; ++j)
+    {
+        if (skeleton.nameHashes[j] == hash)
+        {
+            return static_cast<int32_t>(j);
+        }
+    }
+    return -1;
+}
+
+void placeSocketsOf(ecs::World& world)
+{
+    struct Found
+    {
+        ecs::Entity entity;
+        uint32_t depth;
+    };
+    Vector<Found> found(tag);
+    const ecs::ComponentId required[] = {ecs::componentIdOf<Socket>, ecs::componentIdOf<scenes::LocalTransform>};
+    ecs::Query* query = ecs::createQuery(world, {.required = required});
+    ecs::forEachChunk(
+        *query,
+        [](const ecs::ChunkView& view, void* data) {
+            const ecs::Entity* entities = ecs::entitiesOf(view);
+            for (size_t i = 0; i < ecs::entityCountOf(view); ++i)
+            {
+                static_cast<Vector<Found>*>(data)->pushBack({entities[i], 0});
+            }
+        },
+        &found);
+    ecs::destroyQuery(query);
+    if (found.empty())
+    {
+        return;
+    }
+    // Parents first, so a socket under a socket (a hitbox on a sword in a
+    // hand) sees its parent already placed.
+    for (Found& socket : found)
+    {
+        for (ecs::Entity at = ecs::parentOf(world, socket.entity); at.value != 0 && socket.depth < 1024;
+             at = ecs::parentOf(world, at))
+        {
+            ++socket.depth;
+        }
+    }
+    std::stable_sort(found.begin(), found.end(), [](const Found& a, const Found& b) { return a.depth < b.depth; });
+    for (const Found& entry : found)
+    {
+        const Socket socket = *ecs::read<Socket>(world, entry.entity);
+        const Pose* pose = socket.joint != 0 ? poseAbove(world, entry.entity) : nullptr;
+        const int32_t joint = pose != nullptr ? jointNamed(*pose->skeleton, socket.joint) : -1;
+        Matrix4x4 parentInverse;
+        if (joint < 0 || static_cast<size_t>(joint) >= pose->model.size() ||
+            !invert(scenes::computeWorldTransform(world, ecs::parentOf(world, entry.entity)), parentInverse))
+        {
+            continue;
+        }
+        const Quaternion turn =
+            dot(socket.rotation, socket.rotation) > 1e-12f ? normalize(socket.rotation) : Quaternion::identity();
+        // Its place relative to its parent; the joint's scale (and the
+        // parent's) is left to the hierarchy, its own kept.
+        const TransformParts parts = decompose(compose(socket.position, turn, {1, 1, 1}) * pose->model[joint] *
+                                               scenes::computeWorldTransform(world, pose->entity) * parentInverse);
+        const scenes::LocalTransform* current = ecs::read<scenes::LocalTransform>(world, entry.entity);
+        if (current->position.x != parts.position.x || current->position.y != parts.position.y ||
+            current->position.z != parts.position.z || current->rotation.x != parts.rotation.x ||
+            current->rotation.y != parts.rotation.y || current->rotation.z != parts.rotation.z ||
+            current->rotation.w != parts.rotation.w)
+        {
+            scenes::LocalTransform* transform = ecs::get<scenes::LocalTransform>(world, entry.entity);
+            transform->position = parts.position;
+            transform->rotation = parts.rotation;
+        }
+    }
+}
+
+void socketSystem(const loop::SystemContext& context, void*)
+{
+    if (context.world != nullptr)
+    {
+        placeSocketsOf(*context.world);
+    }
+}
+
 // The entity's pose, following its Animator; null without one.
 Pose* currentPose(ecs::World& world, ecs::Entity entity)
 {
@@ -2489,6 +2594,11 @@ void evaluatePoses(ecs::World& world)
     posePoses(world, nullptr);
 }
 
+void placeSockets(ecs::World& world)
+{
+    placeSocketsOf(world);
+}
+
 void registerAnimation()
 {
     ecs::registerComponent<Animator>("Crucible.Animation.Animator");
@@ -2498,6 +2608,10 @@ void registerAnimation()
     static constexpr std::string_view afterUpdate[] = {updateSystemName};
     loop::registerDefaultSystem(
         {.name = poseSystemName, .phase = "Animation", .function = poseSystem, .after = afterUpdate});
+    ecs::registerComponent<Socket>("Crucible.Animation.Socket");
+    static constexpr std::string_view afterPose[] = {poseSystemName};
+    loop::registerDefaultSystem(
+        {.name = socketSystemName, .phase = "Animation", .function = socketSystem, .after = afterPose});
 }
 
 } // namespace crucible::animation

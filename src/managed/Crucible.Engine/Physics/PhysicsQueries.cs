@@ -26,6 +26,21 @@ public static class Physics
         float distance, QueryFilter? filter = null) =>
         Api.ShapeCast(world.Live, shape, from, rotation, Vector3.Normalize(direction), distance, filter ?? QueryFilter.Default);
 
+    /// <summary>
+    /// Every hit of a box, sphere, or capsule swept along a ray, nearest first, each entity
+    /// once, as many as fit in <paramref name="into"/>; returns how many there are.
+    /// </summary>
+    public static int ShapeCastAll(World world, QueryShape shape, Vector3 from, Quaternion rotation, Vector3 direction,
+        float distance, Span<RayHit> into, QueryFilter? filter = null) =>
+        (int)Api.ShapeCastAll(world.Live, shape, from, rotation, Vector3.Normalize(direction), distance,
+            filter ?? QueryFilter.Default, into);
+
+    /// <summary>
+    /// What hitboxes touched this frame (ADR 0096), by timestamp, as many as fit in
+    /// <paramref name="into"/>; returns how many there are.
+    /// </summary>
+    public static int HitboxHits(World world, Span<HitboxHit> into) => (int)Api.HitboxHits(world.Live, into);
+
     /// <summary>The entities whose colliders overlap a shape, each once, as many as fit in <paramref name="into"/>; returns how many there are.</summary>
     public static int Overlap(World world, QueryShape shape, Vector3 at, Quaternion rotation, Span<Entity> into,
         QueryFilter? filter = null) =>

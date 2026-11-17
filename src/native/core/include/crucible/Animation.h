@@ -38,6 +38,7 @@ namespace crucible::animation {
 
 inline constexpr std::string_view updateSystemName = "Animation.Update";
 inline constexpr std::string_view poseSystemName = "Animation.Pose";
+inline constexpr std::string_view socketSystemName = "Animation.Sockets";
 
 inline constexpr uint32_t maxLayers = 8;
 inline constexpr uint32_t maxIkSlots = 4;
@@ -61,6 +62,18 @@ struct CRUCIBLE_EXPOSE Animator
 struct CRUCIBLE_EXPOSE PoseHandle
 {
     uint32_t pose;
+};
+
+// An entity riding a joint (ADR 0096): a sword in a hand, a hitbox on a
+// foot. "Animation.Sockets" (after "Animation.Pose", every frame, while
+// editing too) sets its LocalTransform's position and rotation so it sits at
+// the offset from the joint of the nearest Animator above it; its own scale
+// is kept. No Animator above it, no such joint, or no pose yet: left alone.
+struct CRUCIBLE_EXPOSE Socket
+{
+    CRUCIBLE_HINT_JOINT uint32_t joint; // the joint it rides (eventName of its name)
+    Vector3 position;                   // from the joint, in its space
+    Quaternion rotation;                // from the joint's
 };
 
 enum class CRUCIBLE_EXPOSE LayerBlend : uint32_t
@@ -249,8 +262,10 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL uint32_t poseCount();
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void advancePoses(ecs::World& world, float deltaSeconds,
                                                            uint64_t frameStartNs);
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void evaluatePoses(ecs::World& world);
+// "Animation.Sockets"'s body: every Socket placed at its joint as posed.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void placeSockets(ecs::World& world);
 
-// Registers the components and both systems. The engine calls it at start-up.
+// Registers the components and the three systems. The engine calls it at start-up.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void registerAnimation();
 
 } // namespace crucible::animation

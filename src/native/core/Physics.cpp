@@ -3,6 +3,7 @@
 // characters ADR 0091).
 
 #include "Box3dPhysics.h"
+#include "Hitboxes.h"
 
 #include <crucible/Physics.h>
 #include <crucible/Systems.h>
@@ -12,8 +13,9 @@ namespace crucible::physics {
 
 namespace {
 
-constexpr PhysicsService defaultPhysics{box3d::raycast,  box3d::shapeCast,     box3d::overlap,
-                                        box3d::contacts, box3d::moveCharacter, box3d::launchCharacter};
+constexpr PhysicsService defaultPhysics{box3d::raycast,     box3d::shapeCast,     box3d::overlap,
+                                        box3d::contacts,    box3d::moveCharacter, box3d::launchCharacter,
+                                        box3d::shapeCastAll};
 
 PhysicsService installed = defaultPhysics;
 
@@ -43,6 +45,14 @@ RayHit shapeCast(ecs::World& world, QueryShape shape, Vector3 from, Quaternion r
                  float distance, QueryFilter filter)
 {
     return installed.shapeCast(world, shape, from, rotation, direction, distance, filter);
+}
+
+uint32_t shapeCastAll(ecs::World& world, QueryShape shape, Vector3 from, Quaternion rotation, Vector3 direction,
+                      float distance, QueryFilter filter, std::span<RayHit> into)
+{
+    return installed.shapeCastAll != nullptr
+               ? installed.shapeCastAll(world, shape, from, rotation, direction, distance, filter, into)
+               : 0;
 }
 
 uint32_t overlap(ecs::World& world, QueryShape shape, Vector3 at, Quaternion rotation, QueryFilter filter,
@@ -76,6 +86,7 @@ void registerPhysics()
     ecs::registerComponent<Joint>("Crucible.Physics.Joint");
     ecs::registerComponent<CharacterController>("Crucible.Physics.CharacterController");
     box3d::registerSystems();
+    registerHitboxes();
 }
 
 } // namespace crucible::physics

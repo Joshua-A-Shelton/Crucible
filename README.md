@@ -165,3 +165,6 @@ Longer explanations of decisions, written to be reread:
   angles, convex polygons, (ADR 0094) whose movement a joint's limits
   measure and how a character is kept from seeing itself, and (ADR 0095)
   chains: ghost collisions and which side is solid.
+- [Swept hitboxes](docs/learning/swept-hitboxes.md) (ADR 0096): why a hit
+  checked once a frame depends on the frame rate, sweeping instead, curved
+  paths as screws, activations, owners, and sockets.

@@ -18,6 +18,8 @@
 // job system; its memory comes from Crucible's allocator.
 
 #include "Box3dPhysics.h"
+#include "Hitboxes.h"
+#include "TransformParts.h"
 
 #include <crucible/AssetSource.h>
 #include <crucible/BinaryFile.h>
@@ -107,67 +109,7 @@ ecs::Entity entityOf(b3ShapeId shape)
     return {static_cast<uint64_t>(reinterpret_cast<uintptr_t>(b3Shape_GetUserData(shape)))};
 }
 
-struct Pose
-{
-    Vector3 position{};
-    Quaternion rotation = Quaternion::identity();
-    Vector3 scale{1, 1, 1};
-};
-
-// A rotation matrix's quaternion, for row vectors (Matrix4x4::rotation's
-// inverse; System.Numerics' CreateFromRotationMatrix).
-Quaternion rotationOf(const Vector3 (&r)[3])
-{
-    const float trace = r[0].x + r[1].y + r[2].z;
-    if (trace > 0)
-    {
-        const float s = std::sqrt(trace + 1);
-        const float i = 0.5f / s;
-        return {(r[1].z - r[2].y) * i, (r[2].x - r[0].z) * i, (r[0].y - r[1].x) * i, s * 0.5f};
-    }
-    if (r[0].x >= r[1].y && r[0].x >= r[2].z)
-    {
-        const float s = std::sqrt(1 + r[0].x - r[1].y - r[2].z);
-        const float i = 0.5f / s;
-        return {0.5f * s, (r[0].y + r[1].x) * i, (r[0].z + r[2].x) * i, (r[1].z - r[2].y) * i};
-    }
-    if (r[1].y > r[2].z)
-    {
-        const float s = std::sqrt(1 + r[1].y - r[0].x - r[2].z);
-        const float i = 0.5f / s;
-        return {(r[1].x + r[0].y) * i, 0.5f * s, (r[2].y + r[1].z) * i, (r[2].x - r[0].z) * i};
-    }
-    const float s = std::sqrt(1 + r[2].z - r[0].x - r[1].y);
-    const float i = 0.5f / s;
-    return {(r[2].x + r[0].z) * i, (r[2].y + r[1].z) * i, 0.5f * s, (r[0].y - r[1].x) * i};
-}
-
-Pose decompose(const Matrix4x4& m)
-{
-    Pose pose;
-    pose.position = {m.rows[3].x, m.rows[3].y, m.rows[3].z};
-    Vector3 axes[3];
-    for (int i = 0; i < 3; ++i)
-    {
-        const Vector3 row{m.rows[i].x, m.rows[i].y, m.rows[i].z};
-        const float scale = length(row);
-        (i == 0 ? pose.scale.x : i == 1 ? pose.scale.y : pose.scale.z) = scale;
-        axes[i] =
-            scale > 1e-12f ? row * (1.0f / scale) : Vector3{i == 0 ? 1.0f : 0, i == 1 ? 1.0f : 0, i == 2 ? 1.0f : 0};
-    }
-    pose.rotation = normalize(rotationOf(axes));
-    return pose;
-}
-
-Matrix4x4 compose(Vector3 position, Quaternion rotation, Vector3 scale)
-{
-    Matrix4x4 m = Matrix4x4::rotation(rotation);
-    m.rows[0] = m.rows[0] * scale.x;
-    m.rows[1] = m.rows[1] * scale.y;
-    m.rows[2] = m.rows[2] * scale.z;
-    m.rows[3] = {position.x, position.y, position.z, 1};
-    return m;
-}
+using Pose = TransformParts;
 
 bool same(const scenes::LocalTransform& a, const scenes::LocalTransform& b)
 {
@@ -1636,6 +1578,57 @@ RayHit shapeCast(ecs::World& world, QueryShape shape, Vector3 from, Quaternion r
     return closest.hit;
 }
 
+// Every shape the cast touches, each entity once at its nearest; returning 1
+// lets the cast go its whole length.
+struct AllHits
+{
+    QueryFilter filter;
+    float distance;
+    Vector<RayHit> hits{tag};
+};
+
+float keepAll(b3ShapeId shape, b3Pos point, b3Vec3 normal, float fraction, uint64_t, int, int, void* context)
+{
+    AllHits& all = *static_cast<AllHits*>(context);
+    if (!admits(shape, all.filter))
+    {
+        return -1;
+    }
+    const RayHit hit{true, entityOf(shape), fromB3(point), fromB3(normal), fraction * all.distance};
+    for (RayHit& seen : all.hits)
+    {
+        if (seen.entity.value == hit.entity.value)
+        {
+            if (hit.distance < seen.distance)
+            {
+                seen = hit;
+            }
+            return 1;
+        }
+    }
+    all.hits.pushBack(hit);
+    return 1;
+}
+
+uint32_t shapeCastAll(ecs::World& world, QueryShape shape, Vector3 from, Quaternion rotation, Vector3 direction,
+                      float distance, QueryFilter filter, std::span<RayHit> into)
+{
+    const PhysicsWorld* physics = find(world);
+    AllHits all{filter, distance};
+    Proxy proxy;
+    if (physics != nullptr && distance >= 0 && makeProxy(shape, rotation, proxy))
+    {
+        b3World_CastShape(physics->id, toB3(from), &proxy.proxy, toB3(direction * distance), queryFilter(filter),
+                          keepAll, &all);
+    }
+    std::stable_sort(all.hits.begin(), all.hits.end(),
+                     [](const RayHit& a, const RayHit& b) { return a.distance < b.distance; });
+    std::copy_n(all.hits.begin(), std::min(all.hits.size(), into.size()), into.begin());
+    const auto count = static_cast<uint32_t>(all.hits.size());
+    record({true, true, shape, from, rotation, direction, distance, count > 0 ? all.hits[0] : RayHit{}, count});
+    return count;
+}
+
 struct Overlaps
 {
     QueryFilter filter;
@@ -2053,6 +2046,7 @@ void releasePhysics(const ecs::World& world)
             b3DestroyWorld(worlds[i]->id);
             destroy(tag, worlds[i]);
             worlds.removeSwap(i);
+            forgetHitboxes(world);
             return;
         }
     }
@@ -2342,6 +2336,35 @@ void drawColliders(const ecs::World& world, Vector4 color)
                 shape.size = {capsule.radius, capsule.center2.y - capsule.center1.y, 0};
                 shape.offset = {0, (capsule.center1.y + capsule.center2.y) * 0.5f, 0};
                 outline(shape, Matrix4x4::translation(transforms[i].position), gather.color);
+            }
+        },
+        &gather);
+    ecs::destroyQuery(query);
+    // Hitboxes (ADR 0096): dimmer, and brighter while active.
+    const ecs::ComponentId striking[] = {ecs::componentIdOf<Hitbox>};
+    query = ecs::createQuery(const_cast<ecs::World&>(world), {.required = striking});
+    ecs::forEachChunk(
+        *query,
+        [](const ecs::ChunkView& view, void* data) {
+            const Gather& gather = *static_cast<const Gather*>(data);
+            const std::span<const Hitbox> hitboxes = ecs::readColumn<Hitbox>(view);
+            const ecs::Entity* entities = ecs::entitiesOf(view);
+            const Vector4 c = gather.color;
+            for (size_t i = 0; i < hitboxes.size(); ++i)
+            {
+                if (hitboxes[i].shape != ShapeKind::Box && hitboxes[i].shape != ShapeKind::Sphere &&
+                    hitboxes[i].shape != ShapeKind::Capsule)
+                {
+                    continue;
+                }
+                Collider shape{};
+                shape.shape = hitboxes[i].shape;
+                shape.size = hitboxes[i].size;
+                const Vector4 shown =
+                    hitboxActive(*gather.world, entities[i])
+                        ? Vector4{c.x + (1 - c.x) * 0.6f, c.y + (1 - c.y) * 0.6f, c.z + (1 - c.z) * 0.6f, 1}
+                        : Vector4{c.x * 0.6f, c.y * 0.6f, c.z * 0.6f, c.w};
+                outline(shape, scenes::computeWorldTransform(*gather.world, entities[i]), shown);
             }
         },
         &gather);

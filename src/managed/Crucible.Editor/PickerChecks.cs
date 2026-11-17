@@ -17,7 +17,8 @@ namespace Crucible.Editor;
 /// CTest's launcher.jit.pickers: run with the Walker's project and
 /// <c>--game-arg check-pickers=&lt;folder&gt;</c>. On a copy of the project (in
 /// the folder), with the Diorama's house added as a model without a
-/// skeleton: each drop-down is opened by a click and its choices read.
+/// skeleton: each drop-down is opened by a click and its choices read. A
+/// socket's joint and a hitbox's window (ADR 0096) are picked by name.
 /// </summary>
 [System(Phases.RenderPrepare)]
 internal sealed class PickerChecks : GameSystem
@@ -186,6 +187,48 @@ internal sealed class PickerChecks : GameSystem
         }
         Check(others.SequenceEqual(["None", "Anchor"]), "a joint's Other lists only other entities with a collider",
             string.Join(", ", others));
+
+        // A socket (ADR 0096): its Joint waits for an Animator above it, then
+        // lists its skeleton's joints, and a choice is kept as the name's hash.
+        Entity hand = Make(shell, "Hand");
+        shell.SetComponent(hand, typeof(Socket).FullName!, new JsonObject(), "Add Component");
+        shell.SetComponent(hand, typeof(Hitbox).FullName!, new JsonObject(), "Add Component");
+        shell.Selection.Selected = hand;
+        yield return 2;
+        Check(Box(inspector, typeof(Socket), "Joint")?.SelectedOption == "No Animator above it",
+            "a socket's Joint waits for an Animator above it", Box(inspector, typeof(Socket), "Joint")?.SelectedOption ?? "");
+        shell.SetComponent(actor, typeof(Animator).FullName!, new JsonObject { ["Skeleton"] = walker.ToString() }, "Edit");
+        Check(shell.Reparent(hand, actor, 0), "the hand goes under the actor");
+        shell.Selection.Selected = hand;
+        yield return 2;
+        string[] joints = [], windows = [];
+        foreach (int wait in Open(inspector, typeof(Socket), "Joint", options => joints = options))
+        {
+            yield return wait;
+        }
+        Check(joints.SequenceEqual(["None", .. database.JointNamesOf(walker)]) && joints.Contains("RightFoot"),
+            "a socket's Joint lists the skeleton's joints", string.Join(", ", joints));
+        ComboBox? joint = Box(inspector, typeof(Socket), "Joint");
+        if (joint is not null)
+        {
+            joint.SelectedIndex = Array.IndexOf(joints, "RightFoot");
+            yield return 2;
+        }
+        Check(shell.World.Read<Socket>(hand).Joint == AnimationEvent.NameOf("RightFoot"), "choosing one keeps its hash",
+            shell.World.Read<Socket>(hand).Joint.ToString("x8"));
+        Check(Box(inspector, typeof(Socket), "Joint")?.SelectedOption == "RightFoot", "and shows its name");
+
+        // A hitbox's Window lists the windows on the project's clips.
+        foreach (int wait in Open(inspector, typeof(Hitbox), "Window", options => windows = options))
+        {
+            yield return wait;
+        }
+        Check(windows.SequenceEqual(["None", .. database.WindowNames()]) && windows.Contains("Kick"),
+            "a hitbox's Window lists the clips' windows", string.Join(", ", windows));
+        shell.SetComponent(hand, typeof(Hitbox).FullName!, new JsonObject { ["Window"] = 12345u }, "Edit");
+        yield return 2;
+        Check(Box(inspector, typeof(Hitbox), "Window")?.SelectedOption == "#00003039 (not found)",
+            "a hash no window has shows as not found", Box(inspector, typeof(Hitbox), "Window")?.SelectedOption ?? "");
     }
 
     private static Entity Make(Shell shell, string name)

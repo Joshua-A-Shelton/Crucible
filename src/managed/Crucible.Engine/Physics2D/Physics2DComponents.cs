@@ -73,6 +73,19 @@ public partial struct CharacterController2D
     }
 }
 
+/// <summary>A 2D shape that strikes (ADR 0096), swept as 3D's <see cref="Crucible.Physics.Hitbox"/> is.</summary>
+[Serialized]
+public partial struct Hitbox2D
+{
+    public Hitbox2D()
+    {
+        Shape = ShapeKind2D.Circle;
+        Size = new Vector2(0.25f, 0);
+        Mask = uint.MaxValue;
+        Enabled = true;
+    }
+}
+
 /// <summary>
 /// 2D physics queries (ADR 0093), as 3D's (<see cref="Crucible.Physics.Physics"/>): on the
 /// last tick's world, filtered by a <see cref="QueryFilter"/>.
@@ -87,6 +100,15 @@ public static class Physics2D
     public static RayHit2D ShapeCast(World world, QueryShape2D shape, Vector2 from, float angle, Vector2 direction,
         float distance, QueryFilter? filter = null) =>
         Api.ShapeCast(world.Live, shape, from, angle, Vector2.Normalize(direction), distance, filter ?? QueryFilter.Default);
+
+    /// <summary>Every hit of a box, circle, or capsule swept along a ray, nearest first, each entity once, as many as fit; returns how many there are.</summary>
+    public static int ShapeCastAll(World world, QueryShape2D shape, Vector2 from, float angle, Vector2 direction,
+        float distance, Span<RayHit2D> into, QueryFilter? filter = null) =>
+        (int)Api.ShapeCastAll(world.Live, shape, from, angle, Vector2.Normalize(direction), distance,
+            filter ?? QueryFilter.Default, into);
+
+    /// <summary>What 2D hitboxes touched this frame (ADR 0096), by timestamp, as many as fit; returns how many there are.</summary>
+    public static int HitboxHits(World world, Span<HitboxHit2D> into) => (int)Api.HitboxHits(world.Live, into);
 
     /// <summary>The entities whose 2D colliders overlap a shape, each once, as many as fit; returns how many there are.</summary>
     public static int Overlap(World world, QueryShape2D shape, Vector2 at, float angle, Span<Entity> into,

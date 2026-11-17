@@ -90,3 +90,19 @@ public partial struct CharacterController
         StepSmoothing = 0.1f;
     }
 }
+
+/// <summary>
+/// A shape that strikes (ADR 0096), swept each frame while active, from where it was
+/// to where it is; read what it touched with <see cref="Physics.HitboxHits"/>.
+/// </summary>
+[Serialized]
+public partial struct Hitbox
+{
+    public Hitbox()
+    {
+        Shape = ShapeKind.Sphere;
+        Size = new System.Numerics.Vector3(0.15f, 0, 0);
+        Mask = uint.MaxValue;
+        Enabled = true;
+    }
+}

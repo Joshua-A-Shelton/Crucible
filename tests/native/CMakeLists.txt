@@ -20,6 +20,7 @@ add_executable(crucible_native_tests
     Chain2DTests.cpp
     CharacterController2DTests.cpp
     Joint2DTests.cpp
+    Hitbox2DTests.cpp
     Physics2DBodyTests.cpp
     Physics2DContactTests.cpp
     Physics2DQueryTests.cpp
@@ -105,7 +106,7 @@ doctest_discover_tests(crucible_native_tests ADD_LABELS 1
 add_executable(crucible_importers_tests Main.cpp FbxImportTests.cpp MeshImportTests.cpp ShaderCompilerTests.cpp
     SkinImportTests.cpp ClipImportTests.cpp PoseTests.cpp LayerTests.cpp StateMachineTests.cpp BlendSpaceTests.cpp
     AnimationEventTests.cpp RootMotionTests.cpp IkTests.cpp TextureImportTests.cpp SoundImportTests.cpp AdpcmTests.cpp
-    VorbisStreamingTests.cpp CollisionCookingTests.cpp)
+    VorbisStreamingTests.cpp CollisionCookingTests.cpp SocketTests.cpp HitboxTests.cpp)
 crucible_set_compile_options(crucible_importers_tests)
 # ufbx's sample files (ADR 0044) are the FBX tests' models.
 target_compile_definitions(crucible_importers_tests PRIVATE DOCTEST_CONFIG_NO_EXCEPTIONS_BUT_WITH_ALL_ASSERTS
