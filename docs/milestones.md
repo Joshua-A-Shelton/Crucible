@@ -645,8 +645,8 @@ decision made at its start):
    Step 6c built (ADR 0095): Chain colliders on Box2D's chains from
    `.crchain` assets, drawn with their solid side, reloaded on reimport;
    Edit Points in the editor; Create > Chain; mirrored 2D entities fixed
-   for every shape; the Walker's Chains2D scene. Awaiting the owner's try
-   by hand.
+   for every shape; the Walker's Chains2D scene. Tried by hand by the
+   owner (2026-11-16); names settled as drafted. Step 6 is done.
 7. Swept hitboxes: a hitbox shape on a joint, active during an animation
    window (ADR 0081), swept each frame by shape cast; hits reported with
    exact times, interpolated between frame timestamps.

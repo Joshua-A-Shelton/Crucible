@@ -1062,8 +1062,8 @@ inspector's "Edit Points" (key P); Assets > Create > "Chain" making
 "New Chain.crchain"; undo titles "Move Point", "Insert Point", "Delete
 Point"; `ChainHandles`, `ChainHandleChecks`; ADR 0095 "Chain colliders";
 `ChainImporterTests`, `Chain2DTests`; the Walker's Chains2D.crscene with
-Hills.crchain and Cave.crchain. Names added while building (marked *) are
-placeholders until the owner tries step 6c by hand:
+Hills.crchain and Cave.crchain. Names added while building (marked *) settled as drafted too (2026-11-16),
+after the owner tried step 6c by hand:
 
 | Name | What it is |
 |---|---|

@@ -1,9 +1,9 @@
 # 0095 — Chain colliders
 
-**Status:** Accepted (2026-11-16); M9 step 6c built, awaiting the owner's
-try by hand in the Walker's Chains2D scene. The design's names were
-settled before building; names marked * were added while building and
-are placeholders until the try.
+**Status:** Accepted (2026-11-16); M9 step 6c built, then tried by hand by
+the owner in the Walker's Chains2D scene (2026-11-16). Names, including those
+added while building (marked *), settled by the owner as drafted
+(2026-11-16, docs/naming.md).
 
 ## Context
 
