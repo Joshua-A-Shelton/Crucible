@@ -754,7 +754,10 @@ Tried by hand by the owner on KWin. Step 4 is done. Step 5 built (ADR
 0092): all five joint kinds on Box3D (BallSocket and SwingTwist on its
 spherical joint), joints to the world, limits off unless set, drawn with
 the colliders; the Walker's Joints scene. Tried by hand by the owner on
-KWin. Step 5 is done.
+KWin. Step 5 is done. Steps 6 to 8 are done (their notes are with the
+steps above): 2D on Box2D, swept hitboxes with bone attachments, and the
+demonstration (ADR 0097). Signed off by the owner on 2026-11-17; M9 is
+done.
 
 **Editor usability** (agreed with the owner, 2026-11-11, between M9 steps 2
 and 3; one commit each, tried by hand like a milestone's steps):

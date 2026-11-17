@@ -1,8 +1,9 @@
 # 0097 — The M9 demonstration
 
 **Status:** Accepted (2026-11-16); M9 step 8 built, then tried by hand by
-the owner in the Walker's Level scene. Names, including those added while
-building, settled by the owner as drafted (docs/naming.md).
+the owner in the Walker's Level scene; M9 signed off (2026-11-17). Names,
+including those added while building, settled by the owner as drafted
+(docs/naming.md).
 
 ## Context
 
