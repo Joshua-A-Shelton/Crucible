@@ -13,6 +13,9 @@ the sample project's Assets folder.
            other joint's tracks are constant.
   WalkForward  Walk travelling: the hips move forward (+Z) at 1.7 m/s, about
            the speed the planted foot moves back, for root motion (ADR 0081).
+  Swing    a one-second kick (ADR 0097): the right leg winds back with its
+           knee bent until 0.3 s, kicks forward and straightens until 0.5 s,
+           and comes back to standing by 1 s; the arms swing against it.
 
 glTF's convention: right-handed, Y up, counter-clockwise front faces, the
 figure facing +Z. Keys every 1/16 s, linearly interpolated.
@@ -141,6 +144,27 @@ def idle(t):
     return {"Spine": quat_axis((1, 0, 0), 0.04 * math.sin(math.pi * t))}, None
 
 
+# The kick's keys: (time, upper leg angle, knee angle); forward is negative,
+# as in walk(). Eased between keys.
+KICK = [(0.0, 0.0, 0.0), (0.3, 0.35, 1.2), (0.5, -1.3, 0.1), (1.0, 0.0, 0.0)]
+
+
+def swing(t):
+    for (t0, leg0, knee0), (t1, leg1, knee1) in zip(KICK, KICK[1:]):
+        if t <= t1:
+            u = (t - t0) / (t1 - t0)
+            u = u * u * (3 - 2 * u)
+            leg, knee = leg0 + (leg1 - leg0) * u, knee0 + (knee1 - knee0) * u
+            break
+    rotations = {
+        "RightUpperLeg": quat_axis((1, 0, 0), leg),
+        "RightLowerLeg": quat_axis((1, 0, 0), knee),
+        "LeftUpperArm": quat_axis((1, 0, 0), 0.5 * leg),
+        "RightUpperArm": quat_axis((1, 0, 0), -0.5 * leg),
+    }
+    return rotations, None
+
+
 class Buffer:
     def __init__(self):
         self.data = bytearray()
@@ -195,7 +219,8 @@ def main():
             nodes[1 + INDEX[parent]].setdefault("children", []).append(1 + i)
 
     animations = []
-    for clip, duration, pose in (("Walk", 1.0, walk), ("Idle", 2.0, idle), ("WalkForward", 1.0, walk_forward)):
+    for clip, duration, pose in (("Walk", 1.0, walk), ("Idle", 2.0, idle), ("WalkForward", 1.0, walk_forward),
+                                 ("Swing", 1.0, swing)):
         keys = int(duration * 16) + 1
         times = [i / 16 for i in range(keys)]
         time_accessor = buffer.add(times, 5126, "SCALAR", "f", keys, bounds=False)

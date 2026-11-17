@@ -1136,3 +1136,15 @@ entities "Level", "Post", and "Waypoint 1" onward; the check
 `LevelChecks`, the CTest `samples.walker-level`, the game argument
 `check-level`; ADR 0097 "The M9 demonstration";
 docs/learning/walking-a-level.md.
+
+Names added while building (marked *) are placeholders until the owner
+tries step 8 by hand:
+
+| Name | What it is |
+|---|---|
+| Assets/Models/Level.crstates*, its parameter `Arrived`*, its states `Idle`*, `Swing`*, `Walk`* | The scene's state machine |
+| "Strike Hitbox"* | The scene's hitbox entity, under "Foot Attachment" |
+| `make_walker.py`'s `swing`*, `KICK`*; Level.bin* | The generators |
+| Route.cs's `Progress`*, `Length`*; the reports "Walker.Route: …"* and Kicks' "… ms into its window"* | The game code |
+| `LevelChecks.LastRun`*, `Seconds`*, `WindowMs`* | The check |
+

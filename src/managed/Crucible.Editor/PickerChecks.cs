@@ -103,7 +103,7 @@ internal sealed class PickerChecks : GameSystem
         {
             yield return wait;
         }
-        Check(meshes.SequenceEqual(["None", "Models/House.gltf", "Models/Walker.gltf"]), "a collider's Mesh lists only models",
+        Check(meshes.SequenceEqual(["None", "Models/House.gltf", "Models/Level.gltf", "Models/Walker.gltf"]), "a collider's Mesh lists only models",
             string.Join(", ", meshes));
         ComboBox? index = Box(inspector, typeof(Collider), "MeshIndex");
         Check(index is { IsEnabled: false, SelectedOption: "Choose a model first" }, "Mesh Index waits for a model",
@@ -143,7 +143,7 @@ internal sealed class PickerChecks : GameSystem
             string.Join(", ", skeletons));
         Check(clips.Length > 1 && clips.Skip(1).All(clip => clip.StartsWith("Models/Walker.gltf: ", StringComparison.Ordinal)),
             "Clip lists only clips", string.Join(", ", clips));
-        Check(machines.SequenceEqual(["None", "Models/Walker.crstates"]), "State Machine lists only state machines",
+        Check(machines.SequenceEqual(["None", "Models/Level.crstates", "Models/Walker.crstates"]), "State Machine lists only state machines",
             string.Join(", ", machines));
 
         // A sound source lists sounds; so does a game's own field ([AssetKind]).

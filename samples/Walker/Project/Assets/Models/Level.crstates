@@ -1,0 +1,19 @@
+{
+  "$guid": "197b41d9-e174-4682-aa02-c494bc9bf108",
+  "Parameters": [
+    { "Name": "Arrived", "Type": "Bool", "Default": false }
+  ],
+  "States": [
+    { "Name": "Idle", "Clip": "5b2d9abd-9735-4e60-a088-9e28ed3d37ea" },
+    { "Name": "Swing", "Clip": "aedf0c36-14e2-4aa7-8f48-dd51d408b813", "Loop": false },
+    { "Name": "Walk", "Clip": "9c157526-fac4-4ead-a5f6-ad6bd1cf1e93" }
+  ],
+  "Start": "Idle",
+  "Transitions": [
+    { "From": "Idle", "To": "Swing", "Blend": 0.1, "ExitTime": 0.5,
+      "Conditions": [ { "Parameter": "Arrived", "Op": "==", "Value": false } ] },
+    { "From": "Swing", "To": "Walk", "Blend": 0.25, "ExitTime": 1 },
+    { "From": "Walk", "To": "Idle", "Blend": 0.25,
+      "Conditions": [ { "Parameter": "Arrived", "Op": "==", "Value": true } ] }
+  ]
+}

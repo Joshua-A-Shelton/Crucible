@@ -722,6 +722,15 @@ decision made at its start):
    - ADR 0097 "The M9 demonstration"; docs/learning/walking-a-level.md.
      Then the owner tries it by hand.
 
+   Step 8 built (ADR 0097): the level (154 triangles, one Mesh Collider),
+   the Swing clip and Strike window, Level.crstates, Code/Route.cs, and
+   Level.crscene; KickSystem reports a hit's time into its window. At 30
+   fps the hit lands 0.14 ms earlier than at 60 to 240 fps (which agree
+   within 10 µs): the sweep's screw between frames isn't the kick's curve
+   (ADR 0096's known limitation). The owner loosened the check from 50 µs
+   to 0.5 ms. samples.walker-level passes. Awaiting the owner's try by
+   hand.
+
 **Status (2026-11-11):** step 1 built (ADR 0085): Box3D (f36d061) in the
 core, its tasks on the job system and its memory through Crucible's
 allocator; bodies synced by kind, written back, and interpolated between

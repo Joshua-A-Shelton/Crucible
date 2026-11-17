@@ -192,10 +192,10 @@ public class SubAssetTests
             database.ImportAll();
             await Assert.That(database.ImportedFile(model.Id)).IsNotNull();
             await Assert.That(string.Join(" ", database.SubAssetsOf(model.Id).Select(clip => clip.SubAssetName)))
-                .IsEqualTo("Idle Walk WalkForward");
+                .IsEqualTo("Idle Swing Walk WalkForward");
             await Assert.That(string.Join(" ", database.SubAssetsOf(model.Id).Select(clip => clip.Id)))
                 .IsEqualTo(string.Join(" ", clips.Select(clip => clip.Id)));
-            await Assert.That(clips.Length).IsEqualTo(3);
+            await Assert.That(clips.Length).IsEqualTo(4);
             await Assert.That(File.ReadAllText(sidecar)).IsEqualTo(before);
 
             // Walk's footsteps (each foot's) and its Kick window (ADR 0096), from the sidecar, hashed as the runtime knows them.

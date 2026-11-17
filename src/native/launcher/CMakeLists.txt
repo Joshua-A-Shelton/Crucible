@@ -348,6 +348,19 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "WalkerChecks: all [0-9]+ checks passed")
 
+    # The M9 demonstration (ADR 0097): a copy of the Walker's project, its
+    # Level scene run standalone, headless, at 30 and 240 fps: the swing's
+    # hit inside its window, the route walked, and the two runs' hits
+    # compared.
+    add_test(NAME samples.walker-level
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 1000000
+            --project "${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject"
+            --game-arg "check-level=${CMAKE_CURRENT_BINARY_DIR}"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/level-settings.json")
+    set_tests_properties(samples.walker-level PROPERTIES LABELS "integration;gpu" TIMEOUT 400
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "LevelChecks: all [0-9]+ checks passed")
+
     # Import settings and engine messages checking themselves (ADR 0087): a
     # copy of the Walker's project (in the test's folder), a collider's
     # notice cooked, the core's warning in the Log, and the model's settings
@@ -424,7 +437,8 @@ if(CRUCIBLE_BUILD_TESTS)
     # 0074): one at a time, or the builds race.
     set_tests_properties(launcher.jit.viewport launcher.jit.hierarchy launcher.jit.inspector launcher.jit.assets
         launcher.jit.play launcher.jit.standalone launcher.jit.native PROPERTIES RESOURCE_LOCK diorama-project-cache)
-    set_tests_properties(samples.walker launcher.jit.import-settings launcher.jit.play-toolbar launcher.jit.pickers PROPERTIES
+    set_tests_properties(samples.walker samples.walker-level launcher.jit.import-settings launcher.jit.play-toolbar
+        launcher.jit.pickers PROPERTIES
         RESOURCE_LOCK walker-project-cache)
 
     # The M6 demonstration (ADR 0064): the UI showcase's menu driven by mouse,

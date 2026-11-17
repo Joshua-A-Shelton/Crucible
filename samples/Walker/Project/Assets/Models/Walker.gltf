@@ -406,6 +406,61 @@
           "interpolation": "LINEAR"
         }
       ]
+    },
+    {
+      "name": "Swing",
+      "channels": [
+        {
+          "sampler": 0,
+          "target": {
+            "node": 11,
+            "path": "rotation"
+          }
+        },
+        {
+          "sampler": 1,
+          "target": {
+            "node": 12,
+            "path": "rotation"
+          }
+        },
+        {
+          "sampler": 2,
+          "target": {
+            "node": 4,
+            "path": "rotation"
+          }
+        },
+        {
+          "sampler": 3,
+          "target": {
+            "node": 6,
+            "path": "rotation"
+          }
+        }
+      ],
+      "samplers": [
+        {
+          "input": 25,
+          "output": 26,
+          "interpolation": "LINEAR"
+        },
+        {
+          "input": 25,
+          "output": 27,
+          "interpolation": "LINEAR"
+        },
+        {
+          "input": 25,
+          "output": 28,
+          "interpolation": "LINEAR"
+        },
+        {
+          "input": 25,
+          "output": 29,
+          "interpolation": "LINEAR"
+        }
+      ]
     }
   ],
   "accessors": [
@@ -586,6 +641,42 @@
       "componentType": 5126,
       "count": 17,
       "type": "VEC3"
+    },
+    {
+      "bufferView": 25,
+      "componentType": 5126,
+      "count": 17,
+      "type": "SCALAR",
+      "min": [
+        0.0
+      ],
+      "max": [
+        1.0
+      ]
+    },
+    {
+      "bufferView": 26,
+      "componentType": 5126,
+      "count": 17,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 27,
+      "componentType": 5126,
+      "count": 17,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 28,
+      "componentType": 5126,
+      "count": 17,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 29,
+      "componentType": 5126,
+      "count": 17,
+      "type": "VEC4"
     }
   ],
   "bufferViews": [
@@ -719,12 +810,37 @@
       "buffer": 0,
       "byteOffset": 24392,
       "byteLength": 204
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 24596,
+      "byteLength": 68
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 24664,
+      "byteLength": 272
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 24936,
+      "byteLength": 272
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 25208,
+      "byteLength": 272
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 25480,
+      "byteLength": 272
     }
   ],
   "buffers": [
     {
       "uri": "Walker.bin",
-      "byteLength": 24596
+      "byteLength": 25752
     }
   ]
 }

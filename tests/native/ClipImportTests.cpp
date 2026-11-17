@@ -11,11 +11,12 @@ using namespace crucible::importers::testing;
 TEST_CASE("Animations become clips resampled at the clip rate")
 {
     const Imported walker(importWalker(withClips(settings(), 30.0f)));
-    REQUIRE(meshClipCount(*walker.mesh) == 3);
+    REQUIRE(meshClipCount(*walker.mesh) == 4);
     const Clip walk(*walker.mesh, 0), idle(*walker.mesh, 1);
     CHECK(walk.name == "Walk");
     CHECK(idle.name == "Idle");
     CHECK(Clip(*walker.mesh, 2).name == "WalkForward");
+    CHECK(Clip(*walker.mesh, 3).name == "Swing");
     CHECK(walk.info().duration == doctest::Approx(1.0f));
     CHECK(walk.info().sampleRate == 30.0f);
     CHECK(walk.info().sampleCount == 31);

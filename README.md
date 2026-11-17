@@ -168,3 +168,6 @@ Longer explanations of decisions, written to be reread:
 - [Swept hitboxes](docs/learning/swept-hitboxes.md) (ADR 0096): why a hit
   checked once a frame depends on the frame rate, sweeping instead, curved
   paths as screws, activations, owners, and bone attachments.
+- [Walking a level](docs/learning/walking-a-level.md) (ADR 0097): a level
+  as one mesh, steering on top of root motion, where exact moments come
+  from, and comparing two runs.

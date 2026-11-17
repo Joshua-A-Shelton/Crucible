@@ -20,11 +20,17 @@
         "Windows": [
           { "Name": "Kick", "Start": 0.6, "End": 0.95 }
         ]
+      },
+      "Swing": {
+        "Windows": [
+          { "Name": "Strike", "Start": 0.3, "End": 0.55 }
+        ]
       }
     }
   },
   "SubAssets": {
     "Idle": "5b2d9abd-9735-4e60-a088-9e28ed3d37ea",
+    "Swing": "aedf0c36-14e2-4aa7-8f48-dd51d408b813",
     "Walk": "10880ff6-b22a-451e-a23a-d6729d1f813d",
     "WalkForward": "9c157526-fac4-4ead-a5f6-ad6bd1cf1e93"
   }
