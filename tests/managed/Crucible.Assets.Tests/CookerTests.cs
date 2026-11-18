@@ -175,6 +175,107 @@ public class CookerTests
         }
     }
 
+    [Test]
+    public async Task TheArchiveReaderFindsWhatTheCookerPacked()
+    {
+        Project project = CopyWalker();
+        try
+        {
+            AssetDatabase database = Open(project);
+            CookResult result = new Cooker(database).Cook();
+            await Assert.That(string.Join("; ", result.Errors)).IsEqualTo("");
+            AssetId level = Id(database, "Scenes/Level.crscene");
+            using Archive archive = Archive.Open(result.ArchivePath);
+            await Assert.That(archive.Count).IsEqualTo(8);
+            await Assert.That(archive.StartScene).IsEqualTo(level);
+
+            // The Level scene's list: everything else packed, as the writer recorded it.
+            IReadOnlyList<AssetId> packed = [.. ArchiveWriter.ReadIndex(File.ReadAllBytes(result.ArchivePath)).Select(entry => entry.Id)];
+            await Assert.That(Sorted(archive.SceneAssets(level))).IsEqualTo(Sorted(packed.Where(id => id != level)));
+            await Assert.That(Sorted(ArchiveWriter.ReadSceneAssets(File.ReadAllBytes(result.ArchivePath))[level]))
+                .IsEqualTo(Sorted(archive.SceneAssets(level)));
+            await Assert.That(archive.SceneAssets(Id(database, "Models/Level.gltf")).Length).IsEqualTo(0);
+        }
+        finally
+        {
+            Directory.Delete(project.Root, recursive: true);
+        }
+    }
+
+    [Test]
+    public async Task EachScenesListHasOnlyWhatItReaches()
+    {
+        Project project = CopyWalker();
+        try
+        {
+            project.SaveBuild(new BuildSettings { Scenes = [.. project.Build.Scenes], Include = ["Scenes/Walk.crscene"] });
+            AssetDatabase database = Open(Project.Open(project.ProjectFilePath));
+            CookResult result = new Cooker(database).Cook();
+            await Assert.That(string.Join("; ", result.Errors)).IsEqualTo("");
+            using Archive archive = Archive.Open(result.ArchivePath);
+            HashSet<AssetId> level = [.. archive.SceneAssets(Id(database, "Scenes/Level.crscene"))];
+            HashSet<AssetId> walk = [.. archive.SceneAssets(Id(database, "Scenes/Walk.crscene"))];
+            // Both use the Walker; each its own state machine and clips.
+            await Assert.That(level.Contains(Id(database, "Models/Walker.gltf")) && walk.Contains(Id(database, "Models/Walker.gltf"))).IsTrue();
+            await Assert.That(level.Contains(Id(database, "Models/Level.crstates"))).IsTrue();
+            await Assert.That(walk.Contains(Id(database, "Models/Level.crstates"))).IsFalse();
+            await Assert.That(walk.Contains(Sub(database, "Models/Walker.gltf", "Walk"))).IsTrue();
+            await Assert.That(level.Contains(Sub(database, "Models/Walker.gltf", "Walk"))).IsFalse();
+            await Assert.That(level.Contains(Id(database, "Scenes/Walk.crscene")) || walk.Contains(Id(database, "Scenes/Level.crscene"))).IsFalse();
+        }
+        finally
+        {
+            Directory.Delete(project.Root, recursive: true);
+        }
+    }
+
+    [Test]
+    public async Task ADamagedOrOldArchiveDoesntOpen()
+    {
+        Project project = CopyWalker();
+        try
+        {
+            CookResult result = new Cooker(Open(project)).Cook();
+            byte[] good = File.ReadAllBytes(result.ArchivePath);
+            string path = Path.Combine(project.Root, "Damaged.crpak");
+            async Task Fails(byte[] bytes, Status expected)
+            {
+                File.WriteAllBytes(path, bytes);
+                Status status = Status.Ok;
+                try
+                {
+                    Archive.Open(path).Dispose();
+                }
+                catch (CrucibleException exception)
+                {
+                    status = exception.Status;
+                }
+                await Assert.That(status).IsEqualTo(expected);
+            }
+            await Fails(good[..^20], Status.InvalidData);
+            byte[] old = (byte[])good.Clone();
+            BinaryPrimitives.WriteUInt32LittleEndian(old.AsSpan(4), 1);
+            await Fails(old, Status.Unsupported);
+            byte[] other = (byte[])good.Clone();
+            other[0] = (byte)'X';
+            await Fails(other, Status.InvalidData);
+            Status missing = Status.Ok;
+            try
+            {
+                Archive.Open(Path.Combine(project.Root, "Nowhere.crpak"));
+            }
+            catch (CrucibleException exception)
+            {
+                missing = exception.Status;
+            }
+            await Assert.That(missing).IsEqualTo(Status.NotFound);
+        }
+        finally
+        {
+            Directory.Delete(project.Root, recursive: true);
+        }
+    }
+
     // IDs as text, sorted, so two sets compare as strings.
     internal static string Sorted(IEnumerable<AssetId> ids) =>
         string.Join(",", ids.Select(id => id.ToString()).Order(StringComparer.Ordinal));

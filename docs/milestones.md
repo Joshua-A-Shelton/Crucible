@@ -888,6 +888,12 @@ decision made at its start):
      frames keep running while a scene loads.
    - ADR 0099 "Loading from archives";
      docs/learning/loading-from-archives.md.
+
+   Step 2a built (ADR 0099): the core's ArchiveReader installed as the
+   asset source; each scene's asset list in the archive (version 2);
+   --archive, --scene by ID, and Game.crpak beside the launcher. The
+   Walker's Level runs from its archive exactly as from the Cache
+   (samples.walker-archive). Awaiting the owner's try by hand.
 3. JIT shipping builds: a package folder with the launcher, the core, the
    .NET runtime, ReadyToRun engine and game assemblies, any native module,
    and the archives; plugins registered by their generated entry points.

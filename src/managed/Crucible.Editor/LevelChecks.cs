@@ -15,6 +15,10 @@ namespace Crucible.Editor;
 /// Walker's swing hits the post once, inside its Strike window, and the
 /// Walker walks its route to the end without falling; then the two runs'
 /// hits must land at the same moment into the window.
+/// With <c>check-archive=&lt;folder&gt;</c> instead, for samples.walker-archive
+/// (ADR 0099): one run from the Cache at 30 fps, then the project cooked
+/// and run from its archive at 30 fps, which must read its 8 assets from it
+/// and play out the same.
 /// </summary>
 [System(Phases.RenderPrepare)]
 internal sealed partial class LevelChecks : GameSystem
@@ -28,15 +32,24 @@ internal sealed partial class LevelChecks : GameSystem
     private int _checks;
     private int _failures;
     private string _folder = "";
+    private bool _archive;
+    // The latest run's log, route, and hit (ms into its window; NaN if none).
+    private string _run = "";
+    private Match _route = Match.Empty;
+    private double _into;
 
     public override void Start(FrameContext context)
     {
-        if (!context.GameArguments.TryGetValue("check-level", out string? folder))
+        if (context.GameArguments.TryGetValue("check-archive", out string? archive))
+        {
+            _archive = true;
+        }
+        else if (!context.GameArguments.TryGetValue("check-level", out archive))
         {
             Enabled = false;
             return;
         }
-        _folder = folder;
+        _folder = archive;
         _script = Script().GetEnumerator();
         _wait = 3;
     }
@@ -70,70 +83,68 @@ internal sealed partial class LevelChecks : GameSystem
     {
         Shell shell = Shell.Current ?? throw new InvalidOperationException("No editor shell");
         string source = Path.GetDirectoryName(shell.Project?.ProjectFilePath ?? "") ?? "";
-        string copy = Path.Combine(Path.GetFullPath(_folder), "level-project");
+        string copy = Path.Combine(Path.GetFullPath(_folder), _archive ? "archive-project" : "level-project");
         if (Directory.Exists(copy))
         {
             Directory.Delete(copy, recursive: true);
         }
         AssetChecks.CopyProject(source, copy);
-        shell.OpenProject(Path.Combine(copy, Path.GetFileName(shell.Project!.ProjectFilePath)));
+        string projectFile = Path.Combine(copy, Path.GetFileName(shell.Project!.ProjectFilePath));
+        // Known build settings, whatever the sources' say: the Level scene alone.
+        Assets.Project.Open(projectFile).SaveBuild(new Assets.BuildSettings
+        {
+            Scenes = [Assets.AssetId.Parse("28fe2d80-33ef-4ee4-a409-cc43b935bcc6")],
+        });
+        shell.OpenProject(projectFile);
         shell.OpenScene(Path.Combine(copy, "Assets", "Scenes", "Level.crscene"));
         yield return 3;
+        string Rate(int rate) => rate.ToString(CultureInfo.InvariantCulture);
+
+        if (_archive)
+        {
+            foreach (int wait in Run(shell, "from the Cache", () => shell.RunStandalone("--headless", "--frame-rate", "30",
+                         "--game-arg", $"seconds={Seconds}")))
+            {
+                yield return wait;
+            }
+            double fromCache = _into;
+            string cacheRoute = _route.Success ? _route.Groups["arrived"].Value : "";
+            Assets.CookResult? cooked = shell.Cook(Path.Combine(Path.GetFullPath(_folder), "archive-cooked"));
+            Check(cooked is { Succeeded: true }, "the project cooks", string.Join("; ", cooked?.Errors ?? []));
+            if (cooked is not { Succeeded: true })
+            {
+                yield break;
+            }
+            // The imported files moved aside, so nothing can come from the Cache.
+            string imported = Path.Combine(copy, "Cache", "Imported");
+            Directory.Move(imported, imported + "-aside");
+            foreach (int wait in Run(shell, "from the archive", () => shell.RunCooked(cooked.ArchivePath, "--headless",
+                         "--frame-rate", "30", "--game-arg", $"seconds={Seconds}")))
+            {
+                yield return wait;
+            }
+            Directory.Move(imported + "-aside", imported);
+            Check(_run.Contains("reading 8 assets from Game.crpak", StringComparison.Ordinal),
+                "the run reads its assets from the archive, with the Cache's imported files moved aside", Tail(_run));
+            Console.WriteLine($"LevelChecks: from the Cache the hit is {fromCache:0.000} ms in, from the archive {_into:0.000} ms");
+            Check(Math.Abs(fromCache - _into) < 0.5, "from the archive the hit lands as it does from the Cache",
+                $"{fromCache:0.000} and {_into:0.000} ms");
+            Check(_route.Success && _route.Groups["arrived"].Value == cacheRoute,
+                "and the Walker arrives at the same moment", $"{cacheRoute} and {_route.Groups["arrived"].Value}");
+            yield break;
+        }
 
         double[] into = new double[2];
         int[] rates = [30, 240];
         for (int r = 0; r < rates.Length; ++r)
         {
-            // A frame the loop clamped (longer than four ticks, ADR 0036)
-            // drops time by design, moving the swing: such a run, as a
-            // loaded machine can make, is run again, up to three times.
-            string run = "";
-            Match route = Match.Empty;
-            for (int attempt = 1; attempt <= 3; ++attempt)
+            int rate = rates[r];
+            foreach (int wait in Run(shell, $"at {rate} fps", () => shell.RunStandalone("--headless", "--frame-rate", Rate(rate),
+                         "--game-arg", $"seconds={Seconds}")))
             {
-                int ended = Count(Log(shell), "The standalone run ended");
-                Check(shell.RunStandalone("--headless", "--frame-rate",
-                    rates[r].ToString(CultureInfo.InvariantCulture), "--game-arg",
-                    $"seconds={Seconds}"), $"the run at {rates[r]} fps starts");
-                long started = Environment.TickCount64;
-                while (Count(Log(shell), "The standalone run ended") == ended &&
-                       Environment.TickCount64 - started < 180000)
-                {
-                    yield return 2;
-                }
-                run = LastRun(Log(shell));
-                route = Route().Match(run);
-                int clamped = route.Success ? int.Parse(route.Groups["clamped"].Value, CultureInfo.InvariantCulture) : 0;
-                if (clamped == 0)
-                {
-                    break;
-                }
-                Console.WriteLine($"LevelChecks: at {rates[r]} fps, {clamped} frames clamped (the machine is busy); " +
-                                  (attempt < 3 ? "running it again" : "comparing it as it is"));
+                yield return wait;
             }
-
-            MatchCollection hits = Hit().Matches(run);
-            Check(hits.Count == 1, $"at {rates[r]} fps the swing hits the post once", Tail(run));
-            if (hits.Count > 0)
-            {
-                into[r] = double.Parse(hits[0].Groups["into"].Value, CultureInfo.InvariantCulture);
-                Console.WriteLine($"LevelChecks: at {rates[r]} fps the post is hit {into[r]:0.000} ms into the Strike window");
-                Check(into[r] >= 0 && into[r] <= WindowMs, $"at {rates[r]} fps the hit is inside the Strike window",
-                    hits[0].Value);
-            }
-            Check(route.Success, $"at {rates[r]} fps the game reports the route", Tail(run));
-            if (route.Success)
-            {
-                int reached = int.Parse(route.Groups["reached"].Value, CultureInfo.InvariantCulture);
-                int count = int.Parse(route.Groups["count"].Value, CultureInfo.InvariantCulture);
-                double lowest = double.Parse(route.Groups["lowest"].Value, CultureInfo.InvariantCulture);
-                Console.WriteLine($"LevelChecks: at {rates[r]} fps, {route.Value}");
-                Check(count >= 2 && reached == count, $"at {rates[r]} fps the Walker reaches every waypoint", route.Value);
-                Check(route.Groups["arrived"].Success, $"at {rates[r]} fps the Walker arrives", route.Value);
-                Check(lowest > -0.1, $"at {rates[r]} fps the Walker never falls through the level", route.Value);
-            }
-            Check(run.Contains("The standalone run ended (exit code 0)", StringComparison.Ordinal),
-                $"the run at {rates[r]} fps ends cleanly", Tail(run));
+            into[r] = _into;
         }
 
         // The screw between frames isn't the kick's curve (ADR 0096), so a
@@ -143,6 +154,59 @@ internal sealed partial class LevelChecks : GameSystem
         Console.WriteLine($"LevelChecks: the 30 and 240 fps hits are {apart:0.000} ms apart");
         Check(apart < 0.5, "the hit lands at the same moment at 30 and 240 fps, within half a millisecond",
             $"{apart:0.000} ms");
+    }
+
+    // One headless run, started by `start`, checked: the post hit once inside
+    // its window, the route walked to the end without falling, a clean end.
+    // A frame the loop clamped (longer than four ticks, ADR 0036) drops time
+    // by design, moving the swing: such a run, as a loaded machine can make,
+    // is run again, up to three times.
+    private IEnumerable<int> Run(Shell shell, string what, Func<bool> start)
+    {
+        _run = "";
+        _route = Match.Empty;
+        _into = double.NaN;
+        for (int attempt = 1; attempt <= 3; ++attempt)
+        {
+            int ended = Count(Log(shell), "The standalone run ended");
+            Check(start(), $"the run {what} starts");
+            long started = Environment.TickCount64;
+            while (Count(Log(shell), "The standalone run ended") == ended && Environment.TickCount64 - started < 180000)
+            {
+                yield return 2;
+            }
+            _run = LastRun(Log(shell));
+            _route = Route().Match(_run);
+            int clamped = _route.Success ? int.Parse(_route.Groups["clamped"].Value, CultureInfo.InvariantCulture) : 0;
+            if (clamped == 0)
+            {
+                break;
+            }
+            Console.WriteLine($"LevelChecks: {what}, {clamped} frames clamped (the machine is busy); " +
+                              (attempt < 3 ? "running it again" : "comparing it as it is"));
+        }
+
+        MatchCollection hits = Hit().Matches(_run);
+        Check(hits.Count == 1, $"{what} the swing hits the post once", Tail(_run));
+        if (hits.Count > 0)
+        {
+            _into = double.Parse(hits[0].Groups["into"].Value, CultureInfo.InvariantCulture);
+            Console.WriteLine($"LevelChecks: {what} the post is hit {_into:0.000} ms into the Strike window");
+            Check(_into >= 0 && _into <= WindowMs, $"{what} the hit is inside the Strike window", hits[0].Value);
+        }
+        Check(_route.Success, $"{what} the game reports the route", Tail(_run));
+        if (_route.Success)
+        {
+            int reached = int.Parse(_route.Groups["reached"].Value, CultureInfo.InvariantCulture);
+            int count = int.Parse(_route.Groups["count"].Value, CultureInfo.InvariantCulture);
+            double lowest = double.Parse(_route.Groups["lowest"].Value, CultureInfo.InvariantCulture);
+            Console.WriteLine($"LevelChecks: {what}, {_route.Value}");
+            Check(count >= 2 && reached == count, $"{what} the Walker reaches every waypoint", _route.Value);
+            Check(_route.Groups["arrived"].Success, $"{what} the Walker arrives", _route.Value);
+            Check(lowest > -0.1, $"{what} the Walker never falls through the level", _route.Value);
+        }
+        Check(_run.Contains("The standalone run ended (exit code 0)", StringComparison.Ordinal),
+            $"the run {what} ends cleanly", Tail(_run));
     }
 
     [GeneratedRegex(@"Walker\.Kicks: [^\n]* hit Post at [0-9.]+ s, (?<into>-?[0-9.]+) ms into its window")]

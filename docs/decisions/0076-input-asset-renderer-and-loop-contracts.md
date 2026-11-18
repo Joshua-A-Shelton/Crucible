@@ -2,6 +2,9 @@
 
 **Status:** Accepted (2026-11-09); M7 step 7d built and tried by hand by
 the owner on KWin. Names settled by the owner as drafted (docs/naming.md).
+**Amended (2026-11-17, ADR 0099):** `AssetSource` has `threadSafe`, set by
+sources whose `read` any thread may call at once (a cooked archive's);
+sources are still installed on the main thread.
 
 ## Context
 

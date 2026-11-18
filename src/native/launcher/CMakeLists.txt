@@ -361,6 +361,19 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "LevelChecks: all [0-9]+ checks passed")
 
+    # Running from an archive (ADR 0099): a copy of the Walker's project, its
+    # Level scene run standalone from the Cache, then cooked and run from
+    # Game.crpak with the Cache's imported files moved aside; the two runs
+    # must play out the same.
+    add_test(NAME samples.walker-archive
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 1000000
+            --project "${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject"
+            --game-arg "check-archive=${CMAKE_CURRENT_BINARY_DIR}"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/archive-settings.json")
+    set_tests_properties(samples.walker-archive PROPERTIES LABELS "integration;gpu" TIMEOUT 400
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "LevelChecks: all [0-9]+ checks passed")
+
     # Cooking from the command line (ADR 0098): the Walker's build settings
     # (its Level scene) packed into Game.crpak.
     add_test(NAME samples.walker-cook
@@ -463,7 +476,7 @@ if(CRUCIBLE_BUILD_TESTS)
     # 0074): one at a time, or the builds race.
     set_tests_properties(launcher.jit.viewport launcher.jit.hierarchy launcher.jit.inspector launcher.jit.assets
         launcher.jit.play launcher.jit.standalone launcher.jit.native PROPERTIES RESOURCE_LOCK diorama-project-cache)
-    set_tests_properties(samples.walker samples.walker-level samples.walker-cook launcher.jit.build-settings launcher.jit.import-settings launcher.jit.play-toolbar
+    set_tests_properties(samples.walker samples.walker-level samples.walker-archive samples.walker-cook launcher.jit.build-settings launcher.jit.import-settings launcher.jit.play-toolbar
         launcher.jit.pickers PROPERTIES
         RESOURCE_LOCK walker-project-cache)
 

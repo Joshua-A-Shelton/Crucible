@@ -43,6 +43,9 @@ public sealed class Cooker(AssetDatabase database)
 
         ArchiveWriter archive = new() { StartScene = build.Scenes.FirstOrDefault() };
         HashSet<AssetId> seen = [];
+        // What each packed asset names, for the scenes' asset lists.
+        Dictionary<AssetId, List<AssetId>> links = [];
+        List<AssetId> scenes = [];
         Queue<(AssetId Id, string From)> queue = new();
         foreach (AssetId scene in build.Scenes)
         {
@@ -88,12 +91,15 @@ public sealed class Cooker(AssetDatabase database)
                 }
                 byte[] text = File.ReadAllBytes(AssetDatabase.FullPath(database.Project.AssetsFolder, entry.Path));
                 archive.Add(entry.Id, text, database.KindOf(entry.Id));
-                foreach (AssetId named in IdsIn(text))
+                if (entry.Path.EndsWith(Crucible.Scenes.Scene.Extension, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (named != entry.Id && database.Find(named) is not null)
-                    {
-                        queue.Enqueue((named, from));
-                    }
+                    scenes.Add(entry.Id);
+                }
+                List<AssetId> named = [.. IdsIn(text).Where(id => id != entry.Id && database.Find(id) is not null)];
+                links[entry.Id] = named;
+                foreach (AssetId id in named)
+                {
+                    queue.Enqueue((id, from));
                 }
                 continue;
             }
@@ -104,6 +110,7 @@ public sealed class Cooker(AssetDatabase database)
                 continue;
             }
             archive.Add(entry.Id, File.ReadAllBytes(imported.OutputPath), database.KindOf(entry.Id));
+            links[entry.Id] = [.. database.ReferencesOf(entry.Id)];
             foreach (AssetId referenced in database.ReferencesOf(entry.Id))
             {
                 queue.Enqueue((referenced, from));
@@ -115,8 +122,31 @@ public sealed class Cooker(AssetDatabase database)
         {
             return new CookResult(path, 0, 0) { Errors = errors };
         }
+        foreach (AssetId scene in scenes)
+        {
+            archive.SetSceneAssets(scene, Reached(scene, links, scenes));
+        }
         archive.Write(path);
         return new CookResult(path, archive.Count, new FileInfo(path).Length);
+    }
+
+    // Everything a scene reaches through the links, but not other scenes (a
+    // scene naming another doesn't load it) nor what only they reach.
+    private static HashSet<AssetId> Reached(AssetId scene, Dictionary<AssetId, List<AssetId>> links, List<AssetId> scenes)
+    {
+        HashSet<AssetId> reached = [];
+        Stack<AssetId> pending = new([scene]);
+        while (pending.TryPop(out AssetId next))
+        {
+            foreach (AssetId linked in links.GetValueOrDefault(next) ?? [])
+            {
+                if (linked != scene && !scenes.Contains(linked) && reached.Add(linked))
+                {
+                    pending.Push(linked);
+                }
+            }
+        }
+        return reached;
     }
 
     private static bool IsReadAsItIs(string path) =>

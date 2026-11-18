@@ -92,6 +92,9 @@ The Walker's build settings name its Level scene: a cook packs 8 assets
 Idle, Swing, and WalkForward clips, and the footstep sound; not the other
 scenes or the Walk clip.
 
+**Amended (2026-11-17, ADR 0099):** the archive also holds each scene's
+asset list, after the index (pack file version 2).
+
 ## Known limitations
 
 - Cooking runs on the main thread; a big project's imports would stall the

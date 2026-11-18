@@ -79,6 +79,38 @@ internal sealed partial class Shell
         return true;
     }
 
+    /// <summary>
+    /// Runs the game from a cooked archive (ADR 0099) in its own process, as
+    /// a shipped game would: its assets and start scene from the archive,
+    /// with the project's last good build. For the checks.
+    /// </summary>
+    internal bool RunCooked(string archive, params string[] extra)
+    {
+        if (Project is not { } project)
+        {
+            return false;
+        }
+        string launcher = StandaloneRun.LauncherPath(Environment.ProcessPath ?? "");
+        string? game = _builder is { HasCode: true } builder && File.Exists(builder.OutputPath) ? builder.OutputPath : null;
+        List<string> arguments = ["--managed-dir", Path.GetDirectoryName(GameBuilder.EngineAssembly())!];
+        if (game is not null)
+        {
+            arguments.AddRange(["--game", game]);
+        }
+        arguments.AddRange(["--archive", archive, .. ModuleArguments(), .. extra]);
+        try
+        {
+            _standalone.Start(launcher, arguments, project.Root);
+        }
+        catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or IOException)
+        {
+            Log($"Can't run standalone: {exception.Message}");
+            return false;
+        }
+        Log($"Running {Path.GetFileName(archive)} standalone");
+        return true;
+    }
+
     // The native module's latest build (ADR 0074): a new process loads it fresh.
     private string[] ModuleArguments() =>
         _native is { HasCode: true } native && File.Exists(native.OutputPath) ? ["--module", native.OutputPath] : [];

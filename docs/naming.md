@@ -1173,3 +1173,27 @@ after the first try:
 | `AddPicker` (a drop-down that keeps its label), `FolderDrag` (a folder dragged from the Assets panel), `IconButton.Icon.Up`, `Down`, `Remove`, `Shell.LastCook`; `BuildSettingsChecks`, game argument `check-build-settings=`, CTest `launcher.jit.build-settings` | The redesign's parts |
 | the game argument `cook=`; CTest `samples.walker-cook`; `/Build/` in projects' .gitignore | Running it |
 
+## Loading from archives (2026-11-17, M10 step 2)
+
+Settled as drafted before building: ADR 0099 "Loading from archives";
+docs/learning/loading-from-archives.md. 2a: crucible/ArchiveReader.h,
+`ArchiveReader` (`open`, `read`, `startScene`, `sceneAssets`),
+`installArchiveSource`; C# `Archive` (`Open`, `StartScene`,
+`SceneAssets`); the archive's per-scene asset lists (pack file version 2);
+the launcher's `--archive <file>` (game argument `archive=`);
+`AssetSource`'s `threadSafe`; CTest `samples.walker-archive`. 2b:
+`isReady` on render handles (C# `IsReady`), the system "Assets.Publish";
+tests `AsyncLoadTests`. 2c: C# `Scene.LoadAsync(world, sceneId)`,
+`SceneLoadRequest` (`Progress`, `IsDone`, `Result`); CTest
+`launcher.jit.scene-loading`.
+
+Names added while building 2a (marked *) are placeholders until the owner
+tries it by hand:
+
+| Name | What it is |
+|---|---|
+| `PackScene`* (`id`, `first`, `count`), `PackHeader::sceneCount`* | The scene lists' layout |
+| `ArchiveReader::close`*, `contains`*, `count`* | The reader's extras |
+| `openArchive`*, `closeArchive`*, `archiveStartScene`*, `archiveAssetCount`*, `archiveSceneAssets`*, `installArchive`* | C#'s internal bindings |
+| `Archive.Count`*, `Archive.Install`*; `ArchiveWriter.SetSceneAssets`*, `ReadSceneAssets`*; `ProjectStartup.OpenedArchive`* | C# |
+| `Shell.RunCooked`*; LevelChecks' `check-archive=`*; tests `TheArchiveReaderFindsWhatTheCookerPacked`*, `EachScenesListHasOnlyWhatItReaches`*, `ADamagedOrOldArchiveDoesntOpen`* | Checks and tests |

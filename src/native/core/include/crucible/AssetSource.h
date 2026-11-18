@@ -3,8 +3,9 @@
 // The runtime asset contract (ADR 0076): one source of every asset's bytes
 // by ID, which the renderer (RenderAssets), prefabs, and anything else at
 // runtime read through. The editor installs its asset database; a game run
-// from a project, its imported files (AssetCache); a native module (ADR
-// 0074) could install pack files or a network stream. Main thread.
+// from a project, its imported files (AssetCache), or its cooked archive
+// (crucible/ArchiveReader.h); a native module (ADR 0074) could install a
+// network stream. Installed on the main thread.
 
 #include <crucible/Export.h>
 #include <crucible/Expose.h>
@@ -41,6 +42,9 @@ struct AssetSource
     // Calls deliver with the asset's bytes and returns 0, or returns -1 if
     // it has no such asset.
     int32_t (*read)(const AssetId* id, void* context, AssetDelivery deliver);
+    // Whether read may be called from several threads at once (ADR 0099):
+    // an archive's may; the editor's database and C# sources may not.
+    bool threadSafe = false;
 };
 
 // Replaces the source; until one is installed, there are no assets.

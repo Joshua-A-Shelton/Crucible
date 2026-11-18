@@ -5,21 +5,23 @@ using Crucible.Binary;
 namespace Crucible.Assets;
 
 /// <summary>
-/// Writes a PACK archive (ADR 0098; the layout is crucible/PackFile.h's): a
-/// header, each asset's bytes on a 4 KiB boundary, and an index sorted by
-/// asset ID. Imported files are recompressed for shipping (zstd's high
+/// Writes a PACK archive (ADR 0098, 0099; the layout is crucible/PackFile.h's):
+/// a header, each asset's bytes on a 4 KiB boundary, an index sorted by
+/// asset ID, and each scene's asset list. Imported files are recompressed for shipping (zstd's high
 /// setting); files read as they are (scenes, prefabs) are stored as they are.
 /// </summary>
 public sealed class ArchiveWriter
 {
     public static readonly uint Kind = Tag.Of("PACK");
-    public const uint Version = 1; // as packFileVersion
+    public const uint Version = 2; // as packFileVersion
     public const int Alignment = 4096; // as packAlignment
     private const int HeaderSize = 48;
     private const int EntrySize = 48;
     private const int ExtensionSize = 16;
+    private const int SceneSize = 24;
 
     private readonly SortedDictionary<AssetId, (byte[] Bytes, string Extension)> _entries = new(ByBytes.Instance);
+    private readonly SortedDictionary<AssetId, AssetId[]> _scenes = new(ByBytes.Instance);
 
     /// <summary>How many assets it holds.</summary>
     public int Count => _entries.Count;
@@ -40,6 +42,13 @@ public sealed class ArchiveWriter
         }
         _entries[id] = (IsImported(file) ? Recompress(file) : file.ToArray(), extension);
     }
+
+    /// <summary>
+    /// Records what a scene needs (ADR 0099): every asset it reaches, other
+    /// scenes and what only they reach left out, so it can be loaded ahead.
+    /// </summary>
+    public void SetSceneAssets(AssetId scene, IEnumerable<AssetId> assets) =>
+        _scenes[scene] = [.. assets.Order(ByBytes.Instance)];
 
     /// <summary>Writes the archive to <paramref name="path"/>, atomically.</summary>
     public void Write(string path)
@@ -65,11 +74,33 @@ public sealed class ArchiveWriter
             Encoding.UTF8.GetBytes(extension, entry.AsSpan(32, ExtensionSize));
             stream.Write(entry);
         }
+        // Each scene's asset list: PackScene records, then the IDs they index.
+        byte[] scene = new byte[SceneSize];
+        uint first = 0;
+        foreach ((AssetId id, AssetId[] assets) in _scenes)
+        {
+            Array.Clear(scene);
+            id.Value.TryWriteBytes(scene.AsSpan(0, 16));
+            BinaryPrimitives.WriteUInt32LittleEndian(scene.AsSpan(16), first);
+            BinaryPrimitives.WriteUInt32LittleEndian(scene.AsSpan(20), (uint)assets.Length);
+            stream.Write(scene);
+            first += (uint)assets.Length;
+        }
+        byte[] bytes16 = new byte[16];
+        foreach (AssetId[] assets in _scenes.Values)
+        {
+            foreach (AssetId asset in assets)
+            {
+                asset.Value.TryWriteBytes(bytes16);
+                stream.Write(bytes16);
+            }
+        }
         byte[] file = stream.ToArray();
         Span<byte> header = file.AsSpan(0, HeaderSize);
         BinaryPrimitives.WriteUInt32LittleEndian(header, Kind);
         BinaryPrimitives.WriteUInt32LittleEndian(header[4..], Version);
         BinaryPrimitives.WriteUInt32LittleEndian(header[8..], (uint)placed.Count);
+        BinaryPrimitives.WriteUInt32LittleEndian(header[12..], (uint)_scenes.Count);
         BinaryPrimitives.WriteUInt64LittleEndian(header[16..], (ulong)indexOffset);
         BinaryPrimitives.WriteUInt64LittleEndian(header[24..], (ulong)file.Length);
         StartScene.Value.TryWriteBytes(header[32..]);
@@ -82,6 +113,29 @@ public sealed class ArchiveWriter
     {
         ReadIndex(archive);
         return new AssetId(new Guid(archive.Slice(32, 16)));
+    }
+
+    /// <summary>An archive's scenes and their asset lists: for tests and tools.</summary>
+    public static IReadOnlyDictionary<AssetId, AssetId[]> ReadSceneAssets(ReadOnlySpan<byte> archive)
+    {
+        int count = ReadIndex(archive).Count;
+        int scenes = (int)BinaryPrimitives.ReadUInt32LittleEndian(archive[12..]);
+        int at = (int)BinaryPrimitives.ReadUInt64LittleEndian(archive[16..]) + count * EntrySize;
+        int ids = at + scenes * SceneSize;
+        Dictionary<AssetId, AssetId[]> lists = [];
+        for (int i = 0; i < scenes; ++i)
+        {
+            ReadOnlySpan<byte> scene = archive.Slice(at + i * SceneSize, SceneSize);
+            int first = (int)BinaryPrimitives.ReadUInt32LittleEndian(scene[16..]);
+            int length = (int)BinaryPrimitives.ReadUInt32LittleEndian(scene[20..]);
+            AssetId[] assets = new AssetId[length];
+            for (int j = 0; j < length; ++j)
+            {
+                assets[j] = new AssetId(new Guid(archive.Slice(ids + (first + j) * 16, 16)));
+            }
+            lists[new AssetId(new Guid(scene[..16]))] = assets;
+        }
+        return lists;
     }
 
     /// <summary>An archive's entries, in the index's order: for tests and tools.</summary>
@@ -144,7 +198,7 @@ public sealed class ArchiveWriter
     }
 
     // Asset IDs by their 16 bytes, as a reader's binary search compares them.
-    private sealed class ByBytes : IComparer<AssetId>
+    internal sealed class ByBytes : IComparer<AssetId>
     {
         public static readonly ByBytes Instance = new();
 

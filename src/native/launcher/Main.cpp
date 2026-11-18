@@ -45,6 +45,26 @@ using ArgumentChar = char;
 #endif
 using ArgumentView = std::basic_string_view<ArgumentChar>;
 
+// Whether `text` is an asset ID as C# writes one (a GUID with hyphens).
+bool isAssetId(std::u8string_view text)
+{
+    if (text.size() != 36)
+    {
+        return false;
+    }
+    for (size_t i = 0; i < text.size(); ++i)
+    {
+        const char8_t c = text[i];
+        const bool hyphen = i == 8 || i == 13 || i == 18 || i == 23;
+        const bool hex = (c >= u8'0' && c <= u8'9') || (c >= u8'a' && c <= u8'f') || (c >= u8'A' && c <= u8'F');
+        if (hyphen ? c != u8'-' : !hex)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 // Shipped games keep their managed assemblies next to the executable.
 std::filesystem::path executableDirectory()
 {
@@ -112,10 +132,15 @@ int run(int argc, ArgumentChar** argv)
     // (repeatable) loads a project's native module (ADR 0074) once the
     // engine's native side is up, before the C# engine builds its schedule.
     // --cook <folder> (the game argument cook=) has the editor cook the
-    // project into the folder and quit (ADR 0098).
+    // project into the folder and quit (ADR 0098). --archive <file> (the game
+    // argument archive=) runs a game from its cooked archive, starting the
+    // scene the archive names, or the one --scene names by ID (ADR 0099);
+    // with neither --project nor --archive, a game runs from Game.crpak
+    // beside the launcher if there is one.
     std::filesystem::path managedDirectory = executableDirectory();
     std::vector<std::u8string> modules;
     bool gameGiven = false;
+    bool assetsGiven = false; // --project or --archive
     slag::Backend backend = slag::InstanceDesc{}.backend;
     crucible::LaunchOptions options{};
 #if defined(CRUCIBLE_EDITOR_LAUNCHER)
@@ -195,15 +220,21 @@ int run(int argc, ArgumentChar** argv)
             gameGiven = true;
         }
         else if (option == CRUCIBLE_ARGUMENT("--project") || option == CRUCIBLE_ARGUMENT("--scene") ||
-                 option == CRUCIBLE_ARGUMENT("--cook"))
+                 option == CRUCIBLE_ARGUMENT("--cook") || option == CRUCIBLE_ARGUMENT("--archive"))
         {
+            const std::filesystem::path given(value);
             std::error_code error;
-            const std::filesystem::path path = std::filesystem::absolute(std::filesystem::path(value), error);
-            const std::u8string key = option == CRUCIBLE_ARGUMENT("--project") ? u8"project="
-                                      : option == CRUCIBLE_ARGUMENT("--scene") ? u8"scene="
-                                                                               : u8"cook=";
-            const std::u8string utf8 = key + (error ? std::filesystem::path(value) : path).u8string();
+            // A scene in an archive is named by its ID, which stays as it is.
+            const bool sceneId = option == CRUCIBLE_ARGUMENT("--scene") && isAssetId(given.u8string());
+            const std::filesystem::path path = sceneId ? given : std::filesystem::absolute(given, error);
+            const std::u8string key = option == CRUCIBLE_ARGUMENT("--project")   ? u8"project="
+                                      : option == CRUCIBLE_ARGUMENT("--scene")   ? u8"scene="
+                                      : option == CRUCIBLE_ARGUMENT("--archive") ? u8"archive="
+                                                                                 : u8"cook=";
+            const std::u8string utf8 = key + (error ? given : path).u8string();
             crucible::addGameArgument({reinterpret_cast<const char*>(utf8.data()), utf8.size()});
+            assetsGiven =
+                assetsGiven || option == CRUCIBLE_ARGUMENT("--project") || option == CRUCIBLE_ARGUMENT("--archive");
         }
         else if (option == CRUCIBLE_ARGUMENT("--module"))
         {
@@ -265,6 +296,16 @@ int run(int argc, ArgumentChar** argv)
     }
 #else
     (void)gameGiven;
+    // A shipped game: its archive beside the launcher (ADR 0099).
+    if (!assetsGiven)
+    {
+        const std::filesystem::path archive = executableDirectory() / "Game.crpak";
+        if (std::filesystem::exists(archive, error))
+        {
+            const std::u8string utf8 = u8"archive=" + archive.u8string();
+            crucible::addGameArgument({reinterpret_cast<const char*>(utf8.data()), utf8.size()});
+        }
+    }
 #endif
 
 #if defined(CRUCIBLE_EDITOR_LAUNCHER)
