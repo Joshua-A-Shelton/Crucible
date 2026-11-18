@@ -21,6 +21,7 @@
 #include "Hitboxes.h"
 #include "TransformParts.h"
 
+#include <crucible/AssetLoads.h>
 #include <crucible/AssetSource.h>
 #include <crucible/BinaryFile.h>
 #include <crucible/DebugLines.h>
@@ -180,6 +181,7 @@ struct CollisionData
     uint32_t refs = 0;
     bool retired = false;
     bool generated = false; // built at load (Generate If Missing), not imported
+    bool loading = false;   // on a job (ADR 0099): bodies needing it wait
 };
 
 Vector<CollisionData*> collisionData{tag}; // every live and retired entry
@@ -400,17 +402,10 @@ CollisionData* generate(binary::File& file, int32_t meshIndex, bool hull)
 
 // A model's mesh's data from its MESH file: imported, or else (if asked)
 // built from its triangles; null if there's none.
-CollisionData* readModel(const assets::AssetId& id, int32_t meshIndex, bool hull, bool generateIfMissing)
+// From the model's bytes; any thread (a load's job, ADR 0099).
+CollisionData* readModelFrom(std::span<const uint8_t> bytes, int32_t meshIndex, bool hull, bool generateIfMissing)
 {
-    Vector<uint8_t> bytes(tag);
-    auto deliver = [](void* context, const uint8_t* data, uint64_t size) {
-        static_cast<Vector<uint8_t>*>(context)->assign(std::span<const uint8_t>(data, static_cast<size_t>(size)));
-    };
-    if (assets::assetSource().read(&id, &bytes, deliver) != 0)
-    {
-        return nullptr;
-    }
-    Result<binary::File*> opened = binary::parseFile(bytes.span(), assets::meshFileKind, assets::meshFileVersion);
+    Result<binary::File*> opened = binary::parseFile(bytes, assets::meshFileKind, assets::meshFileVersion);
     if (!opened)
     {
         return nullptr;
@@ -452,6 +447,110 @@ CollisionData* readModel(const assets::AssetId& id, int32_t meshIndex, bool hull
     return made;
 }
 
+CollisionData* readModel(const assets::AssetId& id, int32_t meshIndex, bool hull, bool generateIfMissing)
+{
+    Vector<uint8_t> bytes(tag);
+    auto deliver = [](void* context, const uint8_t* data, uint64_t size) {
+        static_cast<Vector<uint8_t>*>(context)->assign(std::span<const uint8_t>(data, static_cast<size_t>(size)));
+    };
+    if (assets::assetSource().read(&id, &bytes, deliver) != 0)
+    {
+        return nullptr;
+    }
+    return readModelFrom(bytes.span(), meshIndex, hull, generateIfMissing);
+}
+
+void warnMissing(bool hull, int32_t meshIndex, bool generateIfMissing)
+{
+    if (!generateIfMissing)
+    {
+        log::warning("a %s collider's model has no %s collision generated (set the model's Generate "
+                     "Collision, or the collider's Generate If Missing)",
+                     hull ? "Convex" : "Mesh", hull ? "Convex" : "Mesh");
+    }
+    else
+    {
+        log::warning("a %s collider's model has no mesh %d to build collision from", hull ? "Convex" : "Mesh",
+                     meshIndex);
+    }
+}
+
+// A collider's data read on a job (ADR 0099) into the entry waiting for it,
+// unless a reload retired that entry meanwhile.
+struct DataLoad
+{
+    CollisionData* entry = nullptr;
+    bool generateIfMissing = false;
+    CollisionData* made = nullptr;
+};
+
+void startDataLoad(CollisionData* entry, bool generateIfMissing)
+{
+    auto* load = create<DataLoad>(tag);
+    load->entry = entry;
+    load->generateIfMissing = generateIfMissing;
+    entry->loading = true;
+    ++entry->refs; // kept until published
+    assets::startLoad({
+        .id = entry->id,
+        .context = load,
+        .prepare =
+            [](void* context, std::span<const uint8_t> bytes, bool found) {
+                auto& self = *static_cast<DataLoad*>(context);
+                if (found)
+                {
+                    setAllocator();
+                    self.made = readModelFrom(bytes, self.entry->meshIndex, self.entry->hull, self.generateIfMissing);
+                }
+            },
+        .publish =
+            [](void* context) {
+                auto* self = static_cast<DataLoad*>(context);
+                CollisionData* entry = self->entry;
+                entry->loading = false;
+                if (self->made != nullptr)
+                {
+                    entry->bytes = self->made->bytes;
+                    entry->size = self->made->size;
+                    entry->generated = self->made->generated;
+                    destroy(tag, self->made); // its bytes now the entry's
+                }
+                else if (!entry->retired)
+                {
+                    warnMissing(entry->hull, entry->meshIndex, self->generateIfMissing);
+                }
+                releaseData(entry);
+                destroy(tag, self);
+            },
+    });
+}
+
+// Whether a Mesh or Convex collider's data is still to come: loading, or a
+// load started now (the entry made for it). Bodies wait for it.
+bool dataLoading(const Collider& collider)
+{
+    if (collider.shape != ShapeKind::Mesh && collider.shape != ShapeKind::Convex)
+    {
+        return false;
+    }
+    const bool hull = collider.shape == ShapeKind::Convex;
+    for (CollisionData* data : collisionData)
+    {
+        if (!data->retired && data->id == collider.mesh && data->meshIndex == collider.meshIndex &&
+            data->hull == hull && (data->bytes == nullptr || !data->generated || collider.generateIfMissing))
+        {
+            return data->loading;
+        }
+    }
+    CollisionData* entry = create<CollisionData>(tag);
+    entry->id = collider.mesh;
+    entry->meshIndex = collider.meshIndex;
+    entry->hull = hull;
+    collisionData.pushBack(entry);
+    startDataLoad(entry, collider.generateIfMissing);
+    return entry->loading; // done already without job workers
+}
+
 // The live data for a collider, read if it hasn't been; null if there's
 // none (said once). Data built at load (Generate If Missing) serves only
 // colliders that ask for it, so one that doesn't still says it's missing.
@@ -465,6 +564,10 @@ CollisionData* acquireData(const assets::AssetId& id, int32_t meshIndex, bool hu
         {
             found = data;
         }
+    }
+    if (found != nullptr && found->loading)
+    {
+        return nullptr;
     }
     if (found != nullptr && found->bytes == nullptr && generateIfMissing)
     {
@@ -484,17 +587,7 @@ CollisionData* acquireData(const assets::AssetId& id, int32_t meshIndex, bool hu
         {
             found = create<CollisionData>(tag); // none: remembered, so it's said and read once
             found->hull = hull;
-            if (!generateIfMissing)
-            {
-                log::warning("a %s collider's model has no %s collision generated (set the model's Generate "
-                             "Collision, or the collider's Generate If Missing)",
-                             hull ? "Convex" : "Mesh", hull ? "Convex" : "Mesh");
-            }
-            else
-            {
-                log::warning("a %s collider's model has no mesh %d to build collision from", hull ? "Convex" : "Mesh",
-                             meshIndex);
-            }
+            warnMissing(hull, meshIndex, generateIfMissing);
         }
         found->id = id;
         found->meshIndex = meshIndex;
@@ -775,7 +868,14 @@ void syncBody(ecs::World& world, PhysicsWorld& physics, ecs::Entity entity, floa
     const Pose pose = worldPose(world, entity);
     const scenes::LocalTransform local = *ecs::read<scenes::LocalTransform>(world, entity);
 
+    // A body is made once its shape's data is loaded (ADR 0099); a body that
+    // has one keeps its old shape until the new data is.
+    const bool waiting = dataLoading(collider);
     Body* body = physics.bodies.find(entity.value);
+    if (body == nullptr && waiting)
+    {
+        return;
+    }
     if (body == nullptr)
     {
         physics.bodies.insertOrAssign(entity.value, Body{});
@@ -817,11 +917,12 @@ void syncBody(ecs::World& world, PhysicsWorld& physics, ecs::Entity entity, floa
         body->kind = kind;
         applyMass(*body, rigid != nullptr ? rigid->mass : 0);
     }
-    if (!same(collider, body->collider) ||
-        std::fabs(pose.scale.x - body->scale.x) + std::fabs(pose.scale.y - body->scale.y) +
-                std::fabs(pose.scale.z - body->scale.z) >
-            1e-5f ||
-        layers != body->layers || mask != body->mask || (body->data != nullptr && body->data->retired) || kindChanged)
+    if (!waiting &&
+        (!same(collider, body->collider) ||
+         std::fabs(pose.scale.x - body->scale.x) + std::fabs(pose.scale.y - body->scale.y) +
+                 std::fabs(pose.scale.z - body->scale.z) >
+             1e-5f ||
+         layers != body->layers || mask != body->mask || (body->data != nullptr && body->data->retired) || kindChanged))
     {
         buildShape(*body, entity, collider, pose.scale, layers, mask);
         applyMass(*body, rigid != nullptr ? rigid->mass : 0);
@@ -1429,10 +1530,28 @@ void interpolate(const loop::SystemContext& context, void*)
     }
 }
 
+// The load starter (ADR 0099): every Mesh or Convex collider's data started.
+void startColliderLoads(ecs::World& world)
+{
+    const ecs::ComponentId colliders[] = {ecs::componentIdOf<Collider>};
+    ecs::Query* query = ecs::createQuery(world, {.required = colliders});
+    ecs::forEachChunk(
+        *query,
+        [](const ecs::ChunkView& view, void*) {
+            for (const Collider& collider : ecs::readColumn<Collider>(view))
+            {
+                (void)dataLoading(collider);
+            }
+        },
+        nullptr);
+    ecs::destroyQuery(query);
+}
+
 } // namespace
 
 void registerSystems()
 {
+    assets::registerLoadStarter(startColliderLoads);
     loop::registerDefaultSystem({.name = syncSystemName, .phase = "PrePhysics", .function = sync, .gameplay = true});
     loop::registerDefaultSystem({.name = stepSystemName, .phase = "Physics", .function = stepWorld, .gameplay = true});
     loop::registerDefaultSystem(

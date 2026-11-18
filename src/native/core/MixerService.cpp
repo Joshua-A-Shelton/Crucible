@@ -7,6 +7,7 @@
 #include "Mixer.h"
 
 #include <crucible/Adpcm.h>
+#include <crucible/AssetLoads.h>
 #include <crucible/AssetSource.h>
 #include <crucible/BinaryFile.h>
 #include <crucible/HashMap.h>
@@ -56,6 +57,16 @@ uint32_t createdSounds = 0;
 // thread says nothing plays them.
 HashMap<assets::AssetId, Sound*, AssetIdHash> sounds{tag};
 Vector<Sound*> forgetting{tag};
+// Sounds on a job (ADR 0099), and the plays asked for meanwhile, sent when
+// their sound is published.
+HashMap<assets::AssetId, bool, AssetIdHash> loadingSounds{tag};
+struct PendingPlay
+{
+    assets::AssetId id;
+    Command command;
+    bool loop = false;
+};
+Vector<PendingPlay> pendingPlays{tag};
 
 struct Snapshot
 {
@@ -126,17 +137,11 @@ bool readSection(const binary::File& file, uint32_t tagOf, Vector<T>& out)
         file, static_cast<uint32_t>(index), std::span(reinterpret_cast<uint8_t*>(out.data()), out.size() * sizeof(T))));
 }
 
-Sound* loadSound(const assets::AssetId& id)
+// A sound from its file's bytes; null if they aren't one. Any thread (a
+// load's job, ADR 0099).
+Sound* loadSound(std::span<const uint8_t> bytes)
 {
-    Vector<uint8_t> bytes(tag);
-    auto deliver = [](void* context, const uint8_t* data, uint64_t size) {
-        static_cast<Vector<uint8_t>*>(context)->assign(std::span<const uint8_t>(data, static_cast<size_t>(size)));
-    };
-    if (assets::assetSource().read(&id, &bytes, deliver) != 0)
-    {
-        return nullptr;
-    }
-    Result<binary::File*> opened = binary::parseFile(bytes.span(), assets::soundFileKind, assets::soundFileVersion);
+    Result<binary::File*> opened = binary::parseFile(bytes, assets::soundFileKind, assets::soundFileVersion);
     if (!opened)
     {
         return nullptr;
@@ -280,15 +285,83 @@ void topUpStreams()
     }
 }
 
+bool sendPlay(Command& command);
+
+// The plays waiting for a sound, sent (or dropped, if it couldn't be read).
+void sendPending(const assets::AssetId& id, const Sound* sound)
+{
+    size_t kept = 0;
+    for (size_t i = 0; i < pendingPlays.size(); ++i)
+    {
+        PendingPlay& pending = pendingPlays[i];
+        if (!(pending.id == id))
+        {
+            pendingPlays[kept++] = pending;
+            continue;
+        }
+        if (sound != nullptr && mixer != nullptr)
+        {
+            pending.command.sound = sound;
+            pending.command.stream = streamFor(sound, pending.loop);
+            (void)sendPlay(pending.command);
+        }
+    }
+    pendingPlays.resize(kept);
+}
+
+// The sound, or null: it couldn't be read, or it's loading (a load started
+// now if need be; without job workers it's loaded before this returns).
 const Sound* soundOf(const assets::AssetId& id)
 {
     if (Sound** found = sounds.find(id))
     {
         return *found;
     }
-    Sound* loaded = loadSound(id);
-    sounds.insertOrAssign(id, loaded);
-    return loaded;
+    if (loadingSounds.find(id) != nullptr)
+    {
+        return nullptr;
+    }
+    struct SoundLoad
+    {
+        assets::AssetId id;
+        Sound* sound = nullptr;
+    };
+    auto* load = create<SoundLoad>(tag);
+    load->id = id;
+    loadingSounds.insertOrAssign(id, true);
+    assets::startLoad({
+        .id = id,
+        .context = load,
+        .prepare =
+            [](void* context, std::span<const uint8_t> bytes, bool found) {
+                auto& self = *static_cast<SoundLoad*>(context);
+                self.sound = found ? loadSound(bytes) : nullptr;
+            },
+        .publish =
+            [](void* context) {
+                auto* self = static_cast<SoundLoad*>(context);
+                loadingSounds.erase(self->id);
+                sounds.insertOrAssign(self->id, self->sound);
+                sendPending(self->id, self->sound);
+                destroy(tag, self);
+            },
+    });
+    Sound** found = sounds.find(id);
+    return found != nullptr ? *found : nullptr;
+}
+
+bool soundLoading(const assets::AssetId& id)
+{
+    return loadingSounds.find(id) != nullptr;
+}
+
+// A play kept until its sound is loaded; its voice is taken now, so the
+// caller can stop or change it meanwhile (a command for a voice not yet
+// playing does nothing).
+uint32_t playWhenLoaded(const assets::AssetId& id, Command command, bool loop)
+{
+    pendingPlays.pushBack({id, command, loop});
+    return command.voice;
 }
 
 // What the audio thread said: voices that ended (their streams freed),
@@ -346,19 +419,20 @@ uint32_t mixerPlayOneShot(assets::AssetId clip, uint64_t atNs, Vector3 position,
 {
     pump();
     const Sound* sound = soundOf(clip);
-    if (sound == nullptr || mixer == nullptr)
+    if (mixer == nullptr || (sound == nullptr && !soundLoading(clip)))
     {
         return 0;
     }
-    Command command{.kind = CommandKind::Play,
-                    .voice = nextVoice++,
-                    .sound = sound,
-                    .stream = streamFor(sound, false),
-                    .atNs = atNs};
+    Command command{.kind = CommandKind::Play, .voice = nextVoice++, .sound = sound, .atNs = atNs};
     command.volume = volume;
     command.bus = bus;
     command.spatial = true;
     command.position = position;
+    if (sound == nullptr)
+    {
+        return playWhenLoaded(clip, command, false); // starts when ready (ADR 0099)
+    }
+    command.stream = streamFor(sound, false);
     return sendPlay(command) ? command.voice : 0;
 }
 
@@ -425,8 +499,14 @@ void mixerPlayMusic(assets::AssetId track, MusicTransition transition)
 {
     pump();
     const Sound* sound = soundOf(track);
-    Command command{.kind = CommandKind::Music, .voice = nextVoice++, .sound = sound, .stream = streamFor(sound, true)};
+    Command command{.kind = CommandKind::Music, .voice = nextVoice++, .sound = sound};
     command.transition = transition;
+    if (sound == nullptr && soundLoading(track))
+    {
+        (void)playWhenLoaded(track, command, true);
+        return;
+    }
+    command.stream = streamFor(sound, true);
     (void)sendPlay(command);
 }
 
@@ -485,8 +565,34 @@ void SDLCALL deviceCallback(void* userData, SDL_AudioStream* audio, int addition
     }
 }
 
+// The load starter (ADR 0099): every AudioSource that plays on start has
+// its sound started.
+void startSoundLoads(ecs::World& world)
+{
+    if (mode == Mode::Off)
+    {
+        return;
+    }
+    const ecs::ComponentId sources[] = {ecs::componentIdOf<AudioSource>};
+    ecs::Query* query = ecs::createQuery(world, {.required = sources});
+    ecs::forEachChunk(
+        *query,
+        [](const ecs::ChunkView& view, void*) {
+            for (const AudioSource& source : ecs::readColumn<AudioSource>(view))
+            {
+                if (source.playOnStart)
+                {
+                    (void)soundOf(source.clip);
+                }
+            }
+        },
+        nullptr);
+    ecs::destroyQuery(query);
+}
+
 void start(Mode next)
 {
+    assets::registerLoadStarter(startSoundLoads);
     mixer = createMixer();
     setDelay(*mixer, pendingDelay);
     mode = next;
@@ -571,8 +677,12 @@ bool updateMixerSources(const loop::SystemContext& context)
                                                            : Vector3{};
                 if (!state->started && source.playOnStart)
                 {
-                    state->started = true;
                     const Sound* sound = soundOf(source.clip);
+                    if (sound == nullptr && soundLoading(source.clip))
+                    {
+                        continue; // tried again next frame, once it's loaded (ADR 0099)
+                    }
+                    state->started = true;
                     if (sound == nullptr)
                     {
                         continue;

@@ -8,7 +8,9 @@ namespace Crucible.Render;
 /// load an asset on its first use and count uses; the matching release
 /// unloads it after the last, once the GPU has finished every frame that
 /// could still use it. The bytes come from the installed asset source
-/// (<see cref="AssetSource"/>, ADR 0076). Main thread only, like the renderer.
+/// (<see cref="AssetSource"/>, ADR 0076). Acquiring returns at once: the
+/// load runs on a background job, and the handle's <c>IsReady</c> says when
+/// it's done (ADR 0099). Main thread only, like the renderer.
 /// </summary>
 public static unsafe class RenderAssets
 {
@@ -58,7 +60,7 @@ public static unsafe class RenderAssets
     /// </summary>
     public static bool Reload(AssetId asset) => Api.ReloadRenderAsset(asset);
 
-    /// <summary>The texture's slot in the resource heap, for shaders; 0 for a stale handle.</summary>
+    /// <summary>The texture's slot in the resource heap, for shaders; 0 for a stale handle or one not ready.</summary>
     public static uint TextureDescriptor(TextureHandle texture) => Api.TextureDescriptor(texture);
 
     /// <summary>The sampler's slot in the sampler heap.</summary>

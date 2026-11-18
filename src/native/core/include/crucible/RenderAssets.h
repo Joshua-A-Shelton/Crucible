@@ -5,11 +5,15 @@
 //
 // By asset ID, acquire loads on first use and counts uses; release unloads
 // after the last. The bytes come from the installed asset source
-// (crucible/AssetSource.h, ADR 0076). load / unload take bytes directly, for data
-// outside the asset system. Loading is synchronous (ADR 0021's asynchronous
-// loading comes with cooking). Unloading never frees what a submitted frame
-// may still use: Slag's DeferredDestroyer and DescriptorAllocator wait for
-// the renderer's work semaphore.
+// (crucible/AssetSource.h, ADR 0076). Acquiring returns at once: the load
+// runs on a Background job and is published at the start of a later frame
+// (crucible/AssetLoads.h, ADR 0099); until then the handle is valid but not
+// ready, and a model isn't drawn until it and its materials' textures are
+// all ready. Without job workers, acquire loads before it returns. load /
+// unload take bytes directly, for data outside the asset system, and load
+// at once. Unloading never frees what a submitted frame may still use:
+// Slag's DeferredDestroyer and DescriptorAllocator wait for the renderer's
+// work semaphore.
 //
 // Threading: like the renderer, on the launcher's main thread.
 
@@ -60,12 +64,20 @@ enum class CRUCIBLE_EXPOSE Sampler : uint32_t
     PointClamp,
 };
 
-// By asset ID. NotFound if the reader has no such asset; InvalidData if its
-// bytes aren't a model (or texture); Unsupported before the renderer starts.
+// By asset ID. Unsupported before the renderer starts. Loading asynchronously,
+// a failure is logged when the load ends (the handle never becomes ready);
+// without job workers it's returned: NotFound if the reader has no such
+// asset, InvalidData if its bytes aren't a model (or texture).
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<MeshHandle> acquireMesh(assets::AssetId model);
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void releaseMesh(MeshHandle mesh);
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<TextureHandle> acquireTexture(assets::AssetId texture);
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void releaseTexture(TextureHandle texture);
+
+// Whether it's loaded (ADR 0099): a model with its materials' textures, so
+// it draws; a texture; a material's textures. False for a stale handle.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE bool isMeshReady(MeshHandle mesh);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE bool isTextureReady(TextureHandle texture);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE bool isMaterialReady(MaterialHandle material);
 
 // From bytes, outside the asset system.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<MeshHandle> loadMesh(std::span<const uint8_t> bytes);
@@ -98,7 +110,7 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL std::string_view materialTypeName(Mater
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<bool> reloadRenderAsset(assets::AssetId asset);
 
 // The texture's slot in the resource heap, which shaders read it through
-// (ResourceDescriptorHeap[slot]); 0 for a stale handle.
+// (ResourceDescriptorHeap[slot]); 0 for a stale handle or one not ready.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t textureDescriptor(TextureHandle texture);
 
 // A loaded texture's top-level size in texels; zero for a stale handle.

@@ -60,6 +60,8 @@ internal static class EngineComponents
         Crucible.Audio.Api.RegisterAudio();
         // The pose runtime (ADR 0079) and the frame's debug lines.
         Crucible.Animation.Api.RegisterAnimation();
+        // Loads on background jobs, published each frame (ADR 0099).
+        Crucible.Assets.Api.RegisterAssetLoads();
         Crucible.Debug.Api.RegisterDebugLines();
         Components.Register<LocalTransform>();
         Components.Register<Transform2D>();

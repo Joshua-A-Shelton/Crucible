@@ -1,11 +1,15 @@
 // GPU assets (ADR 0049): models and textures loaded from their files, read
 // back from the GPU byte for byte, through both upload paths; acquiring by
-// asset ID with counted uses; stale handles. The "gpu" suite runs on every
+// asset ID with counted uses; stale handles; loading on job workers (ADR
+// 0099), ready only once published. The "gpu" suite runs on every
 // backend this build has.
 
+#include "AsyncLoadTestSupport.h"
 #include "RenderInternal.h"
 
+#include <crucible/AssetLoads.h>
 #include <crucible/BinaryFile.h>
+#include <crucible/Jobs.h>
 #include <crucible/Memory.h>
 #include <crucible/MeshFile.h>
 #include <crucible/Platform.h>
@@ -318,6 +322,69 @@ TEST_SUITE("gpu")
             render::shutdown();
         }
         assets::setAssetReader(0);
+        platform::shutdown();
+    }
+
+    TEST_CASE("Models and textures load on jobs and are ready once published on every backend")
+    {
+        using crucible::testing::GatedSource;
+        REQUIRE(platform::initialize());
+        REQUIRE(jobs::initialize(2));
+        GatedSource::files = {{1, TestModel().bytes()}, {2, textureBytes(testMips())}, {4, TestModel().bytes()}};
+        GatedSource::install();
+        for (slag::Backend backend : {slag::Backend::D3D12, slag::Backend::Vulkan})
+        {
+            if (!slag::isBackendAvailable(backend) || !render::initialize(backend))
+            {
+                continue;
+            }
+            CAPTURE(static_cast<int>(backend));
+            GatedSource::close();
+            Result<render::MeshHandle> mesh = render::acquireMesh(idOf(1));
+            Result<render::TextureHandle> texture = render::acquireTexture(idOf(2));
+            REQUIRE(mesh);
+            REQUIRE(texture);
+            // Handles at once; nothing to draw or sample yet, but the
+            // texture's slot is taken, for materials to write.
+            CHECK(!render::isMeshReady(mesh.value()));
+            CHECK(render::meshData(mesh.value()) == nullptr);
+            CHECK(!render::isTextureReady(texture.value()));
+            CHECK(render::textureDescriptor(texture.value()) == 0);
+            CHECK(render::textureSlot(texture.value()) != 0);
+            CHECK(assets::pendingLoads() == 2);
+
+            // Released while it loads: the load is dropped when it ends.
+            Result<render::MeshHandle> dropped = render::acquireMesh(idOf(4));
+            REQUIRE(dropped);
+            render::releaseMesh(dropped.value());
+
+            GatedSource::release();
+            assets::waitForLoads();
+            CHECK(render::isMeshReady(mesh.value()));
+            CHECK(render::meshData(mesh.value()) != nullptr);
+            CHECK(render::isTextureReady(texture.value()));
+            CHECK(render::textureDescriptor(texture.value()) == render::textureSlot(texture.value()));
+            CHECK(!render::isMeshReady(dropped.value()));
+            CHECK(GatedSource::offMain >= 3);
+
+            // The model's bytes reached the GPU as before.
+            const render::MeshData& data = *render::meshData(mesh.value());
+            CHECK(readBuffer(data.buffer, data.positions.offset, data.positions.size) ==
+                  asBytes(TestModel().positions.data(), TestModel().positions.size() * sizeof(float)));
+
+            // A missing one fails when its load ends, and never becomes ready.
+            Result<render::MeshHandle> missing = render::acquireMesh(idOf(9));
+            REQUIRE(missing);
+            assets::waitForLoads();
+            CHECK(!render::isMeshReady(missing.value()));
+            render::releaseMesh(missing.value());
+
+            render::releaseMesh(mesh.value());
+            render::releaseTexture(texture.value());
+            render::shutdown();
+        }
+        assets::setAssetReader(0);
+        jobs::shutdown();
         platform::shutdown();
     }
 }

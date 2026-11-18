@@ -162,6 +162,9 @@ public static class Host
         }
         finally
         {
+            // Loads still on jobs finish while what they publish into is
+            // still there (ADR 0099).
+            Crucible.Assets.Api.WaitForLoads();
             // GPU timing stays on until Finish has collected the last frames'
             // times; DestroySurface stops it.
             if (context.Latency is not null)

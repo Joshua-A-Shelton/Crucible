@@ -109,6 +109,7 @@ internal sealed partial class LevelChecks : GameSystem
             }
             double fromCache = _into;
             string cacheRoute = _route.Success ? _route.Groups["arrived"].Value : "";
+            double fromCacheArrival = _route.Success ? Arrival(_route) : double.NaN;
             Assets.CookResult? cooked = shell.Cook(Path.Combine(Path.GetFullPath(_folder), "archive-cooked"));
             Check(cooked is { Succeeded: true }, "the project cooks", string.Join("; ", cooked?.Errors ?? []));
             if (cooked is not { Succeeded: true })
@@ -129,8 +130,10 @@ internal sealed partial class LevelChecks : GameSystem
             Console.WriteLine($"LevelChecks: from the Cache the hit is {fromCache:0.000} ms in, from the archive {_into:0.000} ms");
             Check(Math.Abs(fromCache - _into) < 0.5, "from the archive the hit lands as it does from the Cache",
                 $"{fromCache:0.000} and {_into:0.000} ms");
-            Check(_route.Success && _route.Groups["arrived"].Value == cacheRoute,
-                "and the Walker arrives at the same moment", $"{cacheRoute} and {_route.Groups["arrived"].Value}");
+            // The route times its arrival on the input clock, real time, which
+            // a run's pacing moves by a millisecond or so: within a frame.
+            Check(_route.Success && Math.Abs(Arrival(_route) - fromCacheArrival) < 1.0 / 30,
+                "and the Walker arrives within a frame of the same moment", $"{cacheRoute} and {_route.Groups["arrived"].Value}");
             yield break;
         }
 
@@ -228,6 +231,11 @@ internal sealed partial class LevelChecks : GameSystem
                                                        line.EndsWith(" standalone", StringComparison.Ordinal));
         return string.Join("\n", lines[Math.Max(start, 0)..]);
     }
+
+    private static double Arrival(Match route) =>
+        route.Groups["arrived"].Success
+            ? double.Parse(route.Groups["arrived"].Value.Split(' ')[2], CultureInfo.InvariantCulture)
+            : double.NaN;
 
     private static int Count(string log, string text) =>
         log.Split('\n').Count(line => line.Contains(text, StringComparison.Ordinal));

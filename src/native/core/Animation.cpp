@@ -8,6 +8,7 @@
 #include "TransformParts.h"
 
 #include <crucible/Animation.h>
+#include <crucible/AssetLoads.h>
 #include <crucible/BinaryFile.h>
 #include <crucible/ClipFile.h>
 #include <crucible/DebugLines.h>
@@ -144,14 +145,10 @@ struct Binding
     RootSample last{};
 };
 
-Skeleton* loadSkeleton(const AssetId& id)
+// From a model's bytes; any thread (a load's job, ADR 0099).
+Skeleton* loadSkeleton(std::span<const uint8_t> bytes)
 {
-    Vector<uint8_t> bytes(tag);
-    if (readAsset(id, bytes) != Status::Ok)
-    {
-        return nullptr;
-    }
-    Result<binary::File*> opened = binary::parseFile(bytes.span(), assets::meshFileKind, assets::meshFileVersion);
+    Result<binary::File*> opened = binary::parseFile(bytes, assets::meshFileKind, assets::meshFileVersion);
     if (!opened)
     {
         return nullptr;
@@ -238,14 +235,10 @@ Skeleton* loadSkeleton(const AssetId& id)
     return skeleton;
 }
 
-Clip* loadClip(const AssetId& id)
+// From a clip's bytes; any thread (a load's job, ADR 0099).
+Clip* loadClip(std::span<const uint8_t> bytes)
 {
-    Vector<uint8_t> bytes(tag);
-    if (readAsset(id, bytes) != Status::Ok)
-    {
-        return nullptr;
-    }
-    Result<binary::File*> opened = binary::parseFile(bytes.span(), assets::clipFileKind, assets::clipFileVersion);
+    Result<binary::File*> opened = binary::parseFile(bytes, assets::clipFileKind, assets::clipFileVersion);
     if (!opened)
     {
         return nullptr;
@@ -452,34 +445,81 @@ HashMap<AssetId, Clip*, AssetIdHash> clips{tag};
 HashMap<BindingKey, Binding*, BindingKeyHash> bindings{tag};
 HashMap<AssetId, StateMachine*, AssetIdHash> machines{tag};
 
-const Skeleton* skeletonOf(const AssetId& id)
+// Loads in flight (ADR 0099), by ID: skeletons, clips, and state machines.
+// An Animator using any of them holds still until they're published.
+HashMap<AssetId, bool, AssetIdHash> loading{tag};
+
+bool isLoading(const AssetId& id)
+{
+    return !isNone(id) && loading.find(id) != nullptr;
+}
+
+template <class T>
+struct AnimationLoad
+{
+    AssetId id;
+    HashMap<AssetId, T*, AssetIdHash>* into = nullptr;
+    T* (*parse)(std::span<const uint8_t>) = nullptr;
+    void (*published)(const T&) = nullptr;
+    T* made = nullptr;
+};
+
+// The asset, or null: it couldn't be read, or it's loading (a load started
+// now if need be; without job workers it's read before this returns).
+template <class T>
+T* cachedOrLoaded(HashMap<AssetId, T*, AssetIdHash>& into, const AssetId& id, T* (*parse)(std::span<const uint8_t>),
+                  void (*published)(const T&) = nullptr)
 {
     if (isNone(id))
     {
         return nullptr;
     }
-    if (Skeleton** found = skeletons.find(id))
+    if (T** found = into.find(id))
     {
         return *found;
     }
-    Skeleton* loaded = loadSkeleton(id);
-    skeletons.insertOrAssign(id, loaded);
-    return loaded;
+    if (loading.find(id) != nullptr)
+    {
+        return nullptr;
+    }
+    loading.insertOrAssign(id, true);
+    auto* load = create<AnimationLoad<T>>(tag);
+    load->id = id;
+    load->into = &into;
+    load->parse = parse;
+    load->published = published;
+    assets::startLoad({
+        .id = id,
+        .context = load,
+        .prepare =
+            [](void* context, std::span<const uint8_t> bytes, bool found) {
+                auto& self = *static_cast<AnimationLoad<T>*>(context);
+                self.made = found ? self.parse(bytes) : nullptr;
+            },
+        .publish =
+            [](void* context) {
+                auto* self = static_cast<AnimationLoad<T>*>(context);
+                loading.erase(self->id);
+                self->into->insertOrAssign(self->id, self->made);
+                if (self->made != nullptr && self->published != nullptr)
+                {
+                    self->published(*self->made);
+                }
+                destroy(tag, self);
+            },
+    });
+    T** found = into.find(id);
+    return found != nullptr ? *found : nullptr;
+}
+
+const Skeleton* skeletonOf(const AssetId& id)
+{
+    return cachedOrLoaded(skeletons, id, loadSkeleton);
 }
 
 const Clip* clipOf(const AssetId& id)
 {
-    if (isNone(id))
-    {
-        return nullptr;
-    }
-    if (Clip** found = clips.find(id))
-    {
-        return *found;
-    }
-    Clip* loaded = loadClip(id);
-    clips.insertOrAssign(id, loaded);
-    return loaded;
+    return cachedOrLoaded(clips, id, loadClip);
 }
 
 const Binding* bindingOf(const AssetId& clipId, const AssetId& skeletonId, const Skeleton& skeleton)
@@ -499,20 +539,18 @@ const Binding* bindingOf(const AssetId& clipId, const AssetId& skeletonId, const
     return made;
 }
 
+// A state machine's clips start loading as soon as it's read.
+void loadMachineClips(const StateMachine& machine)
+{
+    for (const assets::StateMotion& motion : machine.motions)
+    {
+        (void)clipOf(motion.clip);
+    }
+}
+
 const StateMachine* machineOf(const AssetId& id)
 {
-    if (isNone(id))
-    {
-        return nullptr;
-    }
-    if (StateMachine** found = machines.find(id))
-    {
-        return *found;
-    }
-    Vector<uint8_t> bytes(tag);
-    StateMachine* loaded = readAsset(id, bytes) == Status::Ok ? parseStateMachine(bytes.span()) : nullptr;
-    machines.insertOrAssign(id, loaded);
-    return loaded;
+    return cachedOrLoaded(machines, id, parseStateMachine, loadMachineClips);
 }
 
 // ---------------------------------------------------------------------------
@@ -1928,6 +1966,36 @@ void catchUp(const ecs::World& world, Pose& pose, float seconds, uint64_t frameS
     }
 }
 
+// Whether a pose waits for something it uses to load (ADR 0099): its
+// skeleton, state machine, or a clip it, its layers, or its machine plays.
+// It holds still meanwhile, its time not moving.
+bool poseWaiting(const Pose& pose)
+{
+    if (isLoading(pose.skeletonId) || isLoading(pose.machine.id) || isLoading(pose.base.clip) ||
+        isLoading(pose.base.previous))
+    {
+        return true;
+    }
+    for (const Layer& layer : pose.layers)
+    {
+        if (layer.active && (isLoading(layer.player.clip) || isLoading(layer.player.previous)))
+        {
+            return true;
+        }
+    }
+    if (pose.machine.machine != nullptr)
+    {
+        for (const assets::StateMotion& motion : pose.machine.machine->motions)
+        {
+            if (isLoading(motion.clip))
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 void advance(ecs::World& world, float delta, uint64_t frameStart)
 {
     forgetEvents(world);
@@ -1937,7 +2005,7 @@ void advance(ecs::World& world, float delta, uint64_t frameStart)
     gather(world, poses);
     for (Pose* pose : poses)
     {
-        if (pose->skeleton == nullptr)
+        if (pose->skeleton == nullptr || poseWaiting(*pose))
         {
             continue;
         }
@@ -2208,7 +2276,7 @@ Pose* poseWithBone(ecs::World& world, ecs::Entity entity, uint32_t slot, int32_t
 Result<void> play(ecs::World& world, ecs::Entity entity, AssetId clip, float fadeSeconds)
 {
     Pose* pose = currentPose(world, entity);
-    if (pose == nullptr || pose->skeleton == nullptr || (!isNone(clip) && clipOf(clip) == nullptr))
+    if (pose == nullptr || pose->skeleton == nullptr || (!isNone(clip) && clipOf(clip) == nullptr && !isLoading(clip)))
     {
         return Status::NotFound;
     }
@@ -2229,7 +2297,7 @@ Result<void> setLayer(ecs::World& world, ecs::Entity entity, uint32_t index, Lay
         return Status::NotFound;
     }
     Pose* pose = ensurePose(world, entity);
-    if (pose == nullptr || pose->skeleton == nullptr || clipOf(desc.clip) == nullptr)
+    if (pose == nullptr || pose->skeleton == nullptr || (clipOf(desc.clip) == nullptr && !isLoading(desc.clip)))
     {
         return Status::NotFound;
     }
@@ -2600,8 +2668,33 @@ void placeBoneAttachments(ecs::World& world)
     placeBoneAttachmentsOf(world);
 }
 
+namespace {
+
+// The load starter (ADR 0099): every Animator's skeleton, state machine
+// (and so its clips), and clip.
+void startAnimatorLoads(ecs::World& world)
+{
+    const ecs::ComponentId animators[] = {ecs::componentIdOf<Animator>};
+    ecs::Query* query = ecs::createQuery(world, {.required = animators});
+    ecs::forEachChunk(
+        *query,
+        [](const ecs::ChunkView& view, void*) {
+            for (const Animator& animator : ecs::readColumn<Animator>(view))
+            {
+                (void)skeletonOf(animator.skeleton);
+                (void)machineOf(animator.stateMachine);
+                (void)clipOf(animator.clip);
+            }
+        },
+        nullptr);
+    ecs::destroyQuery(query);
+}
+
+} // namespace
+
 void registerAnimation()
 {
+    assets::registerLoadStarter(startAnimatorLoads);
     ecs::registerComponent<Animator>("Crucible.Animation.Animator");
     ecs::registerComponent<PoseHandle>("Crucible.Animation.PoseHandle");
     loop::registerDefaultSystem(

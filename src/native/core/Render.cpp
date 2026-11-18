@@ -106,6 +106,13 @@ struct Renderer
 
 Renderer renderer;
 
+// Under the queue lock, as asset uploads submit from job workers (ADR 0099).
+void waitQueueIdle()
+{
+    std::lock_guard lock(queueLock());
+    (void)renderer.queue->waitIdle();
+}
+
 Status toStatus(slag::Status status)
 {
     switch (status)
@@ -428,7 +435,12 @@ Result<void> renderWithGraph(Surface& surface, slag::Texture* texture, slag::Att
         return toStatus(executed.status());
     }
     const slag::SemaphoreValue signals[] = {{surface.frames, surface.submitted + 1}, workSignal()};
-    if (slag::Result<void> signaled = renderer.queue->submit({.signals = signals}); !signaled)
+    slag::Result<void> signaled;
+    {
+        std::lock_guard lock(queueLock());
+        signaled = renderer.queue->submit({.signals = signals});
+    }
+    if (!signaled)
     {
         return toStatus(signaled.status());
     }
@@ -548,7 +560,7 @@ void shutdown()
 {
     if (renderer.device != nullptr)
     {
-        (void)renderer.queue->waitIdle();
+        waitQueueIdle();
         for (Surface& surface : renderer.surfaces)
         {
             if (inUse(surface))
@@ -743,7 +755,7 @@ Result<void> resizeOffscreenSurface(SurfaceHandle surface, uint32_t width, uint3
     }
     // Rare (a panel resized), so simply after the GPU is done with the old one.
     slag::GraphicsDevice* device = renderer.device;
-    (void)renderer.queue->waitIdle();
+    waitQueueIdle();
     const slag::PixelFormat srgb[] = {slag::PixelFormat::B8G8R8A8UnormSrgb};
     slag::Result<slag::Texture*> texture = device->createTexture2D({.format = slag::PixelFormat::B8G8R8A8Unorm,
                                                                     .width = width,
@@ -792,7 +804,7 @@ void destroySurface(SurfaceHandle surface)
 {
     if (Surface* found = find(surface))
     {
-        (void)renderer.queue->waitIdle();
+        waitQueueIdle();
         release(*found);
     }
 }
@@ -860,8 +872,12 @@ Result<void> renderFrame(SurfaceHandle surface, ecs::World* world, uint32_t last
     if (target.needsResize || size.width != target.width || size.height != target.height)
     {
         // Resizing needs the GPU done with every image (Slag ADR 0058).
-        (void)renderer.queue->waitIdle();
-        slag::Result<void> resized = target.swapchain->resize(size.width, size.height);
+        slag::Result<void> resized;
+        {
+            std::lock_guard lock(queueLock());
+            (void)renderer.queue->waitIdle();
+            resized = target.swapchain->resize(size.width, size.height);
+        }
         if (resized.status() == slag::Status::DeviceLost)
         {
             return Status::DeviceLost;
@@ -902,7 +918,11 @@ Result<void> renderFrame(SurfaceHandle surface, ecs::World* world, uint32_t last
         return rendered;
     }
 
-    const slag::Result<void> presented = renderer.queue->present(target.swapchain, target.presentMode);
+    slag::Result<void> presented;
+    {
+        std::lock_guard lock(queueLock());
+        presented = renderer.queue->present(target.swapchain, target.presentMode);
+    }
     switch (presented.status())
     {
     case slag::Status::Ok:
@@ -1022,6 +1042,7 @@ Result<void> readSurfacePixels(SurfaceHandle surface, std::span<uint8_t> pixels)
         slag::Result<void> submitted = commands->end();
         if (submitted)
         {
+            std::lock_guard lock(queueLock());
             submitted = renderer.queue->submit({.commandBuffers = commandBuffers, .signals = {&signal, 1}});
         }
         if (submitted)

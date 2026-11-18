@@ -175,5 +175,6 @@ Longer explanations of decisions, written to be reread:
   cooked data, walking what a game uses, and an archive laid out for
   reading.
 - [Loading from archives](docs/learning/loading-from-archives.md) (ADR
-  0099): positional reads for many threads, knowing a scene's needs ahead,
-  and checking a new asset source changes nothing.
+  0099): positional reads for many threads, loading on jobs and
+  publishing on the main thread, knowing a scene's needs ahead, and
+  checking a new asset source changes nothing.

@@ -77,6 +77,10 @@ public static class ProjectStartup
     private static void Load(World world, byte[] scene, string name)
     {
         SceneLoad loaded = Scene.Load(world, scene, prefabs: PrefabLibrary.FromAssetSource());
+        // Its assets loaded on jobs, all at once, before the first frame:
+        // nothing appears late and physics starts with its level (ADR 0099).
+        Crucible.Assets.Api.StartLoads(world.Live);
+        Crucible.Assets.Api.WaitForLoads();
         Console.WriteLine($"Crucible.Hosting: opened {name}: {loaded.Roots.Count} entities at the top");
         foreach (string skipped in loaded.SkippedComponents)
         {

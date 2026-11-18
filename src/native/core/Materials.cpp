@@ -705,7 +705,7 @@ Result<MaterialHandle> createMaterial(const MaterialInfo& info, std::span<const 
         if (Result<TextureHandle> acquired = acquireTexture(id))
         {
             material->textures.pushBack(acquired.value());
-            slot = textureDescriptor(acquired.value());
+            slot = textureSlot(acquired.value()); // written once it's loaded (ADR 0099)
         }
         std::memcpy(target + texture.offset, &slot, sizeof(slot));
     }
@@ -725,6 +725,23 @@ void destroyMaterial(MaterialHandle handle)
         ++state.slots[handle.index].generation;
         state.freeSlots.pushBack(handle.index);
     }
+}
+
+bool isMaterialReady(MaterialHandle handle)
+{
+    const LoadedMaterial* material = find(handle);
+    if (material == nullptr)
+    {
+        return false;
+    }
+    for (TextureHandle texture : material->textures)
+    {
+        if (!isTextureReady(texture))
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 MaterialDraw materialDraw(MaterialHandle handle)

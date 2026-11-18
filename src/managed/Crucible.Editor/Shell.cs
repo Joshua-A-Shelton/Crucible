@@ -328,6 +328,10 @@ internal sealed partial class Shell
         try
         {
             SceneLoad load = Scene.Load(world, bytes, prefabs: Prefabs);
+            // Its assets loaded on jobs before the next frame, so it opens
+            // whole (ADR 0099).
+            Crucible.Assets.Api.StartLoads(world.Live);
+            Crucible.Assets.Api.WaitForLoads();
             ScenePath = Path.GetFullPath(sceneFile);
             SceneId = load.Id.IsNone ? AssetId.New() : load.Id;
             Log($"Opened {Path.GetFileName(sceneFile)}: {load.Roots.Count} entities at the top" +

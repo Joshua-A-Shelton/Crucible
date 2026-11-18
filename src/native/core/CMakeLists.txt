@@ -29,6 +29,7 @@ target_sources(crucible_core_objects PRIVATE
     BinaryFile.cpp
     Animation.cpp
     ArchiveReader.cpp
+    AssetLoads.cpp
     AssetSource.cpp
     Audio.cpp
     BindingProbe.cpp

@@ -12,6 +12,7 @@
 
 #include "Hitboxes.h"
 
+#include <crucible/AssetLoads.h>
 #include <crucible/BinaryFile.h>
 #include <crucible/ChainFile.h>
 #include <crucible/DebugLines.h>
@@ -326,6 +327,7 @@ struct ChainData
     Vector<Vector2> points{tag}; // empty: unreadable (said once)
     bool loop = false;
     uint32_t version = 0;
+    bool loading = false; // on a job (ADR 0099): bodies needing it wait
 };
 
 Vector<ChainData*> chainData{tag};
@@ -334,6 +336,45 @@ uint32_t chainVersions = 0;
 bool isNone(const assets::AssetId& id)
 {
     return id == assets::AssetId{};
+}
+
+// Its points from the chain file's bytes; false if they're wrong. Any
+// thread (a load's job, ADR 0099).
+bool readChainFrom(std::span<const uint8_t> bytes, Vector<Vector2>& points, bool& loop)
+{
+    points.clear();
+    Result<binary::File*> opened = binary::parseFile(bytes, assets::chainFileKind, assets::chainFileVersion);
+    if (!opened)
+    {
+        return false;
+    }
+    binary::File* file = opened.value();
+    const int32_t info = binary::findSection(*file, binary::tag("INFO"));
+    const int32_t pointSection = binary::findSection(*file, binary::tag("PNTS"));
+    assets::ChainInfo header{};
+    bool good = info >= 0 && pointSection >= 0 &&
+                binary::sectionInfo(*file, static_cast<uint32_t>(info)).size == sizeof(header) &&
+                binary::readSection(*file, static_cast<uint32_t>(info),
+                                    std::span(reinterpret_cast<uint8_t*>(&header), sizeof(header)));
+    if (good && header.pointCount >= (header.loop != 0 ? 3u : 2u) &&
+        binary::sectionInfo(*file, static_cast<uint32_t>(pointSection)).size == header.pointCount * sizeof(Vector2))
+    {
+        points.resize(header.pointCount);
+        loop = header.loop != 0;
+        good = static_cast<bool>(
+            binary::readSection(*file, static_cast<uint32_t>(pointSection),
+                                std::span(reinterpret_cast<uint8_t*>(points.data()), points.size() * sizeof(Vector2))));
+    }
+    else
+    {
+        good = false;
+    }
+    binary::closeFile(file);
+    if (!good)
+    {
+        points.clear();
+    }
+    return good;
 }
 
 // Its points from the asset source; false if it has none or they're wrong.
@@ -349,39 +390,17 @@ bool readChain(ChainData& data)
     {
         return false;
     }
-    Result<binary::File*> opened = binary::parseFile(bytes.span(), assets::chainFileKind, assets::chainFileVersion);
-    if (!opened)
-    {
-        return false;
-    }
-    binary::File* file = opened.value();
-    const int32_t info = binary::findSection(*file, binary::tag("INFO"));
-    const int32_t points = binary::findSection(*file, binary::tag("PNTS"));
-    assets::ChainInfo header{};
-    bool good = info >= 0 && points >= 0 &&
-                binary::sectionInfo(*file, static_cast<uint32_t>(info)).size == sizeof(header) &&
-                binary::readSection(*file, static_cast<uint32_t>(info),
-                                    std::span(reinterpret_cast<uint8_t*>(&header), sizeof(header)));
-    if (good && header.pointCount >= (header.loop != 0 ? 3u : 2u) &&
-        binary::sectionInfo(*file, static_cast<uint32_t>(points)).size == header.pointCount * sizeof(Vector2))
-    {
-        data.points.resize(header.pointCount);
-        data.loop = header.loop != 0;
-        good = static_cast<bool>(binary::readSection(
-            *file, static_cast<uint32_t>(points),
-            std::span(reinterpret_cast<uint8_t*>(data.points.data()), data.points.size() * sizeof(Vector2))));
-    }
-    else
-    {
-        good = false;
-    }
-    binary::closeFile(file);
-    if (!good)
-    {
-        data.points.clear();
-    }
-    return good;
+    return readChainFrom(bytes.span(), data.points, data.loop);
 }
+
+// A chain read on a job into the entry waiting for it (ADR 0099).
+struct ChainLoad
+{
+    ChainData* data = nullptr;
+    Vector<Vector2> points{tag};
+    bool loop = false;
+    bool good = false;
+};
 
 // A chain asset's points, read if they haven't been; null for none.
 const ChainData* chainOf(const assets::AssetId& id)
@@ -399,12 +418,52 @@ const ChainData* chainOf(const assets::AssetId& id)
     }
     ChainData* data = create<ChainData>(tag);
     data->id = id;
-    if (!readChain(*data))
-    {
-        log::warning("a Chain collider's chain can't be read (reimport it)");
-    }
+    data->loading = true;
     chainData.pushBack(data);
+    auto* load = create<ChainLoad>(tag);
+    load->data = data;
+    assets::startLoad({
+        .id = id,
+        .context = load,
+        .prepare =
+            [](void* context, std::span<const uint8_t> bytes, bool found) {
+                auto& self = *static_cast<ChainLoad*>(context);
+                self.good = found && readChainFrom(bytes, self.points, self.loop);
+            },
+        .publish =
+            [](void* context) {
+                auto* self = static_cast<ChainLoad*>(context);
+                for (ChainData* entry : chainData)
+                {
+                    if (entry == self->data) // not freed meanwhile
+                    {
+                        entry->loading = false;
+                        entry->points = static_cast<Vector<Vector2>&&>(self->points);
+                        entry->loop = self->loop;
+                        entry->version = ++chainVersions;
+                        if (!self->good)
+                        {
+                            entry->points.clear();
+                            log::warning("a Chain collider's chain can't be read (reimport it)");
+                        }
+                    }
+                }
+                destroy(tag, self);
+            },
+    });
     return data;
+}
+
+// Whether a Chain collider's points are still to come (a load started now
+// if need be). Bodies wait for them.
+bool chainLoading(const Collider2D& collider)
+{
+    if (collider.shape != ShapeKind2D::Chain)
+    {
+        return false;
+    }
+    const ChainData* data = chainOf(collider.chain);
+    return data != nullptr && data->loading;
 }
 
 void freeChains()
@@ -502,7 +561,7 @@ void buildShape(Body& body, ecs::Entity entity, const Collider2D& collider, Vect
     {
         const ChainData* data = chainOf(collider.chain);
         body.chainVersion = data != nullptr ? data->version : 0;
-        if (data == nullptr || data->points.empty())
+        if (data == nullptr || data->loading || data->points.empty())
         {
             break;
         }
@@ -568,7 +627,14 @@ void syncBody(ecs::World& world, PhysicsWorld& physics, ecs::Entity entity, floa
     const Pose2D pose = worldPose(world, entity);
     const scenes::Transform2D local = *ecs::read<scenes::Transform2D>(world, entity);
 
+    // A body is made once its chain is loaded (ADR 0099); one that has a
+    // shape keeps it until the new chain is.
+    const bool waiting = chainLoading(collider);
     Body* body = physics.bodies.find(entity.value);
+    if (body == nullptr && waiting)
+    {
+        return;
+    }
     if (body == nullptr)
     {
         physics.bodies.insertOrAssign(entity.value, Body{});
@@ -608,11 +674,11 @@ void syncBody(ecs::World& world, PhysicsWorld& physics, ecs::Entity entity, floa
         b2Body_SetType(body->body, typeOf(kind));
         body->kind = kind;
     }
-    if (!same(collider, body->collider) ||
-        std::fabs(pose.scale.x - body->scale.x) + std::fabs(pose.scale.y - body->scale.y) > 1e-5f ||
-        layers != body->layers || mask != body->mask || kindChanged ||
-        (collider.shape == ShapeKind2D::Chain && chainOf(collider.chain) != nullptr &&
-         chainOf(collider.chain)->version != body->chainVersion))
+    if (!waiting && (!same(collider, body->collider) ||
+                     std::fabs(pose.scale.x - body->scale.x) + std::fabs(pose.scale.y - body->scale.y) > 1e-5f ||
+                     layers != body->layers || mask != body->mask || kindChanged ||
+                     (collider.shape == ShapeKind2D::Chain && chainOf(collider.chain) != nullptr &&
+                      chainOf(collider.chain)->version != body->chainVersion)))
     {
         buildShape(*body, entity, collider, pose.scale, layers, mask);
         applyMass(*body, rigid != nullptr ? rigid->mass : 0);
@@ -1764,8 +1830,30 @@ BodyPose2D bodyPose(const ecs::World& world, ecs::Entity entity)
     return {true, fromB2(b2Body_GetPosition(body->body)), b2Rot_GetAngle(b2Body_GetRotation(body->body))};
 }
 
+namespace {
+
+// The load starter (ADR 0099): every Chain collider's chain started.
+void startChainLoads(ecs::World& world)
+{
+    const ecs::ComponentId colliders[] = {ecs::componentIdOf<Collider2D>};
+    ecs::Query* query = ecs::createQuery(world, {.required = colliders});
+    ecs::forEachChunk(
+        *query,
+        [](const ecs::ChunkView& view, void*) {
+            for (const Collider2D& collider : ecs::readColumn<Collider2D>(view))
+            {
+                (void)chainLoading(collider);
+            }
+        },
+        nullptr);
+    ecs::destroyQuery(query);
+}
+
+} // namespace
+
 void registerPhysics2D()
 {
+    assets::registerLoadStarter(startChainLoads);
     ecs::registerComponent<RigidBody2D>("Crucible.Physics2D.RigidBody2D");
     ecs::registerComponent<Collider2D>("Crucible.Physics2D.Collider2D");
     ecs::registerComponent<Joint2D>("Crucible.Physics2D.Joint2D");

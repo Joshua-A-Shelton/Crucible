@@ -1,7 +1,9 @@
 #include "RenderInternal.h"
 
+#include <crucible/AssetLoads.h>
 #include <crucible/BinaryFile.h>
 #include <crucible/HashMap.h>
+#include <crucible/Jobs.h>
 #include <crucible/Log.h>
 #include <crucible/Memory.h>
 #include <crucible/RenderAssets.h>
@@ -15,6 +17,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <mutex>
 
 namespace crucible::render {
 
@@ -66,6 +69,13 @@ struct Slot
     uint32_t generation = 1; // the handle's; bumped when freed
     uint32_t uses = 0;       // acquires not yet released (acquired ones)
     bool acquired = false;   // by asset ID, rather than loaded from bytes
+    // Loaded (ADR 0099): until then value is a placeholder (a texture's
+    // keeps its descriptor slot, which materials already hold).
+    bool ready = true;
+    // A model whose materials' textures are all ready too: only these draw.
+    bool drawable = false;
+    Status failure = Status::Ok; // why its load failed; it stays a placeholder
+
     AssetId asset{};
 };
 
@@ -92,6 +102,9 @@ struct Table
         slots[index].value = value;
         slots[index].uses = 0;
         slots[index].acquired = false;
+        slots[index].ready = true;
+        slots[index].drawable = false;
+        slots[index].failure = Status::Ok;
         return index;
     }
 
@@ -114,8 +127,11 @@ struct Assets
 {
     slag::GraphicsDevice* device = nullptr;
     slag::CommandQueue* queue = nullptr;
-    slag::Semaphore* work = nullptr; // every frame and upload signals the next value
+    slag::Semaphore* work = nullptr; // every frame signals the next value
     uint64_t workSignaled = 0;
+    // Uploads signal their own values, under queueMutex (ADR 0099).
+    slag::Semaphore* uploads = nullptr;
+    uint64_t uploadsSignaled = 0;
     slag::DeferredDestroyer* destroyer = nullptr;
     slag::DescriptorAllocator* slots = nullptr;
     Table<LoadedMesh> meshes;
@@ -124,6 +140,7 @@ struct Assets
 
 Assets state;
 bool stagingOnly = false; // tests
+std::mutex queueMutex;
 
 slag::SemaphoreValue lastSignaled()
 {
@@ -145,10 +162,19 @@ Status toStatus(slag::Status status)
     }
 }
 
-// Records commands into a one-off command buffer, submits them with the next
-// work signal, and waits: uploads are synchronous for now (ADR 0049).
+// An upload submitted (ADR 0099): its command buffer, kept until the GPU has
+// run it, and the uploads semaphore's value it signals. None for a model
+// written straight into GPU memory.
+struct Upload
+{
+    slag::CommandBuffer* commands = nullptr;
+    uint64_t value = 0;
+};
+
+// Records commands into a one-off command buffer and submits them to the
+// graphics queue, signalling the next upload value. Any thread.
 template <class Record>
-Result<void> runAndWait(Record&& record)
+Result<Upload> submitUpload(Record&& record)
 {
     slag::Result<slag::CommandBuffer*> commands = state.device->createCommandBuffer({.debugName = "crucible upload"});
     if (!commands)
@@ -156,32 +182,52 @@ Result<void> runAndWait(Record&& record)
         return toStatus(commands.status());
     }
     slag::CommandBuffer* commandBuffer = commands.value();
-    Result<void> result;
-    if (!commandBuffer->begin())
-    {
-        result = Status::Unsupported;
-    }
-    else
+    slag::Result<void> done = commandBuffer->begin();
+    if (done)
     {
         record(commandBuffer);
-        slag::Result<void> done = commandBuffer->end();
-        const slag::SemaphoreValue signal = workSignal();
-        slag::CommandBuffer* const submitted[] = {commandBuffer};
-        if (done)
-        {
-            done = state.queue->submit({.commandBuffers = submitted, .signals = {&signal, 1}});
-        }
-        if (done)
-        {
-            done = signal.semaphore->wait(signal.value, UINT64_MAX);
-        }
-        if (!done)
-        {
-            result = toStatus(done.status());
-        }
+        done = commandBuffer->end();
     }
-    state.device->destroy(commandBuffer);
-    return result;
+    Upload upload{commandBuffer, 0};
+    if (done)
+    {
+        // Values are signalled in the order they're taken.
+        std::lock_guard lock(queueMutex);
+        upload.value = ++state.uploadsSignaled;
+        const slag::SemaphoreValue signal{state.uploads, upload.value};
+        slag::CommandBuffer* const submitted[] = {commandBuffer};
+        done = state.queue->submit({.commandBuffers = submitted, .signals = {&signal, 1}});
+    }
+    if (!done)
+    {
+        state.device->destroy(commandBuffer);
+        return toStatus(done.status());
+    }
+    return upload;
+}
+
+// Whether the GPU has run the upload; with wait, once it has (or failed).
+bool uploadDone(const Upload& upload, bool wait)
+{
+    if (upload.commands == nullptr)
+    {
+        return true;
+    }
+    if (wait)
+    {
+        (void)state.uploads->wait(upload.value, UINT64_MAX);
+        return true;
+    }
+    return state.uploads->value() >= upload.value;
+}
+
+void releaseUpload(Upload& upload)
+{
+    if (upload.commands != nullptr)
+    {
+        state.device->destroy(upload.commands);
+    }
+    upload = {};
 }
 
 Status readSection(const binary::File& file, uint32_t tag, Vector<uint8_t>& out)
@@ -303,7 +349,43 @@ void measureBones(LoadedMesh& mesh, const Vector<uint8_t>& positions, const Vect
     mesh.data.boneReach = mesh.boneReach.span();
 }
 
-Result<LoadedMesh*> createMesh(std::span<const uint8_t> bytes)
+// A model as a job makes it (ADR 0099): its tables, its buffer filled (and
+// the upload from staging submitted), its bones measured. Its descriptor
+// slot and materials come from the main thread's tables, in finishMesh.
+struct PreparedMesh
+{
+    LoadedMesh* mesh = nullptr;
+    slag::Buffer* staging = nullptr;
+    Upload upload;
+    uint64_t size = 0; // the buffer's
+    Vector<uint8_t> generated{MemoryTag::Render};
+    Vector<uint8_t> remapped{MemoryTag::Render};
+};
+
+// What prepareMesh made, freed (a failed or abandoned load). Waits for the
+// upload, which is rare enough not to matter.
+void discardMesh(PreparedMesh& prepared)
+{
+    uploadDone(prepared.upload, true);
+    releaseUpload(prepared.upload);
+    if (prepared.staging != nullptr)
+    {
+        state.device->destroy(prepared.staging);
+        prepared.staging = nullptr;
+    }
+    if (prepared.mesh != nullptr)
+    {
+        if (prepared.mesh->data.buffer != nullptr)
+        {
+            state.device->destroy(prepared.mesh->data.buffer);
+        }
+        destroy(MemoryTag::Render, prepared.mesh);
+        prepared.mesh = nullptr;
+    }
+}
+
+// Any thread.
+Status prepareMesh(std::span<const uint8_t> bytes, PreparedMesh& prepared)
 {
     Result<binary::File*> opened = binary::parseFile(bytes, assets::meshFileKind, assets::meshFileVersion);
     if (!opened)
@@ -312,8 +394,8 @@ Result<LoadedMesh*> createMesh(std::span<const uint8_t> bytes)
     }
     const binary::File& file = *opened.value();
     auto* mesh = create<LoadedMesh>(MemoryTag::Render);
+    prepared.mesh = mesh;
     Status status = Status::Ok;
-
     // The tables, kept on the CPU, back to back (each 16-byte aligned).
     const uint32_t tableTags[] = {binary::tag("INFO"), binary::tag("MSHS"), binary::tag("LODS"),
                                   binary::tag("RNGS"), binary::tag("NODE"), binary::tag("MATL"),
@@ -364,7 +446,6 @@ Result<LoadedMesh*> createMesh(std::span<const uint8_t> bytes)
     // Raw-buffer views (vertex pulling) cover whole 4-byte words.
     total = (total + 3) / 4 * 4;
 
-    slag::Buffer* staging = nullptr;
     if (status == Status::Ok)
     {
         // Straight into GPU memory the CPU can write where the device has it
@@ -390,7 +471,8 @@ Result<LoadedMesh*> createMesh(std::span<const uint8_t> bytes)
         else
         {
             mesh->data.buffer = buffer.value();
-            staging = upload.value();
+            prepared.staging = upload.value();
+            slag::Buffer* staging = prepared.staging;
             auto* target = static_cast<uint8_t*>(direct ? mesh->data.buffer->mappedData() : staging->mappedData());
             for (int s = 0; s < streamCount && status == Status::Ok; ++s)
             {
@@ -403,7 +485,6 @@ Result<LoadedMesh*> createMesh(std::span<const uint8_t> bytes)
             }
         }
     }
-    Vector<uint8_t> generated(MemoryTag::Render), remapped(MemoryTag::Render);
     // The skin's vertices, on the CPU too, for each bone's reach.
     Vector<uint8_t> skinPositions(MemoryTag::Render), skinBones(MemoryTag::Render), skinWeights(MemoryTag::Render);
     if (status == Status::Ok && tableSizes[6] > 0)
@@ -414,44 +495,31 @@ Result<LoadedMesh*> createMesh(std::span<const uint8_t> bytes)
     }
     if (status == Status::Ok)
     {
-        status = readSection(file, assets::meshMaterialsTag, generated);
+        status = readSection(file, assets::meshMaterialsTag, prepared.generated);
     }
     if (status == Status::Ok)
     {
-        status = readSection(file, assets::meshRemappedMaterialsTag, remapped);
+        status = readSection(file, assets::meshRemappedMaterialsTag, prepared.remapped);
     }
     binary::closeFile(opened.value());
-    if (status == Status::Ok && staging != nullptr)
+    prepared.size = total;
+    if (status == Status::Ok && prepared.staging != nullptr)
     {
         slag::Buffer* destination = mesh->data.buffer;
-        status = runAndWait([&](slag::CommandBuffer* commands) {
-                     commands->copyBuffer(destination, 0, staging, 0, total);
-                 }).status();
-    }
-    if (staging != nullptr)
-    {
-        state.device->destroy(staging);
+        slag::Buffer* staging = prepared.staging;
+        Result<Upload> submitted = submitUpload(
+            [&](slag::CommandBuffer* commands) { commands->copyBuffer(destination, 0, staging, 0, total); });
+        status = submitted.status();
+        if (submitted)
+        {
+            prepared.upload = submitted.value();
+        }
     }
     if (status != Status::Ok)
     {
-        if (mesh->data.buffer != nullptr)
-        {
-            state.device->destroy(mesh->data.buffer);
-        }
-        destroy(MemoryTag::Render, mesh);
+        discardMesh(prepared);
         return status;
     }
-
-    // Shaders read the streams through a raw-buffer slot (vertex pulling, ADR 0051).
-    state.slots->collect();
-    mesh->data.descriptor = state.slots->allocate();
-    if (mesh->data.descriptor == 0)
-    {
-        state.device->destroy(mesh->data.buffer);
-        destroy(MemoryTag::Render, mesh);
-        return Status::OutOfDeviceMemory;
-    }
-    state.device->writeRawBuffer(mesh->data.descriptor, {.buffer = mesh->data.buffer, .size = total});
 
     std::memcpy(&mesh->data.info, mesh->tables.data() + tableOffsets[0], sizeof(assets::MeshFileInfo));
     mesh->data.meshes = tableOf<assets::MeshEntry>(mesh->tables, tableOffsets[1], tableSizes[1]);
@@ -465,12 +533,49 @@ Result<LoadedMesh*> createMesh(std::span<const uint8_t> bytes)
         tableOf<assets::SkinInfo>(mesh->tables, tableOffsets[8], tableSizes[8]);
     mesh->data.skinInfluences = skin.empty() ? 0 : skin[0].influences;
     measureBones(*mesh, skinPositions, skinBones, skinWeights);
-    if (Status made = createMaterials(*mesh, generated, remapped); made != Status::Ok)
+    return Status::Ok;
+}
+
+// Main thread, once the upload is done: the staging freed, the descriptor
+// slot written, the materials made.
+Result<LoadedMesh*> finishMesh(PreparedMesh& prepared)
+{
+    releaseUpload(prepared.upload);
+    if (prepared.staging != nullptr)
+    {
+        state.device->destroy(prepared.staging);
+        prepared.staging = nullptr;
+    }
+    LoadedMesh* mesh = prepared.mesh;
+    prepared.mesh = nullptr;
+    // Shaders read the streams through a raw-buffer slot (vertex pulling, ADR 0051).
+    state.slots->collect();
+    mesh->data.descriptor = state.slots->allocate();
+    if (mesh->data.descriptor == 0)
+    {
+        state.device->destroy(mesh->data.buffer);
+        destroy(MemoryTag::Render, mesh);
+        return Status::OutOfDeviceMemory;
+    }
+    state.device->writeRawBuffer(mesh->data.descriptor, {.buffer = mesh->data.buffer, .size = prepared.size});
+    if (Status made = createMaterials(*mesh, prepared.generated, prepared.remapped); made != Status::Ok)
     {
         destroyMesh(mesh);
         return made;
     }
     return mesh;
+}
+
+// Synchronously: hot reloads and models from bytes.
+Result<LoadedMesh*> createMesh(std::span<const uint8_t> bytes)
+{
+    PreparedMesh prepared;
+    if (Status status = prepareMesh(bytes, prepared); status != Status::Ok)
+    {
+        return status;
+    }
+    uploadDone(prepared.upload, true);
+    return finishMesh(prepared);
 }
 
 void destroyMesh(LoadedMesh* mesh)
@@ -486,8 +591,14 @@ void destroyMesh(LoadedMesh* mesh)
             destroyMaterial(mesh->materials[m]);
         }
     }
-    state.slots->release(mesh->data.descriptor, lastSignaled());
-    state.destroyer->destroyAfter(mesh->data.buffer, lastSignaled());
+    if (mesh->data.descriptor != 0)
+    {
+        state.slots->release(mesh->data.descriptor, lastSignaled());
+    }
+    if (mesh->data.buffer != nullptr)
+    {
+        state.destroyer->destroyAfter(mesh->data.buffer, lastSignaled());
+    }
     destroy(MemoryTag::Render, mesh);
 }
 
@@ -533,7 +644,32 @@ uint64_t packedRowBytes(assets::TextureFormat format, uint32_t width)
     return 0;
 }
 
-Result<LoadedTexture*> createTexture(std::span<const uint8_t> bytes)
+// A texture as a job makes it (ADR 0099): created, its mips staged, and the
+// upload submitted. Its descriptor slot is the main thread's (finishTexture).
+struct PreparedTexture
+{
+    slag::Texture* texture = nullptr;
+    slag::Buffer* staging = nullptr;
+    Upload upload;
+};
+
+void discardTexture(PreparedTexture& prepared)
+{
+    uploadDone(prepared.upload, true);
+    releaseUpload(prepared.upload);
+    if (prepared.staging != nullptr)
+    {
+        state.device->destroy(prepared.staging);
+    }
+    if (prepared.texture != nullptr)
+    {
+        state.device->destroy(prepared.texture);
+    }
+    prepared = {};
+}
+
+// Any thread.
+Status prepareTexture(std::span<const uint8_t> bytes, PreparedTexture& prepared)
 {
     Result<binary::File*> opened = binary::parseFile(bytes, assets::textureFileKind, assets::textureFileVersion);
     if (!opened)
@@ -558,8 +694,8 @@ Result<LoadedTexture*> createTexture(std::span<const uint8_t> bytes)
         status = Status::InvalidData;
     }
 
-    slag::Texture* texture = nullptr;
-    slag::Buffer* staging = nullptr;
+    slag::Texture*& texture = prepared.texture;
+    slag::Buffer*& staging = prepared.staging;
     uint64_t stagingOffsets[16] = {};
     if (status == Status::Ok)
     {
@@ -608,61 +744,88 @@ Result<LoadedTexture*> createTexture(std::span<const uint8_t> bytes)
 
     if (status == Status::Ok)
     {
-        status = runAndWait([&](slag::CommandBuffer* commands) {
-                     const slag::TextureBarrier toCopy = {.syncAfter = slag::BarrierSync::Copy,
-                                                          .accessAfter = slag::BarrierAccess::CopyDest,
-                                                          .layoutBefore = slag::TextureLayout::Undefined,
-                                                          .layoutAfter = slag::TextureLayout::CopyDest,
-                                                          .texture = texture};
-                     commands->barrier({}, {}, {&toCopy, 1});
-                     for (uint32_t mip = 0; mip < info.mipCount; ++mip)
-                     {
-                         const slag::CopyFootprint footprint = state.device->copyFootprint(texture, mip);
-                         commands->copyBufferToTexture({.texture = texture, .mip = mip},
-                                                       {staging, stagingOffsets[mip], footprint.rowPitch},
-                                                       footprint.width, footprint.height);
-                     }
-                     // Ready to sample from every later submit.
-                     const slag::TextureBarrier toRead = {.syncBefore = slag::BarrierSync::Copy,
-                                                          .syncAfter = slag::BarrierSync::None,
-                                                          .accessBefore = slag::BarrierAccess::CopyDest,
-                                                          .accessAfter = slag::BarrierAccess::NoAccess,
-                                                          .layoutBefore = slag::TextureLayout::CopyDest,
-                                                          .layoutAfter = slag::TextureLayout::ShaderRead,
-                                                          .texture = texture};
-                     commands->barrier({}, {}, {&toRead, 1});
-                 }).status();
-    }
-    if (staging != nullptr)
-    {
-        state.device->destroy(staging);
-    }
-    uint32_t slot = 0;
-    if (status == Status::Ok)
-    {
-        state.slots->collect();
-        slot = state.slots->allocate();
-        status = slot == 0 ? Status::OutOfDeviceMemory : Status::Ok;
+        Result<Upload> submitted = submitUpload([&](slag::CommandBuffer* commands) {
+            const slag::TextureBarrier toCopy = {.syncAfter = slag::BarrierSync::Copy,
+                                                 .accessAfter = slag::BarrierAccess::CopyDest,
+                                                 .layoutBefore = slag::TextureLayout::Undefined,
+                                                 .layoutAfter = slag::TextureLayout::CopyDest,
+                                                 .texture = texture};
+            commands->barrier({}, {}, {&toCopy, 1});
+            for (uint32_t mip = 0; mip < info.mipCount; ++mip)
+            {
+                const slag::CopyFootprint footprint = state.device->copyFootprint(texture, mip);
+                commands->copyBufferToTexture({.texture = texture, .mip = mip},
+                                              {staging, stagingOffsets[mip], footprint.rowPitch}, footprint.width,
+                                              footprint.height);
+            }
+            // Ready to sample from every later submit.
+            const slag::TextureBarrier toRead = {.syncBefore = slag::BarrierSync::Copy,
+                                                 .syncAfter = slag::BarrierSync::None,
+                                                 .accessBefore = slag::BarrierAccess::CopyDest,
+                                                 .accessAfter = slag::BarrierAccess::NoAccess,
+                                                 .layoutBefore = slag::TextureLayout::CopyDest,
+                                                 .layoutAfter = slag::TextureLayout::ShaderRead,
+                                                 .texture = texture};
+            commands->barrier({}, {}, {&toRead, 1});
+        });
+        status = submitted.status();
+        if (submitted)
+        {
+            prepared.upload = submitted.value();
+        }
     }
     if (status != Status::Ok)
     {
-        if (texture != nullptr)
+        discardTexture(prepared);
+    }
+    return status;
+}
+
+// Main thread, once the upload is done: the staging freed, the texture
+// written into `slot` (allocated here if 0).
+Result<LoadedTexture*> finishTexture(PreparedTexture& prepared, uint32_t slot)
+{
+    releaseUpload(prepared.upload);
+    if (prepared.staging != nullptr)
+    {
+        state.device->destroy(prepared.staging);
+        prepared.staging = nullptr;
+    }
+    if (slot == 0)
+    {
+        state.slots->collect();
+        slot = state.slots->allocate();
+        if (slot == 0)
         {
-            state.device->destroy(texture);
+            state.device->destroy(prepared.texture);
+            prepared.texture = nullptr;
+            return Status::OutOfDeviceMemory;
         }
+    }
+    state.device->writeTexture(slot, {.texture = prepared.texture});
+    auto* loaded = create<LoadedTexture>(MemoryTag::Render);
+    loaded->texture = prepared.texture;
+    loaded->slot = slot;
+    prepared.texture = nullptr;
+    return loaded;
+}
+
+// Synchronously: hot reloads and textures from bytes.
+Result<LoadedTexture*> createTexture(std::span<const uint8_t> bytes)
+{
+    PreparedTexture prepared;
+    if (Status status = prepareTexture(bytes, prepared); status != Status::Ok)
+    {
         return status;
     }
-    state.device->writeTexture(slot, {.texture = texture});
-    auto* loaded = create<LoadedTexture>(MemoryTag::Render);
-    loaded->texture = texture;
-    loaded->slot = slot;
-    return loaded;
+    uploadDone(prepared.upload, true);
+    return finishTexture(prepared, 0);
 }
 
 void destroyTexture(LoadedTexture* texture)
 {
     state.slots->release(texture->slot, lastSignaled());
-    if (!texture->borrowed)
+    if (!texture->borrowed && texture->texture != nullptr)
     {
         state.destroyer->destroyAfter(texture->texture, lastSignaled());
     }
@@ -673,8 +836,152 @@ void destroyTexture(LoadedTexture* texture)
 // Acquiring by asset ID
 // ---------------------------------------------------------------------------
 
-template <class T, class Create>
-Result<uint32_t> acquire(Table<T>& table, const AssetId& id, Create create)
+// Models whose materials' textures have all become ready start drawing.
+void updateDrawable()
+{
+    for (Slot<LoadedMesh>& slot : state.meshes.slots)
+    {
+        if (slot.value == nullptr || !slot.ready || slot.drawable)
+        {
+            continue;
+        }
+        bool ready = true;
+        for (MaterialHandle material : slot.value->materials)
+        {
+            ready = ready && isMaterialReady(material);
+        }
+        slot.drawable = ready;
+    }
+}
+
+// A load by asset ID (ADR 0099): prepared on a job into `prepared`,
+// published into the slot it was started for, unless that was released
+// meanwhile (the generation moved on).
+template <class Prepared>
+struct SlotLoad
+{
+    uint32_t index = 0;
+    uint32_t generation = 0;
+    Status status = Status::Ok;
+    Prepared prepared;
+};
+
+using MeshLoad = SlotLoad<PreparedMesh>;
+using TextureLoad = SlotLoad<PreparedTexture>;
+
+template <class T>
+Slot<T>* loadingSlot(Table<T>& table, uint32_t index, uint32_t generation)
+{
+    Slot<T>* slot = table.find(index, generation);
+    return slot != nullptr && !slot->ready ? slot : nullptr;
+}
+
+// Asynchronously, a failure is only seen here; without workers, acquire
+// returns it.
+void warnFailed(const char* what, const AssetId& id, Status status)
+{
+    if (jobs::workerCount() == 0)
+    {
+        return;
+    }
+    char text[33];
+    for (int i = 0; i < 16; ++i)
+    {
+        std::snprintf(text + i * 2, 3, "%02x", id.bytes[i]);
+    }
+    log::warning("%s %s couldn't be loaded (status %d)", what, text, static_cast<int>(status));
+}
+
+void startMeshLoad(uint32_t index, uint32_t generation, const AssetId& id)
+{
+    auto* load = create<MeshLoad>(MemoryTag::Render);
+    load->index = index;
+    load->generation = generation;
+    assets::startLoad({
+        .id = id,
+        .context = load,
+        .prepare =
+            [](void* context, std::span<const uint8_t> bytes, bool found) {
+                auto& self = *static_cast<MeshLoad*>(context);
+                self.status = found ? prepareMesh(bytes, self.prepared) : Status::NotFound;
+            },
+        .finished = [](void* context,
+                       bool wait) { return uploadDone(static_cast<MeshLoad*>(context)->prepared.upload, wait); },
+        .publish =
+            [](void* context) {
+                auto* self = static_cast<MeshLoad*>(context);
+                Slot<LoadedMesh>* slot = loadingSlot(state.meshes, self->index, self->generation);
+                if (self->status == Status::Ok && slot != nullptr)
+                {
+                    Result<LoadedMesh*> made = finishMesh(self->prepared);
+                    self->status = made.status();
+                    if (made)
+                    {
+                        destroyMesh(slot->value); // the placeholder
+                        slot->value = made.value();
+                        slot->ready = true;
+                    }
+                }
+                discardMesh(self->prepared); // what's left: all of it, if abandoned or failed
+                if (self->status != Status::Ok && slot != nullptr)
+                {
+                    slot->failure = self->status;
+                    warnFailed("a model", slot->asset, self->status);
+                }
+                destroy(MemoryTag::Render, self);
+                updateDrawable();
+            },
+    });
+}
+
+void startTextureLoad(uint32_t index, uint32_t generation, const AssetId& id)
+{
+    auto* load = create<TextureLoad>(MemoryTag::Render);
+    load->index = index;
+    load->generation = generation;
+    assets::startLoad({
+        .id = id,
+        .context = load,
+        .prepare =
+            [](void* context, std::span<const uint8_t> bytes, bool found) {
+                auto& self = *static_cast<TextureLoad*>(context);
+                self.status = found ? prepareTexture(bytes, self.prepared) : Status::NotFound;
+            },
+        .finished = [](void* context,
+                       bool wait) { return uploadDone(static_cast<TextureLoad*>(context)->prepared.upload, wait); },
+        .publish =
+            [](void* context) {
+                auto* self = static_cast<TextureLoad*>(context);
+                Slot<LoadedTexture>* slot = loadingSlot(state.textures, self->index, self->generation);
+                if (self->status == Status::Ok && slot != nullptr)
+                {
+                    // Into the slot the placeholder kept, which materials hold.
+                    Result<LoadedTexture*> made = finishTexture(self->prepared, slot->value->slot);
+                    self->status = made.status();
+                    if (made)
+                    {
+                        destroy(MemoryTag::Render, slot->value);
+                        slot->value = made.value();
+                        slot->ready = true;
+                    }
+                }
+                discardTexture(self->prepared);
+                if (self->status != Status::Ok && slot != nullptr)
+                {
+                    slot->failure = self->status;
+                    warnFailed("a texture", slot->asset, self->status);
+                }
+                destroy(MemoryTag::Render, self);
+                updateDrawable();
+            },
+    });
+}
+
+// By asset ID: a placeholder in a new slot at once, and a load to fill it
+// (ADR 0099). Without job workers the load is done before this returns, so
+// a failure is returned, as before loads were asynchronous.
+template <class T, class Placeholder, class Start, class Destroy>
+Result<uint32_t> acquire(Table<T>& table, const AssetId& id, Placeholder placeholder, Start start, Destroy destroyValue)
 {
     if (state.device == nullptr)
     {
@@ -690,31 +997,29 @@ Result<uint32_t> acquire(Table<T>& table, const AssetId& id, Create create)
         log::warning("an asset was acquired before an asset source was installed");
         return Status::NotFound;
     }
-    struct Load
+    T* value = placeholder();
+    if (value == nullptr)
     {
-        Create create;
-        Status status = Status::NotFound;
-        T* value = nullptr;
-    } load{create};
-    auto deliverTo = [](void* context, const uint8_t* data, uint64_t size) {
-        auto& self = *static_cast<Load*>(context);
-        Result<T*> created = self.create(std::span<const uint8_t>(data, static_cast<size_t>(size)));
-        self.status = created.status();
-        self.value = created ? created.value() : nullptr;
-    };
-    if (assets::assetSource().read(&id, &load, deliverTo) != 0)
-    {
-        return Status::NotFound;
+        return Status::OutOfDeviceMemory;
     }
-    if (load.value == nullptr)
-    {
-        return load.status == Status::Ok ? Status::InvalidData : load.status;
-    }
-    const uint32_t index = table.add(load.value);
-    table.slots[index].uses = 1;
-    table.slots[index].acquired = true;
-    table.slots[index].asset = id;
+    const uint32_t index = table.add(value);
+    Slot<T>& slot = table.slots[index];
+    slot.uses = 1;
+    slot.acquired = true;
+    slot.ready = false;
+    slot.asset = id;
     table.byAsset.insertOrAssign(id, index);
+    const uint32_t generation = slot.generation;
+    start(index, generation, id);
+    Slot<T>& after = table.slots[index];
+    if (after.generation == generation && after.failure != Status::Ok && jobs::workerCount() == 0)
+    {
+        const Status failure = after.failure;
+        table.byAsset.erase(id);
+        destroyValue(after.value);
+        table.remove(index);
+        return failure;
+    }
     return index;
 }
 
@@ -761,6 +1066,16 @@ Result<void> startAssets(slag::GraphicsDevice& device, slag::CommandQueue& queue
     }
     state.work = work.value();
     state.workSignaled = 0;
+    slag::Result<slag::Semaphore*> uploads = device.createSemaphore({.debugName = "crucible uploads"});
+    if (!uploads)
+    {
+        device.destroy(state.work);
+        state.work = nullptr;
+        return toStatus(uploads.status());
+    }
+    state.uploads = uploads.value();
+    state.uploadsSignaled = 0;
+    assets::registerLoadStarter(startMeshLoads);
     state.destroyer = create<slag::DeferredDestroyer>(MemoryTag::Render, &device);
     state.slots = create<slag::DescriptorAllocator>(
         MemoryTag::Render, &device,
@@ -810,7 +1125,7 @@ void collectAssets()
 slag::Texture* textureOf(TextureHandle texture)
 {
     const Slot<LoadedTexture>* slot = state.textures.find(texture.index, texture.generation);
-    return slot != nullptr ? slot->value->texture : nullptr;
+    return slot != nullptr && slot->ready ? slot->value->texture : nullptr;
 }
 
 void forceStagingUploads(bool force)
@@ -829,6 +1144,8 @@ void stopAssets()
     {
         return;
     }
+    // Loads in flight finish first: they hold uploads and slots.
+    assets::waitForLoads();
     // Whatever is still loaded goes with the renderer.
     for (uint32_t i = 0; i < state.meshes.slots.size(); ++i)
     {
@@ -851,6 +1168,8 @@ void stopAssets()
     destroy(MemoryTag::Render, state.destroyer); // flushes
     destroy(MemoryTag::Render, state.slots);
     state.device->destroy(state.work);
+    state.device->destroy(state.uploads);
+    state.uploads = nullptr;
     state.destroyer = nullptr;
     state.slots = nullptr;
     state.work = nullptr;
@@ -864,7 +1183,8 @@ void stopAssets()
 
 Result<MeshHandle> acquireMesh(assets::AssetId model)
 {
-    Result<uint32_t> index = acquire(state.meshes, model, createMesh);
+    Result<uint32_t> index =
+        acquire(state.meshes, model, [] { return create<LoadedMesh>(MemoryTag::Render); }, startMeshLoad, destroyMesh);
     if (!index)
     {
         return index.status();
@@ -879,7 +1199,20 @@ void releaseMesh(MeshHandle mesh)
 
 Result<TextureHandle> acquireTexture(assets::AssetId texture)
 {
-    Result<uint32_t> index = acquire(state.textures, texture, createTexture);
+    // The placeholder takes its descriptor slot now: materials made before
+    // it's loaded write that slot into their parameters.
+    auto placeholder = []() -> LoadedTexture* {
+        state.slots->collect();
+        const uint32_t slot = state.slots->allocate();
+        if (slot == 0)
+        {
+            return nullptr;
+        }
+        auto* loaded = create<LoadedTexture>(MemoryTag::Render);
+        loaded->slot = slot;
+        return loaded;
+    };
+    Result<uint32_t> index = acquire(state.textures, texture, placeholder, startTextureLoad, destroyTexture);
     if (!index)
     {
         return index.status();
@@ -904,6 +1237,7 @@ Result<MeshHandle> loadMesh(std::span<const uint8_t> bytes)
         return mesh.status();
     }
     const uint32_t index = state.meshes.add(mesh.value());
+    updateDrawable();
     return MeshHandle{index, state.meshes.slots[index].generation};
 }
 
@@ -970,7 +1304,31 @@ void removeSurfaceTexture(TextureHandle handle)
 uint32_t textureDescriptor(TextureHandle texture)
 {
     const Slot<LoadedTexture>* slot = state.textures.find(texture.index, texture.generation);
+    return slot != nullptr && slot->ready ? slot->value->slot : 0;
+}
+
+uint32_t textureSlot(TextureHandle texture)
+{
+    const Slot<LoadedTexture>* slot = state.textures.find(texture.index, texture.generation);
     return slot != nullptr ? slot->value->slot : 0;
+}
+
+bool isMeshReady(MeshHandle mesh)
+{
+    const Slot<LoadedMesh>* slot = state.meshes.find(mesh.index, mesh.generation);
+    return slot != nullptr && slot->drawable;
+}
+
+bool isMeshLoading(MeshHandle mesh)
+{
+    const Slot<LoadedMesh>* slot = state.meshes.find(mesh.index, mesh.generation);
+    return slot != nullptr && !slot->drawable && slot->failure == Status::Ok;
+}
+
+bool isTextureReady(TextureHandle texture)
+{
+    const Slot<LoadedTexture>* slot = state.textures.find(texture.index, texture.generation);
+    return slot != nullptr && slot->ready;
 }
 
 TextureSize textureSize(TextureHandle texture)
@@ -984,15 +1342,17 @@ uint32_t samplerDescriptor(Sampler sampler)
     return firstSamplerSlot + static_cast<uint32_t>(sampler);
 }
 
+// Only models that can draw: loaded, with their materials' textures (ADR 0099).
 const MeshData* meshData(MeshHandle mesh)
 {
     const Slot<LoadedMesh>* slot = state.meshes.find(mesh.index, mesh.generation);
-    return slot != nullptr ? &slot->value->data : nullptr;
+    return slot != nullptr && slot->drawable ? &slot->value->data : nullptr;
 }
 
 const MeshData* meshDataAt(uint32_t index)
 {
-    return index < state.meshes.slots.size() && state.meshes.slots[index].value != nullptr
+    return index < state.meshes.slots.size() && state.meshes.slots[index].value != nullptr &&
+                   state.meshes.slots[index].drawable
                ? &state.meshes.slots[index].value->data
                : nullptr;
 }
@@ -1033,7 +1393,10 @@ uint64_t reloads = 0;
 // version.
 void waitForGpu()
 {
-    (void)state.queue->waitIdle();
+    {
+        std::lock_guard lock(queueMutex);
+        (void)state.queue->waitIdle();
+    }
     state.destroyer->collect();
 }
 
@@ -1085,7 +1448,9 @@ Status reloadMesh(Slot<LoadedMesh>& slot)
     }
     waitForGpu();
     slot.value = made.value();
+    slot.drawable = false;
     destroyMesh(old);
+    updateDrawable();
     return Status::Ok;
 }
 
@@ -1096,6 +1461,31 @@ Result<bool> reloadRenderAsset(assets::AssetId asset)
     if (state.device == nullptr)
     {
         return false; // nothing can be loaded before the renderer starts
+    }
+    // Still loading (ADR 0099): a load in flight reads it as it is now; one
+    // that failed is started again.
+    if (const uint32_t* texture = state.textures.byAsset.find(asset);
+        texture != nullptr && !state.textures.slots[*texture].ready)
+    {
+        Slot<LoadedTexture>& slot = state.textures.slots[*texture];
+        if (slot.failure == Status::Ok)
+        {
+            return false;
+        }
+        slot.failure = Status::Ok;
+        startTextureLoad(*texture, slot.generation, asset);
+        return true;
+    }
+    if (const uint32_t* mesh = state.meshes.byAsset.find(asset); mesh != nullptr && !state.meshes.slots[*mesh].ready)
+    {
+        Slot<LoadedMesh>& slot = state.meshes.slots[*mesh];
+        if (slot.failure == Status::Ok)
+        {
+            return false;
+        }
+        slot.failure = Status::Ok;
+        startMeshLoad(*mesh, slot.generation, asset);
+        return true;
     }
     Status status;
     if (const uint32_t* texture = state.textures.byAsset.find(asset))
@@ -1150,6 +1540,11 @@ Status readAsset(const AssetId& id, Vector<uint8_t>& out)
     };
     out.clear();
     return assets::assetSource().read(&id, &out, deliver) == 0 ? Status::Ok : Status::NotFound;
+}
+
+std::mutex& queueLock()
+{
+    return queueMutex;
 }
 
 } // namespace crucible::render

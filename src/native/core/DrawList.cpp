@@ -206,7 +206,8 @@ void resolveInstances(ecs::World& world, uint32_t lastRunVersion)
 }
 
 // Models no instance used for a while are released, and so are failures,
-// which are then tried again.
+// which are then tried again. One still loading (ADR 0099) is kept: no
+// instance draws it yet.
 void expireModels()
 {
     const Clock::time_point now = Clock::now();
@@ -214,7 +215,8 @@ void expireModels()
     for (auto& entry : cache.models)
     {
         CachedModel& model = *entry.value;
-        if (model.handle.generation != 0 && cache.lastBuild[model.handle.index] == cache.build)
+        if (model.handle.generation != 0 &&
+            (cache.lastBuild[model.handle.index] == cache.build || isMeshLoading(model.handle)))
         {
             model.lastUsed = now;
         }
@@ -229,6 +231,28 @@ void expireModels()
         cache.models.erase(id);
     }
 }
+
+} // namespace
+
+// The renderer's load starter (ADR 0099): every instance's model acquired,
+// so its load runs before the first frame that would draw it.
+void startMeshLoads(ecs::World& world)
+{
+    const ecs::ComponentId instanceOnly[] = {ecs::componentIdOf<MeshInstance>};
+    ecs::Query* instances = ecs::createQuery(world, {.required = instanceOnly});
+    ecs::forEachChunk(
+        *instances,
+        [](const ecs::ChunkView& view, void*) {
+            for (const MeshInstance& instance : ecs::readColumn<MeshInstance>(view))
+            {
+                resolve(instance.model);
+            }
+        },
+        nullptr);
+    ecs::destroyQuery(instances);
+}
+
+namespace {
 
 // ---------------------------------------------------------------------------
 // Culling and batching

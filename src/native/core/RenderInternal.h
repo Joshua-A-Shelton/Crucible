@@ -15,6 +15,7 @@
 #include <crucible/Math.h>
 
 #include <array>
+#include <mutex>
 
 namespace crucible::render {
 
@@ -221,9 +222,20 @@ DrawStats drawStats();
 Result<void> startAssets(slag::GraphicsDevice& device, slag::CommandQueue& queue);
 void collectAssets();
 void stopAssets();
-// The next value of the work semaphore, which every frame and upload
-// signals; unloading waits for the last one signalled.
+// The next value of the work semaphore, which every frame signals;
+// unloading waits for the last one signalled.
 slag::SemaphoreValue workSignal();
+// Held around every use of the graphics queue (submits, presents, waits):
+// asset uploads are submitted from job workers too (ADR 0099).
+std::mutex& queueLock();
+// A texture's descriptor slot, taken when it was acquired, even before it's
+// ready (materials write it into their parameters then).
+uint32_t textureSlot(TextureHandle texture);
+// A model still on its way to drawable: loading, or its textures are.
+bool isMeshLoading(MeshHandle mesh);
+// DrawList.cpp's load starter (crucible/AssetLoads.h), registered when the
+// renderer starts.
+void startMeshLoads(ecs::World& world);
 
 // For tests: the renderer's device and queue (null before it starts), and
 // uploading through staging even where direct writes are possible.
