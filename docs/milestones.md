@@ -901,7 +901,8 @@ decision made at its start):
    published by "Assets.Publish"; uploads on the graphics queue under one
    lock (the owner's change: the copy queue can't transition textures);
    things wait, then appear; startup and Open Scene wait for a scene's
-   loads. Awaiting the owner's try by hand.
+   loads. Tried by hand by the owner; 2b is done, its names settled as
+   drafted.
 3. JIT shipping builds: a package folder with the launcher, the core, the
    .NET runtime, ReadyToRun engine and game assemblies, any native module,
    and the archives; plugins registered by their generated entry points.

@@ -1,10 +1,9 @@
 # 0099 — Loading from archives
 
 **Status:** Accepted (2026-11-17); M10 step 2a built, then tried by hand
-by the owner; 2b built, awaiting the owner's try (names marked * were
-added while building it and are placeholders until then); 2c follows. The design's names were settled before
-building; those added while building 2a were settled by the owner as
-drafted (docs/naming.md).
+by the owner; 2b built, then tried by hand by the owner; 2c follows. The
+design's names were settled before building; those added while building
+2a and 2b were settled by the owner as drafted (docs/naming.md).
 
 ## Context
 
@@ -80,7 +79,7 @@ above where marked:
   (Slag ADR 0049), but textures are created `Undefined`: each would still
   need a graphics-queue transition before its copy and another after. So a
   worker records the whole upload, its barriers as before, and submits it
-  to the graphics queue under one lock (`queueLock`*), which the frame's
+  to the graphics queue under one lock (`queueLock`), which the frame's
   submits, presents, and waits take too. Uploads signal their own timeline
   semaphore; a load is published once its value is reached.
 - **The Animator's skeleton and state machine load on jobs too** (an
@@ -89,17 +88,17 @@ above where marked:
   plays are loaded; a machine's clips start loading as soon as it's read.
   `play` and `setLayer` accept a clip that's still loading.
 - **Startup waits** until 2c. Each system registers a load starter
-  (`registerLoadStarter`*), which starts loads for what the world's
-  components name without simulating; `startLoads`* runs them all, and
-  `waitForLoads`* returns once none is pending. ProjectStartup and the
+  (`registerLoadStarter`), which starts loads for what the world's
+  components name without simulating; `startLoads` runs them all, and
+  `waitForLoads` returns once none is pending. ProjectStartup and the
   editor's Open Scene call both after loading a scene, so it starts whole
   and physics starts with its level; runs stay deterministic.
 
-The machinery (crucible/AssetLoads.h*): `startLoad`* takes a `LoadTask`*
+The machinery (crucible/AssetLoads.h): `startLoad` takes a `LoadTask`
 (the asset, a `prepare` run on a Background job with its bytes, an
 optional `finished` for work outside the job, such as an upload, and a
-`publish` on the main thread). `publishLoads`* is "Assets.Publish"
-(BeginFrame); `pendingLoads`* counts what's in flight. Without job workers
+`publish` on the main thread). `publishLoads` is "Assets.Publish"
+(BeginFrame); `pendingLoads` counts what's in flight. Without job workers
 a load runs to the end inside startLoad, so the engine's tests and anything
 else without workers see loading as synchronous, failures included.
 
@@ -110,7 +109,7 @@ Per system:
   and its publish allocates its descriptor slot and makes its materials (on
   the main thread, with the tables). A texture's slot is taken when it's
   acquired, as materials write it into their parameters; it's written once
-  the texture is published (`textureSlot`*; `textureDescriptor` gives 0
+  the texture is published (`textureSlot`; `textureDescriptor` gives 0
   until then). A model draws only once it and its materials' textures are
   all ready (`isMeshReady`, `isTextureReady`, `isMaterialReady`; C#
   `IsReady`). A material's file (a few hundred bytes) is still read when
@@ -146,23 +145,23 @@ without parsing it or walking references at run time.
 
 ## As built (2b)
 
-- Core: crucible/AssetLoads.h and AssetLoads.cpp*; RenderAssets.cpp's
+- Core: crucible/AssetLoads.h and AssetLoads.cpp; RenderAssets.cpp's
   prepare and finish halves (`PreparedMesh`, `PreparedTexture`,
   `submitUpload`, the uploads semaphore), `isMeshReady`, `isTextureReady`,
-  `isMaterialReady`, `textureSlot`*, `isMeshLoading`*, `queueLock`*; load
+  `isMaterialReady`, `textureSlot`, `isMeshLoading`, `queueLock`; load
   starters in DrawList.cpp, Box3dPhysics.cpp, Box2dPhysics.cpp,
   MixerService.cpp, and Animation.cpp.
 - C#: `MeshHandle.IsReady`, `TextureHandle.IsReady`,
-  `MaterialHandle.IsReady` (RenderHandles.cs*); "Assets.Publish"
+  `MaterialHandle.IsReady` (RenderHandles.cs); "Assets.Publish"
   registered with the other modules; ProjectStartup, Open Scene, and the
   end of a run waiting for loads.
 - Tests: AsyncLoadTests.cpp ("A collider's body is made once its
-  collision data has loaded"*, "A sound asked for while it loads starts
-  once it has"*, "An Animator holds still until its skeleton and clip have
-  loaded"*, "A source that isn't thread-safe is read on the main thread"*),
-  with AsyncLoadTestSupport.h's `GatedSource`*; RenderAssetsTests' "Models
+  collision data has loaded", "A sound asked for while it loads starts
+  once it has", "An Animator holds still until its skeleton and clip have
+  loaded", "A source that isn't thread-safe is read on the main thread"),
+  with AsyncLoadTestSupport.h's `GatedSource`; RenderAssetsTests' "Models
   and textures load on jobs and are ready once published on every
-  backend"*.
+  backend".
 
 ## As built (2a)
 

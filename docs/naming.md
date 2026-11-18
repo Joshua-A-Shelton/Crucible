@@ -1198,12 +1198,12 @@ it by hand (2026-11-17):
 | `Archive.Count`, `Archive.Install`; `ArchiveWriter.SetSceneAssets`, `ReadSceneAssets`; `ProjectStartup.OpenedArchive` | C# |
 | `Shell.RunCooked`; LevelChecks' `check-archive=`; tests `TheArchiveReaderFindsWhatTheCookerPacked`, `EachScenesListHasOnlyWhatItReaches`, `ADamagedOrOldArchiveDoesntOpen` | Checks and tests |
 
-Names added while building 2b (marked *) are placeholders until the owner
-tries it by hand:
+Names added while building 2b, settled as drafted after the owner tried
+it by hand (2026-11-17):
 
 | Name | What it is |
 |---|---|
-| crucible/AssetLoads.h*: `LoadTask`* (`prepare`, `finished`, `publish`), `startLoad`*, `publishLoads`*, `pendingLoads`*, `waitForLoads`*, `LoadStarter`*, `registerLoadStarter`*, `startLoads`*, `publishSystemName`*, `registerAssetLoads`* | The load machinery |
-| `isMeshReady`*, `isTextureReady`*, `isMaterialReady`* (C++ names of the settled `isReady`); internal `textureSlot`*, `isMeshLoading`*, `queueLock`*, `startMeshLoads`* | The renderer |
-| RenderHandles.cs* | C#'s `IsReady` properties |
-| AsyncLoadTests.cpp's cases*, AsyncLoadTestSupport.h's `GatedSource`*; RenderAssetsTests' "Models and textures load on jobs and are ready once published on every backend"* | Tests |
+| crucible/AssetLoads.h: `LoadTask` (`prepare`, `finished`, `publish`), `startLoad`, `publishLoads`, `pendingLoads`, `waitForLoads`, `LoadStarter`, `registerLoadStarter`, `startLoads`, `publishSystemName`, `registerAssetLoads` | The load machinery |
+| `isMeshReady`, `isTextureReady`, `isMaterialReady` (C++ names of the settled `isReady`); internal `textureSlot`, `isMeshLoading`, `queueLock`, `startMeshLoads` | The renderer |
+| RenderHandles.cs | C#'s `IsReady` properties |
+| AsyncLoadTests.cpp's cases, AsyncLoadTestSupport.h's `GatedSource`; RenderAssetsTests' "Models and textures load on jobs and are ready once published on every backend" | Tests |
