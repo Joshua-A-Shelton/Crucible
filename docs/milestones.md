@@ -854,6 +854,40 @@ decision made at its start):
    by the owner; step 1 is done, its names settled as drafted.
 2. Loading from archives: the runtime reads assets from archives instead
    of the project's Cache, asynchronously on background jobs.
+
+   Step 2 designed (2026-11-17, names settled before building), in three
+   commits, each tried by hand:
+   - **2a, reading archives:** a C++ reader in the core
+     (crucible/ArchiveReader.h: `ArchiveReader` with `open`, `read`,
+     `startScene`, `sceneAssets`; `installArchiveSource`), wrapped in C#
+     as `Archive` (`Open`, `StartScene`, `SceneAssets`). The cooker records
+     each archived scene's asset list (pack file version 2). The launcher's
+     `--archive <file>` (game argument `archive=`) reads assets from it and
+     starts the scene its header names (`--scene` by ID overrides); with
+     no `--project` or `--archive`, it looks for Game.crpak beside itself.
+     `AssetSource` gains a `threadSafe` flag (the archive's is; the
+     editor's database isn't). Loading still synchronous; CTest
+     `samples.walker-archive` runs the Walker's Level from its archive.
+   - **2b, asynchronous creation:** acquiring a mesh, texture, material,
+     sound, collision shape, or clip returns at once; a Background job
+     reads, decompresses, parses, and creates it (GPU uploads recorded on
+     the worker and submitted to the copy queue under one lock; sounds
+     decoded; collision meshes built). Each frame the system
+     `"Assets.Publish"` publishes finished loads on the main thread
+     (tables, the mixer, the physics world). Handles answer `isReady`
+     (C# `IsReady`). A source without `threadSafe` is read on the main
+     thread, the rest on jobs. Until ready, each waits then appears: a
+     mesh instance isn't drawn until its mesh, materials, and textures
+     are all ready; a sound starts when ready; a body is created once its
+     shape is; an Animator holds the bind pose. Tests `AsyncLoadTests`.
+   - **2c, loading scenes:** C# `Scene.LoadAsync(world, sceneId)` returns
+     a `SceneLoadRequest` (`Progress`, `IsDone`, `Result`): every asset in
+     the scene's list is acquired, and once all are ready its entities are
+     added to the world in one frame. Replacing a scene is the game's to
+     do; there's no scene manager. CTest `launcher.jit.scene-loading`:
+     frames keep running while a scene loads.
+   - ADR 0099 "Loading from archives";
+     docs/learning/loading-from-archives.md.
 3. JIT shipping builds: a package folder with the launcher, the core, the
    .NET runtime, ReadyToRun engine and game assemblies, any native module,
    and the archives; plugins registered by their generated entry points.
