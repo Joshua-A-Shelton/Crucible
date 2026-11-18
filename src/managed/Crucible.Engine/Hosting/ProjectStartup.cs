@@ -52,7 +52,9 @@ public static class ProjectStartup
         }
         catch (CrucibleException exception)
         {
-            Console.Error.WriteLine($"Crucible.Hosting: can't open the archive {path}: {exception.Status}");
+            Console.Error.WriteLine(exception.Status == Status.Unsupported
+                ? $"Crucible.Hosting: the archive {path} was cooked by another version of Crucible: cook it again"
+                : $"Crucible.Hosting: can't open the archive {path}: {exception.Status}");
             return;
         }
         OpenedArchive = archive;
