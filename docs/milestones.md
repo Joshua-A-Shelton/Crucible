@@ -893,7 +893,8 @@ decision made at its start):
    asset source; each scene's asset list in the archive (version 2);
    --archive, --scene by ID, and Game.crpak beside the launcher. The
    Walker's Level runs from its archive exactly as from the Cache
-   (samples.walker-archive). Awaiting the owner's try by hand.
+   (samples.walker-archive). Tried by hand by the owner; 2a is done, its
+   names settled as drafted.
 3. JIT shipping builds: a package folder with the launcher, the core, the
    .NET runtime, ReadyToRun engine and game assemblies, any native module,
    and the archives; plugins registered by their generated entry points.

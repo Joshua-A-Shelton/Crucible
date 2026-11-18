@@ -1,9 +1,9 @@
 # 0099 — Loading from archives
 
-**Status:** Accepted (2026-11-17); M10 step 2a built, awaiting the owner's
-try by hand. 2b and 2c follow. The design's names were settled before
-building; names marked * were added while building and are placeholders
-until the try.
+**Status:** Accepted (2026-11-17); M10 step 2a built, then tried by hand
+by the owner; 2b and 2c follow. The design's names were settled before
+building; those added while building 2a were settled by the owner as
+drafted (docs/naming.md).
 
 ## Context
 
@@ -51,9 +51,9 @@ Decided by the owner (2026-11-17), in three commits, each tried by hand:
   or prefab's asset IDs, an import's recorded references) and, for each
   packed scene, follows them: everything reached, other scenes and what
   only they reach left out (a scene naming another doesn't load it). They
-  follow the index as `PackScene`* records (ID, first, count), sorted by
+  follow the index as `PackScene` records (ID, first, count), sorted by
   ID, then the IDs themselves; the header's reserved word became
-  `sceneCount`*.
+  `sceneCount`.
 - **The reader** opens the file once and keeps its index and scene lists in
   memory (48 bytes an asset). It checks the kind, the version
   (Unsupported for another: cook again), every entry's bounds, and the
@@ -64,7 +64,7 @@ Decided by the owner (2026-11-17), in three commits, each tried by hand:
 - **Startup.** Given `archive=`, ProjectStartup opens the archive, installs
   it (replacing any source: the archive was asked for), and loads the
   start scene, or `scene=`'s ID, read through the source like any asset.
-  The archive stays open for the run (`ProjectStartup.OpenedArchive`*).
+  The archive stays open for the run (`ProjectStartup.OpenedArchive`).
   A standalone run needs nothing else from the project.
 - **The launcher** passes `--scene`'s value as it is when it is an asset ID,
   and makes paths absolute otherwise.
@@ -87,21 +87,21 @@ without parsing it or walking references at run time.
 ## As built (2a)
 
 - Core: crucible/ArchiveReader.h and ArchiveReader.cpp (`ArchiveReader`:
-  `open`, `close`*, `read`, `contains`*, `startScene`, `sceneAssets`,
-  `count`*; `installArchiveSource`; for C#, `openArchive`*,
-  `closeArchive`*, `archiveStartScene`*, `archiveAssetCount`*,
-  `archiveSceneAssets`*, `installArchive`*); crucible/PackFile.h version
-  2 (`PackScene`*, `PackHeader::sceneCount`*); `AssetSource::threadSafe`.
-- C#: `Archive` (`Open`, `StartScene`, `SceneAssets`, `Count`*,
-  `Install`*, `Dispose`); `ArchiveWriter.SetSceneAssets`*,
-  `ReadSceneAssets`*, `Version` 2; the Cooker's scene lists;
-  `ProjectStartup` reading `archive=` (`OpenedArchive`*).
+  `open`, `close`, `read`, `contains`, `startScene`, `sceneAssets`,
+  `count`; `installArchiveSource`; for C#, `openArchive`,
+  `closeArchive`, `archiveStartScene`, `archiveAssetCount`,
+  `archiveSceneAssets`, `installArchive`); crucible/PackFile.h version
+  2 (`PackScene`, `PackHeader::sceneCount`); `AssetSource::threadSafe`.
+- C#: `Archive` (`Open`, `StartScene`, `SceneAssets`, `Count`,
+  `Install`, `Dispose`); `ArchiveWriter.SetSceneAssets`,
+  `ReadSceneAssets`, `Version` 2; the Cooker's scene lists;
+  `ProjectStartup` reading `archive=` (`OpenedArchive`).
 - Launcher: `--archive`, `--scene` by ID, Game.crpak beside it.
-- Editor: `Shell.RunCooked`* (for the checks); LevelChecks' archive mode
-  (`check-archive=`*).
-- Tests: CookerTests' "The archive reader finds what the cooker packed"*,
-  "Each scene's list has only what it reaches"*, "A damaged or old
-  archive doesn't open"*; CTest samples.walker-archive: the Level scene
+- Editor: `Shell.RunCooked` (for the checks); LevelChecks' archive mode
+  (`check-archive=`).
+- Tests: CookerTests' "The archive reader finds what the cooker packed",
+  "Each scene's list has only what it reaches", "A damaged or old
+  archive doesn't open"; CTest samples.walker-archive: the Level scene
   run from the Cache, then cooked and run from Game.crpak with the Cache's
   imported files moved aside; both runs hit the post 116.457 ms into its
   window and arrive at 34.900 s.

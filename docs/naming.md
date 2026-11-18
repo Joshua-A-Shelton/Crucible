@@ -1187,13 +1187,13 @@ tests `AsyncLoadTests`. 2c: C# `Scene.LoadAsync(world, sceneId)`,
 `SceneLoadRequest` (`Progress`, `IsDone`, `Result`); CTest
 `launcher.jit.scene-loading`.
 
-Names added while building 2a (marked *) are placeholders until the owner
-tries it by hand:
+Names added while building 2a, settled as drafted after the owner tried
+it by hand (2026-11-17):
 
 | Name | What it is |
 |---|---|
-| `PackScene`* (`id`, `first`, `count`), `PackHeader::sceneCount`* | The scene lists' layout |
-| `ArchiveReader::close`*, `contains`*, `count`* | The reader's extras |
-| `openArchive`*, `closeArchive`*, `archiveStartScene`*, `archiveAssetCount`*, `archiveSceneAssets`*, `installArchive`* | C#'s internal bindings |
-| `Archive.Count`*, `Archive.Install`*; `ArchiveWriter.SetSceneAssets`*, `ReadSceneAssets`*; `ProjectStartup.OpenedArchive`* | C# |
-| `Shell.RunCooked`*; LevelChecks' `check-archive=`*; tests `TheArchiveReaderFindsWhatTheCookerPacked`*, `EachScenesListHasOnlyWhatItReaches`*, `ADamagedOrOldArchiveDoesntOpen`* | Checks and tests |
+| `PackScene` (`id`, `first`, `count`), `PackHeader::sceneCount` | The scene lists' layout |
+| `ArchiveReader::close`, `contains`, `count` | The reader's extras |
+| `openArchive`, `closeArchive`, `archiveStartScene`, `archiveAssetCount`, `archiveSceneAssets`, `installArchive` | C#'s internal bindings |
+| `Archive.Count`, `Archive.Install`; `ArchiveWriter.SetSceneAssets`, `ReadSceneAssets`; `ProjectStartup.OpenedArchive` | C# |
+| `Shell.RunCooked`; LevelChecks' `check-archive=`; tests `TheArchiveReaderFindsWhatTheCookerPacked`, `EachScenesListHasOnlyWhatItReaches`, `ADamagedOrOldArchiveDoesntOpen` | Checks and tests |
