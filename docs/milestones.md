@@ -903,6 +903,15 @@ decision made at its start):
    things wait, then appear; startup and Open Scene wait for a scene's
    loads. Tried by hand by the owner; 2b is done, its names settled as
    drafted.
+
+   Step 2c built (ADR 0099): `Scene.LoadAsync` reads the scene into a
+   practice world that never runs, and the load starters go over it each
+   frame, now also counting what still waits; at 0 the scene is read into
+   the real world in one frame (`SceneLoadSystem`). Scenes are served by ID
+   from the editor and the Cache too. Startup and Open Scene still wait;
+   assets only game components name load on first use (the owner's
+   choices). CTest launcher.jit.scene-loading. Awaiting the owner's try by
+   hand.
 3. JIT shipping builds: a package folder with the launcher, the core, the
    .NET runtime, ReadyToRun engine and game assemblies, any native module,
    and the archives; plugins registered by their generated entry points.

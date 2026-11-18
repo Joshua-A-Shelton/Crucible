@@ -61,6 +61,11 @@ public sealed class ScheduleBuilder
             builder.AddFixedPhase(phase);
         }
         builder.AddSystem(Phases.BeginFrame, new PacingSystem());
+        // Scenes loading while frames go on (ADR 0099), after their loads are
+        // published; "Assets.Publish" is there once the engine's components
+        // are registered.
+        bool publishes = NativeSystem.Registered().Any(entry => entry.System.Name == "Assets.Publish");
+        builder.AddSystem(Phases.BeginFrame, new Scenes.SceneLoadSystem(), after: publishes ? ["Assets.Publish"] : null);
         builder.AddSystem(Phases.Input, new InputSystem());
         // After the events are read (by insertion order: games may replace
         // InputSystem). Game systems in Input that read what the UI used

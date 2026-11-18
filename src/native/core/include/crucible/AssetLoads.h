@@ -14,7 +14,8 @@
 // Systems start loads when they first meet an asset (a new MeshInstance, a
 // new Collider), so a scene's loads begin in its first frame. To have them
 // done before that frame, call startLoads (each system's load starter, over
-// the world) and then waitForLoads.
+// the world) and then waitForLoads. To load a scene while frames go on, call
+// startLoads each frame until it returns 0 (C#'s Scene.LoadAsync does).
 //
 // Main thread, apart from what a task's prepare does on its job.
 
@@ -58,15 +59,18 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t pendingLoads();
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void waitForLoads();
 
 // A system's load starter: starts loads for what the world's components
-// name and nothing is loading yet, without simulating anything.
-using LoadStarter = void (*)(ecs::World& world);
+// name and nothing is loading yet, without simulating anything, and returns
+// how many of the world's components still wait for a load (one that failed
+// waits no longer: it never becomes ready).
+using LoadStarter = uint32_t (*)(ecs::World& world);
 
 // Registers a starter (again: once). Thread-safe.
 CRUCIBLE_EXPORT void registerLoadStarter(LoadStarter starter);
 
 // Runs every registered starter over the world: then waitForLoads has a
-// scene's loads to wait for before its first frame.
-CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void startLoads(ecs::World& world);
+// scene's loads to wait for before its first frame. Returns how many of the
+// world's components still wait (the starters' sum); 0 once all are ready.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t startLoads(ecs::World& world);
 
 inline constexpr std::string_view publishSystemName = "Assets.Publish";
 

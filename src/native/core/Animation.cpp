@@ -2671,23 +2671,36 @@ void placeBoneAttachments(ecs::World& world)
 namespace {
 
 // The load starter (ADR 0099): every Animator's skeleton, state machine
-// (and so its clips), and clip.
-void startAnimatorLoads(ecs::World& world)
+// (and so its clips), and clip. An Animator waits while any of them loads,
+// as its pose would (poseWaiting).
+uint32_t startAnimatorLoads(ecs::World& world)
 {
     const ecs::ComponentId animators[] = {ecs::componentIdOf<Animator>};
     ecs::Query* query = ecs::createQuery(world, {.required = animators});
+    uint32_t waiting = 0;
     ecs::forEachChunk(
         *query,
-        [](const ecs::ChunkView& view, void*) {
+        [](const ecs::ChunkView& view, void* data) {
             for (const Animator& animator : ecs::readColumn<Animator>(view))
             {
                 (void)skeletonOf(animator.skeleton);
-                (void)machineOf(animator.stateMachine);
+                const StateMachine* machine = machineOf(animator.stateMachine);
                 (void)clipOf(animator.clip);
+                bool loads =
+                    isLoading(animator.skeleton) || isLoading(animator.stateMachine) || isLoading(animator.clip);
+                if (machine != nullptr)
+                {
+                    for (const assets::StateMotion& motion : machine->motions)
+                    {
+                        loads = loads || isLoading(motion.clip);
+                    }
+                }
+                *static_cast<uint32_t*>(data) += loads ? 1 : 0;
             }
         },
-        nullptr);
+        &waiting);
     ecs::destroyQuery(query);
+    return waiting;
 }
 
 } // namespace

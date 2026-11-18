@@ -1,9 +1,11 @@
 # 0099 — Loading from archives
 
 **Status:** Accepted (2026-11-17); M10 step 2a built, then tried by hand
-by the owner; 2b built, then tried by hand by the owner; 2c follows. The
-design's names were settled before building; those added while building
-2a and 2b were settled by the owner as drafted (docs/naming.md).
+by the owner; 2b built, then tried by hand by the owner; 2c built,
+awaiting the owner's try (names marked * were added while building it and
+are placeholders until then). The design's names were settled before
+building; those added while building 2a and 2b were settled by the owner
+as drafted (docs/naming.md).
 
 ## Context
 
@@ -124,6 +126,43 @@ Per system:
   gets its body once its data is loaded; a body that has a shape keeps it
   until new data is.
 
+## 2c in detail
+
+Decided by the owner while building (2026-11-17), changing the design
+above where marked:
+
+- **A practice run, not the archive's list** (a change). The archive's
+  list gives each asset's kind only, and one model file feeds the
+  renderer, physics, and animation, so acquiring it by kind would need a
+  preload hook per system and kind, and it would work only from an
+  archive. Instead `Scene.LoadAsync` reads the scene into a practice world
+  that never runs, and 2b's load starters go over it each frame
+  (`SceneLoadSystem`*, BeginFrame, after "Assets.Publish"), starting
+  loads. Each starter now also returns how many of the world's components
+  still wait (`LoadStarter` returns a count, `startLoads` the sum): a
+  MeshInstance until its model can draw, a Mesh, Convex, or Chain collider
+  until its data is loaded, an AudioSource that plays on start until its
+  sound is, an Animator until its skeleton, state machine, and clips are;
+  a failed load waits no longer. At 0 the practice world is dropped and the
+  scene is read again into the real world, all in one frame: everything it
+  needs is there, so nothing appears late. `Progress` is how much of the
+  most that ever waited has loaded, and never goes back. The scene list
+  stays in the archive for later uses (streaming in a cooked order).
+- **Startup and Open Scene still wait** before the first frame (the
+  owner's choice): the first scene opens whole and runs stay
+  deterministic; LoadAsync is for a game's next scene.
+- **Assets only game components name** (the Walker's footstep sound) load
+  when the game first uses them (the owner's choice); a game can acquire
+  them before calling LoadAsync.
+- **Scenes by ID everywhere** (an addition). A scene was opened by path
+  except from an archive; LoadAsync reads it by ID through the asset
+  source, so the editor's source serves scenes as saved, and AssetCache
+  finds them by the ID inside each file, as it finds prefabs by their
+  sidecars.
+- A request moves on with its world's schedule (the editor's world, or
+  play mode's); one still loading when that loop stops is dropped.
+  `LoadAsync` throws NotFound if the source has no such scene.
+
 ## Why
 
 A C++ reader works the same in JIT and AOT builds, runs on the native job
@@ -136,12 +175,35 @@ without parsing it or walking references at run time.
 - Pipelines (a material's shader) are still made on the main thread, when
   the material is acquired.
 - Fonts and hot reloads stay synchronous.
+- LoadAsync reads the scene file and its prefabs on the main thread when
+  it's called (they're small), and reads the scene twice: into the
+  practice world, then the real one.
+- Progress counts components, not bytes: a scene of one big model moves
+  from 0 to 1 in one step.
 
 - One archive at a time; patches and DLC (more archives over one another)
   come later.
 - Reads are plain file reads of whole entries; memory mapping, and reading
   sections rather than whole files, could come with streaming large
   assets.
+
+## As built (2c)
+
+- Core: `LoadStarter` returns how many of the world's components still
+  wait, `startLoads` the sum; each starter counts (DrawList.cpp,
+  Box3dPhysics.cpp, Box2dPhysics.cpp, MixerService.cpp, Animation.cpp).
+- C#: `Scene.LoadAsync(world, sceneId, prefabs)`; `SceneLoadRequest`
+  (`Progress`, `IsDone`, `Result`) and `SceneLoadSystem`* in
+  Scenes/SceneLoadRequest.cs*, the system in the default frame;
+  `AssetCache` finding scenes; the editor's source serving scenes.
+- Tests: AsyncLoadTests' starters' counts (a collider, an AudioSource, an
+  Animator); C# `SceneLoadAsyncTests`* ("The scene's entities appear
+  together once moved on"*, "A scene the source doesn't have is not
+  found"*); ProjectStartupTests' "The cache reads imported files, prefabs,
+  and scenes"; CTest launcher.jit.scene-loading (`SceneLoadingChecks`*,
+  `check-scene-loading=`*): the Walker's Level loaded into the editor's
+  world over 5 frames, its 12 entities at the top coming in together, with
+  nothing it needs still loading.
 
 ## As built (2b)
 

@@ -7,18 +7,20 @@ namespace Crucible.Tests;
 
 // A project run as a game (ADR 0073): AssetCache reads what the editor's
 // asset database left in Cache (imported files by key, prefab files by
-// sidecar), and ProjectStartup loads the scene from the game arguments.
+// sidecar, scenes by the ID inside them), and ProjectStartup loads the scene
+// from the game arguments.
 public class ProjectStartupTests
 {
     private static readonly AssetId _texture = AssetId.Parse("1a2b3c4d-0000-4000-8000-000000000001");
     private static readonly AssetId _prefab = AssetId.Parse("1a2b3c4d-0000-4000-8000-000000000002");
     private static readonly AssetId _stale = AssetId.Parse("1a2b3c4d-0000-4000-8000-000000000003");
+    private static readonly AssetId _scene = AssetId.Parse("1a2b3c4d-0000-4000-8000-000000000004");
 
     [Before(Class)]
     public static void Register() => new Crucible.Generated.ComponentRegistration().Register();
 
-    // A project folder with one imported texture, one prefab file, and an
-    // import record whose file is gone.
+    // A project folder with one imported texture, one prefab file, one scene
+    // (and one without an ID), and an import record whose file is gone.
     private static string MakeProject()
     {
         string root = Path.Combine(Path.GetTempPath(), $"crucible-startup-{Guid.NewGuid():N}");
@@ -38,19 +40,24 @@ public class ProjectStartupTests
         File.WriteAllBytes(Path.Combine(root, "Assets", "Prefabs", "Door.crprefab"), [4, 5]);
         File.WriteAllText(Path.Combine(root, "Assets", "Prefabs", "Door.crprefab.crmeta"),
             $$"""{ "Guid": "{{_prefab}}", "Importer": "" }""");
+        Directory.CreateDirectory(Path.Combine(root, "Assets", "Scenes"));
+        File.WriteAllText(Path.Combine(root, "Assets", "Scenes", "Next.crscene"),
+            $$"""{ "$guid": "{{_scene}}", "Entities": [] }""");
+        File.WriteAllText(Path.Combine(root, "Assets", "Scenes", "Unnamed.crscene"), """{ "Entities": [] }""");
         return root;
     }
 
     [Test]
-    public async Task TheCacheReadsImportedFilesAndPrefabs()
+    public async Task TheCacheReadsImportedFilesPrefabsAndScenes()
     {
         string root = MakeProject();
         try
         {
             AssetCache cache = AssetCache.Open(Path.Combine(root, "Game.crproject"));
-            await Assert.That(cache.Count).IsEqualTo(2);
+            await Assert.That(cache.Count).IsEqualTo(3);
             await Assert.That(Convert.ToHexString(cache.Read(_texture) ?? [])).IsEqualTo("010203");
             await Assert.That(Convert.ToHexString(cache.Read(_prefab) ?? [])).IsEqualTo("0405");
+            await Assert.That(Scene.ReadId(cache.Read(_scene) ?? [])).IsEqualTo(_scene);
             await Assert.That(cache.Read(_stale)).IsNull(); // recorded, but its file is gone
             await Assert.That(cache.Read(AssetId.New())).IsNull();
         }
@@ -98,7 +105,7 @@ public class ProjectStartupTests
                 ["scene"] = scene,
             });
             await Assert.That(opened).IsNotNull();
-            await Assert.That(opened!.Count).IsEqualTo(2);
+            await Assert.That(opened!.Count).IsEqualTo(4); // the texture, the prefab, Next and Start
             await Assert.That(world.EntityCount).IsEqualTo(2);
             Entity loaded = world.Contents().Select(item => item.Entity).First(entity => world.Has(entity, Components.Of<SceneHealth>()));
             await Assert.That(world.Read<SceneHealth>(loaded).Value).IsEqualTo(7);

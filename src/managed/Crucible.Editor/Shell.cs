@@ -292,7 +292,11 @@ internal sealed partial class Shell
         }
         Database = database;
         Prefabs = database.Prefabs();
-        AssetSource.Install(id => database.ImportedFile(id) is { } path ? File.ReadAllBytes(path) : null);
+        // Imported assets, and scenes as they're saved (Scene.LoadAsync, ADR 0099).
+        AssetSource.Install(id => database.ImportedFile(id) is { } path ? File.ReadAllBytes(path)
+            : database.Find(id) is { } entry && entry.Path.EndsWith(Scene.Extension, StringComparison.OrdinalIgnoreCase)
+                ? File.ReadAllBytes(Path.Combine(project.AssetsFolder, entry.Path))
+                : null);
         Log($"{database.Assets.Count()} assets, {imported} imported" + (failed > 0 ? $", {failed} failed" : ""));
         WatchAssets(project);
         AssetsChanged?.Invoke();

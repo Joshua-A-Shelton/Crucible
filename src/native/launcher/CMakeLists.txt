@@ -425,6 +425,18 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "PlayToolbarChecks: all [0-9]+ checks passed")
 
+    # Loading a scene while frames go on (ADR 0099): the Walker's Level
+    # loaded into the editor's world with Scene.LoadAsync, its entities
+    # coming in all in one frame, once nothing they need still loads.
+    add_test(NAME launcher.jit.scene-loading
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
+            --project "${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject"
+            --game-arg "check-scene-loading=${CMAKE_CURRENT_BINARY_DIR}"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/scene-loading-settings.json")
+    set_tests_properties(launcher.jit.scene-loading PROPERTIES LABELS "integration;gpu" TIMEOUT 300
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "SceneLoadingChecks: all [0-9]+ checks passed")
+
     # A chain's point handles checking themselves (ADR 0095): a copy of the
     # Walker's project (in the test's folder), a chain made, its points
     # inserted, moved, and deleted by drags and keys, undone and redone.
@@ -477,7 +489,7 @@ if(CRUCIBLE_BUILD_TESTS)
     set_tests_properties(launcher.jit.viewport launcher.jit.hierarchy launcher.jit.inspector launcher.jit.assets
         launcher.jit.play launcher.jit.standalone launcher.jit.native PROPERTIES RESOURCE_LOCK diorama-project-cache)
     set_tests_properties(samples.walker samples.walker-level samples.walker-archive samples.walker-cook launcher.jit.build-settings launcher.jit.import-settings launcher.jit.play-toolbar
-        launcher.jit.pickers PROPERTIES
+        launcher.jit.pickers launcher.jit.scene-loading PROPERTIES
         RESOURCE_LOCK walker-project-cache)
 
     # The M6 demonstration (ADR 0064): the UI showcase's menu driven by mouse,

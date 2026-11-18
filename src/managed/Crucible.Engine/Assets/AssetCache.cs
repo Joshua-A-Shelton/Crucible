@@ -9,8 +9,9 @@ namespace Crucible.Assets;
 /// with no importers. <c>Cache/imports.json</c> names each asset's import by
 /// its key, and the file is <c>Cache/Imported/&lt;first two&gt;/&lt;key&gt;.*</c>.
 /// Prefab files (.crprefab) aren't imported: they're found in Assets/ by
-/// their sidecars. Imports are trusted as they are: the editor imports what
-/// changed before it runs a project.
+/// their sidecars; scenes (.crscene) by the ID inside them, for
+/// <see cref="Scene.LoadAsync"/> (ADR 0099). Imports are trusted as they
+/// are: the editor imports what changed before it runs a project.
 /// </summary>
 public sealed class AssetCache
 {
@@ -32,10 +33,11 @@ public sealed class AssetCache
         AssetCache cache = new(Path.GetDirectoryName(Path.GetFullPath(projectFile))!);
         cache.ReadImports();
         cache.FindPrefabs();
+        cache.FindScenes();
         return cache;
     }
 
-    /// <summary>The asset's file: its imported output, or a prefab file; null if it has none.</summary>
+    /// <summary>The asset's file: its imported output, or a prefab or scene file; null if it has none.</summary>
     public string? FileOf(AssetId id) => _files.GetValueOrDefault(id);
 
     /// <summary>The asset's bytes, or null if it has none (the renderer's asset reader).</summary>
@@ -84,6 +86,22 @@ public sealed class AssetCache
             if (AssetId.TryParse(read.Guid, out AssetId id))
             {
                 _files[id] = sidecar[..^".crmeta".Length];
+            }
+        }
+    }
+
+    private void FindScenes()
+    {
+        string assets = Path.Combine(Root, "Assets");
+        if (!Directory.Exists(assets))
+        {
+            return;
+        }
+        foreach (string scene in Directory.EnumerateFiles(assets, "*" + Scene.Extension, SearchOption.AllDirectories))
+        {
+            if (Scene.ReadId(File.ReadAllBytes(scene)) is var id && id != AssetId.None)
+            {
+                _files[id] = scene;
             }
         }
     }

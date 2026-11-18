@@ -1207,3 +1207,13 @@ it by hand (2026-11-17):
 | `isMeshReady`, `isTextureReady`, `isMaterialReady` (C++ names of the settled `isReady`); internal `textureSlot`, `isMeshLoading`, `queueLock`, `startMeshLoads` | The renderer |
 | RenderHandles.cs | C#'s `IsReady` properties |
 | AsyncLoadTests.cpp's cases, AsyncLoadTestSupport.h's `GatedSource`; RenderAssetsTests' "Models and textures load on jobs and are ready once published on every backend" | Tests |
+
+Names added while building 2c (marked *) are placeholders until the owner
+tries it by hand:
+
+| Name | What it is |
+|---|---|
+| `SceneLoadSystem`* | The engine's system moving scene loads on, in BeginFrame after "Assets.Publish" |
+| Scenes/SceneLoadRequest.cs* | `SceneLoadRequest` and `SceneLoadSystem` |
+| `SceneLoadingChecks`*, `check-scene-loading=`* | The editor check behind CTest `launcher.jit.scene-loading` |
+| `SceneLoadAsyncTests`* ("The scene's entities appear together once moved on"*, "A scene the source doesn't have is not found"*) | C# tests |

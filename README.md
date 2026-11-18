@@ -176,5 +176,6 @@ Longer explanations of decisions, written to be reread:
   reading.
 - [Loading from archives](docs/learning/loading-from-archives.md) (ADR
   0099): positional reads for many threads, loading on jobs and
-  publishing on the main thread, knowing a scene's needs ahead, and
-  checking a new asset source changes nothing.
+  publishing on the main thread, loading the next scene while the game
+  runs, knowing a scene's needs ahead, and checking a new asset source
+  changes nothing.

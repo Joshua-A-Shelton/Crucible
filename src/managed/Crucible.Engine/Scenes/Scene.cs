@@ -108,6 +108,24 @@ public static class Scene
         return new SceneLoad(file.Id, roots, [.. loader.Skipped.Distinct()]);
     }
 
+    /// <summary>
+    /// Loads the scene <paramref name="sceneId"/> into <paramref name="world"/>
+    /// while frames go on (ADR 0099): its entities are added all in one frame,
+    /// once what they need is loaded. The scene file is read through the asset
+    /// source now; prefabs through <paramref name="prefabs"/>, or the source.
+    /// Needs <see cref="SceneLoadSystem"/> in the schedule (the default
+    /// frame has it).
+    /// </summary>
+    /// <exception cref="CrucibleException">NotFound: the source has no such scene.</exception>
+    public static SceneLoadRequest LoadAsync(World world, AssetId sceneId, PrefabLibrary? prefabs = null)
+    {
+        byte[] bytes = AssetSource.Read(sceneId) ??
+                       throw new CrucibleException(Status.NotFound, "Crucible.Scenes.Scene.LoadAsync");
+        SceneLoadRequest request = new(world, bytes, prefabs ?? PrefabLibrary.FromAssetSource());
+        SceneLoadSystem.Add(request);
+        return request;
+    }
+
     /// <summary>A scene file's own asset ID, from its first property; None if it has none.</summary>
     public static AssetId ReadId(ReadOnlySpan<byte> json)
     {

@@ -1530,21 +1530,24 @@ void interpolate(const loop::SystemContext& context, void*)
     }
 }
 
-// The load starter (ADR 0099): every Mesh or Convex collider's data started.
-void startColliderLoads(ecs::World& world)
+// The load starter (ADR 0099): every Mesh or Convex collider's data started;
+// a collider waits while its data loads.
+uint32_t startColliderLoads(ecs::World& world)
 {
     const ecs::ComponentId colliders[] = {ecs::componentIdOf<Collider>};
     ecs::Query* query = ecs::createQuery(world, {.required = colliders});
+    uint32_t waiting = 0;
     ecs::forEachChunk(
         *query,
-        [](const ecs::ChunkView& view, void*) {
+        [](const ecs::ChunkView& view, void* data) {
             for (const Collider& collider : ecs::readColumn<Collider>(view))
             {
-                (void)dataLoading(collider);
+                *static_cast<uint32_t*>(data) += dataLoading(collider) ? 1 : 0;
             }
         },
-        nullptr);
+        &waiting);
     ecs::destroyQuery(query);
+    return waiting;
 }
 
 } // namespace

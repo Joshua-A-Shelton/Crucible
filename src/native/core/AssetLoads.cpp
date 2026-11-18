@@ -160,17 +160,19 @@ void registerLoadStarter(LoadStarter starter)
     starters().pushBack(starter);
 }
 
-void startLoads(ecs::World& world)
+uint32_t startLoads(ecs::World& world)
 {
     Vector<LoadStarter> each(tag);
     {
         std::lock_guard lock(startersLock);
         each.assign(starters().span());
     }
+    uint32_t waiting = 0;
     for (LoadStarter starter : each)
     {
-        starter(world);
+        waiting += starter(world);
     }
+    return waiting;
 }
 
 void registerAssetLoads()

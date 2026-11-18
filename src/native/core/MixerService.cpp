@@ -566,28 +566,31 @@ void SDLCALL deviceCallback(void* userData, SDL_AudioStream* audio, int addition
 }
 
 // The load starter (ADR 0099): every AudioSource that plays on start has
-// its sound started.
-void startSoundLoads(ecs::World& world)
+// its sound started, and waits while it loads.
+uint32_t startSoundLoads(ecs::World& world)
 {
     if (mode == Mode::Off)
     {
-        return;
+        return 0;
     }
     const ecs::ComponentId sources[] = {ecs::componentIdOf<AudioSource>};
     ecs::Query* query = ecs::createQuery(world, {.required = sources});
+    uint32_t waiting = 0;
     ecs::forEachChunk(
         *query,
-        [](const ecs::ChunkView& view, void*) {
+        [](const ecs::ChunkView& view, void* data) {
             for (const AudioSource& source : ecs::readColumn<AudioSource>(view))
             {
                 if (source.playOnStart)
                 {
                     (void)soundOf(source.clip);
+                    *static_cast<uint32_t*>(data) += soundLoading(source.clip) ? 1 : 0;
                 }
             }
         },
-        nullptr);
+        &waiting);
     ecs::destroyQuery(query);
+    return waiting;
 }
 
 void start(Mode next)

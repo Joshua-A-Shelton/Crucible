@@ -1,7 +1,8 @@
 # Loading from archives
 
 A learning note for M10 step 2 (ADR 0099): reading a game's assets from
-its cooked archive (2a), and loading them on background jobs (2b).
+its cooked archive (2a), loading them on background jobs (2b), and
+loading a scene while the game keeps running (2c).
 
 ## One file, many readers
 
@@ -38,6 +39,28 @@ grey first; a body isn't made until its shape is, so nothing falls
 through a level that's still loading. A game that wants something on
 screen sooner can preload (step 2c) or show a loading screen.
 
+## Loading the next scene while the game runs
+
+A game moving to its next level wants the old one (or a loading screen) to
+keep running while the new one loads, and then the new one to appear
+whole: not a level without its walls for a few frames, and not a character
+falling through a floor whose collision shape isn't there yet.
+
+So the new scene's entities stay out of the world until everything they
+need is ready. To find out what that is, Crucible does a practice run: it
+reads the scene into a second world that never runs (nothing in it is
+drawn, simulated, or heard) and asks each system to start loading what that
+world's components name, the same way it would for a scene about to start.
+Each system also answers one question about that world: how many of your
+components still wait? Asking again every frame gives a loading bar (how
+much of the most that ever waited is done), and when the answer is zero
+the practice world is thrown away and the scene is read again, for real,
+into the game's world, all in one frame. Everything it needs is already
+loaded, so it all appears together.
+
+Reading the scene twice costs little: scene files are small next to the
+models and textures they name, which is where the time goes.
+
 ## Knowing a scene's needs ahead
 
 To load a scene without stalls, a loader wants its whole list of assets up
@@ -46,7 +69,9 @@ at run time means parsing the scene and following every reference, and
 each of those needs its file read first.
 
 The cooker already did that walk. So it writes the answer down: for each
-scene, every asset it reaches. Other scenes are left out, and so is what
+scene, every asset it reaches. (Crucible's own scene loading uses the
+practice run above, which works without an archive too; the list is there
+for loading in an order the cooker chose, later.) Other scenes are left out, and so is what
 only they reach, because a scene that names another (a door's destination,
 say) doesn't load it. It only needs to know the other's ID.
 

@@ -1832,21 +1832,24 @@ BodyPose2D bodyPose(const ecs::World& world, ecs::Entity entity)
 
 namespace {
 
-// The load starter (ADR 0099): every Chain collider's chain started.
-void startChainLoads(ecs::World& world)
+// The load starter (ADR 0099): every Chain collider's chain started; a
+// collider waits while its chain loads.
+uint32_t startChainLoads(ecs::World& world)
 {
     const ecs::ComponentId colliders[] = {ecs::componentIdOf<Collider2D>};
     ecs::Query* query = ecs::createQuery(world, {.required = colliders});
+    uint32_t waiting = 0;
     ecs::forEachChunk(
         *query,
-        [](const ecs::ChunkView& view, void*) {
+        [](const ecs::ChunkView& view, void* data) {
             for (const Collider2D& collider : ecs::readColumn<Collider2D>(view))
             {
-                (void)chainLoading(collider);
+                *static_cast<uint32_t*>(data) += chainLoading(collider) ? 1 : 0;
             }
         },
-        nullptr);
+        &waiting);
     ecs::destroyQuery(query);
+    return waiting;
 }
 
 } // namespace

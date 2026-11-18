@@ -235,21 +235,25 @@ void expireModels()
 } // namespace
 
 // The renderer's load starter (ADR 0099): every instance's model acquired,
-// so its load runs before the first frame that would draw it.
-void startMeshLoads(ecs::World& world)
+// so its load runs before the first frame that would draw it. An instance
+// waits until its model can draw (its materials' textures loaded too).
+uint32_t startMeshLoads(ecs::World& world)
 {
     const ecs::ComponentId instanceOnly[] = {ecs::componentIdOf<MeshInstance>};
     ecs::Query* instances = ecs::createQuery(world, {.required = instanceOnly});
+    uint32_t waiting = 0;
     ecs::forEachChunk(
         *instances,
-        [](const ecs::ChunkView& view, void*) {
+        [](const ecs::ChunkView& view, void* data) {
             for (const MeshInstance& instance : ecs::readColumn<MeshInstance>(view))
             {
-                resolve(instance.model);
+                const MeshHandle handle = resolve(instance.model);
+                *static_cast<uint32_t*>(data) += handle.generation != 0 && isMeshLoading(handle) ? 1 : 0;
             }
         },
-        nullptr);
+        &waiting);
     ecs::destroyQuery(instances);
+    return waiting;
 }
 
 namespace {

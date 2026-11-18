@@ -235,7 +235,7 @@ uint32_t textureSlot(TextureHandle texture);
 bool isMeshLoading(MeshHandle mesh);
 // DrawList.cpp's load starter (crucible/AssetLoads.h), registered when the
 // renderer starts.
-void startMeshLoads(ecs::World& world);
+uint32_t startMeshLoads(ecs::World& world);
 
 // For tests: the renderer's device and queue (null before it starts), and
 // uploading through staging even where direct writes are possible.

@@ -3,8 +3,9 @@
 // its collision data has loaded; a sound asked for while it loads starts
 // once it has; an Animator holds still until its skeleton and clips have
 // loaded, then plays as one that never waited; reads run off the main
-// thread, unless the source isn't thread-safe. The renderer's loads are in
-// RenderAssetsTests.cpp's GPU suite.
+// thread, unless the source isn't thread-safe. Each system's load starter
+// counts what still waits. The renderer's loads are in RenderAssetsTests.cpp's
+// GPU suite.
 
 #include "AnimationTestSupport.h"
 #include "AsyncLoadTestSupport.h"
@@ -102,9 +103,11 @@ TEST_CASE("A collider's body is made once its collision data has loaded")
     scene.step(3);
     CHECK(assets::pendingLoads() == 1);
     CHECK(headHeight() == -1.0f); // no body yet
+    CHECK(assets::startLoads(*scene.world) == 1);
 
     GatedSource::release();
     assets::waitForLoads();
+    CHECK(assets::startLoads(*scene.world) == 0);
     scene.step();
     CHECK(headHeight() == doctest::Approx(1.89f).epsilon(0.02));
     CHECK(GatedSource::offMain > 0);
@@ -129,6 +132,20 @@ TEST_CASE("A sound asked for while it loads starts once it has")
     const uint64_t loaded = mixer.frames;
     mixer.mixSeconds(0.2);
     CHECK(mixer.onset(0.05f, loaded) >= 0);
+
+    // An AudioSource that plays on start waits while its sound loads.
+    audio::registerAudio();
+    ecs::World* world = ecs::createWorld();
+    const ecs::ComponentId sourceOnly[] = {ecs::componentIdOf<audio::AudioSource>};
+    *ecs::get<audio::AudioSource>(*world, ecs::createEntity(*world, sourceOnly)) = {
+        .clip = idOf(7), .volume = 1, .pitch = 1, .playOnStart = true};
+    GatedSource::files[7] = soundFile(audio::testing::sine(440, 0.1));
+    GatedSource::close();
+    CHECK(assets::startLoads(*world) == 1);
+    GatedSource::release();
+    assets::waitForLoads();
+    CHECK(assets::startLoads(*world) == 0);
+    ecs::destroyWorld(world);
 
     // A sound that isn't there: no voice once it's known.
     CHECK(audio::playOneShot(idOf(3), mixer.at(0.3), audio::testing::here, 1, audio::masterBus) != 0);
@@ -172,8 +189,10 @@ TEST_CASE("An Animator holds still until its skeleton and clip have loaded")
         step(*waiting, 0.1f);
     }
     CHECK(assets::pendingLoads() >= 1);
+    CHECK(assets::startLoads(*waiting) == 1);
     GatedSource::release();
     assets::waitForLoads();
+    CHECK(assets::startLoads(*waiting) == 0);
     step(*waiting, 0.25f);
 
     // One that never waited, a quarter of a second in: the same pose.
