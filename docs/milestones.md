@@ -1180,6 +1180,30 @@ tests on every backend; C# tests. Tried by hand by the owner, all but
 `Behind3D`, which waits until sorting layers can be set from the editor
 (open items).
 
+Step 3 designed (2026-11-19, names settled before building):
+- **The Sprite Sheet Editor** (an editor window): the texture zoomed with
+  crisp pixels, its frames outlined. `Slicing`: `Grid` (the default:
+  `CellWidth`, `CellHeight`, `Margin`, `Spacing`; frames numbered left to
+  right, top to bottom) or `Rectangles` (`Frames`, each `X`, `Y`,
+  `Width`, `Height`, drawn by dragging; a grid can become rectangles to
+  adjust). Animations: `Clips`, each a `Name`, `Frames` (each a `Frame`,
+  a `Duration` in seconds, its default from a frames-a-second setting, and
+  `Events`), and `Loop`, with a preview playing it. Saved into the
+  texture's import settings, which reimports. Opens when a texture's
+  usage becomes Sprite (or a new image imports as one), from the
+  Inspector's "Edit Sprite Sheet…", or a double-click.
+- **Clips are sub-assets** of the sheet (`.crspriteclip`, "Hero.png /
+  Walk"), baked by the importer, so state machines can name them; frame
+  events go through the AnimationEvent system 3D clips use.
+- **`SpriteAnimator`** (`clip`, `speed`, `stateMachine`; C++
+  `crucible::render2d`, C# `Crucible.Render2D`), the 2D counterpart of
+  `Animator`: plays a clip on its entity's Sprite (setting its region),
+  or lets a `.crstatemachine` choose (the owner's choice: in step 3, a
+  frame-based path through the state machine runtime; parameters,
+  transitions, and exit times as for 3D, blend times meaningless for
+  frames).
+- ADR 0107 "Frame animation"; docs/learning/frame-animation.md.
+
 ## After M11: importing by dropping files
 
 Asked for by the owner (2026-11-18): files dragged from the system's file
