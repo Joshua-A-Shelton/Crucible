@@ -1085,7 +1085,16 @@ composites over a 3D scene.
 
 **Decides:** the pixel-art path details.
 
-## After M11: the first game
+## After M11: an engine review
+
+Asked for by the owner (2026-11-18), before any game is built: some parts
+of the engine have grown past what the owner knows well. Go over the
+whole engine system by system with the owner (what each does, how it
+works, why it was built that way), clear up whatever isn't clear, and
+decide what, if anything, to change. The order of systems and the form of
+each walk-through are decided with the owner at its start.
+
+## After the review: the first game
 
 The turn-based RPG's vertical slice. Whatever it needs that the engine
 doesn't have becomes the last work before v1.0.
