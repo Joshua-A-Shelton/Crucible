@@ -3,7 +3,9 @@
 **Status:** Accepted (2026-11-17); M10 step 1 built, then tried by hand by
 the owner (the Build Settings window redesigned after the first try). The
 design's names were settled before building; those added while building
-were settled by the owner as drafted (docs/naming.md).
+were settled by the owner as drafted (docs/naming.md). Cook and `--cook`
+were replaced by Build and `--build`, which cook into a package's Data
+folder, in ADR 0100.
 
 ## Context
 

@@ -3,15 +3,17 @@ using Crucible.UI;
 
 namespace Crucible.Editor;
 
-// Cooking (ADR 0098): the Build menu's Build Settings window and Cook, which
-// packs what the build settings' scenes and include list need into
-// Game.crpak; headless, the editor's --cook <folder>.
+// Building a package (ADR 0098, 0100): the Build menu's Build Settings window
+// and Build, which builds the project's code, cooks what the build settings'
+// scenes and include list need into Game.crpak, and packages them with the
+// launcher and the .NET runtime into Build/<Platform>; headless, the editor's
+// --build <folder>.
 internal sealed partial class Shell
 {
     private void RegisterBuildCommands()
     {
         Commands.Add(new Command("Build.Settings", "Build Settings…", ShowBuildSettings, () => Project is not null));
-        Commands.Add(new Command("Build.Cook", "Cook", () => Cook(), () => Project is not null));
+        Commands.Add(new Command("Build.Build", "Build", () => Build(), () => Project is not null));
     }
 
     private void ShowBuildSettings()
@@ -26,15 +28,51 @@ internal sealed partial class Shell
         }
     }
 
-    /// <summary>The last cook this session, and when it ran; the Build Settings window shows it.</summary>
-    internal (CookResult Result, DateTime At)? LastCook { get; private set; }
+    /// <summary>The last build this session, and when it ran; the Build Settings window shows it.</summary>
+    internal (PackageResult Result, DateTime At)? LastBuild { get; private set; }
 
     /// <summary>
-    /// Cooks the project into <paramref name="folder"/> (its
-    /// <see cref="Project.CookedFolder"/> by default), importing what changed
-    /// first, and logs what it did; null without a project.
+    /// Builds the project's package into <paramref name="folder"/> (its
+    /// <see cref="Project.PackageFolder"/> by default), waiting for it, and
+    /// logs what it did; null without a project. What a failed step would
+    /// have replaced is left as it was.
     /// </summary>
-    public CookResult? Cook(string? folder = null)
+    public PackageResult? Build(string? folder = null)
+    {
+        if (Project is not { } project || _builder is not { } builder)
+        {
+            Log("Can't build: no project is open.");
+            return null;
+        }
+        folder = Path.GetFullPath(folder ?? project.PackageFolder);
+        Log($"Building {project.Name} into {folder}…");
+        PackageResult result = new Packager(project, builder, _native, Environment.ProcessPath ?? "", Cook, Log).Package(folder);
+        LastBuild = (result, DateTime.Now);
+        if (result.Succeeded)
+        {
+            Log($"Built {project.Name}: {result.Cook!.AssetCount} assets, {result.Size / 1024.0 / 1024.0:0.0} MiB in all, into {folder}");
+        }
+        else
+        {
+            foreach (string error in result.Errors)
+            {
+                Log($"Can't build: {error}");
+            }
+            Log($"The build failed ({result.Errors.Count} problems).");
+        }
+        if (_open.GetValueOrDefault("BuildSettings") is BuildSettingsPanel panel)
+        {
+            panel.Refresh();
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Cooks the project into <paramref name="folder"/>, importing what
+    /// changed first, and logs what it did; null without a project. Build
+    /// cooks as one of its steps; the checks cook alone.
+    /// </summary>
+    internal CookResult? Cook(string folder)
     {
         if (Database is not { } database)
         {
@@ -43,7 +81,6 @@ internal sealed partial class Shell
         }
         RefreshAssets();
         CookResult result = new Cooker(database).Cook(folder);
-        LastCook = (result, DateTime.Now);
         if (result.Succeeded)
         {
             Log($"Cooked {result.AssetCount} assets ({result.Size / 1024.0 / 1024.0:0.0} MiB) into {result.ArchivePath}");
@@ -54,11 +91,6 @@ internal sealed partial class Shell
             {
                 Log($"Can't cook: {error}");
             }
-            Log($"The cook failed ({result.Errors.Count} problems); nothing was written.");
-        }
-        if (_open.GetValueOrDefault("BuildSettings") is BuildSettingsPanel panel)
-        {
-            panel.Refresh();
         }
         return result;
     }

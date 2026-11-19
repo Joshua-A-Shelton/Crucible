@@ -109,8 +109,8 @@ internal sealed class DemonstrationChecks : GameSystem
         // 2. Opened: its C++ and C# build and load; its components are known.
         shell.OpenProject(project.ProjectFilePath);
         string log = Log(shell);
-        Check(log.Contains("Loaded Demo.Native", StringComparison.Ordinal), "the project's C++ builds and loads", Tail(log));
-        Check(log.Contains("Loaded Demo.Game.dll", StringComparison.Ordinal), "and its C#", Tail(log));
+        Check(log.Contains("Loaded Demo.Core", StringComparison.Ordinal), "the project's C++ builds and loads", Tail(log));
+        Check(log.Contains("Loaded Demo.dll", StringComparison.Ordinal), "and its C#", Tail(log));
         Check(SavedComponents.Find("Demo.Wobble") is not null && SavedComponents.Find("Demo.Pulse") is not null,
             "its components are known");
         shell.NewScene();
@@ -229,7 +229,7 @@ internal sealed class DemonstrationChecks : GameSystem
         tree = SceneIds.Find(world, treeId);
         log = Log(shell);
         Check(System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(shell.Game) != before &&
-              log.Contains("Reloaded Demo.Game.dll", StringComparison.Ordinal), "editing the C# while playing hot-reloads it",
+              log.Contains("Reloaded Demo.dll", StringComparison.Ordinal), "editing the C# while playing hot-reloads it",
             Tail(log));
         Check(!log.Contains("didn't unload", StringComparison.Ordinal), "and the old build unloads", Tail(log));
         Check(SceneIds.Read(world, tree, "Demo.Wobble")?["Amount"]?.GetValue<float>() == 0.3f && shell.IsPlaying,
@@ -258,7 +258,7 @@ internal sealed class DemonstrationChecks : GameSystem
             yield return 2;
         }
         log = Log(shell);
-        Check(log.Contains("[game] Crucible.Hosting: loaded Demo.Game.dll", StringComparison.Ordinal) &&
+        Check(log.Contains("[game] Crucible.Hosting: loaded Demo.dll", StringComparison.Ordinal) &&
               log.Contains("[game] Crucible.Hosting: opened Main.crscene", StringComparison.Ordinal) &&
               log.Contains("[game] Crucible.Hosting: ran 30 frames", StringComparison.Ordinal) &&
               log.Contains("The standalone run ended (exit code 0)", StringComparison.Ordinal),

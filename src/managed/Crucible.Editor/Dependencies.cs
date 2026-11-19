@@ -50,11 +50,11 @@ internal static class Dependencies
     // (the build copies it there, ADR 0067); else .NET's own search.
     private static nint FindImporters(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
     {
-        if (libraryName != "crucible_importers" || Environment.ProcessPath is not { } processPath)
+        if (libraryName != "Crucible.Importers" || Environment.ProcessPath is not { } processPath)
         {
             return 0;
         }
-        string fileName = OperatingSystem.IsWindows() ? $"{libraryName}.dll" : $"lib{libraryName}.so";
+        string fileName = OperatingSystem.IsWindows() ? $"{libraryName}.dll" : $"{libraryName}.so";
         return NativeLibrary.TryLoad(Path.Combine(Path.GetDirectoryName(processPath)!, fileName), out nint handle)
             ? handle
             : 0;

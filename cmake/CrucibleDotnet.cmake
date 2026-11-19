@@ -66,7 +66,7 @@ else()
 endif()
 file(GENERATE OUTPUT "${CRUCIBLE_NATIVE_PROPS}" CONTENT "<Project>
   <ItemGroup Condition=\"'$(PublishAot)' == 'true'\">
-    <DirectPInvoke Include=\"crucible_core\" />
+    <DirectPInvoke Include=\"Crucible.Core\" />
   </ItemGroup>
   <ItemGroup Condition=\"'$(PublishAot)' == 'true' and '$(NativeLib)' == '' and '$(OutputType)' == 'Exe'\">
     <NativeLibrary Include=\"$<TARGET_LINKER_FILE:crucible_core_static>\" />

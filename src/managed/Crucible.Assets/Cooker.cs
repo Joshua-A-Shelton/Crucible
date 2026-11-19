@@ -28,12 +28,12 @@ public sealed class Cooker(AssetDatabase database)
 
     /// <summary>
     /// Cooks into <paramref name="folder"/> (the project's
-    /// <see cref="Project.CookedFolder"/> by default). With errors, nothing
+    /// <see cref="Project.PackageDataFolder"/> by default). With errors, nothing
     /// is written.
     /// </summary>
     public CookResult Cook(string? folder = null)
     {
-        folder ??= database.Project.CookedFolder;
+        folder ??= database.Project.PackageDataFolder;
         BuildSettings build = database.Project.Build;
         List<string> errors = [];
         if (build.Scenes.Count == 0)

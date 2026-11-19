@@ -36,6 +36,7 @@ using EntryPointFn = int(CORECLR_DELEGATE_CALLTYPE*)(LaunchOptions);
 struct Hostfxr
 {
     hostfxr_initialize_for_runtime_config_fn initialize = nullptr;
+    hostfxr_initialize_for_dotnet_command_line_fn initializeForApp = nullptr;
     hostfxr_get_runtime_delegate_fn getRuntimeDelegate = nullptr;
     hostfxr_close_fn close = nullptr;
 };
@@ -87,10 +88,13 @@ Result<Hostfxr> loadHostfxr(const std::filesystem::path& assemblyPath)
     Hostfxr hostfxr;
     hostfxr.initialize = reinterpret_cast<hostfxr_initialize_for_runtime_config_fn>(
         findExport(library, "hostfxr_initialize_for_runtime_config"));
+    hostfxr.initializeForApp = reinterpret_cast<hostfxr_initialize_for_dotnet_command_line_fn>(
+        findExport(library, "hostfxr_initialize_for_dotnet_command_line"));
     hostfxr.getRuntimeDelegate =
         reinterpret_cast<hostfxr_get_runtime_delegate_fn>(findExport(library, "hostfxr_get_runtime_delegate"));
     hostfxr.close = reinterpret_cast<hostfxr_close_fn>(findExport(library, "hostfxr_close"));
-    if (hostfxr.initialize == nullptr || hostfxr.getRuntimeDelegate == nullptr || hostfxr.close == nullptr)
+    if (hostfxr.initialize == nullptr || hostfxr.initializeForApp == nullptr || hostfxr.getRuntimeDelegate == nullptr ||
+        hostfxr.close == nullptr)
     {
         std::fprintf(stderr, "crucible: hostfxr is missing a hosting function\n");
         return Status::Unsupported;
@@ -100,12 +104,14 @@ Result<Hostfxr> loadHostfxr(const std::filesystem::path& assemblyPath)
 
 } // namespace
 
-Result<int> runEngine(const std::filesystem::path& managedDirectory, const LaunchOptions& options)
+Result<int> runEngine(const std::filesystem::path& managedDirectory, const std::filesystem::path& application,
+                      const LaunchOptions& options)
 {
     const std::filesystem::path assemblyPath = managedDirectory / engineAssemblyFile;
-    const std::filesystem::path runtimeConfigPath = managedDirectory / engineRuntimeConfigFile;
+    const std::filesystem::path runtimeConfigPath =
+        application.empty() ? managedDirectory / engineRuntimeConfigFile : application;
 
-    Result<Hostfxr> loaded = loadHostfxr(assemblyPath);
+    Result<Hostfxr> loaded = loadHostfxr(application.empty() ? assemblyPath : application);
     if (!loaded)
     {
         return loaded.status();
@@ -115,7 +121,19 @@ Result<int> runEngine(const std::filesystem::path& managedDirectory, const Launc
     // hostfxr returns HRESULT-style codes: success codes are 0 to 2, failures
     // are negative.
     hostfxr_handle context = nullptr;
-    const int32_t initialized = hostfxr.initialize(runtimeConfigPath.c_str(), nullptr, &context);
+    // A package's runtime is its own (self-contained), which .NET only starts
+    // for an app: the game's assembly, never run as one, whose
+    // runtimeconfig.json and deps.json name the runtime and every assembly.
+    int32_t initialized = 0;
+    if (application.empty())
+    {
+        initialized = hostfxr.initialize(runtimeConfigPath.c_str(), nullptr, &context);
+    }
+    else
+    {
+        const char_t* arguments[] = {application.c_str()};
+        initialized = hostfxr.initializeForApp(1, arguments, nullptr, &context);
+    }
     if (initialized < 0 || context == nullptr)
     {
         std::fprintf(stderr, "crucible: could not start .NET from %s (0x%08x)\n",

@@ -4,11 +4,12 @@ using Crucible.UI;
 namespace Crucible.Editor;
 
 /// <summary>
-/// The Build Settings window (ADR 0098): the project file's "Build" section,
-/// edited, in three cards. Scenes (the first starts the game) and Always
-/// Include are added from a drop-down of the project's assets or by
-/// dropping them from the Assets panel; Cook shows where it writes and the
-/// last cook. Every change is saved into the project file at once.
+/// The Build Settings window (ADR 0098, 0100): the project file's "Build"
+/// section, edited, in three cards. Scenes (the first starts the game) and
+/// Always Include are added from a drop-down of the project's assets or by
+/// dropping them from the Assets panel; Build has the ReadyToRun checkbox,
+/// where the package goes, and the last build. Every change is saved into
+/// the project file at once.
 /// </summary>
 public sealed class BuildSettingsPanel : EditorPanel
 {
@@ -16,7 +17,9 @@ public sealed class BuildSettingsPanel : EditorPanel
     private readonly StackPanel _scenes = new() { Spacing = 3 };
     private readonly StackPanel _include = new() { Spacing = 3 };
     private readonly Label _where = new() { Wrap = true };
-    private readonly Label _lastCook = new() { Wrap = true };
+    private readonly Label _lastBuild = new() { Wrap = true };
+    private readonly Toggle _readyToRun = new("Precompile (ReadyToRun)");
+    private bool _refreshing;
     private Project? _shown;
 
     internal BuildSettingsPanel(Shell shell) : base("BuildSettings", "Build Settings")
@@ -25,9 +28,16 @@ public sealed class BuildSettingsPanel : EditorPanel
         _where.Classes.Add("hint");
         SceneAdder = new AddPicker("Add scene…", SceneChoices);
         IncludeAdder = new AddPicker("Add asset or folder…", IncludeChoices);
-        CookButton = new Button("Cook") { HorizontalAlignment = HorizontalAlignment.Start };
-        CookButton.Classes.Add("primary");
-        CookButton.Clicked += _ => _shell.Cook();
+        BuildButton = new Button("Build") { HorizontalAlignment = HorizontalAlignment.Start };
+        BuildButton.Classes.Add("primary");
+        BuildButton.Clicked += _ => _shell.Build();
+        _readyToRun.Changed += toggle =>
+        {
+            if (!_refreshing)
+            {
+                Change(build => build.ReadyToRun = toggle.IsOn);
+            }
+        };
 
         StackPanel page = new() { Spacing = 10 };
         ScenesCard = new BuildCard("Scenes", "The first one starts the game.", [_scenes, SceneAdder], TakesScene, AddScene);
@@ -35,7 +45,8 @@ public sealed class BuildSettingsPanel : EditorPanel
             [_include, IncludeAdder], payload => IncludePath(payload) is not null, payload => AddInclude(IncludePath(payload)!));
         page.Add(ScenesCard);
         page.Add(IncludeCard);
-        page.Add(new BuildCard("Cook", null, [_where, _lastCook, CookButton], null, null));
+        page.Add(new BuildCard("Build", "Builds the code, cooks, and packages the game with .NET for this platform.",
+            [_readyToRun, _where, _lastBuild, BuildButton], null, null));
         AddChild(new ScrollView { Content = page, Padding = new Thickness(8, 8, 8, 8) });
         Refresh();
     }
@@ -46,7 +57,7 @@ public sealed class BuildSettingsPanel : EditorPanel
         _shown = _shell.Project;
         _scenes.Clear();
         _include.Clear();
-        _lastCook.Visibility = Visibility.Collapsed;
+        _lastBuild.Visibility = Visibility.Collapsed;
         if (_shown is not { } project)
         {
             _where.Text = "No project is open.";
@@ -78,15 +89,18 @@ public sealed class BuildSettingsPanel : EditorPanel
         {
             _include.Add(Hint("Nothing yet: add an asset or folder below, or drag one here from the Assets panel."));
         }
-        _where.Text = $"Writes {Cooker.ArchiveName} to {Path.GetRelativePath(project.Root, project.CookedFolder).Replace('\\', '/')}.";
-        if (_shell.LastCook is { } last)
+        _refreshing = true;
+        _readyToRun.IsOn = build.ReadyToRun;
+        _refreshing = false;
+        _where.Text = $"Writes the package to {Path.GetRelativePath(project.Root, project.PackageFolder).Replace('\\', '/')}.";
+        if (_shell.LastBuild is { } last)
         {
             int problems = last.Result.Errors.Count;
-            _lastCook.Text = last.Result.Succeeded
-                ? $"Last cook: {last.Result.AssetCount} assets, {Size(last.Result.Size)} at {last.At:HH:mm}"
-                : $"Last cook failed: {problems} {(problems == 1 ? "problem" : "problems")}, see the Log";
-            _lastCook.Classes.Set("log-error", !last.Result.Succeeded);
-            _lastCook.Visibility = Visibility.Visible;
+            _lastBuild.Text = last.Result.Succeeded
+                ? $"Last build: {last.Result.Cook!.AssetCount} assets, {Size(last.Result.Size)} in all, at {last.At:HH:mm}"
+                : $"Last build failed: {problems} {(problems == 1 ? "problem" : "problems")}, see the Log";
+            _lastBuild.Classes.Set("log-error", !last.Result.Succeeded);
+            _lastBuild.Visibility = Visibility.Visible;
         }
     }
 
@@ -98,7 +112,9 @@ public sealed class BuildSettingsPanel : EditorPanel
 
     internal AddPicker IncludeAdder { get; }
 
-    internal Button CookButton { get; }
+    internal Button BuildButton { get; }
+
+    internal Toggle ReadyToRunToggle => _readyToRun;
 
     internal UIElement ScenesCard { get; }
 
@@ -108,7 +124,7 @@ public sealed class BuildSettingsPanel : EditorPanel
 
     internal StackPanel IncludeRows => _include;
 
-    internal Label LastCookLine => _lastCook;
+    internal Label LastBuildLine => _lastBuild;
 
     // The project's scenes not in the list yet.
     private (string Label, Action Pick)[] SceneChoices()
@@ -212,7 +228,12 @@ public sealed class BuildSettingsPanel : EditorPanel
         {
             return;
         }
-        BuildSettings build = new() { Scenes = [.. project.Build.Scenes], Include = [.. project.Build.Include] };
+        BuildSettings build = new()
+        {
+            Scenes = [.. project.Build.Scenes],
+            Include = [.. project.Build.Include],
+            ReadyToRun = project.Build.ReadyToRun,
+        };
         change(build);
         project.SaveBuild(build);
         Refresh();

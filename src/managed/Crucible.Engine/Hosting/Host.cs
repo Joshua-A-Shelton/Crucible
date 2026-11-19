@@ -229,7 +229,7 @@ public static class Host
         Justification = "Only reached under a JIT (checked above).")]
     private static LoadedGame LoadJit(string path)
     {
-        LoadedGame game = GameLoader.Load(path);
+        LoadedGame game = GameLoader.IsPackaged(path) ? GameLoader.LoadPackaged(path) : GameLoader.Load(path);
         Console.WriteLine($"Crucible.Hosting: loaded {Path.GetFileName(path)}");
         return game;
     }

@@ -93,7 +93,7 @@ internal sealed class StandaloneChecks : GameSystem
         }
         string log = Log(shell);
         Check(File.Exists(Path.Combine(copy, "Cache", "Run", "Village.crscene")), "the scene is written to Cache/Run");
-        Check(log.Contains("[game] Crucible.Hosting: loaded Diorama.Game.dll", StringComparison.Ordinal),
+        Check(log.Contains("[game] Crucible.Hosting: loaded Diorama.dll", StringComparison.Ordinal),
             "the game loads the project's code", Tail(log));
         Check(log.Contains($"[game] Crucible.Hosting: opened Village.crscene: {top + 1} entities at the top",
             StringComparison.Ordinal), "the scene opens as it is, the unsaved entity too", Tail(log));

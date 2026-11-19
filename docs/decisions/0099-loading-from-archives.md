@@ -4,7 +4,8 @@
 by the owner; 2b built, then tried by hand by the owner; 2c built,
 then tried by hand by the owner. The design's names were settled before
 building; those added while building 2a, 2b, and 2c were settled by the
-owner as drafted (docs/naming.md).
+owner as drafted (docs/naming.md). A package's archive moved from beside
+the launcher into its Data folder in ADR 0100.
 
 ## Context
 

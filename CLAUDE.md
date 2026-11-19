@@ -190,8 +190,17 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   loop. Plugins register through source-generated entry points in every
   mode. JIT/editor builds load the core as a shared library; AOT builds
   link everything into one `<GameName>.exe`. The editor launcher
-  (`crucible_editor`, ADR 0066) is the JIT launcher loading the editor's
-  assembly (`src/managed/Crucible.Editor`) as its game.
+  (`CrucibleEditor`, ADR 0066) is the JIT launcher loading the editor's
+  assembly (`src/managed/Crucible.Editor`) as its game. Built files are
+  named `Crucible.Core`, `Crucible.Importers`, `CrucibleLauncher`,
+  `CrucibleEditor`, and `CrucibleLauncherAot`; CMake's targets keep
+  `crucible_core` and the like (ADR 0100).
+- **Shipping** (ADR 0100): the editor's Build (headless `--build
+  <folder>`) builds the code, cooks, and packages into Build/<Platform>:
+  the launcher named after the game and the core at the top; in `Data/`
+  the game's `<Project>.dll`, its `<Project>.Core` module, `Game.crpak`,
+  the engine's assemblies, and a self-contained .NET runtime, ReadyToRun
+  unless the Build settings turn it off.
 - **Hot-reload rule** (ADR 0011): native code holds references only into
   the engine's C# layer, never into game or plugin assemblies. Native code
   identifies game objects by IDs, not `GCHandle`s.
@@ -335,7 +344,7 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   scalar paths. The launcher refuses a CPU without the level, with a
   message.
 - `CRUCIBLE_BUILD_AOT` (on by default) builds the NativeAOT variants:
-  `crucible_launcher_aot` (core and C# engine statically linked into one
+  `crucible_launcher_aot` (`CrucibleLauncherAot`: core and C# engine statically linked into one
   executable) and the AOT test suites. AOT publishes take about 30 seconds
   the first time.
 - **Build requirements:** CMake, Ninja, a C++20 compiler (MSVC on Windows),
@@ -358,7 +367,7 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   ReferenceOutputAssembly="false"`; its tests are `Crucible.Generators.Tests`
   (JIT only). See `docs/learning/source-generators.md` and
   `docs/learning/generated-serializers.md`.
-- **Importers** (ADR 0042): `src/native/importers` builds `crucible_importers`,
+- **Importers** (ADR 0042): `src/native/importers` builds `crucible_importers` (`Crucible.Importers`),
   an editor-only native library beside the shared core (texture decoding,
   mipmaps, BC7/BC5/BC4 with RDO; glTF meshes, mirrored on X, ADR 0043),
   bound into `Crucible.Assets` by a second

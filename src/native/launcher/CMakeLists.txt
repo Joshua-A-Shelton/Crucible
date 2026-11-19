@@ -1,6 +1,7 @@
 # The launcher (ADR 0011): a thin C++ executable around the core library.
-#   crucible_launcher      JIT: hosts .NET and loads the engine's C# assembly
-#   crucible_launcher_aot  AOT: the core and the NativeAOT-compiled engine
+#   crucible_launcher      JIT (CrucibleLauncher): hosts .NET and loads the
+#                          engine's C# assembly
+#   crucible_launcher_aot  AOT (CrucibleLauncherAot): the core and the NativeAOT-compiled engine
 #                          statically linked into one executable
 
 add_executable(crucible_launcher
@@ -9,6 +10,8 @@ add_executable(crucible_launcher
     JitHost.cpp)
 
 crucible_set_compile_options(crucible_launcher)
+# A package's copy, renamed after its game, finds the core beside it (ADR 0100).
+set_target_properties(crucible_launcher PROPERTIES OUTPUT_NAME CrucibleLauncher BUILD_RPATH "\$ORIGIN")
 
 # The CPU check (ADR 0024's amendment) is compiled for the base x64 level, so
 # it can run on the processors it turns away; the flag after the global one
@@ -41,6 +44,7 @@ add_executable(crucible_editor
     Main.cpp
     JitHost.cpp)
 crucible_set_compile_options(crucible_editor)
+set_target_properties(crucible_editor PROPERTIES OUTPUT_NAME CrucibleEditor)
 target_compile_definitions(crucible_editor PRIVATE CRUCIBLE_EDITOR_LAUNCHER=1)
 target_link_libraries(crucible_editor PRIVATE crucible::core crucible::nethost)
 crucible_copy_nethost(crucible_editor)
@@ -102,6 +106,7 @@ if(CRUCIBLE_BUILD_AOT)
         AotHost.cpp)
 
     crucible_set_compile_options(crucible_launcher_aot)
+    set_target_properties(crucible_launcher_aot PROPERTIES OUTPUT_NAME CrucibleLauncherAot)
     target_include_directories(crucible_launcher_aot PRIVATE "${PROJECT_SOURCE_DIR}/src/native/core/include")
 
     # Static libraries resolve left to right: the engine refers to the core
@@ -374,29 +379,28 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "LevelChecks: all [0-9]+ checks passed")
 
-    # Cooking from the command line (ADR 0098): the Walker's build settings
-    # (its Level scene) packed into Game.crpak.
-    add_test(NAME samples.walker-cook
-        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
-            --project "${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject"
-            --cook "${CMAKE_CURRENT_BINARY_DIR}/walker-cooked"
-            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/cook-settings.json")
-    set_tests_properties(samples.walker-cook PROPERTIES LABELS "integration;gpu" TIMEOUT 300
+    # A package from the command line (ADR 0100): the editor's --build makes
+    # the Walker's package, which runs from a copy elsewhere, as a player's
+    # would, with no options and no .NET but its own.
+    add_test(NAME samples.walker-package
+        COMMAND "${CMAKE_COMMAND}" "-DEDITOR=$<TARGET_FILE:crucible_editor>" "-DENGINE=${engineDirectory}"
+            "-DPROJECT=${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject"
+            "-DOUT=${CMAKE_CURRENT_BINARY_DIR}/walker-package" -P "${PROJECT_SOURCE_DIR}/samples/Walker/package_walker.cmake")
+    set_tests_properties(samples.walker-package PROPERTIES LABELS "integration;gpu" TIMEOUT 600
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
-        PASS_REGULAR_EXPRESSION "Cooked 8 assets [^\n]*walker-cooked[/\\\\]Game.crpak"
-        FAIL_REGULAR_EXPRESSION "Can't cook")
+        PASS_REGULAR_EXPRESSION "package_walker: the Walker's package ran from elsewhere")
 
-    # The Build Settings window checking itself (ADR 0098): on a copy of the
-    # Walker's project (in the test's folder), scenes added from the
+    # The Build Settings window checking itself (ADR 0098, 0100): on a copy
+    # of the Walker's project (in the test's folder), scenes added from the
     # drop-down, reordered, and removed; a folder dragged in from the Assets
-    # panel and an asset picked into Always Include; a cook; the window saved
-    # as build-settings.png.
+    # panel and an asset picked into Always Include; ReadyToRun turned off
+    # and on; a build; the window saved as build-settings.png.
     add_test(NAME launcher.jit.build-settings
         COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
             --project "${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject"
             --game-arg "check-build-settings=${CMAKE_CURRENT_BINARY_DIR}"
             --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/build-settings-settings.json")
-    set_tests_properties(launcher.jit.build-settings PROPERTIES LABELS "integration;gpu" TIMEOUT 300
+    set_tests_properties(launcher.jit.build-settings PROPERTIES LABELS "integration;gpu" TIMEOUT 600
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "BuildSettingsChecks: all [0-9]+ checks passed")
 
@@ -488,7 +492,7 @@ if(CRUCIBLE_BUILD_TESTS)
     # 0074): one at a time, or the builds race.
     set_tests_properties(launcher.jit.viewport launcher.jit.hierarchy launcher.jit.inspector launcher.jit.assets
         launcher.jit.play launcher.jit.standalone launcher.jit.native PROPERTIES RESOURCE_LOCK diorama-project-cache)
-    set_tests_properties(samples.walker samples.walker-level samples.walker-archive samples.walker-cook launcher.jit.build-settings launcher.jit.import-settings launcher.jit.play-toolbar
+    set_tests_properties(samples.walker samples.walker-level samples.walker-archive samples.walker-package launcher.jit.build-settings launcher.jit.import-settings launcher.jit.play-toolbar
         launcher.jit.pickers launcher.jit.scene-loading PROPERTIES
         RESOURCE_LOCK walker-project-cache)
 

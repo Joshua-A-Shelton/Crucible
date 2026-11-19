@@ -8,13 +8,14 @@ using V = Crucible.Editor.ViewportChecks;
 namespace Crucible.Editor;
 
 /// <summary>
-/// The Build Settings window checking itself (ADR 0098), for CTest's
+/// The Build Settings window checking itself (ADR 0098, 0100), for CTest's
 /// launcher.jit.build-settings: run with the Walker's project and
 /// <c>--game-arg check-build-settings=&lt;folder&gt;</c>. On a copy of the
 /// project (in the folder): the Level scene's row; a scene added from the
 /// drop-down, moved down and up, and removed; a folder dragged from the
-/// Assets panel and an asset picked into Always Include; a cook, and its
-/// line. The window is saved as build-settings.png.
+/// Assets panel and an asset picked into Always Include; ReadyToRun turned
+/// off and on; a build, and its line. The window is saved as
+/// build-settings.png.
 /// </summary>
 [System(Phases.RenderPrepare)]
 internal sealed class BuildSettingsChecks : GameSystem
@@ -159,11 +160,20 @@ internal sealed class BuildSettingsChecks : GameSystem
         Check(string.Join(",", saved.Include) == "Sounds,Models/Level.crstates" && saved.Scenes.Count == 1,
             "every change is saved", string.Join(",", saved.Include));
 
-        // Cook, and its line.
-        V.Click(root, V.Center(panel.CookButton));
+        // ReadyToRun, on by default, turned off and on, saved each time.
+        Check(panel.ReadyToRunToggle.IsOn, "ReadyToRun is on by default");
+        V.Click(root, V.Center(panel.ReadyToRunToggle));
         yield return 2;
-        Check(panel.LastCookLine.Text.StartsWith("Last cook: 8 assets, ", StringComparison.Ordinal), "a cook shows its line",
-            panel.LastCookLine.Text);
+        Check(!Project.Open(projectFile).Build.ReadyToRun && !panel.ReadyToRunToggle.IsOn, "turning ReadyToRun off is saved");
+        V.Click(root, V.Center(panel.ReadyToRunToggle));
+        yield return 2;
+        Check(Project.Open(projectFile).Build.ReadyToRun, "and on again");
+
+        // Build, and its line (ADR 0100).
+        V.Click(root, V.Center(panel.BuildButton));
+        yield return 2;
+        Check(panel.LastBuildLine.Text.StartsWith("Last build: 8 assets, ", StringComparison.Ordinal), "a build shows its line",
+            panel.LastBuildLine.Text);
         V.Save(shell.Main.Surface, Path.Combine(_folder, "build-settings.png"));
     }
 

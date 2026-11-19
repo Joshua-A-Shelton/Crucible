@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- The editor (ADR 0016, 0066): C#, loaded by crucible_editor as the
+  <!-- The editor (ADR 0016, 0066): C#, loaded by CrucibleEditor as the
        launcher loads a game, so JIT only. An editor assembly (ADR 0002): it
        references the engine and the asset pipeline, never the reverse. -->
 

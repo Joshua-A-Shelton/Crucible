@@ -8,16 +8,16 @@ public class StandaloneRunTests
     [Test]
     public async Task TheLauncherGetsTheEngineGameProjectAndScene()
     {
-        List<string> arguments = StandaloneRun.Arguments("/engine", "/p/Cache/Build/bin/P.Game.dll", "/p/P.crproject",
+        List<string> arguments = StandaloneRun.Arguments("/engine", "/p/Cache/Build/bin/P.dll", "/p/P.crproject",
             "/p/Cache/Run/Start.crscene", ["--headless"]);
         await Assert.That(string.Join(" ", arguments)).IsEqualTo(
-            "--managed-dir /engine --game /p/Cache/Build/bin/P.Game.dll --project /p/P.crproject " +
+            "--managed-dir /engine --game /p/Cache/Build/bin/P.dll --project /p/P.crproject " +
             "--scene /p/Cache/Run/Start.crscene --headless");
         // A project without code runs its scene with the engine's systems alone.
         List<string> noCode = StandaloneRun.Arguments("/engine", null, "/p/P.crproject", "/p/s.crscene", []);
         await Assert.That(noCode).DoesNotContain("--game");
-        await Assert.That(Path.GetFileName(StandaloneRun.LauncherPath("/bin/crucible_editor")))
-            .IsEqualTo(OperatingSystem.IsWindows() ? "crucible_launcher.exe" : "crucible_launcher");
+        await Assert.That(Path.GetFileName(StandaloneRun.LauncherPath("/bin/CrucibleEditor")))
+            .IsEqualTo(OperatingSystem.IsWindows() ? "CrucibleLauncher.exe" : "CrucibleLauncher");
     }
 
     [Test]

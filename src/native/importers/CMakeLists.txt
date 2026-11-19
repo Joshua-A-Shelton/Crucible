@@ -99,7 +99,7 @@ crucible_generate_bindings(
         "${PROJECT_SOURCE_DIR}/src/native/core/include/crucible/MeshFile.h"
         "${PROJECT_SOURCE_DIR}/src/native/core/include/crucible/TextureFile.h"
         "${PROJECT_SOURCE_DIR}/src/native/core/include/crucible/SoundFile.h"
-    LIBRARY crucible_importers
+    LIBRARY Crucible.Importers
     INTEROP_NAMESPACE Crucible.Assets.Interop
     EXPORT_MACRO CRUCIBLE_IMPORTERS_EXPORT
     EXPORT_HEADER crucible/importers/ImportersExport.h)
@@ -113,6 +113,7 @@ if(WIN32)
 endif()
 # Beside the shared core, so whatever finds one finds the other.
 set_target_properties(crucible_importers PROPERTIES
+    PREFIX "" OUTPUT_NAME Crucible.Importers
     LIBRARY_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:crucible_core>"
     RUNTIME_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:crucible_core>")
 if(NOT WIN32 AND NOT APPLE)

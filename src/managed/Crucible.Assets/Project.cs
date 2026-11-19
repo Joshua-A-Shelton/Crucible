@@ -27,6 +27,9 @@ public partial class BuildSettings
     /// <c>Assets/</c>: what game code loads by ID, which no walk sees.
     /// </summary>
     public List<string> Include = [];
+
+    /// <summary>Whether a package's assemblies are precompiled with ReadyToRun (ADR 0001, 0100).</summary>
+    public bool ReadyToRun = true;
 }
 
 /// <summary>
@@ -57,8 +60,14 @@ public sealed class Project
     /// <summary>What a cook packs (ADR 0098); <see cref="SaveBuild"/> changes it.</summary>
     public BuildSettings Build { get; private set; }
 
-    /// <summary>The default folder a cook writes to: <c>Build/Cooked</c> in the project.</summary>
-    public string CookedFolder => Path.Combine(Root, "Build", "Cooked");
+    /// <summary>
+    /// The folder Build writes the package to (ADR 0100): <c>Build/Linux</c>
+    /// or <c>Build/Windows</c> in the project, for the platform it runs on.
+    /// </summary>
+    public string PackageFolder => Path.Combine(Root, "Build", OperatingSystem.IsWindows() ? "Windows" : "Linux");
+
+    /// <summary>Where a package keeps its archive, assemblies, and runtime: its <c>Data</c> folder.</summary>
+    public string PackageDataFolder => Path.Combine(PackageFolder, "Data");
     public string ProjectFilePath { get; }
     public string Root { get; }
     public string AssetsFolder => Path.Combine(Root, "Assets");

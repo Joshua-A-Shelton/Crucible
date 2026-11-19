@@ -16,7 +16,7 @@ public class GameBuildTests
         {
             Project project = Project.Create(folder, "Tiny Game");
             GameBuilder builder = new(project);
-            await Assert.That(builder.AssemblyName).IsEqualTo("TinyGame.Game");
+            await Assert.That(builder.AssemblyName).IsEqualTo("TinyGame");
             await Assert.That(builder.HasCode).IsFalse();
             string text = builder.ProjectText();
             await Assert.That(text).Contains("<Compile Include=");
@@ -54,13 +54,24 @@ public class GameBuildTests
         }
     }
 
+    // A package's Data folder holds the runtime's assemblies and the engine's
+    // core beside the game's (ADR 0100), so their names are taken.
+    [Test]
+    public async Task AGameIsNotNamedLikeTheRuntimeOrTheEngine()
+    {
+        await Assert.That(GameBuilder.Sanitize("Walker")).IsEqualTo("Walker");
+        await Assert.That(GameBuilder.Sanitize("System")).IsEqualTo("GameSystem");
+        await Assert.That(GameBuilder.Sanitize("Crucible")).IsEqualTo("GameCrucible");
+        await Assert.That(GameBuilder.Sanitize("2048")).IsEqualTo("Game2048");
+    }
+
     [Test]
     public async Task ErrorsAreReadFromDotnetsOutput()
     {
         const string output = """
-            /home/me/Game/Code/Player.cs(12,5): error CS1002: ; expected [/home/me/Game/Cache/Build/Game.Game.csproj]
-            /home/me/Game/Code/Player.cs(12,5): error CS1002: ; expected [/home/me/Game/Cache/Build/Game.Game.csproj]
-            /home/me/Game/Code/Player.cs(12,9): error CS1002: ; expected [/home/me/Game/Cache/Build/Game.Game.csproj]
+            /home/me/Game/Code/Player.cs(12,5): error CS1002: ; expected [/home/me/Game/Cache/Build/Game.csproj]
+            /home/me/Game/Code/Player.cs(12,5): error CS1002: ; expected [/home/me/Game/Cache/Build/Game.csproj]
+            /home/me/Game/Code/Player.cs(12,9): error CS1002: ; expected [/home/me/Game/Cache/Build/Game.csproj]
             /home/me/Game/Code/Enemy.cs(3,1): warning CS0168: unused
             """;
         BuildError[] errors = [.. GameBuilder.Errors(output)];

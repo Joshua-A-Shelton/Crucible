@@ -81,10 +81,10 @@ internal sealed class NativeChecks : GameSystem
         // Opening the project: the module built and loaded, then the C# with its bindings.
         shell.OpenProject(Path.Combine(copy, Path.GetFileName(shell.Project!.ProjectFilePath)));
         string log = Log(shell);
-        Check(Shell.ModuleLoaded && log.Contains("Loaded Diorama.Native", StringComparison.Ordinal),
+        Check(Shell.ModuleLoaded && log.Contains("Loaded Diorama.Core", StringComparison.Ordinal),
             "opening the project builds and loads its module", Tail(log));
-        Check(log.IndexOf("Loaded Diorama.Native", StringComparison.Ordinal) <
-              log.IndexOf("Loaded Diorama.Game.dll", StringComparison.Ordinal), "before its C#");
+        Check(log.IndexOf("Loaded Diorama.Core", StringComparison.Ordinal) <
+              log.IndexOf("Loaded Diorama.dll", StringComparison.Ordinal), "before its C#");
         SavedComponent? bob = SavedComponents.Find("Diorama.Bob");
         Check(bob is not null, "Bob is known to C#");
         shell.OpenScene(Path.Combine(copy, "Assets", "Scenes", "Village.crscene"));
@@ -137,12 +137,12 @@ internal sealed class NativeChecks : GameSystem
             Tail(Log(shell)));
         File.Delete(broken);
         started = Environment.TickCount64;
-        while (!Log(shell).Contains("Built Diorama.Native: restart the editor to load it", StringComparison.Ordinal) &&
+        while (!Log(shell).Contains("Built Diorama.Core: restart the editor to load it", StringComparison.Ordinal) &&
                Environment.TickCount64 - started < 120000)
         {
             yield return 2;
         }
-        Check(Log(shell).Contains("Built Diorama.Native: restart the editor to load it", StringComparison.Ordinal),
+        Check(Log(shell).Contains("Built Diorama.Core: restart the editor to load it", StringComparison.Ordinal),
             "the fixed build asks for a restart", Tail(Log(shell)));
     }
 

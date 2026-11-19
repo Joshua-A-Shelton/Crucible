@@ -26,8 +26,8 @@ public sealed partial class NativeBuilder
         _toolkitPath = toolkitPath;
     }
 
-    /// <summary>The module's library name: "Diorama.Native".</summary>
-    public string LibraryName => $"{GameBuilder.Sanitize(_project.Name)}.Native";
+    /// <summary>The module's library name: "Diorama.Core" (ADR 0100).</summary>
+    public string LibraryName => $"{GameBuilder.Sanitize(_project.Name)}.Core";
 
     public string Folder => Path.Combine(_project.CacheFolder, "Build", "Native");
 

@@ -10,7 +10,7 @@ namespace Crucible.Editor;
 
 /// <summary>
 /// Builds a project's own code (ADR 0072): every .cs file under its Code
-/// folder, through a project file the editor writes (Cache/Build/&lt;Project&gt;.Game.csproj:
+/// folder, through a project file the editor writes (Cache/Build/&lt;Project&gt;.csproj:
 /// the engine referenced, not copied; the engine's source generators; the
 /// engine's AOT-safe settings), with <c>dotnet build</c> run in the
 /// background. The build's errors come back with their file, line, and column.
@@ -22,8 +22,8 @@ public sealed partial class GameBuilder
 
     public GameBuilder(Project project) => _project = project;
 
-    /// <summary>The project's game assembly's name: "Diorama.Game".</summary>
-    public string AssemblyName => $"{Sanitize(_project.Name)}.Game";
+    /// <summary>The project's game assembly's name, the project's own: "Diorama" (ADR 0100).</summary>
+    public string AssemblyName => Sanitize(_project.Name);
 
     public string ProjectFile => Path.Combine(_project.CacheFolder, "Build", AssemblyName + ".csproj");
 
@@ -71,8 +71,16 @@ public sealed partial class GameBuilder
         return RunBuild();
     }
 
-    /// <summary>The project file's text: the Code folder's sources, the engine, and its generators.</summary>
-    public string ProjectText()
+    /// <summary>The project file a package is published from (ADR 0100): Cache/Build/Package/&lt;Project&gt;.csproj.</summary>
+    public string PackageProjectFile => Path.Combine(_project.CacheFolder, "Build", "Package", AssemblyName + ".csproj");
+
+    /// <summary>
+    /// The project file's text: the Code folder's sources, the engine, and its
+    /// generators. For a package (<paramref name="package"/>), also the
+    /// runtime for this platform, copied in with the engine, and ReadyToRun
+    /// unless <paramref name="readyToRun"/> is false (ADR 0100).
+    /// </summary>
+    public string ProjectText(bool package = false, bool readyToRun = true)
     {
         string engine = EngineAssembly();
         string framework = typeof(Crucible.Ecs.World).Assembly.GetCustomAttribute<TargetFrameworkAttribute>()?.FrameworkName
@@ -98,6 +106,24 @@ public sealed partial class GameBuilder
                 <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
                 <OutputPath>bin/</OutputPath>
                 <GenerateDocumentationFile>false</GenerateDocumentationFile>
+
+            """);
+        if (package)
+        {
+            // The game's assembly is the app its runtime starts for: its
+            // runtimeconfig.json and deps.json name the runtime, copied in
+            // (self-contained), and every assembly (ADR 0100).
+            text.Append($"    <RuntimeIdentifier>{RuntimeIdentifier}</RuntimeIdentifier>\n");
+            text.Append($"    <PublishReadyToRun>{(readyToRun ? "true" : "false")}</PublishReadyToRun>\n");
+            text.Append("""
+                    <SelfContained>true</SelfContained>
+                    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+                    <UseAppHost>false</UseAppHost>
+                    <Optimize>true</Optimize>
+
+                """);
+        }
+        text.Append("""
               </PropertyGroup>
               <ItemGroup>
 
@@ -106,7 +132,8 @@ public sealed partial class GameBuilder
         // The native module's bindings (ADR 0074), when it exposes anything.
         string bindings = Escape(Path.Combine(_project.CacheFolder, "Build", "Native", "Bindings.g.cs"));
         text.Append($"    <Compile Include=\"{bindings}\" Condition=\"Exists('{bindings}')\" />\n");
-        text.Append($"    <Reference Include=\"Crucible.Engine\" HintPath=\"{Escape(engine)}\" Private=\"false\" />\n");
+        // Referenced, not copied, except into a package.
+        text.Append($"    <Reference Include=\"Crucible.Engine\" HintPath=\"{Escape(engine)}\" Private=\"{(package ? "true" : "false")}\" />\n");
         if (Generators() is { } generators)
         {
             text.Append($"    <Analyzer Include=\"{Escape(generators)}\" />\n");
@@ -130,7 +157,27 @@ public sealed partial class GameBuilder
         }
     }
 
-    private GameBuild RunBuild()
+    /// <summary>"linux-x64" or "win-x64": the only platform a package is made for is this one.</summary>
+    public static string RuntimeIdentifier => OperatingSystem.IsWindows() ? "win-x64" : "linux-x64";
+
+    /// <summary>
+    /// Publishes the game into <paramref name="folder"/> with its own .NET
+    /// runtime and the engine's assemblies (ADR 0100), waiting for it. The
+    /// first publish downloads the runtime and ReadyToRun compiler from NuGet.
+    /// </summary>
+    public GameBuild Publish(string folder, bool readyToRun)
+    {
+        _running?.Wait();
+        _running = null;
+        Directory.CreateDirectory(Path.GetDirectoryName(PackageProjectFile)!);
+        File.WriteAllText(PackageProjectFile, ProjectText(package: true, readyToRun));
+        string assembly = Path.Combine(folder, AssemblyName + ".dll");
+        return RunDotnet(["publish", PackageProjectFile, "-c", "Release", "-o", folder], assembly);
+    }
+
+    private GameBuild RunBuild() => RunDotnet(["build", ProjectFile], OutputPath);
+
+    private static GameBuild RunDotnet(string[] command, string result)
     {
         if (DotnetPath() is not { } dotnet)
         {
@@ -147,7 +194,7 @@ public sealed partial class GameBuilder
             WorkingDirectory = Path.GetTempPath(),
         };
         foreach (string argument in (string[])[
-                     "build", ProjectFile, "-nologo", "-v:q", "-clp:NoSummary",
+                     .. command, "-nologo", "-v:q", "-clp:NoSummary",
                      // Not the settings of a repository the project happens to sit in.
                      "-p:ImportDirectoryBuildProps=false", "-p:ImportDirectoryBuildTargets=false",
                      "-p:ImportDirectoryPackagesProps=false"])
@@ -162,13 +209,13 @@ public sealed partial class GameBuilder
         process.WaitForExit();
         string all = output + error.Result;
         List<BuildError> errors = [.. Errors(all)];
-        bool built = process.ExitCode == 0 && File.Exists(OutputPath);
+        bool built = process.ExitCode == 0 && File.Exists(result);
         if (!built && errors.Count == 0)
         {
             string first = all.Split('\n').Select(line => line.Trim()).FirstOrDefault(line => line.Length > 0) ?? "";
-            errors.Add(new BuildError("", 0, 0, $"dotnet build failed ({process.ExitCode}): {first}"));
+            errors.Add(new BuildError("", 0, 0, $"dotnet {command[0]} failed ({process.ExitCode}): {first}"));
         }
-        return new GameBuild(built, built ? OutputPath : null, errors, all);
+        return new GameBuild(built, built ? result : null, errors, all);
     }
 
     // "path(12,5): error CS1002: ; expected [project]"
@@ -221,10 +268,15 @@ public sealed partial class GameBuilder
         Justification = "The editor is never published as a single file")]
     internal static string EngineAssembly() => typeof(Crucible.Ecs.World).Assembly.Location;
 
+    // An identifier, and not a name already taken in a package's Data folder
+    // (ADR 0100): the engine's core (Crucible.Core) or the runtime's own
+    // assemblies (System.dll, mscorlib.dll).
     internal static string Sanitize(string name)
     {
         string kept = new([.. name.Where(c => char.IsLetterOrDigit(c) || c == '_')]);
-        return kept.Length == 0 || char.IsDigit(kept[0]) ? "Game" + kept : kept;
+        bool taken = kept.Equals("Crucible", StringComparison.OrdinalIgnoreCase) ||
+                     File.Exists(Path.Combine(RuntimeEnvironment.GetRuntimeDirectory(), kept + ".dll"));
+        return kept.Length == 0 || char.IsDigit(kept[0]) || taken ? "Game" + kept : kept;
     }
 
     private static string Escape(string path) => System.Security.SecurityElement.Escape(path.Replace('\\', '/'))!;

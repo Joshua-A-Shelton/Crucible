@@ -1217,3 +1217,40 @@ it by hand (2026-11-18):
 | Scenes/SceneLoadRequest.cs | `SceneLoadRequest` and `SceneLoadSystem` |
 | `SceneLoadingChecks`, `check-scene-loading=` | The editor check behind CTest `launcher.jit.scene-loading` |
 | `SceneLoadAsyncTests` ("The scene's entities appear together once moved on", "A scene the source doesn't have is not found") | C# tests |
+
+## JIT shipping builds (2026-11-18, M10 step 3)
+
+Settled before building: ADR 0100 "JIT shipping builds";
+docs/learning/shipping-a-game.md. The package folder Build/<Platform>
+(Build/Linux, Build/Windows), its executable named after the game and its
+`Data` folder; the Build menu's "Build" (replacing "Cook"), the editor's
+`--build <folder>` (game argument `build=`, replacing `--cook` and
+`cook=`); the project file's `ReadyToRun` (Build section) and Build
+Settings' "Precompile (ReadyToRun)" checkbox.
+
+Renamed by the owner, everywhere (replacing the names above in earlier
+sections):
+
+| Was | Now |
+|---|---|
+| `<Project>.Game.dll`, Cache/Build/`<Project>.Game.csproj` | `<Project>.dll`, Cache/Build/`<Project>.csproj` |
+| `<Project>.Native` (`.dll`, `.so`) | `<Project>.Core` |
+| `crucible_core` (the file; `libcrucible_core.so` on Linux) | `Crucible.Core` (`Crucible.Core.dll`, `Crucible.Core.so`) |
+| `crucible_importers` (the file) | `Crucible.Importers` |
+| `crucible_launcher`, `crucible_editor`, `crucible_launcher_aot` (the files) | `CrucibleLauncher`, `CrucibleEditor`, `CrucibleLauncherAot` |
+
+CMake's target names (`crucible_core`, `crucible_launcher`, …) stay.
+
+Names added while building (marked *) are placeholders until the owner
+tries it by hand:
+
+| Name | What it is |
+|---|---|
+| `Packager`*, `PackageResult`* (`Succeeded`, `Folder`, `Errors`, `Cook`, `Size`) | Making a package |
+| `Project.PackageFolder`*, `PackageDataFolder`* | Where a package goes (replacing `CookedFolder`) |
+| `GameBuilder.Publish`*, `PackageProjectFile`* (Cache/Build/Package/`<Project>`.csproj), `RuntimeIdentifier`* | Publishing the game |
+| `GameLoader.LoadPackaged`*, `IsPackaged`* | Loading a package's game into the default load context |
+| `Shell.Build`, `LastBuild`*; the command `Build.Build`*; the Build card's hint "Builds the code, cooks, and packages the game with .NET for this platform."*, "Writes the package to Build/Linux."*, "Last build: N assets, S in all, at HH:MM"*, "Last build failed: N problems, see the Log"* | The editor |
+| Log lines "Building Walker into <folder>…"*, "Publishing Walker with .NET, ReadyToRun…"*, "Built Walker: N assets, S MiB in all, into <folder>"*, "Can't build: …"*, "The build failed (N problems)."* | Text users see |
+| `<folder>.building`* | Where a package is made before it's moved into place |
+| CTest `samples.walker-package`*, samples/Walker/package_walker.cmake*; test `AGameIsNotNamedLikeTheRuntimeOrTheEngine`* | Tests |

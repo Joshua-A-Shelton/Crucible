@@ -35,7 +35,7 @@ internal static class CoreLibraryResolver
             return 0; // .NET's normal search
         }
 
-        string fileName = OperatingSystem.IsWindows() ? $"{libraryName}.dll" : $"lib{libraryName}.so";
+        string fileName = OperatingSystem.IsWindows() ? $"{libraryName}.dll" : $"{libraryName}.so";
         string candidate = Path.Combine(Path.GetDirectoryName(processPath)!, fileName);
         return NativeLibrary.TryLoad(candidate, out nint handle) ? handle : 0;
     }

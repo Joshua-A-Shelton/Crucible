@@ -5,7 +5,7 @@
 // a static initializer of the highest priority, and again first in main.
 //
 // Limit: a shared library's static initializers run when it loads, before the
-// executable's, so with the JIT launcher crucible_core's initializers (which
+// executable's, so with the JIT launcher Crucible.Core's initializers (which
 // only zero memory) come first.
 
 #include "CpuCheck.h"

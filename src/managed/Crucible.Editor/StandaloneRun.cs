@@ -34,10 +34,10 @@ public sealed class StandaloneRun : IDisposable
         return arguments;
     }
 
-    /// <summary>The game launcher beside the editor's own executable (crucible_launcher).</summary>
+    /// <summary>The game launcher beside the editor's own executable (CrucibleLauncher).</summary>
     public static string LauncherPath(string editorExecutable)
     {
-        string name = OperatingSystem.IsWindows() ? "crucible_launcher.exe" : "crucible_launcher";
+        string name = OperatingSystem.IsWindows() ? "CrucibleLauncher.exe" : "CrucibleLauncher";
         return Path.Combine(Path.GetDirectoryName(editorExecutable) ?? "", name);
     }
 

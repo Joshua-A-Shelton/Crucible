@@ -198,6 +198,9 @@ target_link_libraries(crucible_engine_shaders_stub PRIVATE crucible_core_objects
 
 add_library(crucible_core SHARED)
 add_library(crucible::core ALIAS crucible_core)
+# Crucible.Core.dll, Crucible.Core.so: no lib prefix, like a game's module
+# (ADR 0100). C# binds to it by that name.
+set_target_properties(crucible_core PROPERTIES PREFIX "" OUTPUT_NAME Crucible.Core)
 target_link_libraries(crucible_core PUBLIC crucible_core_objects crucible_render_objects)
 if(NOT WIN32 AND NOT APPLE)
     # Keep Slag's symbols (and any other static library's) out of the

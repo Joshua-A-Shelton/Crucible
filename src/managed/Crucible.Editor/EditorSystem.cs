@@ -30,10 +30,10 @@ public sealed class EditorSystem : GameSystem
         {
             _shell.OpenScene(scene);
         }
-        // --cook <folder> (ADR 0098): cook the project and quit.
-        if (context.GameArguments.TryGetValue("cook", out string? cook))
+        // --build <folder> (ADR 0100): build the project's package and quit.
+        if (context.GameArguments.TryGetValue("build", out string? build))
         {
-            _shell.Cook(cook);
+            _shell.Build(build);
             context.QuitRequested = true;
         }
     }

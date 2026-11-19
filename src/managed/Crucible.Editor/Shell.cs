@@ -251,7 +251,7 @@ internal sealed partial class Shell
         try
         {
             Project = Project.Open(projectFile);
-            LastCook = null;
+            LastBuild = null;
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException
                                               or System.Text.Json.JsonException or ArgumentException)

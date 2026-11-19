@@ -944,6 +944,17 @@ decision made at its start):
    - Checked by a CTest that builds the Walker's package, copies it
      elsewhere, and runs it headless with no options and nothing from the
      build tree.
+
+   Step 3 built (ADR 0100): the editor's Build publishes the game
+   self-contained and ReadyToRun into Build/<Platform>/Data beside its
+   archive and the engine, with the launcher renamed after the game and
+   the core at the top; the launcher finds its game by its own name and
+   starts the package's runtime for the game's assembly (.NET won't start a
+   self-contained runtime for a library); a package's game loads into the
+   default load context, where ReadyToRun code runs. Files renamed as
+   designed. CTest samples.walker-package runs a copy of the Walker's
+   package from elsewhere with no .NET to find. Awaiting the owner's try by
+   hand.
 4. AOT shipping builds: NativeAOT, the launcher, core, and game statically
    linked into one executable with a generated bootstrap.
 5. The demonstration: the Walker (its Level scene the root) packaged in

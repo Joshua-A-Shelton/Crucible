@@ -49,7 +49,7 @@ public class CookerTests
             await Assert.That(Sorted(project.Build.Scenes)).IsEqualTo(Sorted([level]));
             CookResult result = new Cooker(database).Cook();
             await Assert.That(string.Join("; ", result.Errors)).IsEqualTo("");
-            await Assert.That(result.ArchivePath).IsEqualTo(Path.Combine(project.CookedFolder, "Game.crpak"));
+            await Assert.That(result.ArchivePath).IsEqualTo(Path.Combine(project.PackageDataFolder, "Game.crpak"));
 
             // The scene, the level and the Walker (models), the scene's
             // state machine and the clips it plays, and the footstep sound:

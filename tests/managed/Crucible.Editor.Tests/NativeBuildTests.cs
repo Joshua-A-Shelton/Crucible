@@ -10,7 +10,7 @@ public class NativeBuildTests
 {
     private static readonly ModuleToolkit _toolkit = new("/usr/bin/cmake", "/usr/bin/ninja", "/usr/bin/c++", "",
         "Debug", ["/engine/include", "/slag/include"], ["SLAG_BACKEND_VULKAN"], ["-fno-exceptions", "-fno-rtti"],
-        "/engine/libcrucible_core.so", "/engine/include/crucible", "/usr/bin/dotnet", "/tools/Crucible.BindGen.dll",
+        "/engine/Crucible.Core.so", "/engine/include/crucible", "/usr/bin/dotnet", "/tools/Crucible.BindGen.dll",
         "/usr/lib/libclang.so", "/usr/bin/clang");
 
     [Test]
@@ -21,8 +21,8 @@ public class NativeBuildTests
         {
             Project project = Project.Create(folder, "Tiny Game");
             NativeBuilder builder = new(project, Path.Combine(folder, "missing.json"));
-            await Assert.That(builder.LibraryName).IsEqualTo("TinyGame.Native");
-            await Assert.That(Path.GetFileName(builder.OutputPath)).IsEqualTo("TinyGame.Native" + NativeBuilder.LibraryExtension);
+            await Assert.That(builder.LibraryName).IsEqualTo("TinyGame.Core");
+            await Assert.That(Path.GetFileName(builder.OutputPath)).IsEqualTo("TinyGame.Core" + NativeBuilder.LibraryExtension);
             await Assert.That(builder.HasCode).IsFalse();
             await Assert.That(builder.ReadToolkit()).IsNull();
             GameBuild missing = builder.BuildNow();
@@ -33,8 +33,8 @@ public class NativeBuildTests
             File.WriteAllText(Path.Combine(project.NativeFolder, "Tiny.cpp"), "int tiny() { return 1; }\n");
             await Assert.That(builder.HasCode).IsTrue();
             string text = builder.ProjectText(_toolkit);
-            await Assert.That(text).Contains("add_library(TinyGame.Native SHARED ${sources})");
-            await Assert.That(text).Contains("\"/engine/libcrucible_core.so\"");
+            await Assert.That(text).Contains("add_library(TinyGame.Core SHARED ${sources})");
+            await Assert.That(text).Contains("\"/engine/Crucible.Core.so\"");
             await Assert.That(text).Contains("\"/slag/include\"");
             await Assert.That(text).Contains("SLAG_BACKEND_VULKAN");
             await Assert.That(text).Contains("-fno-exceptions -fno-rtti");
@@ -45,7 +45,7 @@ public class NativeBuildTests
             text = builder.ProjectText(_toolkit);
             await Assert.That(text).Contains("Crucible.BindGen.dll");
             await Assert.That(text).Contains("--root-namespace tinyGame");
-            await Assert.That(text).Contains("--library TinyGame.Native");
+            await Assert.That(text).Contains("--library TinyGame.Core");
             await Assert.That(text).Contains("--interop-namespace TinyGame.Interop");
         }
         finally
@@ -78,7 +78,7 @@ public class NativeBuildTests
     [Test]
     public async Task TheToolkitIsBesideTheEditor()
     {
-        await Assert.That(NativeBuilder.ToolkitBeside(Path.Combine("bin", "crucible_editor")))
+        await Assert.That(NativeBuilder.ToolkitBeside(Path.Combine("bin", "CrucibleEditor")))
             .IsEqualTo(Path.Combine("bin", "CrucibleModule.json"));
     }
 }

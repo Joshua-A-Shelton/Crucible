@@ -182,8 +182,8 @@ internal sealed class BindingModel
     // Which native library the bindings are for (ADR 0042: the core, or an
     // editor-only library beside it).
 
-    /// <summary>The library LibraryImport loads: "crucible_core".</summary>
-    public string Library { get; set; } = "crucible_core";
+    /// <summary>The library LibraryImport loads: "Crucible.Core".</summary>
+    public string Library { get; set; } = "Crucible.Core";
 
     /// <summary>The C# namespace of the internal raw layer and layout checks.</summary>
     public string InteropNamespace { get; set; } = "Crucible.Interop";

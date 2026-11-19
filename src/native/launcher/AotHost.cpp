@@ -7,7 +7,7 @@ extern "C" int crucible_engine_run(crucible::LaunchOptions options);
 
 namespace crucible::launcher {
 
-Result<int> runEngine(const std::filesystem::path&, const LaunchOptions& options)
+Result<int> runEngine(const std::filesystem::path&, const std::filesystem::path&, const LaunchOptions& options)
 {
     return crucible_engine_run(options);
 }

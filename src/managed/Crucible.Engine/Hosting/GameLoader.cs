@@ -35,6 +35,27 @@ public static class GameLoader
     }
 
     /// <summary>
+    /// Loads a package's game (ADR 0100), which its runtime was started for,
+    /// into the default load context: it is never unloaded, and .NET runs
+    /// ReadyToRun code only for assemblies loaded this way.
+    /// </summary>
+    [RequiresUnreferencedCode(JitOnly)]
+    public static LoadedGame LoadPackaged(string path)
+    {
+        AssemblyLoadContext.Default.ResolvingUnmanagedDll += ResolveModule;
+        Assembly assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(path);
+        return new LoadedGame(AssemblyLoadContext.Default, CreateEntry(assembly), CreateRegistrations(assembly), DriverOf(assembly));
+    }
+
+    /// <summary>
+    /// Whether <paramref name="path"/> is one of the assemblies the runtime
+    /// was started with: a package's game, not one to load for hot reload.
+    /// </summary>
+    public static bool IsPackaged(string path) =>
+        AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") is string assemblies &&
+        assemblies.Split(Path.PathSeparator).Contains(Path.GetFullPath(path), StringComparer.Ordinal);
+
+    /// <summary>
     /// Loads a new version of <paramref name="current"/>'s game beside it and
     /// moves every world's component values to the new version's types
     /// (ADR 0035); then unload <paramref name="current"/>. Returns the new
