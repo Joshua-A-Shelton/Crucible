@@ -1065,7 +1065,8 @@ decision made at its start):
 
 M10's "done when" is met: the Walker, packaged as JIT and as NativeAOT,
 Shipping and Development, runs from its archive on Linux and Windows. The
-Steam Deck check stays open (no device). Awaiting the owner's sign-off.
+Steam Deck check stays open (no device). Signed off by the owner on
+2026-11-18; M10 is done.
 
 ## M11 — Pixel-art 2D path
 
