@@ -182,4 +182,5 @@ Longer explanations of decisions, written to be reread:
 - [Shipping a game](docs/learning/shipping-a-game.md) (ADR 0100, 0101):
   what a player gets, bringing the .NET runtime along, ReadyToRun, one
   executable with NativeAOT and what it keeps, making the folder safely,
-  and checking a package away from the build.
+  checking a package away from the build, and checking it plays the same
+  (ADR 0102).

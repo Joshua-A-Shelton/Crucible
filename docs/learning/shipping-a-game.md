@@ -1,6 +1,6 @@
 # Shipping a game
 
-A learning note for M10 steps 3 and 4 (ADR 0100, 0101): turning a project
+A learning note for M10 steps 3 to 5 (ADR 0100 to 0102): turning a project
 into a folder a player can run, with .NET inside it, or compiled into one
 executable.
 
@@ -114,3 +114,21 @@ copies the package somewhere else, to a folder whose name has a space, and
 runs it with no .NET on the PATH and nothing pointing at one. If it
 starts, loads its game, and reads its archive there, it isn't leaning on
 the build.
+
+## Checking that it plays the same
+
+Starting is not the same as playing the same. A NativeAOT build compiles
+every method differently from the JIT: it may order floating-point
+operations differently or use different instructions, and physics and
+animation amplify small differences. A game whose kick lands a
+millisecond later, or whose character drifts off its route, would still
+start and load cleanly.
+
+So the M10 demonstration (ADR 0102) runs the same 45 seconds of the
+Walker's Level three times, from the editor's Cache, the JIT package, and
+the NativeAOT package, and compares moments that depend on everything
+before them: when the kick hits the post, and when the Walker reaches the
+end of its route. They agree to within a microsecond (on Windows the
+NativeAOT kick lands one microsecond early, rounding from code compiled
+differently), which is strong evidence the shipped code computes what the
+editor's did.

@@ -1277,3 +1277,16 @@ step 4 by hand (2026-11-18):
 | Log lines "Compiling Walker with NativeAOT…", "Linking Walker…" | Text users see |
 | `<Game>.debug` (Linux) beside the linked executable | Its debug information |
 | tests/packaging/package_game.cmake (replacing samples/Walker/package_walker.cmake); CTests `samples.walker-package-aot`, `samples.diorama-package-aot` | Tests |
+
+## The M10 demonstration (2026-11-18, M10 step 5)
+
+Settled before building: ADR 0102 "The M10 demonstration"; LevelChecks'
+game argument `check-packaged=<folder>`; CTest `samples.walker-packaged`.
+
+Names added while building (marked *) are placeholders until the owner
+tries it by hand:
+
+| Name | What it is |
+|---|---|
+| `Shell.RunPackage`* | Runs a package's executable as a player would, for the checks |
+| `LevelChecks.Compare`*; the copy's folder packaged-project* | The check's parts |

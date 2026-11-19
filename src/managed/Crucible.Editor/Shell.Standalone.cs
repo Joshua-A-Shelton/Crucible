@@ -80,6 +80,31 @@ internal sealed partial class Shell
     }
 
     /// <summary>
+    /// Runs a built package (ADR 0100, 0101) in its own process, its
+    /// executable as a player would start it, with only <paramref name="extra"/>
+    /// options. For the checks.
+    /// </summary>
+    internal bool RunPackage(string folder, params string[] extra)
+    {
+        if (Project is null || _builder is not { } builder)
+        {
+            return false;
+        }
+        string executable = Path.Combine(folder, builder.AssemblyName + (OperatingSystem.IsWindows() ? ".exe" : ""));
+        try
+        {
+            _standalone.Start(executable, extra, folder);
+        }
+        catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or IOException)
+        {
+            Log($"Can't run standalone: {exception.Message}");
+            return false;
+        }
+        Log($"Running {Path.GetFileName(folder)} standalone");
+        return true;
+    }
+
+    /// <summary>
     /// Runs the game from a cooked archive (ADR 0099) in its own process, as
     /// a shipped game would: its assets and start scene from the archive,
     /// with the project's last good build. For the checks.

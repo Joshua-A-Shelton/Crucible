@@ -18,7 +18,10 @@ namespace Crucible.Editor;
 /// With <c>check-archive=&lt;folder&gt;</c> instead, for samples.walker-archive
 /// (ADR 0099): one run from the Cache at 30 fps, then the project cooked
 /// and run from its archive at 30 fps, which must read its 8 assets from it
-/// and play out the same.
+/// and play out the same. With <c>check-packaged=&lt;folder&gt;</c>, for
+/// samples.walker-packaged (the M10 demonstration, ADR 0102): one run from
+/// the Cache at 30 fps, then the Walker's JIT and NativeAOT packages built
+/// and each run at 30 fps from its archive, which must play out the same.
 /// </summary>
 [System(Phases.RenderPrepare)]
 internal sealed partial class LevelChecks : GameSystem
@@ -33,16 +36,25 @@ internal sealed partial class LevelChecks : GameSystem
     private int _failures;
     private string _folder = "";
     private bool _archive;
+    private bool _packaged;
     // The latest run's log, route, and hit (ms into its window; NaN if none).
     private string _run = "";
     private Match _route = Match.Empty;
     private double _into;
+    // The run from the Cache, to compare the others with.
+    private double _fromCache = double.NaN;
+    private double _fromCacheArrival = double.NaN;
+    private string _cacheRoute = "";
 
     public override void Start(FrameContext context)
     {
         if (context.GameArguments.TryGetValue("check-archive", out string? archive))
         {
             _archive = true;
+        }
+        else if (context.GameArguments.TryGetValue("check-packaged", out archive))
+        {
+            _packaged = true;
         }
         else if (!context.GameArguments.TryGetValue("check-level", out archive))
         {
@@ -83,7 +95,8 @@ internal sealed partial class LevelChecks : GameSystem
     {
         Shell shell = Shell.Current ?? throw new InvalidOperationException("No editor shell");
         string source = Path.GetDirectoryName(shell.Project?.ProjectFilePath ?? "") ?? "";
-        string copy = Path.Combine(Path.GetFullPath(_folder), _archive ? "archive-project" : "level-project");
+        string copy = Path.Combine(Path.GetFullPath(_folder),
+            _archive ? "archive-project" : _packaged ? "packaged-project" : "level-project");
         if (Directory.Exists(copy))
         {
             Directory.Delete(copy, recursive: true);
@@ -100,16 +113,56 @@ internal sealed partial class LevelChecks : GameSystem
         yield return 3;
         string Rate(int rate) => rate.ToString(CultureInfo.InvariantCulture);
 
-        if (_archive)
+        if (_archive || _packaged)
         {
             foreach (int wait in Run(shell, "from the Cache", () => shell.RunStandalone("--headless", "--frame-rate", "30",
                          "--game-arg", $"seconds={Seconds}")))
             {
                 yield return wait;
             }
-            double fromCache = _into;
-            string cacheRoute = _route.Success ? _route.Groups["arrived"].Value : "";
-            double fromCacheArrival = _route.Success ? Arrival(_route) : double.NaN;
+            _fromCache = _into;
+            _cacheRoute = _route.Success ? _route.Groups["arrived"].Value : "";
+            _fromCacheArrival = _route.Success ? Arrival(_route) : double.NaN;
+        }
+        if (_packaged)
+        {
+            // Each package built and run as a player runs it, with only the
+            // check's options, and the Cache's imported files moved aside.
+            string imported = Path.Combine(copy, "Cache", "Imported");
+            foreach ((Assets.PackageRuntime runtime, string loaded) in ((Assets.PackageRuntime, string)[])[
+                         (Assets.PackageRuntime.Jit, "loaded Walker.dll"), (Assets.PackageRuntime.NativeAot, "Walker compiled in")])
+            {
+                Assets.Project.Open(projectFile).SaveBuild(new Assets.BuildSettings
+                {
+                    Scenes = [Assets.AssetId.Parse("28fe2d80-33ef-4ee4-a409-cc43b935bcc6")],
+                    Runtime = runtime,
+                });
+                shell.OpenProject(projectFile);
+                shell.OpenScene(Path.Combine(copy, "Assets", "Scenes", "Level.crscene"));
+                yield return 3;
+                string what = runtime == Assets.PackageRuntime.Jit ? "from the JIT package" : "from the NativeAOT package";
+                PackageResult? built = shell.Build();
+                Check(built is { Succeeded: true }, $"the {runtime} package builds", string.Join("; ", built?.Errors ?? []));
+                if (built is not { Succeeded: true })
+                {
+                    continue;
+                }
+                Directory.Move(imported, imported + "-aside");
+                foreach (int wait in Run(shell, what, () => shell.RunPackage(built.Folder, "--headless", "--frame-rate", "30",
+                             "--game-arg", $"seconds={Seconds}")))
+                {
+                    yield return wait;
+                }
+                Directory.Move(imported + "-aside", imported);
+                Check(_run.Contains(loaded, StringComparison.Ordinal) &&
+                      _run.Contains("reading 8 assets from Game.crpak", StringComparison.Ordinal),
+                    $"{what} the game ({loaded}) reads its assets from its archive", Tail(_run));
+                Compare(what);
+            }
+            yield break;
+        }
+        if (_archive)
+        {
             Assets.CookResult? cooked = shell.Cook(Path.Combine(Path.GetFullPath(_folder), "archive-cooked"));
             Check(cooked is { Succeeded: true }, "the project cooks", string.Join("; ", cooked?.Errors ?? []));
             if (cooked is not { Succeeded: true })
@@ -127,13 +180,7 @@ internal sealed partial class LevelChecks : GameSystem
             Directory.Move(imported + "-aside", imported);
             Check(_run.Contains("reading 8 assets from Game.crpak", StringComparison.Ordinal),
                 "the run reads its assets from the archive, with the Cache's imported files moved aside", Tail(_run));
-            Console.WriteLine($"LevelChecks: from the Cache the hit is {fromCache:0.000} ms in, from the archive {_into:0.000} ms");
-            Check(Math.Abs(fromCache - _into) < 0.5, "from the archive the hit lands as it does from the Cache",
-                $"{fromCache:0.000} and {_into:0.000} ms");
-            // The route times its arrival on the input clock, real time, which
-            // a run's pacing moves by a millisecond or so: within a frame.
-            Check(_route.Success && Math.Abs(Arrival(_route) - fromCacheArrival) < 1.0 / 30,
-                "and the Walker arrives within a frame of the same moment", $"{cacheRoute} and {_route.Groups["arrived"].Value}");
+            Compare("from the archive");
             yield break;
         }
 
@@ -157,6 +204,19 @@ internal sealed partial class LevelChecks : GameSystem
         Console.WriteLine($"LevelChecks: the 30 and 240 fps hits are {apart:0.000} ms apart");
         Check(apart < 0.5, "the hit lands at the same moment at 30 and 240 fps, within half a millisecond",
             $"{apart:0.000} ms");
+    }
+
+    // The latest run against the one from the Cache: the hit within half a
+    // millisecond, and the arrival within a frame, since the route times it
+    // on the input clock, real time, which a run's pacing moves by a
+    // millisecond or so.
+    private void Compare(string what)
+    {
+        Console.WriteLine($"LevelChecks: from the Cache the hit is {_fromCache:0.000} ms in, {what} {_into:0.000} ms");
+        Check(Math.Abs(_fromCache - _into) < 0.5, $"{what} the hit lands as it does from the Cache",
+            $"{_fromCache:0.000} and {_into:0.000} ms");
+        Check(_route.Success && Math.Abs(Arrival(_route) - _fromCacheArrival) < 1.0 / 30,
+            $"{what} the Walker arrives within a frame of the same moment", $"{_cacheRoute} and {_route.Groups["arrived"].Value}");
     }
 
     // One headless run, started by `start`, checked: the post hit once inside

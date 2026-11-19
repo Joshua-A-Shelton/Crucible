@@ -1014,6 +1014,12 @@ decision made at its start):
      without it.
    - ADR 0102 "The M10 demonstration".
 
+   Step 5 built (ADR 0102): LevelChecks' packaged mode, CTest
+   samples.walker-packaged. From the Cache, the JIT package, and the
+   NativeAOT package, the post is hit 116.457 ms into the Strike window and
+   the Walker arrives at 34.900 s in each. Awaiting the owner's try by hand
+   on Linux and Windows.
+
 ## M11 — Pixel-art 2D path
 
 Before the first game: UI tricks may need it, and it is less likely to be
