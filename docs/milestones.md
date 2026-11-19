@@ -1212,6 +1212,36 @@ on parameters, triggers, and exit times, through the same calls and event
 list as 3D. Native tests, C# importer tests, and the editor's
 `launcher.jit.sprite-sheet` check.
 
+Step 4 designed (2026-11-19, names settled before building):
+- **Tilesets** are assets of their own: an authored `.crtileset`
+  (`TilesetImporter`) naming a `Texture` cut by `TileWidth`, `TileHeight`,
+  `Margin`, `Spacing`, with per-tile data in `Tiles`: collision `Shapes`,
+  each a list of `Points` in the tile's pixels, any outline, several per
+  tile (the owner's choice: custom polygons). Edited in the **Tileset
+  Editor** panel with an explicit toolbar (Select, Draw Shape; Full,
+  Clear), points snapped to pixels.
+- **Maps** are assets of their own: an authored `.crtilemap`
+  (`TilemapImporter`) naming its `Tileset` and its `Cells` (position, tile,
+  flip X and Y). One layer, one tileset; more layers are more entities.
+  "New Tileset" and "New Tilemap" in the asset browser, as "New Chain".
+- **`Tilemap`** (C++ `crucible::render2d`, C# `Crucible.Render2D`): `map`,
+  `tint`, `sortingLayer`, `orderInLayer`. Drawn in chunks of 16x16 tiles,
+  each built once into tile quads (rebuilt when painted), through the
+  Sprites step and the pixel camera; in a y-sorting layer each chunk row
+  sorts by its bottom.
+- **Collision:** a static `RigidBody2D` and a `Collider2D` of the new shape
+  `ShapeKind2D::Tilemap`, built from the map on the same entity. Painted
+  cells' shapes (mirrored with their cell) are placed on the map, edges
+  shared exactly cancel, the rest link into outlines as Box2D chains, so
+  nothing catches on seams; shapes only partly touching keep inner edges.
+- **Painting:** Edit Tiles (T) on the selected tilemap in the scene view,
+  as Edit Points; the **Tile Palette** panel picks a tile or a rectangle of
+  them as the brush, with tools Paint (B), Erase (E), Fill (G), Pick (I);
+  a stroke is one undo step, saving the map and importing it.
+- Later (open items): animated tiles, auto-tiling rules, importing LDtk or
+  Tiled levels.
+- ADR 0108 "Tilemaps"; docs/learning/tilemaps.md.
+
 ## After M11: importing by dropping files
 
 Asked for by the owner (2026-11-18): files dragged from the system's file
