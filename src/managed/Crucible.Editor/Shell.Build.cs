@@ -24,6 +24,8 @@ internal sealed partial class Shell
         }
         else if (_open["BuildSettings"] is BuildSettingsPanel panel)
         {
+            // Open already, perhaps behind another tab: brought to the front.
+            panel.Group?.Activate(panel);
             panel.Refresh();
         }
     }

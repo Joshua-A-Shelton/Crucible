@@ -87,6 +87,21 @@ internal sealed class BuildSettingsChecks : GameSystem
         UIRoot root = shell.Main.Root;
         AssetDatabase database = shell.Database!;
 
+        // Behind another tab, Build Settings… from the menu brings it back.
+        if (panel.Group is { } group && group.Panels.FirstOrDefault(other => other != panel) is { } other)
+        {
+            group.Activate(other);
+            yield return 1;
+            shell.Commands.Find("Build.Settings")!.Execute();
+            yield return 1;
+            Check(group.ActivePanel == panel, "Build Settings… brings the open window to the front",
+                group.ActivePanel?.Id ?? "none");
+        }
+        else
+        {
+            Check(false, "the window shares its tabs with another panel");
+        }
+
         // The Level scene: its name, its folder, the Start tag.
         Check(Rows(panel.SceneRows) == "1 Level Start Scenes/", "the Level scene's row", Rows(panel.SceneRows));
 
