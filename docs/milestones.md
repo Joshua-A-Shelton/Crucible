@@ -993,7 +993,8 @@ decision made at its start):
    used). A module initializer the editor writes hands the engine the
    compiled-in game. CTests samples.walker-package-aot and
    samples.diorama-package-aot (its C++ module linked in) run copies from
-   elsewhere. Awaiting the owner's try by hand.
+   elsewhere. Tried by hand by the owner; step 4 is done, its names
+   settled as drafted.
 5. The demonstration: the Walker (its Level scene the root) packaged in
    both modes, run from its archives, checked headless, then tried by
    hand.
