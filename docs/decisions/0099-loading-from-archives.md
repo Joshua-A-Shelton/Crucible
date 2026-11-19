@@ -2,10 +2,9 @@
 
 **Status:** Accepted (2026-11-17); M10 step 2a built, then tried by hand
 by the owner; 2b built, then tried by hand by the owner; 2c built,
-awaiting the owner's try (names marked * were added while building it and
-are placeholders until then). The design's names were settled before
-building; those added while building 2a and 2b were settled by the owner
-as drafted (docs/naming.md).
+then tried by hand by the owner. The design's names were settled before
+building; those added while building 2a, 2b, and 2c were settled by the
+owner as drafted (docs/naming.md).
 
 ## Context
 
@@ -137,7 +136,7 @@ above where marked:
   preload hook per system and kind, and it would work only from an
   archive. Instead `Scene.LoadAsync` reads the scene into a practice world
   that never runs, and 2b's load starters go over it each frame
-  (`SceneLoadSystem`*, BeginFrame, after "Assets.Publish"), starting
+  (`SceneLoadSystem`, BeginFrame, after "Assets.Publish"), starting
   loads. Each starter now also returns how many of the world's components
   still wait (`LoadStarter` returns a count, `startLoads` the sum): a
   MeshInstance until its model can draw, a Mesh, Convex, or Chain collider
@@ -193,15 +192,15 @@ without parsing it or walking references at run time.
   wait, `startLoads` the sum; each starter counts (DrawList.cpp,
   Box3dPhysics.cpp, Box2dPhysics.cpp, MixerService.cpp, Animation.cpp).
 - C#: `Scene.LoadAsync(world, sceneId, prefabs)`; `SceneLoadRequest`
-  (`Progress`, `IsDone`, `Result`) and `SceneLoadSystem`* in
-  Scenes/SceneLoadRequest.cs*, the system in the default frame;
+  (`Progress`, `IsDone`, `Result`) and `SceneLoadSystem` in
+  Scenes/SceneLoadRequest.cs, the system in the default frame;
   `AssetCache` finding scenes; the editor's source serving scenes.
 - Tests: AsyncLoadTests' starters' counts (a collider, an AudioSource, an
-  Animator); C# `SceneLoadAsyncTests`* ("The scene's entities appear
-  together once moved on"*, "A scene the source doesn't have is not
-  found"*); ProjectStartupTests' "The cache reads imported files, prefabs,
-  and scenes"; CTest launcher.jit.scene-loading (`SceneLoadingChecks`*,
-  `check-scene-loading=`*): the Walker's Level loaded into the editor's
+  Animator); C# `SceneLoadAsyncTests` ("The scene's entities appear
+  together once moved on", "A scene the source doesn't have is not
+  found"); ProjectStartupTests' "The cache reads imported files, prefabs,
+  and scenes"; CTest launcher.jit.scene-loading (`SceneLoadingChecks`,
+  `check-scene-loading=`): the Walker's Level loaded into the editor's
   world over 5 frames, its 12 entities at the top coming in together, with
   nothing it needs still loading.
 

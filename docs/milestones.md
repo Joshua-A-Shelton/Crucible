@@ -910,8 +910,8 @@ decision made at its start):
    the real world in one frame (`SceneLoadSystem`). Scenes are served by ID
    from the editor and the Cache too. Startup and Open Scene still wait;
    assets only game components name load on first use (the owner's
-   choices). CTest launcher.jit.scene-loading. Awaiting the owner's try by
-   hand.
+   choices). CTest launcher.jit.scene-loading. Tried by hand by the owner;
+   2c is done, its names settled as drafted.
 3. JIT shipping builds: a package folder with the launcher, the core, the
    .NET runtime, ReadyToRun engine and game assemblies, any native module,
    and the archives; plugins registered by their generated entry points.
