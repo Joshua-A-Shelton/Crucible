@@ -29,7 +29,7 @@ inline constexpr uint32_t firstAssetDescriptor = 2048;
 // Each surface's reserved resource-heap slots, below the loaded assets':
 // `descriptorsPerSurface` from 8 + surface index * descriptorsPerSurface,
 // one per frame slot for each of these.
-inline constexpr uint32_t descriptorsPerSurface = 128;
+inline constexpr uint32_t descriptorsPerSurface = 144;
 // (LightClustering writes the cluster lists through the RW slots, Opaque
 // reads them through the others. The shadow atlas outlives frames, so it
 // has one slot.)
@@ -64,7 +64,9 @@ inline constexpr uint32_t debugLinesDescriptor = entityIdsDescriptor + framesInF
 inline constexpr uint32_t skinPaletteDescriptor = debugLinesDescriptor + framesInFlight;            // + frame slot
 inline constexpr uint32_t skinnedVerticesDescriptor = skinPaletteDescriptor + framesInFlight;       // + frame slot
 inline constexpr uint32_t rwSkinnedVerticesDescriptor = skinnedVerticesDescriptor + framesInFlight; // + frame slot
-inline constexpr uint32_t stepDescriptors = rwSkinnedVerticesDescriptor + framesInFlight; // + frame slot * per frame
+// Sprites (ADR 0104): the frame's sprites, a StructuredBuffer<SpriteInstance>.
+inline constexpr uint32_t spritesDescriptor = rwSkinnedVerticesDescriptor + framesInFlight; // + frame slot
+inline constexpr uint32_t stepDescriptors = spritesDescriptor + framesInFlight;             // + frame slot * per frame
 static_assert(stepDescriptors + stepDescriptorsPerFrame * framesInFlight <= descriptorsPerSurface);
 // 8 surfaces from slot 8, below the loaded assets'.
 static_assert(8 + 8 * descriptorsPerSurface <= firstAssetDescriptor);
@@ -78,6 +80,16 @@ inline constexpr uint32_t materialBufferDescriptor = 1;
 
 // The surface's slot `which` (one of the above, plus the frame slot).
 uint32_t surfaceDescriptor(const RenderStepContext& context, uint32_t which);
+// The pipeline built from an embedded shader's entry points (RenderSteps.cpp).
+Result<slag::Pipeline*> createStepPipeline(slag::GraphicsDevice& device, const char* shader, const char* vertexEntry,
+                                           const char* pixelEntry, slag::GraphicsPipelineDesc desc);
+// Sprites.cpp (ADR 0104): the Sprites step, and the editor's Pick step's
+// sprites, drawn over its meshes into its EntityIds and PickDepths.
+void addSprites(RenderStepContext& context, void* userData);
+Result<void> prepareSprites(slag::GraphicsDevice& device, void* userData);
+void releaseSprites(slag::GraphicsDevice& device, void* userData);
+void addSpritePicks(RenderStepContext& context, slag::rendergraph::RenderGraphTexture ids,
+                    slag::rendergraph::RenderGraphTexture depths);
 // A buffer an earlier step published under the key, or an invalid handle if
 // none did, without reporting it (an optional input, such as SkinnedVertices).
 slag::rendergraph::RenderGraphBuffer publishedBuffer(const RenderStepContext& context, BlackboardKey key);
@@ -231,6 +243,10 @@ std::mutex& queueLock();
 // A texture's descriptor slot, taken when it was acquired, even before it's
 // ready (materials write it into their parameters then).
 uint32_t textureSlot(TextureHandle texture);
+// A loaded texture's pixels per unit, for sprites (ADR 0104); the default for a stale handle.
+float texturePixelsPerUnit(TextureHandle texture);
+// Whether it's still loading: not ready, and not failed (ADR 0099).
+bool isTextureLoading(TextureHandle texture);
 // A model still on its way to drawable: loading, or its textures are.
 bool isMeshLoading(MeshHandle mesh);
 // DrawList.cpp's load starter (crucible/AssetLoads.h), registered when the

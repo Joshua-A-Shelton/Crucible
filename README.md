@@ -184,3 +184,6 @@ Longer explanations of decisions, written to be reread:
   executable with NativeAOT and what it keeps, making the folder safely,
   checking a package away from the build, checking it plays the same
   (ADR 0102), and logs in a shipped game (ADR 0103).
+- [Sprites](docs/learning/sprites.md) (ADR 0104): a sprite as a rectangle
+  of a texture, drawing thousands in one call, painter's order and floors,
+  pixels per unit, and keeping pixel art's colors exact.

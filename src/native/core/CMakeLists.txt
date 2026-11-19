@@ -162,6 +162,7 @@ add_library(crucible_render_objects OBJECT
     RenderSteps.cpp
     Shaping.cpp
     Shadows.cpp
+    Sprites.cpp
     "${CRUCIBLE_GENERATED_DIR}/native/Bindings.g.cpp")
 crucible_set_compile_options(crucible_render_objects)
 target_compile_definitions(crucible_render_objects PRIVATE CRUCIBLE_CORE_EXPORTS)
@@ -187,6 +188,7 @@ crucible_embed_shaders(crucible_render_objects
         "${PROJECT_SOURCE_DIR}/shaders/crucible/editorOverlay.slang"
         "${PROJECT_SOURCE_DIR}/shaders/crucible/debugLines.slang"
         "${PROJECT_SOURCE_DIR}/shaders/crucible/skinning.slang"
+        "${PROJECT_SOURCE_DIR}/shaders/crucible/sprite.slang"
     # The C# mirrors of their [GpuShared] structs (DefaultMaterial), for
     # Crucible.Engine.
     CS_OUTPUT_DIR "${CRUCIBLE_GENERATED_DIR}/managed/engine-shaders")

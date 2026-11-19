@@ -35,6 +35,7 @@ public sealed class SerializerGenerator : IIncrementalGenerator
     private const string LayersName = "Crucible.Serialization.LayersAttribute";
     private const string BoneNameName = "Crucible.Serialization.BoneNameAttribute";
     private const string WindowNameName = "Crucible.Serialization.WindowNameAttribute";
+    private const string SortingLayerName = "Crucible.Serialization.SortingLayerAttribute";
     private const string InterfaceName = "Crucible.Serialization.IJsonSerialized`1";
     private const string VersionProperty = "$version";
 
@@ -229,7 +230,7 @@ public sealed class SerializerGenerator : IIncrementalGenerator
     {
         float min = float.NaN, max = float.NaN;
         string? tooltip = null, header = null, label = null, meshOf = null;
-        bool color = false, layers = false, skinned = false, boneName = false, windowName = false;
+        bool color = false, layers = false, skinned = false, boneName = false, windowName = false, sortingLayer = false;
         string[] assetKinds = [], entityWith = [];
         foreach (AttributeData attribute in member.GetAttributes())
         {
@@ -298,6 +299,13 @@ public sealed class SerializerGenerator : IIncrementalGenerator
                         report(Diagnostics.MisplacedAttribute, location, [display, "[WindowName] applies to a uint"]);
                     }
                     break;
+                case SortingLayerName:
+                    sortingLayer = true;
+                    if (shape.Kind is not ShapeKind.UInt32)
+                    {
+                        report(Diagnostics.MisplacedAttribute, location, [display, "[SortingLayer] applies to a uint"]);
+                    }
+                    break;
             }
         }
         return new HintModel(min, max, tooltip, header, color, layers, label)
@@ -308,6 +316,7 @@ public sealed class SerializerGenerator : IIncrementalGenerator
             MeshOf = meshOf,
             IsBoneName = boneName,
             IsWindowName = windowName,
+            IsSortingLayer = sortingLayer,
         };
     }
 
@@ -665,6 +674,10 @@ public sealed class SerializerGenerator : IIncrementalGenerator
             {
                 arguments.Add("isWindowName: true");
             }
+            if (hints.IsSortingLayer)
+            {
+                arguments.Add("isSortingLayer: true");
+            }
         }
         return $"new {Field}({string.Join(", ", arguments)})";
     }
@@ -928,6 +941,7 @@ internal sealed record HintModel(float Min, float Max, string? Tooltip, string? 
     public string? MeshOf { get; init; }
     public bool IsBoneName { get; init; }
     public bool IsWindowName { get; init; }
+    public bool IsSortingLayer { get; init; }
 
     // What a collection's items keep: only what picks them.
     public HintModel? ForItems() => AssetKinds.Length == 0 && !Skinned && EntityWith.Length == 0

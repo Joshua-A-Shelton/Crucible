@@ -28,9 +28,11 @@ namespace {
 
 uint32_t samples = 4;
 
+} // namespace
+
 // The pipeline built from an embedded shader's entry points.
-Result<slag::Pipeline*> createPipeline(slag::GraphicsDevice& device, const char* shader, const char* vertexEntry,
-                                       const char* pixelEntry, slag::GraphicsPipelineDesc desc)
+Result<slag::Pipeline*> createStepPipeline(slag::GraphicsDevice& device, const char* shader, const char* vertexEntry,
+                                           const char* pixelEntry, slag::GraphicsPipelineDesc desc)
 {
     Result<ShaderFile*> file = loadShaderFile(engineShader(shader));
     if (!file)
@@ -55,6 +57,8 @@ Result<slag::Pipeline*> createPipeline(slag::GraphicsDevice& device, const char*
     }
     return pipeline.value();
 }
+
+namespace {
 
 void destroyPipeline(slag::GraphicsDevice& device, void* userData)
 {
@@ -681,7 +685,7 @@ Result<void> prepareSky(slag::GraphicsDevice& device, void*)
     const slag::PixelFormat formats[] = {sceneColorFormat};
     // Reverse-Z: drawn at depth 0, it passes only where the depth is still
     // the cleared 0.
-    Result<slag::Pipeline*> pipeline = createPipeline(
+    Result<slag::Pipeline*> pipeline = createStepPipeline(
         device, "sky", "skyVertex", "skyPixel",
         {.rasterizer = {.cullMode = slag::CullMode::None},
          .depthStencil = {.depthTest = true, .depthWrite = false, .depthCompareOp = slag::CompareOp::GreaterEqual},
@@ -818,7 +822,7 @@ Result<void> prepareBloom(slag::GraphicsDevice& device, void*)
                                      .srcAlphaFactor = slag::BlendFactor::One,
                                      .destAlphaFactor = slag::BlendFactor::One};
         }
-        Result<slag::Pipeline*> pipeline = createPipeline(device, "bloom", "bloomVertex", entries[i], desc);
+        Result<slag::Pipeline*> pipeline = createStepPipeline(device, "bloom", "bloomVertex", entries[i], desc);
         if (!pipeline)
         {
             return pipeline.status();
@@ -933,7 +937,7 @@ slag::Pipeline* tonemapPipeline = nullptr;
 Result<void> prepareTonemap(slag::GraphicsDevice& device, void*)
 {
     const slag::PixelFormat formats[] = {backbufferFormat};
-    Result<slag::Pipeline*> pipeline = createPipeline(
+    Result<slag::Pipeline*> pipeline = createStepPipeline(
         device, "tonemap", "fullscreenVertex", "tonemapPixel",
         {.rasterizer = {.cullMode = slag::CullMode::None}, .colorFormats = formats, .debugName = "Tonemap"});
     if (!pipeline)
@@ -1010,7 +1014,8 @@ Result<void> prepareDebugLines(slag::GraphicsDevice& device, void*)
                              .destColorFactor = slag::BlendFactor::InvSrcAlpha,
                              .srcAlphaFactor = slag::BlendFactor::Zero,
                              .destAlphaFactor = slag::BlendFactor::One};
-    Result<slag::Pipeline*> pipeline = createPipeline(device, "debugLines", "debugLineVertex", "debugLinePixel", desc);
+    Result<slag::Pipeline*> pipeline =
+        createStepPipeline(device, "debugLines", "debugLineVertex", "debugLinePixel", desc);
     if (!pipeline)
     {
         return pipeline.status();
@@ -1187,7 +1192,7 @@ Result<void> prepareGrid(slag::GraphicsDevice& device, void*)
                              .destColorFactor = slag::BlendFactor::InvSrcAlpha,
                              .srcAlphaFactor = slag::BlendFactor::Zero,
                              .destAlphaFactor = slag::BlendFactor::One};
-    Result<slag::Pipeline*> pipeline = createPipeline(device, "editorOverlay", "overlayVertex", "gridPixel", desc);
+    Result<slag::Pipeline*> pipeline = createStepPipeline(device, "editorOverlay", "overlayVertex", "gridPixel", desc);
     if (!pipeline)
     {
         return pipeline.status();
@@ -1223,7 +1228,7 @@ void addGrid(RenderStepContext& context, void*)
 Result<void> preparePick(slag::GraphicsDevice& device, void*)
 {
     const slag::PixelFormat formats[] = {slag::PixelFormat::R32Uint, slag::PixelFormat::R32Float};
-    Result<slag::Pipeline*> pipeline = createPipeline(
+    Result<slag::Pipeline*> pipeline = createStepPipeline(
         device, "editor", "pickVertex", "pickPixel",
         {.depthStencil = {.depthTest = true, .depthWrite = true, .depthCompareOp = slag::CompareOp::GreaterEqual},
          .colorFormats = formats,
@@ -1326,6 +1331,8 @@ void addPick(RenderStepContext& context, void*)
             commands->setConstantBuffer(pass.buffer(view)->gpuAddress(), viewSize());
             recordDraws(commands, *draws, pickDraws);
         });
+    // Sprites over the meshes, as the frame draws them (ADR 0104).
+    addSpritePicks(context, ids, depths);
     if (!editor->pickWanted)
     {
         return;
@@ -1365,7 +1372,7 @@ void addPick(RenderStepContext& context, void*)
 Result<void> prepareOutline(slag::GraphicsDevice& device, void*)
 {
     const slag::PixelFormat formats[] = {backbufferFormat};
-    Result<slag::Pipeline*> pipeline = createPipeline(
+    Result<slag::Pipeline*> pipeline = createStepPipeline(
         device, "editorOverlay", "overlayVertex", "outlinePixel",
         {.rasterizer = {.cullMode = slag::CullMode::None}, .colorFormats = formats, .debugName = "SelectionOutline"});
     if (!pipeline)
@@ -1577,6 +1584,8 @@ void addDefaultSteps(RenderSchedule& schedule)
                         .userData = &tonemapPipeline,
                         .prepare = prepareTonemap,
                         .release = destroyPipeline});
+    (void)schedule.add(
+        {.name = steps::sprites, .addPasses = addSprites, .prepare = prepareSprites, .release = releaseSprites});
     (void)schedule.add({.name = steps::debugLines,
                         .addPasses = addDebugLines,
                         .userData = &debugLinePipeline,

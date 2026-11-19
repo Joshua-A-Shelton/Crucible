@@ -66,10 +66,46 @@ public class TextureImporterTests
         TextureInfo info = Info(file);
         await Assert.That((info.Format, info.Width, info.Height, info.MipCount, info.Srgb))
             .IsEqualTo((TextureFormat.Bc7, 64u, 64u, 7u, 1u));
-        await Assert.That(file.SectionCount).IsEqualTo(8); // INFO and seven mips
+        await Assert.That(file.SectionCount).IsEqualTo(9); // INFO, seven mips, and SPRT
         await Assert.That(file.Section(file.Find(TextureImporter.MipSection(0))).Size).IsEqualTo(16ul * 16 * 16);
         await Assert.That(file.Section(file.Find(TextureImporter.MipSection(6))).Size).IsEqualTo(16ul);
         await Assert.That(Tag.Of("MIPA")).IsEqualTo(TextureImporter.MipSection(10));
+    }
+
+    // Pixel art (ADR 0104): the source's bytes exactly, one level, and its pixels per unit.
+    [Test]
+    public async Task ASpriteTextureKeepsItsExactTexelsAndRecordsItsPixelsPerUnit()
+    {
+        using Scratch scratch = new();
+        static (byte, byte, byte, byte) Texel(int x, int y) => ((byte)(x * 37 + 3), (byte)(y * 53 + 1), (byte)(x * y + 7), (byte)(x == 0 ? 0 : 255));
+        File.WriteAllBytes(scratch.PathOf("hero.tga"), Tga(6, 3, Texel));
+        AssetDatabase database = scratch.Open();
+        database.ImportAll();
+        string sidecar = scratch.PathOf("hero.tga.crmeta");
+        File.WriteAllText(sidecar, File.ReadAllText(sidecar).Replace("\"Usage\": \"Color\"", "\"Usage\": \"Sprite\"")
+            .Replace("\"PixelsPerUnit\": 16", "\"PixelsPerUnit\": 32"));
+        database.Refresh();
+        ImportResult result = database.ImportAll().Single();
+        await Assert.That(result.Outcome).IsEqualTo(ImportOutcome.Imported).Because(result.Error ?? "");
+
+        using ImportedFile file = ImportedFile.Open(result.OutputPath!, TextureImporter.Kind, TextureImporter.KindVersion);
+        TextureInfo info = Info(file);
+        await Assert.That((info.Format, info.Width, info.Height, info.MipCount, info.Srgb))
+            .IsEqualTo((TextureFormat.Rgba8, 6u, 3u, 1u, 1u));
+        byte[] texels = file.Read(file.Find(TextureImporter.MipSection(0))).ToArray();
+        bool exact = true;
+        for (int y = 0; y < 3; ++y)
+        {
+            for (int x = 1; x < 6; ++x) // a clear texel's color isn't kept
+            {
+                (byte r, byte g, byte b, byte a) = Texel(x, y);
+                int at = (y * 6 + x) * 4;
+                exact &= texels[at] == r && texels[at + 1] == g && texels[at + 2] == b && texels[at + 3] == a;
+            }
+        }
+        await Assert.That(exact).IsTrue();
+        float pixelsPerUnit = MemoryMarshal.Read<float>(file.Read(file.Find(TextureImporter.SpriteSection)));
+        await Assert.That(pixelsPerUnit).IsEqualTo(32f);
     }
 
     [Test]

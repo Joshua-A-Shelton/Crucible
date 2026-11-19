@@ -59,7 +59,8 @@ struct LoadedTexture
 {
     slag::Texture* texture = nullptr;
     uint32_t slot = 0;
-    bool borrowed = false; // a surface's: the surface destroys it
+    float pixelsPerUnit = assets::defaultPixelsPerUnit; // its SPRT section's, for sprites (ADR 0104)
+    bool borrowed = false;                              // a surface's: the surface destroys it
 };
 
 template <class T>
@@ -650,6 +651,7 @@ struct PreparedTexture
 {
     slag::Texture* texture = nullptr;
     slag::Buffer* staging = nullptr;
+    float pixelsPerUnit = assets::defaultPixelsPerUnit;
     Upload upload;
 };
 
@@ -725,6 +727,16 @@ Status prepareTexture(std::span<const uint8_t> bytes, PreparedTexture& prepared)
         staging = upload ? upload.value() : nullptr;
     }
     Vector<uint8_t> mipBytes(MemoryTag::Render);
+    // Its pixels per unit, for sprites; textures imported before it have none.
+    if (status == Status::Ok && readSection(file, binary::tag("SPRT"), mipBytes) == Status::Ok &&
+        mipBytes.size() == sizeof(float))
+    {
+        std::memcpy(&prepared.pixelsPerUnit, mipBytes.data(), sizeof(float));
+        if (!(prepared.pixelsPerUnit > 0.0f))
+        {
+            prepared.pixelsPerUnit = assets::defaultPixelsPerUnit;
+        }
+    }
     for (uint32_t mip = 0; status == Status::Ok && mip < info.mipCount; ++mip)
     {
         status = readSection(file, assets::textureMipTag(mip), mipBytes);
@@ -806,6 +818,7 @@ Result<LoadedTexture*> finishTexture(PreparedTexture& prepared, uint32_t slot)
     auto* loaded = create<LoadedTexture>(MemoryTag::Render);
     loaded->texture = prepared.texture;
     loaded->slot = slot;
+    loaded->pixelsPerUnit = prepared.pixelsPerUnit;
     prepared.texture = nullptr;
     return loaded;
 }
@@ -1307,6 +1320,18 @@ uint32_t textureDescriptor(TextureHandle texture)
     return slot != nullptr && slot->ready ? slot->value->slot : 0;
 }
 
+bool isTextureLoading(TextureHandle texture)
+{
+    const Slot<LoadedTexture>* slot = state.textures.find(texture.index, texture.generation);
+    return slot != nullptr && !slot->ready && slot->failure == Status::Ok;
+}
+
+float texturePixelsPerUnit(TextureHandle texture)
+{
+    const Slot<LoadedTexture>* slot = state.textures.find(texture.index, texture.generation);
+    return slot != nullptr && slot->ready ? slot->value->pixelsPerUnit : assets::defaultPixelsPerUnit;
+}
+
 uint32_t textureSlot(TextureHandle texture)
 {
     const Slot<LoadedTexture>* slot = state.textures.find(texture.index, texture.generation);
@@ -1421,6 +1446,7 @@ Status reloadTexture(Slot<LoadedTexture>& slot)
     state.slots->release(fresh->slot, lastSignaled());
     state.device->destroy(old->texture);
     old->texture = fresh->texture;
+    old->pixelsPerUnit = fresh->pixelsPerUnit;
     destroy(MemoryTag::Render, fresh);
     return Status::Ok;
 }

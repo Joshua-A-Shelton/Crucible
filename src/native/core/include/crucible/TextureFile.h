@@ -8,6 +8,8 @@
 //   INFO        TextureInfo
 //   MIP0..MIPF  each mip's blocks or pixels, top level first, rows tightly
 //               packed (block rows for compressed formats)
+//   SPRT        float: how many of its pixels make a meter where a sprite
+//               shows it (ADR 0104); 16 when the section is missing
 
 #include <crucible/BinaryFile.h>
 #include <crucible/Expose.h>
@@ -18,6 +20,7 @@ namespace crucible::assets {
 
 inline constexpr uint32_t textureFileKind = binary::tag("TXTR");
 inline constexpr uint32_t textureFileVersion = 1;
+inline constexpr float defaultPixelsPerUnit = 16.0f;
 
 // The section holding a mip: MIP0 for the top level, then MIP1 … MIPF.
 constexpr uint32_t textureMipTag(uint32_t mip)

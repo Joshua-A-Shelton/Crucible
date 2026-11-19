@@ -45,6 +45,8 @@ inline constexpr const char* sky = "Sky";
 inline constexpr const char* transparent = "Transparent";
 inline constexpr const char* bloom = "Bloom";
 inline constexpr const char* tonemap = "Tonemap";
+// Sprites (crucible/Sprite.h, ADR 0104) over the finished image.
+inline constexpr const char* sprites = "Sprites";
 // Debug lines (crucible/DebugLines.h, ADR 0079) over the finished image.
 inline constexpr const char* debugLines = "DebugLines";
 // The editor's own, around them (editor views only).

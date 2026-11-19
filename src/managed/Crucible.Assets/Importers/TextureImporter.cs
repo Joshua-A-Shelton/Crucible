@@ -29,24 +29,30 @@ public partial class TextureImportSettings
 
     /// <summary>BC7 encoder effort, 0 (fast) to 4 (best).</summary>
     public int Quality = 2;
+
+    /// <summary>How many of its pixels make a meter where a sprite shows it (ADR 0104).</summary>
+    public float PixelsPerUnit = 16;
 }
 
 /// <summary>
 /// Imports PNG, JPEG, TGA, and Radiance HDR images as textures (ADR 0042):
 /// the native importer decodes, makes mipmaps, and compresses; this writes
 /// the result as a <c>TXTR</c> binary file with an <c>INFO</c> section and
-/// one section per mip, <c>MIP0</c> to <c>MIPF</c>. Names are placeholders
+/// one section per mip, <c>MIP0</c> to <c>MIPF</c>, and a <c>SPRT</c> section
+/// with its pixels per unit for sprites (ADR 0104). Names are placeholders
 /// (docs/naming.md).
 /// </summary>
 public sealed class TextureImporter : Importer<TextureImportSettings>
 {
     public static readonly uint Kind = Tag.Of("TXTR");
     public static readonly uint InfoSection = Tag.Of("INFO");
+    public static readonly uint SpriteSection = Tag.Of("SPRT");
     public const uint KindVersion = 1;
 
     public override string Name => "Texture";
 
-    public override int Version => 1;
+    // 2: the SPRT section (ADR 0104).
+    public override int Version => 2;
 
     public override IReadOnlyList<string> Extensions => [".png", ".jpg", ".jpeg", ".tga", ".hdr"];
 
@@ -86,6 +92,8 @@ public sealed class TextureImporter : Importer<TextureImportSettings>
             TextureInfo info = ImportersApi.TextureInfo(texture);
             ImportedFileWriter output = context.CreateOutput(Kind, KindVersion);
             output.Add(InfoSection, 1, MemoryMarshal.AsBytes(new ReadOnlySpan<TextureInfo>(in info)));
+            float pixelsPerUnit = settings.PixelsPerUnit > 0 ? settings.PixelsPerUnit : 16;
+            output.Add(SpriteSection, 1, MemoryMarshal.AsBytes(new ReadOnlySpan<float>(in pixelsPerUnit)));
             for (int mip = 0; mip < info.MipCount; ++mip)
             {
                 byte[] bytes = new byte[ImportersApi.TextureMipSize(texture, (uint)mip)];

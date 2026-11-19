@@ -828,6 +828,9 @@ public sealed class FieldEditor : UIElement
             case FieldKind.UInt32 when Field.IsWindowName:
                 NameChoice(() => _section.Shell.Database?.WindowNames() ?? [], null);
                 break;
+            case FieldKind.UInt32 when Field.IsSortingLayer:
+                SortingLayerChoice();
+                break;
             case FieldKind.Byte or FieldKind.SByte or FieldKind.Int16 or FieldKind.UInt16 or FieldKind.Int32
                 or FieldKind.UInt32 or FieldKind.Int64 or FieldKind.UInt64 or FieldKind.Single or FieldKind.Double:
                 {
@@ -1275,6 +1278,42 @@ public sealed class FieldEditor : UIElement
 
     // A name hash (ADR 0096) picked by name: None (0), the names offered, and
     // one that isn't among them by its hash.
+    // A sorting layer, by the project's names (ADR 0104); an index past
+    // them (a layer since removed) shows as its number.
+    private void SortingLayerChoice()
+    {
+        ComboBox box = new() { VerticalAlignment = VerticalAlignment.Center };
+        bool showing = false;
+        void Show(JsonNode? value)
+        {
+            uint current = value is JsonValue v && v.TryGetValue(out uint index) ? index : 0;
+            List<string> labels = [.. (_section.Shell.Project?.SortingLayers ?? []).Select(layer => layer.Name)];
+            if (labels.Count == 0)
+            {
+                labels.Add("Default");
+            }
+            if (current >= labels.Count)
+            {
+                labels.Add($"Layer {current} (not in the project)");
+            }
+            showing = true;
+            box.Options = labels;
+            box.SelectedIndex = (int)Math.Min(current, (uint)labels.Count - 1);
+            showing = false;
+        }
+        box.Opening += _ => Show(_value);
+        box.SelectionChanged += b =>
+        {
+            int layers = _section.Shell.Project?.SortingLayers.Count ?? 1;
+            if (!showing && b.SelectedIndex >= 0 && b.SelectedIndex < layers)
+            {
+                Commit(JsonValue.Create((uint)b.SelectedIndex));
+            }
+        };
+        Add(box);
+        _show = Show;
+    }
+
     private void NameChoice(Func<IReadOnlyList<string>?> offered, string? unavailable)
     {
         ComboBox box = new() { VerticalAlignment = VerticalAlignment.Center };

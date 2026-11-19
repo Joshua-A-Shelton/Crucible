@@ -1316,3 +1316,30 @@ step 6 by hand (2026-11-18):
 | `GameBuilder(project, engine)`; Cache/Build/PackageShipping, AotShipping, NativeShipping; `NativeBuilder`'s `variant` | Building a Shipping package |
 | `BuildSettingsPanel.ConfigurationChoice` | The check's handle |
 | CTests `samples.walker-package-shipping`, `samples.walker-package-aot-shipping` | Tests |
+
+## Sprites (2026-11-18, M11 step 1)
+
+Settled before building: ADR 0104 "Sprites"; docs/learning/sprites.md;
+`Sprite` (C++ `crucible::render2d`, C# `Crucible.Render2D`) and its fields
+`texture`, `region`, `pivot`, `tint`, `flipX`, `flipY`, `sortingLayer`,
+`orderInLayer`; the project file's `SortingLayers` (`Name`, `YSort`); the
+texture usage `Sprite` and import setting `PixelsPerUnit`; the render step
+`Sprites`; crucible/Sprite.h, Sprites.cpp, sprite.slang. Asked while
+building, also settled: `RuntimeSettings` (`Current`, `SortingLayer(name)`,
+`Id`), `SortingLayer`, `render2d::setYSortLayers(mask)`.
+
+Names added while building (marked *) are placeholders until the owner
+tries it by hand:
+
+| Name | What it names | What it is |
+|---|---|---|
+| `SpriteRegion` | Type | The rectangle a sprite shows (x, y, width, height) |
+| `render2d::ySortLayers` | C++ function | Which layers y-sort, as set |
+| `RuntimeSettings.Install`, `FromJson` | C# methods | Making settings the running game's; reading them from JSON |
+| `Project.RuntimeSettings` | C# property | A project's settings as a game gets them |
+| `SPRT` | Texture file section | A texture's pixels per unit |
+| `CRUCIBLE_HINT_SORTING_LAYER`, `[SortingLayer]`, `SerializedField.IsSortingLayer` | Hint, attribute, property | A field picked as a sorting layer by name |
+| `SpriteInstance`, `startSpriteLoads`, `addSpritePicks`, `texturePixelsPerUnit`, `isTextureLoading`, `spritesDescriptor` | Internal C++ | The step's record, load starter, pick pass, and helpers |
+| `spriteVertex`, `spritePixel`, `spritePickPixel` | Shader entry points | Drawing sprites, and drawing them for picks |
+| "Layer N (not in the project)" | Inspector text | A sprite's layer that the project no longer lists |
+| SpriteTests.cpp, SpriteComponentTests | Tests | Native and C# tests |

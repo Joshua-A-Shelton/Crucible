@@ -63,6 +63,7 @@
 #define CRUCIBLE_HINT_TOOLTIP(text) __attribute__((annotate("crucible_hint_tooltip:" text)))
 #define CRUCIBLE_HINT_HEADER(text) __attribute__((annotate("crucible_hint_header:" text)))
 #define CRUCIBLE_HINT_LAYERS __attribute__((annotate("crucible_hint_layers")))
+#define CRUCIBLE_HINT_SORTING_LAYER __attribute__((annotate("crucible_hint_sorting_layer")))
 #define CRUCIBLE_HINT_ASSET(...) __attribute__((annotate("crucible_hint_asset:" #__VA_ARGS__)))
 #define CRUCIBLE_HINT_ASSET_SKINNED __attribute__((annotate("crucible_hint_asset_skinned")))
 #define CRUCIBLE_HINT_ENTITY_WITH(...) __attribute__((annotate("crucible_hint_entity_with:" #__VA_ARGS__)))
@@ -79,6 +80,7 @@
 #define CRUCIBLE_HINT_TOOLTIP(text)
 #define CRUCIBLE_HINT_HEADER(text)
 #define CRUCIBLE_HINT_LAYERS
+#define CRUCIBLE_HINT_SORTING_LAYER
 #define CRUCIBLE_HINT_ASSET(...)
 #define CRUCIBLE_HINT_ASSET_SKINNED
 #define CRUCIBLE_HINT_ENTITY_WITH(...)

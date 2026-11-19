@@ -35,6 +35,8 @@ public static class ProjectStartup
             return null;
         }
         AssetCache assets = AssetCache.Open(project);
+        // The project file's settings a game needs (ADR 0104).
+        RuntimeSettings.Install(RuntimeSettings.FromJson(File.ReadAllBytes(project)));
         // The project's imported files, unless a native module installed its
         // own source (pack files, ADR 0076); prefabs come through it too.
         AssetSource.InstallDefault(assets.Read);
@@ -59,6 +61,14 @@ public static class ProjectStartup
         }
         OpenedArchive = archive;
         archive.Install();
+        // Its settings (ADR 0104), an entry beside its assets; an archive
+        // cooked before them has none.
+        int assets = archive.Count;
+        if (AssetSource.Read(RuntimeSettings.Id) is { } settings)
+        {
+            RuntimeSettings.Install(RuntimeSettings.FromJson(settings));
+            --assets;
+        }
         AssetId start = archive.StartScene;
         if (scene is not null && !AssetId.TryParse(scene, out start))
         {
@@ -70,7 +80,7 @@ public static class ProjectStartup
             Diagnostics.Log.Error($"Crucible.Hosting: {Path.GetFileName(path)} has no scene {start}");
             return;
         }
-        Diagnostics.Log.Info($"Crucible.Hosting: reading {archive.Count} assets from {Path.GetFileName(path)}");
+        Diagnostics.Log.Info($"Crucible.Hosting: reading {assets} assets from {Path.GetFileName(path)}");
         Load(world, bytes, start.ToString());
     }
 

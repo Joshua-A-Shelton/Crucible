@@ -251,6 +251,7 @@ internal sealed partial class Shell
         try
         {
             Project = Project.Open(projectFile);
+            RuntimeSettings.Install(Project.RuntimeSettings);
             LastBuild = null;
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException

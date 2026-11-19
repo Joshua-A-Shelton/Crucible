@@ -26,6 +26,7 @@ internal sealed class Parser
     private const string HintMeshOfPrefix = "crucible_hint_mesh_of:";
     private const string HintBone = "crucible_hint_bone";
     private const string HintWindow = "crucible_hint_window";
+    private const string HintSortingLayer = "crucible_hint_sorting_layer";
 
     private readonly HashSet<string> _headerFiles;
     // The namespace exposed declarations are under: crucible, or a native
@@ -272,7 +273,7 @@ internal sealed class Parser
     private FieldHints? HintsOf(CXCursor field, string display)
     {
         string? tooltip = null, header = null, min = null, max = null, meshOf = null;
-        bool color = false, layers = false, skinned = false, bone = false, window = false;
+        bool color = false, layers = false, skinned = false, bone = false, window = false, sortingLayer = false;
         List<string> assetKinds = [], entityWith = [];
         foreach (string annotation in Libclang.Children(field).Where(child => child.Kind == CursorKind.AnnotateAttr)
                      .Select(Libclang.Spelling))
@@ -292,6 +293,10 @@ internal sealed class Parser
             else if (annotation == HintWindow)
             {
                 window = true;
+            }
+            else if (annotation == HintSortingLayer)
+            {
+                sortingLayer = true;
             }
             else if (annotation.StartsWith(HintRangePrefix, StringComparison.Ordinal))
             {
@@ -339,7 +344,8 @@ internal sealed class Parser
         }
         tooltip ??= CommentOf(field);
         return tooltip is null && header is null && min is null && !color && !layers && !skinned &&
-               assetKinds.Count == 0 && entityWith.Count == 0 && meshOf is null && !bone && !window
+               assetKinds.Count == 0 && entityWith.Count == 0 && meshOf is null && !bone && !window &&
+               !sortingLayer
             ? null
             : new FieldHints(tooltip, header, min, max, color, layers)
             {
@@ -349,6 +355,7 @@ internal sealed class Parser
                 MeshOf = meshOf,
                 Bone = bone,
                 Window = window,
+                SortingLayer = sortingLayer,
             };
     }
 

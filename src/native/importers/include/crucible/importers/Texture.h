@@ -28,7 +28,8 @@ enum class CRUCIBLE_EXPOSE TextureUsage : uint32_t
     NormalMap,     // tangent-space normals: BC5 (X and Y; Z is rebuilt), renormalized per mip
     SingleChannel, // one linear channel (height, occlusion), from red: BC4
     Hdr,           // linear high dynamic range: RGBA16F, uncompressed
-    Ui,            // UI and pixel art: RGBA8 sRGB, uncompressed, exact
+    Ui,            // UI: RGBA8 sRGB, uncompressed
+    Sprite,        // sprites and pixel art (ADR 0104): RGBA8 sRGB, the source's bytes exactly, no mips
 };
 
 struct CRUCIBLE_EXPOSE TextureSettings

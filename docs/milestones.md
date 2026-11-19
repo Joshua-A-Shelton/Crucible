@@ -1132,6 +1132,17 @@ Step 1 designed (2026-11-18, names settled before building):
   orthographic; step 2 adds the virtual resolution.
 - Files crucible/Sprite.h, Sprites.cpp, sprite.slang; ADR 0104 "Sprites";
   docs/learning/sprites.md.
+- Asked while building: the runtime settings (`RuntimeSettings`, packed
+  into the archive under `RuntimeSettings.Id`; `Current`;
+  `SortingLayer(name)`; `SortingLayer`'s `Name` and `YSort`), and
+  `render2d::setYSortLayers(mask)`, names settled.
+
+Step 1 built (ADR 0104): the Sprite component, the Sprites step (every
+sprite in one instanced draw, sorted, after Tonemap, colors exact), the
+texture usage Sprite and pixels per unit, named sorting layers in the
+project packed as runtime settings, the Inspector's sorting-layer picker,
+and sprites picked in the editor. Native tests on every backend; C# tests
+for import, the cook, and the settings. Awaiting the owner's try by hand.
 
 ## After M11: an engine review
 

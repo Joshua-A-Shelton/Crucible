@@ -497,6 +497,10 @@ internal static class CSharpWriter
         {
             attributes.Add("global::Crucible.Serialization.WindowName");
         }
+        if (hints.SortingLayer)
+        {
+            attributes.Add("global::Crucible.Serialization.SortingLayer");
+        }
         return $"[{string.Join(", ", attributes)}]";
     }
 

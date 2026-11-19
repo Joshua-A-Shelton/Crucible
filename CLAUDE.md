@@ -267,6 +267,13 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   on our job system. Steps in the fixed tick with batched native ECS sync.
   Combat uses swept, query-based hitboxes with exact hit times.
   Determinism is not a goal.
+- **Sprites** (ADR 0104): the pixel-art path's `Sprite` (crucible/Sprite.h)
+  draws a texture region at a Transform2D, after Tonemap so colors are
+  exact, all sprites in one instanced draw. Sorted by the project's named
+  `SortingLayers` (each may y-sort), then `orderInLayer`; floors switch a
+  sprite's layer at triggers. Texture usage `Sprite` imports exact bytes;
+  `PixelsPerUnit` sizes them. Runtime project settings (`RuntimeSettings`)
+  ship as an archive entry.
 - **Binding generator** (ADR 0017): annotated C++ headers, parsed at build
   time with the system's libclang through Crucible's own bindings, generate C ABI
   shims, raw and idiomatic C# layers, struct mirrors with layout checks on

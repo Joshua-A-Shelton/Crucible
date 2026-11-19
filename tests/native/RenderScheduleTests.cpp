@@ -63,11 +63,11 @@ TEST_CASE("Render steps are edited by name")
 
 TEST_CASE("The renderer starts with Skinning then DepthPrepass then LightClustering then Shadows then Opaque then "
           "Outlines then "
-          "Sky then Transparent then Bloom then Tonemap then DebugLines")
+          "Sky then Transparent then Bloom then Tonemap then Sprites then DebugLines")
 {
-    CHECK(names(render::renderSchedule()) == std::vector<std::string>{"Skinning", "DepthPrepass", "LightClustering",
-                                                                      "Shadows", "Opaque", "Outlines", "Sky",
-                                                                      "Transparent", "Bloom", "Tonemap", "DebugLines"});
+    CHECK(names(render::renderSchedule()) ==
+          std::vector<std::string>{"Skinning", "DepthPrepass", "LightClustering", "Shadows", "Opaque", "Outlines",
+                                   "Sky", "Transparent", "Bloom", "Tonemap", "Sprites", "DebugLines"});
 }
 
 TEST_CASE("Blackboard keys are registered once by name")

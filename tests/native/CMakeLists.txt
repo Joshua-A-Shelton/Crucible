@@ -56,6 +56,7 @@ add_executable(crucible_native_tests
     RenderCommandsTests.cpp
     RenderScheduleTests.cpp
     RenderTests.cpp
+    SpriteTests.cpp
     ResultTests.cpp
     ShaderTests.cpp
     ShadowTests.cpp

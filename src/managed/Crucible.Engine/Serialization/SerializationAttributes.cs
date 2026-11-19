@@ -138,3 +138,10 @@ public sealed class BoneNameAttribute : Attribute;
 /// </summary>
 [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false)]
 public sealed class WindowNameAttribute : Attribute;
+
+/// <summary>
+/// Editor hint (ADR 0104): a <c>uint</c> is a sorting layer's index, picked by
+/// name from the project's <c>SortingLayers</c>.
+/// </summary>
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false)]
+public sealed class SortingLayerAttribute : Attribute;

@@ -202,7 +202,7 @@ Image downsample(const Image& source, bool wrap)
 
 bool isColor(TextureUsage usage)
 {
-    return usage == TextureUsage::Color || usage == TextureUsage::Ui;
+    return usage == TextureUsage::Color || usage == TextureUsage::Ui || usage == TextureUsage::Sprite;
 }
 
 // The share of texels whose alpha, scaled, reaches the cutoff.
@@ -309,6 +309,7 @@ TextureFormat formatFor(TextureUsage usage)
     case TextureUsage::Hdr:
         return TextureFormat::Rgba16F;
     case TextureUsage::Ui:
+    case TextureUsage::Sprite:
         return TextureFormat::Rgba8;
     default:
         return TextureFormat::Bc7;
@@ -589,9 +590,18 @@ void toFilterSpace(Image& image, TextureUsage usage, bool sourceIsHdr)
 Result<TextureImport*> importTexture(std::span<const uint8_t> source, TextureSettings settings)
 {
     clearError();
-    if (static_cast<uint32_t>(settings.usage) > static_cast<uint32_t>(TextureUsage::Ui))
+    if (static_cast<uint32_t>(settings.usage) > static_cast<uint32_t>(TextureUsage::Sprite))
     {
         return fail("unknown usage %u", static_cast<uint32_t>(settings.usage));
+    }
+    // A sprite's texels are the source's, byte for byte: never converted
+    // (toFilterSpace and toOutput leave them as they are), filtered, or
+    // wrapped (ADR 0104).
+    if (settings.usage == TextureUsage::Sprite)
+    {
+        settings.mipmaps = false;
+        settings.wrap = false;
+        settings.preserveAlphaCoverage = false;
     }
     Image image;
     if (const Status status = decode(source, settings, image); status != Status::Ok)

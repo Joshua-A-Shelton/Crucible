@@ -13,6 +13,9 @@ public partial class ProjectFile
 
     /// <summary>What a cook packs (ADR 0098).</summary>
     public BuildSettings Build = new();
+
+    /// <summary>The sorting layers, in drawing order (ADR 0104); "Default" when there are none.</summary>
+    public List<SortingLayer> SortingLayers = [];
 }
 
 /// <summary>What cooking packs (ADR 0098): the project file's "Build" section.</summary>
@@ -73,13 +76,14 @@ public sealed class Project
     public const string Extension = ".crproject";
 
     private Project(string projectFile, string name, IReadOnlyList<string>? physicsLayers = null,
-        BuildSettings? build = null)
+        BuildSettings? build = null, IReadOnlyList<SortingLayer>? sortingLayers = null)
     {
         ProjectFilePath = Path.GetFullPath(projectFile);
         Root = Path.GetDirectoryName(ProjectFilePath)!;
         Name = name;
         PhysicsLayers = physicsLayers ?? [];
         Build = build ?? new BuildSettings();
+        SortingLayers = sortingLayers is { Count: > 0 } ? sortingLayers : [new SortingLayer { Name = "Default" }];
     }
 
     public string Name { get; }
@@ -89,6 +93,12 @@ public sealed class Project
 
     /// <summary>What a cook packs (ADR 0098); <see cref="SaveBuild"/> changes it.</summary>
     public BuildSettings Build { get; private set; }
+
+    /// <summary>The sorting layers, in drawing order (ADR 0104): "Default" alone when the file lists none.</summary>
+    public IReadOnlyList<SortingLayer> SortingLayers { get; }
+
+    /// <summary>What a running game needs of the project (ADR 0104): the sorting layers.</summary>
+    public RuntimeSettings RuntimeSettings => new() { SortingLayers = [.. SortingLayers] };
 
     /// <summary>
     /// The folder Build writes the package to (ADR 0100, 0101, 0103):
@@ -113,7 +123,8 @@ public sealed class Project
     public static Project Open(string projectFile)
     {
         ProjectFile file = Json.Deserialize<ProjectFile>(File.ReadAllBytes(projectFile));
-        Project project = new(projectFile, file.Name, [.. file.PhysicsLayers.Take(32)], file.Build);
+        Project project = new(projectFile, file.Name, [.. file.PhysicsLayers.Take(32)], file.Build,
+            [.. file.SortingLayers.Take(32)]);
         Directory.CreateDirectory(project.AssetsFolder);
         Directory.CreateDirectory(project.CacheFolder);
         return project;

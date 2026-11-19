@@ -63,6 +63,7 @@ internal static class EngineComponents
         // Loads on background jobs, published each frame (ADR 0099).
         Crucible.Assets.Api.RegisterAssetLoads();
         Crucible.Debug.Api.RegisterDebugLines();
+        Crucible.Render2D.Api.RegisterSprite();
         Components.Register<LocalTransform>();
         Components.Register<Transform2D>();
         Components.Register<WorldTransform>();
@@ -90,6 +91,7 @@ internal static class EngineComponents
         Components.Register<Crucible.Animation.Animator>();
         Components.Register<Crucible.Animation.PoseHandle>();
         Components.Register<Crucible.Animation.BoneAttachment>();
+        Components.Register<Crucible.Render2D.Sprite>();
         Components.Register<SceneEntityId>();
         Components.RegisterManaged<EntityName>();
         Components.Register<PrefabInstance>();
@@ -104,6 +106,7 @@ internal static class EngineComponents
         SavedComponents.Add<Crucible.Render.SpotLight>();
         SavedComponents.Add<Crucible.Render.AmbientLight>();
         SavedComponents.Add<Crucible.Render.Sky>();
+        SavedComponents.Add<Crucible.Render2D.Sprite>();
         SavedComponents.Add<Crucible.Physics.RigidBody>();
         SavedComponents.Add<Crucible.Physics.Collider>();
         SavedComponents.Add<Crucible.Physics.Joint>();

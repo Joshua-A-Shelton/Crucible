@@ -51,7 +51,7 @@ public sealed class SerializedField
         string? tooltip = null, string? header = null, bool isColor = false, bool isLayers = false,
         string? label = null, string[]? assetKinds = null, bool needsSkeleton = false,
         string[]? entityComponents = null, string? meshOf = null, int fixedLength = 0, bool isBoneName = false,
-        bool isWindowName = false)
+        bool isWindowName = false, bool isSortingLayer = false)
     {
         Name = name;
         Kind = kind;
@@ -73,6 +73,7 @@ public sealed class SerializedField
         FixedLength = fixedLength;
         IsBoneName = isBoneName;
         IsWindowName = isWindowName;
+        IsSortingLayer = isSortingLayer;
     }
 
     /// <summary>The member's name and JSON key; empty for a list's or dictionary's items.</summary>
@@ -131,4 +132,7 @@ public sealed class SerializedField
 
     /// <summary>From <see cref="WindowNameAttribute"/>: a uint picked as an animation window's name.</summary>
     public bool IsWindowName { get; }
+
+    /// <summary>From <see cref="SortingLayerAttribute"/>: a uint picked as a sorting layer, by name (ADR 0104).</summary>
+    public bool IsSortingLayer { get; }
 }

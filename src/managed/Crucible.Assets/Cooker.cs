@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Crucible.Serialization;
 
 namespace Crucible.Assets;
 
@@ -126,8 +127,11 @@ public sealed class Cooker(AssetDatabase database)
         {
             archive.SetSceneAssets(scene, Reached(scene, links, scenes));
         }
+        // The settings a running game needs (ADR 0104), as one more entry,
+        // which isn't counted among the assets.
+        archive.Add(RuntimeSettings.Id, Json.Serialize(database.Project.RuntimeSettings), ".json");
         archive.Write(path);
-        return new CookResult(path, archive.Count, new FileInfo(path).Length);
+        return new CookResult(path, archive.Count - 1, new FileInfo(path).Length);
     }
 
     // Everything a scene reaches through the links, but not other scenes (a

@@ -63,7 +63,8 @@ public class CookerTests
                 Sub(database, "Models/Walker.gltf", "Swing"), Sub(database, "Models/Walker.gltf", "WalkForward"),
                 Id(database, "Sounds/Footstep.wav"),
             ];
-            await Assert.That(Sorted(index.Select(entry => entry.Id))).IsEqualTo(Sorted(expected));
+            // And the settings a running game needs (ADR 0104), not counted as an asset.
+            await Assert.That(Sorted(index.Select(entry => entry.Id))).IsEqualTo(Sorted([.. expected, RuntimeSettings.Id]));
             await Assert.That(result.AssetCount).IsEqualTo(expected.Length);
             await Assert.That(ArchiveWriter.ReadStartScene(archive)).IsEqualTo(level);
 
@@ -150,6 +151,41 @@ public class CookerTests
         }
     }
 
+    // The project's sorting layers reach a packaged game (ADR 0104): an entry
+    // of runtime settings, read as the game starts.
+    [Test]
+    public async Task TheProjectsSortingLayersArePackedAsRuntimeSettings()
+    {
+        Project project = CopyWalker();
+        try
+        {
+            System.Text.Json.Nodes.JsonNode file = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(project.ProjectFilePath))!;
+            file["SortingLayers"] = System.Text.Json.Nodes.JsonNode.Parse(
+                """[{"Name": "Ground"}, {"Name": "Characters", "YSort": true}, {"Name": "Bridge"}]""");
+            File.WriteAllText(project.ProjectFilePath, file.ToJsonString());
+            AssetDatabase database = Open(Project.Open(project.ProjectFilePath));
+            await Assert.That(string.Join(",", database.Project.SortingLayers.Select(layer => layer.Name)))
+                .IsEqualTo("Ground,Characters,Bridge");
+            // Saving the build settings keeps them.
+            database.Project.SaveBuild(new BuildSettings { Scenes = [.. database.Project.Build.Scenes] });
+            await Assert.That(Project.Open(project.ProjectFilePath).SortingLayers.Count).IsEqualTo(3);
+
+            CookResult result = new Cooker(database).Cook();
+            await Assert.That(string.Join("; ", result.Errors)).IsEqualTo("");
+            byte[] archive = File.ReadAllBytes(result.ArchivePath);
+            var entry = ArchiveWriter.ReadIndex(archive).Single(entry => entry.Id == RuntimeSettings.Id);
+            RuntimeSettings settings = RuntimeSettings.FromJson(archive.AsSpan((int)entry.Offset, (int)entry.Size));
+            await Assert.That(string.Join(",", settings.SortingLayers.Select(layer => $"{layer.Name}:{layer.YSort}")))
+                .IsEqualTo("Ground:False,Characters:True,Bridge:False");
+            await Assert.That(settings.SortingLayer("Bridge")).IsEqualTo(2);
+            await Assert.That(settings.SortingLayer("Water")).IsEqualTo(-1);
+        }
+        finally
+        {
+            Directory.Delete(project.Root, recursive: true);
+        }
+    }
+
     [Test]
     public async Task ACookWithProblemsSaysWhatAndWritesNothing()
     {
@@ -186,12 +222,13 @@ public class CookerTests
             await Assert.That(string.Join("; ", result.Errors)).IsEqualTo("");
             AssetId level = Id(database, "Scenes/Level.crscene");
             using Archive archive = Archive.Open(result.ArchivePath);
-            await Assert.That(archive.Count).IsEqualTo(8);
+            await Assert.That(archive.Count).IsEqualTo(9); // eight assets and the runtime settings
             await Assert.That(archive.StartScene).IsEqualTo(level);
 
             // The Level scene's list: everything else packed, as the writer recorded it.
             IReadOnlyList<AssetId> packed = [.. ArchiveWriter.ReadIndex(File.ReadAllBytes(result.ArchivePath)).Select(entry => entry.Id)];
-            await Assert.That(Sorted(archive.SceneAssets(level))).IsEqualTo(Sorted(packed.Where(id => id != level)));
+            await Assert.That(Sorted(archive.SceneAssets(level)))
+                .IsEqualTo(Sorted(packed.Where(id => id != level && id != RuntimeSettings.Id)));
             await Assert.That(Sorted(ArchiveWriter.ReadSceneAssets(File.ReadAllBytes(result.ArchivePath))[level]))
                 .IsEqualTo(Sorted(archive.SceneAssets(level)));
             await Assert.That(archive.SceneAssets(Id(database, "Models/Level.gltf")).Length).IsEqualTo(0);

@@ -104,6 +104,9 @@ internal sealed record FieldHints(string? Tooltip, string? Header, string? Min, 
 
     /// <summary>CRUCIBLE_HINT_WINDOW: a window's name hash (ADR 0096).</summary>
     public bool Window { get; init; }
+
+    /// <summary>CRUCIBLE_HINT_SORTING_LAYER: a sorting layer's index (ADR 0104).</summary>
+    public bool SortingLayer { get; init; }
 }
 
 /// <summary>
