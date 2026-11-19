@@ -1,8 +1,9 @@
 # 0102 — The M10 demonstration
 
-**Status:** Accepted (2026-11-18); M10 step 5 built, awaiting the owner's
-try by hand (names marked * were added while building it and are
-placeholders until then). The design's names were settled before building
+**Status:** Accepted (2026-11-18); M10 step 5 built, then tried by hand by
+the owner on Linux and Windows (the console window it found on Windows
+fixed, ADR 0100). The design's names were settled before building; those
+added while building were settled by the owner as drafted
 (docs/naming.md).
 
 ## Context
@@ -49,7 +50,7 @@ route as the JIT's, to within rounding.
 ## As built
 
 - `LevelChecks`' packaged mode, its comparison with the Cache run shared
-  with the archive mode (`Compare`*); `Shell.RunPackage`* runs a package's
+  with the archive mode (`Compare`); `Shell.RunPackage` runs a package's
   executable as a player would, with only the options given.
 - CTest `samples.walker-packaged` (labels integration, gpu, aot; about
   2.5 minutes).

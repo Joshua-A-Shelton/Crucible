@@ -1017,8 +1017,11 @@ decision made at its start):
    Step 5 built (ADR 0102): LevelChecks' packaged mode, CTest
    samples.walker-packaged. From the Cache, the JIT package, and the
    NativeAOT package, the post is hit 116.457 ms into the Strike window and
-   the Walker arrives at 34.900 s in each. Awaiting the owner's try by hand
-   on Linux and Windows.
+   the Walker arrives at 34.900 s in each. Tried by hand by the owner on
+   Linux and Windows; the try found a console window opening beside
+   packaged games on Windows, fixed (ADR 0100), and that their output went
+   nowhere, which step 6 answers. Step 5 is done, its names settled as
+   drafted.
 6. Logging and shipping builds (added 2026-11-18, after the owner's try of
    step 5 found packaged games' output went nowhere).
 
@@ -1057,7 +1060,12 @@ decision made at its start):
    shipping preset's build, Development ones from the editor's. CTests
    check Development packages log everything to their file, the run before
    kept, and Shipping ones print no information and leave no file after a
-   clean run. Awaiting the owner's try by hand.
+   clean run. Tried by hand by the owner on Linux and Windows; step 6 is
+   done, its names settled as drafted.
+
+M10's "done when" is met: the Walker, packaged as JIT and as NativeAOT,
+Shipping and Development, runs from its archive on Linux and Windows. The
+Steam Deck check stays open (no device). Awaiting the owner's sign-off.
 
 ## M11 — Pixel-art 2D path
 

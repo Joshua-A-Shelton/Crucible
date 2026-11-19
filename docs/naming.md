@@ -1283,14 +1283,14 @@ step 4 by hand (2026-11-18):
 Settled before building: ADR 0102 "The M10 demonstration"; LevelChecks'
 game argument `check-packaged=<folder>`; CTest `samples.walker-packaged`.
 
-Names added while building (marked *) are placeholders until the owner
-tries it by hand:
+Names added while building, settled as drafted after the owner tried
+step 5 by hand (2026-11-18):
 
 | Name | What it is |
 |---|---|
-| `Shell.RunPackage`* | Runs a package's executable as a player would, for the checks |
-| `LevelChecks.Compare`*; the copy's folder packaged-project* | The check's parts |
-| `Packager.UseWindowsSubsystem`* | Marks a package's executable a GUI program, so Windows opens no console |
+| `Shell.RunPackage` | Runs a package's executable as a player would, for the checks |
+| `LevelChecks.Compare`; the copy's folder packaged-project | The check's parts |
+| `Packager.UseWindowsSubsystem` | Marks a package's executable a GUI program, so Windows opens no console |
 
 ## Logging and shipping builds (2026-11-18, M10 step 6)
 
@@ -1303,16 +1303,16 @@ and AOT-Development; C#'s `Log.Info`, `Log.Warning`, `Log.Error` in
 `Crucible.Diagnostics`; the log files `<Game>.log` and
 `<Game>-previous.log` in ~/.local/share/<Game>/ and %LOCALAPPDATA%\<Game>\.
 
-Names added while building (marked *) are placeholders until the owner
-tries it by hand:
+Names added while building, settled as drafted after the owner tried
+step 6 by hand (2026-11-18):
 
 | Name | What it is |
 |---|---|
-| `PackageConfiguration`* | The setting's type |
-| `CRUCIBLE_LOG_INFO`* | The C# symbol every build but Shipping defines, which `Log.Info` is conditional on |
-| `Log.CatchConsole`* | Sends a game's Console output into the log |
-| crucible/Log.h's `write`*, `setLogFile`*; the launcher's `playerDataFolder`* | The core's side |
-| CrucibleModule.json's `Launcher`*, `CoreRuntime`*, `EngineDirectory`*, `Shipping`*, `ShippingToolkit`* | What the packager takes from a build |
-| `GameBuilder(project, engine)`*; Cache/Build/PackageShipping*, AotShipping*, NativeShipping*; `NativeBuilder`'s `variant`* | Building a Shipping package |
-| `BuildSettingsPanel.ConfigurationChoice`* | The check's handle |
-| CTests `samples.walker-package-shipping`*, `samples.walker-package-aot-shipping`* | Tests |
+| `PackageConfiguration` | The setting's type |
+| `CRUCIBLE_LOG_INFO` | The C# symbol every build but Shipping defines, which `Log.Info` is conditional on |
+| `Log.CatchConsole` | Sends a game's Console output into the log |
+| crucible/Log.h's `write`, `setLogFile`; the launcher's `playerDataFolder` | The core's side |
+| CrucibleModule.json's `Launcher`, `CoreRuntime`, `EngineDirectory`, `Shipping`, `ShippingToolkit` | What the packager takes from a build |
+| `GameBuilder(project, engine)`; Cache/Build/PackageShipping, AotShipping, NativeShipping; `NativeBuilder`'s `variant` | Building a Shipping package |
+| `BuildSettingsPanel.ConfigurationChoice` | The check's handle |
+| CTests `samples.walker-package-shipping`, `samples.walker-package-aot-shipping` | Tests |

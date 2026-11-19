@@ -1,8 +1,8 @@
 # 0103 — Logging and shipping builds
 
-**Status:** Accepted (2026-11-18); M10 step 6 built, awaiting the owner's
-try (names marked * were added while building it and are placeholders
-until then). The design's names were settled before building
+**Status:** Accepted (2026-11-18); M10 step 6 built, then tried by hand by
+the owner on Linux and Windows. The design's names were settled before
+building; those added while building were settled by the owner as drafted
 (docs/naming.md).
 
 ## Context
@@ -68,7 +68,7 @@ in a file a player can send, which a game without a console needs.
   `log::setLogFile(path, previousPath)` sets the file; the first message
   makes its folder, moves an old file aside, and opens it.
 - **C#:** `Log.Info` is `[Conditional("CRUCIBLE_LOG_INFO")]`
-  (`CRUCIBLE_LOG_INFO`*): C# can't make a call conditional on a symbol
+  (`CRUCIBLE_LOG_INFO`): C# can't make a call conditional on a symbol
   being absent, so every build but Shipping defines that one (the engine's
   through Directory.Build.props, a game's through the project the editor
   writes), and a Shipping build's calls go, arguments and all. Engine code
@@ -76,19 +76,19 @@ in a file a player can send, which a game without a console needs.
   core's messages for the editor) is found first inside `Crucible`; games
   write `Log.Info`.
 - **Console:** the host replaces `Console.Out` and `Console.Error` with
-  writers that pass each line to the log (`Log.CatchConsole`*), for games
+  writers that pass each line to the log (`Log.CatchConsole`), for games
   only; the editor keeps its console, which its Log panel already shows.
 - **The launcher** of a package sets its log file before anything is
   logged, from the executable's name and the player's data folder.
 - **Packaging Shipping:** the editor's module toolkit (CrucibleModule.json)
-  names the shipping preset's (`ShippingToolkit`*), which records its
-  launcher, core, engine assemblies, and AOT objects (`Launcher`*,
-  `CoreRuntime`*, `EngineDirectory`*, `Shipping`*). The packager takes
+  names the shipping preset's (`ShippingToolkit`), which records its
+  launcher, core, engine assemblies, and AOT objects (`Launcher`,
+  `CoreRuntime`, `EngineDirectory`, `Shipping`). The packager takes
   everything from it: the game is compiled against the shipping engine
-  with `CRUCIBLE_SHIPPING` (`new GameBuilder(project, engine)`*), its C++
+  with `CRUCIBLE_SHIPPING` (`new GameBuilder(project, engine)`), its C++
   module against the shipping core with the same symbol (a
-  `NativeBuilder` variant, Cache/Build/NativeShipping*), each in folders
-  of their own (PackageShipping*, AotShipping*).
+  `NativeBuilder` variant, Cache/Build/NativeShipping), each in folders
+  of their own (PackageShipping, AotShipping).
 
 ## Known limitations
 
@@ -106,17 +106,17 @@ in a file a player can send, which a game without a console needs.
 ## As built
 
 - Native: `log::write`, `log::setLogFile`, `info` compiled out under
-  `CRUCIBLE_SHIPPING`; the launcher's `playerDataFolder`*; the option and
+  `CRUCIBLE_SHIPPING`; the launcher's `playerDataFolder`; the option and
   preset; the toolkit's new fields.
 - C#: `Crucible.Diagnostics.Log` (`Info`, `Warning`, `Error`,
-  `CatchConsole`); `BuildSettings.Configuration`, `PackageConfiguration`*
+  `CatchConsole`); `BuildSettings.Configuration`, `PackageConfiguration`
   (`Shipping`, `Development`); the Build card's Configuration drop-down;
   the packager's sources by configuration.
 - Tests: tests/packaging/package_game.cmake takes a configuration. CTests
   `samples.walker-package`, `samples.walker-package-aot`, and
   `samples.diorama-package-aot` (Development) check the log file has what
-  was printed and the run before is kept; `samples.walker-package-shipping`*
-  and `samples.walker-package-aot-shipping`* (Shipping; skipped without the
+  was printed and the run before is kept; `samples.walker-package-shipping`
+  and `samples.walker-package-aot-shipping` (Shipping; skipped without the
   shipping preset) check no information is printed and a clean run writes
   no file. launcher.jit.build-settings sets the configuration and back;
   samples.walker-packaged makes Development packages, whose messages it
