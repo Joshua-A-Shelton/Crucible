@@ -1142,7 +1142,9 @@ sprite in one instanced draw, sorted, after Tonemap, colors exact), the
 texture usage Sprite and pixels per unit, named sorting layers in the
 project packed as runtime settings, the Inspector's sorting-layer picker,
 and sprites picked in the editor. Native tests on every backend; C# tests
-for import, the cook, and the settings. Awaiting the owner's try by hand.
+for import, the cook, and the settings. Tried by hand by the owner; step 1
+is done, its names settled as drafted (and the failed-import message now
+suggests usage Sprite for pixel art).
 
 Between steps 1 and 2 (asked for by the owner, 2026-11-18): the slow
 Walker checks run on a fixed-step clock (ADR 0105), about 340 s down to

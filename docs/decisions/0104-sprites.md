@@ -1,9 +1,8 @@
 # 0104 — Sprites
 
-**Status:** Accepted (2026-11-18); M11 step 1 built, awaiting the owner's
-try (names marked * were added while building it and are placeholders
-until then). The design's names were settled before building
-(docs/naming.md).
+**Status:** Accepted (2026-11-18); M11 step 1 built, then tried by hand by
+the owner. The design's names were settled before building; those added
+while building were settled by the owner as drafted (docs/naming.md).
 
 ## Context
 
@@ -36,7 +35,7 @@ or with the 3D before it, sharing bloom and exposure.
 Decided by the owner (2026-11-18):
 
 1. **A texture and a rectangle.** `Sprite` (C++ `crucible::render2d`, C#
-   `Crucible.Render2D`): `texture`, `region` (`SpriteRegion`*: x, y,
+   `Crucible.Render2D`): `texture`, `region` (`SpriteRegion`: x, y,
    width, height in pixels from the texture's top-left; all of it when
    zero), `pivot` ((0, 0) bottom-left to (1, 1) top-right; centered by
    default), `tint` (white by default), `flipX`, `flipY`, `sortingLayer`,
@@ -85,7 +84,7 @@ possible at all. A settings entry gives later runtime settings a home.
 - **One draw call for every sprite.** Each frame the step gathers the
   world's sprites, sorts them (layer, order, height where the layer
   y-sorts, then entity, so equal sprites keep their order), and writes one
-  `SpriteInstance`* each into an upload buffer: the quad's corners in
+  `SpriteInstance` each into an upload buffer: the quad's corners in
   local meters (pivot applied), the entity's 2D axes and position from
   its world matrix, the region's texture coordinates (swapped when
   flipped), the tint, and the texture's heap slot. One instanced draw
@@ -99,11 +98,11 @@ possible at all. A settings entry gives later runtime settings a home.
   wait for them. A texture's `SPRT` section holds its pixels per unit
   (16 if a file has none).
 - **Gathered on the main thread, once a frame:** the editor's Pick step
-  draws the same sprites into its entity IDs (`addSpritePicks`*), over the
+  draws the same sprites into its entity IDs (`addSpritePicks`), over the
   meshes and only where a sprite shows (alpha 0.5 and up), so clicking a
   sprite selects it and its outline follows.
 - **The Inspector** picks `sortingLayer` by the project's names, through a
-  new hint (`CRUCIBLE_HINT_SORTING_LAYER`*, C# `[SortingLayer]`*).
+  new hint (`CRUCIBLE_HINT_SORTING_LAYER`, C# `[SortingLayer]`).
 
 ## Known limitations
 
@@ -116,17 +115,17 @@ possible at all. A settings entry gives later runtime settings a home.
 
 ## As built
 
-- Native: crucible/Sprite.h (`Sprite`, `SpriteRegion`*, `registerSprite`,
-  `setYSortLayers`, `ySortLayers`*), Sprites.cpp (the step, the texture
-  cache, `startSpriteLoads`*), shaders/crucible/sprite.slang
-  (`spriteVertex`*, `spritePixel`*, `spritePickPixel`*); the texture
-  usage `Sprite` and the `SPRT` section*; `texturePixelsPerUnit`* and
-  `isTextureLoading`*; the step name `Sprites`.
+- Native: crucible/Sprite.h (`Sprite`, `SpriteRegion`, `registerSprite`,
+  `setYSortLayers`, `ySortLayers`), Sprites.cpp (the step, the texture
+  cache, `startSpriteLoads`), shaders/crucible/sprite.slang
+  (`spriteVertex`, `spritePixel`, `spritePickPixel`); the texture
+  usage `Sprite` and the `SPRT` section; `texturePixelsPerUnit` and
+  `isTextureLoading`; the step name `Sprites`.
 - C#: `Crucible.Render2D.Sprite`'s defaults; `SortingLayer`,
-  `RuntimeSettings` (`Id`, `Current`, `Install`*, `FromJson`*,
+  `RuntimeSettings` (`Id`, `Current`, `Install`, `FromJson`,
   `SortingLayer(name)`); the project's `SortingLayers` and
-  `RuntimeSettings`*; `TextureImportSettings.PixelsPerUnit`; the
-  serializer's `IsSortingLayer`*; the Inspector's sorting-layer picker.
+  `RuntimeSettings`; `TextureImportSettings.PixelsPerUnit`; the
+  serializer's `IsSortingLayer`; the Inspector's sorting-layer picker.
 - Tests: native SpriteTests (exact colors by region, pivot, flips, and
   pixels per unit; sorting by layer, order, and y; tint and alpha; the
   editor's picks), on every backend; C# a sprite texture's exact texels

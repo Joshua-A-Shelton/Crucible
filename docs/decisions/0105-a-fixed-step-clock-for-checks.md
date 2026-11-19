@@ -1,8 +1,8 @@
 # 0105 — A fixed-step clock for checks
 
-**Status:** Accepted (2026-11-18); built, awaiting the owner's try (names
-marked * were added while building it and are placeholders until then).
-The design's names were settled before building (docs/naming.md).
+**Status:** Accepted (2026-11-18); built. The design's names were settled
+before building; those added while building were settled by the owner
+as drafted (docs/naming.md).
 
 ## Context
 
@@ -50,10 +50,10 @@ its own tests (the frame loop's, the latency harness's).
 
 - The platform clock is in the core (Platform.cpp): `useFixedClock`
   starts it at the real time and fixes it; `timestampNow` returns it;
-  `advanceFixedClock` adds the period. `fixedClock()`* says whether it's
+  `advanceFixedClock` adds the period. `fixedClock()` says whether it's
   fixed; 0 goes back to real time.
 - The launcher fixes it after the platform starts, before anything reads
-  time; the frame loop (`FrameLoop.FixedClock`*) advances it after each
+  time; the frame loop (`FrameLoop.FixedClock`) advances it after each
   frame, where it would otherwise wait out the frame's period.
 - Pacing (`WaitForNextFrame`) waits for the GPU, not the clock, so it is
   unchanged.
@@ -68,11 +68,11 @@ later, inside the half millisecond allowed.
 
 ## As built
 
-- Native: `platform::useFixedClock`, `advanceFixedClock`, `fixedClock`*;
+- Native: `platform::useFixedClock`, `advanceFixedClock`, `fixedClock`;
   `LaunchOptions.fixedClock`; the launcher's `--fixed-clock`, refused
   without `--frame-rate`.
-- C#: `FrameLoop.FixedClock`*, set by the host from the launch options;
+- C#: `FrameLoop.FixedClock`, set by the host from the launch options;
   LevelChecks' runs pass `--fixed-clock`.
 - Tests: native "A fixed clock stands still and moves on by its step"; C#
-  `FixedClockTests`* (a loop on it steps exactly a frame a frame without
-  waiting); CTest launcher.fixed-clock-needs-frame-rate*.
+  `FixedClockTests` (a loop on it steps exactly a frame a frame without
+  waiting); CTest launcher.fixed-clock-needs-frame-rate.

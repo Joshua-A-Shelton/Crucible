@@ -616,7 +616,7 @@ Result<TextureImport*> importTexture(std::span<const uint8_t> source, TextureSet
     if (isBlockCompressed(format) && (image.width % 4 != 0 || image.height % 4 != 0))
     {
         return fail("%ux%u isn't a multiple of 4: block-compressed formats store whole 4x4 blocks; resize it, or "
-                    "import it with usage Ui",
+                    "import it with usage Sprite (pixel art) or Ui",
                     image.width, image.height);
     }
     toFilterSpace(image, settings.usage, stbi_is_hdr_from_memory(source.data(), static_cast<int>(source.size())));

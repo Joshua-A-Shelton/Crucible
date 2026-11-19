@@ -1328,8 +1328,8 @@ texture usage `Sprite` and import setting `PixelsPerUnit`; the render step
 building, also settled: `RuntimeSettings` (`Current`, `SortingLayer(name)`,
 `Id`), `SortingLayer`, `render2d::setYSortLayers(mask)`.
 
-Names added while building (marked *) are placeholders until the owner
-tries it by hand:
+Names added while building, settled as drafted after the owner tried
+step 1 by hand (2026-11-19):
 
 | Name | What it names | What it is |
 |---|---|---|
@@ -1350,8 +1350,8 @@ Settled before building: ADR 0105 "A fixed-step clock for checks"; the
 launcher's `--fixed-clock`, `LaunchOptions.fixedClock`,
 `platform::useFixedClock(periodNs)`, `platform::advanceFixedClock()`.
 
-Names added while building (marked *) are placeholders until the owner
-tries it:
+Names added while building, settled as drafted by the owner
+(2026-11-19):
 
 | Name | What it names | What it is |
 |---|---|---|
