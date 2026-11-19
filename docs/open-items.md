@@ -184,9 +184,6 @@ is, and record which version fixed it.
 - Values in a system's fields across a hot reload: the new version's
   systems are new objects, so the old ones' fields are lost. Migrate them
   like component values if games keep much state in systems. → 0036
-- The generated AOT bootstrap that calls each compiled-in game's and
-  plugin's registration, when games are first linked into the AOT launcher;
-  until then AOT code calls the generated class directly. → 0011, 0036
 
 - Whether pacing stays on by default under `Mailbox`. → 0003 [M2,
   decide] Measured with the latency harness (RADV, KDE Wayland, 144 Hz,

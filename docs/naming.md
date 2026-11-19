@@ -1254,3 +1254,26 @@ step 3 by hand (2026-11-18):
 | Log lines "Building Walker into <folder>…", "Publishing Walker with .NET, ReadyToRun…", "Built Walker: N assets, S MiB in all, into <folder>", "Can't build: …", "The build failed (N problems)." | Text users see |
 | `<folder>.building` | Where a package is made before it's moved into place |
 | CTest `samples.walker-package`, samples/Walker/package_walker.cmake; test `AGameIsNotNamedLikeTheRuntimeOrTheEngine` | Tests |
+
+## AOT shipping builds (2026-11-18, M10 step 4)
+
+Settled before building: ADR 0101 "AOT shipping builds"; the project
+file's `Runtime` (Build section), `Jit` or `NativeAot`; Build Settings'
+"Runtime" drop-down, "JIT (allows mods)" and "NativeAOT (one executable,
+no mods)"; the package folders Build/<Platform>/JIT and
+Build/<Platform>/AOT (replacing Build/<Platform>).
+
+Names added while building (marked *) are placeholders until the owner
+tries it by hand:
+
+| Name | What it is |
+|---|---|
+| `PackageRuntime`* (`Jit`, `NativeAot`) | The setting's type |
+| `GameLoader.CompiledIn`*, `LoadCompiledIn`*; the bootstrap `Crucible.Generated.CompiledInGame`* (`Register`*) in Cache/Build/Aot/Bootstrap.g.cs*; the log line "Walker compiled in"* | The compiled-in game |
+| `GameBuilder.AotFolder`* (Cache/Build/Aot), `AotProjectFile`*, `AotLinkInputs`* (link.rsp), `AotProjectText`*, `PublishAot`* | Compiling with NativeAOT |
+| `NativeBuilder.AotFolder`* (Cache/Build/Aot/Link), `AotProjectText`*, `LinkAot`*; LinkedModule.cpp* | Linking the executable |
+| crucible/Module.h's `linkModule`*, `startLinkedModules`* | A module linked in |
+| `crucible_launcher_aot_objects`*; CrucibleModule.json's `AotObjects`*, `AotLibraries`*, `AotSystemLibraries`*, `AotInstructionSet`*; `CRUCIBLE_AOT_NATIVE_LIBRARIES`*, `CRUCIBLE_AOT_SYSTEM_LIBRARIES`* | The build's side |
+| Log lines "Compiling Walker with NativeAOT…"*, "Linking Walker…"* | Text users see |
+| `<Game>.debug`* (Linux) beside the linked executable | Its debug information |
+| tests/packaging/package_game.cmake* (replacing samples/Walker/package_walker.cmake); CTests `samples.walker-package-aot`*, `samples.diorama-package-aot`* | Tests |

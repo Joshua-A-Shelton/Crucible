@@ -3,13 +3,15 @@ using Crucible.Assets;
 namespace Crucible.Editor;
 
 /// <summary>
-/// Makes a project's package (ADR 0100): a folder a player runs as it is.
-/// At its top, the launcher renamed after the game and the engine's core
-/// library (on Windows also .NET's nethost and the Agility SDK's D3D12Core);
-/// in Data, the game's assembly with its own .NET runtime and the engine's
+/// Makes a project's package (ADR 0100, 0101): a folder a player runs as it
+/// is, for the platform the editor runs on. For a JIT game: at its top, the
+/// launcher renamed after the game and the engine's core library (on
+/// Windows also .NET's nethost and the Agility SDK's D3D12Core); in Data,
+/// the game's assembly with its own .NET runtime and the engine's
 /// assemblies, ReadyToRun unless the build settings say not, the game's C++
-/// module if it has one, and Game.crpak. Only for the platform the editor
-/// runs on. Names are placeholders (docs/naming.md).
+/// module if it has one, and Game.crpak. For a NativeAOT game: one
+/// executable holding the launcher, the core, the engine, the game, and its
+/// C++ module, and Data/Game.crpak (and D3D12Core on Windows).
 /// </summary>
 /// <remarks>
 /// The package is made in a folder beside the target and moved into place
@@ -28,9 +30,10 @@ internal sealed class Packager(Project project, GameBuilder builder, NativeBuild
         {
             return Failed($"{folder} isn't empty and isn't a package, so it's not replaced");
         }
+        bool aot = project.Build.Runtime == PackageRuntime.NativeAot;
         string launcher = StandaloneRun.LauncherPath(editorExecutable);
         string? core = CoreLibrary(launcher);
-        if (!File.Exists(launcher) || core is null)
+        if (!aot && (!File.Exists(launcher) || core is null))
         {
             return Failed($"the game launcher or the engine's core isn't beside the editor ({launcher})");
         }
@@ -58,27 +61,43 @@ internal sealed class Packager(Project project, GameBuilder builder, NativeBuild
                 return Failed([.. cooked?.Errors ?? ["the cook failed"]]);
             }
 
-            log($"Publishing {builder.AssemblyName} with .NET{(project.Build.ReadyToRun ? ", ReadyToRun" : "")}…");
-            GameBuild published = builder.Publish(data, project.Build.ReadyToRun);
-            if (!published.Succeeded)
+            string executable = builder.AssemblyName + (OperatingSystem.IsWindows() ? ".exe" : "");
+            if (aot)
             {
-                return Failed([.. published.Errors.Select(error => error.ToString())]);
+                if (LinkAot(Path.Combine(staging, executable)) is { } problems)
+                {
+                    return Failed(problems);
+                }
+            }
+            else
+            {
+                log($"Publishing {builder.AssemblyName} with .NET{(project.Build.ReadyToRun ? ", ReadyToRun" : "")}…");
+                GameBuild published = builder.Publish(data, project.Build.ReadyToRun);
+                if (!published.Succeeded)
+                {
+                    return Failed([.. published.Errors.Select(error => error.ToString())]);
+                }
             }
 
-            if (native is { HasCode: true })
+            if (!aot && native is { HasCode: true })
             {
                 File.Copy(native.OutputPath, Path.Combine(data, native.LibraryName + NativeBuilder.LibraryExtension));
             }
-            string executable = builder.AssemblyName + (OperatingSystem.IsWindows() ? ".exe" : "");
-            File.Copy(launcher, Path.Combine(staging, executable));
-            File.Copy(core, Path.Combine(staging, Path.GetFileName(core)));
+            if (!aot)
+            {
+                File.Copy(launcher, Path.Combine(staging, executable));
+                File.Copy(core!, Path.Combine(staging, Path.GetFileName(core!)));
+            }
             if (OperatingSystem.IsWindows())
             {
                 // The JIT launcher's nethost, and the Agility SDK's runtime,
                 // which D3D12 loads from D3D12 beside the executable; its
                 // debug layer stays out of packages.
                 string beside = Path.GetDirectoryName(launcher)!;
-                File.Copy(Path.Combine(beside, "nethost.dll"), Path.Combine(staging, "nethost.dll"));
+                if (!aot)
+                {
+                    File.Copy(Path.Combine(beside, "nethost.dll"), Path.Combine(staging, "nethost.dll"));
+                }
                 string agility = Path.Combine(beside, "D3D12", "D3D12Core.dll");
                 if (File.Exists(agility))
                 {
@@ -107,6 +126,32 @@ internal sealed class Packager(Project project, GameBuilder builder, NativeBuild
             errors.AddRange(problems);
             return new PackageResult(false, folder, errors, null, 0);
         }
+    }
+
+    // NativeAOT (ADR 0101): the game and engine compiled into a static
+    // library, then linked with the launcher, the core, and the game's C++
+    // module into the executable, copied to `executable` without its debug
+    // information, which stays in the Cache. The problems, if it failed.
+    private string[]? LinkAot(string executable)
+    {
+        if (native is null || native.ReadToolkit() is not { } toolkit)
+        {
+            return ["the module toolkit isn't beside the editor (CrucibleModule.json)"];
+        }
+        log($"Compiling {builder.AssemblyName} with NativeAOT…");
+        GameBuild compiled = builder.PublishAot(native.HasCode ? native.LibraryName : null, toolkit.AotInstructionSet);
+        if (!compiled.Succeeded)
+        {
+            return [.. compiled.Errors.Select(error => error.ToString())];
+        }
+        log($"Linking {Path.GetFileName(executable)}…");
+        GameBuild linked = native.LinkAot(builder.AssemblyName, compiled.Assembly!, builder.AotLinkInputs);
+        if (!linked.Succeeded)
+        {
+            return [.. linked.Errors.Select(error => error.ToString())];
+        }
+        File.Copy(linked.Assembly!, executable);
+        return null;
     }
 
     // Beside the launcher (where Windows keeps it), else where the engine's

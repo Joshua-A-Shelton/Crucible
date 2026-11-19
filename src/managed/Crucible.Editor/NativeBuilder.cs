@@ -161,6 +161,160 @@ public sealed partial class NativeBuilder
         return text.ToString();
     }
 
+    /// <summary>Where a NativeAOT executable is linked (ADR 0101): Cache/Build/Aot/Link.</summary>
+    public string AotFolder => Path.Combine(_project.CacheFolder, "Build", "Aot", "Link");
+
+    /// <summary>
+    /// The CMake project linking a game's NativeAOT executable (ADR 0101):
+    /// the AOT launcher's objects, the module's sources if it has any (with
+    /// their bindings and a file linking it in), the game's NativeAOT static
+    /// library and the runtime's libraries it lists, and the core's static
+    /// libraries. On Linux the debug information is moved to its own file.
+    /// </summary>
+    public string AotProjectText(ModuleToolkit toolkit, string executable, string gameLibrary, string linkInputs)
+    {
+        string native = Escape(_project.NativeFolder);
+        StringBuilder text = new();
+        text.Append("# Written by the Crucible editor (ADR 0101); rewritten before every build.\n");
+        text.Append("cmake_minimum_required(VERSION 3.25)\n");
+        // The static C runtime, as the engine's libraries are built (ADR 0031).
+        text.Append("set(CMAKE_MSVC_RUNTIME_LIBRARY MultiThreaded)\n");
+        text.Append($"project({executable}_Aot LANGUAGES CXX)\n\n");
+        text.Append($"add_executable({executable}");
+        foreach (string objectFile in toolkit.AotObjects ?? [])
+        {
+            text.Append($"\n    \"{Escape(objectFile)}\"");
+        }
+        text.Append(")\n");
+        if (HasCode)
+        {
+            text.Append($"file(GLOB_RECURSE sources CONFIGURE_DEPENDS \"{native}/*.cpp\")\n");
+            text.Append($"target_sources({executable} PRIVATE ${{sources}} \"${{CMAKE_CURRENT_SOURCE_DIR}}/LinkedModule.cpp\")\n");
+            string bindings = Path.Combine(Folder, "Bindings.g.cpp");
+            if (File.Exists(bindings))
+            {
+                text.Append($"target_sources({executable} PRIVATE \"{Escape(bindings)}\")\n");
+            }
+            text.Append($"target_include_directories({executable} PRIVATE \"{native}\"");
+            foreach (string directory in toolkit.IncludeDirectories)
+            {
+                text.Append($"\n    \"{Escape(directory)}\"");
+            }
+            text.Append(")\n");
+            if (toolkit.CompileDefinitions.Count > 0)
+            {
+                text.Append($"target_compile_definitions({executable} PRIVATE {string.Join(' ', toolkit.CompileDefinitions)})\n");
+            }
+            if (toolkit.CompileOptions.Count > 0)
+            {
+                text.Append($"target_compile_options({executable} PRIVATE {string.Join(' ', toolkit.CompileOptions)})\n");
+            }
+        }
+        text.Append($"set_target_properties({executable} PROPERTIES\n");
+        // Without the module's sources it's object files alone, which say no language.
+        text.Append("    CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON LINKER_LANGUAGE CXX\n");
+        text.Append("    RUNTIME_OUTPUT_DIRECTORY \"${CMAKE_CURRENT_SOURCE_DIR}/bin\")\n");
+        // The game first: it refers to the core and the runtime, which
+        // follow (static libraries resolve left to right). On Linux, one
+        // group, so their references to each other resolve in any order.
+        List<string> libraries = [$"\"{Escape(gameLibrary)}\"", .. (toolkit.AotLibraries ?? []).Select(library => $"\"{Escape(library)}\""),
+            $"\"LINKER:@{Escape(linkInputs)}\""];
+        bool group = !OperatingSystem.IsWindows();
+        text.Append($"target_link_libraries({executable} PRIVATE");
+        if (group)
+        {
+            text.Append("\n    -Wl,--start-group");
+        }
+        foreach (string library in libraries)
+        {
+            text.Append($"\n    {library}");
+        }
+        if (group)
+        {
+            text.Append("\n    -Wl,--end-group");
+        }
+        foreach (string library in toolkit.AotSystemLibraries ?? [])
+        {
+            text.Append($"\n    {library}");
+        }
+        text.Append(")\n");
+        if (!OperatingSystem.IsWindows())
+        {
+            // Its debug information beside it, for crash reports, not in
+            // the package (ADR 0101).
+            text.Append($"add_custom_command(TARGET {executable} POST_BUILD\n");
+            text.Append($"    COMMAND \"${{CMAKE_OBJCOPY}}\" --only-keep-debug \"$<TARGET_FILE:{executable}>\" \"$<TARGET_FILE:{executable}>.debug\"\n");
+            text.Append($"    COMMAND \"${{CMAKE_OBJCOPY}}\" --strip-debug \"--add-gnu-debuglink=$<TARGET_FILE:{executable}>.debug\" \"$<TARGET_FILE:{executable}>\"\n");
+            text.Append("    VERBATIM)\n");
+        }
+        return text.ToString();
+    }
+
+    /// <summary>
+    /// Links a game's NativeAOT executable (ADR 0101) from its static library
+    /// and the runtime's link inputs, waiting for it; the result's assembly is
+    /// the executable's path.
+    /// </summary>
+    public GameBuild LinkAot(string executable, string gameLibrary, string linkInputs)
+    {
+        if (ReadToolkit() is not { AotObjects.Count: > 0 } toolkit)
+        {
+            return new GameBuild(false, null,
+                [new BuildError("", 0, 0, $"no AOT launcher in the module toolkit at {_toolkitPath}: the engine's build writes it")], "");
+        }
+        Directory.CreateDirectory(AotFolder);
+        string projectFile = Path.Combine(AotFolder, "CMakeLists.txt");
+        string text = AotProjectText(toolkit, executable, gameLibrary, linkInputs);
+        if (!File.Exists(projectFile) || File.ReadAllText(projectFile) != text)
+        {
+            File.WriteAllText(projectFile, text);
+        }
+        if (HasCode)
+        {
+            string linked = $$"""
+                // Written by the Crucible editor (ADR 0101): the module linked into the
+                // NativeAOT executable, started where a loaded one would be.
+                #include <crucible/Module.h>
+
+                extern "C" bool crucibleModuleStart();
+                extern "C" void crucibleModuleStop();
+
+                namespace {
+                const bool linked = crucible::linkModule("{{LibraryName}}", &crucibleModuleStart, &crucibleModuleStop);
+                }
+
+                """;
+            string linkedFile = Path.Combine(AotFolder, "LinkedModule.cpp");
+            if (!File.Exists(linkedFile) || File.ReadAllText(linkedFile) != linked)
+            {
+                File.WriteAllText(linkedFile, linked);
+            }
+        }
+        string build = Path.Combine(AotFolder, "build");
+        string output = Path.Combine(AotFolder, "bin", executable + (OperatingSystem.IsWindows() ? ".exe" : ""));
+        StringBuilder log = new();
+        int code = 0;
+        if (!File.Exists(Path.Combine(build, "CMakeCache.txt")))
+        {
+            code = Run(toolkit, log, toolkit.Cmake, "-S", AotFolder, "-B", build, "-G", "Ninja",
+                $"-DCMAKE_MAKE_PROGRAM={toolkit.Ninja}", $"-DCMAKE_CXX_COMPILER={toolkit.CxxCompiler}",
+                $"-DCMAKE_BUILD_TYPE={toolkit.BuildType}");
+        }
+        if (code == 0)
+        {
+            code = Run(toolkit, log, toolkit.Cmake, "--build", build);
+        }
+        string all = log.ToString();
+        List<BuildError> errors = [.. Errors(all)];
+        bool built = code == 0 && File.Exists(output);
+        if (!built && errors.Count == 0)
+        {
+            string last = all.Split('\n').Select(line => line.Trim()).LastOrDefault(line => line.Length > 0) ?? "";
+            errors.Add(new BuildError("", 0, 0, $"linking the NativeAOT executable failed ({code}): {last}"));
+        }
+        return new GameBuild(built, built ? output : null, errors, all);
+    }
+
     // The module's C++ namespace for its exposed declarations: its project's name, lowercased.
     private string RootNamespace()
     {
@@ -269,7 +423,12 @@ public sealed partial class NativeBuilder
     private static string Escape(string path) => path.Replace('\\', '/');
 }
 
-/// <summary>What the engine's build records for building native modules (CrucibleModule.json, ADR 0074).</summary>
+/// <summary>
+/// What the engine's build records for building native modules
+/// (CrucibleModule.json, ADR 0074), and for linking a game's NativeAOT
+/// executable (ADR 0101): the AOT launcher's objects, the core's static
+/// libraries and the system's, and the NativeAOT compiler's instruction set.
+/// </summary>
 public sealed record ModuleToolkit(
     string Cmake,
     string Ninja,
@@ -284,7 +443,11 @@ public sealed record ModuleToolkit(
     string Dotnet,
     string Bindgen,
     string Libclang,
-    string Clang);
+    string Clang,
+    IReadOnlyList<string>? AotObjects = null,
+    IReadOnlyList<string>? AotLibraries = null,
+    IReadOnlyList<string>? AotSystemLibraries = null,
+    string AotInstructionSet = "");
 
 [System.Text.Json.Serialization.JsonSerializable(typeof(ModuleToolkit))]
 internal sealed partial class ModuleToolkitJson : System.Text.Json.Serialization.JsonSerializerContext;

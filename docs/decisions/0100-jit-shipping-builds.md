@@ -3,7 +3,8 @@
 **Status:** Accepted (2026-11-18); M10 step 3 built, then tried by hand by
 the owner (Build Settings… now brings an open window to the front). The
 design's names were settled before building; those added while building
-were settled by the owner as drafted (docs/naming.md).
+were settled by the owner as drafted (docs/naming.md). Packages moved to
+Build/<Platform>/JIT (and AOT) in ADR 0101.
 
 ## Context
 

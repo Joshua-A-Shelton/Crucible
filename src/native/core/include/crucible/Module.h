@@ -52,6 +52,16 @@ namespace crucible {
 // registered something). Loading a path again does nothing. Main thread.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<void> loadModule(std::string_view utf8Path);
 
+// A module linked into an AOT executable instead of loaded (ADR 0101): its
+// code generated beside it calls linkModule while the executable starts,
+// before main, and the launcher calls startLinkedModules where it would load
+// modules. The name stands in for a path (moduleCount, modulePath). At most
+// four; false if full. Allocates nothing.
+CRUCIBLE_EXPORT bool linkModule(const char* name, bool (*start)(), void (*stop)());
+
+// Starts the linked modules, as loadModule does a loaded one.
+CRUCIBLE_EXPORT Result<void> startLinkedModules();
+
 // Calls every loaded module's crucibleModuleStop, newest first, before the
 // engine shuts down. The libraries stay loaded.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void stopModules();

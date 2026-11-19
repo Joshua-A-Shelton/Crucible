@@ -175,6 +175,102 @@ public sealed partial class GameBuilder
         return RunDotnet(["publish", PackageProjectFile, "-c", "Release", "-o", folder], assembly);
     }
 
+    /// <summary>Where a NativeAOT build happens (ADR 0101): Cache/Build/Aot.</summary>
+    public string AotFolder => Path.Combine(_project.CacheFolder, "Build", "Aot");
+
+    /// <summary>The NativeAOT project (ADR 0101): Cache/Build/Aot/&lt;Project&gt;.csproj.</summary>
+    public string AotProjectFile => Path.Combine(AotFolder, AssemblyName + ".csproj");
+
+    /// <summary>The runtime's libraries a NativeAOT build lists for the link (ADR 0101).</summary>
+    public string AotLinkInputs => Path.Combine(AotFolder, "link.rsp");
+
+    /// <summary>
+    /// The NativeAOT project's text (ADR 0101): the game's code and a
+    /// bootstrap handing the engine its assembly, compiled with the engine
+    /// into one static library that calls the core and the game's C++ module
+    /// directly (<paramref name="module"/>, if it has one).
+    /// </summary>
+    public string AotProjectText(string? module, string instructionSet)
+    {
+        string text = ProjectText(package: true, readyToRun: false);
+        // Not self-contained .NET but NativeAOT: the same project otherwise.
+        text = text.Replace("    <PublishReadyToRun>false</PublishReadyToRun>\n", "", StringComparison.Ordinal)
+            .Replace("    <SelfContained>true</SelfContained>\n", "", StringComparison.Ordinal)
+            .Replace("    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>\n", "", StringComparison.Ordinal)
+            .Replace("    <UseAppHost>false</UseAppHost>\n", "", StringComparison.Ordinal);
+        StringBuilder aot = new();
+        aot.Append("    <PublishAot>true</PublishAot>\n");
+        aot.Append("    <NativeLib>Static</NativeLib>\n");
+        if (instructionSet.Length > 0)
+        {
+            aot.Append($"    <IlcInstructionSet>{instructionSet}</IlcInstructionSet>\n");
+        }
+        text = text.Replace("  </PropertyGroup>\n", aot + "  </PropertyGroup>\n", StringComparison.Ordinal);
+        StringBuilder items = new();
+        items.Append($"    <Compile Include=\"{Escape(Path.Combine(AotFolder, "Bootstrap.g.cs"))}\" />\n");
+        items.Append("    <DirectPInvoke Include=\"Crucible.Core\" />\n");
+        // The engine's entry, crucible_engine_run, which the launcher calls:
+        // NativeAOT exports only the published assembly's unless told.
+        items.Append("    <UnmanagedEntryPointsAssembly Include=\"Crucible.Engine\" />\n");
+        // Nothing outside the game refers to it, so it's kept whole: its
+        // bootstrap, and the systems and components its attributes name.
+        items.Append($"    <TrimmerRootAssembly Include=\"{AssemblyName}\" />\n");
+        if (module is not null)
+        {
+            items.Append($"    <DirectPInvoke Include=\"{module}\" />\n");
+        }
+        text = text.Replace("  </ItemGroup>\n", items + "  </ItemGroup>\n", StringComparison.Ordinal);
+        // The runtime's support libraries, which the final link needs: NativeAOT
+        // knows them, so it writes them out (as Directory.Build.targets does
+        // for the engine's own AOT launcher).
+        string linkInputs = Escape(AotLinkInputs);
+        text = text.Replace("</Project>", $$"""
+              <Target Name="CrucibleWriteNativeLinkInputs" AfterTargets="SetupOSSpecificProps">
+                <ItemGroup Condition="'$(OS)' != 'Windows_NT'">
+                  <_CrucibleLinkInput Include="@(NativeLibrary->'%(FullPath)')" />
+                  <_CrucibleLinkInput Include="@(NativeSystemLibrary->'-l%(Identity)')" />
+                </ItemGroup>
+                <ItemGroup Condition="'$(OS)' == 'Windows_NT'">
+                  <_CrucibleLinkInput Include="@(NativeLibrary->'&quot;%(FullPath)&quot;')" />
+                  <_CrucibleLinkInput Include="@(SdkNativeLibrary)" />
+                </ItemGroup>
+                <WriteLinesToFile File="{{linkInputs}}" Lines="@(_CrucibleLinkInput)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+              </Target>
+            </Project>
+            """, StringComparison.Ordinal);
+        return text;
+    }
+
+    /// <summary>
+    /// Compiles the game and the engine with NativeAOT into a static library
+    /// (ADR 0101), waiting for it; the result's assembly is the library's path.
+    /// </summary>
+    public GameBuild PublishAot(string? module, string instructionSet)
+    {
+        _running?.Wait();
+        _running = null;
+        Directory.CreateDirectory(AotFolder);
+        File.WriteAllText(AotProjectFile, AotProjectText(module, instructionSet));
+        File.WriteAllText(Path.Combine(AotFolder, "Bootstrap.g.cs"), """
+            // Written by the Crucible editor (ADR 0101): hands the engine this
+            // game, compiled into its NativeAOT executable, before it starts.
+            namespace Crucible.Generated;
+
+            internal static class CompiledInGame
+            {
+            #pragma warning disable CA2255 // A module initializer is the point: it runs before the engine's entry.
+                [global::System.Runtime.CompilerServices.ModuleInitializer]
+                internal static void Register() =>
+                    global::Crucible.Hosting.GameLoader.CompiledIn = typeof(CompiledInGame).Assembly;
+            #pragma warning restore CA2255
+            }
+
+            """);
+        string publish = Path.Combine(AotFolder, "publish");
+        string library = Path.Combine(publish, AssemblyName + (OperatingSystem.IsWindows() ? ".lib" : ".a"));
+        return RunDotnet(["publish", AotProjectFile, "-c", "Release", "-o", publish], library);
+    }
+
     private GameBuild RunBuild() => RunDotnet(["build", ProjectFile], OutputPath);
 
     private static GameBuild RunDotnet(string[] command, string result)

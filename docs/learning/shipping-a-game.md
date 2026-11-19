@@ -1,7 +1,8 @@
 # Shipping a game
 
-A learning note for M10 step 3 (ADR 0100): turning a project into a folder
-a player can run, with .NET inside it.
+A learning note for M10 steps 3 and 4 (ADR 0100, 0101): turning a project
+into a folder a player can run, with .NET inside it, or compiled into one
+executable.
 
 ## What a player gets
 
@@ -65,9 +66,35 @@ into a collectible context, which the editor needs so a game can be
 unloaded for hot reload, or loaded from bytes in memory, runs on the JIT
 alone. A package never reloads its game, so it loads it the ordinary way.
 
-NativeAOT (step 4) goes further: everything compiled ahead, no JIT at all,
-one executable. It's faster to start and smaller, but nothing can be
-loaded at run time, so no mods.
+## NativeAOT: one executable
+
+NativeAOT (step 4) goes further: everything compiled ahead, no JIT at all.
+The game, the engine, and the parts of .NET they use become machine code in
+one executable, with the C++ launcher and core linked in beside them. It
+starts faster and is far smaller than a package carrying the runtime (the
+Walker is one 24 MB file even from a debug build), but nothing can be
+loaded at run time, so no mods. Crucible lets each game choose.
+
+Compiling ahead means the compiler must know every piece of code that can
+ever run. It starts from the entry points and keeps what they reach, and
+drops the rest ("trimming"). That's why Crucible's C# avoids reflection it
+can't see through: a type created from a name found at run time would have
+been dropped. It also surprised this step twice. The game was dropped
+whole, because nothing the compiler started from refers to it (the engine
+finds its game at run time), so the game's assembly is named as a root to
+keep. And the engine's entry point wasn't exported, because NativeAOT
+exports only the entry points of the project being built unless told.
+
+How does an engine compiled ahead find a game it never refers to? A
+*bootstrap*: a few lines the editor adds to the game's build, a module
+initializer, which .NET runs when the program starts, before anything
+else. It hands the engine the game's assembly, and the engine reads the
+game's systems and components from it as it does for a loaded game.
+
+A C++ module can't be loaded as a library here: it would bring its own
+copy of the core, and the executable already has one. So its code is
+compiled into the executable too, and a generated line registers its
+start function to be called where a loaded module's would be.
 
 ## Making the folder safely
 

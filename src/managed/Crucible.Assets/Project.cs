@@ -28,8 +28,21 @@ public partial class BuildSettings
     /// </summary>
     public List<string> Include = [];
 
-    /// <summary>Whether a package's assemblies are precompiled with ReadyToRun (ADR 0001, 0100).</summary>
+    /// <summary>Whether a package's assemblies are precompiled with ReadyToRun (ADR 0001, 0100); JIT only.</summary>
     public bool ReadyToRun = true;
+
+    /// <summary>How a package runs its C# (ADR 0001, 0101): on .NET's JIT, or compiled ahead with NativeAOT.</summary>
+    public PackageRuntime Runtime = PackageRuntime.Jit;
+}
+
+/// <summary>A package's runtime (ADR 0001, 0101).</summary>
+public enum PackageRuntime
+{
+    /// <summary>.NET with its JIT, shipped in the package: loads mods.</summary>
+    Jit,
+
+    /// <summary>Compiled ahead with NativeAOT into one executable: no mods.</summary>
+    NativeAot,
 }
 
 /// <summary>
@@ -61,10 +74,12 @@ public sealed class Project
     public BuildSettings Build { get; private set; }
 
     /// <summary>
-    /// The folder Build writes the package to (ADR 0100): <c>Build/Linux</c>
-    /// or <c>Build/Windows</c> in the project, for the platform it runs on.
+    /// The folder Build writes the package to (ADR 0100, 0101):
+    /// <c>Build/Linux/JIT</c>, <c>Build/Windows/AOT</c>, and so on in the
+    /// project, for the platform it runs on and the build settings' runtime.
     /// </summary>
-    public string PackageFolder => Path.Combine(Root, "Build", OperatingSystem.IsWindows() ? "Windows" : "Linux");
+    public string PackageFolder => Path.Combine(Root, "Build", OperatingSystem.IsWindows() ? "Windows" : "Linux",
+        Build.Runtime == PackageRuntime.NativeAot ? "AOT" : "JIT");
 
     /// <summary>Where a package keeps its archive, assemblies, and runtime: its <c>Data</c> folder.</summary>
     public string PackageDataFolder => Path.Combine(PackageFolder, "Data");

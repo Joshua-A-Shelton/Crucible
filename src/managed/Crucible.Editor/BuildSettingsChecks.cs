@@ -8,14 +8,14 @@ using V = Crucible.Editor.ViewportChecks;
 namespace Crucible.Editor;
 
 /// <summary>
-/// The Build Settings window checking itself (ADR 0098, 0100), for CTest's
+/// The Build Settings window checking itself (ADR 0098, 0100, 0101), for CTest's
 /// launcher.jit.build-settings: run with the Walker's project and
 /// <c>--game-arg check-build-settings=&lt;folder&gt;</c>. On a copy of the
 /// project (in the folder): the Level scene's row; a scene added from the
 /// drop-down, moved down and up, and removed; a folder dragged from the
 /// Assets panel and an asset picked into Always Include; ReadyToRun turned
-/// off and on; a build, and its line. The window is saved as
-/// build-settings.png.
+/// off and on; the runtime set to NativeAOT and back; a build, and its
+/// line. The window is saved as build-settings.png.
 /// </summary>
 [System(Phases.RenderPrepare)]
 internal sealed class BuildSettingsChecks : GameSystem
@@ -183,6 +183,21 @@ internal sealed class BuildSettingsChecks : GameSystem
         V.Click(root, V.Center(panel.ReadyToRunToggle));
         yield return 2;
         Check(Project.Open(projectFile).Build.ReadyToRun, "and on again");
+
+        // Runtime (ADR 0101): JIT by default; NativeAOT is saved, greys out
+        // ReadyToRun, and moves the package to its own folder.
+        Check(panel.RuntimeChoice.SelectedIndex == 0, "the runtime is JIT by default");
+        panel.RuntimeChoice.SelectedIndex = 1;
+        yield return 2;
+        Project aot = Project.Open(projectFile);
+        Check(aot.Build.Runtime == PackageRuntime.NativeAot && !panel.ReadyToRunToggle.IsEnabled &&
+              aot.PackageFolder.EndsWith(Path.Combine("Build", OperatingSystem.IsWindows() ? "Windows" : "Linux", "AOT"),
+                  StringComparison.Ordinal),
+            "choosing NativeAOT is saved, greys out ReadyToRun, and builds into AOT", aot.PackageFolder);
+        panel.RuntimeChoice.SelectedIndex = 0;
+        yield return 2;
+        Check(Project.Open(projectFile).Build.Runtime == PackageRuntime.Jit && panel.ReadyToRunToggle.IsEnabled,
+            "and JIT again");
 
         // Build, and its line (ADR 0100).
         V.Click(root, V.Center(panel.BuildButton));

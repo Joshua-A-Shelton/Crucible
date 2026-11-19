@@ -196,11 +196,15 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   `CrucibleEditor`, and `CrucibleLauncherAot`; CMake's targets keep
   `crucible_core` and the like (ADR 0100).
 - **Shipping** (ADR 0100): the editor's Build (headless `--build
-  <folder>`) builds the code, cooks, and packages into Build/<Platform>:
+  <folder>`) builds the code, cooks, and packages into
+  Build/<Platform>/JIT or /AOT, as the Build settings' `Runtime` says. JIT:
   the launcher named after the game and the core at the top; in `Data/`
   the game's `<Project>.dll`, its `<Project>.Core` module, `Game.crpak`,
   the engine's assemblies, and a self-contained .NET runtime, ReadyToRun
-  unless the Build settings turn it off.
+  unless the Build settings turn it off. NativeAOT (ADR 0101): one
+  executable (launcher, core, engine, game, and its C++ module linked in)
+  and `Data/Game.crpak`; NativeAOT makes a static library and the editor
+  links it with the toolkit's AOT launcher objects and core libraries.
 - **Hot-reload rule** (ADR 0011): native code holds references only into
   the engine's C# layer, never into game or plugin assemblies. Native code
   identifies game objects by IDs, not `GCHandle`s.

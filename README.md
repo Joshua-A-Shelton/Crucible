@@ -179,6 +179,7 @@ Longer explanations of decisions, written to be reread:
   publishing on the main thread, loading the next scene while the game
   runs, knowing a scene's needs ahead, and checking a new asset source
   changes nothing.
-- [Shipping a game](docs/learning/shipping-a-game.md) (ADR 0100): what a
-  player gets, bringing the .NET runtime along, ReadyToRun, making the
-  folder safely, and checking a package away from the build.
+- [Shipping a game](docs/learning/shipping-a-game.md) (ADR 0100, 0101):
+  what a player gets, bringing the .NET runtime along, ReadyToRun, one
+  executable with NativeAOT and what it keeps, making the folder safely,
+  and checking a package away from the build.

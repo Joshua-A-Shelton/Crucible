@@ -49,6 +49,31 @@ Modules& modules()
     return instance;
 }
 
+// Filled before main by static initializers, so a plain array: no
+// allocator, no constructor to run in some order.
+struct LinkedModule
+{
+    const char* name;
+    StartFunction start;
+    StopFunction stop;
+};
+constexpr uint32_t maxLinkedModules = 4;
+LinkedModule linkedModules[maxLinkedModules];
+uint32_t linkedModuleCount = 0;
+
+Result<void> startModule(StartFunction startFunction, std::string_view name)
+{
+    loop::markModuleSystems(true);
+    const bool started = startFunction();
+    loop::markModuleSystems(false);
+    if (!started)
+    {
+        log::error("%.*s failed to start", static_cast<int>(name.size()), name.data());
+        return Status::InvalidData;
+    }
+    return {};
+}
+
 std::string_view viewOf(const Vector<char>& text)
 {
     return {text.data(), text.size()};
@@ -108,22 +133,42 @@ Result<void> loadModule(std::string_view utf8Path)
     LoadedModule& module = state.loaded.emplaceBack();
     module.path.assign(std::span<const char>(utf8Path.data(), utf8Path.size()));
     module.library = library;
-    auto start = reinterpret_cast<StartFunction>(symbol(library, "crucibleModuleStart"));
+    auto startFunction = reinterpret_cast<StartFunction>(symbol(library, "crucibleModuleStart"));
     module.stop = reinterpret_cast<StopFunction>(symbol(library, "crucibleModuleStop"));
-    if (start == nullptr || module.stop == nullptr)
+    if (startFunction == nullptr || module.stop == nullptr)
     {
         log::warning("%.*s has no crucibleModuleStart or crucibleModuleStop", static_cast<int>(utf8Path.size()),
                      utf8Path.data());
         module.stop = nullptr;
         return Status::InvalidData;
     }
-    loop::markModuleSystems(true);
-    const bool started = start();
-    loop::markModuleSystems(false);
-    if (!started)
+    return startModule(startFunction, utf8Path);
+}
+
+bool linkModule(const char* name, bool (*startFunction)(), void (*stop)())
+{
+    if (linkedModuleCount == maxLinkedModules)
     {
-        log::error("%.*s failed to start", static_cast<int>(utf8Path.size()), utf8Path.data());
-        return Status::InvalidData;
+        return false;
+    }
+    linkedModules[linkedModuleCount++] = {name, startFunction, stop};
+    return true;
+}
+
+Result<void> startLinkedModules()
+{
+    Modules& state = modules();
+    std::lock_guard lock(state.mutex);
+    for (uint32_t i = 0; i < linkedModuleCount; ++i)
+    {
+        const std::string_view name = linkedModules[i].name;
+        LoadedModule& module = state.loaded.emplaceBack();
+        module.path.assign(std::span<const char>(name.data(), name.size()));
+        module.stop = linkedModules[i].stop;
+        if (Result<void> started = startModule(linkedModules[i].start, name); !started)
+        {
+            return started;
+        }
     }
     return {};
 }

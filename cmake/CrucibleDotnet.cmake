@@ -64,6 +64,26 @@ if(WIN32)
 else()
     set(_crucible_core_system_libraries "<NativeSystemLibrary Include=\"stdc++\" />")
 endif()
+# The core's static libraries in link order, and the system libraries they
+# need beyond what NativeAOT links: for AOT test executables (below) and for
+# a game's NativeAOT executable, which the editor links (ADR 0101).
+set(CRUCIBLE_AOT_NATIVE_LIBRARIES
+    "$<TARGET_LINKER_FILE:crucible_core_static>"
+    "$<TARGET_LINKER_FILE:slag_rendergraph>"
+    "$<TARGET_LINKER_FILE:slag>"
+    "$<TARGET_LINKER_FILE:SDL3-static>"
+    "$<TARGET_LINKER_FILE:libzstd_static>"
+    "$<TARGET_LINKER_FILE:crucible_stb_vorbis>"
+    "$<TARGET_LINKER_FILE:box3d>"
+    "$<TARGET_LINKER_FILE:box2d>"
+    "$<TARGET_LINKER_FILE:crucible_harfbuzz>"
+    "$<TARGET_LINKER_FILE:crucible_msdfgen>"
+    "$<TARGET_LINKER_FILE:freetype>")
+if(WIN32)
+    set(CRUCIBLE_AOT_SYSTEM_LIBRARIES d3d12.lib dxgi.lib setupapi.lib winmm.lib imm32.lib version.lib gdi32.lib shell32.lib)
+else()
+    set(CRUCIBLE_AOT_SYSTEM_LIBRARIES m dl)
+endif()
 file(GENERATE OUTPUT "${CRUCIBLE_NATIVE_PROPS}" CONTENT "<Project>
   <ItemGroup Condition=\"'$(PublishAot)' == 'true'\">
     <DirectPInvoke Include=\"Crucible.Core\" />

@@ -80,6 +80,13 @@ else()
     set(crucibleModuleEnvironment "")
 endif()
 set(crucibleModuleIncludes "$<TARGET_PROPERTY:crucible_core,INTERFACE_INCLUDE_DIRECTORIES>")
+# And what it needs to link a game's NativeAOT executable (ADR 0101): the
+# AOT launcher's objects, the core's static libraries and the system's, in
+# link order, and the instruction set the NativeAOT compiler targets.
+set(crucibleAotInstructionSet "")
+if(CRUCIBLE_X64)
+    set(crucibleAotInstructionSet "x86-64-${CRUCIBLE_X86_LEVEL}")
+endif()
 set(crucibleModuleCoreDefinitions "$<TARGET_PROPERTY:crucible_core,INTERFACE_COMPILE_DEFINITIONS>")
 file(GENERATE OUTPUT "$<TARGET_FILE_DIR:crucible_launcher>/CrucibleModule.json" CONTENT "{
   \"Cmake\": \"${CMAKE_COMMAND}\",
@@ -95,19 +102,34 @@ file(GENERATE OUTPUT "$<TARGET_FILE_DIR:crucible_launcher>/CrucibleModule.json" 
   \"Dotnet\": \"${DOTNET_EXECUTABLE}\",
   \"Bindgen\": \"${CRUCIBLE_BINDGEN_DLL}\",
   \"Libclang\": \"${CRUCIBLE_LIBCLANG}\",
-  \"Clang\": \"${CRUCIBLE_CLANG}\"
+  \"Clang\": \"${CRUCIBLE_CLANG}\",
+  \"AotObjects\": [\"$<JOIN:$<TARGET_OBJECTS:crucible_launcher_aot_objects>,\"$<COMMA> \">\"],
+  \"AotLibraries\": [\"$<JOIN:${CRUCIBLE_AOT_NATIVE_LIBRARIES},\"$<COMMA> \">\"],
+  \"AotSystemLibraries\": [\"$<JOIN:${CRUCIBLE_AOT_SYSTEM_LIBRARIES},\"$<COMMA> \">\"],
+  \"AotInstructionSet\": \"${crucibleAotInstructionSet}\"
 }
 ")
 
-if(CRUCIBLE_BUILD_AOT)
-    add_executable(crucible_launcher_aot
-        CpuCheck.cpp
-        Main.cpp
-        AotHost.cpp)
+# The AOT launcher's code as object files, for the AOT launcher and for the
+# editor to link into a game's NativeAOT executable (ADR 0101), with the
+# Agility SDK's exports, which must be in the executable itself.
+add_library(crucible_launcher_aot_objects OBJECT
+    CpuCheck.cpp
+    Main.cpp
+    AotHost.cpp)
+crucible_set_compile_options(crucible_launcher_aot_objects)
+target_link_libraries(crucible_launcher_aot_objects PRIVATE crucible::core_static)
+if(WIN32 AND CRUCIBLE_AGILITY_SDK_VERSION)
+    target_sources(crucible_launcher_aot_objects PRIVATE D3D12Agility.cpp)
+    target_compile_definitions(crucible_launcher_aot_objects PRIVATE
+        CRUCIBLE_AGILITY_SDK_VERSION=${CRUCIBLE_AGILITY_SDK_VERSION})
+endif()
+# Built with the editor, which links them into AOT packages.
+add_dependencies(crucible_editor crucible_launcher_aot_objects crucible_core_static)
 
-    crucible_set_compile_options(crucible_launcher_aot)
+if(CRUCIBLE_BUILD_AOT)
+    add_executable(crucible_launcher_aot $<TARGET_OBJECTS:crucible_launcher_aot_objects>)
     set_target_properties(crucible_launcher_aot PROPERTIES OUTPUT_NAME CrucibleLauncherAot)
-    target_include_directories(crucible_launcher_aot PRIVATE "${PROJECT_SOURCE_DIR}/src/native/core/include")
 
     # Static libraries resolve left to right: the engine refers to the core
     # (its LibraryImport calls became direct references) and to the .NET
@@ -116,7 +138,9 @@ if(CRUCIBLE_BUILD_AOT)
         "${CRUCIBLE_ENGINE_AOT_LIBRARY}"
         crucible::core_static
         "LINKER:@${CRUCIBLE_ENGINE_AOT_LINK_INPUTS}")
-    crucible_use_d3d12_agility(crucible_launcher_aot)
+    if(WIN32 AND CRUCIBLE_AGILITY_SDK_VERSION)
+        slag_copy_agility_runtime(crucible_launcher_aot)
+    endif()
     add_dependencies(crucible_launcher_aot crucible_engine_aot)
     set_property(TARGET crucible_launcher_aot APPEND PROPERTY LINK_DEPENDS
         "${CRUCIBLE_ENGINE_AOT_LIBRARY}" "${CRUCIBLE_ENGINE_AOT_LINK_INPUTS}")
@@ -379,16 +403,43 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "LevelChecks: all [0-9]+ checks passed")
 
-    # A package from the command line (ADR 0100): the editor's --build makes
-    # the Walker's package, which runs from a copy elsewhere, as a player's
-    # would, with no options and no .NET but its own.
+    # Packages from the command line (ADR 0100, 0101): the editor's --build
+    # makes a copy of a project's package, which runs from a copy elsewhere,
+    # as a player's would, with no options and no .NET but its own (JIT) or
+    # none (NativeAOT). The Walker in both runtimes; the Diorama, which has a
+    # C++ module, as NativeAOT, its module linked in.
+    set(packageGame "${PROJECT_SOURCE_DIR}/tests/packaging/package_game.cmake")
+    set(walkerLevel 28fe2d80-33ef-4ee4-a409-cc43b935bcc6)
     add_test(NAME samples.walker-package
         COMMAND "${CMAKE_COMMAND}" "-DEDITOR=$<TARGET_FILE:crucible_editor>" "-DENGINE=${engineDirectory}"
-            "-DPROJECT=${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject"
-            "-DOUT=${CMAKE_CURRENT_BINARY_DIR}/walker-package" -P "${PROJECT_SOURCE_DIR}/samples/Walker/package_walker.cmake")
+            "-DPROJECT=${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject" -DGAME=Walker
+            -DSCENE=${walkerLevel} -DASSETS=8 -DENTITIES=12 -DRUNTIME=Jit
+            "-DOUT=${CMAKE_CURRENT_BINARY_DIR}/walker-package" -P "${packageGame}")
     set_tests_properties(samples.walker-package PROPERTIES LABELS "integration;gpu" TIMEOUT 600
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
-        PASS_REGULAR_EXPRESSION "package_walker: the Walker's package ran from elsewhere")
+        PASS_REGULAR_EXPRESSION "package_game: the Walker package \\(Jit\\) ran from elsewhere")
+    if(CRUCIBLE_BUILD_AOT)
+        add_test(NAME samples.walker-package-aot
+            COMMAND "${CMAKE_COMMAND}" "-DEDITOR=$<TARGET_FILE:crucible_editor>" "-DENGINE=${engineDirectory}"
+                "-DPROJECT=${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject" -DGAME=Walker
+                -DSCENE=${walkerLevel} -DASSETS=8 -DENTITIES=12 -DRUNTIME=NativeAot
+                "-DOUT=${CMAKE_CURRENT_BINARY_DIR}/walker-package-aot" -P "${packageGame}")
+        add_test(NAME samples.diorama-package-aot
+            COMMAND "${CMAKE_COMMAND}" "-DEDITOR=$<TARGET_FILE:crucible_editor>" "-DENGINE=${engineDirectory}"
+                "-DPROJECT=${PROJECT_SOURCE_DIR}/samples/Diorama/Project/Diorama.crproject" -DGAME=Diorama
+                -DSCENE=6ea19c76-2e22-4a7a-be4d-df460ee6ee56 -DASSETS=8 -DENTITIES=25 -DRUNTIME=NativeAot
+                "-DOUT=${CMAKE_CURRENT_BINARY_DIR}/diorama-package-aot" -P "${packageGame}")
+        set_tests_properties(samples.walker-package-aot samples.diorama-package-aot PROPERTIES
+            LABELS "integration;gpu;aot" TIMEOUT 900 ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen")
+        set_tests_properties(samples.walker-package-aot PROPERTIES
+            PASS_REGULAR_EXPRESSION "package_game: the Walker package \\(NativeAot\\) ran from elsewhere")
+        set_tests_properties(samples.diorama-package-aot PROPERTIES
+            PASS_REGULAR_EXPRESSION "package_game: the Diorama package \\(NativeAot\\) ran from elsewhere")
+        # They copy the samples' projects, Caches included, which other
+        # tests build into.
+        set_tests_properties(samples.walker-package-aot PROPERTIES RESOURCE_LOCK walker-project-cache)
+        set_tests_properties(samples.diorama-package-aot PROPERTIES RESOURCE_LOCK diorama-project-cache)
+    endif()
 
     # The Build Settings window checking itself (ADR 0098, 0100): on a copy
     # of the Walker's project (in the test's folder), scenes added from the

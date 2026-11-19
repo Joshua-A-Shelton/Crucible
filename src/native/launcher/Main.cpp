@@ -318,18 +318,20 @@ int run(int argc, ArgumentChar** argv)
         crucible::setGamePath({reinterpret_cast<const char*>(utf8.data()), utf8.size()});
     }
 #else
-    // A package (ADR 0100): Data beside the executable holds the engine's
-    // assemblies and its own .NET runtime, and the game named after the
-    // executable: Walker runs Data/Walker.dll, its C++ module
-    // Data/Walker.Core if it has one, and Data/Game.crpak.
+    // A package (ADR 0100, 0101): Data beside the executable holds the
+    // archive, Data/Game.crpak, and for a JIT game the engine's assemblies,
+    // its own .NET runtime, and the game named after the executable: Walker
+    // runs Data/Walker.dll and its C++ module Data/Walker.Core if it has one.
     const std::filesystem::path data = executableDirectory() / "Data";
     if (!managedGiven && std::filesystem::is_directory(data, error))
     {
         const std::filesystem::path name = executablePath().stem();
         managedDirectory = data;
-        if (!gameGiven)
+        // A NativeAOT package has its game compiled in, so no assembly.
+        const std::filesystem::path game = data / (name.native() + CRUCIBLE_ARGUMENT(".dll"));
+        if (!gameGiven && std::filesystem::exists(game, error))
         {
-            application = data / (name.native() + CRUCIBLE_ARGUMENT(".dll"));
+            application = game;
             const std::u8string utf8 = application.u8string();
             crucible::setGamePath({reinterpret_cast<const char*>(utf8.data()), utf8.size()});
         }
@@ -389,6 +391,14 @@ int run(int argc, ArgumentChar** argv)
         return 1;
     }
 
+    // A NativeAOT game's C++ module, linked in (ADR 0101), then any loaded.
+    if (!crucible::startLinkedModules())
+    {
+        crucible::render::shutdown();
+        crucible::jobs::shutdown();
+        crucible::platform::shutdown();
+        return 1;
+    }
     for (const std::u8string& module : modules)
     {
         if (!crucible::loadModule({reinterpret_cast<const char*>(module.data()), module.size()}))

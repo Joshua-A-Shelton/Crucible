@@ -48,6 +48,20 @@ public static class GameLoader
     }
 
     /// <summary>
+    /// A NativeAOT package's game, compiled into the executable (ADR 0101):
+    /// set before the engine starts by the bootstrap generated into it.
+    /// </summary>
+    public static Assembly? CompiledIn { get; set; }
+
+    /// <summary>
+    /// The compiled-in game's entry and registrations, read from its
+    /// assembly's attributes as a loaded game's are (ADR 0011's generated
+    /// bootstrap): safe under NativeAOT, which keeps what they name.
+    /// </summary>
+    public static LoadedGame LoadCompiledIn(Assembly assembly) =>
+        new(AssemblyLoadContext.Default, CreateEntry(assembly), CreateRegistrations(assembly), DriverOf(assembly));
+
+    /// <summary>
     /// Whether <paramref name="path"/> is one of the assemblies the runtime
     /// was started with: a package's game, not one to load for hot reload.
     /// </summary>
@@ -107,7 +121,8 @@ public static class GameLoader
         return 0;
     }
 
-    [RequiresUnreferencedCode(JitOnly)]
+    // Each attribute's type is annotated, so these keep working under
+    // NativeAOT (LoadCompiledIn).
     private static IGameEntry? CreateEntry(Assembly assembly) =>
         assembly.GetCustomAttribute<GameEntryAttribute>() is { } attribute
             ? (IGameEntry)(Activator.CreateInstance(attribute.EntryType) ??
@@ -115,14 +130,12 @@ public static class GameLoader
             : null;
 
     // The generated registrations (ADR 0036, 0041) the game has.
-    [RequiresUnreferencedCode(JitOnly)]
     private static Registrations CreateRegistrations(Assembly assembly) => new(
         Create<ISystemRegistration>(assembly.GetCustomAttribute<SystemRegistrationAttribute>()?.RegistrationType),
         Create<IComponentRegistration>(assembly.GetCustomAttribute<ComponentRegistrationAttribute>()?.RegistrationType),
         Create<IServiceRegistration>(assembly.GetCustomAttribute<ServiceRegistrationAttribute>()?.RegistrationType));
 
     // The game's own loop driver (ADR 0076), if it names one.
-    [RequiresUnreferencedCode(JitOnly)]
     [return: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
     private static Type? DriverOf(Assembly assembly) => assembly.GetCustomAttribute<LoopDriverAttribute>()?.DriverType;
 

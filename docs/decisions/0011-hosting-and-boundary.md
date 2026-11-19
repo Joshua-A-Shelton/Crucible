@@ -1,7 +1,8 @@
 # 0011 — Hosting and the C#↔C++ boundary
 
 **Status:** Accepted (2026-10-25). Amended 2026-10-26 (M2): launch
-options.
+options. The AOT bootstrap was built in ADR 0101: a module initializer
+the editor writes into a game's NativeAOT build.
 
 ## Context
 

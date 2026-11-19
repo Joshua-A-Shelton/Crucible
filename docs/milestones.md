@@ -983,6 +983,17 @@ decision made at its start):
      of the package, kept beside it for crash reports.
    - Checked by a CTest that builds the Walker as NativeAOT, copies it
      elsewhere, and runs it headless with no options.
+
+   Step 4 built (ADR 0101): the Build settings' Runtime chooses JIT or
+   NativeAOT, packaged into Build/<Platform>/JIT or AOT. NativeAOT compiles
+   the game and engine into a static library, which a CMake project the
+   editor writes links with the AOT launcher's objects, the core's static
+   libraries, and the game's C++ module into one executable (a change from
+   the design's custom-main link: the path `CrucibleLauncherAot` already
+   used). A module initializer the editor writes hands the engine the
+   compiled-in game. CTests samples.walker-package-aot and
+   samples.diorama-package-aot (its C++ module linked in) run copies from
+   elsewhere. Awaiting the owner's try by hand.
 5. The demonstration: the Walker (its Level scene the root) packaged in
    both modes, run from its archives, checked headless, then tried by
    hand.

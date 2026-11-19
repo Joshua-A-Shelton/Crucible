@@ -19,6 +19,7 @@ public sealed class BuildSettingsPanel : EditorPanel
     private readonly Label _where = new() { Wrap = true };
     private readonly Label _lastBuild = new() { Wrap = true };
     private readonly Toggle _readyToRun = new("Precompile (ReadyToRun)");
+    private readonly ComboBox _runtime = new() { Options = ["JIT (allows mods)", "NativeAOT (one executable, no mods)"] };
     private bool _refreshing;
     private Project? _shown;
 
@@ -31,6 +32,13 @@ public sealed class BuildSettingsPanel : EditorPanel
         BuildButton = new Button("Build") { HorizontalAlignment = HorizontalAlignment.Start };
         BuildButton.Classes.Add("primary");
         BuildButton.Clicked += _ => _shell.Build();
+        _runtime.SelectionChanged += box =>
+        {
+            if (!_refreshing && box.SelectedIndex >= 0)
+            {
+                Change(build => build.Runtime = box.SelectedIndex == 1 ? PackageRuntime.NativeAot : PackageRuntime.Jit);
+            }
+        };
         _readyToRun.Changed += toggle =>
         {
             if (!_refreshing)
@@ -46,7 +54,7 @@ public sealed class BuildSettingsPanel : EditorPanel
         page.Add(ScenesCard);
         page.Add(IncludeCard);
         page.Add(new BuildCard("Build", "Builds the code, cooks, and packages the game with .NET for this platform.",
-            [_readyToRun, _where, _lastBuild, BuildButton], null, null));
+            [RuntimeRow(), _readyToRun, _where, _lastBuild, BuildButton], null, null));
         AddChild(new ScrollView { Content = page, Padding = new Thickness(8, 8, 8, 8) });
         Refresh();
     }
@@ -91,7 +99,11 @@ public sealed class BuildSettingsPanel : EditorPanel
         }
         _refreshing = true;
         _readyToRun.IsOn = build.ReadyToRun;
+        _runtime.SelectedIndex = build.Runtime == PackageRuntime.NativeAot ? 1 : 0;
         _refreshing = false;
+        // ReadyToRun is the JIT's: NativeAOT compiles everything ahead anyway.
+        _readyToRun.State = (_readyToRun.State & ~UIState.Disabled) |
+                            (build.Runtime == PackageRuntime.Jit ? 0 : UIState.Disabled);
         _where.Text = $"Writes the package to {Path.GetRelativePath(project.Root, project.PackageFolder).Replace('\\', '/')}.";
         if (_shell.LastBuild is { } last)
         {
@@ -115,6 +127,19 @@ public sealed class BuildSettingsPanel : EditorPanel
     internal Button BuildButton { get; }
 
     internal Toggle ReadyToRunToggle => _readyToRun;
+
+    internal ComboBox RuntimeChoice => _runtime;
+
+    // "Runtime" beside its drop-down.
+    private DockPanel RuntimeRow()
+    {
+        DockPanel row = new();
+        Label label = new("Runtime") { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
+        DockPanel.SetDock(label, Dock.Left);
+        row.Add(label);
+        row.Add(_runtime);
+        return row;
+    }
 
     internal UIElement ScenesCard { get; }
 
@@ -233,6 +258,7 @@ public sealed class BuildSettingsPanel : EditorPanel
             Scenes = [.. project.Build.Scenes],
             Include = [.. project.Build.Include],
             ReadyToRun = project.Build.ReadyToRun,
+            Runtime = project.Build.Runtime,
         };
         change(build);
         project.SaveBuild(build);

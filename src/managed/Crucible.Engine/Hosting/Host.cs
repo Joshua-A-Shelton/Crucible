@@ -212,6 +212,12 @@ public static class Host
     private static LoadedGame? LoadGame()
     {
         string path = Api.GamePath();
+        // A NativeAOT package's game, compiled in (ADR 0101).
+        if (path.Length == 0 && GameLoader.CompiledIn is { } compiledIn)
+        {
+            Console.WriteLine($"Crucible.Hosting: {compiledIn.GetName().Name} compiled in");
+            return GameLoader.LoadCompiledIn(compiledIn);
+        }
         if (path.Length == 0)
         {
             return null;
