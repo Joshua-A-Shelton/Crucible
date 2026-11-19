@@ -1085,6 +1085,27 @@ composites over a 3D scene.
 
 **Decides:** the pixel-art path details.
 
+**Steps** (agreed with the owner, 2026-11-18; one commit each, each step's
+decisions made at its start):
+
+1. Sprites: a sprite component (texture, the region shown, pivot, tint,
+   flip) and a 2D render step drawing them in batches, sorted by layer,
+   order in layer, and optionally y; a 2D camera.
+2. Pixel-perfect camera: drawing at a virtual resolution, scaling up by
+   whole pixels or with a sharp scaler, pixel snapping, and compositing
+   over (or under) the 3D frame.
+3. Frame animation: sprite sheets cut into frames, clips of frames with
+   their timing, and a component that plays them.
+4. Tilemaps: tilesets, a tilemap component drawn in chunks, collision
+   built from tiles (Box2D chains), and painting in the editor (a tile
+   palette and brushes: paint, erase, fill). Importing levels made
+   elsewhere (LDtk) comes later (open items).
+5. 2D lighting: lights for sprites and tiles within the pixel-art look.
+6. The demonstration: a small playable scene, a pixel-art character moved
+   around a tilemap with Box2D physics, animated and lit, over a 3D
+   background; pixel-exact at several window sizes; checked headless,
+   then tried by hand.
+
 ## After M11: an engine review
 
 Asked for by the owner (2026-11-18), before any game is built: some parts

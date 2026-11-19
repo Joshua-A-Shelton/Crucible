@@ -68,6 +68,9 @@ is, and record which version fixed it.
   blend parameters and two-number positions; what's left is a weighting
   function (a triangulation or gradient bands) returning up to three
   weighted clips, and lifting the importer's refusal.
+- Tilemap imports (M11 step 4): M11 paints tilemaps in the editor; the
+  owner asked to come back to importing levels made in other tools (LDtk,
+  MIT; Tiled's JSON) afterwards. → M11
 
 ## Small editor fixes noticed in M7 (ADR 0077)
 
