@@ -1019,6 +1019,35 @@ decision made at its start):
    NativeAOT package, the post is hit 116.457 ms into the Strike window and
    the Walker arrives at 34.900 s in each. Awaiting the owner's try by hand
    on Linux and Windows.
+6. Logging and shipping builds (added 2026-11-18, after the owner's try of
+   step 5 found packaged games' output went nowhere).
+
+   Step 6 designed (2026-11-18, names settled before building):
+   - **A Shipping configuration,** like Unreal's: a CMake preset
+     `shipping` (option `CRUCIBLE_SHIPPING`, symbol `CRUCIBLE_SHIPPING` in
+     C++ and C#) builds what packages contain (the core, the launcher and
+     its AOT objects, the engine's assemblies) with Info messages compiled
+     out; warnings and errors stay. The editor finds it in build/shipping
+     beside its own build folder (`CRUCIBLE_SHIPPING_DIR` points
+     elsewhere); Build says which folder to build if it's missing.
+   - **Shipping or Development packages:** the project file's Build
+     section `Configuration`, `Shipping` (the default) or `Development`
+     (every message, from the editor's own build, as packages were);
+     Build Settings' "Configuration" drop-down, "Shipping" and
+     "Development (every message)". Development packages go to
+     Build/<Platform>/JIT-Development and AOT-Development. Game code is
+     compiled with `CRUCIBLE_SHIPPING` in Shipping packages, so its Info
+     calls go too.
+   - **C# logs into the core's log:** `Log.Info`, `Log.Warning`,
+     `Log.Error` in `Crucible.Diagnostics`, one stream with C++'s (levels,
+     sinks, the editor's Log panel). `Console` output is caught into it as
+     Info (and `Console.Error` as Error); the engine's and the Walker's own
+     Console calls move to the API.
+   - **Where messages go:** standard error (and output) as now, and in a
+     package a log file in the player's data folder (~/.local/share/<Game>/,
+     %LOCALAPPDATA%\<Game>\): `<Game>.log`, the run before kept as
+     `<Game>-previous.log`, written only once something is logged.
+   - ADR 0103 "Logging and shipping builds".
 
 ## M11 — Pixel-art 2D path
 
