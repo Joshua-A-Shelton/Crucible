@@ -71,6 +71,10 @@ is, and record which version fixed it.
 - Tilemap imports (M11 step 4): M11 paints tilemaps in the editor; the
   owner asked to come back to importing levels made in other tools (LDtk,
   MIT; Tiled's JSON) afterwards. → M11
+- Try `Behind3D` by hand (M11 step 2): the owner tried the pixel camera
+  except sorting layers drawn behind the 3D, to try once sorting layers
+  can be set from the editor (they're edited in the project file for now,
+  like physics layers). → 0106
 
 ## Small editor fixes noticed in M7 (ADR 0077)
 

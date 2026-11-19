@@ -1176,7 +1176,9 @@ Step 2 built (ADR 0106): through a `PixelCamera`, sprites are drawn into
 images at its resolution (behind the 3D and in front), snapped, and scaled
 up over the finished image, Sharp or Exact; behind-layers show where the
 3D's depth is empty. A surface with its own camera draws directly. Native
-tests on every backend; C# tests. Awaiting the owner's try by hand.
+tests on every backend; C# tests. Tried by hand by the owner, all but
+`Behind3D`, which waits until sorting layers can be set from the editor
+(open items).
 
 ## After M11: importing by dropping files
 
