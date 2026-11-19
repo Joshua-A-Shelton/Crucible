@@ -8,6 +8,7 @@
 
 #include <crucible/Jobs.h>
 #include <crucible/Launch.h>
+#include <crucible/Log.h>
 #include <crucible/Module.h>
 #include <crucible/Platform.h>
 #include <crucible/Render.h>
@@ -89,6 +90,23 @@ std::filesystem::path executablePath()
 std::filesystem::path executableDirectory()
 {
     return executablePath().parent_path();
+}
+
+// Where a game keeps its player's files (ADR 0103): %LOCALAPPDATA% on
+// Windows, $XDG_DATA_HOME or ~/.local/share elsewhere; empty if unknown.
+[[maybe_unused]] std::filesystem::path playerDataFolder()
+{
+#if defined(_WIN32)
+    const wchar_t* local = _wgetenv(L"LOCALAPPDATA");
+    return local != nullptr && *local != 0 ? std::filesystem::path(local) : std::filesystem::path();
+#else
+    if (const char* data = std::getenv("XDG_DATA_HOME"); data != nullptr && *data == '/')
+    {
+        return data;
+    }
+    const char* home = std::getenv("HOME");
+    return home != nullptr && *home != 0 ? std::filesystem::path(home) / ".local" / "share" : std::filesystem::path();
+#endif
 }
 
 [[maybe_unused]] void addPathArgument(std::u8string_view key, const std::filesystem::path& path)
@@ -343,6 +361,15 @@ int run(int argc, ArgumentChar** argv)
         if (!assetsGiven && std::filesystem::exists(data / "Game.crpak", error))
         {
             addPathArgument(u8"archive=", data / "Game.crpak");
+        }
+        // Its log file, in the player's data folder (ADR 0103).
+        if (const std::filesystem::path folder = playerDataFolder(); !folder.empty())
+        {
+            const std::filesystem::path game = folder / name;
+            const std::u8string log = (game / (name.native() + CRUCIBLE_ARGUMENT(".log"))).u8string();
+            const std::u8string previous = (game / (name.native() + CRUCIBLE_ARGUMENT("-previous.log"))).u8string();
+            crucible::log::setLogFile({reinterpret_cast<const char*>(log.data()), log.size()},
+                                      {reinterpret_cast<const char*>(previous.data()), previous.size()});
         }
     }
 #endif

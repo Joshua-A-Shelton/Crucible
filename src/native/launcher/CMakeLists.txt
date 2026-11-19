@@ -79,6 +79,24 @@ else()
     set(crucibleModuleDefinitions "")
     set(crucibleModuleEnvironment "")
 endif()
+if(CRUCIBLE_SHIPPING)
+    # A Shipping build's modules compile information messages out too (ADR 0103).
+    if(crucibleModuleDefinitions)
+        string(APPEND crucibleModuleDefinitions ", ")
+    endif()
+    string(APPEND crucibleModuleDefinitions "\"CRUCIBLE_SHIPPING\"")
+endif()
+# Whether there are any, as one word: the list has commas, which a
+# generator expression would read as arguments.
+if(crucibleModuleDefinitions)
+    set(crucibleHasModuleDefinitions 1)
+else()
+    set(crucibleHasModuleDefinitions 0)
+endif()
+# Where the shipping preset's build is (ADR 0103): build/shipping beside this
+# build's folder unless set; packages made Shipping come from it.
+set(CRUCIBLE_SHIPPING_DIR "${CMAKE_BINARY_DIR}/../shipping" CACHE PATH "The shipping preset's build folder, for Shipping packages")
+cmake_path(ABSOLUTE_PATH CRUCIBLE_SHIPPING_DIR NORMALIZE OUTPUT_VARIABLE crucibleShippingDir)
 set(crucibleModuleIncludes "$<TARGET_PROPERTY:crucible_core,INTERFACE_INCLUDE_DIRECTORIES>")
 # And what it needs to link a game's NativeAOT executable (ADR 0101): the
 # AOT launcher's objects, the core's static libraries and the system's, in
@@ -95,7 +113,7 @@ file(GENERATE OUTPUT "$<TARGET_FILE_DIR:crucible_launcher>/CrucibleModule.json" 
   \"Environment\": \"${crucibleModuleEnvironment}\",
   \"BuildType\": \"$<CONFIG>\",
   \"IncludeDirectories\": [\"$<JOIN:$<REMOVE_DUPLICATES:${crucibleModuleIncludes}>,\"$<COMMA> \">\"],
-  \"CompileDefinitions\": [${crucibleModuleDefinitions}$<$<AND:$<BOOL:${crucibleModuleDefinitions}>,$<BOOL:${crucibleModuleCoreDefinitions}>>:$<COMMA> >$<$<BOOL:${crucibleModuleCoreDefinitions}>:\"$<JOIN:${crucibleModuleCoreDefinitions},\"$<COMMA> \">\">],
+  \"CompileDefinitions\": [${crucibleModuleDefinitions}$<$<AND:$<BOOL:${crucibleHasModuleDefinitions}>,$<BOOL:${crucibleModuleCoreDefinitions}>>:$<COMMA> >$<$<BOOL:${crucibleModuleCoreDefinitions}>:\"$<JOIN:${crucibleModuleCoreDefinitions},\"$<COMMA> \">\">],
   \"CompileOptions\": [${crucibleModuleOptions}],
   \"CoreLibrary\": \"$<TARGET_LINKER_FILE:crucible_core>\",
   \"CoreHeaders\": \"${PROJECT_SOURCE_DIR}/src/native/core/include/crucible\",
@@ -106,7 +124,12 @@ file(GENERATE OUTPUT "$<TARGET_FILE_DIR:crucible_launcher>/CrucibleModule.json" 
   \"AotObjects\": [\"$<JOIN:$<TARGET_OBJECTS:crucible_launcher_aot_objects>,\"$<COMMA> \">\"],
   \"AotLibraries\": [\"$<JOIN:${CRUCIBLE_AOT_NATIVE_LIBRARIES},\"$<COMMA> \">\"],
   \"AotSystemLibraries\": [\"$<JOIN:${CRUCIBLE_AOT_SYSTEM_LIBRARIES},\"$<COMMA> \">\"],
-  \"AotInstructionSet\": \"${crucibleAotInstructionSet}\"
+  \"AotInstructionSet\": \"${crucibleAotInstructionSet}\",
+  \"Launcher\": \"$<TARGET_FILE:crucible_launcher>\",
+  \"CoreRuntime\": \"$<TARGET_FILE:crucible_core>\",
+  \"EngineDirectory\": \"${CRUCIBLE_DOTNET_ARTIFACTS_DIR}/bin/Crucible.Engine/${CRUCIBLE_DOTNET_CONFIGURATION_DIR}\",
+  \"Shipping\": $<IF:$<BOOL:${CRUCIBLE_SHIPPING}>,true,false>,
+  \"ShippingToolkit\": \"${crucibleShippingDir}/src/native/launcher/CrucibleModule.json\"
 }
 ")
 
@@ -415,41 +438,47 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "LevelChecks: all [0-9]+ checks passed")
 
-    # Packages from the command line (ADR 0100, 0101): the editor's --build
-    # makes a copy of a project's package, which runs from a copy elsewhere,
-    # as a player's would, with no options and no .NET but its own (JIT) or
-    # none (NativeAOT). The Walker in both runtimes; the Diorama, which has a
-    # C++ module, as NativeAOT, its module linked in.
+    # Packages from the command line (ADR 0100, 0101, 0103): the editor's
+    # --build makes a copy of a project's package, which runs from a copy
+    # elsewhere, as a player's would, with no options and no .NET but its own
+    # (JIT) or none (NativeAOT). Development packages: the Walker in both
+    # runtimes and the Diorama, which has a C++ module, as NativeAOT, its
+    # module linked in; each logs to its file. Shipping packages of the
+    # Walker in both runtimes, from the shipping preset's build (skipped
+    # without it), print no information.
     set(packageGame "${PROJECT_SOURCE_DIR}/tests/packaging/package_game.cmake")
     set(walkerLevel 28fe2d80-33ef-4ee4-a409-cc43b935bcc6)
-    add_test(NAME samples.walker-package
-        COMMAND "${CMAKE_COMMAND}" "-DEDITOR=$<TARGET_FILE:crucible_editor>" "-DENGINE=${engineDirectory}"
-            "-DPROJECT=${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject" -DGAME=Walker
-            -DSCENE=${walkerLevel} -DASSETS=8 -DENTITIES=12 -DRUNTIME=Jit
-            "-DOUT=${CMAKE_CURRENT_BINARY_DIR}/walker-package" -P "${packageGame}")
-    set_tests_properties(samples.walker-package PROPERTIES LABELS "integration;gpu" TIMEOUT 600
-        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
-        PASS_REGULAR_EXPRESSION "package_game: the Walker package \\(Jit\\) ran from elsewhere")
+    function(crucible_add_package_test name project game scene assets entities runtime configuration)
+        add_test(NAME ${name}
+            COMMAND "${CMAKE_COMMAND}" "-DEDITOR=$<TARGET_FILE:crucible_editor>" "-DENGINE=${engineDirectory}"
+                "-DPROJECT=${project}" -DGAME=${game} -DSCENE=${scene} -DASSETS=${assets} -DENTITIES=${entities}
+                -DRUNTIME=${runtime} -DCONFIGURATION=${configuration}
+                "-DSHIPPING_TOOLKIT=${crucibleShippingDir}/src/native/launcher/CrucibleModule.json"
+                "-DOUT=${CMAKE_CURRENT_BINARY_DIR}/${name}" -P "${packageGame}")
+        set(labels "integration;gpu")
+        if(runtime STREQUAL "NativeAot")
+            set(labels "integration;gpu;aot")
+        endif()
+        set_tests_properties(${name} PROPERTIES LABELS "${labels}" TIMEOUT 900 SKIP_RETURN_CODE 77
+            ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+            PASS_REGULAR_EXPRESSION "package_game: the ${game} package \\(${runtime}, ${configuration}\\) ran from elsewhere")
+    endfunction()
+    set(walkerProject "${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject")
+    crucible_add_package_test(samples.walker-package "${walkerProject}" Walker ${walkerLevel} 8 12 Jit Development)
+    crucible_add_package_test(samples.walker-package-shipping "${walkerProject}" Walker ${walkerLevel} 8 12 Jit Shipping)
+    set_tests_properties(samples.walker-package samples.walker-package-shipping PROPERTIES RESOURCE_LOCK walker-project-cache)
     if(CRUCIBLE_BUILD_AOT)
-        add_test(NAME samples.walker-package-aot
-            COMMAND "${CMAKE_COMMAND}" "-DEDITOR=$<TARGET_FILE:crucible_editor>" "-DENGINE=${engineDirectory}"
-                "-DPROJECT=${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject" -DGAME=Walker
-                -DSCENE=${walkerLevel} -DASSETS=8 -DENTITIES=12 -DRUNTIME=NativeAot
-                "-DOUT=${CMAKE_CURRENT_BINARY_DIR}/walker-package-aot" -P "${packageGame}")
-        add_test(NAME samples.diorama-package-aot
-            COMMAND "${CMAKE_COMMAND}" "-DEDITOR=$<TARGET_FILE:crucible_editor>" "-DENGINE=${engineDirectory}"
-                "-DPROJECT=${PROJECT_SOURCE_DIR}/samples/Diorama/Project/Diorama.crproject" -DGAME=Diorama
-                -DSCENE=6ea19c76-2e22-4a7a-be4d-df460ee6ee56 -DASSETS=8 -DENTITIES=25 -DRUNTIME=NativeAot
-                "-DOUT=${CMAKE_CURRENT_BINARY_DIR}/diorama-package-aot" -P "${packageGame}")
-        set_tests_properties(samples.walker-package-aot samples.diorama-package-aot PROPERTIES
-            LABELS "integration;gpu;aot" TIMEOUT 900 ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen")
-        set_tests_properties(samples.walker-package-aot PROPERTIES
-            PASS_REGULAR_EXPRESSION "package_game: the Walker package \\(NativeAot\\) ran from elsewhere")
-        set_tests_properties(samples.diorama-package-aot PROPERTIES
-            PASS_REGULAR_EXPRESSION "package_game: the Diorama package \\(NativeAot\\) ran from elsewhere")
+        crucible_add_package_test(samples.walker-package-aot "${walkerProject}" Walker ${walkerLevel} 8 12
+            NativeAot Development)
+        crucible_add_package_test(samples.walker-package-aot-shipping "${walkerProject}" Walker ${walkerLevel} 8 12
+            NativeAot Shipping)
+        crucible_add_package_test(samples.diorama-package-aot
+            "${PROJECT_SOURCE_DIR}/samples/Diorama/Project/Diorama.crproject" Diorama
+            6ea19c76-2e22-4a7a-be4d-df460ee6ee56 8 25 NativeAot Development)
         # They copy the samples' projects, Caches included, which other
         # tests build into.
-        set_tests_properties(samples.walker-package-aot PROPERTIES RESOURCE_LOCK walker-project-cache)
+        set_tests_properties(samples.walker-package-aot samples.walker-package-aot-shipping PROPERTIES
+            RESOURCE_LOCK walker-project-cache)
         set_tests_properties(samples.diorama-package-aot PROPERTIES RESOURCE_LOCK diorama-project-cache)
     endif()
 

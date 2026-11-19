@@ -1,18 +1,28 @@
-# A game packaged (ADR 0100, 0101): a copy of its project set to build the
-# scene with the runtime given, made by the editor's --build, then copied
-# somewhere else and run as a player would, with no options and with no .NET
-# to find but its own (JIT) or none at all (NativeAOT).
+# A game packaged (ADR 0100, 0101, 0103): a copy of its project set to build
+# the scene with the runtime and configuration given, made by the editor's
+# --build, then copied somewhere else and run as a player would, with no
+# options and with no .NET to find but its own (JIT) or none at all
+# (NativeAOT). A Development package logs everything, to its log file too;
+# a Shipping one, made from the shipping preset's build, nothing but
+# warnings and errors. Without that build, a Shipping test is skipped
+# (exit code 77).
 #
 #   cmake -DEDITOR=<CrucibleEditor> -DENGINE=<engine assemblies>
 #         -DPROJECT=<game.crproject> -DGAME=<name> -DSCENE=<scene ID>
 #         -DASSETS=<assets cooked> -DENTITIES=<entities at the top>
-#         -DRUNTIME=Jit|NativeAot -DOUT=<folder> -P package_game.cmake
+#         -DRUNTIME=Jit|NativeAot -DCONFIGURATION=Development|Shipping
+#         [-DSHIPPING_TOOLKIT=<the shipping build's CrucibleModule.json>]
+#         -DOUT=<folder> -P package_game.cmake
 
-foreach(variable EDITOR ENGINE PROJECT GAME SCENE ASSETS ENTITIES RUNTIME OUT)
+foreach(variable EDITOR ENGINE PROJECT GAME SCENE ASSETS ENTITIES RUNTIME CONFIGURATION OUT)
     if(NOT ${variable})
         message(FATAL_ERROR "package_game: ${variable} is required")
     endif()
 endforeach()
+if(CONFIGURATION STREQUAL "Shipping" AND NOT EXISTS "${SHIPPING_TOOLKIT}")
+    message("package_game: skipped: the shipping preset isn't built (no ${SHIPPING_TOOLKIT})")
+    cmake_language(EXIT 77)
+endif()
 
 file(REMOVE_RECURSE "${OUT}")
 file(MAKE_DIRECTORY "${OUT}")
@@ -23,7 +33,7 @@ get_filename_component(projectFile "${PROJECT}" NAME)
 file(COPY "${projectFolder}/" DESTINATION "${OUT}/project")
 file(REMOVE_RECURSE "${OUT}/project/Build" "${OUT}/project/Cache/Build")
 file(READ "${OUT}/project/${projectFile}" settings)
-string(JSON settings SET "${settings}" Build "{\"Scenes\": [\"${SCENE}\"], \"Include\": [], \"Runtime\": \"${RUNTIME}\"}")
+string(JSON settings SET "${settings}" Build "{\"Scenes\": [\"${SCENE}\"], \"Include\": [], \"Runtime\": \"${RUNTIME}\", \"Configuration\": \"${CONFIGURATION}\"}")
 file(WRITE "${OUT}/project/${projectFile}" "${settings}")
 
 set(package "${OUT}/package")
@@ -98,29 +108,54 @@ else()
 endif()
 
 # Somewhere else, under a name with a space, with no .NET on the PATH and
-# nothing pointing at one.
+# nothing pointing at one, and the player's data folder (for the log file)
+# in the test's folder.
 set(elsewhere "${OUT}/elsewhere/${GAME} Game")
 file(COPY "${package}/" DESTINATION "${elsewhere}")
+set(playerData "${OUT}/player data")
 if(WIN32)
     set(path "C:\\Windows\\System32;C:\\Windows")
+    set(dataVariable "LOCALAPPDATA=${playerData}")
 else()
     set(path "/usr/bin:/bin")
+    set(dataVariable "XDG_DATA_HOME=${playerData}")
 endif()
-execute_process(
-    COMMAND "${CMAKE_COMMAND}" -E env --unset=DOTNET_ROOT --unset=LD_LIBRARY_PATH "PATH=${path}"
-        "${elsewhere}/${executable}" --headless --frames 120
-    WORKING_DIRECTORY "${OUT}"
-    OUTPUT_VARIABLE ran ERROR_VARIABLE ran RESULT_VARIABLE result)
-message("${ran}")
-foreach(expected "${loaded}" "reading ${ASSETS} assets from Game.crpak"
-        "opened ${SCENE}: ${ENTITIES} entities at the top" "ran 120 frames")
-    string(FIND "${ran}" "${expected}" at)
-    if(at EQUAL -1)
-        message(FATAL_ERROR "package_game: the packaged ${GAME} didn't print \"${expected}\"")
+set(logFile "${playerData}/${GAME}/${GAME}.log")
+foreach(run 1 2)
+    execute_process(
+        COMMAND "${CMAKE_COMMAND}" -E env --unset=DOTNET_ROOT --unset=LD_LIBRARY_PATH "PATH=${path}" "${dataVariable}"
+            "${elsewhere}/${executable}" --headless --frames 120
+        WORKING_DIRECTORY "${OUT}"
+        OUTPUT_VARIABLE ran ERROR_VARIABLE ran RESULT_VARIABLE result)
+    message("${ran}")
+    # A component nothing registered means the game, or its C++ module, didn't start.
+    if(NOT result EQUAL 0 OR ran MATCHES "unhandled exception|nothing registered")
+        message(FATAL_ERROR "package_game: the packaged ${GAME} failed (${result})")
     endif()
 endforeach()
-# A component nothing registered means the game, or its C++ module, didn't start.
-if(NOT result EQUAL 0 OR ran MATCHES "unhandled exception|nothing registered")
-    message(FATAL_ERROR "package_game: the packaged ${GAME} failed (${result})")
+
+if(CONFIGURATION STREQUAL "Development")
+    # Everything printed, and the same in the log file, the run before kept.
+    file(READ "${logFile}" logged)
+    foreach(expected "${loaded}" "reading ${ASSETS} assets from Game.crpak"
+            "opened ${SCENE}: ${ENTITIES} entities at the top" "ran 120 frames")
+        string(FIND "${ran}" "${expected}" printed)
+        string(FIND "${logged}" "${expected}" written)
+        if(printed EQUAL -1 OR written EQUAL -1)
+            message(FATAL_ERROR "package_game: the packaged ${GAME} didn't print and log \"${expected}\"")
+        endif()
+    endforeach()
+    if(NOT EXISTS "${playerData}/${GAME}/${GAME}-previous.log")
+        message(FATAL_ERROR "package_game: the run before's log wasn't kept as ${GAME}-previous.log")
+    endif()
+else()
+    # Information compiled out: the engine's and the game's alike, so a clean
+    # run leaves no log file.
+    if(ran MATCHES "Crucible\\.Hosting:|${GAME}\\.")
+        message(FATAL_ERROR "package_game: the Shipping ${GAME} printed information")
+    endif()
+    if(EXISTS "${logFile}")
+        message(FATAL_ERROR "package_game: a clean Shipping run wrote ${logFile}")
+    endif()
 endif()
-message("package_game: the ${GAME} package (${RUNTIME}) ran from elsewhere")
+message("package_game: the ${GAME} package (${RUNTIME}, ${CONFIGURATION}) ran from elsewhere")

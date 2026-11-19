@@ -8,13 +8,14 @@ using V = Crucible.Editor.ViewportChecks;
 namespace Crucible.Editor;
 
 /// <summary>
-/// The Build Settings window checking itself (ADR 0098, 0100, 0101), for CTest's
+/// The Build Settings window checking itself (ADR 0098, 0100, 0101, 0103), for CTest's
 /// launcher.jit.build-settings: run with the Walker's project and
 /// <c>--game-arg check-build-settings=&lt;folder&gt;</c>. On a copy of the
 /// project (in the folder): the Level scene's row; a scene added from the
 /// drop-down, moved down and up, and removed; a folder dragged from the
 /// Assets panel and an asset picked into Always Include; ReadyToRun turned
-/// off and on; the runtime set to NativeAOT and back; a build, and its
+/// off and on; the runtime set to NativeAOT and back; the configuration to
+/// Shipping and back to Development; a (Development) build, and its
 /// line. The window is saved as build-settings.png.
 /// </summary>
 [System(Phases.RenderPrepare)]
@@ -77,7 +78,12 @@ internal sealed class BuildSettingsChecks : GameSystem
         AssetChecks.CopyProject(source, copy);
         string projectFile = Path.Combine(copy, Path.GetFileName(shell.Project!.ProjectFilePath));
         // Known settings, whatever the sources' say: the Level scene alone.
-        Project.Open(projectFile).SaveBuild(new BuildSettings { Scenes = [AssetId.Parse("28fe2d80-33ef-4ee4-a409-cc43b935bcc6")] });
+        Project.Open(projectFile).SaveBuild(new BuildSettings
+        {
+            Scenes = [AssetId.Parse("28fe2d80-33ef-4ee4-a409-cc43b935bcc6")],
+            // From the editor's own build: the shipping preset's may not be built.
+            Configuration = PackageConfiguration.Development,
+        });
         shell.OpenProject(projectFile);
         shell.OpenScene(Path.Combine(copy, "Assets", "Scenes", "Level.crscene"));
         shell.RestoreLayout(null);
@@ -191,15 +197,37 @@ internal sealed class BuildSettingsChecks : GameSystem
         yield return 2;
         Project aot = Project.Open(projectFile);
         Check(aot.Build.Runtime == PackageRuntime.NativeAot && !panel.ReadyToRunToggle.IsEnabled &&
-              aot.PackageFolder.EndsWith(Path.Combine("Build", OperatingSystem.IsWindows() ? "Windows" : "Linux", "AOT"),
+              aot.PackageFolder.EndsWith(Path.Combine("Build", OperatingSystem.IsWindows() ? "Windows" : "Linux", "AOT-Development"),
                   StringComparison.Ordinal),
-            "choosing NativeAOT is saved, greys out ReadyToRun, and builds into AOT", aot.PackageFolder);
+            "choosing NativeAOT is saved, greys out ReadyToRun, and builds into AOT(-Development)", aot.PackageFolder);
         panel.RuntimeChoice.SelectedIndex = 0;
         yield return 2;
         Check(Project.Open(projectFile).Build.Runtime == PackageRuntime.Jit && panel.ReadyToRunToggle.IsEnabled,
             "and JIT again");
 
-        // Build, and its line (ADR 0100).
+        // Configuration (ADR 0103): Shipping is saved and builds into the
+        // runtime's own folder; Development (as set above) into -Development.
+        Check(panel.ConfigurationChoice.SelectedIndex == 1, "the configuration shows Development");
+        panel.ConfigurationChoice.SelectedIndex = 0;
+        yield return 2;
+        Project shipping = Project.Open(projectFile);
+        Check(shipping.Build.Configuration == PackageConfiguration.Shipping &&
+              Path.GetFileName(shipping.PackageFolder) == "JIT", "choosing Shipping is saved and builds into JIT",
+            shipping.PackageFolder);
+        panel.ConfigurationChoice.SelectedIndex = 1;
+        yield return 2;
+        Check(Path.GetFileName(Project.Open(projectFile).PackageFolder) == "JIT-Development", "and Development into JIT-Development");
+
+        // Build, and its line (ADR 0100), scrolled into view below the card's
+        // choices.
+        for (UIElement? at = panel.BuildButton.Parent; at is not null; at = at.Parent)
+        {
+            if (at is ScrollView view)
+            {
+                view.ScrollIntoView(panel.BuildButton.Bounds);
+            }
+        }
+        yield return 2;
         V.Click(root, V.Center(panel.BuildButton));
         yield return 2;
         Check(panel.LastBuildLine.Text.StartsWith("Last build: 8 assets, ", StringComparison.Ordinal), "a build shows its line",

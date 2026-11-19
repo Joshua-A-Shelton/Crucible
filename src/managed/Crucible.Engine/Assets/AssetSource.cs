@@ -70,7 +70,7 @@ public static unsafe class AssetSource
         }
         catch (Exception exception)
         {
-            Console.Error.WriteLine($"crucible: the asset source failed for {*id}: {exception.Message}");
+            Diagnostics.Log.Error($"crucible: the asset source failed for {*id}: {exception.Message}");
             return -1;
         }
         if (bytes is null)

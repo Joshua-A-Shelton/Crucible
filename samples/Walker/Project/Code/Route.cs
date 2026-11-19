@@ -1,5 +1,6 @@
 using System.Numerics;
 using Crucible.Animation;
+using Crucible.Diagnostics;
 using Crucible.Ecs;
 using Crucible.Loop;
 using Crucible.Scenes;
@@ -134,7 +135,7 @@ public sealed class RouteSystem : GameSystem
         World world = context.World;
         foreach ((Entity entity, Progress progress) in _progress)
         {
-            Console.WriteLine(FormattableString.Invariant(
+            Log.Info(FormattableString.Invariant(
                 $"Walker.Route: {NameOf(world, entity)} reached {progress.Reached} of {progress.Count} waypoints, ") +
                 (progress.ArrivedAt >= 0 ? FormattableString.Invariant($"arriving at {progress.ArrivedAt:0.000} s") : "not arriving") +
                 FormattableString.Invariant($"; lowest at {progress.Lowest:0.000} m; {_clamped} frames clamped"));

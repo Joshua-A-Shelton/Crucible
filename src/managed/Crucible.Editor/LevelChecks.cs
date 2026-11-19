@@ -136,6 +136,8 @@ internal sealed partial class LevelChecks : GameSystem
                 {
                     Scenes = [Assets.AssetId.Parse("28fe2d80-33ef-4ee4-a409-cc43b935bcc6")],
                     Runtime = runtime,
+                    // Every message kept, as the check reads the game's.
+                    Configuration = Assets.PackageConfiguration.Development,
                 });
                 shell.OpenProject(projectFile);
                 shell.OpenScene(Path.Combine(copy, "Assets", "Scenes", "Level.crscene"));

@@ -1,6 +1,6 @@
 # Shipping a game
 
-A learning note for M10 steps 3 to 5 (ADR 0100 to 0102): turning a project
+A learning note for M10 steps 3 to 6 (ADR 0100 to 0103): turning a project
 into a folder a player can run, with .NET inside it, or compiled into one
 executable.
 
@@ -95,6 +95,36 @@ A C++ module can't be loaded as a library here: it would bring its own
 copy of the core, and the executable already has one. So its code is
 compiled into the executable too, and a generated line registers its
 start function to be called where a loaded module's would be.
+
+## Logs in a shipped game
+
+While a game is being made, its messages are how you see what it's doing.
+A shipped game is different: no one reads its console (on Windows there
+isn't one), and every message costs something, formatting a string and
+writing it, for nobody.
+
+Engines answer this differently. Unreal compiles most logging out of its
+Shipping builds, so those calls don't exist in the game a player runs.
+Unity and Godot keep logging and write it to a file in the player's data
+folder, the file a player attaches when they report a bug.
+
+Crucible does both, by level. A Shipping build compiles information
+messages out entirely, C++ and C# alike, but keeps warnings and errors,
+since those explain problems, and writes them to a log file in the
+player's data folder, keeping the previous run's beside it (a crash often
+means the useful log is the one before the restart). A clean run of a
+Shipping game writes nothing at all.
+
+"Compiled out" takes some care in C#. The language can make a method call
+disappear when a symbol is *defined* (`[Conditional]`), but not when one is
+missing, so the symbol is turned around: every build except Shipping
+defines `CRUCIBLE_LOG_INFO`, and `Log.Info` only exists where it does. Its
+arguments go too, so an expensive message costs nothing when it's gone.
+
+A Shipping build is a whole build of the engine, not a switch: the core
+was compiled with its messages in, so taking them out means compiling it
+again. That's why it's a preset of its own, built before Shipping
+packages, while Development packages keep every message for testers.
 
 ## Making the folder safely
 

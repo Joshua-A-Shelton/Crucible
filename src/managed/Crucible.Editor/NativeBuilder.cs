@@ -18,10 +18,15 @@ public sealed partial class NativeBuilder
 {
     private readonly Project _project;
     private readonly string _toolkitPath;
+    private readonly string _variant;
     private Task<GameBuild>? _running;
 
-    public NativeBuilder(Project project, string toolkitPath)
+    /// <param name="variant">"" for the editor's build; "Shipping" for a
+    /// Shipping package's, with the shipping preset's toolkit, kept apart
+    /// (Cache/Build/NativeShipping, AotShipping; ADR 0103).</param>
+    public NativeBuilder(Project project, string toolkitPath, string variant = "")
     {
+        _variant = variant;
         _project = project;
         _toolkitPath = toolkitPath;
     }
@@ -29,7 +34,7 @@ public sealed partial class NativeBuilder
     /// <summary>The module's library name: "Diorama.Core" (ADR 0100).</summary>
     public string LibraryName => $"{GameBuilder.Sanitize(_project.Name)}.Core";
 
-    public string Folder => Path.Combine(_project.CacheFolder, "Build", "Native");
+    public string Folder => Path.Combine(_project.CacheFolder, "Build", "Native" + _variant);
 
     public string ProjectFile => Path.Combine(Folder, "CMakeLists.txt");
 
@@ -161,8 +166,8 @@ public sealed partial class NativeBuilder
         return text.ToString();
     }
 
-    /// <summary>Where a NativeAOT executable is linked (ADR 0101): Cache/Build/Aot/Link.</summary>
-    public string AotFolder => Path.Combine(_project.CacheFolder, "Build", "Aot", "Link");
+    /// <summary>Where a NativeAOT executable is linked (ADR 0101): Cache/Build/Aot/Link (AotShipping for a Shipping package).</summary>
+    public string AotFolder => Path.Combine(_project.CacheFolder, "Build", "Aot" + _variant, "Link");
 
     /// <summary>
     /// The CMake project linking a game's NativeAOT executable (ADR 0101):
@@ -447,7 +452,12 @@ public sealed record ModuleToolkit(
     IReadOnlyList<string>? AotObjects = null,
     IReadOnlyList<string>? AotLibraries = null,
     IReadOnlyList<string>? AotSystemLibraries = null,
-    string AotInstructionSet = "");
+    string AotInstructionSet = "",
+    string Launcher = "",
+    string CoreRuntime = "",
+    string EngineDirectory = "",
+    bool Shipping = false,
+    string ShippingToolkit = "");
 
 [System.Text.Json.Serialization.JsonSerializable(typeof(ModuleToolkit))]
 internal sealed partial class ModuleToolkitJson : System.Text.Json.Serialization.JsonSerializerContext;

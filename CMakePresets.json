@@ -28,11 +28,22 @@
         "CMAKE_BUILD_TYPE": "Release",
         "SLAG_VALIDATION": "OFF"
       }
+    },
+    {
+      "name": "shipping",
+      "displayName": "Shipping (what packages contain; information messages compiled out)",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "SLAG_VALIDATION": "OFF",
+        "CRUCIBLE_SHIPPING": "ON"
+      }
     }
   ],
   "buildPresets": [
     { "name": "debug", "configurePreset": "debug" },
-    { "name": "release", "configurePreset": "release" }
+    { "name": "release", "configurePreset": "release" },
+    { "name": "shipping", "configurePreset": "shipping" }
   ],
   "testPresets": [
     {

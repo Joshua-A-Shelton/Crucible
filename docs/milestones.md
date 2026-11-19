@@ -1049,6 +1049,16 @@ decision made at its start):
      `<Game>-previous.log`, written only once something is logged.
    - ADR 0103 "Logging and shipping builds".
 
+   Step 6 built (ADR 0103): the shipping preset (`CRUCIBLE_SHIPPING`)
+   compiles information out of the core, launchers, and engine; C#'s
+   `Log` writes into the core's log, and games' Console output is caught
+   into it; a package's launcher sets its log file in the player's data
+   folder. Build Settings' Configuration makes Shipping packages from the
+   shipping preset's build, Development ones from the editor's. CTests
+   check Development packages log everything to their file, the run before
+   kept, and Shipping ones print no information and leave no file after a
+   clean run. Awaiting the owner's try by hand.
+
 ## M11 — Pixel-art 2D path
 
 Before the first game: UI tricks may need it, and it is less likely to be

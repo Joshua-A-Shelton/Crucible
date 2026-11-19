@@ -20,6 +20,7 @@ public sealed class BuildSettingsPanel : EditorPanel
     private readonly Label _lastBuild = new() { Wrap = true };
     private readonly Toggle _readyToRun = new("Precompile (ReadyToRun)");
     private readonly ComboBox _runtime = new() { Options = ["JIT (allows mods)", "NativeAOT (one executable, no mods)"] };
+    private readonly ComboBox _configuration = new() { Options = ["Shipping", "Development (every message)"] };
     private bool _refreshing;
     private Project? _shown;
 
@@ -39,6 +40,14 @@ public sealed class BuildSettingsPanel : EditorPanel
                 Change(build => build.Runtime = box.SelectedIndex == 1 ? PackageRuntime.NativeAot : PackageRuntime.Jit);
             }
         };
+        _configuration.SelectionChanged += box =>
+        {
+            if (!_refreshing && box.SelectedIndex >= 0)
+            {
+                Change(build => build.Configuration =
+                    box.SelectedIndex == 1 ? PackageConfiguration.Development : PackageConfiguration.Shipping);
+            }
+        };
         _readyToRun.Changed += toggle =>
         {
             if (!_refreshing)
@@ -54,7 +63,8 @@ public sealed class BuildSettingsPanel : EditorPanel
         page.Add(ScenesCard);
         page.Add(IncludeCard);
         page.Add(new BuildCard("Build", "Builds the code, cooks, and packages the game with .NET for this platform.",
-            [RuntimeRow(), _readyToRun, _where, _lastBuild, BuildButton], null, null));
+            [ChoiceRow("Runtime", _runtime), ChoiceRow("Configuration", _configuration), _readyToRun, _where, _lastBuild,
+                BuildButton], null, null));
         AddChild(new ScrollView { Content = page, Padding = new Thickness(8, 8, 8, 8) });
         Refresh();
     }
@@ -100,6 +110,7 @@ public sealed class BuildSettingsPanel : EditorPanel
         _refreshing = true;
         _readyToRun.IsOn = build.ReadyToRun;
         _runtime.SelectedIndex = build.Runtime == PackageRuntime.NativeAot ? 1 : 0;
+        _configuration.SelectedIndex = build.Configuration == PackageConfiguration.Development ? 1 : 0;
         _refreshing = false;
         // ReadyToRun is the JIT's: NativeAOT compiles everything ahead anyway.
         _readyToRun.State = (_readyToRun.State & ~UIState.Disabled) |
@@ -130,14 +141,16 @@ public sealed class BuildSettingsPanel : EditorPanel
 
     internal ComboBox RuntimeChoice => _runtime;
 
-    // "Runtime" beside its drop-down.
-    private DockPanel RuntimeRow()
+    internal ComboBox ConfigurationChoice => _configuration;
+
+    // A label beside its drop-down.
+    private static DockPanel ChoiceRow(string name, ComboBox choice)
     {
         DockPanel row = new();
-        Label label = new("Runtime") { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
+        Label label = new(name) { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
         DockPanel.SetDock(label, Dock.Left);
         row.Add(label);
-        row.Add(_runtime);
+        row.Add(choice);
         return row;
     }
 
@@ -259,6 +272,7 @@ public sealed class BuildSettingsPanel : EditorPanel
             Include = [.. project.Build.Include],
             ReadyToRun = project.Build.ReadyToRun,
             Runtime = project.Build.Runtime,
+            Configuration = project.Build.Configuration,
         };
         change(build);
         project.SaveBuild(build);

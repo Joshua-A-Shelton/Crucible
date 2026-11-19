@@ -1,5 +1,6 @@
 using System.Numerics;
 using Crucible.Animation;
+using Crucible.Diagnostics;
 using Crucible.Ecs;
 using Crucible.Loop;
 using Crucible.Physics;
@@ -52,7 +53,7 @@ public sealed class KickSystem : GameSystem
             string into = _opened.TryGetValue(hit.Owner, out ulong opened)
                 ? FormattableString.Invariant($", {((long)hit.Timestamp - (long)opened) * 1e-6:0.000} ms into its window")
                 : "";
-            Console.WriteLine(FormattableString.Invariant(
+            Log.Info(FormattableString.Invariant(
                 $"Walker.Kicks: {NameOf(world, hit.Hitbox)} hit {NameOf(world, hit.Target)} at {seconds:0.000} s{into}"));
             if (world.Has(hit.Target, Components.Of<RigidBody>()) && world.Read<RigidBody>(hit.Target).Kind == BodyKind.Dynamic)
             {

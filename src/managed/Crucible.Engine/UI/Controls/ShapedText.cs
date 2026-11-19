@@ -73,7 +73,7 @@ internal sealed class ShapedText
                 }
                 catch (CrucibleException exception)
                 {
-                    Console.Error.WriteLine($"Crucible.UI: font {id} can't be used: {exception.Message}");
+                    Diagnostics.Log.Warning($"Crucible.UI: font {id} can't be used: {exception.Message}");
                     _acquired = default;
                 }
                 _fontId = id;

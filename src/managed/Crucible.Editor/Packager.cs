@@ -11,7 +11,10 @@ namespace Crucible.Editor;
 /// assemblies, ReadyToRun unless the build settings say not, the game's C++
 /// module if it has one, and Game.crpak. For a NativeAOT game: one
 /// executable holding the launcher, the core, the engine, the game, and its
-/// C++ module, and Data/Game.crpak (and D3D12Core on Windows).
+/// C++ module, and Data/Game.crpak (and D3D12Core on Windows). A Shipping
+/// package (ADR 0103) is made from the shipping preset's build, its game
+/// compiled with information messages out; a Development one from the
+/// editor's own build.
 /// </summary>
 /// <remarks>
 /// The package is made in a folder beside the target and moved into place
@@ -19,9 +22,14 @@ namespace Crucible.Editor;
 /// target that isn't empty and has no Data folder isn't a package, and is
 /// never replaced.
 /// </remarks>
-internal sealed class Packager(Project project, GameBuilder builder, NativeBuilder? native, string editorExecutable,
+internal sealed class Packager(Project project, GameBuilder editorBuilder, NativeBuilder? editorNative,
     Func<string, CookResult?> cook, Action<string> log)
 {
+    // The builders and the build they package from: the editor's, or the
+    // shipping preset's for a Shipping package.
+    private GameBuilder _builder = editorBuilder;
+    private NativeBuilder? _native = editorNative;
+
     public PackageResult Package(string folder)
     {
         List<string> errors = [];
@@ -30,12 +38,30 @@ internal sealed class Packager(Project project, GameBuilder builder, NativeBuild
         {
             return Failed($"{folder} isn't empty and isn't a package, so it's not replaced");
         }
-        bool aot = project.Build.Runtime == PackageRuntime.NativeAot;
-        string launcher = StandaloneRun.LauncherPath(editorExecutable);
-        string? core = CoreLibrary(launcher);
-        if (!aot && (!File.Exists(launcher) || core is null))
+        if (_native?.ReadToolkit() is not { } editorToolkit)
         {
-            return Failed($"the game launcher or the engine's core isn't beside the editor ({launcher})");
+            return Failed("the module toolkit isn't beside the editor (CrucibleModule.json): the engine's build writes it");
+        }
+        ModuleToolkit toolkit = editorToolkit;
+        if (project.Build.Configuration == PackageConfiguration.Shipping)
+        {
+            string shipping = editorToolkit.ShippingToolkit;
+            _native = new NativeBuilder(project, shipping, "Shipping");
+            if (!File.Exists(shipping) || _native.ReadToolkit() is not { Shipping: true } shippingToolkit)
+            {
+                string preset = Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(shipping))))!;
+                return Failed($"a Shipping package comes from the shipping preset's build, which isn't at {preset}: " +
+                              "build it (cmake --preset shipping, then cmake --build --preset shipping), or choose Development");
+            }
+            toolkit = shippingToolkit;
+            _builder = new GameBuilder(project, Path.Combine(toolkit.EngineDirectory, "Crucible.Engine.dll"));
+        }
+        bool aot = project.Build.Runtime == PackageRuntime.NativeAot;
+        string launcher = toolkit.Launcher;
+        string core = toolkit.CoreRuntime;
+        if (!aot && (!File.Exists(launcher) || !File.Exists(core)))
+        {
+            return Failed($"the game launcher or the engine's core isn't where its build put it ({launcher}, {core})");
         }
 
         string staging = folder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + ".building";
@@ -45,10 +71,10 @@ internal sealed class Packager(Project project, GameBuilder builder, NativeBuild
         try
         {
             // The C++ module first: the C# compiles its bindings (ADR 0074).
-            if (native is { HasCode: true })
+            if (_native is { HasCode: true })
             {
-                log($"Building {native.LibraryName}…");
-                GameBuild built = native.BuildNow();
+                log($"Building {_native.LibraryName}…");
+                GameBuild built = _native.BuildNow();
                 if (!built.Succeeded)
                 {
                     return Failed([.. built.Errors.Select(error => error.ToString())]);
@@ -61,7 +87,7 @@ internal sealed class Packager(Project project, GameBuilder builder, NativeBuild
                 return Failed([.. cooked?.Errors ?? ["the cook failed"]]);
             }
 
-            string executable = builder.AssemblyName + (OperatingSystem.IsWindows() ? ".exe" : "");
+            string executable = _builder.AssemblyName + (OperatingSystem.IsWindows() ? ".exe" : "");
             if (aot)
             {
                 if (LinkAot(Path.Combine(staging, executable)) is { } problems)
@@ -71,22 +97,22 @@ internal sealed class Packager(Project project, GameBuilder builder, NativeBuild
             }
             else
             {
-                log($"Publishing {builder.AssemblyName} with .NET{(project.Build.ReadyToRun ? ", ReadyToRun" : "")}…");
-                GameBuild published = builder.Publish(data, project.Build.ReadyToRun);
+                log($"Publishing {_builder.AssemblyName} with .NET{(project.Build.ReadyToRun ? ", ReadyToRun" : "")}…");
+                GameBuild published = _builder.Publish(data, project.Build.ReadyToRun);
                 if (!published.Succeeded)
                 {
                     return Failed([.. published.Errors.Select(error => error.ToString())]);
                 }
             }
 
-            if (!aot && native is { HasCode: true })
+            if (!aot && _native is { HasCode: true })
             {
-                File.Copy(native.OutputPath, Path.Combine(data, native.LibraryName + NativeBuilder.LibraryExtension));
+                File.Copy(_native.OutputPath, Path.Combine(data, _native.LibraryName + NativeBuilder.LibraryExtension));
             }
             if (!aot)
             {
                 File.Copy(launcher, Path.Combine(staging, executable));
-                File.Copy(core!, Path.Combine(staging, Path.GetFileName(core!)));
+                File.Copy(core, Path.Combine(staging, Path.GetFileName(core)));
             }
             if (OperatingSystem.IsWindows())
             {
@@ -138,18 +164,18 @@ internal sealed class Packager(Project project, GameBuilder builder, NativeBuild
     // information, which stays in the Cache. The problems, if it failed.
     private string[]? LinkAot(string executable)
     {
-        if (native is null || native.ReadToolkit() is not { } toolkit)
+        if (_native is null || _native.ReadToolkit() is not { } toolkit)
         {
             return ["the module toolkit isn't beside the editor (CrucibleModule.json)"];
         }
-        log($"Compiling {builder.AssemblyName} with NativeAOT…");
-        GameBuild compiled = builder.PublishAot(native.HasCode ? native.LibraryName : null, toolkit.AotInstructionSet);
+        log($"Compiling {_builder.AssemblyName} with NativeAOT…");
+        GameBuild compiled = _builder.PublishAot(_native.HasCode ? _native.LibraryName : null, toolkit.AotInstructionSet);
         if (!compiled.Succeeded)
         {
             return [.. compiled.Errors.Select(error => error.ToString())];
         }
         log($"Linking {Path.GetFileName(executable)}…");
-        GameBuild linked = native.LinkAot(builder.AssemblyName, compiled.Assembly!, builder.AotLinkInputs);
+        GameBuild linked = _native.LinkAot(_builder.AssemblyName, compiled.Assembly!, _builder.AotLinkInputs);
         if (!linked.Succeeded)
         {
             return [.. linked.Errors.Select(error => error.ToString())];
@@ -182,20 +208,6 @@ internal sealed class Packager(Project project, GameBuilder builder, NativeBuild
         file.Position = start + 4 + 20 + 68;
         BitConverter.TryWriteBytes(header, windowsGui);
         file.Write(header[..2]);
-    }
-
-    // Beside the launcher (where Windows keeps it), else where the engine's
-    // build put it, which the module toolkit records (Linux).
-    private string? CoreLibrary(string launcher)
-    {
-        string name = "Crucible.Core" + NativeBuilder.LibraryExtension;
-        string beside = Path.Combine(Path.GetDirectoryName(launcher) ?? "", name);
-        if (File.Exists(beside))
-        {
-            return beside;
-        }
-        string? built = native?.ReadToolkit()?.CoreLibrary;
-        return built is not null && Path.GetFileName(built) == name && File.Exists(built) ? built : null;
     }
 
     private static void DeleteFolder(string folder)

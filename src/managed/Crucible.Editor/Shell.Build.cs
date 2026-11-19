@@ -48,7 +48,7 @@ internal sealed partial class Shell
         }
         folder = Path.GetFullPath(folder ?? project.PackageFolder);
         Log($"Building {project.Name} into {folder}…");
-        PackageResult result = new Packager(project, builder, _native, Environment.ProcessPath ?? "", Cook, Log).Package(folder);
+        PackageResult result = new Packager(project, builder, _native, Cook, Log).Package(folder);
         LastBuild = (result, DateTime.Now);
         if (result.Succeeded)
         {

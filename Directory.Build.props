@@ -23,6 +23,12 @@
     <PublishAot Condition="'$(MSBuildIsRestoring)' == 'true'">true</PublishAot>
     <RuntimeIdentifiers>linux-x64;win-x64</RuntimeIdentifiers>
 
+    <!-- Shipping builds (ADR 0103, the shipping preset passes
+         CrucibleShipping=true) compile Log.Info calls out: every other build
+         defines the symbol they're conditional on. -->
+    <DefineConstants Condition="'$(CrucibleShipping)' == 'true'">$(DefineConstants);CRUCIBLE_SHIPPING</DefineConstants>
+    <DefineConstants Condition="'$(CrucibleShipping)' != 'true'">$(DefineConstants);CRUCIBLE_LOG_INFO</DefineConstants>
+
     <!-- CMake passes the real version and an artifacts path under its build
          directory; these defaults cover building from an IDE. -->
     <Version Condition="'$(Version)' == ''">0.1.0</Version>

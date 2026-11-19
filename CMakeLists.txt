@@ -48,6 +48,11 @@ endif()
 
 # For testing the SIMD types' scalar paths, which ARM64 and unknown CPUs rely
 # on (ADR 0024): every SIMD type uses its plain C++ path.
+option(CRUCIBLE_SHIPPING "A Shipping build (ADR 0103): what packages contain, information messages compiled out" OFF)
+if(CRUCIBLE_SHIPPING)
+    # Everything compiled, C++ and C#, sees it (crucible/Log.h, Directory.Build.props).
+    add_compile_definitions(CRUCIBLE_SHIPPING)
+endif()
 option(CRUCIBLE_FORCE_SCALAR_SIMD "Use the SIMD types' scalar paths (for testing them)" OFF)
 
 # The static release C runtime (/MT) everywhere on Windows, in every

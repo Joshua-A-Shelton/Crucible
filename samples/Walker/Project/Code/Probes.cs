@@ -1,4 +1,5 @@
 using System.Numerics;
+using Crucible.Diagnostics;
 using Crucible.Ecs;
 using Crucible.Loop;
 using Crucible.Physics;
@@ -80,7 +81,7 @@ public sealed class ProbeSystem : GameSystem
         foreach (Entity probe in collect.Found)
         {
             string name = world.Has(probe, Components.Of<EntityName>()) ? world.GetManaged<EntityName>(probe).Value : "";
-            Console.WriteLine(FormattableString.Invariant($"Walker.Probes: {name}: {world.Read<Probe>(probe).Result:0.00}"));
+            Log.Info(FormattableString.Invariant($"Walker.Probes: {name}: {world.Read<Probe>(probe).Result:0.00}"));
         }
         context.QuitRequested = true;
     }

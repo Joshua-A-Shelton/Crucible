@@ -30,22 +30,28 @@ public static class Host
         try
         {
             CoreLibraryResolver.Register();
+            // A game's console output joins the log (ADR 0103), reaching a
+            // package's log file; the editor keeps its console for itself.
+            if (!options.Editor)
+            {
+                Diagnostics.Log.CatchConsole();
+            }
 #if DEBUG
             // ADR 0017's startup check: every C# struct mirror must match the
             // C++ layout, or shared native memory would be misread.
             if (Interop.LayoutChecks.Verify() is { } mismatch)
             {
-                Console.Error.WriteLine($"Crucible.Hosting: C#/C++ layout mismatch: {mismatch}");
+                Diagnostics.Log.Error($"Crucible.Hosting: C#/C++ layout mismatch: {mismatch}");
                 return 1;
             }
 #endif
-            Console.WriteLine($"Crucible.Hosting: {EngineInfo.Name} running on .NET {Environment.Version}" +
+            Diagnostics.Log.Info($"Crucible.Hosting: {EngineInfo.Name} running on .NET {Environment.Version}" +
                               (options.Headless ? ", headless" : ""));
             return options.Headless ? RunHeadless(options) : RunWindowed(options);
         }
         catch (Exception exception)
         {
-            Console.Error.WriteLine($"Crucible.Hosting: unhandled exception: {exception}");
+            Diagnostics.Log.Error($"Crucible.Hosting: unhandled exception: {exception}");
             return 1;
         }
     }
@@ -96,10 +102,10 @@ public static class Host
     {
         if (!Audio.Api.StartMixing())
         {
-            Console.WriteLine("Crucible.Hosting: no audio device: silent");
+            Diagnostics.Log.Info("Crucible.Hosting: no audio device: silent");
             return;
         }
-        Console.WriteLine($"Crucible.Hosting: audio: {Audio.AudioMixer.MixRate} Hz stereo, " +
+        Diagnostics.Log.Info($"Crucible.Hosting: audio: {Audio.AudioMixer.MixRate} Hz stereo, " +
                           $"about {Audio.AudioMixer.Stats.LatencyEstimate * 1000:0} ms of output latency (estimated)");
     }
 
@@ -181,11 +187,11 @@ public static class Host
         }
         if (context.Failure != Status.Ok)
         {
-            Console.Error.WriteLine(
+            Diagnostics.Log.Error(
                 $"Crucible.Hosting: {context.FailedSystem} failed with {context.Failure} on frame {context.FrameNumber}");
             return 1;
         }
-        Console.WriteLine($"Crucible.Hosting: ran {frames} frames");
+        Diagnostics.Log.Info($"Crucible.Hosting: ran {frames} frames");
         return 0;
     }
 
@@ -215,7 +221,7 @@ public static class Host
         // A NativeAOT package's game, compiled in (ADR 0101).
         if (path.Length == 0 && GameLoader.CompiledIn is { } compiledIn)
         {
-            Console.WriteLine($"Crucible.Hosting: {compiledIn.GetName().Name} compiled in");
+            Diagnostics.Log.Info($"Crucible.Hosting: {compiledIn.GetName().Name} compiled in");
             return GameLoader.LoadCompiledIn(compiledIn);
         }
         if (path.Length == 0)
@@ -236,7 +242,7 @@ public static class Host
     private static LoadedGame LoadJit(string path)
     {
         LoadedGame game = GameLoader.IsPackaged(path) ? GameLoader.LoadPackaged(path) : GameLoader.Load(path);
-        Console.WriteLine($"Crucible.Hosting: loaded {Path.GetFileName(path)}");
+        Diagnostics.Log.Info($"Crucible.Hosting: loaded {Path.GetFileName(path)}");
         return game;
     }
 

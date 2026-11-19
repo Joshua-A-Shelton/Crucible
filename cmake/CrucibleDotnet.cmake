@@ -20,6 +20,8 @@ else()
 endif()
 
 string(TOLOWER ${CRUCIBLE_DOTNET_CONFIGURATION} CRUCIBLE_DOTNET_CONFIGURATION_DIR)
+# A Shipping build's C# compiles Log.Info calls out (ADR 0103).
+set(CRUCIBLE_DOTNET_SHIPPING "-p:CrucibleShipping=$<IF:$<BOOL:${CRUCIBLE_SHIPPING}>,true,false>")
 set(CRUCIBLE_DOTNET_ARTIFACTS_DIR "${CMAKE_BINARY_DIR}/artifacts")
 
 # crucible_add_dotnet_build(<target> <solution or project file>)
@@ -31,6 +33,7 @@ function(crucible_add_dotnet_build target project)
             "-p:ArtifactsPath=${CRUCIBLE_DOTNET_ARTIFACTS_DIR}"
             "-p:Version=${PROJECT_VERSION}"
             "-p:CrucibleGeneratedDir=${CRUCIBLE_GENERATED_DIR}"
+            "${CRUCIBLE_DOTNET_SHIPPING}"
         WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
         USES_TERMINAL
         VERBATIM)
@@ -136,6 +139,7 @@ function(crucible_add_dotnet_aot_publish target project)
             "-p:Version=${PROJECT_VERSION}"
             "-p:CrucibleGeneratedDir=${CRUCIBLE_GENERATED_DIR}"
             "-p:CrucibleNativeProps=${CRUCIBLE_NATIVE_PROPS}"
+            "${CRUCIBLE_DOTNET_SHIPPING}"
             ${instructionSet}
             ${publish_ARGUMENTS}
         BYPRODUCTS ${publish_BYPRODUCTS}

@@ -201,7 +201,11 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   the launcher named after the game and the core at the top; in `Data/`
   the game's `<Project>.dll`, its `<Project>.Core` module, `Game.crpak`,
   the engine's assemblies, and a self-contained .NET runtime, ReadyToRun
-  unless the Build settings turn it off. NativeAOT (ADR 0101): one
+  unless the Build settings turn it off. Configuration (ADR 0103):
+  Shipping packages come from the `shipping` preset's build
+  (`CRUCIBLE_SHIPPING`: information messages compiled out), so build it
+  first; Development packages (`-Development` folders) from the editor's.
+  NativeAOT (ADR 0101): one
   executable (launcher, core, engine, game, and its C++ module linked in)
   and `Data/Game.crpak`; NativeAOT makes a static library and the editor
   links it with the toolkit's AOT launcher objects and core libraries.

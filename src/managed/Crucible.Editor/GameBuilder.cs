@@ -18,9 +18,27 @@ namespace Crucible.Editor;
 public sealed partial class GameBuilder
 {
     private readonly Project _project;
+    private readonly string? _engine;
+    private readonly bool _shipping;
     private Task<GameBuild>? _running;
 
     public GameBuilder(Project project) => _project = project;
+
+    /// <summary>
+    /// A builder for a Shipping package (ADR 0103): against the shipping
+    /// preset's engine assembly, <paramref name="engine"/>, with
+    /// <c>CRUCIBLE_SHIPPING</c> defined instead of <c>CRUCIBLE_LOG_INFO</c>,
+    /// so the game's information messages compile out. Its projects are kept
+    /// apart from the editor's (Cache/Build/PackageShipping, AotShipping).
+    /// </summary>
+    public GameBuilder(Project project, string engine) : this(project)
+    {
+        _engine = engine;
+        _shipping = true;
+    }
+
+    // "Shipping" for a Shipping builder's folders, "" for the editor's.
+    private string Variant => _shipping ? "Shipping" : "";
 
     /// <summary>The project's game assembly's name, the project's own: "Diorama" (ADR 0100).</summary>
     public string AssemblyName => Sanitize(_project.Name);
@@ -72,7 +90,7 @@ public sealed partial class GameBuilder
     }
 
     /// <summary>The project file a package is published from (ADR 0100): Cache/Build/Package/&lt;Project&gt;.csproj.</summary>
-    public string PackageProjectFile => Path.Combine(_project.CacheFolder, "Build", "Package", AssemblyName + ".csproj");
+    public string PackageProjectFile => Path.Combine(_project.CacheFolder, "Build", "Package" + Variant, AssemblyName + ".csproj");
 
     /// <summary>
     /// The project file's text: the Code folder's sources, the engine, and its
@@ -82,7 +100,7 @@ public sealed partial class GameBuilder
     /// </summary>
     public string ProjectText(bool package = false, bool readyToRun = true)
     {
-        string engine = EngineAssembly();
+        string engine = _engine ?? EngineAssembly();
         string framework = typeof(Crucible.Ecs.World).Assembly.GetCustomAttribute<TargetFrameworkAttribute>()?.FrameworkName
             is { } name && name.Contains("Version=v", StringComparison.Ordinal)
             ? "net" + name[(name.IndexOf("Version=v", StringComparison.Ordinal) + 9)..]
@@ -108,6 +126,9 @@ public sealed partial class GameBuilder
                 <GenerateDocumentationFile>false</GenerateDocumentationFile>
 
             """);
+        // Log.Info is kept only where CRUCIBLE_LOG_INFO is defined: every
+        // build but a Shipping package's (ADR 0103).
+        text.Append($"    <DefineConstants>$(DefineConstants);{(_shipping ? "CRUCIBLE_SHIPPING" : "CRUCIBLE_LOG_INFO")}</DefineConstants>\n");
         if (package)
         {
             // The game's assembly is the app its runtime starts for: its
@@ -130,7 +151,7 @@ public sealed partial class GameBuilder
             """);
         text.Append($"    <Compile Include=\"{Escape(Path.Combine(_project.CodeFolder, "**", "*.cs"))}\" />\n");
         // The native module's bindings (ADR 0074), when it exposes anything.
-        string bindings = Escape(Path.Combine(_project.CacheFolder, "Build", "Native", "Bindings.g.cs"));
+        string bindings = Escape(Path.Combine(_project.CacheFolder, "Build", "Native" + Variant, "Bindings.g.cs"));
         text.Append($"    <Compile Include=\"{bindings}\" Condition=\"Exists('{bindings}')\" />\n");
         // Referenced, not copied, except into a package.
         text.Append($"    <Reference Include=\"Crucible.Engine\" HintPath=\"{Escape(engine)}\" Private=\"{(package ? "true" : "false")}\" />\n");
@@ -176,7 +197,7 @@ public sealed partial class GameBuilder
     }
 
     /// <summary>Where a NativeAOT build happens (ADR 0101): Cache/Build/Aot.</summary>
-    public string AotFolder => Path.Combine(_project.CacheFolder, "Build", "Aot");
+    public string AotFolder => Path.Combine(_project.CacheFolder, "Build", "Aot" + Variant);
 
     /// <summary>The NativeAOT project (ADR 0101): Cache/Build/Aot/&lt;Project&gt;.csproj.</summary>
     public string AotProjectFile => Path.Combine(AotFolder, AssemblyName + ".csproj");

@@ -141,7 +141,7 @@ public sealed class FrameLoop(Schedule schedule) : ILoopDriver
                 // Reported, and the frame goes on; the system runs again next
                 // frame (ADR 0036). A try costs nothing until something throws.
                 system.ExceptionCount++;
-                Console.Error.WriteLine($"Crucible.Loop: {system.Name} threw: {exception}");
+                Diagnostics.Log.Error($"Crucible.Loop: {system.Name} threw: {exception}");
             }
             context.EndSystem(system);
             system.LastRunTicks = Stopwatch.GetTimestamp() - start;
@@ -174,7 +174,7 @@ public sealed class FrameLoop(Schedule schedule) : ILoopDriver
         catch (Exception exception)
         {
             system.ExceptionCount++;
-            Console.Error.WriteLine(
+            Diagnostics.Log.Error(
                 $"Crucible.Loop: {system.Name} threw while {(starting ? "starting" : "stopping")}: {exception}");
         }
     }

@@ -52,7 +52,7 @@ public static class ProjectStartup
         }
         catch (CrucibleException exception)
         {
-            Console.Error.WriteLine(exception.Status == Status.Unsupported
+            Diagnostics.Log.Error(exception.Status == Status.Unsupported
                 ? $"Crucible.Hosting: the archive {path} was cooked by another version of Crucible: cook it again"
                 : $"Crucible.Hosting: can't open the archive {path}: {exception.Status}");
             return;
@@ -62,15 +62,15 @@ public static class ProjectStartup
         AssetId start = archive.StartScene;
         if (scene is not null && !AssetId.TryParse(scene, out start))
         {
-            Console.Error.WriteLine($"Crucible.Hosting: --scene names {scene}, which isn't an asset ID");
+            Diagnostics.Log.Error($"Crucible.Hosting: --scene names {scene}, which isn't an asset ID");
             return;
         }
         if (AssetSource.Read(start) is not { } bytes)
         {
-            Console.Error.WriteLine($"Crucible.Hosting: {Path.GetFileName(path)} has no scene {start}");
+            Diagnostics.Log.Error($"Crucible.Hosting: {Path.GetFileName(path)} has no scene {start}");
             return;
         }
-        Console.WriteLine($"Crucible.Hosting: reading {archive.Count} assets from {Path.GetFileName(path)}");
+        Diagnostics.Log.Info($"Crucible.Hosting: reading {archive.Count} assets from {Path.GetFileName(path)}");
         Load(world, bytes, start.ToString());
     }
 
@@ -81,10 +81,10 @@ public static class ProjectStartup
         // nothing appears late and physics starts with its level (ADR 0099).
         Crucible.Assets.Api.StartLoads(world.Live);
         Crucible.Assets.Api.WaitForLoads();
-        Console.WriteLine($"Crucible.Hosting: opened {name}: {loaded.Roots.Count} entities at the top");
+        Diagnostics.Log.Info($"Crucible.Hosting: opened {name}: {loaded.Roots.Count} entities at the top");
         foreach (string skipped in loaded.SkippedComponents)
         {
-            Console.WriteLine($"Crucible.Hosting: {name} has {skipped}, which nothing registered");
+            Diagnostics.Log.Warning($"Crucible.Hosting: {name} has {skipped}, which nothing registered");
         }
     }
 }

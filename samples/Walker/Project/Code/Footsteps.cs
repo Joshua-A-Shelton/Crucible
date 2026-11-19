@@ -2,6 +2,7 @@ using System.Numerics;
 using Crucible.Animation;
 using Crucible.Assets;
 using Crucible.Audio;
+using Crucible.Diagnostics;
 using Crucible.Ecs;
 using Crucible.Loop;
 using Crucible.Scenes;
@@ -141,7 +142,7 @@ public sealed class FootstepSystem : GameSystem
         MixerStats stats = AudioMixer.Stats;
         string times = string.Join(",", _steps.Select(step => ((step - _steps[0]) / 1e6).ToString("0.000",
             System.Globalization.CultureInfo.InvariantCulture)));
-        Console.WriteLine($"Crucible.Walker: {heard} of {_steps.Count} footsteps heard, at most {worst} frames " +
+        Log.Info($"Crucible.Walker: {heard} of {_steps.Count} footsteps heard, at most {worst} frames " +
                           $"from their times, {stats.LateStarts} late; steps at ms {times}; {_clamped} frames clamped");
         AudioApi.StopMixing();
     }

@@ -33,6 +33,23 @@ public partial class BuildSettings
 
     /// <summary>How a package runs its C# (ADR 0001, 0101): on .NET's JIT, or compiled ahead with NativeAOT.</summary>
     public PackageRuntime Runtime = PackageRuntime.Jit;
+
+    /// <summary>
+    /// Whether a package is a Shipping one, information messages compiled
+    /// out, from the shipping preset's build, or a Development one, every
+    /// message kept, from the editor's own (ADR 0103).
+    /// </summary>
+    public PackageConfiguration Configuration = PackageConfiguration.Shipping;
+}
+
+/// <summary>A package's configuration (ADR 0103).</summary>
+public enum PackageConfiguration
+{
+    /// <summary>Information messages compiled out; from the shipping preset's build.</summary>
+    Shipping,
+
+    /// <summary>Every message kept; from the editor's own build.</summary>
+    Development,
 }
 
 /// <summary>A package's runtime (ADR 0001, 0101).</summary>
@@ -74,12 +91,14 @@ public sealed class Project
     public BuildSettings Build { get; private set; }
 
     /// <summary>
-    /// The folder Build writes the package to (ADR 0100, 0101):
-    /// <c>Build/Linux/JIT</c>, <c>Build/Windows/AOT</c>, and so on in the
-    /// project, for the platform it runs on and the build settings' runtime.
+    /// The folder Build writes the package to (ADR 0100, 0101, 0103):
+    /// <c>Build/Linux/JIT</c>, <c>Build/Windows/AOT-Development</c>, and so on
+    /// in the project, for the platform it runs on and the build settings'
+    /// runtime and configuration.
     /// </summary>
     public string PackageFolder => Path.Combine(Root, "Build", OperatingSystem.IsWindows() ? "Windows" : "Linux",
-        Build.Runtime == PackageRuntime.NativeAot ? "AOT" : "JIT");
+        (Build.Runtime == PackageRuntime.NativeAot ? "AOT" : "JIT") +
+        (Build.Configuration == PackageConfiguration.Development ? "-Development" : ""));
 
     /// <summary>Where a package keeps its archive, assemblies, and runtime: its <c>Data</c> folder.</summary>
     public string PackageDataFolder => Path.Combine(PackageFolder, "Data");
