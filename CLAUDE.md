@@ -433,6 +433,11 @@ This project is as much a learning exercise as it is an engine.
   owner settles them; final names go in `docs/naming.md`. **File extensions
   and the names of tools, executables, and anything else users type or see
   are asked about before they're used**, not settled afterwards.
+- **Names are proposed in a table,** in chat before the question: one row
+  per name, with what it names (a type, a file, a command, text on screen)
+  and, in plain words, what it is or does, grouped by area when there are
+  many. Never a run of names packed into a paragraph or a question's
+  options; the question then asks about the table.
 - Record decisions in `docs/decisions/` and update this file when a
   decision changes a rule here. Unresolved questions live in
   `docs/open-items.md`.
