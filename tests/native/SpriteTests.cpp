@@ -13,6 +13,8 @@
 #include <crucible/Render.h>
 #include <crucible/RenderCommands.h>
 #include <crucible/Sprite.h>
+#include <crucible/Tilemap.h>
+#include <crucible/TilemapFile.h>
 #include <crucible/Transform.h>
 
 #include <doctest/doctest.h>
@@ -200,6 +202,77 @@ TEST_SUITE("gpu")
                 CHECK(at(pixels, 49, 45) == std::array<uint8_t, 4>{200, 10, 20, 255});
                 CHECK(at(pixels, 55, 47)[3] == 255);
                 CHECK(at(pixels, 50, 46) == std::array<uint8_t, 4>{0, 230, 240, 255});
+            }
+            render::destroySurface(surface);
+            render::shutdown();
+        }
+        assets::setAssetReader(0);
+        platform::shutdown();
+    }
+
+    TEST_CASE("A tilemap draws its cells from its sheet with flips on every backend")
+    {
+        scenes::registerTransforms();
+        render::registerCamera();
+        render2d::registerSprite();
+        library[41] = spriteTexture(4, 2, grid, 8); // a texel a pixel
+        // 2x1 tiles of the grid's top row: tile 0 red and green, tile 1 blue
+        // and white; a quarter by an eighth of a meter each.
+        const std::vector<assets::TilemapCell> cells = {
+            {0, 0, 0, 0, 0, 0},
+            {1, 0, 2, 0, static_cast<uint32_t>(assets::TileFlip::X), 0},
+            {0, 1, 0, 0, 0, 0},
+        };
+        binary::Writer* writer = nullptr;
+        assets::setAssetReader(reinterpret_cast<uint64_t>(&readTestAsset));
+        REQUIRE(platform::initialize());
+        for (slag::Backend backend : {slag::Backend::D3D12, slag::Backend::Vulkan})
+        {
+            if (!slag::isBackendAvailable(backend) || !render::initialize(backend))
+            {
+                continue;
+            }
+            CAPTURE(static_cast<int>(backend));
+            // The whole map, each backend (the last painted it down to one cell).
+            writer = binary::createWriter(assets::tilemapFileKind, assets::tilemapFileVersion);
+            test::addSection(writer, binary::tag("INFO"),
+                             std::vector<assets::TilemapInfo>{{test::idOf(41), 2, 1, 0.25f, 0.125f, 3, 0, 0, 0}});
+            test::addSection(writer, binary::tag("CELL"), cells);
+            library[43] = test::fileBytes(writer);
+            Result<render::SurfaceHandle> created = render::createOffscreenSurface(width, height);
+            REQUIRE(created);
+            const render::SurfaceHandle surface = created.value();
+            {
+                Scene scene;
+                camera(scene);
+                const ComponentId set[] = {componentIdOf<render2d::Tilemap>, componentIdOf<scenes::Transform2D>,
+                                           componentIdOf<scenes::WorldTransform>};
+                const Entity map = createEntity(*scene.world, set);
+                *get<render2d::Tilemap>(*scene.world, map) = {.map = test::idOf(43), .tint = {1, 1, 1, 1}};
+                *get<scenes::Transform2D>(*scene.world, map) = {{0, 0}, 0, {1, 1}, 0};
+                std::vector<uint8_t> pixels = renderSettled(scene, surface);
+                // Cell (0, 0) at columns 32 and 33, row 31; (1, 0) flipped beside it.
+                CHECK(at(pixels, 32, 31) == std::array<uint8_t, 4>{200, 10, 20, 255});
+                CHECK(at(pixels, 33, 31) == std::array<uint8_t, 4>{30, 190, 40, 255});
+                CHECK(at(pixels, 34, 31) == std::array<uint8_t, 4>{255, 255, 255, 255});
+                CHECK(at(pixels, 35, 31) == std::array<uint8_t, 4>{50, 60, 180, 255});
+                // Cell (0, 1) above; (1, 1) is empty.
+                CHECK(at(pixels, 32, 30) == std::array<uint8_t, 4>{200, 10, 20, 255});
+                CHECK(at(pixels, 34, 30)[3] == 255);
+                CHECK(at(pixels, 34, 30)[0] == 0);
+                CHECK(at(pixels, 31, 31)[0] == 0);
+
+                // Read again after painting: the flipped cell gone.
+                library[43].clear();
+                writer = binary::createWriter(assets::tilemapFileKind, assets::tilemapFileVersion);
+                test::addSection(writer, binary::tag("INFO"),
+                                 std::vector<assets::TilemapInfo>{{test::idOf(41), 2, 1, 0.25f, 0.125f, 1, 0, 0, 0}});
+                test::addSection(writer, binary::tag("CELL"), std::vector<assets::TilemapCell>{cells[0]});
+                library[43] = test::fileBytes(writer);
+                CHECK(render2d::reloadTilemap(test::idOf(43)));
+                pixels = renderSettled(scene, surface);
+                CHECK(at(pixels, 32, 31) == std::array<uint8_t, 4>{200, 10, 20, 255});
+                CHECK(at(pixels, 34, 31)[2] == 0);
             }
             render::destroySurface(surface);
             render::shutdown();

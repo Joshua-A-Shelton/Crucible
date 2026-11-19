@@ -22,6 +22,8 @@
 #include <crucible/Memory.h>
 #include <crucible/Physics2D.h>
 #include <crucible/Systems.h>
+#include <crucible/Tilemap.h>
+#include <crucible/TilemapFile.h>
 #include <crucible/Transform.h>
 #include <crucible/Vector.h>
 
@@ -185,7 +187,7 @@ struct Body
 {
     b2BodyId body = b2_nullBodyId;
     b2ShapeId shape = b2_nullShapeId;
-    b2ChainId chain = b2_nullChainId; // a Chain collider's, instead of a shape
+    Vector<b2ChainId> chains{tag};    // a Chain or Tilemap collider's, instead of a shape
     uint32_t chainVersion = 0;        // of the chain's points it was made from
     BodyKind kind = BodyKind::Static; // a Collider2D alone is static
     Collider2D collider{};
@@ -326,6 +328,9 @@ struct ChainData
     assets::AssetId id{};
     Vector<Vector2> points{tag}; // empty: unreadable (said once)
     bool loop = false;
+    // A tilemap's outlines (ADR 0108): each loop's point count, in turn;
+    // empty for a chain, whose points are one chain.
+    Vector<uint32_t> loops{tag};
     uint32_t version = 0;
     bool loading = false; // on a job (ADR 0099): bodies needing it wait
 };
@@ -338,15 +343,57 @@ bool isNone(const assets::AssetId& id)
     return id == assets::AssetId{};
 }
 
-// Its points from the chain file's bytes; false if they're wrong. Any
-// thread (a load's job, ADR 0099).
-bool readChainFrom(std::span<const uint8_t> bytes, Vector<Vector2>& points, bool& loop)
+// A tilemap's outlines from its map file's bytes (ADR 0108), every loop
+// closed; false if they're wrong.
+bool readTilemapOutlines(std::span<const uint8_t> bytes, Vector<Vector2>& points, Vector<uint32_t>& loops)
 {
-    points.clear();
-    Result<binary::File*> opened = binary::parseFile(bytes, assets::chainFileKind, assets::chainFileVersion);
+    Result<binary::File*> opened = binary::parseFile(bytes, assets::tilemapFileKind, assets::tilemapFileVersion);
     if (!opened)
     {
         return false;
+    }
+    binary::File* file = opened.value();
+    auto read = [&](const char (&name)[5], auto& out) {
+        using T = std::remove_reference_t<decltype(out[0])>;
+        const int32_t index = binary::findSection(*file, binary::tag(name));
+        if (index < 0)
+        {
+            out.clear();
+            return true; // a map without collision
+        }
+        out.resize(binary::sectionInfo(*file, static_cast<uint32_t>(index)).size / sizeof(T));
+        return static_cast<bool>(
+            binary::readSection(*file, static_cast<uint32_t>(index),
+                                std::span(reinterpret_cast<uint8_t*>(out.data()), out.size() * sizeof(T))));
+    };
+    Vector<assets::TilemapLoop> ranges(tag);
+    bool good = read("LOOP", ranges) && read("PNTS", points);
+    binary::closeFile(file);
+    for (const assets::TilemapLoop& range : ranges)
+    {
+        good = good && range.count >= 3 && uint64_t{range.first} + range.count <= points.size();
+        loops.pushBack(range.count);
+    }
+    return good;
+}
+
+// Its points from the chain file's bytes, or a tilemap's outlines from its
+// map file's; false if they're wrong. Any thread (a load's job, ADR 0099).
+bool readChainFrom(std::span<const uint8_t> bytes, Vector<Vector2>& points, bool& loop, Vector<uint32_t>& loops)
+{
+    points.clear();
+    loops.clear();
+    Result<binary::File*> opened = binary::parseFile(bytes, assets::chainFileKind, assets::chainFileVersion);
+    if (!opened)
+    {
+        loop = true;
+        if (!readTilemapOutlines(bytes, points, loops))
+        {
+            points.clear();
+            loops.clear();
+            return false;
+        }
+        return true;
     }
     binary::File* file = opened.value();
     const int32_t info = binary::findSection(*file, binary::tag("INFO"));
@@ -390,7 +437,7 @@ bool readChain(ChainData& data)
     {
         return false;
     }
-    return readChainFrom(bytes.span(), data.points, data.loop);
+    return readChainFrom(bytes.span(), data.points, data.loop, data.loops);
 }
 
 // A chain read on a job into the entry waiting for it (ADR 0099).
@@ -398,6 +445,7 @@ struct ChainLoad
 {
     ChainData* data = nullptr;
     Vector<Vector2> points{tag};
+    Vector<uint32_t> loops{tag};
     bool loop = false;
     bool good = false;
 };
@@ -428,7 +476,7 @@ const ChainData* chainOf(const assets::AssetId& id)
         .prepare =
             [](void* context, std::span<const uint8_t> bytes, bool found) {
                 auto& self = *static_cast<ChainLoad*>(context);
-                self.good = found && readChainFrom(bytes, self.points, self.loop);
+                self.good = found && readChainFrom(bytes, self.points, self.loop, self.loops);
             },
         .publish =
             [](void* context) {
@@ -439,12 +487,14 @@ const ChainData* chainOf(const assets::AssetId& id)
                     {
                         entry->loading = false;
                         entry->points = static_cast<Vector<Vector2>&&>(self->points);
+                        entry->loops = static_cast<Vector<uint32_t>&&>(self->loops);
                         entry->loop = self->loop;
                         entry->version = ++chainVersions;
                         if (!self->good)
                         {
                             entry->points.clear();
-                            log::warning("a Chain collider's chain can't be read (reimport it)");
+                            entry->loops.clear();
+                            log::warning("a Chain or Tilemap collider's points can't be read (reimport it)");
                         }
                     }
                 }
@@ -454,11 +504,31 @@ const ChainData* chainOf(const assets::AssetId& id)
     return data;
 }
 
-// Whether a Chain collider's points are still to come (a load started now
-// if need be). Bodies wait for them.
+// The collider as the physics builds it: a Tilemap one's chain is its
+// entity's map (ADR 0108), whose outlines are read as a chain's points.
+Collider2D resolvedCollider(const ecs::World& world, ecs::Entity entity, const Collider2D& collider)
+{
+    Collider2D resolved = collider;
+    if (collider.shape == ShapeKind2D::Tilemap)
+    {
+        const render2d::Tilemap* tilemap = ecs::componentIdOf<render2d::Tilemap> != ecs::invalidComponent
+                                               ? ecs::read<render2d::Tilemap>(world, entity)
+                                               : nullptr;
+        resolved.chain = tilemap != nullptr ? tilemap->map : assets::AssetId{};
+    }
+    return resolved;
+}
+
+bool chainShaped(const Collider2D& collider)
+{
+    return collider.shape == ShapeKind2D::Chain || collider.shape == ShapeKind2D::Tilemap;
+}
+
+// Whether a Chain or Tilemap collider's points are still to come (a load
+// started now if need be). Bodies wait for them.
 bool chainLoading(const Collider2D& collider)
 {
-    if (collider.shape != ShapeKind2D::Chain)
+    if (!chainShaped(collider))
     {
         return false;
     }
@@ -485,6 +555,42 @@ Vector2 scaled(Vector2 v, Vector2 scale)
     return {v.x * scale.x, v.y * scale.y};
 }
 
+// One chain of points onto the body, at the entity's scale. Mirrored (one
+// negative scale), the points run the other way, so the solid side stays
+// the one drawn; a loop gets a fourth point if it has three (Box2D's least).
+void makeChain(Body& body, const b2ShapeDef& def, std::span<const Vector2> source, bool loop, Vector2 scale,
+               Vector2 offset)
+{
+    const bool mirrored = (scale.x < 0) != (scale.y < 0);
+    Vector<b2Vec2> points(tag);
+    for (size_t i = 0; i < source.size(); ++i)
+    {
+        points.pushBack(toB2(scaled(source[mirrored ? source.size() - 1 - i : i], scale) + offset));
+    }
+    if (loop && points.size() == 3)
+    {
+        points.pushBack(b2Lerp(points[2], points[0], 0.5f));
+    }
+    if (points.size() < (loop ? 4u : 2u))
+    {
+        return;
+    }
+    const size_t count = points.size();
+    b2ChainDef chain = b2DefaultChainDef();
+    chain.userData = def.userData;
+    chain.points = points.data();
+    chain.pointCount = static_cast<int>(count);
+    chain.materials = &def.material;
+    chain.materialCount = 1;
+    chain.filter = def.filter;
+    chain.isLoop = loop;
+    chain.enableSensorEvents = true;
+    // An open chain's ends, extended straight on, so nothing catches there.
+    chain.ghost1 = b2Add(points[0], b2Sub(points[0], points[1]));
+    chain.ghost2 = b2Add(points[count - 1], b2Sub(points[count - 1], points[count - 2]));
+    body.chains.pushBack(b2CreateChain(body.body, &chain));
+}
+
 // The shape, from the Collider2D at the entity's world scale (Box2D shapes
 // have none): boxes and polygons by each axis, circles and capsules by the
 // larger one.
@@ -496,11 +602,11 @@ void buildShape(Body& body, ecs::Entity entity, const Collider2D& collider, Vect
         b2DestroyShape(body.shape, true);
         body.shape = b2_nullShapeId;
     }
-    if (B2_IS_NON_NULL(body.chain))
+    for (const b2ChainId chain : body.chains)
     {
-        b2DestroyChain(body.chain);
-        body.chain = b2_nullChainId;
+        b2DestroyChain(chain);
     }
+    body.chains.clear();
     body.collider = collider;
     body.scale = scale;
     body.layers = layers;
@@ -558,6 +664,7 @@ void buildShape(Body& body, ecs::Entity entity, const Collider2D& collider, Vect
         break;
     }
     case ShapeKind2D::Chain:
+    case ShapeKind2D::Tilemap:
     {
         const ChainData* data = chainOf(collider.chain);
         body.chainVersion = data != nullptr ? data->version : 0;
@@ -568,32 +675,19 @@ void buildShape(Body& body, ecs::Entity entity, const Collider2D& collider, Vect
         // Box2D's chains have no mass, and can't be sensors.
         if (body.kind == BodyKind::Dynamic || collider.isTrigger)
         {
-            log::warning("a Chain collider is only for static and kinematic bodies, and can't be a trigger");
+            log::warning("a Chain or Tilemap collider is only for static and kinematic bodies, and can't be a trigger");
             break;
         }
-        // Mirrored (one negative scale), the points run the other way, so
-        // the solid side stays the one drawn.
-        const bool mirrored = (scale.x < 0) != (scale.y < 0);
-        const size_t count = data->points.size();
-        Vector<b2Vec2> points(tag);
-        points.resize(count);
-        for (size_t i = 0; i < count; ++i)
+        // A chain is one run of points; a tilemap's outlines are several loops.
+        const uint32_t whole = static_cast<uint32_t>(data->points.size());
+        const std::span<const uint32_t> counts =
+            data->loops.empty() ? std::span<const uint32_t>(&whole, 1) : data->loops.span();
+        uint32_t first = 0;
+        for (const uint32_t count : counts)
         {
-            points[i] = toB2(scaled(data->points[mirrored ? count - 1 - i : i], scale) + offset);
+            makeChain(body, def, std::span(data->points.data() + first, count), data->loop, scale, offset);
+            first += count;
         }
-        b2ChainDef chain = b2DefaultChainDef();
-        chain.userData = def.userData;
-        chain.points = points.data();
-        chain.pointCount = static_cast<int>(count);
-        chain.materials = &def.material;
-        chain.materialCount = 1;
-        chain.filter = def.filter;
-        chain.isLoop = data->loop;
-        chain.enableSensorEvents = true;
-        // An open chain's ends, extended straight on, so nothing catches there.
-        chain.ghost1 = b2Add(points[0], b2Sub(points[0], points[1]));
-        chain.ghost2 = b2Add(points[count - 1], b2Sub(points[count - 1], points[count - 2]));
-        body.chain = b2CreateChain(body.body, &chain);
         break;
     }
     }
@@ -619,7 +713,7 @@ void applyMass(Body& body, float mass)
 
 void syncBody(ecs::World& world, PhysicsWorld& physics, ecs::Entity entity, float step)
 {
-    const Collider2D& collider = *ecs::read<Collider2D>(world, entity);
+    const Collider2D collider = resolvedCollider(world, entity, *ecs::read<Collider2D>(world, entity));
     const RigidBody2D* rigid = ecs::read<RigidBody2D>(world, entity);
     const BodyKind kind = rigid != nullptr ? rigid->kind : BodyKind::Static;
     const uint32_t layers = rigid != nullptr ? rigid->layers : 1u;
@@ -677,7 +771,7 @@ void syncBody(ecs::World& world, PhysicsWorld& physics, ecs::Entity entity, floa
     if (!waiting && (!same(collider, body->collider) ||
                      std::fabs(pose.scale.x - body->scale.x) + std::fabs(pose.scale.y - body->scale.y) > 1e-5f ||
                      layers != body->layers || mask != body->mask || kindChanged ||
-                     (collider.shape == ShapeKind2D::Chain && chainOf(collider.chain) != nullptr &&
+                     (chainShaped(collider) && chainOf(collider.chain) != nullptr &&
                       chainOf(collider.chain)->version != body->chainVersion)))
     {
         buildShape(*body, entity, collider, pose.scale, layers, mask);
@@ -1735,28 +1829,38 @@ void outline(const Collider2D& collider, const Matrix4x4& toWorld, Vector4 color
         break;
     }
     case ShapeKind2D::Chain:
+    case ShapeKind2D::Tilemap:
         if (const ChainData* data = chainOf(collider.chain); data != nullptr && data->points.size() >= 2)
         {
-            Vector<Vector2> points(tag);
-            points.resize(data->points.size());
-            for (size_t i = 0; i < points.size(); ++i)
+            // A chain's points, or each of a tilemap's outlines.
+            const uint32_t whole = static_cast<uint32_t>(data->points.size());
+            const std::span<const uint32_t> counts =
+                data->loops.empty() ? std::span<const uint32_t>(&whole, 1) : data->loops.span();
+            uint32_t first = 0;
+            for (const uint32_t count : counts)
             {
-                points[i] = data->points[i] + o;
-            }
-            polyline(points.span(), data->loop, toWorld, color);
-            // A tick at each segment's middle on its solid side (the right).
-            const size_t segments = data->loop ? points.size() : points.size() - 1;
-            for (size_t i = 0; i < segments; ++i)
-            {
-                const Vector2 a = points[i], b = points[(i + 1) % points.size()];
-                const Vector2 along = b - a;
-                const float length = std::sqrt(along.x * along.x + along.y * along.y);
-                if (length > 0)
+                Vector<Vector2> points(tag);
+                points.resize(count);
+                for (size_t i = 0; i < points.size(); ++i)
                 {
-                    const Vector2 middle = (a + b) * 0.5f;
-                    const float tick = std::min(0.15f, length * 0.25f) / length;
-                    debug::drawLine(at(toWorld, middle), at(toWorld, middle + Vector2{along.y, -along.x} * tick),
-                                    color);
+                    points[i] = data->points[first + i] + o;
+                }
+                first += count;
+                polyline(points.span(), data->loop, toWorld, color);
+                // A tick at each segment's middle on its solid side (the right).
+                const size_t segments = data->loop ? points.size() : points.size() - 1;
+                for (size_t i = 0; i < segments; ++i)
+                {
+                    const Vector2 a = points[i], b = points[(i + 1) % points.size()];
+                    const Vector2 along = b - a;
+                    const float length = std::sqrt(along.x * along.x + along.y * along.y);
+                    if (length > 0)
+                    {
+                        const Vector2 middle = (a + b) * 0.5f;
+                        const float tick = std::min(0.15f, length * 0.25f) / length;
+                        debug::drawLine(at(toWorld, middle), at(toWorld, middle + Vector2{along.y, -along.x} * tick),
+                                        color);
+                    }
                 }
             }
         }
@@ -1832,24 +1936,31 @@ BodyPose2D bodyPose(const ecs::World& world, ecs::Entity entity)
 
 namespace {
 
-// The load starter (ADR 0099): every Chain collider's chain started; a
-// collider waits while its chain loads.
+// The load starter (ADR 0099): every Chain collider's chain, and every
+// Tilemap collider's map, started; a collider waits while its points load.
 uint32_t startChainLoads(ecs::World& world)
 {
     const ecs::ComponentId colliders[] = {ecs::componentIdOf<Collider2D>};
     ecs::Query* query = ecs::createQuery(world, {.required = colliders});
-    uint32_t waiting = 0;
+    struct Counting
+    {
+        ecs::World* world;
+        uint32_t waiting;
+    } counting{&world, 0};
     ecs::forEachChunk(
         *query,
         [](const ecs::ChunkView& view, void* data) {
-            for (const Collider2D& collider : ecs::readColumn<Collider2D>(view))
+            auto& counting = *static_cast<Counting*>(data);
+            const std::span<const Collider2D> found = ecs::readColumn<Collider2D>(view);
+            const ecs::Entity* entities = ecs::entitiesOf(view);
+            for (size_t i = 0; i < found.size(); ++i)
             {
-                *static_cast<uint32_t*>(data) += chainLoading(collider) ? 1 : 0;
+                counting.waiting += chainLoading(resolvedCollider(*counting.world, entities[i], found[i])) ? 1 : 0;
             }
         },
-        &waiting);
+        &counting);
     ecs::destroyQuery(query);
-    return waiting;
+    return counting.waiting;
 }
 
 } // namespace
@@ -1922,7 +2033,8 @@ void drawColliders2D(const ecs::World& world, Vector4 color)
             const ecs::Entity* entities = ecs::entitiesOf(view);
             for (size_t i = 0; i < colliders.size(); ++i)
             {
-                outline(colliders[i], scenes::computeWorldTransform(*gather.world, entities[i]), gather.color);
+                outline(resolvedCollider(*gather.world, entities[i], colliders[i]),
+                        scenes::computeWorldTransform(*gather.world, entities[i]), gather.color);
             }
         },
         &gather);

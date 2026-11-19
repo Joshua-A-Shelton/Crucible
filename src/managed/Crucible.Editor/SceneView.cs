@@ -42,6 +42,7 @@ public sealed class SceneView : UIElement
         Pan,
         Handle,
         Chain,
+        Tiles,
     }
 
     internal SceneView(Shell shell)
@@ -143,9 +144,14 @@ public sealed class SceneView : UIElement
         }
         canvas.DrawImage(_texture, Vector2.Zero, ActualSize);
         _shell.Chains.Update();
+        _shell.Tiles.Update();
         if (_shell.Chains.IsEditing)
         {
             _shell.Chains.Draw(canvas, Camera, ActualSize);
+        }
+        else if (_shell.Tiles.IsEditing)
+        {
+            _shell.Tiles.Draw(canvas, Camera, ActualSize);
         }
         else if (_shell.SelectedTransform() is { } world)
         {
@@ -165,6 +171,11 @@ public sealed class SceneView : UIElement
         if (_mode == Mode.Chain)
         {
             _shell.Chains.EndDrag();
+            _mode = Mode.None;
+        }
+        if (_mode == Mode.Tiles)
+        {
+            _shell.Tiles.EndStroke();
             _mode = Mode.None;
         }
         if (_surface.Value != 0)
@@ -194,6 +205,13 @@ public sealed class SceneView : UIElement
                 break;
             case PointerButton.Left when (e.Modifiers & KeyModifiers.Alt) != 0:
                 _mode = Mode.Orbit;
+                break;
+            case PointerButton.Left when _shell.Tiles.IsEditing:
+                if (_shell.Tiles.BeginStroke(Camera, ActualSize, at))
+                {
+                    _mode = Mode.Tiles;
+                    InvalidateVisual();
+                }
                 break;
             case PointerButton.Left when _shell.Chains.IsEditing && _shell.Chains.BeginDrag(Camera, ActualSize, at):
                 _mode = Mode.Chain;
@@ -237,7 +255,18 @@ public sealed class SceneView : UIElement
             case Mode.Chain:
                 _shell.Chains.Drag(Camera, ActualSize, Local(e), (e.Modifiers & KeyModifiers.Ctrl) != 0);
                 break;
+            case Mode.Tiles:
+                _shell.Tiles.Stroke(Camera, ActualSize, Local(e));
+                break;
             default:
+                if (_shell.Tiles.IsEditing)
+                {
+                    if (_shell.Tiles.Track(Camera, ActualSize, Local(e)))
+                    {
+                        InvalidateVisual();
+                    }
+                    return;
+                }
                 if (_shell.Chains.IsEditing)
                 {
                     if (_shell.Chains.Hover(Camera, ActualSize, Local(e)))
@@ -272,6 +301,11 @@ public sealed class SceneView : UIElement
             _shell.Chains.EndDrag();
             InvalidateVisual();
         }
+        else if (_mode == Mode.Tiles)
+        {
+            _shell.Tiles.EndStroke();
+            InvalidateVisual();
+        }
         _mode = Mode.None;
         _flying = Vector3.Zero;
     }
@@ -300,6 +334,20 @@ public sealed class SceneView : UIElement
         {
             return;
         }
+        // Painting tiles (ADR 0108): the palette's tools by key.
+        if (_shell.Tiles.IsEditing && e.Keycode switch
+        {
+            Keycode.B => TileTool.Paint,
+            Keycode.E => TileTool.Erase,
+            Keycode.G => TileTool.Fill,
+            Keycode.I => TileTool.Pick,
+            _ => (TileTool?)null,
+        } is { } tool)
+        {
+            _shell.SetTileTool(tool);
+            e.Handled = true;
+            return;
+        }
         switch (e.Keycode)
         {
             case Keycode.W:
@@ -316,6 +364,9 @@ public sealed class SceneView : UIElement
                 break;
             case Keycode.P:
                 _shell.Chains.Toggle();
+                break;
+            case Keycode.T:
+                _shell.Tiles.Toggle();
                 break;
             case Keycode.Delete when _shell.Chains.DeleteSelected():
                 break;

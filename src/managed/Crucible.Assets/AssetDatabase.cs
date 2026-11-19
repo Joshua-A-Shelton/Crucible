@@ -380,7 +380,9 @@ public sealed class AssetDatabase
             path.EndsWith(Importers.MaterialImporter.FileExtension, StringComparison.OrdinalIgnoreCase) ||
             path.EndsWith(Importers.StyleImporter.FileExtension, StringComparison.OrdinalIgnoreCase) ||
             path.EndsWith(Importers.StateMachineImporter.FileExtension, StringComparison.OrdinalIgnoreCase) ||
-            path.EndsWith(Importers.ChainImporter.FileExtension, StringComparison.OrdinalIgnoreCase))
+            path.EndsWith(Importers.ChainImporter.FileExtension, StringComparison.OrdinalIgnoreCase) ||
+            path.EndsWith(Importers.TilesetImporter.FileExtension, StringComparison.OrdinalIgnoreCase) ||
+            path.EndsWith(Importers.TilemapImporter.FileExtension, StringComparison.OrdinalIgnoreCase))
         {
             AddOwnFile(path, fullPath);
             return;

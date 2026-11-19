@@ -276,7 +276,8 @@ internal sealed partial class Shell
         AssetDatabase database = AssetDatabase.Open(project,
             [
                 new TextureImporter(), new MeshImporter(), new ShaderImporter(), new FontImporter(), new StyleImporter(),
-                new StateMachineImporter(), new SoundImporter(), new ChainImporter(),
+                new StateMachineImporter(), new SoundImporter(), new ChainImporter(), new TilesetImporter(),
+                new TilemapImporter(),
             ]);
         int imported = 0, failed = 0;
         foreach (ImportResult result in database.ImportAll())
@@ -448,6 +449,14 @@ internal sealed partial class Shell
             else if (panel is SpriteSheetPanel sheet)
             {
                 sheet.Tick();
+            }
+            else if (panel is TilesetEditorPanel tileset)
+            {
+                tileset.Tick();
+            }
+            else if (panel is TilePalettePanel palette)
+            {
+                palette.Tick();
             }
         }
         if (_pickView is { } view && view.Surface.Value != 0)
@@ -725,6 +734,8 @@ internal sealed partial class Shell
         Panels.Register("Log", "Log", () => new LogPanel());
         Panels.Register("BuildSettings", "Build Settings", () => new BuildSettingsPanel(this));
         Panels.Register("SpriteSheet", "Sprite Sheet Editor", () => new SpriteSheetPanel(this));
+        Panels.Register("TilesetEditor", "Tileset Editor", () => new TilesetEditorPanel(this));
+        Panels.Register("TilePalette", "Tile Palette", () => new TilePalettePanel(this));
     }
 
     // The open panel of an ID, made if it isn't open.

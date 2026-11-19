@@ -118,6 +118,105 @@ internal sealed partial class Shell
     }
 
     /// <summary>
+    /// A new tileset (ADR 0108) in a folder of the Assets folder: "New
+    /// Tileset.crtileset" (numbered if taken), cutting <paramref name="texture"/>
+    /// (if given) into 16x16 tiles, imported at once and opened in the
+    /// Tileset Editor. Returns its path in the Assets folder; null if it
+    /// can't be made.
+    /// </summary>
+    public string? CreateTileset(string folder, AssetId texture = default)
+    {
+        TilesetData tileset = new() { Id = AssetId.New(), Texture = texture };
+        string? path = CreateOwnFile(folder, "New Tileset", TilesetImporter.FileExtension, TilesetImporter.Format(tileset));
+        if (path is not null)
+        {
+            ShowTilesetEditor(tileset.Id);
+        }
+        return path;
+    }
+
+    /// <summary>
+    /// A new tilemap (ADR 0108) in a folder of the Assets folder: "New
+    /// Tilemap.crtilemap" (numbered if taken), painting with
+    /// <paramref name="tileset"/> (if given), empty, imported at once.
+    /// Returns its path in the Assets folder; null if it can't be made.
+    /// </summary>
+    public string? CreateTilemap(string folder, AssetId tileset = default)
+    {
+        TilemapData map = new() { Id = AssetId.New(), Tileset = tileset };
+        return CreateOwnFile(folder, "New Tilemap", TilemapImporter.FileExtension, TilemapImporter.Format(map));
+    }
+
+    // A file of Crucible's own made in a folder of the Assets folder, named
+    // "<name><extension>" (numbered if taken), and imported.
+    private string? CreateOwnFile(string folder, string baseName, string extension, string text)
+    {
+        if (Project is not { } project)
+        {
+            return null;
+        }
+        string directory = Path.Combine(project.AssetsFolder, folder);
+        string name = baseName + extension;
+        for (int n = 2; File.Exists(Path.Combine(directory, name)); ++n)
+        {
+            name = $"{baseName} {n}{extension}";
+        }
+        try
+        {
+            File.WriteAllText(Path.Combine(directory, name), text);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            Log($"Can't make {name}: {exception.Message}");
+            return null;
+        }
+        RefreshAssets();
+        string path = folder.Length == 0 ? name : $"{folder}/{name}";
+        Log($"Made {path}");
+        return path;
+    }
+
+    /// <summary>The Tileset Editor (ADR 0108) on a tileset, opened or brought to the front.</summary>
+    public void ShowTilesetEditor(AssetId tileset)
+    {
+        if (!_open.ContainsKey("TilesetEditor"))
+        {
+            TogglePanel("TilesetEditor");
+        }
+        if (_open.GetValueOrDefault("TilesetEditor") is TilesetEditorPanel panel)
+        {
+            panel.Group?.Activate(panel);
+            panel.Show(tileset);
+        }
+    }
+
+    /// <summary>The Tile Palette's tool (ADR 0108), as its toolbar or a key chooses it.</summary>
+    internal void SetTileTool(TileTool tool)
+    {
+        if (_open.GetValueOrDefault("TilePalette") is TilePalettePanel panel)
+        {
+            panel.SetTool(tool);
+        }
+        else
+        {
+            Tiles.Tool = tool;
+        }
+    }
+
+    /// <summary>The Tile Palette (ADR 0108), opened or brought to the front.</summary>
+    public void ShowTilePalette()
+    {
+        if (!_open.ContainsKey("TilePalette"))
+        {
+            TogglePanel("TilePalette");
+        }
+        if (_open.GetValueOrDefault("TilePalette") is TilePalettePanel panel)
+        {
+            panel.Group?.Activate(panel);
+        }
+    }
+
+    /// <summary>
     /// A new chain (ADR 0095) in a folder of the Assets folder: "New
     /// Chain.crchain" (numbered if taken), two points of ground solid below,
     /// imported at once. Returns its path in the Assets folder; null if it
@@ -228,8 +327,10 @@ internal sealed partial class Shell
             }
             // Its collision data, and the colliders built from it (ADR 0086).
             Crucible.Physics.Api.ReloadCollisionAsset(result.Id);
-            // A chain's points, and the Chain colliders made from them (ADR 0095).
+            // A chain's points, and the Chain colliders made from them (ADR 0095);
+            // a tilemap's outlines likewise, and its tiles (ADR 0108).
             Crucible.Physics2D.Api.ReloadChainAsset(result.Id);
+            Crucible.Render2D.Api.ReloadTilemap(result.Id);
             try
             {
                 if (RenderAssets.Reload(result.Id))

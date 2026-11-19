@@ -49,6 +49,7 @@ enum class CRUCIBLE_EXPOSE ShapeKind2D : uint32_t
     Capsule, // size.x: the radius; size.y: the length between the end caps' centers, along Y
     Polygon, // points[0..pointCount): their convex hull (3 to 8 points)
     Chain,   // chain: its imported .crchain's segments (ADR 0095); not on dynamic bodies, never a trigger
+    Tilemap, // the entity's Tilemap: its tiles' shapes (ADR 0108); as Chain, not on dynamic bodies, never a trigger
 };
 
 // An entity simulated by 2D physics; it needs a Collider2D too (on itself).

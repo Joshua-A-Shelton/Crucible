@@ -18,6 +18,7 @@ add_executable(crucible_native_tests
     ConvexColliderTests.cpp
     MeshColliderTests.cpp
     Chain2DTests.cpp
+    Tilemap2DTests.cpp
     CharacterController2DTests.cpp
     Joint2DTests.cpp
     Hitbox2DTests.cpp

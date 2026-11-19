@@ -79,6 +79,9 @@ is, and record which version fixed it.
   easy to draw a frame by accident when selecting one. It needs a toolbar
   with at least Select and Draw, drawing only with Draw chosen. Not a
   priority; come back to it. → 0107
+- Tilemap extras (M11 step 4): 90° turns per cell, animated tiles,
+  auto-tiling rules, more than one tileset a map, and culling chunks off
+  screen, each when a game needs it. → 0108
 - Windows on sprite clips (M11 step 3): frame events are there; named
   ranges (a hitbox's active frames) as 3D clips have them come when a game
   needs them. → 0107

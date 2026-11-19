@@ -1242,6 +1242,16 @@ Step 4 designed (2026-11-19, names settled before building):
   Tiled levels.
 - ADR 0108 "Tilemaps"; docs/learning/tilemaps.md.
 
+Step 4 built (ADR 0108): tilesets and tilemaps as authored assets
+(`TilesetImporter`, `TilemapImporter`), each map baked with its cells'
+places in the texture and its collision merged into outlines; the
+`Tilemap` component drawn through the Sprites step (whole, or row by row
+where its layer y-sorts); `ShapeKind2D::Tilemap` colliding as Box2D chains;
+the Tileset Editor, the Tile Palette, and Edit Tiles in the scene view.
+`SpriteAnimator`, missed in step 3, is registered for scenes now. C#
+importer tests, native collision and drawing tests, and the editor's
+`launcher.jit.tilemaps` check.
+
 ## After M11: importing by dropping files
 
 Asked for by the owner (2026-11-18): files dragged from the system's file

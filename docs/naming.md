@@ -1408,3 +1408,34 @@ step 3 by hand (2026-11-19):
 | SpriteAnimation.h/.cpp: `advanceSpriteAnimators`, `setSpriteParameter`, `spriteCurrentState`, `spriteFindState`, `reloadSpriteAnimationAsset`, `releaseSpriteAnimators`, `registerSpriteAnimator` | Internal C++ | Playing sprite animators inside "Animation.Update" |
 | SpriteAnimationTests.cpp, SpriteSheetChecks, CTest `launcher.jit.sprite-sheet` | Tests | Native playback tests; the editor checking itself |
 
+## Tilemaps (2026-11-19, M11 step 4)
+
+Settled before building: ADR 0108 "Tilemaps"; docs/learning/tilemaps.md;
+`.crtileset` and `TilesetImporter`, its fields `Texture`, `TileWidth`,
+`TileHeight`, `Margin`, `Spacing`, `Tiles` (`Shapes`, each `Points`);
+`.crtilemap` and `TilemapImporter`, its fields `Tileset` and `Cells`;
+`Tilemap` (C++ `crucible::render2d`, C# `Crucible.Render2D`) and its fields
+`map`, `tint`, `sortingLayer`, `orderInLayer`; `ShapeKind2D::Tilemap`; the
+Tileset Editor (Select, Draw Shape, Full, Clear); the Tile Palette (Paint
+(B), Erase (E), Fill (G), Pick (I)); Edit Tiles (T); New Tileset and New
+Tilemap (Create > Tileset and Create > Tilemap, as Create > Chain).
+
+Names added while building, to settle after the owner's try (`*`):
+
+| Name | What it names | What it is |
+|---|---|---|
+| `.crtls`*, `.crtmap`* | Imported file extensions | A tileset's and a tilemap's imported files |
+| crucible/TilemapFile.h*, `TilesetInfo`*, `TilemapInfo`*, `TilemapCell`*, `TileFlip`* (`X`, `Y`), `TilemapLoop`*; kinds `TSET`*, `TMAP`*; sections CELL*, LOOP*, PNTS | C++ header, structs, enum, file tags | The imported files' layout |
+| A cell in a `.crtilemap` as `[x, y, tile, flips]`* | File format | Flips 1 for X, 2 for Y |
+| `render2d::reloadTilemap`* | C++ function | Forgets a map read before, after painting |
+| `TilesetData`*, `TilemapData`*, `TileCell`*; `TilesetImporter.Read`*, `Format`*; `TilemapImporter.Read`*, `Format`*, `Outlines`* | C# types and functions | Reading, writing, and merging collision |
+| `ImportContext.PathOf`* | C# function | Another asset's path, to read it as a dependency |
+| `TilesetEditorPanel`*, `TilePalettePanel`*, panel IDs `TilesetEditor`*, `TilePalette`* | C# classes, layout IDs | The two panels |
+| `TileGridView`* | C# class | The zoomable tile grid both panels show |
+| `TilePainter`*, `TileTool`*, `TileEdit`* | C# classes | Edit Tiles, its tools, and a stroke's undo step |
+| "Flip X"*, "Flip Y"* | Tile Palette toggles | Painting tiles mirrored |
+| "Open"* (on a tileset) | Asset browser menu item | Opens the Tileset Editor |
+| `Shell.CreateTileset`*, `CreateTilemap`*, `ShowTilesetEditor`*, `ShowTilePalette`*, `SetTileTool`* | C# functions | Making the files and showing the panels |
+| `TilemapCache`*, `TileRow`*, `TileRun`*, `gatherTilemaps`*, `resolvedCollider`*, `makeChain`* | Internal C++ | Drawing and colliding with maps |
+| TilemapImporterTests*, Tilemap2DTests.cpp*, TilemapChecks*, CTest `launcher.jit.tilemaps`* | Tests | C#, native, and the editor checking itself |
+

@@ -1,5 +1,6 @@
 using System.Numerics;
 using Crucible.Assets;
+using Crucible.Ecs;
 using Crucible.Render2D;
 using Crucible.Serialization;
 
@@ -36,6 +37,29 @@ public class SpriteComponentTests
         await Assert.That(clip?.AssetKinds.SequenceEqual([".crspriteclip"])).IsTrue();
         SerializedField? machine = SpriteAnimator.SerializedFields.FirstOrDefault(field => field.Name == "StateMachine");
         await Assert.That(machine?.AssetKinds.SequenceEqual([".crstatemachine"])).IsTrue();
+    }
+
+    // Tilemaps (ADR 0108).
+    [Test]
+    public async Task ANewTilemapIsWhiteAndPicksImportedMaps()
+    {
+        await Assert.That(new Tilemap().Tint).IsEqualTo(Vector4.One);
+        SerializedField? map = Tilemap.SerializedFields.FirstOrDefault(field => field.Name == "Map");
+        await Assert.That(map?.AssetKinds.SequenceEqual([".crtmap"])).IsTrue();
+    }
+
+    [Test]
+    public async Task The2DComponentsAreSavedInScenes()
+    {
+        Crucible.Scenes.EngineComponents.Register();
+        foreach (string name in new[]
+                 {
+                     "Crucible.Render2D.Sprite", "Crucible.Render2D.PixelCamera", "Crucible.Render2D.SpriteAnimator",
+                     "Crucible.Render2D.Tilemap",
+                 })
+        {
+            await Assert.That(SavedComponents.Find(name)).IsNotNull().Because(name);
+        }
     }
 
     [Test]

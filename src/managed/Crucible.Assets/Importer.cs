@@ -118,6 +118,13 @@ public sealed class ImportContext : IDisposable
     }
 
     /// <summary>
+    /// Another asset's path inside <c>Assets/</c> (a map's tileset), imported
+    /// first if it needs it; null if there is no such asset or it doesn't
+    /// import. Read it with <see cref="ReadDependency"/> to depend on it.
+    /// </summary>
+    public string? PathOf(AssetId id) => _imported(id)?.Path;
+
+    /// <summary>
     /// Another asset's ID by its path inside <c>Assets/</c> (a glTF's
     /// textures), or <see cref="AssetId.None"/> if there is none.
     /// </summary>

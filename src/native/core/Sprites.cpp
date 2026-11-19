@@ -1,4 +1,5 @@
-// Sprites (ADR 0104, 0106): the components, the sorting layers that y-sort
+// Sprites (ADR 0104, 0106) and tilemaps (ADR 0108): the components, the
+// sorting layers that y-sort
 // and that draw behind the 3D, the textures sprites show (acquired on first
 // use, released when unused), and the Sprites render step: each frame the
 // world's sprites gathered and sorted by sorting layer, order in layer, and
@@ -11,6 +12,7 @@
 
 #include "RenderInternal.h"
 #include "SpriteAnimation.h"
+#include "StateMachine.h"
 
 #include <crucible/AssetLoads.h>
 #include <crucible/Ecs.h>
@@ -18,6 +20,8 @@
 #include <crucible/Log.h>
 #include <crucible/Render.h>
 #include <crucible/Sprite.h>
+#include <crucible/Tilemap.h>
+#include <crucible/TilemapFile.h>
 #include <crucible/Transform.h>
 
 #include <slag/Slag.h>
@@ -119,15 +123,48 @@ struct SpriteInstance
 };
 static_assert(sizeof(SpriteInstance) == 96);
 
-// A gathered sprite, before sorting.
+// A gathered sprite, or a run of a tilemap's tiles, before sorting.
 struct Gathered
 {
     uint32_t layer;
     int32_t order;
-    float height; // the pivot's y, for layers that y-sort
+    float height; // the pivot's y (a run's bottom), for layers that y-sort
     uint32_t entity;
     bool behind; // through a pixel camera, in a layer behind the 3D
     SpriteInstance instance;
+    uint32_t run = UINT32_MAX; // into State::runs; the instance is its placing
+};
+
+// A row of a tilemap's chunk: its tiles' first and count, and its bottom in
+// the map's space.
+struct TileRow
+{
+    uint32_t first;
+    uint32_t count;
+    float bottom;
+};
+
+// A tilemap read from its TMAP file, and its tiles as the GPU draws them in
+// the map's space (built once its texture is ready): chunk by chunk of
+// chunkTiles squared, each row by row, so a row is a run to sort.
+struct TilemapCache
+{
+    uint64_t load = 0; // which load filled it; a reload starts another
+    bool loading = true;
+    bool built = false;
+    assets::TilemapInfo info{};
+    Vector<assets::TilemapCell> cells{MemoryTag::Render};
+    Vector<SpriteInstance> tiles{MemoryTag::Render};
+    Vector<TileRow> rows{MemoryTag::Render};
+};
+
+constexpr int32_t chunkTiles = 16;
+
+// A run to draw: a tilemap's tiles, placed by its entity.
+struct TileRun
+{
+    const SpriteInstance* tiles;
+    uint32_t count;
 };
 
 // sprite.slang's SpriteConstants and pixelComposite.slang's CompositeConstants.
@@ -192,6 +229,9 @@ struct State
         Vector<SpriteInstance>(MemoryTag::Render), Vector<SpriteInstance>(MemoryTag::Render),
         Vector<SpriteInstance>(MemoryTag::Render), Vector<SpriteInstance>(MemoryTag::Render)};
     std::array<SurfaceBuffers, 8> surfaces{};
+    HashMap<AssetId, TilemapCache*, AssetIdHash> tilemaps{MemoryTag::Render};
+    uint64_t tilemapLoads = 0;
+    Vector<TileRun> runs{MemoryTag::Render};
     slag::Pipeline* pipeline = nullptr;
     slag::Pipeline* pickPipeline = nullptr;
     slag::Pipeline* pixelPipeline = nullptr;     // into a pixel camera's small images
@@ -299,6 +339,166 @@ bool instanceOf(const Sprite& sprite, const WorldTransform& transform, uint32_t 
 slag::Buffer* uploadSprites(slag::GraphicsDevice& device, uint32_t surface, uint32_t frameSlot, uint32_t slot,
                             const Vector<SpriteInstance>& sprites);
 
+// --- Tilemaps (ADR 0108) -----------------------------------------------------
+
+// Its cells from the map file's bytes; false if they're wrong. Any thread (a
+// load's job).
+bool readTilemap(std::span<const uint8_t> bytes, TilemapCache& into)
+{
+    Result<binary::File*> opened = binary::parseFile(bytes, assets::tilemapFileKind, assets::tilemapFileVersion);
+    if (!opened)
+    {
+        return false;
+    }
+    Vector<assets::TilemapInfo> info(MemoryTag::Render);
+    const bool good = animation::readTable(*opened.value(), "INFO", info) && info.size() == 1 &&
+                      animation::readTable(*opened.value(), "CELL", into.cells) &&
+                      into.cells.size() == info[0].cellCount;
+    binary::closeFile(opened.value());
+    if (good)
+    {
+        into.info = info[0];
+    }
+    return good;
+}
+
+struct TilemapLoad
+{
+    AssetId id;
+    uint64_t load;
+    TilemapCache read;
+    bool good = false;
+};
+
+// The tilemap, or null: it couldn't be read, or it's loading (a load
+// started now if need be).
+TilemapCache* tilemapOf(const AssetId& id)
+{
+    if (isZero(id))
+    {
+        return nullptr;
+    }
+    if (TilemapCache** found = state.tilemaps.find(id))
+    {
+        return (*found)->loading ? nullptr : *found;
+    }
+    auto* cache = create<TilemapCache>(MemoryTag::Render);
+    cache->load = ++state.tilemapLoads;
+    state.tilemaps.insertOrAssign(id, cache);
+    auto* load = create<TilemapLoad>(MemoryTag::Render);
+    load->id = id;
+    load->load = cache->load;
+    assets::startLoad({
+        .id = id,
+        .context = load,
+        .prepare =
+            [](void* context, std::span<const uint8_t> bytes, bool found) {
+                auto& self = *static_cast<TilemapLoad*>(context);
+                self.good = found && readTilemap(bytes, self.read);
+            },
+        .publish =
+            [](void* context) {
+                auto* self = static_cast<TilemapLoad*>(context);
+                TilemapCache** found = state.tilemaps.find(self->id);
+                if (found != nullptr && (*found)->load == self->load) // not reloaded meanwhile
+                {
+                    TilemapCache& cache = **found;
+                    cache.loading = false;
+                    cache.info = self->read.info;
+                    cache.cells = static_cast<Vector<assets::TilemapCell>&&>(self->read.cells);
+                    if (!self->good)
+                    {
+                        cache.cells.clear();
+                        log::warning("a tilemap's map can't be read (reimport it)");
+                    }
+                }
+                destroy(MemoryTag::Render, self);
+            },
+    });
+    TilemapCache** found = state.tilemaps.find(id);
+    return found != nullptr && !(*found)->loading ? *found : nullptr;
+}
+
+bool tilemapLoading(const AssetId& id)
+{
+    TilemapCache** found = isZero(id) ? nullptr : state.tilemaps.find(id);
+    return found != nullptr && (*found)->loading;
+}
+
+// Its tiles as quads in the map's space, once its texture is ready.
+void buildTiles(TilemapCache& map, TextureHandle texture)
+{
+    const TextureSize size = textureSize(texture);
+    if (size.width == 0 || size.height == 0)
+    {
+        return;
+    }
+    // Chunk by chunk, row by row within each, so rows are runs.
+    auto chunkOf = [](int32_t v) {
+        return v >= 0 ? v / chunkTiles : (v + 1) / chunkTiles - 1;
+    };
+    std::sort(map.cells.begin(), map.cells.end(), [&](const assets::TilemapCell& a, const assets::TilemapCell& b) {
+        const int32_t acy = chunkOf(a.y), bcy = chunkOf(b.y), acx = chunkOf(a.x), bcx = chunkOf(b.x);
+        if (acy != bcy)
+        {
+            return acy < bcy;
+        }
+        if (acx != bcx)
+        {
+            return acx < bcx;
+        }
+        return a.y != b.y ? a.y < b.y : a.x < b.x;
+    });
+    map.tiles.clear();
+    map.rows.clear();
+    const float w = map.info.cellWidth, h = map.info.cellHeight;
+    const float invWidth = 1.0f / static_cast<float>(size.width), invHeight = 1.0f / static_cast<float>(size.height);
+    const uint32_t descriptor = textureDescriptor(texture);
+    for (const assets::TilemapCell& cell : map.cells)
+    {
+        SpriteInstance tile{};
+        tile.localMin = {static_cast<float>(cell.x) * w, static_cast<float>(cell.y) * h};
+        tile.localMax = {tile.localMin.x + w, tile.localMin.y + h};
+        Vector2 uvMin{static_cast<float>(cell.pixelX) * invWidth, static_cast<float>(cell.pixelY) * invHeight};
+        Vector2 uvMax{static_cast<float>(cell.pixelX + map.info.tileWidth) * invWidth,
+                      static_cast<float>(cell.pixelY + map.info.tileHeight) * invHeight};
+        if ((cell.flags & static_cast<uint32_t>(assets::TileFlip::X)) != 0)
+        {
+            std::swap(uvMin.x, uvMax.x);
+        }
+        if ((cell.flags & static_cast<uint32_t>(assets::TileFlip::Y)) != 0)
+        {
+            std::swap(uvMin.y, uvMax.y);
+        }
+        tile.uvMin = uvMin;
+        tile.uvMax = uvMax;
+        tile.texture = descriptor;
+        const uint32_t index = static_cast<uint32_t>(map.tiles.size());
+        map.tiles.pushBack(tile);
+        const bool sameRow = !map.rows.empty() && map.rows.back().bottom == tile.localMin.y &&
+                             chunkOf(map.cells[map.rows.back().first].x) == chunkOf(cell.x) &&
+                             chunkOf(map.cells[map.rows.back().first].y) == chunkOf(cell.y);
+        if (sameRow)
+        {
+            ++map.rows.back().count;
+        }
+        else
+        {
+            map.rows.pushBack({index, 1, tile.localMin.y});
+        }
+    }
+    map.built = true;
+}
+
+void freeTilemaps()
+{
+    for (auto& entry : state.tilemaps)
+    {
+        destroy(MemoryTag::Render, entry.value);
+    }
+    state.tilemaps.clear();
+}
+
 // The pixel camera drawing the world (the lowest entity with one), unless
 // the surface has a camera of its own (the editor's scene view); false if
 // there's none. Its position, snapped so its bottom-left corner is on the
@@ -354,6 +554,96 @@ bool pixelCameraOf(const RenderStepContext& context, PixelCamera& camera, Vector
 
 slag::Buffer* uploadSprites(slag::GraphicsDevice& device, uint32_t surface, uint32_t frameSlot, uint32_t slot,
                             const Vector<SpriteInstance>& sprites);
+
+// The world's tilemaps as runs to sort with the sprites: the whole map as
+// one, or (in a layer that y-sorts) each chunk's rows.
+void gatherTilemaps(ecs::World& world, bool pixel, float pixelsPerUnit, uint32_t behindLayers)
+{
+    state.runs.clear();
+    if (ecs::componentIdOf<render2d::Tilemap> == ecs::invalidComponent)
+    {
+        return;
+    }
+    const uint32_t ySort = render2d::ySortLayers();
+    const ecs::ComponentId required[] = {ecs::componentIdOf<render2d::Tilemap>, ecs::componentIdOf<WorldTransform>};
+    ecs::Query* query = ecs::createQuery(world, {.required = required});
+    struct Found
+    {
+        ecs::Entity entity;
+        render2d::Tilemap tilemap;
+        Matrix4x4 matrix;
+    };
+    Vector<Found> found(MemoryTag::Render);
+    ecs::forEachChunk(
+        *query,
+        [](const ecs::ChunkView& view, void* data) {
+            const std::span<const render2d::Tilemap> maps = ecs::readColumn<render2d::Tilemap>(view);
+            const std::span<const WorldTransform> transforms = ecs::readColumn<WorldTransform>(view);
+            const ecs::Entity* entities = ecs::entitiesOf(view);
+            for (size_t i = 0; i < maps.size(); ++i)
+            {
+                static_cast<Vector<Found>*>(data)->pushBack({entities[i], maps[i], transforms[i].matrix});
+            }
+        },
+        &found);
+    ecs::destroyQuery(query);
+    for (const Found& one : found)
+    {
+        TilemapCache* map = tilemapOf(one.tilemap.map);
+        if (map == nullptr || map->cells.empty())
+        {
+            continue;
+        }
+        const TextureHandle texture = resolve(map->info.texture);
+        if (texture.generation == 0 || !isTextureReady(texture))
+        {
+            continue;
+        }
+        if (!map->built)
+        {
+            buildTiles(*map, texture);
+            if (!map->built)
+            {
+                continue;
+            }
+        }
+        const uint32_t layer = one.tilemap.sortingLayer;
+        Gathered gathered{.layer = layer,
+                          .order = one.tilemap.orderInLayer,
+                          .height = one.matrix.rows[3].y,
+                          .entity = ecs::indexOf(one.entity),
+                          .behind = pixel && layer < 32 && (behindLayers >> layer & 1) != 0,
+                          .instance = {}};
+        SpriteInstance& placing = gathered.instance;
+        placing.axisX = {one.matrix.rows[0].x, one.matrix.rows[0].y};
+        placing.axisY = {one.matrix.rows[1].x, one.matrix.rows[1].y};
+        placing.origin = {one.matrix.rows[3].x, one.matrix.rows[3].y, one.matrix.rows[3].z};
+        placing.tint = one.tilemap.tint;
+        placing.entity = gathered.entity + 1;
+        if (pixel)
+        {
+            // The map's origin on the grid, so every tile is.
+            placing.origin.x = std::round(placing.origin.x * pixelsPerUnit) / pixelsPerUnit;
+            placing.origin.y = std::round(placing.origin.y * pixelsPerUnit) / pixelsPerUnit;
+        }
+        if (layer < 32 && (ySort >> layer & 1) != 0)
+        {
+            for (const TileRow& row : map->rows)
+            {
+                gathered.height = placing.origin.y + row.bottom * placing.axisY.y;
+                gathered.run = static_cast<uint32_t>(state.runs.size());
+                state.runs.pushBack({map->tiles.data() + row.first, row.count});
+                state.gathered.pushBack(gathered);
+            }
+        }
+        else
+        {
+            gathered.run = static_cast<uint32_t>(state.runs.size());
+            state.runs.pushBack({map->tiles.data(), static_cast<uint32_t>(map->tiles.size())});
+            state.gathered.pushBack(gathered);
+        }
+    }
+}
 
 // The surface's sprites this frame, gathered, sorted, and uploaded once for
 // its steps, on the main thread (passes record on workers).
@@ -440,6 +730,7 @@ const FrameSprites& frameSprites(const RenderStepContext& context)
         },
         &gathering);
     ecs::destroyQuery(query);
+    gatherTilemaps(*context.world, gathering.pixel, gathering.pixelsPerUnit, gathering.behind);
     expireTextures();
 
     // Behind the 3D first, then layer, then order in layer, then (where the
@@ -467,8 +758,25 @@ const FrameSprites& frameSprites(const RenderStepContext& context)
     });
     for (const Gathered& gathered : state.gathered)
     {
-        sorted.pushBack(gathered.instance);
-        frame.behind += gathered.behind ? 1 : 0;
+        if (gathered.run == UINT32_MAX)
+        {
+            sorted.pushBack(gathered.instance);
+            frame.behind += gathered.behind ? 1 : 0;
+            continue;
+        }
+        // A run of tiles, each placed as its tilemap is.
+        const TileRun& run = state.runs[gathered.run];
+        for (uint32_t i = 0; i < run.count; ++i)
+        {
+            SpriteInstance tile = run.tiles[i];
+            tile.axisX = gathered.instance.axisX;
+            tile.axisY = gathered.instance.axisY;
+            tile.origin = gathered.instance.origin;
+            tile.tint = gathered.instance.tint;
+            tile.entity = gathered.instance.entity;
+            sorted.pushBack(tile);
+        }
+        frame.behind += gathered.behind ? run.count : 0;
     }
     if (!sorted.empty() &&
         uploadSprites(context.device, context.surface, frameSlotOf(context),
@@ -611,6 +919,7 @@ void releaseSprites(slag::GraphicsDevice& device, void*)
     }
     state.textures.clear();
     state.frames = {};
+    freeTilemaps();
 }
 
 namespace {
@@ -756,8 +1065,8 @@ void addSpritePicks(RenderStepContext& context, slag::rendergraph::RenderGraphTe
         });
 }
 
-// The load starter (ADR 0099): every sprite's texture acquired, counting
-// those still loading.
+// The load starter (ADR 0099): every sprite's texture, and every tilemap's
+// map and texture, acquired, counting those still loading.
 uint32_t startSpriteLoads(ecs::World& world)
 {
     if (ecs::componentIdOf<Sprite> == ecs::invalidComponent)
@@ -778,6 +1087,26 @@ uint32_t startSpriteLoads(ecs::World& world)
         },
         &waiting);
     ecs::destroyQuery(query);
+    // Tilemaps: the map, then its tileset's texture.
+    if (ecs::componentIdOf<render2d::Tilemap> != ecs::invalidComponent)
+    {
+        const ecs::ComponentId mapOnly[] = {ecs::componentIdOf<render2d::Tilemap>};
+        query = ecs::createQuery(world, {.required = mapOnly});
+        ecs::forEachChunk(
+            *query,
+            [](const ecs::ChunkView& view, void* data) {
+                for (const render2d::Tilemap& tilemap : ecs::readColumn<render2d::Tilemap>(view))
+                {
+                    const TilemapCache* map = tilemapOf(tilemap.map);
+                    const TextureHandle texture = map != nullptr ? resolve(map->info.texture) : TextureHandle{};
+                    const bool loads =
+                        tilemapLoading(tilemap.map) || (texture.generation != 0 && isTextureLoading(texture));
+                    *static_cast<uint32_t*>(data) += loads ? 1 : 0;
+                }
+            },
+            &waiting);
+        ecs::destroyQuery(query);
+    }
     return waiting;
 }
 
@@ -789,12 +1118,30 @@ void registerSprite()
 {
     ecs::registerComponent<Sprite>("Crucible.Render2D.Sprite");
     ecs::registerComponent<PixelCamera>("Crucible.Render2D.PixelCamera");
+    ecs::registerComponent<Tilemap>("Crucible.Render2D.Tilemap");
     registerSpriteAnimator();
     static const bool starter = [] {
         assets::registerLoadStarter(render::startSpriteLoads);
         return true;
     }();
     (void)starter;
+}
+
+} // namespace crucible::render2d
+
+namespace crucible::render2d {
+
+bool reloadTilemap(assets::AssetId map)
+{
+    render::TilemapCache** found = render::state.tilemaps.find(map);
+    if (found == nullptr)
+    {
+        return false;
+    }
+    const bool loaded = !(*found)->loading;
+    destroy(MemoryTag::Render, *found);
+    render::state.tilemaps.erase(map);
+    return loaded;
 }
 
 } // namespace crucible::render2d

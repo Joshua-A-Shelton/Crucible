@@ -195,3 +195,6 @@ Longer explanations of decisions, written to be reread:
   sheets and slicing, clips with a duration per frame, baking on import,
   events on frames, state machines without blending, and seeing pixels
   zoomed in.
+- [Tilemaps](docs/learning/tilemaps.md) (ADR 0108): tiles and tilesets,
+  painting and filling, drawing a level as built quads, colliding with
+  merged outlines instead of tile boxes, and why maps are baked.

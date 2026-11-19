@@ -167,6 +167,10 @@ public sealed class AssetsPanel : EditorPanel
         {
             _shell.ShowSpriteSheet(texture.Id);
         }
+        else if (tile.Asset is { Importer: "Tileset" } tileset)
+        {
+            _shell.ShowTilesetEditor(tileset.Id);
+        }
     }
 
     internal ContextMenu ShowMenu(AssetTile tile, Vector2 at)
@@ -179,6 +183,10 @@ public sealed class AssetsPanel : EditorPanel
         if (tile.Kind == "Texture" && tile.Asset is { } sheet)
         {
             menu.Add("Edit Sprite Sheet…", () => _shell.ShowSpriteSheet(sheet.Id));
+        }
+        if (tile.Asset is { Importer: "Tileset" } editable)
+        {
+            menu.Add("Open", () => _shell.ShowTilesetEditor(editable.Id));
         }
         if (tile.Asset is { Importer.Length: > 0 } asset)
         {
@@ -208,6 +216,11 @@ public sealed class AssetsPanel : EditorPanel
         string folder = tile.IsFolder ? tile.Path : Path.GetDirectoryName(tile.Path)?.Replace('\\', '/') ?? "";
         Menu create = new();
         create.Add("Chain", () => _shell.CreateChain(folder));
+        // A texture's own tileset, a tileset's own map.
+        AssetId texture = tile.Asset is { Importer: "Texture" } image ? image.Id : AssetId.None;
+        AssetId tileset = tile.Asset is { Importer: "Tileset" } set ? set.Id : AssetId.None;
+        create.Add("Tileset", () => _shell.CreateTileset(folder, texture));
+        create.Add("Tilemap", () => _shell.CreateTilemap(folder, tileset));
         menu.Add(new MenuItem("Create") { Submenu = create });
         menu.Add("Refresh", _shell.RefreshAssets);
         menu.Open(tile, at);
