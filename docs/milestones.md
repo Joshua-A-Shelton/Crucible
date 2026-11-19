@@ -1150,6 +1150,28 @@ Between steps 1 and 2 (asked for by the owner, 2026-11-18): the slow
 Walker checks run on a fixed-step clock (ADR 0105), about 340 s down to
 about 48 per configuration.
 
+Step 2 designed (2026-11-19, names settled before building):
+- **Draw small, scale up:** sprites are drawn into a texture at a virtual
+  resolution, then scaled up to the window, so everything is truly on the
+  art's grid (rotated or scaled sprites stay chunky, no mixels, no
+  shimmer). The 2D camera and every sprite snap to the grid.
+- **The 2D camera:** `PixelCamera` (C++ `crucible::render2d`, C#
+  `Crucible.Render2D`): `width`, `height` (320x180 by default),
+  `pixelsPerUnit` (16), `fit` (`PixelFit`: `Sharp`, the default, fills
+  the window, scaling by the largest whole number and blending only pixel
+  edges for the rest; `Exact` scales by whole numbers with black bars).
+  Placed by its entity's transform; not a `Camera`, so the 3D keeps its
+  own. Without one, sprites draw with the main camera as in step 1.
+- **Over and under the 3D:** a sorting layer's `Behind3D` (project file)
+  draws it under the 3D: scaled up into the finished image where the 3D
+  drew nothing (the sky counts as nothing), judged per pixel from depth;
+  the other layers over everything. Both after Tonemap, so colors stay
+  exact.
+- The editor's scene view draws sprites directly at its own resolution;
+  the Game panel and games go through the 2D camera. All in the `Sprites`
+  step.
+- ADR 0106 "The pixel camera"; docs/learning/pixel-perfect.md.
+
 ## After M11: importing by dropping files
 
 Asked for by the owner (2026-11-18): files dragged from the system's file
