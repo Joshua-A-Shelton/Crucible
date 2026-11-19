@@ -425,7 +425,11 @@ This project is as much a learning exercise as it is an engine.
   whatever isn't clear, in as much detail as needed, before anything is
   decided. Nothing proceeds on that question until the owner picks a real
   answer afterwards. An open question with no answers to choose from (one
-  the owner answers in their own words) doesn't need it.
+  the owner answers in their own words) doesn't need it. The question tool
+  allows four answers plus its own "Other" (typed text, which can't be
+  renamed), so a question has at most three suggestions and "Discuss
+  first"; one that needs more is split into two questions rather than
+  losing "Discuss first".
 - **Explanations are kept twice:** walked through in chat, and written into
   the ADR so the reasoning can be reread later. Concepts that need a longer
   explanation get a learning note in `docs/learning/`, listed in
