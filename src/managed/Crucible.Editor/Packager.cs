@@ -90,6 +90,10 @@ internal sealed class Packager(Project project, GameBuilder builder, NativeBuild
             }
             if (OperatingSystem.IsWindows())
             {
+                UseWindowsSubsystem(Path.Combine(staging, executable));
+            }
+            if (OperatingSystem.IsWindows())
+            {
                 // The JIT launcher's nethost, and the Agility SDK's runtime,
                 // which D3D12 loads from D3D12 beside the executable; its
                 // debug layer stays out of packages.
@@ -152,6 +156,32 @@ internal sealed class Packager(Project project, GameBuilder builder, NativeBuild
         }
         File.Copy(linked.Assembly!, executable);
         return null;
+    }
+
+    // A game opens no console window (ADR 0100): the launcher is linked as a
+    // console program, which suits the editor's runs, so a package's copy is
+    // marked a GUI one, the PE header's Subsystem field, as editbin
+    // /SUBSYSTEM:WINDOWS would. Its entry point stays the same, and output
+    // still reaches whatever a parent redirects it to.
+    internal static void UseWindowsSubsystem(string executable)
+    {
+        const ushort windowsGui = 2;
+        using FileStream file = new(executable, FileMode.Open, FileAccess.ReadWrite);
+        Span<byte> header = stackalloc byte[4];
+        file.Position = 0x3C; // e_lfanew: where the PE header starts
+        file.ReadExactly(header);
+        // "PE\0\0", the file header (20 bytes), then the optional header,
+        // whose Subsystem is at 68 in PE32 and PE32+ alike.
+        long start = BitConverter.ToUInt32(header);
+        file.Position = start;
+        file.ReadExactly(header);
+        if (!header.SequenceEqual("PE\0\0"u8))
+        {
+            throw new IOException($"{executable} isn't a Windows executable");
+        }
+        file.Position = start + 4 + 20 + 68;
+        BitConverter.TryWriteBytes(header, windowsGui);
+        file.Write(header[..2]);
     }
 
     // Beside the launcher (where Windows keeps it), else where the engine's

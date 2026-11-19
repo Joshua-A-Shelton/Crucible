@@ -95,6 +95,12 @@ ships.
   (`System.dll`, `mscorlib.dll`, …) and the engine's core beside the
   game's files, so a project named like one of them, or `Crucible`, gets a
   `Game` prefix (`GameSystem`), as one starting with a digit already did.
+- **No console window on Windows** (found in the M10 demonstration's try
+  by hand, ADR 0102). The launcher is linked as a console program, which
+  suits the editor's runs, so Windows opened a console beside a packaged
+  game. A package's executable, JIT or NativeAOT, is marked a GUI program
+  (the PE header's Subsystem, as `editbin /SUBSYSTEM:WINDOWS` sets it;
+  `Packager.UseWindowsSubsystem`). Its output still reaches a redirect.
 - **A failed build changes nothing.** The package is made in
   `<folder>.building` and moved into place once whole. A target folder
   that isn't empty and has no Data folder isn't a package and is never

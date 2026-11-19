@@ -72,6 +72,18 @@ foreach(file ${absent})
     endif()
 endforeach()
 
+# On Windows a game opens no console: its executable is a GUI program (the
+# PE header's Subsystem, 2) while the editor's launcher is a console one (3).
+if(WIN32)
+    file(READ "${package}/${executable}" lfanew OFFSET 60 LIMIT 4 HEX)
+    string(REGEX REPLACE "^(..)(..)(..)(..)$" "\\4\\3\\2\\1" lfanew "${lfanew}")
+    math(EXPR subsystemAt "0x${lfanew} + 92")
+    file(READ "${package}/${executable}" subsystem OFFSET ${subsystemAt} LIMIT 2 HEX)
+    if(NOT subsystem STREQUAL "0200")
+        message(FATAL_ERROR "package_game: ${executable} isn't a GUI program (Subsystem ${subsystem})")
+    endif()
+endif()
+
 if(RUNTIME STREQUAL "Jit")
     # ReadyToRun puts machine code beside the IL, so the engine's assembly grows.
     file(SIZE "${ENGINE}/Crucible.Engine.dll" ilSize)

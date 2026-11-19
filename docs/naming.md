@@ -1290,3 +1290,4 @@ tries it by hand:
 |---|---|
 | `Shell.RunPackage`* | Runs a package's executable as a player would, for the checks |
 | `LevelChecks.Compare`*; the copy's folder packaged-project* | The check's parts |
+| `Packager.UseWindowsSubsystem`* | Marks a package's executable a GUI program, so Windows opens no console |
