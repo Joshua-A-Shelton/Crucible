@@ -1367,8 +1367,8 @@ C# `Crucible.Render2D`) and its fields `width`, `height`,
 `pixelsPerUnit`, `fit`; `PixelFit` (`Sharp`, `Exact`); a sorting layer's
 `Behind3D`.
 
-Names added while building (marked *) are placeholders until the owner
-tries it by hand:
+Names added while building, settled as drafted after the owner tried
+step 2 by hand (2026-11-19):
 
 | Name | What it names | What it is |
 |---|---|---|
@@ -1378,3 +1378,4 @@ tries it by hand:
 | `pixelFrontDescriptor`, `pixelBehindDescriptor`, `pixelDepthDescriptor` | Internal C++ | A surface's slots for the small images and the depth |
 | shaders/crucible/pixelComposite.slang; `compositeVertex`, `compositePixel` | Shader file and entry points | Scaling a small image up over the finished one |
 | PixelSprites, PixelSpritesBehind, PixelComposite, PixelCompositeBehind | Render passes (in GPU captures) | The pixel path's passes |
+| `crucible_launcher_files` | CMake target (Windows) | Copies the core, nethost, and the D3D12 runtime beside the launchers once |

@@ -1,8 +1,9 @@
 # 0106 — The pixel camera
 
-**Status:** Accepted (2026-11-19); M11 step 2 built, awaiting the owner's
-try (names marked * were added while building it and are placeholders
-until then). The design's names were settled before building
+**Status:** Accepted (2026-11-19); M11 step 2 built, then tried by hand by
+the owner, all but `Behind3D` (to try once sorting layers can be set from
+the editor; open items). The design's names were settled before building;
+those added while building were settled by the owner as drafted
 (docs/naming.md).
 
 ## Context
@@ -75,9 +76,9 @@ hard, per pixel, which suits pixel art.
   drawn with the pixel camera's view into a texture at its resolution,
   premultiplied (so a texel's alpha is how much the sprites covered).
   Sorting puts the behind sprites first in the instance buffer;
-  `SpriteConstants`* gives each draw its first sprite and its view.
-- **The composite** (pixelComposite.slang*: `compositeVertex`*,
-  `compositePixel`*; a file of its own, since D3D12 maps every shader
+  `SpriteConstants` gives each draw its first sprite and its view.
+- **The composite** (pixelComposite.slang: `compositeVertex`,
+  `compositePixel`; a file of its own, since D3D12 maps every shader
   file's push-constant block to the one set of root constants all
   pipelines share, and a second block in sprite.slang read zeros) scales an
   image up over the finished one at `scale` window pixels a virtual pixel
@@ -104,12 +105,12 @@ hard, per pixel, which suits pixel art.
 ## As built
 
 - Native: crucible/Sprite.h's `PixelCamera`, `PixelFit`,
-  `setBehind3DLayers`*, `behind3DLayers`*; Sprites.cpp's pixel path
-  (`FrameSprites`*, `pixelCameraOf`*, `addSpritePass`*, `addComposite`*,
-  the passes PixelSpritesBehind*, PixelCompositeBehind*, PixelSprites*,
-  PixelComposite*); `surfaceHasOwnCamera`*; the surface slots
-  `pixelFrontDescriptor`*, `pixelBehindDescriptor`*,
-  `pixelDepthDescriptor`*; sprite.slang's composite.
+  `setBehind3DLayers`, `behind3DLayers`; Sprites.cpp's pixel path
+  (`FrameSprites`, `pixelCameraOf`, `addSpritePass`, `addComposite`,
+  the passes PixelSpritesBehind, PixelCompositeBehind, PixelSprites,
+  PixelComposite); `surfaceHasOwnCamera`; the surface slots
+  `pixelFrontDescriptor`, `pixelBehindDescriptor`,
+  `pixelDepthDescriptor`; sprite.slang's composite.
 - C#: `PixelCamera`'s defaults; `SortingLayer.Behind3D`;
   `RuntimeSettings.Install` setting both masks.
 - Tests: native, on every backend: sprites on the pixel camera's grid,
