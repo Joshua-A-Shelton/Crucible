@@ -26,16 +26,7 @@ if(CRUCIBLE_X64)
     set_source_files_properties(CpuCheck.cpp PROPERTIES COMPILE_DEFINITIONS "CRUCIBLE_X86_LEVEL=${crucibleX86Level}")
 endif()
 target_link_libraries(crucible_launcher PRIVATE crucible::core crucible::nethost)
-crucible_copy_nethost(crucible_launcher)
-crucible_use_d3d12_agility(crucible_launcher)
-if(WIN32)
-    # Windows keeps DLLs next to the executable; the engine looks there for
-    # the core (CoreLibraryResolver).
-    add_custom_command(TARGET crucible_launcher POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-            "$<TARGET_FILE:crucible_core>" "$<TARGET_FILE_DIR:crucible_launcher>"
-        VERBATIM)
-endif()
+crucible_d3d12_agility_exports(crucible_launcher)
 
 # The editor launcher (ADR 0016, 0066): the JIT launcher loading the editor's
 # assembly as its game. The editor is JIT only, like games in development.
@@ -47,13 +38,25 @@ crucible_set_compile_options(crucible_editor)
 set_target_properties(crucible_editor PROPERTIES OUTPUT_NAME CrucibleEditor)
 target_compile_definitions(crucible_editor PRIVATE CRUCIBLE_EDITOR_LAUNCHER=1)
 target_link_libraries(crucible_editor PRIVATE crucible::core crucible::nethost)
-crucible_copy_nethost(crucible_editor)
-crucible_use_d3d12_agility(crucible_editor)
+crucible_d3d12_agility_exports(crucible_editor)
+# On Windows, what the launchers in this folder load from beside them, copied
+# once for all of them: the core (where CoreLibraryResolver looks), .NET's
+# nethost, and the Agility SDK's D3D12 runtime. Each executable copying them
+# after linking raced when two linked at once (Permission denied).
 if(WIN32)
-    add_custom_command(TARGET crucible_editor POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-            "$<TARGET_FILE:crucible_core>" "$<TARGET_FILE_DIR:crucible_editor>"
-        VERBATIM)
+    set(crucibleLauncherFiles
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:crucible_core>" "${CMAKE_CURRENT_BINARY_DIR}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CRUCIBLE_NETHOST_DIR}/nethost.dll" "${CMAKE_CURRENT_BINARY_DIR}")
+    if(CRUCIBLE_AGILITY_SDK_VERSION)
+        list(APPEND crucibleLauncherFiles
+            COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/D3D12"
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${SLAG_AGILITY_SDK_BIN_DIR}/D3D12Core.dll"
+                "${SLAG_AGILITY_SDK_BIN_DIR}/d3d12SDKLayers.dll" "${CMAKE_CURRENT_BINARY_DIR}/D3D12/")
+    endif()
+    add_custom_target(crucible_launcher_files ${crucibleLauncherFiles} VERBATIM)
+    add_dependencies(crucible_launcher_files crucible_core)
+    add_dependencies(crucible_launcher crucible_launcher_files)
+    add_dependencies(crucible_editor crucible_launcher_files)
 endif()
 # The asset pipeline's native library beside the editor, where the editor
 # looks for it (Crucible.Editor's Dependencies.cs), as a shipped editor keeps it.
@@ -161,8 +164,8 @@ if(CRUCIBLE_BUILD_AOT)
         "${CRUCIBLE_ENGINE_AOT_LIBRARY}"
         crucible::core_static
         "LINKER:@${CRUCIBLE_ENGINE_AOT_LINK_INPUTS}")
-    if(WIN32 AND CRUCIBLE_AGILITY_SDK_VERSION)
-        slag_copy_agility_runtime(crucible_launcher_aot)
+    if(WIN32)
+        add_dependencies(crucible_launcher_aot crucible_launcher_files)
     endif()
     add_dependencies(crucible_launcher_aot crucible_engine_aot)
     set_property(TARGET crucible_launcher_aot APPEND PROPERTY LINK_DEPENDS

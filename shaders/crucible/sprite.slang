@@ -1,11 +1,10 @@
-// The Sprites step (ADR 0104): every sprite in one instanced draw over the
-// finished image, six vertices each, in the order the CPU sorted them; each
-// reads its own texture from the heap. Texels are sampled point-clamped and
-// written as they are (times the tint), so colors are exactly the texture's.
-// The editor's Pick step draws them again, writing their entities.
-import crucible.shared;
-
-ConstantBuffer<ViewConstants> view : register(b1);
+// The Sprites step (ADR 0104, 0106): sprites in instanced draws, six
+// vertices each, in the order the CPU sorted them; each reads its own
+// texture from the heap. Texels are sampled point-clamped and written as
+// they are (times the tint), so colors are exactly the texture's. Drawn over
+// the finished image, or through a pixel camera into low-resolution images
+// that pixelComposite.slang scales up over it. The editor's Pick step draws
+// them again, writing their entities.
 
 static const uint pointClampSampler = 3;
 
@@ -30,9 +29,10 @@ struct SpriteInstance
 struct SpriteConstants
 {
     uint sprites; // StructuredBuffer<SpriteInstance>
+    uint first;   // the first sprite this draw draws
     uint pad0;
     uint pad1;
-    uint pad2;
+    float4x4 viewProjection; // the main camera's, or the pixel camera's
 };
 [[vk::push_constant]] ConstantBuffer<SpriteConstants> constants;
 
@@ -47,7 +47,7 @@ struct SpriteVaryings
 SpriteVaryings spriteVertex(uint vertex : SV_VertexID, uint instance : SV_InstanceID)
 {
     StructuredBuffer<SpriteInstance> sprites = ResourceDescriptorHeap[constants.sprites];
-    const SpriteInstance sprite = sprites[instance];
+    const SpriteInstance sprite = sprites[constants.first + instance];
     // Two triangles: bottom-left, bottom-right, top-left, top-left,
     // bottom-right, top-right.
     const uint corners[6] = { 0, 1, 2, 2, 1, 3 };
@@ -55,10 +55,10 @@ SpriteVaryings spriteVertex(uint vertex : SV_VertexID, uint instance : SV_Instan
     const float2 local = lerp(sprite.localMin, sprite.localMax, corner);
     const float2 world = sprite.origin.xy + local.x * sprite.axisX + local.y * sprite.axisY;
     SpriteVaryings output;
-    output.position = mul(float4(world, sprite.origin.z, 1.0), view.viewProjection);
+    output.position = mul(float4(world, sprite.origin.z, 1.0), constants.viewProjection);
     // Texture rows run down, local y up.
     output.uv = float2(lerp(sprite.uvMin.x, sprite.uvMax.x, corner.x), lerp(sprite.uvMax.y, sprite.uvMin.y, corner.y));
-    output.instance = instance;
+    output.instance = constants.first + instance;
     return output;
 }
 

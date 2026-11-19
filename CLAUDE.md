@@ -273,7 +273,9 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   `SortingLayers` (each may y-sort), then `orderInLayer`; floors switch a
   sprite's layer at triggers. Texture usage `Sprite` imports exact bytes;
   `PixelsPerUnit` sizes them. Runtime project settings (`RuntimeSettings`)
-  ship as an archive entry.
+  ship as an archive entry. A `PixelCamera` (ADR 0106) draws them at a
+  virtual resolution, snapped, scaled up Sharp or Exact; `Behind3D` layers
+  show only where the 3D drew nothing.
 - **Binding generator** (ADR 0017): annotated C++ headers, parsed at build
   time with the system's libclang through Crucible's own bindings, generate C ABI
   shims, raw and idiomatic C# layers, struct mirrors with layout checks on

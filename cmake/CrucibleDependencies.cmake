@@ -27,12 +27,22 @@ if(WIN32)
     get_directory_property(CRUCIBLE_AGILITY_SDK_VERSION DIRECTORY "${slag_SOURCE_DIR}"
         DEFINITION SLAG_AGILITY_SDK_VERSION)
 endif()
-function(crucible_use_d3d12_agility target)
+# crucible_d3d12_agility_exports(<target>): the exports alone, for
+# executables in a folder whose D3D12 runtime is copied once for all of them
+# (the launchers'); crucible_use_d3d12_agility(<target>) copies it beside the
+# target too.
+function(crucible_d3d12_agility_exports target)
     if(NOT WIN32 OR NOT CRUCIBLE_AGILITY_SDK_VERSION)
         return()
     endif()
     target_sources(${target} PRIVATE "${PROJECT_SOURCE_DIR}/src/native/launcher/D3D12Agility.cpp")
     target_compile_definitions(${target} PRIVATE CRUCIBLE_AGILITY_SDK_VERSION=${CRUCIBLE_AGILITY_SDK_VERSION})
+endfunction()
+function(crucible_use_d3d12_agility target)
+    if(NOT WIN32 OR NOT CRUCIBLE_AGILITY_SDK_VERSION)
+        return()
+    endif()
+    crucible_d3d12_agility_exports(${target})
     slag_copy_agility_runtime(${target})
 endfunction()
 

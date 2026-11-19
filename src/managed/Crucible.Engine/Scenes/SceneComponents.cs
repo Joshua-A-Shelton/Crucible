@@ -92,6 +92,7 @@ internal static class EngineComponents
         Components.Register<Crucible.Animation.PoseHandle>();
         Components.Register<Crucible.Animation.BoneAttachment>();
         Components.Register<Crucible.Render2D.Sprite>();
+        Components.Register<Crucible.Render2D.PixelCamera>();
         Components.Register<SceneEntityId>();
         Components.RegisterManaged<EntityName>();
         Components.Register<PrefabInstance>();
@@ -107,6 +108,7 @@ internal static class EngineComponents
         SavedComponents.Add<Crucible.Render.AmbientLight>();
         SavedComponents.Add<Crucible.Render.Sky>();
         SavedComponents.Add<Crucible.Render2D.Sprite>();
+        SavedComponents.Add<Crucible.Render2D.PixelCamera>();
         SavedComponents.Add<Crucible.Physics.RigidBody>();
         SavedComponents.Add<Crucible.Physics.Collider>();
         SavedComponents.Add<Crucible.Physics.Joint>();

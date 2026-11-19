@@ -20,6 +20,14 @@ public class SpriteComponentTests
     }
 
     [Test]
+    public async Task ANewPixelCameraIs320By180At16PixelsAMeterFittedSharply()
+    {
+        PixelCamera camera = new();
+        await Assert.That((camera.Width, camera.Height, camera.PixelsPerUnit, camera.Fit))
+            .IsEqualTo((320u, 180u, 16f, PixelFit.Sharp));
+    }
+
+    [Test]
     public async Task ItsSortingLayerIsPickedByName()
     {
         SerializedField? layer = Sprite.SerializedFields.FirstOrDefault(field => field.Name == "SortingLayer");
@@ -37,7 +45,8 @@ public class SpriteComponentTests
               "PhysicsLayers": ["Default"],
               "Build": {"Scenes": []},
               "SortingLayers": [{"Name": "Ground"}, {"Name": "Characters", "YSort": true},
-                                {"Name": "Bridge"}, {"Name": "Bridge characters", "YSort": true}]
+                                {"Name": "Bridge"}, {"Name": "Bridge characters", "YSort": true},
+                                {"Name": "Sky", "Behind3D": true}]
             }
             """u8);
         await Assert.That(settings.SortingLayer("Bridge characters")).IsEqualTo(3);
@@ -45,12 +54,14 @@ public class SpriteComponentTests
         {
             RuntimeSettings.Install(settings);
             await Assert.That(Crucible.Render2D.Api.YSortLayers()).IsEqualTo(0b1010u);
-            await Assert.That(RuntimeSettings.Current.SortingLayers.Count).IsEqualTo(4);
+            await Assert.That(Crucible.Render2D.Api.Behind3DLayers()).IsEqualTo(0b10000u);
+            await Assert.That(RuntimeSettings.Current.SortingLayers.Count).IsEqualTo(5);
 
             // None listed: "Default" alone, nothing y-sorted.
             RuntimeSettings.Install(RuntimeSettings.FromJson("""{"Name": "Plain"}"""u8));
             await Assert.That(RuntimeSettings.Current.SortingLayers.Single().Name).IsEqualTo("Default");
             await Assert.That(Crucible.Render2D.Api.YSortLayers()).IsEqualTo(0u);
+            await Assert.That(Crucible.Render2D.Api.Behind3DLayers()).IsEqualTo(0u);
         }
         finally
         {

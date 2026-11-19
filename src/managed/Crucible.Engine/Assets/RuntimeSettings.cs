@@ -13,6 +13,9 @@ public sealed partial class SortingLayer
     public string Name = "";
 
     public bool YSort;
+
+    /// <summary>Drawn under the 3D, through a pixel camera: only where the 3D drew nothing (ADR 0106).</summary>
+    public bool Behind3D;
 }
 
 /// <summary>
@@ -35,17 +38,19 @@ public sealed partial class RuntimeSettings
 
     /// <summary>
     /// Makes <paramref name="settings"/> the running game's: the renderer's
-    /// sorting layers that y-sort follow them. Main thread.
+    /// sorting layers that y-sort and draw behind the 3D follow them. Main thread.
     /// </summary>
     public static void Install(RuntimeSettings settings)
     {
         Current = Normalized(settings);
-        uint ySort = 0;
+        uint ySort = 0, behind3D = 0;
         for (int i = 0; i < Math.Min(Current.SortingLayers.Count, 32); ++i)
         {
             ySort |= Current.SortingLayers[i].YSort ? 1u << i : 0;
+            behind3D |= Current.SortingLayers[i].Behind3D ? 1u << i : 0;
         }
         Crucible.Render2D.Api.SetYSortLayers(ySort);
+        Crucible.Render2D.Api.SetBehind3DLayers(behind3D);
     }
 
     /// <summary>The settings in a project file's JSON (the file's other sections are skipped).</summary>

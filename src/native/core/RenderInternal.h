@@ -66,7 +66,12 @@ inline constexpr uint32_t skinnedVerticesDescriptor = skinPaletteDescriptor + fr
 inline constexpr uint32_t rwSkinnedVerticesDescriptor = skinnedVerticesDescriptor + framesInFlight; // + frame slot
 // Sprites (ADR 0104): the frame's sprites, a StructuredBuffer<SpriteInstance>.
 inline constexpr uint32_t spritesDescriptor = rwSkinnedVerticesDescriptor + framesInFlight; // + frame slot
-inline constexpr uint32_t stepDescriptors = spritesDescriptor + framesInFlight;             // + frame slot * per frame
+// The pixel camera (ADR 0106): the low-resolution sprites in front of the
+// 3D and behind it, and the scene's depth, as its composites read them.
+inline constexpr uint32_t pixelFrontDescriptor = spritesDescriptor + framesInFlight;     // + frame slot
+inline constexpr uint32_t pixelBehindDescriptor = pixelFrontDescriptor + framesInFlight; // + frame slot
+inline constexpr uint32_t pixelDepthDescriptor = pixelBehindDescriptor + framesInFlight; // + frame slot
+inline constexpr uint32_t stepDescriptors = pixelDepthDescriptor + framesInFlight;       // + frame slot * per frame
 static_assert(stepDescriptors + stepDescriptorsPerFrame * framesInFlight <= descriptorsPerSurface);
 // 8 surfaces from slot 8, below the loaded assets'.
 static_assert(8 + 8 * descriptorsPerSurface <= firstAssetDescriptor);
@@ -86,6 +91,9 @@ Result<slag::Pipeline*> createStepPipeline(slag::GraphicsDevice& device, const c
 // Sprites.cpp (ADR 0104): the Sprites step, and the editor's Pick step's
 // sprites, drawn over its meshes into its EntityIds and PickDepths.
 void addSprites(RenderStepContext& context, void* userData);
+// Whether the surface draws through a camera of its own (ADR 0067: the
+// editor's scene view), which draws sprites directly (Render.cpp).
+bool surfaceHasOwnCamera(uint32_t surface);
 Result<void> prepareSprites(slag::GraphicsDevice& device, void* userData);
 void releaseSprites(slag::GraphicsDevice& device, void* userData);
 void addSpritePicks(RenderStepContext& context, slag::rendergraph::RenderGraphTexture ids,

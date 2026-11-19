@@ -1172,6 +1172,12 @@ Step 2 designed (2026-11-19, names settled before building):
   step.
 - ADR 0106 "The pixel camera"; docs/learning/pixel-perfect.md.
 
+Step 2 built (ADR 0106): through a `PixelCamera`, sprites are drawn into
+images at its resolution (behind the 3D and in front), snapped, and scaled
+up over the finished image, Sharp or Exact; behind-layers show where the
+3D's depth is empty. A surface with its own camera draws directly. Native
+tests on every backend; C# tests. Awaiting the owner's try by hand.
+
 ## After M11: importing by dropping files
 
 Asked for by the owner (2026-11-18): files dragged from the system's file

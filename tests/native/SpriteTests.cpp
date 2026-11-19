@@ -97,6 +97,45 @@ std::vector<uint8_t> renderSettled(Scene& scene, render::SurfaceHandle surface)
 const std::vector<uint8_t> grid = {200, 10,  20, 255, 30, 190, 40,  255, 50,  60, 180, 255, 255, 255, 255, 255,
                                    210, 220, 0,  255, 0,  230, 240, 255, 250, 5,  245, 255, 0,   0,   0,   0};
 
+// A pixel camera at `position`: 16x16 virtual pixels at 4 a meter, a 4 m
+// square, whatever `fit`.
+Entity pixelCamera(Scene& scene, Vector2 position, render2d::PixelFit fit, uint32_t virtualWidth = 16,
+                   uint32_t virtualHeight = 16)
+{
+    const ComponentId set[] = {componentIdOf<render2d::PixelCamera>, componentIdOf<scenes::Transform2D>,
+                               componentIdOf<scenes::WorldTransform>};
+    const Entity entity = createEntity(*scene.world, set);
+    *get<render2d::PixelCamera>(*scene.world, entity) = {virtualWidth, virtualHeight, 4, fit};
+    *get<scenes::Transform2D>(*scene.world, entity) = {position, 0, {1, 1}, 0};
+    return entity;
+}
+
+// The pixels of a w x h surface.
+std::array<uint8_t, 4> pixelAt(const std::vector<uint8_t>& pixels, uint32_t w, uint32_t x, uint32_t y)
+{
+    const size_t i = (size_t{y} * w + x) * 4;
+    return {pixels[i + 2], pixels[i + 1], pixels[i], pixels[i + 3]};
+}
+
+// Whether every pixel of each `size` x `size` block from (x0, y0) to (x1,
+// y1) is the same: the art scaled up by whole pixels.
+bool blocky(const std::vector<uint8_t>& pixels, uint32_t w, uint32_t x0, uint32_t y0, uint32_t x1, uint32_t y1,
+            uint32_t size)
+{
+    for (uint32_t y = y0; y < y1; ++y)
+    {
+        for (uint32_t x = x0; x < x1; ++x)
+        {
+            if (pixelAt(pixels, w, x, y) !=
+                pixelAt(pixels, w, x0 + (x - x0) / size * size, y0 + (y - y0) / size * size))
+            {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 } // namespace
 
 TEST_SUITE("gpu")
@@ -315,6 +354,224 @@ TEST_SUITE("gpu")
             {
                 REQUIRE(render::removeStep(0, step));
             }
+            render::shutdown();
+        }
+        assets::setAssetReader(0);
+        platform::shutdown();
+    }
+}
+
+TEST_SUITE("gpu")
+{
+    TEST_CASE("A pixel camera draws sprites on its grid scaled up by whole pixels on every backend")
+    {
+        scenes::registerTransforms();
+        render::registerCamera();
+        render2d::registerSprite();
+        library[48] = spriteTexture(4, 2, grid, 4); // four texels a meter: a texel a virtual pixel
+        assets::setAssetReader(reinterpret_cast<uint64_t>(&readTestAsset));
+        REQUIRE(platform::initialize());
+        for (slag::Backend backend : {slag::Backend::D3D12, slag::Backend::Vulkan})
+        {
+            if (!slag::isBackendAvailable(backend) || !render::initialize(backend))
+            {
+                continue;
+            }
+            CAPTURE(static_cast<int>(backend));
+            Result<render::SurfaceHandle> created = render::createOffscreenSurface(width, height);
+            REQUIRE(created);
+            const render::SurfaceHandle surface = created.value();
+            {
+                Scene scene;
+                pixelCamera(scene, {0, 0}, render2d::PixelFit::Exact);
+                // 16 virtual pixels on 64: four window pixels each. The origin is
+                // virtual (8, 8) from the top-left, window (32, 32); the sprite's
+                // top row is virtual row 6, window rows 24 to 27.
+                const Entity entity = sprite(scene, showing(48), {0, 0});
+                std::vector<uint8_t> pixels = renderSettled(scene, surface);
+                for (uint32_t y = 24; y < 28; ++y)
+                {
+                    for (uint32_t x = 32; x < 36; ++x)
+                    {
+                        CHECK(at(pixels, x, y) == std::array<uint8_t, 4>{200, 10, 20, 255});
+                    }
+                }
+                CHECK(at(pixels, 36, 24) == std::array<uint8_t, 4>{30, 190, 40, 255});
+                CHECK(at(pixels, 33, 29) == std::array<uint8_t, 4>{210, 220, 0, 255}); // the second row
+                CHECK(at(pixels, 31, 24)[0] == 0);
+                CHECK(blocky(pixels, width, 32, 24, 48, 32, 4));
+
+                // Between pixels, it snaps to the grid: the same image.
+                get<scenes::Transform2D>(*scene.world, entity)->position = {0.1f, 0.05f};
+                CHECK(renderSettled(scene, surface) == pixels);
+
+                // Turned, it stays as coarse as the art: every 4x4 block one color.
+                get<scenes::Transform2D>(*scene.world, entity)->angle = 0.6f;
+                const std::vector<uint8_t> turned = renderSettled(scene, surface);
+                CHECK(turned != pixels);
+                CHECK(blocky(turned, width, 0, 0, width, height, 4));
+            }
+            render::destroySurface(surface);
+            render::shutdown();
+        }
+        assets::setAssetReader(0);
+        platform::shutdown();
+    }
+
+    TEST_CASE("A pixel camera fits other window sizes exactly with bars or sharply on every backend")
+    {
+        scenes::registerTransforms();
+        render::registerCamera();
+        render2d::registerSprite();
+        library[49] = spriteTexture(4, 2, grid, 4);
+        assets::setAssetReader(reinterpret_cast<uint64_t>(&readTestAsset));
+        REQUIRE(platform::initialize());
+        for (slag::Backend backend : {slag::Backend::D3D12, slag::Backend::Vulkan})
+        {
+            if (!slag::isBackendAvailable(backend) || !render::initialize(backend))
+            {
+                continue;
+            }
+            CAPTURE(static_cast<int>(backend));
+            // 72x68 holds 16x16 4.25 times: Exact scales by 4 with bars (4 and
+            // 2 pixels), Sharp by 4.25.
+            constexpr uint32_t w = 72, h = 68;
+            Result<render::SurfaceHandle> created = render::createOffscreenSurface(w, h);
+            REQUIRE(created);
+            const render::SurfaceHandle surface = created.value();
+            {
+                Scene scene;
+                library[50] = spriteTexture(1, 1, {40, 60, 200, 255}, 0.25f); // 4 m: the whole view
+                Sprite backdrop = showing(50);
+                backdrop.pivot = {0.5f, 0.5f};
+                sprite(scene, backdrop, {0, 0});
+                Sprite art = showing(49);
+                art.orderInLayer = 1;
+                sprite(scene, art, {0, 0});
+                const Entity camera = pixelCamera(scene, {0, 0}, render2d::PixelFit::Exact);
+                auto settled = [&] {
+                    for (int frame = 0; frame < 4; ++frame)
+                    {
+                        scene.render(surface);
+                    }
+                    return readPixels(surface, w, h);
+                };
+                std::vector<uint8_t> pixels = settled();
+                CHECK(pixelAt(pixels, w, 1, 30) == std::array<uint8_t, 4>{0, 0, 0, 255}); // the bar
+                CHECK(pixelAt(pixels, w, 4, 30) == std::array<uint8_t, 4>{40, 60, 200, 255});
+                CHECK(pixelAt(pixels, w, 30, 0) == std::array<uint8_t, 4>{0, 0, 0, 255});
+                // The art's red texel: virtual (8, 6), window (36 to 39, 26 to 29).
+                CHECK(pixelAt(pixels, w, 36, 26) == std::array<uint8_t, 4>{200, 10, 20, 255});
+                CHECK(pixelAt(pixels, w, 39, 29) == std::array<uint8_t, 4>{200, 10, 20, 255});
+                CHECK(blocky(pixels, w, 4, 2, 68, 66, 4));
+
+                // Sharp: the whole height, 4.25 pixels a virtual pixel from x = 2.
+                get<render2d::PixelCamera>(*scene.world, camera)->fit = render2d::PixelFit::Sharp;
+                pixels = settled();
+                CHECK(pixelAt(pixels, w, 2, 0) == std::array<uint8_t, 4>{40, 60, 200, 255});
+                CHECK(pixelAt(pixels, w, 69, 67) == std::array<uint8_t, 4>{40, 60, 200, 255});
+                // The red texel spans window x 36 to 40.25: its middle exactly red,
+                // and the pixel across its right edge part red, part green.
+                CHECK(pixelAt(pixels, w, 37, 28) == std::array<uint8_t, 4>{200, 10, 20, 255});
+                const std::array<uint8_t, 4> edge = pixelAt(pixels, w, 40, 28);
+                CHECK(edge[0] > 30);
+                CHECK(edge[0] < 200);
+                CHECK(edge[1] > 10);
+                CHECK(edge[1] < 190);
+            }
+            render::destroySurface(surface);
+            render::shutdown();
+        }
+        assets::setAssetReader(0);
+        platform::shutdown();
+    }
+
+    TEST_CASE("Sprites in layers behind the 3D show only where the 3D drew nothing on every backend")
+    {
+        scenes::registerTransforms();
+        scenes::registerMeshInstance();
+        render::registerCamera();
+        render::registerLights();
+        render2d::registerSprite();
+        library[51] = spriteTexture(1, 1, {40, 60, 200, 255}, 0.25f); // 4 m blue
+        library[52] = spriteTexture(1, 1, {200, 10, 20, 255}, 4);     // a quarter-meter red
+        library[53] = test::quadModel({.baseColor = {0, 1, 0, 1}});
+        assets::setAssetReader(reinterpret_cast<uint64_t>(&readTestAsset));
+        REQUIRE(platform::initialize());
+        for (slag::Backend backend : {slag::Backend::D3D12, slag::Backend::Vulkan})
+        {
+            if (!slag::isBackendAvailable(backend) || !render::initialize(backend))
+            {
+                continue;
+            }
+            CAPTURE(static_cast<int>(backend));
+            Result<render::SurfaceHandle> created = render::createOffscreenSurface(width, height);
+            REQUIRE(created);
+            const render::SurfaceHandle surface = created.value();
+            {
+                Scene scene;
+                scene.defaultLighting();
+                camera(scene); // the 3D's: 8 m tall over the 64 pixels
+                // A green quad 2 m wide on the left: x -4 to -2 m, window columns 0 to 15.
+                scene.quad(test::idOf(53), {-3, 0, 0}, 2);
+                pixelCamera(scene, {0, 0}, render2d::PixelFit::Exact);
+                Sprite backdrop = showing(51); // behind the 3D, layer 0
+                backdrop.pivot = {0.5f, 0.5f};
+                sprite(scene, backdrop, {0, 0});
+                Sprite front = showing(52); // in front, layer 1, over the quad
+                front.sortingLayer = 1;
+                sprite(scene, front, {-1.5f, 0});
+                render2d::setBehind3DLayers(1);
+                const std::vector<uint8_t> pixels = renderSettled(scene, surface);
+                render2d::setBehind3DLayers(0);
+                const std::array<uint8_t, 4> quad = at(pixels, 8, 32);
+                CHECK(quad[1] > 100); // the lit quad's green
+                CHECK(quad[2] < 60);
+                CHECK(at(pixels, 40, 32) ==
+                      std::array<uint8_t, 4>{40, 60, 200, 255});                      // the backdrop where the 3D isn't
+                CHECK(at(pixels, 9, 31) == std::array<uint8_t, 4>{200, 10, 20, 255}); // the front sprite over the quad
+            }
+            render::destroySurface(surface);
+            render::shutdown();
+        }
+        assets::setAssetReader(0);
+        platform::shutdown();
+    }
+
+    TEST_CASE("A surface with its own camera draws sprites directly whatever pixel camera there is on every backend")
+    {
+        scenes::registerTransforms();
+        render::registerCamera();
+        render2d::registerSprite();
+        library[54] = spriteTexture(4, 2, grid, 8);
+        assets::setAssetReader(reinterpret_cast<uint64_t>(&readTestAsset));
+        REQUIRE(platform::initialize());
+        for (slag::Backend backend : {slag::Backend::D3D12, slag::Backend::Vulkan})
+        {
+            if (!slag::isBackendAvailable(backend) || !render::initialize(backend))
+            {
+                continue;
+            }
+            CAPTURE(static_cast<int>(backend));
+            Result<render::SurfaceHandle> created = render::createOffscreenSurface(width, height);
+            REQUIRE(created);
+            const render::SurfaceHandle surface = created.value();
+            {
+                Scene scene;
+                pixelCamera(scene, {0, 0}, render2d::PixelFit::Exact);
+                sprite(scene, showing(54), {0, 0});
+                // The editor's scene view: its own camera, 8 m over 64 pixels.
+                REQUIRE(render::setSurfaceCamera(surface, {0, 0, -10}, {0, 0, 0, 1},
+                                                 {.projection = render::CameraProjection::Orthographic,
+                                                  .orthographicHeight = 8,
+                                                  .nearPlane = 0.1f,
+                                                  .farPlane = 100}));
+                const std::vector<uint8_t> pixels = renderSettled(scene, surface);
+                CHECK(at(pixels, 32, 30) == std::array<uint8_t, 4>{200, 10, 20, 255}); // a texel a pixel, as in step 1
+                CHECK(at(pixels, 33, 30) == std::array<uint8_t, 4>{30, 190, 40, 255});
+                render::clearSurfaceCamera(surface);
+            }
+            render::destroySurface(surface);
             render::shutdown();
         }
         assets::setAssetReader(0);

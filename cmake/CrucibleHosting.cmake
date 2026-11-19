@@ -21,8 +21,9 @@ get_filename_component(CRUCIBLE_NETHOST_DIR "${_crucible_nethost_header}" DIRECT
 
 # On Windows the static libnethost.lib is built against the static C runtime
 # (/MT), which can't be mixed with the DLL runtime Crucible and Slag use
-# (/MD), so Windows uses nethost.dll, which crucible_copy_nethost puts next to
-# the executable. Linux has one C runtime and links nethost statically.
+# (/MD), so Windows uses nethost.dll, copied beside the launchers
+# (crucible_launcher_files). Linux has one C runtime and links nethost
+# statically.
 if(WIN32)
     add_library(crucible_nethost SHARED IMPORTED GLOBAL)
     set_target_properties(crucible_nethost PROPERTIES
@@ -38,15 +39,5 @@ else()
     target_link_libraries(crucible_nethost INTERFACE ${CMAKE_DL_LIBS})
 endif()
 add_library(crucible::nethost ALIAS crucible_nethost)
-
-# crucible_copy_nethost(<target>): copies nethost.dll next to <target> on Windows.
-function(crucible_copy_nethost target)
-    if(WIN32)
-        add_custom_command(TARGET ${target} POST_BUILD
-            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-                "${CRUCIBLE_NETHOST_DIR}/nethost.dll" "$<TARGET_FILE_DIR:${target}>"
-            VERBATIM)
-    endif()
-endfunction()
 
 message(STATUS "Crucible: nethost from ${CRUCIBLE_NETHOST_DIR}")

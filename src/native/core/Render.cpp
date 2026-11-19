@@ -712,6 +712,12 @@ Result<void> setSurfaceCamera(SurfaceHandle surface, Vector3 position, Quaternio
     return {};
 }
 
+bool surfaceHasOwnCamera(uint32_t surface)
+{
+    const Surface* slot = find(SurfaceHandle{surface});
+    return slot != nullptr && slot->hasCamera;
+}
+
 void clearSurfaceCamera(SurfaceHandle surface)
 {
     if (Surface* slot = find(surface))

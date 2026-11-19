@@ -1358,3 +1358,23 @@ Names added while building, settled as drafted by the owner
 | `platform::fixedClock()` | C++ function | Whether the clock is fixed |
 | `FrameLoop.FixedClock` | C# property | The loop moves a fixed clock on each frame instead of waiting |
 | `FixedClockTests`, CTest `launcher.fixed-clock-needs-frame-rate` | Tests | The loop on a fixed clock; the launcher refusing it without a frame rate |
+
+## The pixel camera (2026-11-19, M11 step 2)
+
+Settled before building: ADR 0106 "The pixel camera";
+docs/learning/pixel-perfect.md; `PixelCamera` (C++ `crucible::render2d`,
+C# `Crucible.Render2D`) and its fields `width`, `height`,
+`pixelsPerUnit`, `fit`; `PixelFit` (`Sharp`, `Exact`); a sorting layer's
+`Behind3D`.
+
+Names added while building (marked *) are placeholders until the owner
+tries it by hand:
+
+| Name | What it names | What it is |
+|---|---|---|
+| `render2d::setBehind3DLayers`, `behind3DLayers` | C++ functions | Which sorting layers draw behind the 3D (a mask), set from the runtime settings |
+| `surfaceHasOwnCamera` | Internal C++ | Whether a surface draws through a camera of its own (the editor's scene view) |
+| `FrameSprites`, `pixelCameraOf`, `addSpritePass`, `addComposite`, `SpriteConstants`, `CompositeConstants` | Internal C++ | The pixel path's frame state, camera lookup, passes, and shader constants |
+| `pixelFrontDescriptor`, `pixelBehindDescriptor`, `pixelDepthDescriptor` | Internal C++ | A surface's slots for the small images and the depth |
+| shaders/crucible/pixelComposite.slang; `compositeVertex`, `compositePixel` | Shader file and entry points | Scaling a small image up over the finished one |
+| PixelSprites, PixelSpritesBehind, PixelComposite, PixelCompositeBehind | Render passes (in GPU captures) | The pixel path's passes |

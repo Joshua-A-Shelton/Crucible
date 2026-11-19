@@ -1,9 +1,13 @@
-// Sprites (ADR 0104): the component, the sorting layers that y-sort, the
-// textures sprites show (acquired on first use, released when unused), and
-// the Sprites render step: each frame the world's sprites gathered, sorted
-// by sorting layer, order in layer, and (where the layer y-sorts) height,
-// and drawn in one instanced draw over the finished image. The editor's
-// Pick step draws them again into its entity IDs.
+// Sprites (ADR 0104, 0106): the components, the sorting layers that y-sort
+// and that draw behind the 3D, the textures sprites show (acquired on first
+// use, released when unused), and the Sprites render step: each frame the
+// world's sprites gathered and sorted by sorting layer, order in layer, and
+// (where the layer y-sorts) height. Without a pixel camera they're drawn in
+// one instanced draw over the finished image. Through one, they're drawn at
+// its resolution, snapped to its grid, into two small images (behind the 3D
+// and in front of it), which are scaled up over the finished image: the one
+// behind only where the 3D drew nothing. The editor's Pick step draws them
+// again into its entity IDs.
 
 #include "RenderInternal.h"
 
@@ -11,6 +15,7 @@
 #include <crucible/Ecs.h>
 #include <crucible/HashMap.h>
 #include <crucible/Log.h>
+#include <crucible/Render.h>
 #include <crucible/Sprite.h>
 #include <crucible/Transform.h>
 
@@ -18,6 +23,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstring>
 
 namespace crucible::render2d {
@@ -25,6 +31,7 @@ namespace crucible::render2d {
 namespace {
 
 uint32_t ySorted = 0;
+uint32_t behind3D = 0;
 
 } // namespace
 
@@ -38,6 +45,16 @@ uint32_t ySortLayers()
     return ySorted;
 }
 
+void setBehind3DLayers(uint32_t mask)
+{
+    behind3D = mask;
+}
+
+uint32_t behind3DLayers()
+{
+    return behind3D;
+}
+
 } // namespace crucible::render2d
 
 namespace crucible::render {
@@ -45,6 +62,7 @@ namespace crucible::render {
 namespace {
 
 using assets::AssetId;
+using render2d::PixelCamera;
 using render2d::Sprite;
 using scenes::WorldTransform;
 
@@ -107,7 +125,48 @@ struct Gathered
     int32_t order;
     float height; // the pivot's y, for layers that y-sort
     uint32_t entity;
+    bool behind; // through a pixel camera, in a layer behind the 3D
     SpriteInstance instance;
+};
+
+// sprite.slang's SpriteConstants and pixelComposite.slang's CompositeConstants.
+struct SpriteConstants
+{
+    uint32_t sprites;
+    uint32_t first;
+    uint32_t pad0;
+    uint32_t pad1;
+    Matrix4x4 viewProjection;
+};
+static_assert(sizeof(SpriteConstants) == 80);
+
+struct CompositeConstants
+{
+    uint32_t source;
+    uint32_t depth;
+    uint32_t depthSamples;
+    uint32_t bars;
+    Vector2 sourceSize;
+    Vector2 offset;
+    float scale;
+    float pad0;
+    float pad1;
+    float pad2;
+};
+static_assert(sizeof(CompositeConstants) == 48);
+
+// A surface's sprites this frame: the sorted instances (through a pixel
+// camera, the ones behind the 3D first), and how they're drawn.
+struct FrameSprites
+{
+    uint64_t frame = 0;
+    uint32_t count = 0;
+    uint32_t behind = 0; // the first `behind` instances are behind the 3D
+    bool pixel = false;  // through a pixel camera
+    PixelCamera camera{};
+    Matrix4x4 viewProjection = Matrix4x4::identity();
+    float scale = 1;  // window pixels a virtual pixel
+    Vector2 offset{}; // where the scaled image starts, in window pixels
 };
 
 // Each surface's upload buffers, one per frame slot, grown as needed.
@@ -117,30 +176,25 @@ struct SurfaceBuffers
     std::array<uint32_t, framesInFlight> capacity{};
 };
 
-// The view's constant buffer size, as RenderSteps.cpp binds it.
-uint32_t viewSize()
-{
-    return (sizeof(ViewConstants) + slag::alignment::constantBuffer - 1) / slag::alignment::constantBuffer *
-           slag::alignment::constantBuffer;
-}
-
 struct State
 {
     HashMap<AssetId, CachedTexture, AssetIdHash> textures{MemoryTag::Render};
     uint64_t gathers = 0;
     Vector<Gathered> gathered{MemoryTag::Render};
     Vector<AssetId> expired{MemoryTag::Render};
-    // The last gather's sorted sprites, by surface and frame (the Sprites
-    // and Pick steps of one frame share them).
+    // The last gather's sorted sprites, by surface (the Sprites and Pick
+    // steps of one frame share them).
+    std::array<FrameSprites, 8> frames{};
     std::array<Vector<SpriteInstance>, 8> sorted{
         Vector<SpriteInstance>(MemoryTag::Render), Vector<SpriteInstance>(MemoryTag::Render),
         Vector<SpriteInstance>(MemoryTag::Render), Vector<SpriteInstance>(MemoryTag::Render),
         Vector<SpriteInstance>(MemoryTag::Render), Vector<SpriteInstance>(MemoryTag::Render),
         Vector<SpriteInstance>(MemoryTag::Render), Vector<SpriteInstance>(MemoryTag::Render)};
-    std::array<uint64_t, 8> sortedFrame{};
     std::array<SurfaceBuffers, 8> surfaces{};
     slag::Pipeline* pipeline = nullptr;
     slag::Pipeline* pickPipeline = nullptr;
+    slag::Pipeline* pixelPipeline = nullptr;     // into a pixel camera's small images
+    slag::Pipeline* compositePipeline = nullptr; // scaling them up
 };
 
 State state;
@@ -244,54 +298,158 @@ bool instanceOf(const Sprite& sprite, const WorldTransform& transform, uint32_t 
 slag::Buffer* uploadSprites(slag::GraphicsDevice& device, uint32_t surface, uint32_t frameSlot, uint32_t slot,
                             const Vector<SpriteInstance>& sprites);
 
+// The pixel camera drawing the world (the lowest entity with one), unless
+// the surface has a camera of its own (the editor's scene view); false if
+// there's none. Its position, snapped so its bottom-left corner is on the
+// grid, is `center`.
+bool pixelCameraOf(const RenderStepContext& context, PixelCamera& camera, Vector2& center)
+{
+    if (context.world == nullptr || surfaceHasOwnCamera(context.surface) ||
+        ecs::componentIdOf<PixelCamera> == ecs::invalidComponent)
+    {
+        return false;
+    }
+    struct Found
+    {
+        bool any = false;
+        uint32_t entity = UINT32_MAX;
+        PixelCamera camera{};
+        Vector2 position{};
+    } found;
+    const ecs::ComponentId required[] = {ecs::componentIdOf<PixelCamera>, ecs::componentIdOf<WorldTransform>};
+    ecs::Query* query = ecs::createQuery(*context.world, {.required = required});
+    ecs::forEachChunk(
+        *query,
+        [](const ecs::ChunkView& view, void* data) {
+            auto& found = *static_cast<Found*>(data);
+            const std::span<const PixelCamera> cameras = ecs::readColumn<PixelCamera>(view);
+            const std::span<const WorldTransform> transforms = ecs::readColumn<WorldTransform>(view);
+            const ecs::Entity* entities = ecs::entitiesOf(view);
+            for (size_t i = 0; i < cameras.size(); ++i)
+            {
+                if (ecs::indexOf(entities[i]) < found.entity && cameras[i].width > 0 && cameras[i].height > 0 &&
+                    cameras[i].pixelsPerUnit > 0)
+                {
+                    found = {true,
+                             ecs::indexOf(entities[i]),
+                             cameras[i],
+                             {transforms[i].matrix.rows[3].x, transforms[i].matrix.rows[3].y}};
+                }
+            }
+        },
+        &found);
+    ecs::destroyQuery(query);
+    if (!found.any)
+    {
+        return false;
+    }
+    camera = found.camera;
+    const float ppu = camera.pixelsPerUnit;
+    const Vector2 half{static_cast<float>(camera.width) / (2 * ppu), static_cast<float>(camera.height) / (2 * ppu)};
+    center = {std::round((found.position.x - half.x) * ppu) / ppu + half.x,
+              std::round((found.position.y - half.y) * ppu) / ppu + half.y};
+    return true;
+}
+
+slag::Buffer* uploadSprites(slag::GraphicsDevice& device, uint32_t surface, uint32_t frameSlot, uint32_t slot,
+                            const Vector<SpriteInstance>& sprites);
+
 // The surface's sprites this frame, gathered, sorted, and uploaded once for
-// its steps, on the main thread (passes record on workers): how many there
-// are, 0 if none (or their buffer couldn't be made).
-uint32_t frameSprites(const RenderStepContext& context)
+// its steps, on the main thread (passes record on workers).
+const FrameSprites& frameSprites(const RenderStepContext& context)
 {
     const uint32_t surface = context.surface - 1;
+    FrameSprites& frame = state.frames[surface];
     Vector<SpriteInstance>& sorted = state.sorted[surface];
-    if (state.sortedFrame[surface] == context.frame)
+    if (frame.frame == context.frame)
     {
-        return static_cast<uint32_t>(sorted.size());
+        return frame;
     }
-    state.sortedFrame[surface] = context.frame;
+    frame = {.frame = context.frame, .viewProjection = context.view.viewProjection};
     sorted.clear();
     state.gathered.clear();
+    Vector2 center{};
+    frame.pixel = pixelCameraOf(context, frame.camera, center);
+    if (frame.pixel)
+    {
+        // Looking along +Z from 1000 m before the camera's position, at its
+        // resolution's size in meters.
+        const float ppu = frame.camera.pixelsPerUnit;
+        const Matrix4x4 view = Matrix4x4::translation({-center.x, -center.y, 1000});
+        const Matrix4x4 projection = Matrix4x4::orthographicReverseZ(
+            static_cast<float>(frame.camera.width) / ppu, static_cast<float>(frame.camera.height) / ppu, 1, 2000);
+        frame.viewProjection = view * projection;
+        // Filling the window: the largest scale that fits (whole numbers
+        // only when Exact), centered.
+        const float fits = std::min(static_cast<float>(context.width) / static_cast<float>(frame.camera.width),
+                                    static_cast<float>(context.height) / static_cast<float>(frame.camera.height));
+        frame.scale = frame.camera.fit == render2d::PixelFit::Exact && fits >= 1 ? std::floor(fits) : fits;
+        frame.offset = {
+            std::floor((static_cast<float>(context.width) - static_cast<float>(frame.camera.width) * frame.scale) / 2),
+            std::floor((static_cast<float>(context.height) - static_cast<float>(frame.camera.height) * frame.scale) /
+                       2)};
+    }
     if (context.world == nullptr || ecs::componentIdOf<Sprite> == ecs::invalidComponent)
     {
-        return 0;
+        return frame;
     }
     ++state.gathers;
+    struct Gathering
+    {
+        bool pixel;
+        float pixelsPerUnit;
+        uint32_t behind;
+    } gathering{frame.pixel, frame.camera.pixelsPerUnit, render2d::behind3DLayers()};
     const ecs::ComponentId required[] = {ecs::componentIdOf<Sprite>, ecs::componentIdOf<WorldTransform>};
     ecs::Query* query = ecs::createQuery(*context.world, {.required = required});
     ecs::forEachChunk(
         *query,
-        [](const ecs::ChunkView& view, void*) {
+        [](const ecs::ChunkView& view, void* data) {
+            const auto& gathering = *static_cast<const Gathering*>(data);
             const std::span<const Sprite> sprites = ecs::readColumn<Sprite>(view);
             const std::span<const WorldTransform> transforms = ecs::readColumn<WorldTransform>(view);
             const ecs::Entity* entities = ecs::entitiesOf(view);
             for (size_t i = 0; i < sprites.size(); ++i)
             {
-                Gathered gathered{.layer = sprites[i].sortingLayer,
+                const uint32_t layer = sprites[i].sortingLayer;
+                Gathered gathered{.layer = layer,
                                   .order = sprites[i].orderInLayer,
                                   .height = transforms[i].matrix.rows[3].y,
-                                  .entity = ecs::indexOf(entities[i])};
-                if (instanceOf(sprites[i], transforms[i], gathered.entity, gathered.instance))
+                                  .entity = ecs::indexOf(entities[i]),
+                                  .behind = gathering.pixel && layer < 32 && (gathering.behind >> layer & 1) != 0};
+                if (!instanceOf(sprites[i], transforms[i], gathered.entity, gathered.instance))
                 {
-                    state.gathered.pushBack(gathered);
+                    continue;
                 }
+                if (gathering.pixel)
+                {
+                    // On the grid: the quad's first corner on a whole pixel
+                    // (exactly, when it isn't turned).
+                    SpriteInstance& instance = gathered.instance;
+                    const float ppu = gathering.pixelsPerUnit;
+                    const Vector2 corner{instance.origin.x + instance.localMin.x * instance.axisX.x +
+                                             instance.localMin.y * instance.axisY.x,
+                                         instance.origin.y + instance.localMin.x * instance.axisX.y +
+                                             instance.localMin.y * instance.axisY.y};
+                    instance.origin.x += std::round(corner.x * ppu) / ppu - corner.x;
+                    instance.origin.y += std::round(corner.y * ppu) / ppu - corner.y;
+                }
+                state.gathered.pushBack(gathered);
             }
         },
-        nullptr);
+        &gathering);
     ecs::destroyQuery(query);
     expireTextures();
 
-    // Layer first, then order in layer, then (where the layer y-sorts)
-    // higher first, so lower on screen draws on top; the entity breaks ties,
-    // so equal sprites keep their order from frame to frame.
+    // Behind the 3D first, then layer, then order in layer, then (where the
+    // layer y-sorts) higher first, so lower on screen draws on top; the
+    // entity breaks ties, so equal sprites keep their order frame to frame.
     const uint32_t ySort = render2d::ySortLayers();
     std::sort(state.gathered.begin(), state.gathered.end(), [ySort](const Gathered& a, const Gathered& b) {
+        if (a.behind != b.behind)
+        {
+            return a.behind;
+        }
         if (a.layer != b.layer)
         {
             return a.layer < b.layer;
@@ -309,14 +467,17 @@ uint32_t frameSprites(const RenderStepContext& context)
     for (const Gathered& gathered : state.gathered)
     {
         sorted.pushBack(gathered.instance);
+        frame.behind += gathered.behind ? 1 : 0;
     }
     if (!sorted.empty() &&
         uploadSprites(context.device, context.surface, frameSlotOf(context),
                       surfaceDescriptor(context, spritesDescriptor) + frameSlotOf(context), sorted) == nullptr)
     {
         sorted.clear();
+        frame.behind = 0;
     }
-    return static_cast<uint32_t>(sorted.size());
+    frame.count = static_cast<uint32_t>(sorted.size());
+    return frame;
 }
 
 // The frame slot's upload buffer, holding the sprites, written into the
@@ -385,6 +546,35 @@ Result<void> prepareSprites(slag::GraphicsDevice& device, void*)
         return pick.status();
     }
     state.pickPipeline = pick.value();
+    // A pixel camera's small images: premultiplied, so their alpha is how
+    // much the sprites covered and the composite blends them over as is.
+    slag::GraphicsPipelineDesc pixel{
+        .rasterizer = {.cullMode = slag::CullMode::None}, .colorFormats = formats, .debugName = "PixelSprites"};
+    pixel.blend.targets[0] = {.blendEnable = true,
+                              .srcColorFactor = slag::BlendFactor::SrcAlpha,
+                              .destColorFactor = slag::BlendFactor::InvSrcAlpha,
+                              .srcAlphaFactor = slag::BlendFactor::One,
+                              .destAlphaFactor = slag::BlendFactor::InvSrcAlpha};
+    Result<slag::Pipeline*> pixelPipeline = createStepPipeline(device, "sprite", "spriteVertex", "spritePixel", pixel);
+    if (!pixelPipeline)
+    {
+        return pixelPipeline.status();
+    }
+    state.pixelPipeline = pixelPipeline.value();
+    slag::GraphicsPipelineDesc composite{
+        .rasterizer = {.cullMode = slag::CullMode::None}, .colorFormats = formats, .debugName = "PixelComposite"};
+    composite.blend.targets[0] = {.blendEnable = true,
+                                  .srcColorFactor = slag::BlendFactor::One,
+                                  .destColorFactor = slag::BlendFactor::InvSrcAlpha,
+                                  .srcAlphaFactor = slag::BlendFactor::Zero,
+                                  .destAlphaFactor = slag::BlendFactor::One};
+    Result<slag::Pipeline*> compositePipeline =
+        createStepPipeline(device, "pixelComposite", "compositeVertex", "compositePixel", composite);
+    if (!compositePipeline)
+    {
+        return compositePipeline.status();
+    }
+    state.compositePipeline = compositePipeline.value();
     return {};
 }
 
@@ -402,7 +592,8 @@ void releaseSprites(slag::GraphicsDevice& device, void*)
         }
         buffers.capacity = {};
     }
-    for (slag::Pipeline** pipeline : {&state.pipeline, &state.pickPipeline})
+    for (slag::Pipeline** pipeline :
+         {&state.pipeline, &state.pickPipeline, &state.pixelPipeline, &state.compositePipeline})
     {
         if (*pipeline != nullptr)
         {
@@ -418,8 +609,82 @@ void releaseSprites(slag::GraphicsDevice& device, void*)
         }
     }
     state.textures.clear();
-    state.sortedFrame = {};
+    state.frames = {};
 }
+
+namespace {
+
+// One pass drawing sprites [first, first + count) with `pipeline` and the
+// frame's view into `target` (cleared first if `clear`).
+void addSpritePass(RenderStepContext& context, const char* name, slag::rendergraph::RenderGraphTexture target,
+                   bool clear, slag::Pipeline* pipeline, const FrameSprites& frame, uint32_t first, uint32_t count)
+{
+    SpriteConstants constants{.sprites = surfaceDescriptor(context, spritesDescriptor) + frameSlotOf(context),
+                              .first = first,
+                              .viewProjection = frame.viewProjection};
+    context.graph.addPass(
+        name, slag::CommandQueueType::Graphics,
+        [&](slag::rendergraph::PassBuilder& pass) {
+            pass.renderTarget(target, clear ? slag::LoadOp::Clear : slag::LoadOp::Load, slag::StoreOp::Store, {});
+        },
+        [constants, pipeline, count](slag::rendergraph::PassContext&, slag::CommandBuffer* commands) {
+            if (count == 0)
+            {
+                return;
+            }
+            commands->bindPipeline(pipeline);
+            commands->pushConstants(&constants, sizeof(constants));
+            commands->draw(6, count);
+        });
+}
+
+// A pixel camera's small image scaled up over the backbuffer; with `depth`,
+// only where the 3D drew nothing; with `bars`, black around it.
+void addComposite(RenderStepContext& context, const char* name, slag::rendergraph::RenderGraphTexture source,
+                  uint32_t sourceSlot, slag::rendergraph::RenderGraphTexture depth, bool bars,
+                  const FrameSprites& frame)
+{
+    const slag::rendergraph::RenderGraphTexture backbuffer = context.texture(backbufferKey());
+    const uint32_t frameSlot = frameSlotOf(context);
+    const uint32_t samples = msaaSamples();
+    const bool masked = depth.index != UINT32_MAX;
+    CompositeConstants constants{
+        .source = surfaceDescriptor(context, sourceSlot) + frameSlot,
+        .depth = masked ? surfaceDescriptor(context, pixelDepthDescriptor) + frameSlot : 0,
+        .depthSamples = samples,
+        .bars = bars ? 1u : 0u,
+        .sourceSize = {static_cast<float>(frame.camera.width), static_cast<float>(frame.camera.height)},
+        .offset = frame.offset,
+        .scale = frame.scale,
+    };
+    slag::GraphicsDevice* device = &context.device;
+    context.graph.addPass(
+        name, slag::CommandQueueType::Graphics,
+        [&](slag::rendergraph::PassBuilder& pass) {
+            pass.use(source, slag::rendergraph::Usage::ShaderRead);
+            if (masked)
+            {
+                pass.use(depth, slag::rendergraph::Usage::ShaderRead);
+            }
+            pass.renderTarget(backbuffer, slag::LoadOp::Load, slag::StoreOp::Store);
+        },
+        [=](slag::rendergraph::PassContext& pass, slag::CommandBuffer* commands) {
+            // The transient images differ from frame to frame, so their
+            // slots are written while recording.
+            device->writeTexture(constants.source, {.texture = pass.texture(source)});
+            if (masked)
+            {
+                device->writeTexture(constants.depth, {.texture = pass.texture(depth),
+                                                       .viewType = samples > 1 ? slag::TextureViewType::Texture2DMS
+                                                                               : slag::TextureViewType::Texture2D});
+            }
+            commands->bindPipeline(state.compositePipeline);
+            commands->pushConstants(&constants, sizeof(constants));
+            commands->draw(3, 1);
+        });
+}
+
+} // namespace
 
 void addSprites(RenderStepContext& context, void*)
 {
@@ -427,27 +692,38 @@ void addSprites(RenderStepContext& context, void*)
     {
         return;
     }
-    const uint32_t count = frameSprites(context);
-    if (count == 0)
+    const FrameSprites& frame = frameSprites(context);
+    if (!frame.pixel)
     {
+        if (frame.count > 0)
+        {
+            addSpritePass(context, "Sprites", context.texture(backbufferKey()), false, state.pipeline, frame, 0,
+                          frame.count);
+        }
         return;
     }
-    const slag::rendergraph::RenderGraphTexture backbuffer = context.texture(backbufferKey());
-    const slag::rendergraph::RenderGraphBuffer view = context.buffer(viewKey());
-    const uint32_t slot = surfaceDescriptor(context, spritesDescriptor) + frameSlotOf(context);
-    context.graph.addPass(
-        "Sprites", slag::CommandQueueType::Graphics,
-        [&](slag::rendergraph::PassBuilder& pass) {
-            pass.use(view, slag::rendergraph::Usage::ConstantBuffer);
-            pass.renderTarget(backbuffer, slag::LoadOp::Load, slag::StoreOp::Store);
-        },
-        [=](slag::rendergraph::PassContext& pass, slag::CommandBuffer* commands) {
-            const uint32_t constants[4] = {slot, 0, 0, 0};
-            commands->bindPipeline(state.pipeline);
-            commands->setConstantBuffer(pass.buffer(view)->gpuAddress(), viewSize());
-            commands->pushConstants(constants, sizeof(constants));
-            commands->draw(6, count);
-        });
+    // Through a pixel camera: the sprites behind the 3D and those in front
+    // of it each into an image at its resolution, scaled up over the
+    // finished image (the front one always, for its bars).
+    auto small = [&](const char* name) {
+        return context.graph.createTransientTexture2D({.format = backbufferFormat,
+                                                       .width = frame.camera.width,
+                                                       .height = frame.camera.height,
+                                                       .usage = slag::TextureUsage::RenderTarget,
+                                                       .debugName = name});
+    };
+    if (frame.behind > 0)
+    {
+        const slag::rendergraph::RenderGraphTexture behind = small("PixelBehind");
+        addSpritePass(context, "PixelSpritesBehind", behind, true, state.pixelPipeline, frame, 0, frame.behind);
+        addComposite(context, "PixelCompositeBehind", behind, pixelBehindDescriptor, context.texture(sceneDepthKey()),
+                     false, frame);
+    }
+    const slag::rendergraph::RenderGraphTexture front = small("PixelFront");
+    addSpritePass(context, "PixelSprites", front, true, state.pixelPipeline, frame, frame.behind,
+                  frame.count - frame.behind);
+    addComposite(context, "PixelComposite", front, pixelFrontDescriptor, {},
+                 frame.camera.fit == render2d::PixelFit::Exact, frame);
 }
 
 void addSpritePicks(RenderStepContext& context, slag::rendergraph::RenderGraphTexture ids,
@@ -457,25 +733,24 @@ void addSpritePicks(RenderStepContext& context, slag::rendergraph::RenderGraphTe
     {
         return;
     }
-    const uint32_t count = frameSprites(context);
-    if (count == 0)
+    // Picks are the editor's scene view's, which draws sprites directly.
+    const FrameSprites& frame = frameSprites(context);
+    if (frame.count == 0 || frame.pixel)
     {
         return;
     }
-    const slag::rendergraph::RenderGraphBuffer view = context.buffer(viewKey());
-    const uint32_t slot = surfaceDescriptor(context, spritesDescriptor) + frameSlotOf(context);
+    const SpriteConstants constants{.sprites = surfaceDescriptor(context, spritesDescriptor) + frameSlotOf(context),
+                                    .viewProjection = frame.viewProjection};
+    const uint32_t count = frame.count;
     context.graph.addPass(
         "SpritePick", slag::CommandQueueType::Graphics,
         [&](slag::rendergraph::PassBuilder& pass) {
-            pass.use(view, slag::rendergraph::Usage::ConstantBuffer);
             pass.renderTarget(ids, slag::LoadOp::Load, slag::StoreOp::Store);
             pass.renderTarget(depths, slag::LoadOp::Load, slag::StoreOp::Store);
         },
-        [=](slag::rendergraph::PassContext& pass, slag::CommandBuffer* commands) {
-            const uint32_t constants[4] = {slot, 0, 0, 0};
+        [constants, count](slag::rendergraph::PassContext&, slag::CommandBuffer* commands) {
             commands->bindPipeline(state.pickPipeline);
-            commands->setConstantBuffer(pass.buffer(view)->gpuAddress(), viewSize());
-            commands->pushConstants(constants, sizeof(constants));
+            commands->pushConstants(&constants, sizeof(constants));
             commands->draw(6, count);
         });
 }
@@ -512,6 +787,7 @@ namespace crucible::render2d {
 void registerSprite()
 {
     ecs::registerComponent<Sprite>("Crucible.Render2D.Sprite");
+    ecs::registerComponent<PixelCamera>("Crucible.Render2D.PixelCamera");
     static const bool starter = [] {
         assets::registerLoadStarter(render::startSpriteLoads);
         return true;

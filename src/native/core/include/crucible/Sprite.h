@@ -43,12 +43,39 @@ struct CRUCIBLE_EXPOSE Sprite
     int32_t orderInLayer; // within the layer, higher draws on top
 };
 
-// Registers Sprite. Registering again is harmless.
+// How a PixelCamera's image fills a window that isn't a whole multiple of
+// its resolution (ADR 0106).
+enum class CRUCIBLE_EXPOSE PixelFit : uint32_t
+{
+    Sharp, // fill it: the largest whole-number scale, then the rest blending only pixel edges
+    Exact, // whole-number scales only, black bars around
+};
+
+// The 2D camera (ADR 0106): sprites are drawn at its virtual resolution and
+// scaled up to the window, everything on the art's grid. Placed by its
+// entity's transform (looking along +Z, Y up), snapped to the grid. Not a
+// render::Camera, so the 3D keeps its own. Without one, sprites draw with
+// the main camera at the window's resolution. C# gives a new one 320x180
+// at 16 pixels a meter.
+struct CRUCIBLE_EXPOSE PixelCamera
+{
+    uint32_t width; // the virtual resolution, in pixels
+    uint32_t height;
+    float pixelsPerUnit; // virtual pixels a meter
+    PixelFit fit;
+};
+
+// Registers Sprite and PixelCamera. Registering again is harmless.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void registerSprite();
 
 // Which sorting layers y-sort: bit N for layer N (up to 32 layers), from
 // the project's settings (C#'s RuntimeSettings). Main thread.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void setYSortLayers(uint32_t mask);
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t ySortLayers();
+
+// Which sorting layers draw behind the 3D (ADR 0106): bit N for layer N.
+// Through a PixelCamera, they show only where the 3D drew nothing.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void setBehind3DLayers(uint32_t mask);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t behind3DLayers();
 
 } // namespace crucible::render2d

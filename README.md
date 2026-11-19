@@ -188,3 +188,6 @@ Longer explanations of decisions, written to be reread:
 - [Sprites](docs/learning/sprites.md) (ADR 0104): a sprite as a rectangle
   of a texture, drawing thousands in one call, painter's order and floors,
   pixels per unit, and keeping pixel art's colors exact.
+- [Pixel-perfect](docs/learning/pixel-perfect.md) (ADR 0106): the virtual
+  resolution and mixels, fitting the window exactly or sharply, and
+  layering pixel art over and under 3D.
