@@ -27,6 +27,17 @@ public class SpriteComponentTests
             .IsEqualTo((320u, 180u, 16f, PixelFit.Sharp));
     }
 
+    // Frame animation (ADR 0107).
+    [Test]
+    public async Task ANewSpriteAnimatorPlaysAtSpeedOneAndPicksSpriteClipsAndStateMachines()
+    {
+        await Assert.That(new SpriteAnimator().Speed).IsEqualTo(1f);
+        SerializedField? clip = SpriteAnimator.SerializedFields.FirstOrDefault(field => field.Name == "Clip");
+        await Assert.That(clip?.AssetKinds.SequenceEqual([".crspriteclip"])).IsTrue();
+        SerializedField? machine = SpriteAnimator.SerializedFields.FirstOrDefault(field => field.Name == "StateMachine");
+        await Assert.That(machine?.AssetKinds.SequenceEqual([".crstatemachine"])).IsTrue();
+    }
+
     [Test]
     public async Task ItsSortingLayerIsPickedByName()
     {

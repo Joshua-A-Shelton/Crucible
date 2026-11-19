@@ -1,0 +1,14 @@
+{
+  "Guid": "ecb752d4-f94b-4ea5-9fc2-3a12a43f2136",
+  "Importer": "Texture",
+  "Settings": {
+    "Usage": "Sprite",
+    "Mipmaps": true,
+    "Wrap": true,
+    "PreserveAlphaCoverage": false,
+    "AlphaCutoff": 0.5,
+    "RdoLambda": 1,
+    "Quality": 2,
+    "PixelsPerUnit": 16
+  }
+}

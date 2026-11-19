@@ -512,6 +512,18 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "ImportSettingsChecks: all [0-9]+ checks passed")
 
+    # The Sprite Sheet Editor checking itself (ADR 0107): a copy of the
+    # Walker's project with a sheet added, opened from the inspector and by
+    # becoming a sprite, sliced into a grid, a clip applied as a sub-asset.
+    add_test(NAME launcher.jit.sprite-sheet
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
+            --project "${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject"
+            --game-arg "check-sprite-sheet=${CMAKE_CURRENT_BINARY_DIR}"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/sprite-sheet-settings.json")
+    set_tests_properties(launcher.jit.sprite-sheet PROPERTIES LABELS "integration;gpu" TIMEOUT 300
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "SpriteSheetChecks: all [0-9]+ checks passed")
+
     # The play toolbar checking itself (ADR 0088): a copy of the Walker's
     # project (in the test's folder), a ball timed through Pause before
     # Play, Step, Pause off, and Stop, each a click on the toolbar.
@@ -587,8 +599,8 @@ if(CRUCIBLE_BUILD_TESTS)
     # 0074): one at a time, or the builds race.
     set_tests_properties(launcher.jit.viewport launcher.jit.hierarchy launcher.jit.inspector launcher.jit.assets
         launcher.jit.play launcher.jit.standalone launcher.jit.native PROPERTIES RESOURCE_LOCK diorama-project-cache)
-    set_tests_properties(samples.walker samples.walker-level samples.walker-archive samples.walker-packaged samples.walker-package launcher.jit.build-settings launcher.jit.import-settings launcher.jit.play-toolbar
-        launcher.jit.pickers launcher.jit.scene-loading PROPERTIES
+    set_tests_properties(samples.walker samples.walker-level samples.walker-archive samples.walker-packaged samples.walker-package launcher.jit.build-settings launcher.jit.import-settings launcher.jit.sprite-sheet
+        launcher.jit.play-toolbar launcher.jit.pickers launcher.jit.scene-loading PROPERTIES
         RESOURCE_LOCK walker-project-cache)
 
     # The M6 demonstration (ADR 0064): the UI showcase's menu driven by mouse,

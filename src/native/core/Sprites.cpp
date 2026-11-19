@@ -10,6 +10,7 @@
 // again into its entity IDs.
 
 #include "RenderInternal.h"
+#include "SpriteAnimation.h"
 
 #include <crucible/AssetLoads.h>
 #include <crucible/Ecs.h>
@@ -788,6 +789,7 @@ void registerSprite()
 {
     ecs::registerComponent<Sprite>("Crucible.Render2D.Sprite");
     ecs::registerComponent<PixelCamera>("Crucible.Render2D.PixelCamera");
+    registerSpriteAnimator();
     static const bool starter = [] {
         assets::registerLoadStarter(render::startSpriteLoads);
         return true;

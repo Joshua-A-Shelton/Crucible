@@ -543,6 +543,13 @@ public sealed class ImportSettingsSection : UIElement, IFieldOwner
         body.Classes.Add("component");
         body.Add(header);
         body.Add(list);
+        if (inspector.Shell.Database?.Find(asset)?.Importer == "Texture")
+        {
+            // Slicing and clips are edited where the sheet shows (ADR 0107).
+            SpriteSheetButton = new Button("Edit Sprite Sheet…") { HorizontalAlignment = HorizontalAlignment.Start };
+            SpriteSheetButton.Clicked += _ => Shell.ShowSpriteSheet(Asset);
+            body.Add(SpriteSheetButton);
+        }
         body.Add(buttons);
         AddChild(body);
     }
@@ -557,6 +564,9 @@ public sealed class ImportSettingsSection : UIElement, IFieldOwner
     public Button ApplyButton => _apply;
 
     public Button RevertButton => _revert;
+
+    /// <summary>A texture's "Edit Sprite Sheet…", which opens the Sprite Sheet Editor; null for other assets.</summary>
+    public Button? SpriteSheetButton { get; }
 
     internal Shell Shell => _inspector.Shell;
 

@@ -22,7 +22,7 @@ public struct UiInstance
     public float4 color;       // fill, tint, glyph, line or shadow color
     public float4 color2;      // a gradient's end color
     public float4 uv;          // images: uv rect; glyphs: page uv rect; lines: the ends; gradients: geometry
-    public float4 extra;       // x: border width, line width or blur sigma; y: gradient kind. Nine-slice: insets
+    public float4 extra;       // x: border width, line width, blur sigma, or 1 for a pixelated image; y: gradient kind. Nine-slice: insets
     public float4 extra2;      // rects: border color; nine-slice: source insets in uv
     public float4 clip;        // physical pixels: min x, min y, max x, max y
 };
@@ -214,8 +214,17 @@ float4 shade(UiInstance item, float2 local)
     }
     case uiImage: {
         Texture2D texture = ResourceDescriptorHeap[item.texture];
-        SamplerState s = SamplerDescriptorHeap[linearClampSampler];
-        const float4 texel = texture.Sample(s, lerp(item.uv.xy, item.uv.zw, unit));
+        const float2 uv = lerp(item.uv.xy, item.uv.zw, unit);
+        // extra.x: pixelated, the nearest texel (pixel art zoomed in).
+        float4 texel;
+        if (item.extra.x > 0.5)
+        {
+            texel = texture.Sample(SamplerDescriptorHeap[pointClampSampler], uv);
+        }
+        else
+        {
+            texel = texture.Sample(SamplerDescriptorHeap[linearClampSampler], uv);
+        }
         const float alpha = coverageOf(roundedBox(centered, halfSize, item.radii), pixel);
         return float4(texel.rgb * texel.a, texel.a) * item.color * alpha;
     }

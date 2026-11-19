@@ -235,4 +235,25 @@ void consumeTriggers(const StateMachine& machine, uint32_t transition, std::span
     }
 }
 
+float pastExit(const assets::StateTransition& transition, const StateProgress& progress)
+{
+    if (transition.exitTime < 0 || progress.rate <= 0)
+    {
+        return 0;
+    }
+    float at = transition.exitTime;
+    if (progress.loop)
+    {
+        while (at <= progress.before)
+        {
+            at += 1.0f;
+        }
+    }
+    else
+    {
+        at = std::max(at, progress.before);
+    }
+    return std::max(progress.raw - at, 0.0f) / progress.rate;
+}
+
 } // namespace crucible::animation

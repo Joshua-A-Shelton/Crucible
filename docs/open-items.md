@@ -75,6 +75,9 @@ is, and record which version fixed it.
   except sorting layers drawn behind the 3D, to try once sorting layers
   can be set from the editor (they're edited in the project file for now,
   like physics layers). → 0106
+- Windows on sprite clips (M11 step 3): frame events are there; named
+  ranges (a hitbox's active frames) as 3D clips have them come when a game
+  needs them. → 0107
 
 ## Small editor fixes noticed in M7 (ADR 0077)
 

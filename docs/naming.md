@@ -1379,3 +1379,31 @@ step 2 by hand (2026-11-19):
 | shaders/crucible/pixelComposite.slang; `compositeVertex`, `compositePixel` | Shader file and entry points | Scaling a small image up over the finished one |
 | PixelSprites, PixelSpritesBehind, PixelComposite, PixelCompositeBehind | Render passes (in GPU captures) | The pixel path's passes |
 | `crucible_launcher_files` | CMake target (Windows) | Copies the core, nethost, and the D3D12 runtime beside the launchers once |
+
+## Frame animation (2026-11-19, M11 step 3)
+
+Settled before building: ADR 0107 "Frame animation";
+docs/learning/frame-animation.md; the Sprite Sheet Editor; the texture
+settings `Slicing` (`Grid`, `Rectangles`), `CellWidth`, `CellHeight`,
+`Margin`, `Spacing`, `Frames` (`X`, `Y`, `Width`, `Height`), `Clips`
+(`Name`, `Frames` (`Frame`, `Duration`, `Events`), `Loop`);
+`.crspriteclip`; `SpriteAnimator` (C++ `crucible::render2d`, C#
+`Crucible.Render2D`) and its fields `clip`, `speed`, `stateMachine`; "Edit
+Sprite Sheet…".
+
+Names added while building, to settle after the owner's try (`*`):
+
+| Name | What it names | What it is |
+|---|---|---|
+| `SpriteSlicing`* | C# enum | The type of `Slicing` (`Grid`, `Rectangles`) |
+| `SpriteFrameSettings`*, `SpriteClipSettings`*, `SpriteClipFrameSettings`* | C# classes | The types of a frame, a clip, and a clip's frame in the settings |
+| `FramesPerSecond`* | Texture setting, per clip | The duration new frames get, as a rate; frames at the old rate follow a change |
+| `TextureImporter.FramesOf`* | C# function | The frames the settings cut a sheet into |
+| crucible/SpriteClipFile.h*, `SpriteClipInfo`*, `SpriteClipFrame`*, kind `SPCL`*, sections INFO, FRMS*, EVNT | C++ header, structs, file tags | The `.crspriteclip` layout |
+| `Canvas.DrawImage(..., pixelated*)`, `Image.Pixelated`* | C# parameter and property | Drawing an image with the nearest texel, for pixel art zoomed in |
+| `SpriteSheetPanel`*, panel ID `SpriteSheet`* | C# class, layout ID | The Sprite Sheet Editor window |
+| "Make Rectangles"*, "Add Clip"*, "Add Selected Frame"*, "Add Every Frame"*, "Remove Clip"*, "Remove Frame"*, "Frames/Second"* | Editor text | The Sprite Sheet Editor's buttons and labels |
+| `Shell.ShowSpriteSheet`* | C# function | Opens the editor on a texture, or brings it to the front |
+| SpriteAnimation.h/.cpp*: `advanceSpriteAnimators`*, `setSpriteParameter`*, `spriteCurrentState`*, `spriteFindState`*, `reloadSpriteAnimationAsset`*, `releaseSpriteAnimators`*, `registerSpriteAnimator`* | Internal C++ | Playing sprite animators inside "Animation.Update" |
+| SpriteAnimationTests.cpp*, SpriteSheetChecks*, CTest `launcher.jit.sprite-sheet`* | Tests | Native playback tests; the editor checking itself |
+

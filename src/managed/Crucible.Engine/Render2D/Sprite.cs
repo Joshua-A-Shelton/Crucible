@@ -39,3 +39,20 @@ public partial struct PixelCamera
         Fit = PixelFit.Sharp;
     }
 }
+
+/// <summary>
+/// Frame animation (ADR 0107): plays a sprite clip on its entity's
+/// <see cref="Sprite"/>, or lets a state machine choose. Declared in C++
+/// (crucible/Sprite.h); this half adds saving and the speed it starts with.
+/// Its machine's parameters are set, and its events read, with the calls
+/// 3D characters use (<see cref="Animation.Animator.SetFloat"/>,
+/// <see cref="Animation.Animator.Events"/>, ...).
+/// </summary>
+[Serialized]
+public partial struct SpriteAnimator
+{
+    public SpriteAnimator()
+    {
+        Speed = 1;
+    }
+}

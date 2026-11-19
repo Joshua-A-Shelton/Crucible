@@ -23,6 +23,7 @@ public class Image : UIElement
     private Stretch _stretch = Stretch.Uniform;
     private Thickness _sliceInsets, _sourceSlice;
     private Vector4 _tint = Vector4.One;
+    private bool _pixelated;
 
     public TextureHandle Texture
     {
@@ -77,6 +78,17 @@ public class Image : UIElement
         }
     }
 
+    /// <summary>Samples the nearest texel, so pixel art scaled up keeps its square pixels.</summary>
+    public bool Pixelated
+    {
+        get => _pixelated;
+        set
+        {
+            _pixelated = value;
+            InvalidateVisual();
+        }
+    }
+
     /// <summary>The texture's size in texels, a logical unit each; zero without one.</summary>
     public Vector2 NaturalSize
     {
@@ -112,7 +124,7 @@ public class Image : UIElement
         {
             canvas.PushClip(Vector2.Zero, space);
         }
-        canvas.DrawImage(_texture, offset, size, new Vector4(0, 0, 1, 1), _tint, CornerRadii);
+        canvas.DrawImage(_texture, offset, size, new Vector4(0, 0, 1, 1), _tint, CornerRadii, _pixelated);
         if (crop)
         {
             canvas.PopClip();

@@ -146,14 +146,20 @@ public sealed class Canvas : IRenderStep
     public void DrawImage(TextureHandle texture, Vector2 position, Vector2 size) =>
         DrawImage(texture, position, size, new Vector4(0, 0, 1, 1), Vector4.One, default);
 
-    /// <summary><paramref name="uv"/>: the source rectangle (u0, v0, u1, v1).</summary>
-    public void DrawImage(TextureHandle texture, Vector2 position, Vector2 size, Vector4 uv, Vector4 tint, Vector4 radii)
+    /// <summary>
+    /// <paramref name="uv"/>: the source rectangle (u0, v0, u1, v1).
+    /// <paramref name="pixelated"/> samples the nearest texel, so pixel art
+    /// zoomed in keeps its square pixels.
+    /// </summary>
+    public void DrawImage(TextureHandle texture, Vector2 position, Vector2 size, Vector4 uv, Vector4 tint, Vector4 radii,
+        bool pixelated = false)
     {
         ref UiInstance item = ref Add(KindImage, position, size);
         item.Texture = RenderAssets.TextureDescriptor(texture);
         item.Uv = uv;
         item.Color = Linear(tint);
         item.Radii = radii;
+        item.Extra = new Vector4(pixelated ? 1 : 0, 0, 0, 0);
     }
 
     /// <summary>

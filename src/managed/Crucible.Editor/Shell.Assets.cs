@@ -163,6 +163,9 @@ internal sealed partial class Shell
         {
             return;
         }
+        // A texture becoming a sprite opens its sheet, to slice (ADR 0107).
+        bool becomesSprite = entry.Importer == "Texture" && IsSpriteUsage(settings) &&
+                             !IsSpriteUsage(database.SettingsOf(id));
         try
         {
             database.SetSettings(id, settings);
@@ -174,6 +177,27 @@ internal sealed partial class Shell
         }
         Log($"Applied {entry.Path}'s import settings");
         RefreshAssets();
+        if (becomesSprite)
+        {
+            ShowSpriteSheet(id);
+        }
+    }
+
+    private static bool IsSpriteUsage(JsonObject? settings) =>
+        settings?["Usage"]?.ToString() == nameof(Crucible.Importers.TextureUsage.Sprite);
+
+    /// <summary>The Sprite Sheet Editor (ADR 0107) on a texture, opened or brought to the front.</summary>
+    public void ShowSpriteSheet(AssetId texture)
+    {
+        if (!_open.ContainsKey("SpriteSheet"))
+        {
+            TogglePanel("SpriteSheet");
+        }
+        if (_open.GetValueOrDefault("SpriteSheet") is SpriteSheetPanel panel)
+        {
+            panel.Group?.Activate(panel);
+            panel.Show(texture);
+        }
     }
 
     // What was imported again, reloaded where it's loaded. Shaders first, so

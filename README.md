@@ -191,3 +191,7 @@ Longer explanations of decisions, written to be reread:
 - [Pixel-perfect](docs/learning/pixel-perfect.md) (ADR 0106): the virtual
   resolution and mixels, fitting the window exactly or sharply, and
   layering pixel art over and under 3D.
+- [Frame animation](docs/learning/frame-animation.md) (ADR 0107): sprite
+  sheets and slicing, clips with a duration per frame, baking on import,
+  events on frames, state machines without blending, and seeing pixels
+  zoomed in.

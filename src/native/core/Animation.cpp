@@ -4,6 +4,7 @@
 // wideLanes bones, sampled and blended with the wide types; the hierarchy
 // pass, root motion, and IK are per bone, in model space.
 
+#include "SpriteAnimation.h"
 #include "StateMachine.h"
 #include "TransformParts.h"
 
@@ -1886,30 +1887,6 @@ float fadeToward(float weight, float goal, float rate, float delta)
     return weight < goal ? std::min(weight + rate * delta, goal) : std::max(weight - rate * delta, goal);
 }
 
-// The seconds of the update after a transition's exit time was passed:
-// the state that follows has already been playing that long (0 for a
-// transition on conditions alone, taken when the frame sees them).
-float pastExit(const assets::StateTransition& transition, const StateProgress& progress)
-{
-    if (transition.exitTime < 0 || progress.rate <= 0)
-    {
-        return 0;
-    }
-    float at = transition.exitTime;
-    if (progress.loop)
-    {
-        while (at <= progress.before)
-        {
-            at += 1.0f;
-        }
-    }
-    else
-    {
-        at = std::max(at, progress.before);
-    }
-    return std::max(progress.raw - at, 0.0f) / progress.rate;
-}
-
 // Advances the base; a transition taken at an exit time partway through the
 // update returns how long ago it was taken, which the caller plays the new
 // state for, so transitions fall where they would at any frame rate.
@@ -2061,6 +2038,14 @@ void advance(ecs::World& world, float delta, uint64_t frameStart)
             }
         }
     }
+    // Sprite animators move on in the same update (ADR 0107), their frame
+    // events among these.
+    Vector<AnimationEvent> spriteEvents(tag);
+    render2d::advanceSpriteAnimators(world, delta, frameStart, spriteEvents);
+    for (const AnimationEvent& event : spriteEvents)
+    {
+        recorded.pushBack({&world, event});
+    }
     std::sort(recorded.begin() + firstEvent, recorded.end(), [](const Recorded& a, const Recorded& b) {
         if (a.event.timestamp != b.event.timestamp)
         {
@@ -2208,7 +2193,11 @@ Result<void> setParameter(ecs::World& world, ecs::Entity entity, std::string_vie
                           float value)
 {
     Pose* pose = currentPose(world, entity);
-    const StateMachine* machine = pose != nullptr ? pose->machine.machine : nullptr;
+    if (pose == nullptr)
+    {
+        return render2d::setSpriteParameter(world, entity, name, type, value);
+    }
+    const StateMachine* machine = pose->machine.machine;
     const int32_t index = machine != nullptr ? machine->findParameter(name) : -1;
     if (index < 0 || machine->parameters[static_cast<uint32_t>(index)].type != type)
     {
@@ -2367,13 +2356,21 @@ Result<void> trigger(ecs::World& world, ecs::Entity entity, std::string_view par
 int32_t currentState(const ecs::World& world, ecs::Entity entity)
 {
     const Pose* pose = findPose(world, entity);
-    return pose != nullptr && playsMachine(*pose) ? pose->machine.current.state : -1;
+    if (pose == nullptr)
+    {
+        return render2d::spriteCurrentState(world, entity);
+    }
+    return playsMachine(*pose) ? pose->machine.current.state : -1;
 }
 
 int32_t findState(ecs::World& world, ecs::Entity entity, std::string_view name)
 {
     const Pose* pose = currentPose(world, entity);
-    return pose != nullptr && pose->machine.machine != nullptr ? pose->machine.machine->findState(name) : -1;
+    if (pose == nullptr)
+    {
+        return render2d::spriteFindState(world, entity, name);
+    }
+    return pose->machine.machine != nullptr ? pose->machine.machine->findState(name) : -1;
 }
 
 uint32_t eventName(std::string_view name)
@@ -2560,7 +2557,7 @@ void drawSkeletons(const ecs::World& world, Vector4 color)
 
 bool reloadAnimationAsset(AssetId asset)
 {
-    bool loaded = false;
+    bool loaded = render2d::reloadSpriteAnimationAsset(asset);
     // Bindings of either kind first: they point into the clip.
     Vector<BindingKey> stale(tag);
     for (const auto& entry : bindings)
@@ -2594,7 +2591,7 @@ bool reloadAnimationAsset(AssetId asset)
     }
     if (Clip** clip = clips.find(asset))
     {
-        loaded = *clip != nullptr;
+        loaded = loaded || *clip != nullptr;
         if (*clip != nullptr)
         {
             destroy(tag, *clip);
@@ -2645,6 +2642,7 @@ void releasePoses(const ecs::World& world)
             freePose(i);
         }
     }
+    render2d::releaseSpriteAnimators(world);
     forgetEvents(world);
 }
 

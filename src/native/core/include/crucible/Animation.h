@@ -121,7 +121,8 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<void> clearLayer(ecs::World& world, ecs::
 
 // Sets a parameter of the entity's state machine by name: a Float, a Bool,
 // or a Trigger (set until a transition testing it is taken). NotFound
-// without a state machine or such a parameter of that type.
+// without a state machine or such a parameter of that type. These and the
+// events below reach a render2d::SpriteAnimator's machine too (ADR 0107).
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<void> setFloat(ecs::World& world, ecs::Entity entity, std::string_view parameter,
                                                       float setting);
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<void> setBool(ecs::World& world, ecs::Entity entity, std::string_view parameter,
@@ -245,11 +246,13 @@ CRUCIBLE_EXPORT uint64_t poseSkeletonKey(uint32_t pose);
 // parent, in world space through the entity's WorldTransform.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void drawSkeletons(const ecs::World& world, Vector4 color);
 
-// Forgets a skeleton, clip, or state machine read before (the editor after a reimport):
-// poses read it again next frame. True if it was loaded.
+// Forgets a skeleton, clip, sprite clip, or state machine read before (the
+// editor after a reimport): poses and sprite animators read it again next
+// frame. True if it was loaded.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE bool reloadAnimationAsset(assets::AssetId asset);
 
-// Frees the world's poses (before destroying it).
+// Frees the world's poses and sprite animators' players (before destroying
+// it).
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void releasePoses(const ecs::World& world);
 
 // How many poses the pool holds, for tests.

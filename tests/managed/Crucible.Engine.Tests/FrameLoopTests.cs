@@ -338,7 +338,10 @@ public class FrameLoopTests
         await Assert.That(seen[3].Last).IsGreaterThan(seen[2].Last);
     }
 
+    // Alone: once registered, the probe runs in any schedule with an Update
+    // phase, and its count is the process's.
     [Test]
+    [NotInParallel]
     public async Task CppSystemsSortAndRunWithCSharpSystems()
     {
         using World world = new();

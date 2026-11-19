@@ -163,6 +163,10 @@ public sealed class AssetsPanel : EditorPanel
             string file = Path.Combine(project.AssetsFolder, tile.Path);
             _shell.ConfirmDiscard("opening another scene", () => _shell.OpenScene(file));
         }
+        else if (tile.Kind == "Texture" && tile.Asset is { } texture)
+        {
+            _shell.ShowSpriteSheet(texture.Id);
+        }
     }
 
     internal ContextMenu ShowMenu(AssetTile tile, Vector2 at)
@@ -171,6 +175,10 @@ public sealed class AssetsPanel : EditorPanel
         if (tile.IsFolder || tile.Path.EndsWith(Scene.Extension, StringComparison.OrdinalIgnoreCase))
         {
             menu.Add("Open", () => Open(tile));
+        }
+        if (tile.Kind == "Texture" && tile.Asset is { } sheet)
+        {
+            menu.Add("Edit Sprite Sheet…", () => _shell.ShowSpriteSheet(sheet.Id));
         }
         if (tile.Asset is { Importer.Length: > 0 } asset)
         {

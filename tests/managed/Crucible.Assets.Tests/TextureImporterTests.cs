@@ -153,4 +153,86 @@ public class TextureImporterTests
         await Assert.That(result.Outcome).IsEqualTo(ImportOutcome.Failed);
         await Assert.That(result.Error).Contains("30x30 isn't a multiple of 4");
     }
+
+    // Sprite sheets (ADR 0107): a grid cut left to right, top to bottom,
+    // within its margin and between its spacing.
+    [Test]
+    public async Task AGridCutsCellsLeftToRightTopToBottom()
+    {
+        TextureImportSettings settings = new() { CellWidth = 16, CellHeight = 8, Margin = 2, Spacing = 1 };
+        List<SpriteFrameSettings> frames = TextureImporter.FramesOf(settings, 2 + 16 + 1 + 16 + 1 + 16 + 2, 2 + 8 + 1 + 8 + 3);
+        await Assert.That(frames.Count).IsEqualTo(6);
+        await Assert.That((frames[1].X, frames[1].Y, frames[1].Width, frames[1].Height)).IsEqualTo((19, 2, 16, 8));
+        await Assert.That((frames[3].X, frames[3].Y)).IsEqualTo((2, 11));
+        // Without a cell size, the whole texture is one frame.
+        frames = TextureImporter.FramesOf(new TextureImportSettings(), 40, 20);
+        await Assert.That((frames.Single().Width, frames.Single().Height)).IsEqualTo((40, 20));
+        // Rectangles are as listed.
+        TextureImportSettings drawn = new() { Slicing = SpriteSlicing.Rectangles, Frames = [new() { X = 3, Y = 4, Width = 5, Height = 6 }] };
+        await Assert.That(TextureImporter.FramesOf(drawn, 40, 20).Single().X).IsEqualTo(3);
+    }
+
+    private static (AssetDatabase Database, AssetEntry Sheet) SpriteSheet(Scratch scratch,
+        Action<TextureImportSettings> configure)
+    {
+        File.WriteAllBytes(scratch.PathOf("hero.tga"), Tga(32, 16, (x, y) => ((byte)x, (byte)y, 0, 255)));
+        AssetDatabase database = scratch.Open();
+        database.ImportAll();
+        AssetEntry sheet = database.Find("hero.tga")!;
+        TextureImportSettings settings = new() { Usage = TextureUsage.Sprite, Mipmaps = false, CellWidth = 8, CellHeight = 8 };
+        configure(settings);
+        database.SetSettings(sheet.Id, (System.Text.Json.Nodes.JsonObject)System.Text.Json.Nodes.JsonNode.Parse(
+            Crucible.Serialization.Json.Serialize(settings))!);
+        return (database, sheet);
+    }
+
+    [Test]
+    public async Task ASheetsClipsBecomeSubAssetsWithTheirFramesRegionsAndEvents()
+    {
+        using Scratch scratch = new();
+        (AssetDatabase database, AssetEntry sheet) = SpriteSheet(scratch, settings => settings.Clips =
+        [
+            new SpriteClipSettings
+            {
+                Name = "Walk",
+                Frames = [new() { Frame = 1, Duration = 0.1f, Events = ["Step"] }, new() { Frame = 6, Duration = 0.25f }],
+            },
+            new SpriteClipSettings { Name = "Idle", Loop = false, Frames = [new() { Frame = 0 }] },
+        ]);
+        ImportResult result = database.ImportAll().Single();
+        await Assert.That(result.Outcome).IsEqualTo(ImportOutcome.Imported).Because(result.Error ?? "");
+        AssetEntry[] clips = [.. database.SubAssetsOf(sheet.Id)];
+        await Assert.That(string.Join(" ", clips.Select(clip => clip.SubAssetName).Order())).IsEqualTo("Idle Walk");
+        AssetEntry walk = clips.Single(clip => clip.SubAssetName == "Walk");
+        using ImportedFile file = ImportedFile.Open(database.ImportedFile(walk.Id)!, TextureImporter.ClipKind, TextureImporter.ClipVersion);
+        SpriteClipInfo info = MemoryMarshal.Read<SpriteClipInfo>(file.Read(file.Find(TextureImporter.ClipInfoSection)));
+        await Assert.That((info.Texture, info.FrameCount, info.Loop)).IsEqualTo((sheet.Id, 2u, 1u));
+        await Assert.That(info.Duration).IsEqualTo(0.35f).Within(1e-6f);
+        SpriteClipFrame[] frames = MemoryMarshal.Cast<byte, SpriteClipFrame>(file.Read(file.Find(TextureImporter.ClipFrameSection))).ToArray();
+        // Frame 6 of a 4x2 grid of 8x8 cells: the second row's third.
+        await Assert.That((frames[1].X, frames[1].Y, frames[1].Width, frames[1].Start)).IsEqualTo((16u, 8u, 8u, 0.1f));
+        ClipEvent[] events = MemoryMarshal.Cast<byte, ClipEvent>(file.Read(file.Find(TextureImporter.ClipEventSection))).ToArray();
+        await Assert.That((events.Single().Time, events.Single().Name)).IsEqualTo((0f, Crucible.Animation.AnimationEvent.NameOf("Step")));
+    }
+
+    [Test]
+    public async Task ClipsNamingFramesTheSheetHasntFailTheImport()
+    {
+        using Scratch scratch = new();
+        (AssetDatabase database, _) = SpriteSheet(scratch, settings => settings.Clips =
+            [new SpriteClipSettings { Name = "Walk", Frames = [new() { Frame = 8 }] }]);
+        ImportResult result = database.ImportAll().Single();
+        await Assert.That(result.Outcome).IsEqualTo(ImportOutcome.Failed);
+        await Assert.That(result.Error).Contains("clip Walk: frame 8 isn't one of the sheet's (8)");
+
+        using Scratch other = new();
+        (database, _) = SpriteSheet(other, settings =>
+        {
+            settings.Slicing = SpriteSlicing.Rectangles;
+            settings.Frames = [new() { X = 30, Y = 0, Width = 8, Height = 8 }];
+            settings.Clips = [new SpriteClipSettings { Name = "Walk", Frames = [new() { Frame = 0 }] }];
+        });
+        result = database.ImportAll().Single();
+        await Assert.That(result.Error).Contains("frame 0 (30, 0, 8x8) isn't within the 32x16 texture");
+    }
 }

@@ -1204,13 +1204,22 @@ Step 3 designed (2026-11-19, names settled before building):
   frames).
 - ADR 0107 "Frame animation"; docs/learning/frame-animation.md.
 
+Step 3 built (ADR 0107): the Sprite Sheet Editor slices a sheet into a grid
+or rectangles and makes clips of its frames, with a preview; the texture
+importer bakes each clip into a `.crspriteclip` sub-asset; a
+`SpriteAnimator` plays one on its Sprite, or a state machine chooses them
+on parameters, triggers, and exit times, through the same calls and event
+list as 3D. Native tests, C# importer tests, and the editor's
+`launcher.jit.sprite-sheet` check.
+
 ## After M11: importing by dropping files
 
 Asked for by the owner (2026-11-18): files dragged from the system's file
 manager onto the editor are copied into the project and imported, their
 import settings set as they need (a pixel-art image as a Sprite), without
 opening the project's folders. The editor receives no dropped files yet.
-Designed with the owner at its start.
+A pixel-art image dropped in can ask for Sprite usage and open the Sprite
+Sheet Editor (ADR 0107). Designed with the owner at its start.
 
 ## After M11: an engine review
 

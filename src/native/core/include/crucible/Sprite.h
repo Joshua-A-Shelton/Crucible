@@ -65,7 +65,21 @@ struct CRUCIBLE_EXPOSE PixelCamera
     PixelFit fit;
 };
 
-// Registers Sprite and PixelCamera. Registering again is harmless.
+// Frame animation (ADR 0107), the 2D counterpart of animation::Animator:
+// plays a .crspriteclip on its entity's Sprite, setting its texture and
+// region each frame, or lets a .crstatemachine choose the clips. The
+// machine's parameters are set, and its events read, with the calls 3D
+// characters use (animation::setFloat, animation::events, ...). Played by
+// "Animation.Update". C# gives a new one a speed of 1.
+struct CRUCIBLE_EXPOSE SpriteAnimator
+{
+    CRUCIBLE_HINT_ASSET(".crspriteclip") assets::AssetId clip; // played when there's no state machine
+    float speed;                                               // 1 as authored; 0 holds the frame
+    CRUCIBLE_HINT_ASSET(".crstatemachine") assets::AssetId stateMachine;
+};
+
+// Registers Sprite, PixelCamera, and SpriteAnimator. Registering again is
+// harmless.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void registerSprite();
 
 // Which sorting layers y-sort: bit N for layer N (up to 32 layers), from

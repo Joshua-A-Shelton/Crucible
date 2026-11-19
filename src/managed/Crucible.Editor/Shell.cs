@@ -445,6 +445,10 @@ internal sealed partial class Shell
             {
                 build.Refresh(); // another project opened
             }
+            else if (panel is SpriteSheetPanel sheet)
+            {
+                sheet.Tick();
+            }
         }
         if (_pickView is { } view && view.Surface.Value != 0)
         {
@@ -720,6 +724,7 @@ internal sealed partial class Shell
         Panels.Register("Game", "Game", () => new GamePanel(this));
         Panels.Register("Log", "Log", () => new LogPanel());
         Panels.Register("BuildSettings", "Build Settings", () => new BuildSettingsPanel(this));
+        Panels.Register("SpriteSheet", "Sprite Sheet Editor", () => new SpriteSheetPanel(this));
     }
 
     // The open panel of an ID, made if it isn't open.

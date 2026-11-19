@@ -96,4 +96,9 @@ int32_t chooseTransition(const StateMachine& machine, uint32_t state, std::span<
 // Clears the Triggers a transition tested, now that it was taken.
 void consumeTriggers(const StateMachine& machine, uint32_t transition, std::span<float> parameters);
 
+// The seconds of the update after a transition's exit time was passed:
+// the state that follows has already been playing that long (0 for a
+// transition on conditions alone, taken when the frame sees them).
+float pastExit(const assets::StateTransition& transition, const StateProgress& progress);
+
 } // namespace crucible::animation
