@@ -915,6 +915,35 @@ decision made at its start):
 3. JIT shipping builds: a package folder with the launcher, the core, the
    .NET runtime, ReadyToRun engine and game assemblies, any native module,
    and the archives; plugins registered by their generated entry points.
+
+   Step 3 designed (2026-11-18, names settled before building):
+   - **The package:** Build/<Platform> in the project (Build/Linux,
+     Build/Windows; only the machine's own platform). The top level holds
+     the executable, named after the game (Walker, Walker.exe), and the
+     engine's core library; Data/ holds Walker.dll, Walker.Core (if the
+     game has a C++ module), Game.crpak, the .NET runtime (self-contained),
+     and the engine's assemblies. The executable finds its game from its
+     own name, with no launch file.
+   - **Made by** a project the editor writes and `dotnet publish`es,
+     self-contained, ReadyToRun unless the project's Build section says
+     `ReadyToRun: false` (Build Settings' "Precompile (ReadyToRun)"
+     checkbox). The runtime and ReadyToRun compiler come from NuGet on
+     first use (Microsoft's, MIT).
+   - **Build replaces Cook:** the Build menu's "Build" builds the code,
+     cooks, and packages; headless, the editor's `--build <folder>` (game
+     argument `build=`), replacing `--cook`. Build/Cooked goes away.
+   - **Files renamed everywhere** (the owner's change): a game's C#
+     assembly <Project>.Game.dll becomes <Project>.dll; its C++ module
+     <Project>.Native becomes <Project>.Core (.dll, .so); the engine's
+     crucible_core becomes Crucible.Core, crucible_importers
+     Crucible.Importers, and the executables crucible_launcher,
+     crucible_editor, and crucible_launcher_aot CrucibleLauncher,
+     CrucibleEditor, and CrucibleLauncherAot. CMake target names stay.
+   - Plugins are compiled into the game's assembly in v1, so they register
+     through the existing generated entry points; no mod loading yet.
+   - Checked by a CTest that builds the Walker's package, copies it
+     elsewhere, and runs it headless with no options and nothing from the
+     build tree.
 4. AOT shipping builds: NativeAOT, the launcher, core, and game statically
    linked into one executable with a generated bootstrap.
 5. The demonstration: the Walker (its Level scene the root) packaged in
