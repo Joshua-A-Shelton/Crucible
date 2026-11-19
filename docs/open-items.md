@@ -75,6 +75,10 @@ is, and record which version fixed it.
   except sorting layers drawn behind the 3D, to try once sorting layers
   can be set from the editor (they're edited in the project file for now,
   like physics layers). → 0106
+- The Sprite Sheet Editor's tools (M11 step 3): the owner found it too
+  easy to draw a frame by accident when selecting one. It needs a toolbar
+  with at least Select and Draw, drawing only with Draw chosen. Not a
+  priority; come back to it. → 0107
 - Windows on sprite clips (M11 step 3): frame events are there; named
   ranges (a hitbox's active frames) as 3D clips have them come when a game
   needs them. → 0107
