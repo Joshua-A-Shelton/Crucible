@@ -419,6 +419,12 @@ This project is as much a learning exercise as it is an engine.
 - **Ask before adding any third-party library**, stating its license.
 - **Explain before acting.** Say what is about to be done and why, and ask
   for feedback, before doing it.
+- **"Discuss first" is always a choice.** Every question asked of the
+  project owner (design choices, names, features, sign-offs) offers
+  "Discuss first" beside the other answers: picking it means going through
+  whatever isn't clear, in as much detail as needed, before anything is
+  decided. Nothing proceeds on that question until the owner picks a real
+  answer afterwards.
 - **Explanations are kept twice:** walked through in chat, and written into
   the ADR so the reasoning can be reread later. Concepts that need a longer
   explanation get a learning note in `docs/learning/`, listed in
