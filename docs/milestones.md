@@ -953,8 +953,9 @@ decision made at its start):
    self-contained runtime for a library); a package's game loads into the
    default load context, where ReadyToRun code runs. Files renamed as
    designed. CTest samples.walker-package runs a copy of the Walker's
-   package from elsewhere with no .NET to find. Awaiting the owner's try by
-   hand.
+   package from elsewhere with no .NET to find. Tried by hand by the owner
+   (Build Settings… now brings an open window to the front); step 3 is
+   done, its names settled as drafted.
 4. AOT shipping builds: NativeAOT, the launcher, core, and game statically
    linked into one executable with a generated bootstrap.
 5. The demonstration: the Walker (its Level scene the root) packaged in

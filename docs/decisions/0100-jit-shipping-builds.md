@@ -1,9 +1,9 @@
 # 0100 — JIT shipping builds
 
-**Status:** Accepted (2026-11-18); M10 step 3 built, awaiting the owner's
-try (names marked * were added while building it and are placeholders
-until then). The design's names were settled before building
-(docs/naming.md).
+**Status:** Accepted (2026-11-18); M10 step 3 built, then tried by hand by
+the owner (Build Settings… now brings an open window to the front). The
+design's names were settled before building; those added while building
+were settled by the owner as drafted (docs/naming.md).
 
 ## Context
 
@@ -34,7 +34,7 @@ Decided by the owner (2026-11-18):
    `Data/Walker.Core` if it's there, and reads `Data/Game.crpak`. Options
    still override each (`--managed-dir`, `--game`, `--module`,
    `--archive`).
-3. **Made by `dotnet publish`** of a project the editor writes
+3. **Made by `dotnet publish`* of a project the editor writes
    (Cache/Build/Package/<Project>.csproj): the game's code against the
    engine, self-contained for this platform, ReadyToRun unless the project
    file's Build section says `ReadyToRun: false` (Build Settings'
@@ -84,7 +84,7 @@ ships.
   loads a game into a collectible context, from a stream, so it can be
   unloaded (ADR 0001); .NET runs no ReadyToRun code for such assemblies. A
   package's game, one of the assemblies its runtime started with, is
-  loaded into the default context instead (`GameLoader.LoadPackaged`*): it
+  loaded into the default context instead (`GameLoader.LoadPackaged`): it
   is never unloaded.
 - **Finding the core.** On Linux the launcher's run path includes
   `$ORIGIN`, so it finds `Crucible.Core.so` beside it, and a module in
@@ -113,19 +113,19 @@ ships.
   the game, module, and archive by the executable's name); `runEngine`'s
   `application` (JitHost.cpp's app start); `--build`; the output names
   (`OUTPUT_NAME`, `PREFIX ""`); `BUILD_RPATH $ORIGIN` on the launcher.
-- C#: `GameLoader.LoadPackaged`* and `IsPackaged`*; `GameBuilder`'s
-  `PackageProjectFile`*, `ProjectText(package, readyToRun)`, `Publish`*,
-  `RuntimeIdentifier`*, and the `Game` prefix for taken names;
-  `Packager`* and `PackageResult`*; `BuildSettings.ReadyToRun`;
-  `Project.PackageFolder`* and `PackageDataFolder`* (replacing
-  `CookedFolder`); `Shell.Build` and `LastBuild`*; the Build Settings
+- C#: `GameLoader.LoadPackaged` and `IsPackaged`; `GameBuilder`'s
+  `PackageProjectFile`, `ProjectText(package, readyToRun)`, `Publish`,
+  `RuntimeIdentifier`, and the `Game` prefix for taken names;
+  `Packager` and `PackageResult`; `BuildSettings.ReadyToRun`;
+  `Project.PackageFolder` and `PackageDataFolder` (replacing
+  `CookedFolder`); `Shell.Build` and `LastBuild`; the Build Settings
   window's Build card; the binding generator's library `Crucible.Core`.
-- Tests: CTest `samples.walker-package`* (samples/Walker/package_walker.cmake*):
+- Tests: CTest `samples.walker-package` (samples/Walker/package_walker.cmake):
   the editor's `--build` makes the Walker's package (8 assets, ReadyToRun
   checked by the engine assembly's growth), which is copied elsewhere, to
   a folder with a space in its name, and run headless with no options, no
   `DOTNET_ROOT`, and no .NET on the PATH: it loads Walker.dll, reads its 8
   assets from Game.crpak, opens the Level with 12 entities at the top, and
   runs 120 frames. launcher.jit.build-settings turns ReadyToRun off and on
-  and builds; `AGameIsNotNamedLikeTheRuntimeOrTheEngine`* checks the
+  and builds; `AGameIsNotNamedLikeTheRuntimeOrTheEngine` checks the
   prefix.

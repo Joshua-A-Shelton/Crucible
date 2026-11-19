@@ -1241,16 +1241,16 @@ sections):
 
 CMake's target names (`crucible_core`, `crucible_launcher`, …) stay.
 
-Names added while building (marked *) are placeholders until the owner
-tries it by hand:
+Names added while building, settled as drafted after the owner tried
+step 3 by hand (2026-11-18):
 
 | Name | What it is |
 |---|---|
-| `Packager`*, `PackageResult`* (`Succeeded`, `Folder`, `Errors`, `Cook`, `Size`) | Making a package |
-| `Project.PackageFolder`*, `PackageDataFolder`* | Where a package goes (replacing `CookedFolder`) |
-| `GameBuilder.Publish`*, `PackageProjectFile`* (Cache/Build/Package/`<Project>`.csproj), `RuntimeIdentifier`* | Publishing the game |
-| `GameLoader.LoadPackaged`*, `IsPackaged`* | Loading a package's game into the default load context |
-| `Shell.Build`, `LastBuild`*; the command `Build.Build`*; the Build card's hint "Builds the code, cooks, and packages the game with .NET for this platform."*, "Writes the package to Build/Linux."*, "Last build: N assets, S in all, at HH:MM"*, "Last build failed: N problems, see the Log"* | The editor |
-| Log lines "Building Walker into <folder>…"*, "Publishing Walker with .NET, ReadyToRun…"*, "Built Walker: N assets, S MiB in all, into <folder>"*, "Can't build: …"*, "The build failed (N problems)."* | Text users see |
-| `<folder>.building`* | Where a package is made before it's moved into place |
-| CTest `samples.walker-package`*, samples/Walker/package_walker.cmake*; test `AGameIsNotNamedLikeTheRuntimeOrTheEngine`* | Tests |
+| `Packager`, `PackageResult` (`Succeeded`, `Folder`, `Errors`, `Cook`, `Size`) | Making a package |
+| `Project.PackageFolder`, `PackageDataFolder` | Where a package goes (replacing `CookedFolder`) |
+| `GameBuilder.Publish`, `PackageProjectFile` (Cache/Build/Package/`<Project>`.csproj), `RuntimeIdentifier` | Publishing the game |
+| `GameLoader.LoadPackaged`, `IsPackaged` | Loading a package's game into the default load context |
+| `Shell.Build`, `LastBuild`; the command `Build.Build`; the Build card's hint "Builds the code, cooks, and packages the game with .NET for this platform.", "Writes the package to Build/Linux.", "Last build: N assets, S in all, at HH:MM", "Last build failed: N problems, see the Log" | The editor |
+| Log lines "Building Walker into <folder>…", "Publishing Walker with .NET, ReadyToRun…", "Built Walker: N assets, S MiB in all, into <folder>", "Can't build: …", "The build failed (N problems)." | Text users see |
+| `<folder>.building` | Where a package is made before it's moved into place |
+| CTest `samples.walker-package`, samples/Walker/package_walker.cmake; test `AGameIsNotNamedLikeTheRuntimeOrTheEngine` | Tests |
