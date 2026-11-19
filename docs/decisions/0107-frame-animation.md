@@ -1,8 +1,10 @@
 # 0107 — Frame animation
 
-**Status:** Accepted (2026-11-19); M11 step 3 built. The design's names
-were settled before building; those added while building are marked `*`
-until the owner settles them (docs/naming.md).
+**Status:** Accepted (2026-11-19); M11 step 3 built, then tried by hand by
+the owner, who asked for Select and Draw tools in the Sprite Sheet Editor
+later (open items). The design's names were settled before building;
+those added while building were settled by the owner as drafted
+(docs/naming.md).
 
 ## Context
 
@@ -62,15 +64,15 @@ kind of character it talks to.
 ## How it works
 
 - **The importer** (TextureImporter, version 3) cuts the sheet into frames
-  (`TextureImporter.FramesOf`*: a grid's cells left to right, top to
+  (`TextureImporter.FramesOf`: a grid's cells left to right, top to
   bottom; without a cell size, the whole texture), checks every clip's
   frames are the sheet's and inside it, and bakes each clip: its frames'
   regions, start times, and durations, its events at their frame's start.
   The runtime never slices.
-- **The file** (crucible/SpriteClipFile.h*): an SPCL file with INFO
-  (`SpriteClipInfo`*: the sheet's ID, duration, frame count, loop), FRMS
-  (`SpriteClipFrame`*), and EVNT (`ClipEvent`, as 3D clips have).
-- **Playing** (SpriteAnimation.cpp*): a player per SpriteAnimator, made
+- **The file** (crucible/SpriteClipFile.h): an SPCL file with INFO
+  (`SpriteClipInfo`: the sheet's ID, duration, frame count, loop), FRMS
+  (`SpriteClipFrame`), and EVNT (`ClipEvent`, as 3D clips have).
+- **Playing** (SpriteAnimation.cpp): a player per SpriteAnimator, made
   and dropped as the components come and go. "Animation.Update" moves them
   on after the 3D poses, so their events join the same list, sorted by
   timestamp. Without a machine, the clip's time moves at `speed`, looping
@@ -85,10 +87,10 @@ kind of character it talks to.
   `currentState`, `findState`, `events`) reach a SpriteAnimator's machine
   when the entity has no Animator. Sprite clips and machines are read
   again by `reloadAnimationAsset` after a reimport.
-- **The editor:** the Sprite Sheet Editor* panel edits a copy of the
+- **The editor:** the Sprite Sheet Editor panel edits a copy of the
   settings; Apply saves them, which imports the sheet again; Revert drops
   them. Its sheet and preview draw through the UI with
-  `Canvas.DrawImage(..., pixelated*: true)` (`Image.Pixelated`*), the
+  `Canvas.DrawImage(..., pixelated: true)` (`Image.Pixelated`), the
   nearest texel instead of a blend.
 
 ## Known limitations
@@ -106,18 +108,18 @@ kind of character it talks to.
 ## As built
 
 - Native: crucible/Sprite.h's `SpriteAnimator`; crucible/SpriteClipFile.h;
-  SpriteAnimation.h and .cpp (`advanceSpriteAnimators`*,
-  `setSpriteParameter`*, `spriteCurrentState`*, `spriteFindState`*,
-  `reloadSpriteAnimationAsset`*, `releaseSpriteAnimators`*,
-  `registerSpriteAnimator`*); `pastExit` moved to StateMachine.cpp for both
+  SpriteAnimation.h and .cpp (`advanceSpriteAnimators`,
+  `setSpriteParameter`, `spriteCurrentState`, `spriteFindState`,
+  `reloadSpriteAnimationAsset`, `releaseSpriteAnimators`,
+  `registerSpriteAnimator`); `pastExit` moved to StateMachine.cpp for both
   runtimes.
 - C#: `SpriteAnimator`'s speed of 1; `TextureImportSettings`' sheet
-  settings, `SpriteSlicing`*, `SpriteFrameSettings`*, `SpriteClipSettings`*
-  (with `FramesPerSecond`*, the duration new frames get),
-  `SpriteClipFrameSettings`*; the editor's `SpriteSheetPanel`*,
-  `Shell.ShowSpriteSheet`*, the Inspector's Edit Sprite Sheet… button.
-- Tests: native (SpriteAnimationTests*): frames in turn, looping and
+  settings, `SpriteSlicing`, `SpriteFrameSettings`, `SpriteClipSettings`
+  (with `FramesPerSecond`, the duration new frames get),
+  `SpriteClipFrameSettings`; the editor's `SpriteSheetPanel`,
+  `Shell.ShowSpriteSheet`, the Inspector's Edit Sprite Sheet… button.
+- Tests: native (SpriteAnimationTests): frames in turn, looping and
   holding, speed, events with timestamps, a state machine on triggers and
   an exit time, reloading. C#: the importer's grid, baked clips, and
-  errors; the component's defaults. The editor's SpriteSheetChecks*
-  (CTest `launcher.jit.sprite-sheet`*).
+  errors; the component's defaults. The editor's SpriteSheetChecks
+  (CTest `launcher.jit.sprite-sheet`).
