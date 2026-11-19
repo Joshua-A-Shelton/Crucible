@@ -1103,8 +1103,35 @@ decisions made at its start):
 5. 2D lighting: lights for sprites and tiles within the pixel-art look.
 6. The demonstration: a small playable scene, a pixel-art character moved
    around a tilemap with Box2D physics, animated and lit, over a 3D
-   background; pixel-exact at several window sizes; checked headless,
-   then tried by hand.
+   background, with a bridge the character walks under and over
+   (switching floors at its ends: sorting, tile, and physics layers
+   together); pixel-exact at several window sizes; checked headless, then
+   tried by hand.
+
+Step 1 designed (2026-11-18, names settled before building):
+- **The sprite:** `Sprite` (C++ `crucible::render2d`, C#
+  `Crucible.Render2D`): `texture`, `region` (the pixel rectangle shown;
+  all of it when zero), `pivot` ((0, 0) bottom-left to (1, 1) top-right;
+  (0.5, 0.5) by default), `tint`, `flipX`, `flipY`, `sortingLayer`,
+  `orderInLayer`. Drawn at the entity's Transform2D; selectable in the
+  scene view, shown in the Inspector.
+- **Sorting:** the project file's `SortingLayers`, an ordered list (first
+  draws first; "Default" when none), each with `Name` and `YSort`. Within a
+  layer, `orderInLayer`, then y (lower on screen in front) where the layer
+  y-sorts. A sprite's layer is a plain field gameplay changes at any time:
+  floors (a bridge walked under and over) are layer bands switched at
+  triggers, with the physics layer. Edited in the project file, like
+  physics layers. `Transform2D.depth` doesn't order sprites.
+- **Size:** each texture's import setting `PixelsPerUnit` (16 by default)
+  says how many of its pixels make a meter. A texture usage `Sprite`
+  imports it uncompressed, without mipmaps or wrapping (compression shifts
+  pixel art's colors, mips blur it); sprites always filter nearest.
+- **Drawing:** the render step `Sprites`, after `Tonemap`, so colors are
+  exactly the texture's: batched quads from a buffer filled each frame,
+  one draw per run of a texture. The camera is the existing Camera,
+  orthographic; step 2 adds the virtual resolution.
+- Files crucible/Sprite.h, Sprites.cpp, sprite.slang; ADR 0104 "Sprites";
+  docs/learning/sprites.md.
 
 ## After M11: an engine review
 
