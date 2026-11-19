@@ -115,7 +115,7 @@ internal sealed partial class LevelChecks : GameSystem
 
         if (_archive || _packaged)
         {
-            foreach (int wait in Run(shell, "from the Cache", () => shell.RunStandalone("--headless", "--frame-rate", "30",
+            foreach (int wait in Run(shell, "from the Cache", () => shell.RunStandalone("--headless", "--fixed-clock", "--frame-rate", "30",
                          "--game-arg", $"seconds={Seconds}")))
             {
                 yield return wait;
@@ -150,7 +150,7 @@ internal sealed partial class LevelChecks : GameSystem
                     continue;
                 }
                 Directory.Move(imported, imported + "-aside");
-                foreach (int wait in Run(shell, what, () => shell.RunPackage(built.Folder, "--headless", "--frame-rate", "30",
+                foreach (int wait in Run(shell, what, () => shell.RunPackage(built.Folder, "--headless", "--fixed-clock", "--frame-rate", "30",
                              "--game-arg", $"seconds={Seconds}")))
                 {
                     yield return wait;
@@ -174,7 +174,7 @@ internal sealed partial class LevelChecks : GameSystem
             // The imported files moved aside, so nothing can come from the Cache.
             string imported = Path.Combine(copy, "Cache", "Imported");
             Directory.Move(imported, imported + "-aside");
-            foreach (int wait in Run(shell, "from the archive", () => shell.RunCooked(cooked.ArchivePath, "--headless",
+            foreach (int wait in Run(shell, "from the archive", () => shell.RunCooked(cooked.ArchivePath, "--headless", "--fixed-clock",
                          "--frame-rate", "30", "--game-arg", $"seconds={Seconds}")))
             {
                 yield return wait;
@@ -191,7 +191,7 @@ internal sealed partial class LevelChecks : GameSystem
         for (int r = 0; r < rates.Length; ++r)
         {
             int rate = rates[r];
-            foreach (int wait in Run(shell, $"at {rate} fps", () => shell.RunStandalone("--headless", "--frame-rate", Rate(rate),
+            foreach (int wait in Run(shell, $"at {rate} fps", () => shell.RunStandalone("--headless", "--fixed-clock", "--frame-rate", Rate(rate),
                          "--game-arg", $"seconds={Seconds}")))
             {
                 yield return wait;

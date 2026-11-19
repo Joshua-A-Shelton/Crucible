@@ -375,6 +375,24 @@ TEST_CASE("The event clock moves forward")
     CHECK(timestampNow() > first);
 }
 
+TEST_CASE("A fixed clock stands still and moves on by its step")
+{
+    PlatformScope platform;
+    useFixedClock(33'333'333);
+    CHECK(fixedClock());
+    const uint64_t start = timestampNow();
+    SDL_DelayNS(2'000'000);
+    CHECK(timestampNow() == start); // real time passed; the clock didn't
+    advanceFixedClock();
+    advanceFixedClock();
+    CHECK(timestampNow() == start + 66'666'666);
+    useFixedClock(0);
+    CHECK_FALSE(fixedClock());
+    const uint64_t real = timestampNow();
+    SDL_DelayNS(1'000'000);
+    CHECK(timestampNow() > real);
+}
+
 TEST_CASE("Latency markers arrive numbered with queue timestamps")
 {
     PlatformScope platform;

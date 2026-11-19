@@ -352,7 +352,10 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   `crucible_native_tests --no-skip --test-suite=window`. Test names may not contain
   `,` or `;` (a `;` makes CTest run nothing and report a pass); the
   `tests.names` test enforces it. Every C# suite also runs
-  as NativeAOT code (`<suite>.aot`).
+  as NativeAOT code (`<suite>.aot`). Checks that run a game for seconds of
+  game time pass the launcher's `--fixed-clock` with `--frame-rate` (ADR
+  0105), so they take as long as their frames, not real time; real-time
+  pacing has tests of its own.
 - **x64 level** (ADR 0024): x86-64-v3 (AVX2) by default, for everything
   including dependencies and the NativeAOT engine; `CRUCIBLE_X86_LEVEL=v2`
   builds for SSE4.2. `CRUCIBLE_FORCE_SCALAR_SIMD` tests the SIMD types'

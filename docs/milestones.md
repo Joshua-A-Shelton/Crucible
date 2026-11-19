@@ -1144,6 +1144,18 @@ project packed as runtime settings, the Inspector's sorting-layer picker,
 and sprites picked in the editor. Native tests on every backend; C# tests
 for import, the cook, and the settings. Awaiting the owner's try by hand.
 
+Between steps 1 and 2 (asked for by the owner, 2026-11-18): the slow
+Walker checks run on a fixed-step clock (ADR 0105), about 340 s down to
+about 48 per configuration.
+
+## After M11: importing by dropping files
+
+Asked for by the owner (2026-11-18): files dragged from the system's file
+manager onto the editor are copied into the project and imported, their
+import settings set as they need (a pixel-art image as a Sprite), without
+opening the project's folders. The editor receives no dropped files yet.
+Designed with the owner at its start.
+
 ## After M11: an engine review
 
 Asked for by the owner (2026-11-18), before any game is built: some parts

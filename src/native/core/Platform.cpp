@@ -850,9 +850,34 @@ std::string_view preferencesPath()
     return {path.data(), path.size()};
 }
 
+namespace {
+
+// The fixed clock (ADR 0105): its step, 0 when the clock is real, and its time.
+std::atomic<uint64_t> fixedPeriod{0};
+std::atomic<uint64_t> fixedNow{0};
+
+} // namespace
+
 uint64_t timestampNow()
 {
-    return SDL_GetTicksNS();
+    return fixedPeriod.load(std::memory_order_relaxed) != 0 ? fixedNow.load(std::memory_order_relaxed)
+                                                            : SDL_GetTicksNS();
+}
+
+void useFixedClock(uint64_t periodNs)
+{
+    fixedNow.store(SDL_GetTicksNS(), std::memory_order_relaxed);
+    fixedPeriod.store(periodNs, std::memory_order_relaxed);
+}
+
+void advanceFixedClock()
+{
+    fixedNow.fetch_add(fixedPeriod.load(std::memory_order_relaxed), std::memory_order_relaxed);
+}
+
+bool fixedClock()
+{
+    return fixedPeriod.load(std::memory_order_relaxed) != 0;
 }
 
 bool eventTimestampsAreArrivals()

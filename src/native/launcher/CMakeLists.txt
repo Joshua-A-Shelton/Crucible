@@ -607,6 +607,10 @@ if(CRUCIBLE_BUILD_TESTS)
 
     add_test(NAME launcher.bad-option COMMAND crucible_launcher --frames many)
     set_tests_properties(launcher.bad-option PROPERTIES LABELS integration WILL_FAIL TRUE)
+    # A fixed clock steps by a frame (ADR 0105), so it needs --frame-rate.
+    add_test(NAME launcher.fixed-clock-needs-frame-rate COMMAND crucible_launcher --fixed-clock)
+    set_tests_properties(launcher.fixed-clock-needs-frame-rate PROPERTIES LABELS integration
+        PASS_REGULAR_EXPRESSION "--fixed-clock needs --frame-rate")
 
     # Proves a hosting failure is reported: no engine assembly, so it must fail.
     add_test(NAME launcher.jit.missing-engine

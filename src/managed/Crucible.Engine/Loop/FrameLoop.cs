@@ -27,6 +27,13 @@ public sealed class FrameLoop(Schedule schedule) : ILoopDriver
     /// </summary>
     public uint FrameRate { get; init; }
 
+    /// <summary>
+    /// The platform clock is fixed (the launcher's <c>--fixed-clock</c>, ADR
+    /// 0105): each frame moves it on one <see cref="FrameRate"/> period
+    /// instead of waiting for real time.
+    /// </summary>
+    public bool FixedClock { get; init; }
+
     /// <summary>ADR 0036's default schedule, with the C++ systems registered so far.</summary>
     public static FrameLoop CreateDefault() => new(ScheduleBuilder.CreateDefault().Build());
 
@@ -100,7 +107,11 @@ public sealed class FrameLoop(Schedule schedule) : ILoopDriver
                     }
                 }
                 context.FrameNumber++;
-                if (periodNs > 0)
+                if (FixedClock && periodNs > 0)
+                {
+                    Platform.Api.AdvanceFixedClock();
+                }
+                else if (periodNs > 0)
                 {
                     nextNs = nextNs == 0 ? now + periodNs : nextNs + periodNs;
                     nextNs = WaitUntil(nextNs, periodNs);

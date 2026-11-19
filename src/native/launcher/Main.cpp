@@ -155,6 +155,9 @@ int run(int argc, ArgumentChar** argv)
     // --backend d3d12|vulkan overrides Slag's default for the platform (D3D12
     // on Windows, Vulkan elsewhere), so both can be tested on Windows.
     // --workers N overrides the job system's worker count (ADR 0014).
+    // --fixed-clock (ADR 0105) makes the clock move on exactly one
+    // --frame-rate period a frame, never waiting: a check's run takes as
+    // long as its frames do, its times the same on every machine.
     // --frames N, --headless and --no-pacing are passed to the engine
     // (LaunchOptions); --game <file> names the game assembly to load and
     // --game-arg key=value (repeatable) passes it an option; --latency <file>
@@ -201,6 +204,11 @@ int run(int argc, ArgumentChar** argv)
         if (option == CRUCIBLE_ARGUMENT("--no-pacing"))
         {
             options.noPacing = true;
+            continue;
+        }
+        if (option == CRUCIBLE_ARGUMENT("--fixed-clock"))
+        {
+            options.fixedClock = true;
             continue;
         }
         if (i + 1 >= argc)
@@ -389,12 +397,23 @@ int run(int argc, ArgumentChar** argv)
 #endif
 #endif
 
+    // --fixed-clock steps by --frame-rate's period (ADR 0105).
+    if (options.fixedClock && options.frameRate == 0)
+    {
+        std::fprintf(stderr, "crucible: --fixed-clock needs --frame-rate, which says how long a frame is\n");
+        return 1;
+    }
+
     // Platform, job system, and renderer setup and shutdown belong to the
     // launcher (ADR 0011), in that order and in reverse.
     if (!crucible::platform::initialize())
     {
         std::fprintf(stderr, "crucible: the platform layer could not start\n");
         return 1;
+    }
+    if (options.fixedClock)
+    {
+        crucible::platform::useFixedClock(1'000'000'000ull / options.frameRate);
     }
     if (!crucible::jobs::initialize(workers))
     {

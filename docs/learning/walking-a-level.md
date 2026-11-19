@@ -67,3 +67,24 @@ started differs between them. What compares is the time between two
 things inside one run: here, from the window opening to the hit. Both are
 on the animation clock, so the difference is the same in every run if the
 engine is frame-rate independent.
+
+## Game time without waiting for it
+
+The checks run the Level for 45 seconds of game time, several times over.
+At first they ran in real time, so each run took 45 real seconds and the
+three checks together took almost six minutes, most of a test run spent
+waiting.
+
+A game only knows time through its clock. If the clock, rather than
+following the wall, moves on exactly one frame's length each frame (1/30 s
+at 30 frames a second), the game can't tell the difference: it sees the
+same frame lengths it would see on a fast enough machine, so it plays the
+same. But nothing waits any more, and 45 seconds of game time take as long
+as rendering 1,350 frames, a few seconds (ADR 0105). Runs become exactly
+repeatable too: two runs from the same start see the same times, so they
+agree to the microsecond.
+
+Real-time behaviour, such as pacing frames against the display and the
+time between input and picture, isn't what these checks are about, and has
+tests of its own.
+

@@ -1343,3 +1343,18 @@ tries it by hand:
 | `spriteVertex`, `spritePixel`, `spritePickPixel` | Shader entry points | Drawing sprites, and drawing them for picks |
 | "Layer N (not in the project)" | Inspector text | A sprite's layer that the project no longer lists |
 | SpriteTests.cpp, SpriteComponentTests | Tests | Native and C# tests |
+
+## A fixed-step clock for checks (2026-11-18)
+
+Settled before building: ADR 0105 "A fixed-step clock for checks"; the
+launcher's `--fixed-clock`, `LaunchOptions.fixedClock`,
+`platform::useFixedClock(periodNs)`, `platform::advanceFixedClock()`.
+
+Names added while building (marked *) are placeholders until the owner
+tries it:
+
+| Name | What it names | What it is |
+|---|---|---|
+| `platform::fixedClock()` | C++ function | Whether the clock is fixed |
+| `FrameLoop.FixedClock` | C# property | The loop moves a fixed clock on each frame instead of waiting |
+| `FixedClockTests`, CTest `launcher.fixed-clock-needs-frame-rate` | Tests | The loop on a fixed clock; the launcher refusing it without a frame rate |

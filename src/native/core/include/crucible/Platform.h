@@ -262,6 +262,16 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE std::string_view preferencesPath();
 // Now, on the same clock as InputEvent::timestampNs.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint64_t timestampNow();
 
+// A fixed clock (ADR 0105), for checks: from now on timestampNow stands
+// still, moving on exactly `periodNs` each time advanceFixedClock is called
+// (the frame loop calls it once a frame), so a run's times don't depend on
+// how fast the machine is and it never waits for real time. The launcher's
+// --fixed-clock, before the engine starts. 0 goes back to real time.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void useFixedClock(uint64_t periodNs);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void advanceFixedClock();
+// Whether the clock is fixed.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE bool fixedClock();
+
 // Whether InputEvent::timestampNs is when the input arrived (Wayland,
 // Windows) rather than when SDL processed it, which can be a frame later.
 // False under X11, where SDL doesn't convert the X server's event times
