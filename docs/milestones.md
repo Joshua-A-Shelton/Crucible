@@ -958,6 +958,31 @@ decision made at its start):
    done, its names settled as drafted.
 4. AOT shipping builds: NativeAOT, the launcher, core, and game statically
    linked into one executable with a generated bootstrap.
+
+   Step 4 designed (2026-11-18, names settled before building):
+   - **The choice:** the project file's Build section gains `Runtime`,
+     `Jit` (the default) or `NativeAot`; Build Settings shows it as a
+     "Runtime" drop-down, "JIT (allows mods)" and "NativeAOT (one
+     executable, no mods)", with the ReadyToRun checkbox greyed out under
+     NativeAOT. Build makes the chosen one; headless `--build` follows the
+     setting, with no override.
+   - **Folders per mode** (the owner's addition, so both can exist):
+     Build/<Platform>/JIT and Build/<Platform>/AOT, replacing step 3's
+     Build/<Platform>.
+   - **One executable:** the editor writes a project and `dotnet publish`es
+     it with NativeAOT, which links the launcher's `main` (a static library,
+     through NativeAOT's custom-main option), the core's static libraries,
+     the engine, and the game into `Walker` (`Walker.exe`). A generated
+     bootstrap in that project hands the engine the game's registrations
+     (ADR 0011, 0036's open item). The ILCompiler comes from NuGet; the C++
+     linker is the one native modules already need.
+   - **A game's C++ module is linked in:** compiled as a static library and
+     linked into the executable, its start and stop called directly.
+   - **Layout as in step 3:** the executable, Data/Game.crpak (on Windows
+     also D3D12/D3D12Core.dll). NativeAOT's separate debug symbols stay out
+     of the package, kept beside it for crash reports.
+   - Checked by a CTest that builds the Walker as NativeAOT, copies it
+     elsewhere, and runs it headless with no options.
 5. The demonstration: the Walker (its Level scene the root) packaged in
    both modes, run from its archives, checked headless, then tried by
    hand.
