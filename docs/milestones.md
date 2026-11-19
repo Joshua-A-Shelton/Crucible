@@ -999,6 +999,21 @@ decision made at its start):
    both modes, run from its archives, checked headless, then tried by
    hand.
 
+   Step 5 designed (2026-11-18, names settled before building):
+   - **The check:** LevelChecks gains a mode (game argument
+     `check-packaged=<folder>`, CTest `samples.walker-packaged`): on a copy
+     of the project, the Level run standalone from the Cache at 30 fps for
+     45 s, then the Walker's JIT and NativeAOT packages built and each run
+     the same way from its archive. Each run as M9's: the post hit once
+     inside the Strike window, every waypoint reached, never below the
+     floor, a clean exit; and each package's hit within 0.5 ms of the
+     Cache run's and its arrival within a frame.
+   - **Tried by hand** on Linux (Vulkan) and Windows (D3D12): both
+     packages, windowed, as a player runs them.
+   - **No Steam Deck yet:** its check stays an open item; M10 is done
+     without it.
+   - ADR 0102 "The M10 demonstration".
+
 ## M11 — Pixel-art 2D path
 
 Before the first game: UI tricks may need it, and it is less likely to be
