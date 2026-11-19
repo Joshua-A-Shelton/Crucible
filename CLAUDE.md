@@ -424,7 +424,8 @@ This project is as much a learning exercise as it is an engine.
   "Discuss first" beside the other answers: picking it means going through
   whatever isn't clear, in as much detail as needed, before anything is
   decided. Nothing proceeds on that question until the owner picks a real
-  answer afterwards.
+  answer afterwards. An open question with no answers to choose from (one
+  the owner answers in their own words) doesn't need it.
 - **Explanations are kept twice:** walked through in chat, and written into
   the ADR so the reasoning can be reread later. Concepts that need a longer
   explanation get a learning note in `docs/learning/`, listed in
