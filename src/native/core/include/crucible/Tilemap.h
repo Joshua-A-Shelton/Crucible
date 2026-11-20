@@ -24,6 +24,7 @@ struct CRUCIBLE_EXPOSE Tilemap
     CRUCIBLE_HINT_SORTING_LAYER uint32_t sortingLayer;
     int32_t orderInLayer; // within the layer, higher draws on top
     uint32_t layer;       // the map's layer, by its id (a map's first is 0)
+    bool unlit;           // left as drawn by 2D lights (ADR 0113)
 };
 
 // A map whose layers are the entity's children (ADR 0112): each child's

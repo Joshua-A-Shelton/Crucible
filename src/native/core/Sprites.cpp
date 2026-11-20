@@ -17,6 +17,7 @@
 #include <crucible/AssetLoads.h>
 #include <crucible/Ecs.h>
 #include <crucible/HashMap.h>
+#include <crucible/Light2D.h>
 #include <crucible/Log.h>
 #include <crucible/Render.h>
 #include <crucible/Sprite.h>
@@ -37,6 +38,7 @@ namespace {
 
 uint32_t ySorted = 0;
 uint32_t behind3D = 0;
+uint32_t unlit = 0;
 
 } // namespace
 
@@ -58,6 +60,16 @@ void setBehind3DLayers(uint32_t mask)
 uint32_t behind3DLayers()
 {
     return behind3D;
+}
+
+void setUnlitLayers(uint32_t mask)
+{
+    unlit = mask;
+}
+
+uint32_t unlitLayers()
+{
+    return unlit;
 }
 
 } // namespace crucible::render2d
@@ -118,10 +130,37 @@ struct SpriteInstance
     Vector4 tint;
     uint32_t texture;
     uint32_t entity; // index + 1
-    uint32_t pad1;
+    uint32_t lit;    // 1: multiplied by the light buffer (ADR 0113)
     uint32_t pad2;
 };
 static_assert(sizeof(SpriteInstance) == 96);
+
+// The GPU's view of a 2D light (ADR 0113): light2d.slang's Light2DInstance.
+struct Light2DInstance
+{
+    Vector2 position;  // in the world
+    Vector2 direction; // a spot's, unit length; zero for a point light
+    Vector3 color;     // times its intensity
+    float range;
+    float cosInner; // a spot's half angles' cosines
+    float cosOuter;
+    uint32_t bands;
+    uint32_t pad;
+};
+static_assert(sizeof(Light2DInstance) == 48);
+
+// A transform's row as a unit 2D direction; zero if it has none.
+Vector2 unitAxis(Vector4 row)
+{
+    const float length = std::sqrt(row.x * row.x + row.y * row.y);
+    return length > 0 ? Vector2{row.x / length, row.y / length} : Vector2{};
+}
+
+// Whether a sprite or tile in a sorting layer is lit.
+bool litIn(uint32_t layer, bool unlitItself)
+{
+    return !unlitItself && !(layer < 32 && (render2d::unlitLayers() >> layer & 1) != 0);
+}
 
 // A gathered sprite, or a run of a tilemap's tiles, before sorting.
 struct Gathered
@@ -186,11 +225,26 @@ struct SpriteConstants
 {
     uint32_t sprites;
     uint32_t first;
+    uint32_t light; // the light buffer's slot; 0: none, `ambient` everywhere (ADR 0113)
     uint32_t pad0;
-    uint32_t pad1;
+    Vector4 ambient;
     Matrix4x4 viewProjection;
 };
-static_assert(sizeof(SpriteConstants) == 80);
+static_assert(sizeof(SpriteConstants) == 96);
+
+// The light buffer's: light past 1 (up to 2) is kept, and it's smooth.
+constexpr slag::PixelFormat lightBufferFormat = slag::PixelFormat::R16G16B16A16Float;
+
+// light2d.slang's Light2DConstants.
+struct Light2DConstants
+{
+    uint32_t lights;
+    uint32_t pad0;
+    uint32_t pad1;
+    uint32_t pad2;
+    Matrix4x4 viewProjection;
+};
+static_assert(sizeof(Light2DConstants) == 80);
 
 struct CompositeConstants
 {
@@ -219,6 +273,10 @@ struct FrameSprites
     Matrix4x4 viewProjection = Matrix4x4::identity();
     float scale = 1;  // window pixels a virtual pixel
     Vector2 offset{}; // where the scaled image starts, in window pixels
+    // 2D lights (ADR 0113): the ambient (white without an AmbientLight2D),
+    // and how many point and spot lights add to it in the light buffer.
+    Vector3 ambient{1, 1, 1};
+    uint32_t lights = 0;
 };
 
 // Each surface's upload buffers, one per frame slot, grown as needed.
@@ -226,6 +284,8 @@ struct SurfaceBuffers
 {
     std::array<slag::Buffer*, framesInFlight> buffers{};
     std::array<uint32_t, framesInFlight> capacity{};
+    std::array<slag::Buffer*, framesInFlight> lightBuffers{}; // the 2D lights'
+    std::array<uint32_t, framesInFlight> lightCapacity{};
 };
 
 struct State
@@ -250,6 +310,8 @@ struct State
     slag::Pipeline* pickPipeline = nullptr;
     slag::Pipeline* pixelPipeline = nullptr;     // into a pixel camera's small images
     slag::Pipeline* compositePipeline = nullptr; // scaling them up
+    slag::Pipeline* lightPipeline = nullptr;     // 2D lights into the light buffer
+    Vector<Light2DInstance> lights{MemoryTag::Render};
 };
 
 State state;
@@ -698,6 +760,7 @@ void gatherTilemaps(ecs::World& world, bool pixel, float pixelsPerUnit, uint32_t
         placing.axisY = {one.matrix.rows[1].x, one.matrix.rows[1].y};
         placing.origin = {one.matrix.rows[3].x, one.matrix.rows[3].y, one.matrix.rows[3].z};
         placing.tint = one.tilemap.tint;
+        placing.lit = litIn(layer, one.tilemap.unlit) ? 1 : 0;
         placing.entity = gathered.entity + 1;
         if (pixel)
         {
@@ -724,6 +787,9 @@ void gatherTilemaps(ecs::World& world, bool pixel, float pixelsPerUnit, uint32_t
         }
     }
 }
+
+void gatherLights(ecs::World& world, FrameSprites& frame);
+slag::Buffer* uploadLights(slag::GraphicsDevice& device, uint32_t surface, uint32_t frameSlot, uint32_t slot);
 
 // The surface's sprites this frame, gathered, sorted, and uploaded once for
 // its steps, on the main thread (passes record on workers).
@@ -792,6 +858,7 @@ const FrameSprites& frameSprites(const RenderStepContext& context)
                 {
                     continue;
                 }
+                gathered.instance.lit = litIn(layer, sprites[i].unlit) ? 1 : 0;
                 if (gathering.pixel)
                 {
                     // On the grid: the quad's first corner on a whole pixel
@@ -854,6 +921,7 @@ const FrameSprites& frameSprites(const RenderStepContext& context)
             tile.origin = gathered.instance.origin;
             tile.tint = gathered.instance.tint;
             tile.entity = gathered.instance.entity;
+            tile.lit = gathered.instance.lit;
             sorted.pushBack(tile);
         }
         frame.behind += gathered.behind ? run.count : 0;
@@ -866,7 +934,139 @@ const FrameSprites& frameSprites(const RenderStepContext& context)
         frame.behind = 0;
     }
     frame.count = static_cast<uint32_t>(sorted.size());
+    gatherLights(*context.world, frame);
+    if (frame.lights > 0 &&
+        uploadLights(context.device, context.surface, frameSlotOf(context),
+                     surfaceDescriptor(context, lights2DDescriptor) + frameSlotOf(context)) == nullptr)
+    {
+        frame.lights = 0;
+    }
     return frame;
+}
+
+// The world's 2D lights (ADR 0113): the ambient (the AmbientLight2D of the
+// lowest entity index; white without one), and each point and spot light
+// with some light in it, into state.lights.
+void gatherLights(ecs::World& world, FrameSprites& frame)
+{
+    state.lights.clear();
+    frame.ambient = {1, 1, 1};
+    frame.lights = 0;
+    if (ecs::componentIdOf<render2d::AmbientLight2D> == ecs::invalidComponent)
+    {
+        return;
+    }
+    struct Ambient
+    {
+        uint32_t index = UINT32_MAX;
+        Vector3 color{1, 1, 1};
+    } ambient;
+    const ecs::ComponentId ambients[] = {ecs::componentIdOf<render2d::AmbientLight2D>};
+    ecs::Query* query = ecs::createQuery(world, {.required = ambients});
+    ecs::forEachChunk(
+        *query,
+        [](const ecs::ChunkView& view, void* data) {
+            auto& found = *static_cast<Ambient*>(data);
+            const std::span<const render2d::AmbientLight2D> lights = ecs::readColumn<render2d::AmbientLight2D>(view);
+            const ecs::Entity* entities = ecs::entitiesOf(view);
+            for (size_t i = 0; i < lights.size(); ++i)
+            {
+                if (ecs::indexOf(entities[i]) < found.index)
+                {
+                    found.index = ecs::indexOf(entities[i]);
+                    found.color = lights[i].color * lights[i].intensity;
+                }
+            }
+        },
+        &ambient);
+    ecs::destroyQuery(query);
+    frame.ambient = ambient.color;
+
+    const ecs::ComponentId points[] = {ecs::componentIdOf<render2d::PointLight2D>, ecs::componentIdOf<WorldTransform>};
+    query = ecs::createQuery(world, {.required = points});
+    ecs::forEachChunk(
+        *query,
+        [](const ecs::ChunkView& view, void*) {
+            const std::span<const render2d::PointLight2D> lights = ecs::readColumn<render2d::PointLight2D>(view);
+            const std::span<const WorldTransform> transforms = ecs::readColumn<WorldTransform>(view);
+            for (size_t i = 0; i < lights.size(); ++i)
+            {
+                const render2d::PointLight2D& light = lights[i];
+                if (light.range <= 0 || light.intensity <= 0)
+                {
+                    continue;
+                }
+                const Vector4 at = transforms[i].matrix.rows[3];
+                state.lights.pushBack({.position = {at.x, at.y},
+                                       .color = light.color * light.intensity,
+                                       .range = light.range,
+                                       .cosInner = -2,
+                                       .cosOuter = -2,
+                                       .bands = static_cast<uint32_t>(std::max(light.bands, 0))});
+            }
+        },
+        nullptr);
+    ecs::destroyQuery(query);
+    const ecs::ComponentId spots[] = {ecs::componentIdOf<render2d::SpotLight2D>, ecs::componentIdOf<WorldTransform>};
+    query = ecs::createQuery(world, {.required = spots});
+    ecs::forEachChunk(
+        *query,
+        [](const ecs::ChunkView& view, void*) {
+            const std::span<const render2d::SpotLight2D> lights = ecs::readColumn<render2d::SpotLight2D>(view);
+            const std::span<const WorldTransform> transforms = ecs::readColumn<WorldTransform>(view);
+            for (size_t i = 0; i < lights.size(); ++i)
+            {
+                const render2d::SpotLight2D& light = lights[i];
+                if (light.range <= 0 || light.intensity <= 0 || light.outerConeAngle <= 0)
+                {
+                    continue;
+                }
+                const Matrix4x4& matrix = transforms[i].matrix;
+                const Vector2 up = unitAxis(matrix.rows[1]);
+                const float outer = std::min(light.outerConeAngle, 6.28318f) * 0.5f;
+                const float inner = std::clamp(light.innerConeAngle * 0.5f, 0.0f, outer);
+                state.lights.pushBack({.position = {matrix.rows[3].x, matrix.rows[3].y},
+                                       .direction = {-up.x, -up.y},
+                                       .color = light.color * light.intensity,
+                                       .range = light.range,
+                                       .cosInner = std::cos(inner),
+                                       .cosOuter = std::cos(outer),
+                                       .bands = static_cast<uint32_t>(std::max(light.bands, 0))});
+            }
+        },
+        nullptr);
+    ecs::destroyQuery(query);
+    frame.lights = static_cast<uint32_t>(state.lights.size());
+}
+
+// The frame slot's buffer of the 2D lights, written into the surface's slot;
+// null if it couldn't be made.
+slag::Buffer* uploadLights(slag::GraphicsDevice& device, uint32_t surface, uint32_t frameSlot, uint32_t slot)
+{
+    SurfaceBuffers& buffers = state.surfaces[surface - 1];
+    slag::Buffer*& buffer = buffers.lightBuffers[frameSlot];
+    uint32_t& capacity = buffers.lightCapacity[frameSlot];
+    if (buffer == nullptr || capacity < state.lights.size())
+    {
+        const uint32_t wanted = std::max<uint32_t>(64, static_cast<uint32_t>(state.lights.size()) * 3 / 2);
+        if (buffer != nullptr)
+        {
+            device.destroy(buffer);
+        }
+        slag::Result<slag::Buffer*> created =
+            device.createBuffer({.size = uint64_t{wanted} * sizeof(Light2DInstance),
+                                 .placement = slag::Placement::automatic(slag::MemoryKind::Upload),
+                                 .debugName = "crucible 2D lights"});
+        buffer = created ? created.value() : nullptr;
+        capacity = created ? wanted : 0;
+        if (buffer == nullptr)
+        {
+            return nullptr;
+        }
+    }
+    std::memcpy(buffer->mappedData(), state.lights.data(), state.lights.size() * sizeof(Light2DInstance));
+    device.writeStructuredBuffer(slot, {.buffer = buffer, .count = capacity, .stride = sizeof(Light2DInstance)});
+    return buffer;
 }
 
 // The frame slot's upload buffer, holding the sprites, written into the
@@ -964,6 +1164,21 @@ Result<void> prepareSprites(slag::GraphicsDevice& device, void*)
         return compositePipeline.status();
     }
     state.compositePipeline = compositePipeline.value();
+    // 2D lights (ADR 0113): added into the light buffer, which starts at the ambient.
+    const slag::PixelFormat lightFormats[] = {lightBufferFormat};
+    slag::GraphicsPipelineDesc light{
+        .rasterizer = {.cullMode = slag::CullMode::None}, .colorFormats = lightFormats, .debugName = "Lights2D"};
+    light.blend.targets[0] = {.blendEnable = true,
+                              .srcColorFactor = slag::BlendFactor::One,
+                              .destColorFactor = slag::BlendFactor::One,
+                              .srcAlphaFactor = slag::BlendFactor::Zero,
+                              .destAlphaFactor = slag::BlendFactor::One};
+    Result<slag::Pipeline*> lightPipeline = createStepPipeline(device, "light2d", "lightVertex", "lightPixel", light);
+    if (!lightPipeline)
+    {
+        return lightPipeline.status();
+    }
+    state.lightPipeline = lightPipeline.value();
     return {};
 }
 
@@ -971,18 +1186,22 @@ void releaseSprites(slag::GraphicsDevice& device, void*)
 {
     for (SurfaceBuffers& buffers : state.surfaces)
     {
-        for (slag::Buffer*& buffer : buffers.buffers)
+        for (auto* list : {&buffers.buffers, &buffers.lightBuffers})
         {
-            if (buffer != nullptr)
+            for (slag::Buffer*& buffer : *list)
             {
-                device.destroy(buffer);
-                buffer = nullptr;
+                if (buffer != nullptr)
+                {
+                    device.destroy(buffer);
+                    buffer = nullptr;
+                }
             }
         }
         buffers.capacity = {};
+        buffers.lightCapacity = {};
     }
     for (slag::Pipeline** pipeline :
-         {&state.pipeline, &state.pickPipeline, &state.pixelPipeline, &state.compositePipeline})
+         {&state.pipeline, &state.pickPipeline, &state.pixelPipeline, &state.compositePipeline, &state.lightPipeline})
     {
         if (*pipeline != nullptr)
         {
@@ -1004,23 +1223,73 @@ void releaseSprites(slag::GraphicsDevice& device, void*)
 
 namespace {
 
-// One pass drawing sprites [first, first + count) with `pipeline` and the
-// frame's view into `target` (cleared first if `clear`).
-void addSpritePass(RenderStepContext& context, const char* name, slag::rendergraph::RenderGraphTexture target,
-                   bool clear, slag::Pipeline* pipeline, const FrameSprites& frame, uint32_t first, uint32_t count)
+// The light buffer (ADR 0113), the size of the image the sprites draw into:
+// cleared to the ambient, each light added; none (index UINT32_MAX) when
+// there are no point or spot lights, the ambient then a constant.
+slag::rendergraph::RenderGraphTexture addLightBuffer(RenderStepContext& context, const FrameSprites& frame,
+                                                     uint32_t width, uint32_t height)
 {
+    if (frame.lights == 0 || state.lightPipeline == nullptr)
+    {
+        return {};
+    }
+    const slag::rendergraph::RenderGraphTexture buffer =
+        context.graph.createTransientTexture2D({.format = lightBufferFormat,
+                                                .width = width,
+                                                .height = height,
+                                                .usage = slag::TextureUsage::RenderTarget,
+                                                .debugName = "LightBuffer"});
+    const Light2DConstants constants{.lights = surfaceDescriptor(context, lights2DDescriptor) + frameSlotOf(context),
+                                     .viewProjection = frame.viewProjection};
+    const slag::ClearValue ambient{.color = {frame.ambient.x, frame.ambient.y, frame.ambient.z, 1}};
+    const uint32_t count = frame.lights;
+    context.graph.addPass(
+        "Lights2D", slag::CommandQueueType::Graphics,
+        [&](slag::rendergraph::PassBuilder& pass) {
+            pass.renderTarget(buffer, slag::LoadOp::Clear, slag::StoreOp::Store, ambient);
+        },
+        [constants, count](slag::rendergraph::PassContext&, slag::CommandBuffer* commands) {
+            commands->bindPipeline(state.lightPipeline);
+            commands->pushConstants(&constants, sizeof(constants));
+            commands->draw(6, count);
+        });
+    return buffer;
+}
+
+// One pass drawing sprites [first, first + count) with `pipeline` and the
+// frame's view into `target` (cleared first if `clear`), lit by `light`
+// (the light buffer; none: the ambient).
+void addSpritePass(RenderStepContext& context, const char* name, slag::rendergraph::RenderGraphTexture target,
+                   bool clear, slag::Pipeline* pipeline, const FrameSprites& frame, uint32_t first, uint32_t count,
+                   slag::rendergraph::RenderGraphTexture light)
+{
+    const bool lit = light.index != UINT32_MAX;
     SpriteConstants constants{.sprites = surfaceDescriptor(context, spritesDescriptor) + frameSlotOf(context),
                               .first = first,
+                              .light =
+                                  lit ? surfaceDescriptor(context, lightBufferDescriptor) + frameSlotOf(context) : 0,
+                              .ambient = {frame.ambient.x, frame.ambient.y, frame.ambient.z, 1},
                               .viewProjection = frame.viewProjection};
+    slag::GraphicsDevice* device = &context.device;
     context.graph.addPass(
         name, slag::CommandQueueType::Graphics,
         [&](slag::rendergraph::PassBuilder& pass) {
+            if (lit)
+            {
+                pass.use(light, slag::rendergraph::Usage::ShaderRead);
+            }
             pass.renderTarget(target, clear ? slag::LoadOp::Clear : slag::LoadOp::Load, slag::StoreOp::Store, {});
         },
-        [constants, pipeline, count](slag::rendergraph::PassContext&, slag::CommandBuffer* commands) {
+        [constants, pipeline, count, lit, light, device](slag::rendergraph::PassContext& pass,
+                                                         slag::CommandBuffer* commands) {
             if (count == 0)
             {
                 return;
+            }
+            if (lit)
+            {
+                // A transient image, so its slot is written while recording.
+                device->writeTexture(constants.light, {.texture = pass.texture(light)});
             }
             commands->bindPipeline(pipeline);
             commands->pushConstants(&constants, sizeof(constants));
@@ -1087,11 +1356,16 @@ void addSprites(RenderStepContext& context, void*)
     {
         if (frame.count > 0)
         {
+            const slag::rendergraph::RenderGraphTexture light =
+                addLightBuffer(context, frame, context.width, context.height);
             addSpritePass(context, "Sprites", context.texture(backbufferKey()), false, state.pipeline, frame, 0,
-                          frame.count);
+                          frame.count, light);
         }
         return;
     }
+    const slag::rendergraph::RenderGraphTexture light =
+        frame.count > 0 ? addLightBuffer(context, frame, frame.camera.width, frame.camera.height)
+                        : slag::rendergraph::RenderGraphTexture{};
     // Through a pixel camera: the sprites behind the 3D and those in front
     // of it each into an image at its resolution, scaled up over the
     // finished image (the front one always, for its bars).
@@ -1105,13 +1379,13 @@ void addSprites(RenderStepContext& context, void*)
     if (frame.behind > 0)
     {
         const slag::rendergraph::RenderGraphTexture behind = small("PixelBehind");
-        addSpritePass(context, "PixelSpritesBehind", behind, true, state.pixelPipeline, frame, 0, frame.behind);
+        addSpritePass(context, "PixelSpritesBehind", behind, true, state.pixelPipeline, frame, 0, frame.behind, light);
         addComposite(context, "PixelCompositeBehind", behind, pixelBehindDescriptor, context.texture(sceneDepthKey()),
                      false, frame);
     }
     const slag::rendergraph::RenderGraphTexture front = small("PixelFront");
     addSpritePass(context, "PixelSprites", front, true, state.pixelPipeline, frame, frame.behind,
-                  frame.count - frame.behind);
+                  frame.count - frame.behind, light);
     addComposite(context, "PixelComposite", front, pixelFrontDescriptor, {},
                  frame.camera.fit == render2d::PixelFit::Exact, frame);
 }
@@ -1203,6 +1477,9 @@ void registerSprite()
     ecs::registerComponent<PixelCamera>("Crucible.Render2D.PixelCamera");
     ecs::registerComponent<Tilemap>("Crucible.Render2D.Tilemap");
     ecs::registerComponent<TilemapLayers>("Crucible.Render2D.TilemapLayers");
+    ecs::registerComponent<PointLight2D>("Crucible.Render2D.PointLight2D");
+    ecs::registerComponent<SpotLight2D>("Crucible.Render2D.SpotLight2D");
+    ecs::registerComponent<AmbientLight2D>("Crucible.Render2D.AmbientLight2D");
     registerSpriteAnimator();
     static const bool starter = [] {
         assets::registerLoadStarter(render::startSpriteLoads);

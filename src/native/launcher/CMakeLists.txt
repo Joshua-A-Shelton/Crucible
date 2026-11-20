@@ -553,6 +553,19 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "TilemapChecks: all [0-9]+ checks passed")
 
+    # 2D lights checking themselves (ADR 0113): on a copy of the Walker's
+    # project, Create > 2D's lights made with their defaults and undone, a
+    # scene of them saved and opened again, a spot's cone drawn (the window
+    # saved as lights-2d.png), and an Unlit sorting layer reaching the renderer.
+    add_test(NAME launcher.jit.lights-2d
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
+            --game-arg "warm-project=${walkerWarm}/Walker.crproject"
+            --game-arg "check-lights-2d=${CMAKE_CURRENT_BINARY_DIR}"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/lights-2d-settings.json")
+    set_tests_properties(launcher.jit.lights-2d PROPERTIES LABELS "integration;gpu" TIMEOUT 300
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "Light2DChecks: all [0-9]+ checks passed")
+
     # The play toolbar checking itself (ADR 0088): a copy of the Walker's
     # project (in the test's folder), a ball timed through Pause before
     # Play, Step, Pause off, and Stop, each a click on the toolbar.
@@ -642,6 +655,7 @@ if(CRUCIBLE_BUILD_TESTS)
         launcher.jit.scene-loading
         launcher.jit.chain-handles
         launcher.jit.pickers
+        launcher.jit.lights-2d
         samples.walker-package
         samples.walker-package-shipping
         APPEND PROPERTY FIXTURES_REQUIRED walker-warm)

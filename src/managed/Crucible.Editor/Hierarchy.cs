@@ -212,6 +212,10 @@ public sealed class HierarchyPanel : EditorPanel
         menu.Add("Create Empty", () => _shell.CreateEmpty(entity));
         Menu twoD = new();
         twoD.Add("Tilemap", () => _shell.CreateTilemapEntity(entity));
+        twoD.AddSeparator();
+        twoD.Add("Point Light", () => _shell.CreateLight2D(entity, Light2DKind.Point));
+        twoD.Add("Spot Light", () => _shell.CreateLight2D(entity, Light2DKind.Spot));
+        twoD.Add("Ambient Light", () => _shell.CreateLight2D(entity, Light2DKind.Ambient));
         menu.Add(new MenuItem("2D") { Submenu = twoD });
         if (node is not null && _shell.HasWorld && _shell.World.IsAlive(entity) &&
             (_shell.MapRootOf(entity) is not null || _shell.World.Has(entity, Crucible.Ecs.Components.Of<Crucible.Render2D.Tilemap>())))

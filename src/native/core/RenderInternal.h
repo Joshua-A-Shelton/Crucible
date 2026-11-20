@@ -71,7 +71,11 @@ inline constexpr uint32_t spritesDescriptor = rwSkinnedVerticesDescriptor + fram
 inline constexpr uint32_t pixelFrontDescriptor = spritesDescriptor + framesInFlight;     // + frame slot
 inline constexpr uint32_t pixelBehindDescriptor = pixelFrontDescriptor + framesInFlight; // + frame slot
 inline constexpr uint32_t pixelDepthDescriptor = pixelBehindDescriptor + framesInFlight; // + frame slot
-inline constexpr uint32_t stepDescriptors = pixelDepthDescriptor + framesInFlight;       // + frame slot * per frame
+// 2D lights (ADR 0113): the frame's lights (a StructuredBuffer<Light2DInstance>),
+// and the light buffer as sprites read it.
+inline constexpr uint32_t lights2DDescriptor = pixelDepthDescriptor + framesInFlight;  // + frame slot
+inline constexpr uint32_t lightBufferDescriptor = lights2DDescriptor + framesInFlight; // + frame slot
+inline constexpr uint32_t stepDescriptors = lightBufferDescriptor + framesInFlight;    // + frame slot * per frame
 static_assert(stepDescriptors + stepDescriptorsPerFrame * framesInFlight <= descriptorsPerSurface);
 // 8 surfaces from slot 8, below the loaded assets'.
 static_assert(8 + 8 * descriptorsPerSurface <= firstAssetDescriptor);

@@ -156,6 +156,7 @@ public sealed class SceneView : UIElement
         }
         else if (_shell.SelectedTransform() is { } world)
         {
+            _shell.DrawLight2D(canvas, Camera, ActualSize);
             Handles.Draw(canvas, Camera, ActualSize, world, _hot);
         }
     }
@@ -430,14 +431,14 @@ public sealed class SceneView : UIElement
             return done;
         }
         if (e.Keycode switch
-            {
-                Keycode.B => MapTool.Stamp,
-                Keycode.R => MapTool.Rectangle,
-                Keycode.F => MapTool.Fill,
-                Keycode.E => MapTool.Eraser,
-                Keycode.S => MapTool.Select,
-                _ => (MapTool?)null,
-            } is { } tool)
+        {
+            Keycode.B => MapTool.Stamp,
+            Keycode.R => MapTool.Rectangle,
+            Keycode.F => MapTool.Fill,
+            Keycode.E => MapTool.Eraser,
+            Keycode.S => MapTool.Select,
+            _ => (MapTool?)null,
+        } is { } tool)
         {
             _shell.SetMapTool(tool);
             return true;

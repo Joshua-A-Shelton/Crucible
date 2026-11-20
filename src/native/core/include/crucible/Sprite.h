@@ -37,6 +37,7 @@ struct CRUCIBLE_EXPOSE Sprite
     CRUCIBLE_HINT_COLOR Vector4 tint; // multiplied in; white leaves it as it is
     bool flipX;
     bool flipY;
+    bool unlit; // left as drawn by 2D lights (ADR 0113)
     // Which of the project's sorting layers it's in; gameplay changes it to
     // move it between floors.
     CRUCIBLE_HINT_SORTING_LAYER uint32_t sortingLayer;
@@ -86,6 +87,11 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL void registerSprite();
 // the project's settings (C#'s RuntimeSettings). Main thread.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void setYSortLayers(uint32_t mask);
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t ySortLayers();
+
+// Which sorting layers 2D lights leave as drawn (ADR 0113): bit N for
+// layer N.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void setUnlitLayers(uint32_t mask);
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t unlitLayers();
 
 // Which sorting layers draw behind the 3D (ADR 0106): bit N for layer N.
 // Through a PixelCamera, they show only where the 3D drew nothing.

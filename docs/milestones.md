@@ -1284,6 +1284,19 @@ delete, move), flips, and right-drag to pick up; collision set in the
 Palette with a click, and Show Collision over the map. Auto-tiling is its
 own step after the owner's try.
 
+Step 5 built (2026-11-20, ADR 0113): 2D lighting. Each frame the Sprites
+step draws the point and spot lights into a light buffer the size of the
+sprites' image (a pixel camera's virtual resolution), starting from the
+ambient light; lit sprites and tiles are multiplied by it at their pixel,
+up to twice the art's color. `PointLight2D`, `SpotLight2D` (a cone along
+its entity's local down), `AmbientLight2D` (white without one, so scenes
+without lights look as before); `bands` steps a light's fade into rings;
+a sorting layer's `Unlit` and a sprite's or tilemap's `unlit` leave them
+as drawn. Create > 2D makes the lights; a selected one's range and cone
+show in the viewport. Shadows, normal maps, and per-light layers wait
+(open items). Native tests on every backend and the editor's
+`launcher.jit.lights-2d`.
+
 ## After M11: importing by dropping files
 
 Asked for by the owner (2026-11-18): files dragged from the system's file

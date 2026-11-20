@@ -1488,6 +1488,24 @@ Names added while building, to settle after the owner's try (`*`):
 | `TabButton`*, `LayerName`*, `RenameField`*, `TileGlyph.Stamp`*, `Eraser`*, `Select`* | C# classes, enum values | The panels' parts and the tools' symbols |
 | `ApplyImportSettings(…, openSheet)`* | C# parameter | Making a texture a sprite without opening its sheet |
 
+## 2D lighting (2026-11-20, ADR 0113)
+
+Names proposed before building, to settle after the owner's try (`*`):
+
+| Name | What it names | What it is |
+|---|---|---|
+| ADR 0113 "2D lighting"* | Decision record | M11 step 5 |
+| `PointLight2D`*: `color`, `intensity`, `range`, `bands` | Component (C++ `crucible::render2d`, crucible/Light2D.h*; C# `Crucible.Render2D`) | A circle of 2D light |
+| `SpotLight2D`*: also `innerConeAngle`, `outerConeAngle` | Component | A cone of 2D light along local down |
+| `AmbientLight2D`*: `color`, `intensity` | Component | The light everything lit starts from |
+| `Sprite.unlit`*, `Tilemap.unlit`* | Component fields | Not lit |
+| `Unlit`* on a sorting layer | Project setting | The layer isn't lit |
+| Create > 2D > Point Light*, Spot Light*, Ambient Light* | Hierarchy menu | Making lights |
+| light2d.slang*, `Light2DInstance`*, `Light2DConstants`*, the `Lights2D`* pass, `LightBuffer`*, `lights2DDescriptor`*, `lightBufferDescriptor`*, `SpriteInstance.lit`*, `render2d::setUnlitLayers`*, `unlitLayers`* | Internal | The light buffer and its plumbing |
+| `Shell.CreateLight2D`*, `Light2DKind`*, `DrawLight2D`* | C# | The editor's lights |
+| Light2DChecks*, CTest `launcher.jit.lights-2d`* | Tests | The editor checking 2D lights |
+| docs/learning/2d-lighting.md* | Learning note | Light buffers, linear light, falloff and bands |
+
 ## Tests in parallel (2026-11-19, ADR 0109)
 
 Names added while building, to settle after the owner's look (`*`):

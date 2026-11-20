@@ -201,6 +201,9 @@ Longer explanations of decisions, written to be reread:
 - [Map editing](docs/learning/map-editing.md) (ADR 0112): map mode as a
   workspace, layers as entities, why a map has one tile size, stamps and
   picking up, and collision set in the palette.
+- [2D lighting](docs/learning/2d-lighting.md) (ADR 0113): multiplying the
+  art by light, a light buffer at the virtual resolution, linear light,
+  falloff and bands.
 - [Up-to-date builds](docs/learning/up-to-date-builds.md) (ADR 0110): file
   times versus content hashes, what makes a build stamp trustworthy, and
   why copies need one.

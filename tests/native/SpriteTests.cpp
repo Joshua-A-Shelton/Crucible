@@ -8,6 +8,7 @@
 
 #include <crucible/Camera.h>
 #include <crucible/Ecs.h>
+#include <crucible/Light2D.h>
 #include <crucible/MeshInstance.h>
 #include <crucible/Platform.h>
 #include <crucible/Render.h>
@@ -343,6 +344,151 @@ TEST_SUITE("gpu")
                 get<render2d::Tilemap>(*scene.world, upper)->layer = 9;
                 pixels = renderSettled(scene, surface);
                 CHECK(at(pixels, 34, 30)[0] == 0);
+            }
+            render::destroySurface(surface);
+            render::shutdown();
+        }
+        assets::setAssetReader(0);
+        platform::shutdown();
+    }
+
+    // 2D lights (ADR 0113): a gray sprite filling the view, lit.
+    TEST_CASE("2D lights multiply lit sprites by ambient and point and spot light up to twice on every backend")
+    {
+        scenes::registerTransforms();
+        render::registerCamera();
+        render2d::registerSprite();
+        library[49] = spriteTexture(1, 1, {120, 120, 120, 255}, 0.125f); // one texel, 8 m square
+        assets::setAssetReader(reinterpret_cast<uint64_t>(&readTestAsset));
+        REQUIRE(platform::initialize());
+        for (slag::Backend backend : {slag::Backend::D3D12, slag::Backend::Vulkan})
+        {
+            if (!slag::isBackendAvailable(backend) || !render::initialize(backend))
+            {
+                continue;
+            }
+            CAPTURE(static_cast<int>(backend));
+            Result<render::SurfaceHandle> created = render::createOffscreenSurface(width, height);
+            REQUIRE(created);
+            const render::SurfaceHandle surface = created.value();
+            {
+                Scene scene;
+                camera(scene);
+                const Entity gray = sprite(scene, showing(49), {-4, -4});
+                std::vector<uint8_t> pixels = renderSettled(scene, surface);
+                CHECK(at(pixels, 10, 10) == std::array<uint8_t, 4>{120, 120, 120, 255}); // no lights: as drawn
+
+                // A dim ambient darkens everything lit, each channel by its own.
+                const ComponentId ambientSet[] = {componentIdOf<render2d::AmbientLight2D>};
+                const Entity ambient = createEntity(*scene.world, ambientSet);
+                *get<render2d::AmbientLight2D>(*scene.world, ambient) = {{0.25f, 0.5f, 1}, 1};
+                pixels = renderSettled(scene, surface);
+                const std::array<uint8_t, 4> dim = at(pixels, 10, 10);
+                CHECK((dim[0] < dim[1] && dim[1] < dim[2] && dim[2] == 120 && at(pixels, 50, 50) == dim));
+
+                // A point light at the origin, 2 m: bright at the middle, the ambient past 2 m.
+                const ComponentId pointSet[] = {componentIdOf<render2d::PointLight2D>,
+                                                componentIdOf<scenes::Transform2D>,
+                                                componentIdOf<scenes::WorldTransform>};
+                const Entity point = createEntity(*scene.world, pointSet);
+                *get<render2d::PointLight2D>(*scene.world, point) = {{1, 1, 1}, 1, 2, 0};
+                *get<scenes::Transform2D>(*scene.world, point) = {{0, 0}, 0, {1, 1}, 0};
+                pixels = renderSettled(scene, surface);
+                const std::array<uint8_t, 4> middle = at(pixels, 32, 32), halfway = at(pixels, 32, 40);
+                CHECK(middle[0] > halfway[0]);
+                CHECK(halfway[0] > dim[0]);
+                CHECK(at(pixels, 32, 52) == dim); // 2.5 m down: past its range
+                CHECK(middle[2] > 120);           // blue: ambient 1 plus the light, brighter than drawn
+
+                // Bands: flat rings, so two pixels a little apart in one ring match.
+                get<render2d::PointLight2D>(*scene.world, point)->bands = 2;
+                pixels = renderSettled(scene, surface);
+                CHECK(at(pixels, 32, 33) == at(pixels, 33, 34));
+                CHECK(at(pixels, 32, 33)[0] > at(pixels, 32, 44)[0]); // the inner ring over the outer
+
+                // Up to twice: more intensity than that changes nothing.
+                get<render2d::PointLight2D>(*scene.world, point)->bands = 0;
+                get<render2d::PointLight2D>(*scene.world, point)->intensity = 10;
+                pixels = renderSettled(scene, surface);
+                const std::array<uint8_t, 4> capped = at(pixels, 32, 32);
+                get<render2d::PointLight2D>(*scene.world, point)->intensity = 40;
+                pixels = renderSettled(scene, surface);
+                CHECK(at(pixels, 32, 32) == capped);
+                CHECK(capped[0] > middle[0]);
+
+                // An unlit sprite is as drawn, lights or not.
+                get<Sprite>(*scene.world, gray)->unlit = true;
+                pixels = renderSettled(scene, surface);
+                CHECK(at(pixels, 32, 32) == std::array<uint8_t, 4>{120, 120, 120, 255});
+                CHECK(at(pixels, 10, 10) == std::array<uint8_t, 4>{120, 120, 120, 255});
+                get<Sprite>(*scene.world, gray)->unlit = false;
+
+                // So is one in an Unlit sorting layer.
+                render2d::setUnlitLayers(1u << 0);
+                pixels = renderSettled(scene, surface);
+                CHECK(at(pixels, 10, 10) == std::array<uint8_t, 4>{120, 120, 120, 255});
+                render2d::setUnlitLayers(0);
+
+                // A spot at (0, 2) shining down (its local -Y), a 60° cone:
+                // below it lit, above it and off to the side not.
+                destroyEntity(*scene.world, point);
+                const ComponentId spotSet[] = {componentIdOf<render2d::SpotLight2D>, componentIdOf<scenes::Transform2D>,
+                                               componentIdOf<scenes::WorldTransform>};
+                const Entity spot = createEntity(*scene.world, spotSet);
+                *get<render2d::SpotLight2D>(*scene.world, spot) = {{1, 1, 1}, 1, 3, 0.6f, 1.0472f, 0};
+                *get<scenes::Transform2D>(*scene.world, spot) = {{0, 2}, 0, {1, 1}, 0};
+                pixels = renderSettled(scene, surface);
+                CHECK(at(pixels, 32, 24)[0] > dim[0]); // 1 m below it
+                CHECK(at(pixels, 32, 8) == dim);       // 1 m above it
+                CHECK(at(pixels, 44, 16) == dim);      // 1.5 m to its side, outside the cone
+                // Turned half a turn, it shines up.
+                get<scenes::Transform2D>(*scene.world, spot)->angle = 3.14159265f;
+                pixels = renderSettled(scene, surface);
+                CHECK(at(pixels, 32, 24) == dim);
+                CHECK(at(pixels, 32, 8)[0] > dim[0]);
+            }
+            render::destroySurface(surface);
+            render::shutdown();
+        }
+        assets::setAssetReader(0);
+        platform::shutdown();
+    }
+
+    TEST_CASE("2D light through a pixel camera changes a virtual pixel at a time on every backend")
+    {
+        scenes::registerTransforms();
+        render::registerCamera();
+        render2d::registerSprite();
+        library[50] = spriteTexture(1, 1, {120, 120, 120, 255}, 0.25f); // one texel, 4 m square
+        assets::setAssetReader(reinterpret_cast<uint64_t>(&readTestAsset));
+        REQUIRE(platform::initialize());
+        for (slag::Backend backend : {slag::Backend::D3D12, slag::Backend::Vulkan})
+        {
+            if (!slag::isBackendAvailable(backend) || !render::initialize(backend))
+            {
+                continue;
+            }
+            CAPTURE(static_cast<int>(backend));
+            Result<render::SurfaceHandle> created = render::createOffscreenSurface(width, height);
+            REQUIRE(created);
+            const render::SurfaceHandle surface = created.value();
+            {
+                Scene scene;
+                camera(scene);
+                pixelCamera(scene, {0, 0}, render2d::PixelFit::Exact); // 16 virtual pixels over 64: 4 a pixel
+                sprite(scene, showing(50), {-2, -2});
+                const ComponentId pointSet[] = {componentIdOf<render2d::PointLight2D>,
+                                                componentIdOf<scenes::Transform2D>,
+                                                componentIdOf<scenes::WorldTransform>};
+                const Entity point = createEntity(*scene.world, pointSet);
+                *get<render2d::PointLight2D>(*scene.world, point) = {{1, 1, 1}, 1, 1.5f, 0};
+                *get<scenes::Transform2D>(*scene.world, point) = {{0.3f, 0.1f}, 0, {1, 1}, 0};
+                const ComponentId ambientSet[] = {componentIdOf<render2d::AmbientLight2D>};
+                *get<render2d::AmbientLight2D>(*scene.world,
+                                               createEntity(*scene.world, ambientSet)) = {{0.3f, 0.3f, 0.3f}, 1};
+                std::vector<uint8_t> pixels = renderSettled(scene, surface);
+                CHECK(blocky(pixels, width, 0, 0, width, height, 4)); // the light too, a virtual pixel at a time
+                CHECK(at(pixels, 33, 33)[0] > at(pixels, 4, 4)[0]);
             }
             render::destroySurface(surface);
             render::shutdown();

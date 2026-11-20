@@ -22,7 +22,7 @@ struct SpriteInstance
     float4 tint;
     uint texture;    // Texture2D's heap slot
     uint entity;     // entity index + 1, for picking
-    uint pad1;
+    uint lit;        // 1: multiplied by the light (ADR 0113)
     uint pad2;
 };
 
@@ -30,8 +30,9 @@ struct SpriteConstants
 {
     uint sprites; // StructuredBuffer<SpriteInstance>
     uint first;   // the first sprite this draw draws
+    uint light;   // the light buffer, Texture2D<float4> the target's size; 0: `ambient` everywhere
     uint pad0;
-    uint pad1;
+    float4 ambient;
     float4x4 viewProjection; // the main camera's, or the pixel camera's
 };
 [[vk::push_constant]] ConstantBuffer<SpriteConstants> constants;
@@ -71,11 +72,24 @@ float4 spriteColor(SpriteVaryings input, out SpriteInstance sprite)
     return texture.Sample(s, input.uv) * sprite.tint;
 }
 
+// 2D lights (ADR 0113): a lit sprite's colors times the light at its
+// pixel, up to twice the art's.
 [shader("fragment")]
 float4 spritePixel(SpriteVaryings input) : SV_Target
 {
     SpriteInstance sprite;
-    return spriteColor(input, sprite);
+    float4 color = spriteColor(input, sprite);
+    if (sprite.lit != 0)
+    {
+        float3 light = constants.ambient.rgb;
+        if (constants.light != 0)
+        {
+            Texture2D<float4> buffer = ResourceDescriptorHeap[constants.light];
+            light = buffer.Load(int3(int2(input.position.xy), 0)).rgb;
+        }
+        color.rgb *= min(light, 2.0);
+    }
+    return color;
 }
 
 // The editor's picks: the entity where the sprite shows (not where it's

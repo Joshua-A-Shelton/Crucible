@@ -96,6 +96,9 @@ internal static class EngineComponents
         Components.Register<Crucible.Render2D.SpriteAnimator>();
         Components.Register<Crucible.Render2D.Tilemap>();
         Components.Register<Crucible.Render2D.TilemapLayers>();
+        Components.Register<Crucible.Render2D.PointLight2D>();
+        Components.Register<Crucible.Render2D.SpotLight2D>();
+        Components.Register<Crucible.Render2D.AmbientLight2D>();
         Components.Register<SceneEntityId>();
         Components.RegisterManaged<EntityName>();
         Components.Register<PrefabInstance>();
@@ -115,6 +118,9 @@ internal static class EngineComponents
         SavedComponents.Add<Crucible.Render2D.SpriteAnimator>();
         SavedComponents.Add<Crucible.Render2D.Tilemap>();
         SavedComponents.Add<Crucible.Render2D.TilemapLayers>();
+        SavedComponents.Add<Crucible.Render2D.PointLight2D>();
+        SavedComponents.Add<Crucible.Render2D.SpotLight2D>();
+        SavedComponents.Add<Crucible.Render2D.AmbientLight2D>();
         SavedComponents.Add<Crucible.Physics.RigidBody>();
         SavedComponents.Add<Crucible.Physics.Collider>();
         SavedComponents.Add<Crucible.Physics.Joint>();

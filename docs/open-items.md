@@ -92,6 +92,9 @@ is, and record which version fixed it.
   was picked up). The owner found map mode much clearer and has more to
   say about it later; this waits, with the rest, for map mode's rebuild
   on the editor extensions API. → 0112
+- 2D lighting extras (M11 step 5): shadows (light blocked by colliders
+  and tilemap outlines), normal-mapped sprites, and lights that light only
+  the sorting layers they name, each when a game needs it. → 0113
 - A trigger layer (ADR 0112): Box2D's chains can't be sensors, so a
   layer's Tilemap collider can't be a trigger (water). It needs shapes
   that can: the merged outlines cut into convex pieces, or a tile's boxes.

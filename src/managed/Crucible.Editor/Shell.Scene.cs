@@ -504,6 +504,9 @@ internal sealed partial class Shell
         Components.NameOf(typeof(Crucible.Render.Sky)),
         Components.NameOf(typeof(Crucible.Render.AmbientLight)),
         Components.NameOf(typeof(Crucible.Render.PostProcess)),
+        Components.NameOf(typeof(Crucible.Render2D.PointLight2D)),
+        Components.NameOf(typeof(Crucible.Render2D.SpotLight2D)),
+        Components.NameOf(typeof(Crucible.Render2D.AmbientLight2D)),
         Components.NameOf(typeof(MeshInstance)),
     ];
 
