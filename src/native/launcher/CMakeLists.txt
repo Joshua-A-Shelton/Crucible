@@ -421,12 +421,15 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "WalkerChecks: all [0-9]+ checks passed")
 
+    # The three Walker checks below cap the editor's own frames at 60 a
+    # second: it only waits while the game runs, and uncapped it shared the
+    # GPU with that run, slowing its frames (ADR 0111).
     # The M9 demonstration (ADR 0097): a copy of the Walker's project, its
     # Level scene run standalone, headless, at 30 and 240 fps: the swing's
     # hit inside its window, the route walked, and the two runs' hits
     # compared.
     add_test(NAME samples.walker-level
-        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 1000000
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 1000000 --frame-rate 60
             --game-arg "warm-project=${walkerWarm}/Walker.crproject"
             --game-arg "check-level=${CMAKE_CURRENT_BINARY_DIR}"
             --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/level-settings.json")
@@ -439,7 +442,7 @@ if(CRUCIBLE_BUILD_TESTS)
     # Game.crpak with the Cache's imported files moved aside; the two runs
     # must play out the same.
     add_test(NAME samples.walker-archive
-        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 1000000
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 1000000 --frame-rate 60
             --game-arg "warm-project=${walkerWarm}/Walker.crproject"
             --game-arg "check-archive=${CMAKE_CURRENT_BINARY_DIR}"
             --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/archive-settings.json")
@@ -451,7 +454,7 @@ if(CRUCIBLE_BUILD_TESTS)
     # the Level run from the Cache, then from its JIT and NativeAOT packages,
     # each as a player runs it; the three runs must play out the same.
     add_test(NAME samples.walker-packaged
-        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 10000000
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 10000000 --frame-rate 60
             --game-arg "warm-project=${walkerWarm}/Walker.crproject"
             --game-arg "check-packaged=${CMAKE_CURRENT_BINARY_DIR}"
             --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/packaged-settings.json")

@@ -356,8 +356,10 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   `tests.names` test enforces it. Every C# suite also runs
   as NativeAOT code (`<suite>.aot`). Checks that run a game for seconds of
   game time pass the launcher's `--fixed-clock` with `--frame-rate` (ADR
-  0105), so they take as long as their frames, not real time; real-time
-  pacing has tests of its own.
+  0105), so they take as long as their frames, not real time, and
+  `--no-pacing`, so no frame waits for the GPU; the editor running them
+  caps its own frames with `--frame-rate 60` (ADR 0111). Real-time pacing
+  has tests of its own.
 - **Tests run in parallel** (ADR 0109): the editor's checks start with no
   project open and copy the sample named by `--game-arg
   source-project=<.crproject>` into their own folder, Cache left out, so

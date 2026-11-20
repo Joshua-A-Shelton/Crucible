@@ -111,12 +111,10 @@ internal sealed partial class LevelChecks : GameSystem
         shell.OpenProject(projectFile);
         shell.OpenScene(Path.Combine(copy, "Assets", "Scenes", "Level.crscene"));
         yield return 3;
-        string Rate(int rate) => rate.ToString(CultureInfo.InvariantCulture);
 
         if (_archive || _packaged)
         {
-            foreach (int wait in Run(shell, "from the Cache", () => shell.RunStandalone("--headless", "--fixed-clock", "--frame-rate", "30",
-                         "--game-arg", $"seconds={Seconds}")))
+            foreach (int wait in Run(shell, "from the Cache", () => shell.RunStandalone(RunOptions(30))))
             {
                 yield return wait;
             }
@@ -150,8 +148,7 @@ internal sealed partial class LevelChecks : GameSystem
                     continue;
                 }
                 Directory.Move(imported, imported + "-aside");
-                foreach (int wait in Run(shell, what, () => shell.RunPackage(built.Folder, "--headless", "--fixed-clock", "--frame-rate", "30",
-                             "--game-arg", $"seconds={Seconds}")))
+                foreach (int wait in Run(shell, what, () => shell.RunPackage(built.Folder, RunOptions(30))))
                 {
                     yield return wait;
                 }
@@ -174,8 +171,7 @@ internal sealed partial class LevelChecks : GameSystem
             // The imported files moved aside, so nothing can come from the Cache.
             string imported = Path.Combine(copy, "Cache", "Imported");
             Directory.Move(imported, imported + "-aside");
-            foreach (int wait in Run(shell, "from the archive", () => shell.RunCooked(cooked.ArchivePath, "--headless", "--fixed-clock",
-                         "--frame-rate", "30", "--game-arg", $"seconds={Seconds}")))
+            foreach (int wait in Run(shell, "from the archive", () => shell.RunCooked(cooked.ArchivePath, RunOptions(30))))
             {
                 yield return wait;
             }
@@ -191,8 +187,7 @@ internal sealed partial class LevelChecks : GameSystem
         for (int r = 0; r < rates.Length; ++r)
         {
             int rate = rates[r];
-            foreach (int wait in Run(shell, $"at {rate} fps", () => shell.RunStandalone("--headless", "--fixed-clock", "--frame-rate", Rate(rate),
-                         "--game-arg", $"seconds={Seconds}")))
+            foreach (int wait in Run(shell, $"at {rate} fps", () => shell.RunStandalone(RunOptions(rate))))
             {
                 yield return wait;
             }
@@ -207,6 +202,15 @@ internal sealed partial class LevelChecks : GameSystem
         Check(apart < 0.5, "the hit lands at the same moment at 30 and 240 fps, within half a millisecond",
             $"{apart:0.000} ms");
     }
+
+    // Each run's options: headless, on the fixed clock (ADR 0105), and
+    // without the pacing wait, which would make every frame wait for the GPU
+    // to finish the one before; beside this editor's own frames, on Windows,
+    // that wait more than doubled a frame's cost (ADR 0111). The clock is
+    // fixed, so the run plays out the same either way.
+    private static string[] RunOptions(int rate) =>
+        ["--headless", "--fixed-clock", "--no-pacing", "--frame-rate", rate.ToString(CultureInfo.InvariantCulture),
+            "--game-arg", $"seconds={Seconds}"];
 
     // The latest run against the one from the Cache: the hit within half a
     // millisecond, and the arrival within a frame, since the route times it

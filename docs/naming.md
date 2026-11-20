@@ -1489,3 +1489,12 @@ Names added while building, to settle after the owner's look (`*`):
 | `warm-project`* | Editor game argument | The warm copy a check copies, Cache and all |
 | `AssetChecks.IsWarm`* | C# function | Whether the check's source is warm |
 | `docs/learning/up-to-date-builds.md`* | Learning note | File times versus content hashes |
+
+## Unpaced check runs (2026-11-19, ADR 0111)
+
+Names added while building, to settle after the owner's look (`*`):
+
+| Name | What it names | What it is |
+|---|---|---|
+| ADR 0111 "Unpaced check runs"* | Decision record | The Walker checks' runs without the pacing wait, and their editor capped at 60 fps |
+| `LevelChecks.RunOptions`* | C# function (private) | The launcher options each of the Walker checks' runs gets |
