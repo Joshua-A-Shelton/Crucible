@@ -70,7 +70,7 @@ internal sealed class StandaloneChecks : GameSystem
         {
             Directory.Delete(copy, recursive: true);
         }
-        AssetChecks.CopyProject(source, copy);
+        AssetChecks.CopyProject(source, copy, AssetChecks.IsWarm(shell));
         shell.OpenProject(Path.Combine(copy, Path.GetFileName(AssetChecks.SourceProjectFile(shell))));
         shell.OpenScene(Path.Combine(copy, "Assets", "Scenes", "Village.crscene"));
         yield return 3;

@@ -225,19 +225,23 @@ internal sealed class AssetChecks : GameSystem
     private static string Names(AssetsPanel assets) => string.Join(",", assets.Tiles.Select(tile => tile.Path));
 
     /// <summary>
-    /// The project a check copies: its <c>source-project</c> game argument,
-    /// so CTest starts the editor with no project open and nothing imports
-    /// into the samples' own Caches (the checks can run at once); else the
-    /// project that's open.
+    /// The project a check copies: its <c>warm-project</c> game argument, a
+    /// copy of a sample already imported and built by a setup test (ADR
+    /// 0110); else its <c>source-project</c>, a sample as it's checked in, so
+    /// CTest starts the editor with no project open and nothing imports into
+    /// the samples' own Caches (ADR 0109); else the project that's open.
     /// </summary>
     internal static string SourceProjectFile(Shell shell) =>
-        shell.GameArguments.TryGetValue("source-project", out string? file)
-            ? Path.GetFullPath(file)
-            : shell.Project?.ProjectFilePath ?? "";
+        shell.GameArguments.TryGetValue("warm-project", out string? warm) ? Path.GetFullPath(warm)
+        : shell.GameArguments.TryGetValue("source-project", out string? file) ? Path.GetFullPath(file)
+        : shell.Project?.ProjectFilePath ?? "";
+
+    /// <summary>Whether the project a check copies is a warm one, to be copied with its Cache (ADR 0110).</summary>
+    internal static bool IsWarm(Shell shell) => shell.GameArguments.ContainsKey("warm-project");
 
     /// <summary>
     /// The source project copied into <paramref name="copy"/> (emptied
-    /// first, the Cache left out) and opened, with a scene of it if given,
+    /// first, the Cache left out unless it's warm) and opened, with a scene of it if given,
     /// for a check that would otherwise work on the sample itself.
     /// </summary>
     internal static void OpenCopy(Shell shell, string copy, string? scene)
@@ -247,7 +251,7 @@ internal sealed class AssetChecks : GameSystem
         {
             Directory.Delete(copy, recursive: true);
         }
-        CopyProject(Path.GetDirectoryName(file) ?? "", copy);
+        CopyProject(Path.GetDirectoryName(file) ?? "", copy, IsWarm(shell));
         shell.OpenProject(Path.Combine(copy, Path.GetFileName(file)));
         if (scene is not null)
         {
@@ -255,12 +259,14 @@ internal sealed class AssetChecks : GameSystem
         }
     }
 
-    internal static void CopyProject(string from, string to)
+    // A project copied, its Cache too if <paramref name="withCache"/> (a warm
+    // copy, ADR 0110), else left out so the copy imports and builds afresh.
+    internal static void CopyProject(string from, string to, bool withCache = false)
     {
         foreach (string directory in Directory.EnumerateDirectories(from, "*", SearchOption.AllDirectories))
         {
             string relative = Path.GetRelativePath(from, directory);
-            if (!relative.Split(Path.DirectorySeparatorChar).Contains("Cache"))
+            if (withCache || !relative.Split(Path.DirectorySeparatorChar).Contains("Cache"))
             {
                 Directory.CreateDirectory(Path.Combine(to, relative));
             }
@@ -269,7 +275,7 @@ internal sealed class AssetChecks : GameSystem
         foreach (string file in Directory.EnumerateFiles(from, "*", SearchOption.AllDirectories))
         {
             string relative = Path.GetRelativePath(from, file);
-            if (!relative.Split(Path.DirectorySeparatorChar).Contains("Cache"))
+            if (withCache || !relative.Split(Path.DirectorySeparatorChar).Contains("Cache"))
             {
                 File.Copy(file, Path.Combine(to, relative));
             }

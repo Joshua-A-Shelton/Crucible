@@ -299,6 +299,7 @@ public sealed partial class NativeBuilder
         string output = Path.Combine(AotFolder, "bin", executable + (OperatingSystem.IsWindows() ? ".exe" : ""));
         StringBuilder log = new();
         int code = 0;
+        ClearIfMoved(build);
         if (!File.Exists(Path.Combine(build, "CMakeCache.txt")))
         {
             code = Run(toolkit, log, toolkit.Cmake, "-S", AotFolder, "-B", build, "-G", "Ninja",
@@ -318,6 +319,25 @@ public sealed partial class NativeBuilder
             errors.Add(new BuildError("", 0, 0, $"linking the NativeAOT executable failed ({code}): {last}"));
         }
         return new GameBuild(built, built ? output : null, errors, all);
+    }
+
+    // CMake won't build in a folder configured somewhere else: a project
+    // moved (or copied) with its Cache configures afresh (ADR 0110).
+    internal static void ClearIfMoved(string build)
+    {
+        string cache = Path.Combine(build, "CMakeCache.txt");
+        if (!File.Exists(cache))
+        {
+            return;
+        }
+        const string key = "CMAKE_CACHEFILE_DIR:INTERNAL=";
+        string? configured = File.ReadLines(cache).FirstOrDefault(line => line.StartsWith(key, StringComparison.Ordinal))?[key.Length..];
+        StringComparison comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        if (configured is null ||
+            !string.Equals(Path.GetFullPath(configured).TrimEnd('/', '\\'), Path.GetFullPath(build).TrimEnd('/', '\\'), comparison))
+        {
+            Directory.Delete(build, recursive: true);
+        }
     }
 
     // The module's C++ namespace for its exposed declarations: its project's name, lowercased.
@@ -354,6 +374,7 @@ public sealed partial class NativeBuilder
         string build = Path.Combine(Folder, "build");
         StringBuilder output = new();
         int code = 0;
+        ClearIfMoved(build);
         if (!File.Exists(Path.Combine(build, "CMakeCache.txt")))
         {
             code = Run(toolkit, output, toolkit.Cmake, "-S", Folder, "-B", build, "-G", "Ninja",

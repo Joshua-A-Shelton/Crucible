@@ -72,7 +72,7 @@ internal sealed class PlayToolbarChecks : GameSystem
         {
             Directory.Delete(copy, recursive: true);
         }
-        AssetChecks.CopyProject(source, copy);
+        AssetChecks.CopyProject(source, copy, AssetChecks.IsWarm(shell));
         shell.OpenProject(Path.Combine(copy, Path.GetFileName(AssetChecks.SourceProjectFile(shell))));
         shell.OpenScene(Path.Combine(copy, "Assets", "Scenes", "Walk.crscene"));
         yield return 3;

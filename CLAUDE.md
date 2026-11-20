@@ -365,6 +365,13 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   preset at a time with as many jobs as the machine has room for (`-j16`
   on the 24-core Linux machine, `-j8` on the 8-core Windows one); both
   presets at once ran the Linux machine out of memory.
+- **Warm copies** (ADR 0110): the editor skips the game's C# build when
+  its stamp (`Cache/Build/<Game>.stamp`, a content hash of the inputs) is
+  current; a new input to that build goes into `GameBuilder.InputHash`.
+  Setup tests warm up each sample once (`samples.walker-warm`,
+  `samples.diorama-warm`); checks not about the cold open take
+  `--game-arg warm-project=` instead of `source-project`, copy it Cache and
+  all, and require its fixture.
 - **x64 level** (ADR 0024): x86-64-v3 (AVX2) by default, for everything
   including dependencies and the NativeAOT engine; `CRUCIBLE_X86_LEVEL=v2`
   builds for SSE4.2. `CRUCIBLE_FORCE_SCALAR_SIMD` tests the SIMD types'

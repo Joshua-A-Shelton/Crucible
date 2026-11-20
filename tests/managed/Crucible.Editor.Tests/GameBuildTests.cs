@@ -54,6 +54,125 @@ public class GameBuildTests
         }
     }
 
+    // Skipping up-to-date builds (ADR 0110): a stamp of the build's inputs,
+    // kept only while they and the assembly it made are unchanged, and the
+    // same for a copy of the project elsewhere.
+    [Test]
+    public async Task ABuildIsSkippedWhileItsInputsAndAssemblyAreUnchanged()
+    {
+        string folder = Path.Combine(Path.GetTempPath(), "crucible-stamp-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Project project = Project.Create(Path.Combine(folder, "a"), "Stamped");
+            string tick = Path.Combine(project.CodeFolder, "Tick.cs");
+            const string code = "namespace Stamped;\n\npublic static class Tick { public static int Count; }\n";
+            File.WriteAllText(tick, code);
+            GameBuilder builder = new(project);
+            await Assert.That(builder.IsUpToDate()).IsFalse(); // never built
+
+            GameBuild first = builder.BuildNow();
+            await Assert.That(first.Succeeded).IsTrue().Because(first.Output);
+            await Assert.That(first.UpToDate).IsFalse();
+            await Assert.That(File.Exists(builder.StampFile)).IsTrue();
+            await Assert.That(builder.IsUpToDate()).IsTrue();
+            GameBuild again = builder.BuildNow();
+            await Assert.That(again.UpToDate && again.Succeeded && again.Assembly == first.Assembly).IsTrue();
+
+            // Saved as it was: still up to date, whatever its time.
+            File.WriteAllText(tick, code);
+            File.SetLastWriteTimeUtc(tick, DateTime.UtcNow.AddMinutes(5));
+            await Assert.That(builder.IsUpToDate()).IsTrue();
+
+            // Each input counts: a file's contents, its name, a new file, the bindings.
+            File.WriteAllText(tick, code.Replace("Count", "Total", StringComparison.Ordinal));
+            await Assert.That(builder.IsUpToDate()).IsFalse();
+            File.WriteAllText(tick, code);
+            await Assert.That(builder.IsUpToDate()).IsTrue();
+            File.Move(tick, Path.Combine(project.CodeFolder, "Tock.cs"));
+            await Assert.That(builder.IsUpToDate()).IsFalse();
+            File.Move(Path.Combine(project.CodeFolder, "Tock.cs"), tick);
+            File.WriteAllText(Path.Combine(project.CodeFolder, "More.cs"), "namespace Stamped;\n");
+            await Assert.That(builder.IsUpToDate()).IsFalse();
+            File.Delete(Path.Combine(project.CodeFolder, "More.cs"));
+            string bindings = Path.Combine(project.CacheFolder, "Build", "Native", "Bindings.g.cs");
+            Directory.CreateDirectory(Path.GetDirectoryName(bindings)!);
+            File.WriteAllText(bindings, "namespace Stamped.Interop;\n");
+            await Assert.That(builder.IsUpToDate()).IsFalse();
+            File.Delete(bindings);
+            await Assert.That(builder.IsUpToDate()).IsTrue();
+
+            // The assembly changed since: not the one the stamp's build made.
+            byte[] assembly = File.ReadAllBytes(builder.OutputPath);
+            File.WriteAllBytes(builder.OutputPath, [.. assembly, 0]);
+            await Assert.That(builder.IsUpToDate()).IsFalse();
+            File.WriteAllBytes(builder.OutputPath, assembly);
+            await Assert.That(builder.IsUpToDate()).IsTrue();
+
+            // A copy elsewhere, Cache and all, is up to date too; changed, it
+            // builds (its obj folder, made in the other folder, cleared first).
+            string copyRoot = Path.Combine(folder, "b");
+            CopyFolder(project.Root, copyRoot);
+            Project copy = Project.Open(Path.Combine(copyRoot, Path.GetFileName(project.ProjectFilePath)));
+            GameBuilder copied = new(copy);
+            await Assert.That(copied.IsUpToDate()).IsTrue();
+            File.WriteAllText(Path.Combine(copy.CodeFolder, "Tick.cs"), code.Replace("Count", "Total", StringComparison.Ordinal));
+            GameBuild rebuilt = copied.BuildNow();
+            await Assert.That(rebuilt.Succeeded && !rebuilt.UpToDate).IsTrue().Because(rebuilt.Output);
+            await Assert.That(copied.IsUpToDate()).IsTrue();
+
+            // A failed build leaves no stamp: fixed, the code builds again.
+            File.WriteAllText(tick, "namespace Stamped;\n\npublic class Broken { int x = ; }\n");
+            await Assert.That(builder.BuildNow().Succeeded).IsFalse();
+            await Assert.That(File.Exists(builder.StampFile)).IsFalse();
+            File.WriteAllText(tick, code);
+            await Assert.That(builder.IsUpToDate()).IsFalse();
+            GameBuild fixedBuild = builder.BuildNow();
+            await Assert.That(fixedBuild.Succeeded && !fixedBuild.UpToDate).IsTrue().Because(fixedBuild.Output);
+        }
+        finally
+        {
+            if (Directory.Exists(folder))
+            {
+                Directory.Delete(folder, recursive: true);
+            }
+        }
+    }
+
+    // The engine the build compiles against counts too (ADR 0110).
+    [Test]
+    public async Task TheEngineIsAnInput()
+    {
+        string folder = Path.Combine(Path.GetTempPath(), "crucible-stamp-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Project project = Project.Create(Path.Combine(folder, "game"), "Stamped");
+            string engine = Path.Combine(folder, "Crucible.Engine.dll");
+            File.Copy(GameBuilder.EngineAssembly(), engine);
+            GameBuilder builder = new(project, engine);
+            string before = builder.InputHash();
+            await Assert.That(builder.InputHash()).IsEqualTo(before);
+            File.AppendAllText(engine, "changed");
+            await Assert.That(builder.InputHash()).IsNotEqualTo(before);
+        }
+        finally
+        {
+            if (Directory.Exists(folder))
+            {
+                Directory.Delete(folder, recursive: true);
+            }
+        }
+    }
+
+    private static void CopyFolder(string from, string to)
+    {
+        foreach (string file in Directory.EnumerateFiles(from, "*", SearchOption.AllDirectories))
+        {
+            string target = Path.Combine(to, Path.GetRelativePath(from, file));
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            File.Copy(file, target);
+        }
+    }
+
     // A package's Data folder holds the runtime's assemblies and the engine's
     // core beside the game's (ADR 0100), so their names are taken.
     [Test]

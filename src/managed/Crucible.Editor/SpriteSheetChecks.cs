@@ -70,7 +70,7 @@ internal sealed class SpriteSheetChecks : GameSystem
         {
             Directory.Delete(copy, recursive: true);
         }
-        AssetChecks.CopyProject(source, copy);
+        AssetChecks.CopyProject(source, copy, AssetChecks.IsWarm(shell));
         // A sheet of 4x2 cells of 8x8, each its own color.
         File.WriteAllBytes(Path.Combine(copy, "Assets", "Hero.tga"),
             Tga(32, 16, (x, y) => ((byte)(x / 8 * 60), (byte)(y / 8 * 120), 200, 255)));

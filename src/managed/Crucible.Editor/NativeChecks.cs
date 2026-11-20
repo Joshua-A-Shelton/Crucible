@@ -76,7 +76,7 @@ internal sealed class NativeChecks : GameSystem
         {
             Directory.Delete(copy, recursive: true);
         }
-        AssetChecks.CopyProject(source, copy);
+        AssetChecks.CopyProject(source, copy, AssetChecks.IsWarm(shell));
 
         // Opening the project: the module built and loaded, then the C# with its bindings.
         shell.OpenProject(Path.Combine(copy, Path.GetFileName(AssetChecks.SourceProjectFile(shell))));

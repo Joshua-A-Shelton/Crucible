@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO.Hashing;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
@@ -292,7 +293,94 @@ public sealed partial class GameBuilder
         return RunDotnet(["publish", AotProjectFile, "-c", "Release", "-o", publish], library);
     }
 
-    private GameBuild RunBuild() => RunDotnet(["build", ProjectFile], OutputPath);
+    /// <summary>
+    /// The stamp of the last build that succeeded (ADR 0110): a hash of its
+    /// inputs, the hash of the assembly it made, and the folder it was built in.
+    /// </summary>
+    public string StampFile => Path.Combine(_project.CacheFolder, "Build", AssemblyName + Variant + ".stamp");
+
+    /// <summary>
+    /// A hash of everything the editor's build depends on (ADR 0110): the
+    /// project file, with the project's folder left out so a copy hashes the
+    /// same; every .cs file under Code, by its path there and its contents;
+    /// the native module's bindings; and the engine and its generators.
+    /// </summary>
+    public string InputHash()
+    {
+        XxHash128 hash = new();
+        void Add(string text) => hash.Append(Encoding.UTF8.GetBytes(text + "\n"));
+        Add(ProjectText().Replace(Escape(_project.Root), "$(Project)", StringComparison.Ordinal));
+        if (Directory.Exists(_project.CodeFolder))
+        {
+            foreach (string file in Directory.EnumerateFiles(_project.CodeFolder, "*.cs", SearchOption.AllDirectories)
+                         .Select(file => Path.GetRelativePath(_project.CodeFolder, file).Replace('\\', '/'))
+                         .Order(StringComparer.Ordinal))
+            {
+                Add(file);
+                Add(ContentHash.OfFile(Path.Combine(_project.CodeFolder, file)));
+            }
+        }
+        string bindings = Path.Combine(_project.CacheFolder, "Build", "Native" + Variant, "Bindings.g.cs");
+        Add(File.Exists(bindings) ? ContentHash.OfFile(bindings) : "no bindings");
+        Add(ContentHash.OfFile(_engine ?? EngineAssembly()));
+        Add(Generators() is { } generators ? ContentHash.OfFile(generators) : "no generators");
+        return Convert.ToHexStringLower(hash.GetHashAndReset());
+    }
+
+    /// <summary>
+    /// Whether the last build's assembly is still what a build would make
+    /// (ADR 0110): its stamp's inputs match, and the assembly is the one it made.
+    /// </summary>
+    public bool IsUpToDate() => Current(ReadStamp(), InputHash());
+
+    private bool Current(Stamp? stamp, string inputs) =>
+        stamp is not null && stamp.Inputs == inputs && File.Exists(OutputPath) &&
+        stamp.Output == ContentHash.OfFile(OutputPath);
+
+    private sealed record Stamp(string Inputs, string Output, string Root);
+
+    private Stamp? ReadStamp()
+    {
+        try
+        {
+            string[] lines = File.Exists(StampFile) ? File.ReadAllLines(StampFile) : [];
+            return lines.Length == 4 && lines[0] == "crucible-build-stamp 1"
+                ? new Stamp(lines[1], lines[2], lines[3])
+                : null;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+    }
+
+    private GameBuild RunBuild()
+    {
+        string inputs = InputHash();
+        Stamp? stamp = ReadStamp();
+        if (Current(stamp, inputs))
+        {
+            return new GameBuild(true, OutputPath, [], "", UpToDate: true);
+        }
+        // dotnet's obj folders hold the project's absolute paths: a project
+        // moved (or copied) with its Cache restores and compiles from scratch.
+        if (stamp?.Root != _project.Root)
+        {
+            foreach (string obj in Directory.Exists(Path.GetDirectoryName(ProjectFile))
+                         ? Directory.EnumerateDirectories(Path.GetDirectoryName(ProjectFile)!, "obj", SearchOption.AllDirectories)
+                         : [])
+            {
+                Directory.Delete(obj, recursive: true);
+            }
+        }
+        File.Delete(StampFile);
+        GameBuild build = RunDotnet(["build", ProjectFile], OutputPath);
+        if (build.Succeeded)
+        {
+            File.WriteAllLines(StampFile, ["crucible-build-stamp 1", inputs, ContentHash.OfFile(OutputPath), _project.Root]);
+        }
+        return build;
+    }
 
     private static GameBuild RunDotnet(string[] command, string result)
     {
@@ -406,5 +494,9 @@ public sealed record BuildError(string File, int Line, int Column, string Messag
     public override string ToString() => File.Length == 0 ? Message : $"{File}({Line},{Column}): {Message}";
 }
 
-/// <summary>A finished build: whether it succeeded, the assembly, its errors, and dotnet's whole output.</summary>
-public sealed record GameBuild(bool Succeeded, string? Assembly, IReadOnlyList<BuildError> Errors, string Output);
+/// <summary>
+/// A finished build: whether it succeeded, the assembly, its errors, and
+/// dotnet's whole output; <c>UpToDate</c> when nothing was built, the last
+/// build's assembly being current (ADR 0110).
+/// </summary>
+public sealed record GameBuild(bool Succeeded, string? Assembly, IReadOnlyList<BuildError> Errors, string Output, bool UpToDate = false);

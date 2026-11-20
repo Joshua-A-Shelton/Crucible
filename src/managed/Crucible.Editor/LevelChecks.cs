@@ -101,7 +101,7 @@ internal sealed partial class LevelChecks : GameSystem
         {
             Directory.Delete(copy, recursive: true);
         }
-        AssetChecks.CopyProject(source, copy);
+        AssetChecks.CopyProject(source, copy, AssetChecks.IsWarm(shell));
         string projectFile = Path.Combine(copy, Path.GetFileName(AssetChecks.SourceProjectFile(shell)));
         // Known build settings, whatever the sources' say: the Level scene alone.
         Assets.Project.Open(projectFile).SaveBuild(new Assets.BuildSettings

@@ -315,13 +315,34 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "EditorChecks: all [0-9]+ checks passed")
 
+    # The samples warmed up (ADR 0110): each copied without its Cache, opened
+    # cold (everything imported, its code built) and again (nothing imported,
+    # the build skipped as up to date). The checks that aren't about the cold
+    # open copy the warm copy, Cache and all, and skip both.
+    set(warmProject "${PROJECT_SOURCE_DIR}/tests/warm/warm_project.cmake")
+    set(walkerWarm "${CMAKE_CURRENT_BINARY_DIR}/warm/Walker")
+    set(dioramaWarm "${CMAKE_CURRENT_BINARY_DIR}/warm/Diorama")
+    function(crucible_add_warm_test name project game out fixture)
+        add_test(NAME ${name}
+            COMMAND "${CMAKE_COMMAND}" "-DEDITOR=$<TARGET_FILE:crucible_editor>" "-DENGINE=${engineDirectory}"
+                "-DPROJECT=${project}" -DGAME=${game} "-DOUT=${out}" -P "${warmProject}")
+        # Started first (CTest runs the costliest first): the tests copying it wait on it.
+        set_tests_properties(${name} PROPERTIES LABELS "integration;gpu" TIMEOUT 600 FIXTURES_SETUP ${fixture} COST 10000
+            ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+            PASS_REGULAR_EXPRESSION "warm_project: ${game} warm in")
+    endfunction()
+    crucible_add_warm_test(samples.walker-warm "${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject"
+        Walker "${walkerWarm}" walker-warm)
+    crucible_add_warm_test(samples.diorama-warm "${PROJECT_SOURCE_DIR}/samples/Diorama/Project/Diorama.crproject"
+        Diorama "${dioramaWarm}" diorama-warm)
+
     # The viewport checking itself (ADR 0067): the Diorama's village opened in
     # the editor, picked, outlined, and moved by its handles, checked at
     # pixels; the window saved as viewport.png. The project's cache stays in
     # the source tree's ignored Cache/, as when the editor opens it by hand.
     add_test(NAME launcher.jit.viewport
         COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
-            --game-arg "source-project=${PROJECT_SOURCE_DIR}/samples/Diorama/Project/Diorama.crproject"
+            --game-arg "warm-project=${dioramaWarm}/Diorama.crproject"
             --game-arg "check-viewport=${CMAKE_CURRENT_BINARY_DIR}/viewport.png"
             --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/viewport-settings.json")
     set_tests_properties(launcher.jit.viewport PROPERTIES LABELS "integration;gpu" TIMEOUT 120
@@ -333,7 +354,7 @@ if(CRUCIBLE_BUILD_TESTS)
     # (never over the village); the window saved as hierarchy.png mid-drag.
     add_test(NAME launcher.jit.hierarchy
         COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
-            --game-arg "source-project=${PROJECT_SOURCE_DIR}/samples/Diorama/Project/Diorama.crproject"
+            --game-arg "warm-project=${dioramaWarm}/Diorama.crproject"
             --game-arg "check-hierarchy=${CMAKE_CURRENT_BINARY_DIR}/hierarchy.png"
             --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/hierarchy-settings.json")
     set_tests_properties(launcher.jit.hierarchy PROPERTIES LABELS "integration;gpu" TIMEOUT 120
@@ -345,7 +366,7 @@ if(CRUCIBLE_BUILD_TESTS)
     # added and removed; the window saved as inspector.png.
     add_test(NAME launcher.jit.inspector
         COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
-            --game-arg "source-project=${PROJECT_SOURCE_DIR}/samples/Diorama/Project/Diorama.crproject"
+            --game-arg "warm-project=${dioramaWarm}/Diorama.crproject"
             --game-arg "check-inspector=${CMAKE_CURRENT_BINARY_DIR}/inspector.png"
             --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/inspector-settings.json")
     set_tests_properties(launcher.jit.inspector PROPERTIES LABELS "integration;gpu" TIMEOUT 120
@@ -370,7 +391,7 @@ if(CRUCIBLE_BUILD_TESTS)
     # and hot-reloaded; the window saved as play.png while playing.
     add_test(NAME launcher.jit.play
         COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
-            --game-arg "source-project=${PROJECT_SOURCE_DIR}/samples/Diorama/Project/Diorama.crproject"
+            --game-arg "warm-project=${dioramaWarm}/Diorama.crproject"
             --game-arg "check-play=${CMAKE_CURRENT_BINARY_DIR}/play.png"
             --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/play-settings.json")
     set_tests_properties(launcher.jit.play PROPERTIES LABELS "integration;gpu" TIMEOUT 300
@@ -381,7 +402,7 @@ if(CRUCIBLE_BUILD_TESTS)
     # project (in the test's folder) run in the game launcher, headless.
     add_test(NAME launcher.jit.standalone
         COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
-            --game-arg "source-project=${PROJECT_SOURCE_DIR}/samples/Diorama/Project/Diorama.crproject"
+            --game-arg "warm-project=${dioramaWarm}/Diorama.crproject"
             --game-arg "check-standalone=${CMAKE_CURRENT_BINARY_DIR}"
             --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/standalone-settings.json")
     set_tests_properties(launcher.jit.standalone PROPERTIES LABELS "integration;gpu" TIMEOUT 300
@@ -393,7 +414,7 @@ if(CRUCIBLE_BUILD_TESTS)
     # their times in the offline mix, and the two runs compared.
     add_test(NAME samples.walker
         COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
-            --game-arg "source-project=${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject"
+            --game-arg "warm-project=${walkerWarm}/Walker.crproject"
             --game-arg "check-walker=${CMAKE_CURRENT_BINARY_DIR}"
             --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/walker-settings.json")
     set_tests_properties(samples.walker PROPERTIES LABELS "integration;gpu" TIMEOUT 300
@@ -406,7 +427,7 @@ if(CRUCIBLE_BUILD_TESTS)
     # compared.
     add_test(NAME samples.walker-level
         COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 1000000
-            --game-arg "source-project=${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject"
+            --game-arg "warm-project=${walkerWarm}/Walker.crproject"
             --game-arg "check-level=${CMAKE_CURRENT_BINARY_DIR}"
             --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/level-settings.json")
     set_tests_properties(samples.walker-level PROPERTIES LABELS "integration;gpu" TIMEOUT 400
@@ -419,7 +440,7 @@ if(CRUCIBLE_BUILD_TESTS)
     # must play out the same.
     add_test(NAME samples.walker-archive
         COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 1000000
-            --game-arg "source-project=${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject"
+            --game-arg "warm-project=${walkerWarm}/Walker.crproject"
             --game-arg "check-archive=${CMAKE_CURRENT_BINARY_DIR}"
             --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/archive-settings.json")
     set_tests_properties(samples.walker-archive PROPERTIES LABELS "integration;gpu" TIMEOUT 400
@@ -431,7 +452,7 @@ if(CRUCIBLE_BUILD_TESTS)
     # each as a player runs it; the three runs must play out the same.
     add_test(NAME samples.walker-packaged
         COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 10000000
-            --game-arg "source-project=${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject"
+            --game-arg "warm-project=${walkerWarm}/Walker.crproject"
             --game-arg "check-packaged=${CMAKE_CURRENT_BINARY_DIR}"
             --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/packaged-settings.json")
     set_tests_properties(samples.walker-packaged PROPERTIES LABELS "integration;gpu;aot" TIMEOUT 900
@@ -463,7 +484,7 @@ if(CRUCIBLE_BUILD_TESTS)
             ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
             PASS_REGULAR_EXPRESSION "package_game: the ${game} package \\(${runtime}, ${configuration}\\) ran from elsewhere")
     endfunction()
-    set(walkerProject "${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject")
+    set(walkerProject "${walkerWarm}/Walker.crproject")
     crucible_add_package_test(samples.walker-package "${walkerProject}" Walker ${walkerLevel} 8 12 Jit Development)
     crucible_add_package_test(samples.walker-package-shipping "${walkerProject}" Walker ${walkerLevel} 8 12 Jit Shipping)
     if(CRUCIBLE_BUILD_AOT)
@@ -472,7 +493,7 @@ if(CRUCIBLE_BUILD_TESTS)
         crucible_add_package_test(samples.walker-package-aot-shipping "${walkerProject}" Walker ${walkerLevel} 8 12
             NativeAot Shipping)
         crucible_add_package_test(samples.diorama-package-aot
-            "${PROJECT_SOURCE_DIR}/samples/Diorama/Project/Diorama.crproject" Diorama
+            "${dioramaWarm}/Diorama.crproject" Diorama
             6ea19c76-2e22-4a7a-be4d-df460ee6ee56 8 25 NativeAot Development)
     endif()
 
@@ -483,7 +504,7 @@ if(CRUCIBLE_BUILD_TESTS)
     # and on; a build; the window saved as build-settings.png.
     add_test(NAME launcher.jit.build-settings
         COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
-            --game-arg "source-project=${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject"
+            --game-arg "warm-project=${walkerWarm}/Walker.crproject"
             --game-arg "check-build-settings=${CMAKE_CURRENT_BINARY_DIR}"
             --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/build-settings-settings.json")
     set_tests_properties(launcher.jit.build-settings PROPERTIES LABELS "integration;gpu" TIMEOUT 600
@@ -496,7 +517,7 @@ if(CRUCIBLE_BUILD_TESTS)
     # edited, reverted, and applied in the inspector.
     add_test(NAME launcher.jit.import-settings
         COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
-            --game-arg "source-project=${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject"
+            --game-arg "warm-project=${walkerWarm}/Walker.crproject"
             --game-arg "check-import-settings=${CMAKE_CURRENT_BINARY_DIR}"
             --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/import-settings-settings.json")
     set_tests_properties(launcher.jit.import-settings PROPERTIES LABELS "integration;gpu" TIMEOUT 300
@@ -508,7 +529,7 @@ if(CRUCIBLE_BUILD_TESTS)
     # becoming a sprite, sliced into a grid, a clip applied as a sub-asset.
     add_test(NAME launcher.jit.sprite-sheet
         COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
-            --game-arg "source-project=${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject"
+            --game-arg "warm-project=${walkerWarm}/Walker.crproject"
             --game-arg "check-sprite-sheet=${CMAKE_CURRENT_BINARY_DIR}"
             --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/sprite-sheet-settings.json")
     set_tests_properties(launcher.jit.sprite-sheet PROPERTIES LABELS "integration;gpu" TIMEOUT 300
@@ -522,7 +543,7 @@ if(CRUCIBLE_BUILD_TESTS)
     # undo, and its file renamed, copied, and deleted with the entity.
     add_test(NAME launcher.jit.tilemaps
         COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
-            --game-arg "source-project=${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject"
+            --game-arg "warm-project=${walkerWarm}/Walker.crproject"
             --game-arg "check-tilemaps=${CMAKE_CURRENT_BINARY_DIR}"
             --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/tilemaps-settings.json")
     set_tests_properties(launcher.jit.tilemaps PROPERTIES LABELS "integration;gpu" TIMEOUT 300
@@ -534,7 +555,7 @@ if(CRUCIBLE_BUILD_TESTS)
     # Play, Step, Pause off, and Stop, each a click on the toolbar.
     add_test(NAME launcher.jit.play-toolbar
         COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
-            --game-arg "source-project=${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject"
+            --game-arg "warm-project=${walkerWarm}/Walker.crproject"
             --game-arg "check-play-toolbar=${CMAKE_CURRENT_BINARY_DIR}"
             --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/play-toolbar-settings.json")
     set_tests_properties(launcher.jit.play-toolbar PROPERTIES LABELS "integration;gpu" TIMEOUT 300
@@ -546,7 +567,7 @@ if(CRUCIBLE_BUILD_TESTS)
     # coming in all in one frame, once nothing they need still loads.
     add_test(NAME launcher.jit.scene-loading
         COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
-            --game-arg "source-project=${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject"
+            --game-arg "warm-project=${walkerWarm}/Walker.crproject"
             --game-arg "check-scene-loading=${CMAKE_CURRENT_BINARY_DIR}"
             --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/scene-loading-settings.json")
     set_tests_properties(launcher.jit.scene-loading PROPERTIES LABELS "integration;gpu" TIMEOUT 300
@@ -558,7 +579,7 @@ if(CRUCIBLE_BUILD_TESTS)
     # inserted, moved, and deleted by drags and keys, undone and redone.
     add_test(NAME launcher.jit.chain-handles
         COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
-            --game-arg "source-project=${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject"
+            --game-arg "warm-project=${walkerWarm}/Walker.crproject"
             --game-arg "check-chain-handles=${CMAKE_CURRENT_BINARY_DIR}"
             --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/chain-handles-settings.json")
     set_tests_properties(launcher.jit.chain-handles PROPERTIES LABELS "integration;gpu" TIMEOUT 300
@@ -570,6 +591,7 @@ if(CRUCIBLE_BUILD_TESTS)
     # without a skeleton, each drop-down opened and its choices read.
     add_test(NAME launcher.jit.pickers
         COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
+            --game-arg "warm-project=${walkerWarm}/Walker.crproject"
             --game-arg "source-project=${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject"
             --game-arg "check-pickers=${CMAKE_CURRENT_BINARY_DIR}"
             --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/pickers-settings.json")
@@ -582,7 +604,7 @@ if(CRUCIBLE_BUILD_TESTS)
     # run standalone, and broken.
     add_test(NAME launcher.jit.native
         COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
-            --game-arg "source-project=${PROJECT_SOURCE_DIR}/samples/Diorama/Project/Diorama.crproject"
+            --game-arg "warm-project=${dioramaWarm}/Diorama.crproject"
             --game-arg "check-native=${CMAKE_CURRENT_BINARY_DIR}"
             --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/native-settings.json")
     set_tests_properties(launcher.jit.native PROPERTIES LABELS "integration;gpu" TIMEOUT 600
@@ -599,10 +621,40 @@ if(CRUCIBLE_BUILD_TESTS)
     set_tests_properties(launcher.jit.demonstration PROPERTIES LABELS "integration;gpu" TIMEOUT 600
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen")
 
-    # The editor's checks start with no project open and copy the sample
-    # named by source-project into their own folder, Cache left out, so
-    # nothing imports or builds into the samples themselves: the checks, and
-    # the package tests copying the samples, run at once (ADR 0109).
+    # The editor's checks start with no project open and copy a sample into
+    # their own folder, so nothing imports or builds into the samples
+    # themselves: the checks, and the package tests copying the samples, run
+    # at once (ADR 0109). Those not about the cold open copy a warm copy,
+    # Cache and all, and wait for its warm-up (ADR 0110).
+    set_property(TEST
+        samples.walker
+        samples.walker-level
+        samples.walker-archive
+        samples.walker-packaged
+        launcher.jit.build-settings
+        launcher.jit.import-settings
+        launcher.jit.sprite-sheet
+        launcher.jit.tilemaps
+        launcher.jit.play-toolbar
+        launcher.jit.scene-loading
+        launcher.jit.chain-handles
+        launcher.jit.pickers
+        samples.walker-package
+        samples.walker-package-shipping
+        APPEND PROPERTY FIXTURES_REQUIRED walker-warm)
+    set_property(TEST
+        launcher.jit.viewport
+        launcher.jit.hierarchy
+        launcher.jit.inspector
+        launcher.jit.play
+        launcher.jit.standalone
+        launcher.jit.native
+        APPEND PROPERTY FIXTURES_REQUIRED diorama-warm)
+    if(CRUCIBLE_BUILD_AOT)
+        set_property(TEST samples.walker-package-aot samples.walker-package-aot-shipping
+            APPEND PROPERTY FIXTURES_REQUIRED walker-warm)
+        set_property(TEST samples.diorama-package-aot APPEND PROPERTY FIXTURES_REQUIRED diorama-warm)
+    endif()
 
     # The M6 demonstration (ADR 0064): the UI showcase's menu driven by mouse,
     # keyboard, and gamepad scripts, and captured at four DPI scales; on

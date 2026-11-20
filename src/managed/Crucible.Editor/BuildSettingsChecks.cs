@@ -75,7 +75,7 @@ internal sealed class BuildSettingsChecks : GameSystem
         {
             Directory.Delete(copy, recursive: true);
         }
-        AssetChecks.CopyProject(source, copy);
+        AssetChecks.CopyProject(source, copy, AssetChecks.IsWarm(shell));
         string projectFile = Path.Combine(copy, Path.GetFileName(AssetChecks.SourceProjectFile(shell)));
         // Known settings, whatever the sources' say: the Level scene alone.
         Project.Open(projectFile).SaveBuild(new BuildSettings

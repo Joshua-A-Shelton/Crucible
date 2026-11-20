@@ -24,6 +24,9 @@ internal sealed partial class Shell
     private GameBuilder? _builder;
     private AssetWatcher? _codeWatcher;
     private LoadedGame? _game;
+    // Whether _game is the last successful build's assembly, not an older one
+    // kept because the newer wouldn't load (ADR 0110).
+    private bool _gameIsCurrent;
     private Schedule? _playSchedule;
     private Dictionary<string, GameSystem[]> _playPhases = [];
     private byte[]? _playSnapshot;
@@ -140,6 +143,8 @@ internal sealed partial class Shell
         _codeWatcher?.Dispose();
         _codeWatcher = null;
         _builder = new GameBuilder(project);
+        // Another project's game may still be loaded: this one's replaces it.
+        _gameIsCurrent = false;
         if (Directory.Exists(project.CodeFolder))
         {
             try
@@ -155,7 +160,15 @@ internal sealed partial class Shell
         {
             return;
         }
-        Log($"Building {_builder.AssemblyName}…");
+        if (_builder.IsUpToDate())
+        {
+            // ADR 0110: the last build's assembly is current, so nothing builds.
+            Log($"{Path.GetFileName(_builder.OutputPath)} is up to date");
+        }
+        else
+        {
+            Log($"Building {_builder.AssemblyName}…");
+        }
         Loaded(_builder.BuildNow());
     }
 
@@ -199,6 +212,13 @@ internal sealed partial class Shell
             Status(_game is null ? "The game didn't build" : "The game didn't build: still running the last build");
             return false;
         }
+        // A change that changed nothing (a file saved as it was): the
+        // assembly loaded is already the one a build makes (ADR 0110).
+        if (build.UpToDate && _game is not null && _gameIsCurrent)
+        {
+            Status("Game up to date");
+            return true;
+        }
         bool wasPlaying = IsPlaying;
         if (wasPlaying)
         {
@@ -234,8 +254,10 @@ internal sealed partial class Shell
         catch (Exception exception) when (exception is IOException or BadImageFormatException or InvalidOperationException)
         {
             Log($"Can't load {build.Assembly}: {exception.Message}");
+            _gameIsCurrent = false;
             return false;
         }
+        _gameIsCurrent = true;
         if (wasPlaying)
         {
             StartSystems();

@@ -75,9 +75,11 @@ internal sealed class PickerChecks : GameSystem
         {
             Directory.Delete(copy, recursive: true);
         }
-        AssetChecks.CopyProject(source, copy);
-        // A model without a skeleton, beside the Walker (new sidecars, so new IDs).
-        string diorama = Path.GetFullPath(Path.Combine(source, "..", "..", "Diorama", "Project", "Assets", "Models"));
+        AssetChecks.CopyProject(source, copy, AssetChecks.IsWarm(shell));
+        // A model without a skeleton, beside the Walker (new sidecars, so new
+        // IDs): the Diorama's, found from the Walker's sample as checked in.
+        string sample = Path.GetDirectoryName(Path.GetFullPath(shell.GameArguments.GetValueOrDefault("source-project", AssetChecks.SourceProjectFile(shell)))) ?? "";
+        string diorama = Path.GetFullPath(Path.Combine(sample, "..", "..", "Diorama", "Project", "Assets", "Models"));
         foreach (string file in (string[])["House.gltf", "House.bin"])
         {
             File.Copy(Path.Combine(diorama, file), Path.Combine(copy, "Assets", "Models", file));

@@ -27,11 +27,13 @@ endif()
 file(REMOVE_RECURSE "${OUT}")
 file(MAKE_DIRECTORY "${OUT}")
 
-# The project copied without its builds, its build settings set.
+# The project copied (a warm copy, ADR 0110: imported, its code built)
+# without its packages or the builds that make them, its build settings set.
 get_filename_component(projectFolder "${PROJECT}" DIRECTORY)
 get_filename_component(projectFile "${PROJECT}" NAME)
 file(COPY "${projectFolder}/" DESTINATION "${OUT}/project")
-file(REMOVE_RECURSE "${OUT}/project/Build" "${OUT}/project/Cache/Build")
+file(GLOB packageBuilds "${OUT}/project/Cache/Build/Package*" "${OUT}/project/Cache/Build/Aot*")
+file(REMOVE_RECURSE "${OUT}/project/Build" ${packageBuilds})
 file(READ "${OUT}/project/${projectFile}" settings)
 string(JSON settings SET "${settings}" Build "{\"Scenes\": [\"${SCENE}\"], \"Include\": [], \"Runtime\": \"${RUNTIME}\", \"Configuration\": \"${CONFIGURATION}\"}")
 file(WRITE "${OUT}/project/${projectFile}" "${settings}")

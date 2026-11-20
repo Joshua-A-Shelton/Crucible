@@ -78,7 +78,7 @@ internal sealed class TilemapChecks : GameSystem
         {
             Directory.Delete(copy, recursive: true);
         }
-        AssetChecks.CopyProject(source, copy);
+        AssetChecks.CopyProject(source, copy, AssetChecks.IsWarm(shell));
         // Two 16x16 tiles side by side, at 16 pixels a meter.
         byte[] tga = new byte[18 + 32 * 16 * 4];
         tga[2] = 2;

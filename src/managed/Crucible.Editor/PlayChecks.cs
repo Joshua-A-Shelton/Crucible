@@ -79,7 +79,7 @@ internal sealed class PlayChecks : GameSystem
         {
             Directory.Delete(copy, recursive: true);
         }
-        AssetChecks.CopyProject(source, copy);
+        AssetChecks.CopyProject(source, copy, AssetChecks.IsWarm(shell));
         string code = Path.Combine(copy, "Code");
 
         // Opening the project builds its code: the game's components are known before the scene.

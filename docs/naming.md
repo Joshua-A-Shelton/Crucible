@@ -1469,3 +1469,23 @@ Names added while building, to settle after the owner's look (`*`):
 | `Shell.GameArguments`* | C# property | The editor's `--game-arg` values |
 | `viewport-project`*, `hierarchy-project`*, `inspector-project`*, `scene-loading-project`* | Test folders | The copies those checks work on |
 
+## Skipping up-to-date builds (2026-11-19, ADR 0110)
+
+Names added while building, to settle after the owner's look (`*`):
+
+| Name | What it names | What it is |
+|---|---|---|
+| ADR 0110 "Skipping up-to-date builds"* | Decision record | The C# build stamp and warm test copies |
+| `Cache/Build/<Game>.stamp`* | File | Hash of the last good build's inputs and output, and where it was built |
+| "`Walker.dll` is up to date"* | Log line | Shown instead of "Building Walker…" when the build is skipped |
+| "Game up to date"* | Status bar text | A code change that changed nothing |
+| `GameBuilder.StampFile`*, `InputHash`*, `IsUpToDate`* | C# members | The stamp's path, the inputs' hash, the check |
+| `GameBuild.UpToDate`* | C# record field | A build that was skipped |
+| `NativeBuilder.ClearIfMoved`* | C# function | Clearing a CMake folder configured elsewhere |
+| `samples.walker-warm`*, `samples.diorama-warm`* | CTest tests | Warming up a sample |
+| `walker-warm`*, `diorama-warm`* | CTest fixtures | What the checks require |
+| `tests/warm/warm_project.cmake`* | CMake script | Copying, opening cold, opening warm |
+| `<build>/src/native/launcher/warm/<Sample>/`* | Test folder | The warm copies |
+| `warm-project`* | Editor game argument | The warm copy a check copies, Cache and all |
+| `AssetChecks.IsWarm`* | C# function | Whether the check's source is warm |
+| `docs/learning/up-to-date-builds.md`* | Learning note | File times versus content hashes |
