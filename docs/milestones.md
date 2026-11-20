@@ -1302,7 +1302,80 @@ works, why it was built that way), clear up whatever isn't clear, and
 decide what, if anything, to change. The order of systems and the form of
 each walk-through are decided with the owner at its start.
 
-## After the review: the first game
+## After the review: editor extensions
+
+**Status:** Draft (2026-11-20), to design with the owner at its start.
+Placed by the owner after the engine review and before the first game,
+so the game's own tools are built on it; its number and every name in it
+are open.
+
+Asked for by the owner (2026-11-20): a game's own editors, as specialized
+as map mode (ADR 0112), built by the people making the game, for example
+an RPG's character editor: the character's model in a view of its own,
+its stats edited, its animations played. ADR 0002 decided how (editor
+code in editor assemblies kept out of shipping builds, the game as the
+root plugin) but none of it is built: a game's code references only the
+engine, and the editor's shell, panels, map mode, viewport input, undo,
+and selection are internal. Map mode in particular is built into the
+editor, not something a game could make.
+
+**Done when:** a sample project's editor assembly, using only the public
+editor API, adds a character workspace: the Walker's model in a preview
+of its own, orbiting; a stats component's fields edited with undo; its
+clips played and scrubbed. Map mode runs on the same API. A package of
+the sample contains nothing of its editor assembly, and the shipping
+configuration builds without it.
+
+**Decides:** where editor code lives and how it's built and reloaded; the
+public editor API's shape and what it promises from version to version;
+the workspace model; how viewport tools get input and draw; preview
+worlds; custom inspector and asset editors.
+
+**Settles:** ADR 0002's open consequences for editor assemblies (hot
+reload per assembly, the shipping check).
+
+**Steps** (proposed; each step's decision made at its start):
+
+1. **Editor assemblies.** A project folder for editor code (for example
+   `Code/Editor/`), compiled into its own assembly that references the
+   game's and the editor's, built and hot-reloaded with the game's code,
+   left out of packages; the editor symbol (ADR 0002's
+   `CRUCIBLE_EDITOR`) for small touches in game code, with a check that
+   builds the game without it. Decides the folder, the assembly, and what
+   happens to a plugin's open panels on reload.
+2. **The public editor API.** A surface for plugins instead of the
+   shell: registering panels, menus, and commands; the selection; undo
+   (component edits, and steps of a plugin's own); the asset database
+   (reading, and file edits as undo steps); the log and status bar.
+   Found by attribute or registered from an entry point. Decides its
+   shape, and how much stays stable across Crucible versions.
+3. **Workspaces.** What map mode is, made general: a layout, a toolbar,
+   a viewport tool, and keys, entered and left (Done), the layout before
+   coming back. Map mode moved onto it as the first user. Decides the
+   workspace model.
+4. **Viewport tools.** Pointer and key input in a viewport routed to a
+   plugin's tool, drawing over the view (lines, shapes, images, in world
+   or screen space), and picking under the pointer. Map mode's painting
+   and chain editing (ADR 0095) moved onto it. Decides input routing.
+5. **Preview viewports.** A view a panel holds with a small world of its
+   own (a model, a light, a camera that orbits), apart from the scene:
+   assets loaded into it, animations played and scrubbed, components
+   edited. Decides preview worlds (their own ECS world, render and asset
+   isolation).
+6. **Custom inspectors and asset editors.** A plugin's drawer for a
+   component or a field type in the Inspector, and a plugin's panel
+   opened by double-clicking an asset of a kind (a tileset opens the
+   Palette today). Decides how drawers and the generated fields mix.
+7. **The demonstration:** the character editor above, as a sample
+   plugin, only on the public API.
+
+**Not in it:** painting onto a model's textures. It needs engine work of
+its own (the texture coordinates under the pointer, painting into a
+texture on the GPU, saving it back to the texture's file) and is its own
+step, after this or with the first game that needs it. Prebuilt (binary)
+plugins stay an open item (ADR 0002).
+
+## After editor extensions: the first game
 
 The turn-based RPG's vertical slice. Whatever it needs that the engine
 doesn't have becomes the last work before v1.0.
