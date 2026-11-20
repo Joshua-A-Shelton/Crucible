@@ -1342,22 +1342,26 @@ reload per assembly, the shipping check).
    shape, and how much stays stable across Crucible versions.
 3. **Workspaces.** What map mode is, made general: a layout, a toolbar,
    a viewport tool, and keys, entered and left (Done), the layout before
-   coming back. Map mode moved onto it as the first user. Decides the
-   workspace model.
+   coming back. Decides the workspace model.
 4. **Viewport tools.** Pointer and key input in a viewport routed to a
    plugin's tool, drawing over the view (lines, shapes, images, in world
-   or screen space), and picking under the pointer. Map mode's painting
-   and chain editing (ADR 0095) moved onto it. Decides input routing.
-5. **Preview viewports.** A view a panel holds with a small world of its
+   or screen space), and picking under the pointer. Chain editing (ADR
+   0095) moved onto it. Decides input routing.
+5. **Map mode rebuilt on the API** (owner, 2026-11-20): the test of the
+   API, a plugin's-eye rebuild using only what steps 2 to 4 offer,
+   cleaning up as it goes: a "Map Mode" of its own, named and entered as
+   a workspace rather than built into the editor; the brush under the
+   pointer and the rest of the owner's notes from the try (open items).
+6. **Preview viewports.** A view a panel holds with a small world of its
    own (a model, a light, a camera that orbits), apart from the scene:
    assets loaded into it, animations played and scrubbed, components
    edited. Decides preview worlds (their own ECS world, render and asset
    isolation).
-6. **Custom inspectors and asset editors.** A plugin's drawer for a
+7. **Custom inspectors and asset editors.** A plugin's drawer for a
    component or a field type in the Inspector, and a plugin's panel
    opened by double-clicking an asset of a kind (a tileset opens the
    Palette today). Decides how drawers and the generated fields mix.
-7. **The demonstration:** the character editor above, as a sample
+8. **The demonstration:** the character editor above, as a sample
    plugin, only on the public API.
 
 **Not in it:** painting onto a model's textures. It needs engine work of
