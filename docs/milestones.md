@@ -1293,20 +1293,12 @@ opening the project's folders. The editor receives no dropped files yet.
 A pixel-art image dropped in can ask for Sprite usage and open the Sprite
 Sheet Editor (ADR 0107). Designed with the owner at its start.
 
-## After M11: an engine review
-
-Asked for by the owner (2026-11-18), before any game is built: some parts
-of the engine have grown past what the owner knows well. Go over the
-whole engine system by system with the owner (what each does, how it
-works, why it was built that way), clear up whatever isn't clear, and
-decide what, if anything, to change. The order of systems and the form of
-each walk-through are decided with the owner at its start.
-
-## After the review: editor extensions
+## After M11: editor extensions
 
 **Status:** Draft (2026-11-20), to design with the owner at its start.
-Placed by the owner after the engine review and before the first game,
-so the game's own tools are built on it; its number and every name in it
+Placed by the owner after importing by dropping files and before the
+engine review and the first game, so the game's own tools are built on
+it; its number and every name in it
 are open.
 
 Asked for by the owner (2026-11-20): a game's own editors, as specialized
@@ -1375,7 +1367,16 @@ texture on the GPU, saving it back to the texture's file) and is its own
 step, after this or with the first game that needs it. Prebuilt (binary)
 plugins stay an open item (ADR 0002).
 
-## After editor extensions: the first game
+## After editor extensions: an engine review
+
+Asked for by the owner (2026-11-18), before any game is built: some parts
+of the engine have grown past what the owner knows well. Go over the
+whole engine system by system with the owner (what each does, how it
+works, why it was built that way), clear up whatever isn't clear, and
+decide what, if anything, to change. The order of systems and the form of
+each walk-through are decided with the owner at its start.
+
+## After the review: the first game
 
 The turn-based RPG's vertical slice. Whatever it needs that the engine
 doesn't have becomes the last work before v1.0.
