@@ -1298,8 +1298,7 @@ Sheet Editor (ADR 0107). Designed with the owner at its start.
 **Status:** Draft (2026-11-20), to design with the owner at its start.
 Placed by the owner after importing by dropping files and before the
 engine review and the first game, so the game's own tools are built on
-it; its number and every name in it
-are open.
+it; its number and every name in it are open.
 
 Asked for by the owner (2026-11-20): a game's own editors, as specialized
 as map mode (ADR 0112), built by the people making the game, for example
