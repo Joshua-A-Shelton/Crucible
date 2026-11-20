@@ -198,6 +198,9 @@ Longer explanations of decisions, written to be reread:
 - [Tilemaps](docs/learning/tilemaps.md) (ADR 0108): tiles and tilesets,
   painting and filling, drawing a level as built quads, colliding with
   merged outlines instead of tile boxes, and why maps are baked.
+- [Map editing](docs/learning/map-editing.md) (ADR 0112): map mode as a
+  workspace, layers as entities, why a map has one tile size, stamps and
+  picking up, and collision set in the palette.
 - [Up-to-date builds](docs/learning/up-to-date-builds.md) (ADR 0110): file
   times versus content hashes, what makes a build stamp trustworthy, and
   why copies need one.

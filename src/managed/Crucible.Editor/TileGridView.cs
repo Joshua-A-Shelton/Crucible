@@ -6,11 +6,11 @@ using Crucible.UI;
 namespace Crucible.Editor;
 
 /// <summary>
-/// A tileset's texture (ADR 0108) for the Tiles panel: zoomed by whole
+/// A tileset's texture (ADR 0108, 0112) for the Palette and New Tileset: zoomed by whole
 /// numbers with square pixels (the wheel zooms, the middle or right button
 /// pans), its tile grid drawn, a rectangle of tiles selected by dragging.
 /// With <see cref="Drawing"/> set, a left click gives the texel instead (the
-/// Collision tab's Custom).
+/// Palette's Custom shape).
 /// </summary>
 internal sealed class TileGridView : UIElement
 {
@@ -23,6 +23,7 @@ internal sealed class TileGridView : UIElement
     private Vector2 _last;
     private bool _panning;
     private (int X, int Y)? _dragFrom;
+    private bool _dragged;
 
     public TileGridView()
     {
@@ -43,6 +44,9 @@ internal sealed class TileGridView : UIElement
     public event Action<TileGridView>? SelectionChanged;
 
     public event Action<Vector2>? TexelClicked;
+
+    /// <summary>A tile pressed and let go without dragging to another: by column and row.</summary>
+    public event Action<(int X, int Y)>? TileClicked;
 
     /// <summary>Drawn over the texture: the canvas, and a texel's place in the view.</summary>
     public Action<Canvas, Func<Vector2, Vector2>>? Overlay { get; set; }
@@ -168,6 +172,7 @@ internal sealed class TileGridView : UIElement
         if (TileAt(texel) is { } tile)
         {
             _dragFrom = tile;
+            _dragged = false;
             Select(tile, tile);
         }
     }
@@ -183,6 +188,7 @@ internal sealed class TileGridView : UIElement
         }
         else if (_dragFrom is { } from && TileAt(TexelAt(e)) is { } to)
         {
+            _dragged |= to != from;
             Select(from, to);
             e.Handled = true;
         }
@@ -190,8 +196,19 @@ internal sealed class TileGridView : UIElement
 
     protected override void OnPointerUp(PointerEvent e)
     {
+        if (_dragFrom is { } tile && !_dragged && e.Button == PointerButton.Left)
+        {
+            TileClicked?.Invoke(tile);
+        }
         _panning = false;
         _dragFrom = null;
+    }
+
+    /// <summary>A click on a tile, as the pointer gives it (the checks): selected, then clicked.</summary>
+    public void Click(int x, int y)
+    {
+        Select((x, y), (x, y));
+        TileClicked?.Invoke((x, y));
     }
 
     private void Select((int X, int Y) a, (int X, int Y) b)

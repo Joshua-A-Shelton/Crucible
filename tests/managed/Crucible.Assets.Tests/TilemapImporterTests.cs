@@ -105,12 +105,33 @@ public class TilemapImporterTests
         await Assert.That((read.Id, read.Texture, read.TileWidth, read.Shapes.Count)).IsEqualTo((tileset.Id, tileset.Texture, 16, 2));
         await Assert.That(read.Shapes[1][0].SequenceEqual(tileset.Shapes[1][0])).IsTrue();
 
-        TilemapData map = new() { Id = AssetId.New(), Tileset = tileset.Id };
-        map.Cells[(3, -2)] = new TileCell(3, -2, 1, 3);
-        map.Cells[(0, 0)] = new TileCell(0, 0, 0, 0);
+        AssetId other = AssetId.New();
+        TilemapData map = new() { Id = AssetId.New(), Tilesets = [tileset.Id, other] };
+        map.Layers[0].Name = "Ground \"main\"";
+        map.Layers[0].Cells[(3, -2)] = new TileCell(3, -2, 1, 3);
+        map.Layers[0].Cells[(0, 0)] = new TileCell(0, 0, 0, 0);
+        map.Layers.Add(new TileLayer { Id = 4, Name = "Trees" });
+        map.Layers[1].Cells[(1, 1)] = new TileCell(1, 1, 5, 0, Set: 1);
         TilemapData again = TilemapImporter.Read(Encoding.UTF8.GetBytes(TilemapImporter.Format(map)));
-        await Assert.That((again.Id, again.Tileset, again.Cells.Count, again.Cells[(3, -2)])).IsEqualTo(
-            (map.Id, tileset.Id, 2, new TileCell(3, -2, 1, 3)));
+        await Assert.That((again.Id, again.Tilesets.Count, again.Tilesets[1], again.Layers.Count)).IsEqualTo((map.Id, 2, other, 2));
+        await Assert.That((again.Layers[0].Name, again.Layers[0].Cells.Count, again.Layers[0].Cells[(3, -2)])).IsEqualTo(
+            ("Ground \"main\"", 2, new TileCell(3, -2, 1, 3)));
+        await Assert.That((again.Layers[1].Id, again.Layers[1].Name, again.Layers[1].Cells[(1, 1)])).IsEqualTo(
+            (4, "Trees", new TileCell(1, 1, 5, 0, 1)));
+    }
+
+    // A map from before layers (ADR 0108) reads as one layer of id 0.
+    [Test]
+    public async Task AMapFromBeforeLayersReadsAsOneLayer()
+    {
+        AssetId tileset = AssetId.New();
+        string old = $$"""
+            { "$guid": "{{AssetId.New()}}", "Tileset": "{{tileset}}",
+              "Cells": [ [0, 0, 5, 1], [2, -1, 3, 0] ] }
+            """;
+        TilemapData map = TilemapImporter.Read(Encoding.UTF8.GetBytes(old));
+        await Assert.That((map.Tilesets.Single(), map.Layers.Count, map.Layers[0].Id, map.Layers[0].Name)).IsEqualTo((tileset, 1, 0, "Layer 1"));
+        await Assert.That(map.Layers[0].Cells[(0, 0)]).IsEqualTo(new TileCell(0, 0, 5, 1, 0));
     }
 
     private sealed class Scratch : IDisposable
@@ -149,9 +170,9 @@ public class TilemapImporterTests
         tileset.Id = AssetId.New();
         tileset.Texture = texture;
         File.WriteAllText(scratch.PathOf("Ground.crtileset"), TilesetImporter.Format(tileset));
-        TilemapData map = new() { Id = AssetId.New(), Tileset = tileset.Id };
-        map.Cells[(0, 0)] = new TileCell(0, 0, 1, 0);
-        map.Cells[(1, 0)] = new TileCell(1, 0, 0, 1);
+        TilemapData map = new() { Id = AssetId.New(), Tilesets = [tileset.Id] };
+        map.Layers[0].Cells[(0, 0)] = new TileCell(0, 0, 1, 0);
+        map.Layers[0].Cells[(1, 0)] = new TileCell(1, 0, 0, 1);
         File.WriteAllText(scratch.PathOf("Level.crtilemap"), TilemapImporter.Format(map));
         database.Refresh();
         return (database, tileset, map);
@@ -167,7 +188,8 @@ public class TilemapImporterTests
             .Because(string.Join("; ", results.Select(r => r.Error)));
         using ImportedFile file = ImportedFile.Open(database.ImportedFile(map.Id)!, TilemapImporter.Kind, TilemapImporter.KindVersion);
         TilemapInfo info = MemoryMarshal.Read<TilemapInfo>(file.Read(file.Find(Tag.Of("INFO"))));
-        await Assert.That((info.Texture, info.TileWidth, info.CellCount, info.LoopCount)).IsEqualTo((tileset.Texture, 16u, 2u, 1u));
+        await Assert.That((info.TextureCount, info.LayerCount, info.TileWidth, info.CellCount, info.LoopCount)).IsEqualTo((1u, 1u, 16u, 2u, 1u));
+        await Assert.That(MemoryMarshal.Read<AssetId>(file.Read(file.Find(Tag.Of("TXTR"))))).IsEqualTo(tileset.Texture);
         await Assert.That(info.CellWidth).IsEqualTo(0.5f);
         TilemapCell[] cells = MemoryMarshal.Cast<byte, TilemapCell>(file.Read(file.Find(Tag.Of("CELL")))).ToArray();
         await Assert.That((cells[0].X, cells[0].PixelX, cells[1].X, cells[1].PixelX, cells[1].Flags)).IsEqualTo((0, 16u, 1, 0u, 1u));
@@ -195,12 +217,12 @@ public class TilemapImporterTests
     {
         using Scratch scratch = new();
         (AssetDatabase database, _, TilemapData map) = Project(scratch);
-        map.Cells[(5, 5)] = new TileCell(5, 5, 7, 0);
+        map.Layers[0].Cells[(5, 5)] = new TileCell(5, 5, 7, 0);
         File.WriteAllText(scratch.PathOf("Level.crtilemap"), TilemapImporter.Format(map));
         database.Refresh();
         ImportResult result = database.ImportAll().Single(r => r.Id == map.Id);
         await Assert.That(result.Outcome).IsEqualTo(ImportOutcome.Failed);
-        await Assert.That(result.Error).Contains("the cell at (5, 5) is tile 7, but the tileset has 2");
+        await Assert.That(result.Error).Contains("layer Layer 1's cell at (5, 5) is tile 7, but its tileset has 2");
     }
 
     [Test]
@@ -223,10 +245,65 @@ public class TilemapImporterTests
         using Scratch scratch = new();
         (AssetDatabase database, _, _) = Project(scratch);
         TilemapData orphan = new() { Id = AssetId.New() };
-        orphan.Cells[(0, 0)] = new TileCell(0, 0, 0, 0);
+        orphan.Layers[0].Cells[(0, 0)] = new TileCell(0, 0, 0, 0);
         File.WriteAllText(scratch.PathOf("Orphan.crtilemap"), TilemapImporter.Format(orphan));
         database.Refresh();
         ImportResult result = database.ImportAll().Single(r => r.Id == orphan.Id);
         await Assert.That(result.Outcome).IsEqualTo(ImportOutcome.Failed);
+    }
+
+    // Two tilesets (the second its own texture) and two layers: each
+    // layer's cells and outlines apart, each cell naming its texture.
+    [Test]
+    public async Task LayersAndTilesetsImportApart()
+    {
+        using Scratch scratch = new();
+        (AssetDatabase database, TilesetData tileset, TilemapData map) = Project(scratch);
+        File.Copy(scratch.PathOf("Tiles.tga"), scratch.PathOf("More.tga"));
+        database.Refresh();
+        database.ImportAll();
+        AssetId texture = database.Find("More.tga")!.Id;
+        System.Text.Json.Nodes.JsonObject settings = database.SettingsOf(texture)!;
+        settings["Usage"] = "Sprite";
+        settings["PixelsPerUnit"] = 32;
+        database.SetSettings(texture, settings);
+        TilesetData more = Tiles();
+        more.Id = AssetId.New();
+        more.Texture = texture;
+        File.WriteAllText(scratch.PathOf("More.crtileset"), TilesetImporter.Format(more));
+        map.Tilesets.Add(more.Id);
+        map.Layers.Add(new TileLayer { Id = 3, Name = "Upper" });
+        map.Layers[1].Cells[(0, 2)] = new TileCell(0, 2, 0, 0, Set: 1); // a solid block, from the other texture
+        File.WriteAllText(scratch.PathOf("Level.crtilemap"), TilemapImporter.Format(map));
+        database.Refresh();
+        ImportResult result = database.ImportAll().Single(r => r.Id == map.Id);
+        await Assert.That(result.Outcome).IsEqualTo(ImportOutcome.Imported).Because(result.Error ?? "");
+        using ImportedFile file = ImportedFile.Open(database.ImportedFile(map.Id)!, TilemapImporter.Kind, TilemapImporter.KindVersion);
+        TilemapInfo info = MemoryMarshal.Read<TilemapInfo>(file.Read(file.Find(Tag.Of("INFO"))));
+        await Assert.That((info.TextureCount, info.LayerCount, info.CellCount, info.LoopCount)).IsEqualTo((2u, 2u, 3u, 2u));
+        TilemapLayer[] layers = MemoryMarshal.Cast<byte, TilemapLayer>(file.Read(file.Find(Tag.Of("LAYR")))).ToArray();
+        await Assert.That((layers[0].Id, layers[0].CellCount, layers[0].LoopCount)).IsEqualTo((0u, 2u, 1u));
+        await Assert.That((layers[1].Id, layers[1].FirstCell, layers[1].CellCount, layers[1].FirstLoop, layers[1].LoopCount))
+            .IsEqualTo((3u, 2u, 1u, 1u, 1u));
+        TilemapCell[] cells = MemoryMarshal.Cast<byte, TilemapCell>(file.Read(file.Find(Tag.Of("CELL")))).ToArray();
+        await Assert.That((cells[0].Texture, cells[2].Texture, cells[2].Y)).IsEqualTo((0u, 1u, 2));
+        AssetId[] textures = MemoryMarshal.Cast<byte, AssetId>(file.Read(file.Find(Tag.Of("TXTR")))).ToArray();
+        await Assert.That((textures[0], textures[1])).IsEqualTo((tileset.Texture, texture));
+    }
+
+    // A map is one grid: tilesets of another tile size are refused, saying which.
+    [Test]
+    public async Task TilesetsOfAnotherTileSizeFail()
+    {
+        using Scratch scratch = new();
+        (AssetDatabase database, TilesetData tileset, TilemapData map) = Project(scratch);
+        TilesetData big = new() { Id = AssetId.New(), Texture = tileset.Texture, TileWidth = 8, TileHeight = 8 };
+        File.WriteAllText(scratch.PathOf("Big.crtileset"), TilesetImporter.Format(big));
+        map.Tilesets.Add(big.Id);
+        File.WriteAllText(scratch.PathOf("Level.crtilemap"), TilemapImporter.Format(map));
+        database.Refresh();
+        ImportResult result = database.ImportAll().Single(r => r.Id == map.Id);
+        await Assert.That(result.Outcome).IsEqualTo(ImportOutcome.Failed);
+        await Assert.That(result.Error).Contains("its tilesets' tiles aren't one size: Ground.crtileset's are 16x16, Big.crtileset's 8x8");
     }
 }

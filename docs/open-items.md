@@ -79,9 +79,16 @@ is, and record which version fixed it.
   easy to draw a frame by accident when selecting one. It needs a toolbar
   with at least Select and Draw, drawing only with Draw chosen. Not a
   priority; come back to it. → 0107
-- Tilemap extras (M11 step 4): 90° turns per cell, animated tiles,
-  auto-tiling rules, more than one tileset a map, and culling chunks off
-  screen, each when a game needs it. → 0108
+- Tilemap extras (M11 step 4): 90° turns per cell, animated tiles, and
+  culling chunks off screen, each when a game needs it (more than one
+  tileset a map came with ADR 0112). → 0108
+- Auto-tiling (M11 step 4, after the owner's try of map mode): terrain
+  brushes set up per tileset, edges and corners chosen while painting and
+  stored as ordinary tiles, so nothing at run time. Its own step. → 0112
+- A trigger layer (ADR 0112): Box2D's chains can't be sensors, so a
+  layer's Tilemap collider can't be a trigger (water). It needs shapes
+  that can: the merged outlines cut into convex pieces, or a tile's boxes.
+  When a game needs it. → 0112
 - Windows on sprite clips (M11 step 3): frame events are there; named
   ranges (a hitbox's active frames) as 3D clips have them come when a game
   needs them. → 0107

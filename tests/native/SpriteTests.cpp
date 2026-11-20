@@ -210,6 +210,22 @@ TEST_SUITE("gpu")
         platform::shutdown();
     }
 
+    // A TMAP file (TilemapFile.h): its textures, its layers' ranges, its cells.
+    std::vector<uint8_t> tilemapFile(const std::vector<assets::AssetId>& textures,
+                                     const std::vector<assets::TilemapLayer>& layers,
+                                     const std::vector<assets::TilemapCell>& cells)
+    {
+        binary::Writer* writer = binary::createWriter(assets::tilemapFileKind, assets::tilemapFileVersion);
+        test::addSection(writer, binary::tag("INFO"),
+                         std::vector<assets::TilemapInfo>{{2, 1, 0.25f, 0.125f, static_cast<uint32_t>(textures.size()),
+                                                           static_cast<uint32_t>(layers.size()),
+                                                           static_cast<uint32_t>(cells.size()), 0, 0, 0}});
+        test::addSection(writer, binary::tag("TXTR"), textures);
+        test::addSection(writer, binary::tag("LAYR"), layers);
+        test::addSection(writer, binary::tag("CELL"), cells);
+        return test::fileBytes(writer);
+    }
+
     TEST_CASE("A tilemap draws its cells from its sheet with flips on every backend")
     {
         scenes::registerTransforms();
@@ -223,7 +239,6 @@ TEST_SUITE("gpu")
             {1, 0, 2, 0, static_cast<uint32_t>(assets::TileFlip::X), 0},
             {0, 1, 0, 0, 0, 0},
         };
-        binary::Writer* writer = nullptr;
         assets::setAssetReader(reinterpret_cast<uint64_t>(&readTestAsset));
         REQUIRE(platform::initialize());
         for (slag::Backend backend : {slag::Backend::D3D12, slag::Backend::Vulkan})
@@ -234,11 +249,7 @@ TEST_SUITE("gpu")
             }
             CAPTURE(static_cast<int>(backend));
             // The whole map, each backend (the last painted it down to one cell).
-            writer = binary::createWriter(assets::tilemapFileKind, assets::tilemapFileVersion);
-            test::addSection(writer, binary::tag("INFO"),
-                             std::vector<assets::TilemapInfo>{{test::idOf(41), 2, 1, 0.25f, 0.125f, 3, 0, 0, 0}});
-            test::addSection(writer, binary::tag("CELL"), cells);
-            library[43] = test::fileBytes(writer);
+            library[43] = tilemapFile({test::idOf(41)}, {{0, 0, 3, 0, 0, 0}}, cells);
             Result<render::SurfaceHandle> created = render::createOffscreenSurface(width, height);
             REQUIRE(created);
             const render::SurfaceHandle surface = created.value();
@@ -263,16 +274,75 @@ TEST_SUITE("gpu")
                 CHECK(at(pixels, 31, 31)[0] == 0);
 
                 // Read again after painting: the flipped cell gone.
-                library[43].clear();
-                writer = binary::createWriter(assets::tilemapFileKind, assets::tilemapFileVersion);
-                test::addSection(writer, binary::tag("INFO"),
-                                 std::vector<assets::TilemapInfo>{{test::idOf(41), 2, 1, 0.25f, 0.125f, 1, 0, 0, 0}});
-                test::addSection(writer, binary::tag("CELL"), std::vector<assets::TilemapCell>{cells[0]});
-                library[43] = test::fileBytes(writer);
+                library[43] = tilemapFile({test::idOf(41)}, {{0, 0, 1, 0, 0, 0}}, {cells[0]});
                 CHECK(render2d::reloadTilemap(test::idOf(43)));
                 pixels = renderSettled(scene, surface);
                 CHECK(at(pixels, 32, 31) == std::array<uint8_t, 4>{200, 10, 20, 255});
                 CHECK(at(pixels, 34, 31)[2] == 0);
+            }
+            render::destroySurface(surface);
+            render::shutdown();
+        }
+        assets::setAssetReader(0);
+        platform::shutdown();
+    }
+
+    TEST_CASE("A tilemap's layers draw apart and a layer mixes tilesets' textures on every backend")
+    {
+        scenes::registerTransforms();
+        render::registerCamera();
+        render2d::registerSprite();
+        library[41] = spriteTexture(4, 2, grid, 8);
+        library[42] = spriteTexture(2, 1, {255, 0, 255, 255, 0, 255, 255, 255}, 8); // magenta, cyan
+        // Layer 0: tile 0 of the grid at (0, 0). Layer 5 (its id): the
+        // grid's tile 0 at (0, 1) and the other texture's at (1, 1).
+        const std::vector<assets::TilemapCell> cells = {
+            {0, 0, 0, 0, 0, 0},
+            {0, 1, 0, 0, 0, 0},
+            {1, 1, 0, 0, 0, 1},
+        };
+        library[47] = tilemapFile({test::idOf(41), test::idOf(42)}, {{0, 0, 1, 0, 0, 0}, {5, 1, 2, 0, 0, 0}}, cells);
+        assets::setAssetReader(reinterpret_cast<uint64_t>(&readTestAsset));
+        REQUIRE(platform::initialize());
+        for (slag::Backend backend : {slag::Backend::D3D12, slag::Backend::Vulkan})
+        {
+            if (!slag::isBackendAvailable(backend) || !render::initialize(backend))
+            {
+                continue;
+            }
+            CAPTURE(static_cast<int>(backend));
+            Result<render::SurfaceHandle> created = render::createOffscreenSurface(width, height);
+            REQUIRE(created);
+            const render::SurfaceHandle surface = created.value();
+            {
+                Scene scene;
+                camera(scene);
+                const ComponentId set[] = {componentIdOf<render2d::Tilemap>, componentIdOf<scenes::Transform2D>,
+                                           componentIdOf<scenes::WorldTransform>};
+                const Entity ground = createEntity(*scene.world, set);
+                *get<render2d::Tilemap>(*scene.world, ground) = {.map = test::idOf(47), .tint = {1, 1, 1, 1}};
+                *get<scenes::Transform2D>(*scene.world, ground) = {{0, 0}, 0, {1, 1}, 0};
+                std::vector<uint8_t> pixels = renderSettled(scene, surface);
+                // Layer 0 alone: its cell, and nothing of layer 5's.
+                CHECK(at(pixels, 32, 31) == std::array<uint8_t, 4>{200, 10, 20, 255});
+                CHECK(at(pixels, 32, 30)[0] == 0);
+                CHECK(at(pixels, 34, 30)[0] == 0);
+
+                // Layer 5 on another entity: both its cells, each from its texture.
+                const Entity upper = createEntity(*scene.world, set);
+                *get<render2d::Tilemap>(*scene.world,
+                                        upper) = {.map = test::idOf(47), .tint = {1, 1, 1, 1}, .layer = 5};
+                *get<scenes::Transform2D>(*scene.world, upper) = {{0, 0}, 0, {1, 1}, 0};
+                pixels = renderSettled(scene, surface);
+                CHECK(at(pixels, 32, 31) == std::array<uint8_t, 4>{200, 10, 20, 255});
+                CHECK(at(pixels, 32, 30) == std::array<uint8_t, 4>{200, 10, 20, 255});
+                CHECK(at(pixels, 34, 30) == std::array<uint8_t, 4>{255, 0, 255, 255});
+                CHECK(at(pixels, 35, 30) == std::array<uint8_t, 4>{0, 255, 255, 255});
+
+                // A layer the map hasn't draws nothing.
+                get<render2d::Tilemap>(*scene.world, upper)->layer = 9;
+                pixels = renderSettled(scene, surface);
+                CHECK(at(pixels, 34, 30)[0] == 0);
             }
             render::destroySurface(surface);
             render::shutdown();

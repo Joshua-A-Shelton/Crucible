@@ -1269,6 +1269,21 @@ Custom, Clear, and Flip X and Y, saved at once with undo). Fill reaches a
 cell beyond the painted ones. The file formats, collision, and drawing are
 unchanged; scenes aren't affected. ADR 0108 amended.
 
+Step 4 redesigned again (2026-11-20, ADR 0112, after the owner's try
+found a bug and the editing still built around the engine): **map mode**,
+a layout of its own like a map editor's (the Palette, the viewport with
+the map tools, Layers and the Inspector), entered with Edit Map or Create >
+2D > Tilemap and left with Done. A map is an entity with a child per
+**layer** (`TilemapLayers`; each child's `Tilemap` draws one layer, its
+own collider if it collides), listed top first with Visible, Collides,
+rename, Add Layer, Up, Down, Delete, and missing entities offered back.
+A map has **several tilesets** of one tile size, mixed on any layer at no
+cost. **New Tileset** is the one way to make a tileset, making its image
+a sprite. Tools Stamp, Rectangle, Fill, Eraser, Select (copy, cut,
+delete, move), flips, and right-drag to pick up; collision set in the
+Palette with a click, and Show Collision over the map. Auto-tiling is its
+own step after the owner's try.
+
 ## After M11: importing by dropping files
 
 Asked for by the owner (2026-11-18): files dragged from the system's file

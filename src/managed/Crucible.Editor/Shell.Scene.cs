@@ -29,11 +29,6 @@ internal sealed partial class Shell
 
     private ChainHandles? _chains;
 
-    /// <summary>Painting the selected Tilemap over the viewports (ADR 0108).</summary>
-    internal TilePainter Tiles => _tiles ??= new TilePainter(this);
-
-    private TilePainter? _tiles;
-
     /// <summary>The scene's own asset ID, written into its file.</summary>
     public AssetId SceneId { get; private set; } = AssetId.New();
 

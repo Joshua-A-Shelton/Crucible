@@ -694,6 +694,9 @@ ComponentId registerComponent(std::string_view name, uint32_t size, uint32_t ali
         {
             if (existing.size != size || existing.alignment != alignment || existing.storage != storage)
             {
+                log::error("ecs: %.*s: %u bytes aligned to %u before, %u aligned to %u now",
+                           static_cast<int>(name.size()), name.data(), existing.size, existing.alignment, size,
+                           alignment);
                 fatal("a component was registered again with a different size, alignment, or storage");
             }
             return static_cast<ComponentId>(id) | (storage == ComponentStorage::Sparse ? sparseBit : 0);

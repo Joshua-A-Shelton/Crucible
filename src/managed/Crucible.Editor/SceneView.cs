@@ -43,6 +43,7 @@ public sealed class SceneView : UIElement
         Handle,
         Chain,
         Tiles,
+        Pick,
     }
 
     internal SceneView(Shell shell)
@@ -121,7 +122,8 @@ public sealed class SceneView : UIElement
             return;
         }
         Crucible.Render.Api.SetSurfaceCamera(_surface, Camera.Position, Camera.Rotation, Camera.Camera);
-        Crucible.Render.Api.SetSurfaceGrid(_surface, ShowsGrid);
+        // Map mode (ADR 0112) draws the map's own grid instead of the floor's.
+        Crucible.Render.Api.SetSurfaceGrid(_surface, ShowsGrid && !_shell.InMapMode);
         Crucible.Render.Api.SetSurfaceSelection(_surface, outlined);
         Stopwatch watch = Stopwatch.StartNew();
         Status status = Crucible.Render.Api.RenderFrame(_surface, world.Handle, _lastRun, 0.05f, 0.05f, 0.06f, 1);
@@ -148,9 +150,9 @@ public sealed class SceneView : UIElement
         {
             _shell.Chains.Draw(canvas, Camera, ActualSize);
         }
-        else if (_shell.Tiles.IsPainting)
+        else if (_shell.InMapMode)
         {
-            _shell.Tiles.Draw(canvas, Camera, ActualSize);
+            _shell.Map.Draw(canvas, Camera, ActualSize);
         }
         else if (_shell.SelectedTransform() is { } world)
         {
@@ -174,7 +176,12 @@ public sealed class SceneView : UIElement
         }
         if (_mode == Mode.Tiles)
         {
-            _shell.Tiles.EndStroke();
+            _shell.Map.EndStroke();
+            _mode = Mode.None;
+        }
+        if (_mode == Mode.Pick)
+        {
+            _shell.Map.EndPick();
             _mode = Mode.None;
         }
         if (_surface.Value != 0)
@@ -193,6 +200,26 @@ public sealed class SceneView : UIElement
         e.Handled = true;
         _last = e.Position;
         Vector2 at = Local(e);
+        // Map mode (ADR 0112): the left button uses the tool, the right picks
+        // up painted tiles, the middle pans, the wheel zooms.
+        if (_shell.InMapMode && e.Button is PointerButton.Left or PointerButton.Right &&
+            (e.Modifiers & KeyModifiers.Alt) == 0)
+        {
+            if (_shell.Map.CellAt(Camera, ActualSize, at) is { } cell)
+            {
+                if (e.Button == PointerButton.Right)
+                {
+                    _shell.Map.BeginPick(cell);
+                    _mode = Mode.Pick;
+                }
+                else if (_shell.Map.BeginStroke(cell))
+                {
+                    _mode = Mode.Tiles;
+                }
+                InvalidateVisual();
+            }
+            return;
+        }
         switch (e.Button)
         {
             case PointerButton.Right:
@@ -204,13 +231,6 @@ public sealed class SceneView : UIElement
                 break;
             case PointerButton.Left when (e.Modifiers & KeyModifiers.Alt) != 0:
                 _mode = Mode.Orbit;
-                break;
-            case PointerButton.Left when _shell.Tiles.IsPainting:
-                if (_shell.Tiles.BeginStroke(Camera, ActualSize, at))
-                {
-                    _mode = Mode.Tiles;
-                    InvalidateVisual();
-                }
                 break;
             case PointerButton.Left when _shell.Chains.IsEditing && _shell.Chains.BeginDrag(Camera, ActualSize, at):
                 _mode = Mode.Chain;
@@ -255,12 +275,18 @@ public sealed class SceneView : UIElement
                 _shell.Chains.Drag(Camera, ActualSize, Local(e), (e.Modifiers & KeyModifiers.Ctrl) != 0);
                 break;
             case Mode.Tiles:
-                _shell.Tiles.Stroke(Camera, ActualSize, Local(e));
+                if (_shell.Map.CellAt(Camera, ActualSize, Local(e)) is { } cell)
+                {
+                    _shell.Map.Stroke(cell);
+                }
+                break;
+            case Mode.Pick:
+                _shell.Map.Track(_shell.Map.CellAt(Camera, ActualSize, Local(e)) ?? _shell.Map.Hover);
                 break;
             default:
-                if (_shell.Tiles.IsPainting)
+                if (_shell.InMapMode)
                 {
-                    if (_shell.Tiles.Track(Camera, ActualSize, Local(e)))
+                    if (_shell.Map.Track(_shell.Map.CellAt(Camera, ActualSize, Local(e))))
                     {
                         InvalidateVisual();
                     }
@@ -302,7 +328,12 @@ public sealed class SceneView : UIElement
         }
         else if (_mode == Mode.Tiles)
         {
-            _shell.Tiles.EndStroke();
+            _shell.Map.EndStroke();
+            InvalidateVisual();
+        }
+        else if (_mode == Mode.Pick)
+        {
+            _shell.Map.EndPick();
             InvalidateVisual();
         }
         _mode = Mode.None;
@@ -329,31 +360,17 @@ public sealed class SceneView : UIElement
             e.Handled = true;
             return;
         }
+        if (_shell.InMapMode)
+        {
+            if (MapKey(e))
+            {
+                e.Handled = true;
+                InvalidateVisual();
+            }
+            return;
+        }
         if ((e.Modifiers & (KeyModifiers.Ctrl | KeyModifiers.Alt | KeyModifiers.Gui)) != 0)
         {
-            return;
-        }
-        // Painting tiles (ADR 0108): with a tilemap selected, its tools by
-        // key, each starting painting; Escape stops.
-        if (_shell.Tiles.IsPainting && e.Scancode == ScancodeEscape)
-        {
-            _shell.Tiles.IsPainting = false;
-            InvalidateVisual();
-            e.Handled = true;
-            return;
-        }
-        if (_shell.Tiles.IsEditing && e.Keycode switch
-        {
-            Keycode.B => TileTool.Paint,
-            Keycode.R => TileTool.Rectangle,
-            Keycode.E => TileTool.Erase,
-            Keycode.G => TileTool.Fill,
-            Keycode.I => TileTool.Pick,
-            _ => (TileTool?)null,
-        } is { } tool)
-        {
-            _shell.SetTileTool(tool);
-            e.Handled = true;
             return;
         }
         switch (e.Keycode)
@@ -385,6 +402,72 @@ public sealed class SceneView : UIElement
         }
         e.Handled = true;
         InvalidateVisual();
+    }
+
+    // Map mode's keys (ADR 0112): the tools, the flips, F to frame the map;
+    // Ctrl+C, Ctrl+X, and Delete on the Select tool's region; Escape lets go
+    // of the region, else leaves map mode.
+    private bool MapKey(KeyEvent e)
+    {
+        MapEditor map = _shell.Map;
+        bool ctrl = (e.Modifiers & (KeyModifiers.Ctrl | KeyModifiers.Gui)) != 0;
+        if ((e.Modifiers & KeyModifiers.Alt) != 0)
+        {
+            return false;
+        }
+        if (ctrl)
+        {
+            bool done = e.Keycode switch
+            {
+                Keycode.C => map.Copy(),
+                Keycode.X => map.Cut(),
+                _ => false,
+            };
+            if (done)
+            {
+                _shell.RaiseMapToolChanged();
+            }
+            return done;
+        }
+        if (e.Keycode switch
+            {
+                Keycode.B => MapTool.Stamp,
+                Keycode.R => MapTool.Rectangle,
+                Keycode.F => MapTool.Fill,
+                Keycode.E => MapTool.Eraser,
+                Keycode.S => MapTool.Select,
+                _ => (MapTool?)null,
+            } is { } tool)
+        {
+            _shell.SetMapTool(tool);
+            return true;
+        }
+        switch (e.Keycode)
+        {
+            case Keycode.X:
+                map.FlipX = !map.FlipX;
+                _shell.RaiseMapToolChanged();
+                return true;
+            case Keycode.Y:
+                map.FlipY = !map.FlipY;
+                _shell.RaiseMapToolChanged();
+                return true;
+            case Keycode.Delete:
+                return map.DeleteRegion();
+        }
+        if (e.Scancode != ScancodeEscape)
+        {
+            return false;
+        }
+        if (map.Region is not null)
+        {
+            map.Region = null;
+        }
+        else
+        {
+            _shell.ExitMapMode();
+        }
+        return true;
     }
 
     protected override void OnKeyUp(KeyEvent e)

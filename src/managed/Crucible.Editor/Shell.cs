@@ -232,7 +232,7 @@ internal sealed partial class Shell
         {
             StopSystems();
         }
-        Settings.Layout = SaveLayout();
+        Settings.Layout = LayoutToSave();
         SaveSettings();
         foreach (EditorWindow window in _windows.ToArray())
         {
@@ -414,7 +414,8 @@ internal sealed partial class Shell
         {
             assets.Update();
         }
-        Entity[] outlined = Outlined(world);
+        // Map mode (ADR 0112) paints on the map: no outline over its tiles.
+        Entity[] outlined = InMapMode ? [] : Outlined(world);
         if (ShowsSkeletons)
         {
             // Every posed character's bones (ADR 0079), in every view.
@@ -434,8 +435,8 @@ internal sealed partial class Shell
             Crucible.Physics.Api.DrawQueries(_queryMissColor, _queryHitColor);
             Crucible.Physics2D.Api.DrawQueries2D(_queryMissColor, _queryHitColor);
         }
-        // The tile painter follows the selection (ADR 0108), viewport shown or not.
-        Tiles.Update();
+        // Map mode (ADR 0112) ends when its map entity goes, viewport shown or not.
+        TickMapMode();
         foreach (EditorPanel panel in _open.Values)
         {
             if (panel is ViewportPanel viewport && viewport.Root is not null)
@@ -455,9 +456,13 @@ internal sealed partial class Shell
             {
                 sheet.Tick();
             }
-            else if (panel is TilesPanel tiles)
+            else if (panel is PalettePanel palette)
             {
-                tiles.Tick();
+                palette.Tick();
+            }
+            else if (panel is LayersPanel layers)
+            {
+                layers.Tick();
             }
         }
         if (_pickView is { } view && view.Surface.Value != 0)
@@ -735,7 +740,8 @@ internal sealed partial class Shell
         Panels.Register("Log", "Log", () => new LogPanel());
         Panels.Register("BuildSettings", "Build Settings", () => new BuildSettingsPanel(this));
         Panels.Register("SpriteSheet", "Sprite Sheet Editor", () => new SpriteSheetPanel(this));
-        Panels.Register("Tiles", "Tiles", () => new TilesPanel(this));
+        Panels.Register("Palette", "Palette", () => new PalettePanel(this));
+        Panels.Register("Layers", "Layers", () => new LayersPanel(this));
     }
 
     // The open panel of an ID, made if it isn't open.

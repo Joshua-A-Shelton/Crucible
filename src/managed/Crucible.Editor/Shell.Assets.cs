@@ -118,52 +118,6 @@ internal sealed partial class Shell
     }
 
     /// <summary>
-    /// A new tileset (ADR 0108) in a folder of the Assets folder: "New
-    /// Tileset.crtileset" (numbered if taken), cutting <paramref name="texture"/>
-    /// (if given) into 16x16 tiles, imported at once and shown in the Tiles
-    /// panel. Returns its path in the Assets folder; null if it can't be made.
-    /// </summary>
-    public string? CreateTileset(string folder, AssetId texture = default)
-    {
-        TilesetData tileset = new() { Id = AssetId.New(), Texture = texture };
-        string? path = CreateOwnFile(folder, "New Tileset", TilesetImporter.FileExtension, TilesetImporter.Format(tileset));
-        if (path is not null)
-        {
-            ShowTileset(tileset.Id);
-        }
-        return path;
-    }
-
-    // A file of Crucible's own made in a folder of the Assets folder, named
-    // "<name><extension>" (numbered if taken), and imported.
-    private string? CreateOwnFile(string folder, string baseName, string extension, string text)
-    {
-        if (Project is not { } project)
-        {
-            return null;
-        }
-        string directory = Path.Combine(project.AssetsFolder, folder);
-        string name = baseName + extension;
-        for (int n = 2; File.Exists(Path.Combine(directory, name)); ++n)
-        {
-            name = $"{baseName} {n}{extension}";
-        }
-        try
-        {
-            File.WriteAllText(Path.Combine(directory, name), text);
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            Log($"Can't make {name}: {exception.Message}");
-            return null;
-        }
-        RefreshAssets();
-        string path = folder.Length == 0 ? name : $"{folder}/{name}";
-        Log($"Made {path}");
-        return path;
-    }
-
-    /// <summary>
     /// A new chain (ADR 0095) in a folder of the Assets folder: "New
     /// Chain.crchain" (numbered if taken), two points of ground solid below,
     /// imported at once. Returns its path in the Assets folder; null if it
@@ -202,15 +156,17 @@ internal sealed partial class Shell
     /// <summary>
     /// An asset's import settings saved to its sidecar and imported with them
     /// (ADR 0087): the inspector's Apply, and the Collider's reimport button.
+    /// A texture becoming a sprite opens its Sprite Sheet Editor unless
+    /// <paramref name="openSheet"/> is false (a tileset's, ADR 0112, is cut by its own grid).
     /// </summary>
-    public void ApplyImportSettings(AssetId id, JsonObject settings)
+    public void ApplyImportSettings(AssetId id, JsonObject settings, bool openSheet = true)
     {
         if (Database is not { } database || database.Find(id) is not { } entry)
         {
             return;
         }
         // A texture becoming a sprite opens its sheet, to slice (ADR 0107).
-        bool becomesSprite = entry.Importer == "Texture" && IsSpriteUsage(settings) &&
+        bool becomesSprite = openSheet && entry.Importer == "Texture" && IsSpriteUsage(settings) &&
                              !IsSpriteUsage(database.SettingsOf(id));
         try
         {

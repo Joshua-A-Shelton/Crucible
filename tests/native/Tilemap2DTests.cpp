@@ -1,6 +1,6 @@
-// Tilemap colliders (ADR 0108): a Collider2D of shape Tilemap collides with
-// the outlines baked into its entity's map (a TMAP file), read through the
-// asset source like a chain's points and read again on a reload.
+// Tilemap colliders (ADR 0108, 0112): a Collider2D of shape Tilemap collides
+// with the outlines baked into its entity's map layer (a TMAP file), read
+// through the asset source like a chain's points and read again on a reload.
 
 #include "Physics2DTestSupport.h"
 
@@ -24,25 +24,44 @@ struct MapAssets
     inline static std::map<uint8_t, std::vector<uint8_t>> files;
 
     // The TMAP file the C# importer would write: one cell (collision only
-    // matters here) and the outlines given.
-    static std::vector<uint8_t> file(const std::vector<std::vector<Vector2>>& outlines)
+    // matters here), and each layer's outlines, the first layer's id 0, the
+    // next 1, and so on.
+    static std::vector<uint8_t> file(const std::vector<std::vector<std::vector<Vector2>>>& layerOutlines)
     {
         binary::Writer* writer = binary::createWriter(assets::tilemapFileKind, assets::tilemapFileVersion);
         std::vector<assets::TilemapLoop> loops;
+        std::vector<assets::TilemapLayer> layers;
         std::vector<Vector2> points;
-        for (const std::vector<Vector2>& outline : outlines)
+        for (const std::vector<std::vector<Vector2>>& outlines : layerOutlines)
         {
-            loops.push_back({static_cast<uint32_t>(points.size()), static_cast<uint32_t>(outline.size())});
-            points.insert(points.end(), outline.begin(), outline.end());
+            const auto id = static_cast<uint32_t>(layers.size());
+            layers.push_back({id, 0, id == 0 ? 1u : 0u, static_cast<uint32_t>(loops.size()),
+                              static_cast<uint32_t>(outlines.size()), 0});
+            for (const std::vector<Vector2>& outline : outlines)
+            {
+                loops.push_back({static_cast<uint32_t>(points.size()), static_cast<uint32_t>(outline.size())});
+                points.insert(points.end(), outline.begin(), outline.end());
+            }
         }
-        const assets::TilemapInfo info{
-            {}, 16, 16, 1, 1, 1, static_cast<uint32_t>(loops.size()), static_cast<uint32_t>(points.size()), 0};
+        const assets::TilemapInfo info{16,
+                                       16,
+                                       1,
+                                       1,
+                                       1,
+                                       static_cast<uint32_t>(layers.size()),
+                                       1,
+                                       static_cast<uint32_t>(loops.size()),
+                                       static_cast<uint32_t>(points.size()),
+                                       0};
+        const assets::AssetId texture{};
         const assets::TilemapCell cell{0, 0, 0, 0, 0, 0};
         auto add = [&](const char (&tag)[5], const void* data, size_t size) {
             REQUIRE(binary::addSection(*writer, binary::tag(tag), 1, std::span(static_cast<const uint8_t*>(data), size),
                                        16));
         };
         add("INFO", &info, sizeof(info));
+        add("TXTR", &texture, sizeof(texture));
+        add("LAYR", layers.data(), layers.size() * sizeof(assets::TilemapLayer));
         add("CELL", &cell, sizeof(cell));
         if (!loops.empty())
         {
@@ -58,7 +77,12 @@ struct MapAssets
 
     static assets::AssetId add(uint8_t n, const std::vector<std::vector<Vector2>>& outlines)
     {
-        files[n] = file(outlines);
+        return addLayers(n, {outlines});
+    }
+
+    static assets::AssetId addLayers(uint8_t n, const std::vector<std::vector<std::vector<Vector2>>>& layers)
+    {
+        files[n] = file(layers);
         assets::installAssetSource({[](const assets::AssetId* id, void* context, assets::AssetDelivery deliver) {
             const auto found = files.find(id->bytes[0]);
             if (found == files.end() || id->bytes[1] != 0x7e)
@@ -76,7 +100,7 @@ struct MapAssets
 };
 
 // A static tilemap entity at the origin: its map, and a Tilemap collider.
-ecs::Entity addTilemap(Scene2D& scene, assets::AssetId map)
+ecs::Entity addTilemap(Scene2D& scene, assets::AssetId map, uint32_t layer = 0)
 {
     render2d::registerSprite();
     Collider2D collider{};
@@ -85,6 +109,7 @@ ecs::Entity addTilemap(Scene2D& scene, assets::AssetId map)
     const ecs::Entity entity = scene.add(collider, {0, 0});
     ecs::addComponent(*scene.world, entity, ecs::componentIdOf<render2d::Tilemap>);
     ecs::get<render2d::Tilemap>(*scene.world, entity)->map = map;
+    ecs::get<render2d::Tilemap>(*scene.world, entity)->layer = layer;
     return entity;
 }
 
@@ -155,4 +180,28 @@ TEST_CASE("A tilemap read again moves its collision")
     const ecs::Entity ball = scene.add(circle2D(0.25f), {-1, 1}, &body);
     scene.seconds(2);
     CHECK(scene.transform(ball).position.y == doctest::Approx(-1.75f).epsilon(0.02));
+}
+
+TEST_CASE("A Tilemap collider collides with its own layer's outlines only")
+{
+    Scene2D scene;
+    // Layer 0: the floor at y 0. Layer 1: a floor 2 m higher, on the right half only.
+    std::vector<Vector2> high = {{0, 1}, {10, 1}, {10, 2}, {0, 2}};
+    const assets::AssetId map = MapAssets::addLayers(5, {{floorWithBlock}, {high}});
+    addTilemap(scene, map, 0);
+    const RigidBody2D body = dynamic2D();
+    const ecs::Entity right = scene.add(circle2D(0.25f), {6, 4}, &body);
+    scene.seconds(2);
+    CHECK(scene.transform(right).position.y == doctest::Approx(0.25f).epsilon(0.02)); // layer 1 isn't there yet
+
+    const ecs::Entity upper = addTilemap(scene, map, 1);
+    const ecs::Entity dropped = scene.add(circle2D(0.25f), {7, 4}, &body);
+    scene.seconds(2);
+    CHECK(scene.transform(dropped).position.y == doctest::Approx(2.25f).epsilon(0.02));
+
+    // Moved to a layer the map hasn't: nothing to collide with there.
+    ecs::get<render2d::Tilemap>(*scene.world, upper)->layer = 7;
+    const ecs::Entity falls = scene.add(circle2D(0.25f), {8, 4}, &body);
+    scene.seconds(2);
+    CHECK(scene.transform(falls).position.y == doctest::Approx(0.25f).epsilon(0.02));
 }

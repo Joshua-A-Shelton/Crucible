@@ -1,7 +1,8 @@
 # 0108 — Tilemaps
 
 **Status:** Accepted (2026-11-19); M11 step 4 built. Editing amended
-the same day (see "Amended: editing redesigned"). The design's names were
+the same day (see "Amended: editing redesigned"), then superseded by ADR
+0112 (map mode, layers as child entities, several tilesets a map). The design's names were
 settled before building; those added while building are marked `*` until
 the owner settles them (docs/naming.md).
 

@@ -1457,6 +1457,37 @@ Names added while building, to settle after the owner's try (`*`):
 | `TileGlyph`*, `TileGlyphView`* | C# enum, class | The tools' symbols |
 | "Ground.crtileset"* | File name | A tileset made from a dropped texture, named after it, beside it |
 
+## Map mode and layers (2026-11-20, ADR 0112)
+
+Settled before building: ADR 0112 "Map mode and layers"; map mode; Edit
+Map and Done; the Layers panel (Add Layer, "Layer 1", Visible, Collides);
+the Palette panel; the tools Stamp (B), Rectangle (R), Fill (F), Eraser
+(E), Select (S); Collision (the Palette's) and Show Collision (over the
+map); the New Tileset dialog (Tile Width, Tile Height, Margin, Spacing,
+Create); "Layer 2 has no entity", Re-create, Delete Layer; `Tilemap.layer`;
+the `.crtilemap` keys `Tilesets`, `Layers` (`Name`, `Cells`), a cell's
+tileset; `MapMode`, `LayersPanel`, `PalettePanel`, `TilesetDialog`;
+docs/learning/map-editing.md. Replaced: the Tiles panel and its tabs, Paint
+(B), Erase, Fill (G), Pick (I), Use Another Map, Create > Tileset (now
+Create > Tileset…, opening New Tileset).
+
+Names added while building, to settle after the owner's try (`*`):
+
+| Name | What it names | What it is |
+|---|---|---|
+| `TilemapLayers`* (C++ `crucible::render2d`, C# `Crucible.Render2D`), its field `map` | Component | A map whose layers are the entity's children |
+| A layer's `Id`* in a `.crtilemap`; a cell `[x, y, tileset, tile, flips]`* | File format | The id a Tilemap names its layer by; the cell's tileset by its place |
+| TMAP version 2: sections `TXTR`*, `LAYR`*; `TilemapLayer`*; `TilemapCell.texture`* | C++ file layout | Textures, layers' ranges, a cell's texture |
+| `TileLayer`*, `TilemapData.Tilesets`*, `Layers`*, `Layer(id)`*, `NewLayerId`*; `TileCell.Set`* | C# types and members | The map file read |
+| `MapEditor`* (`Shell.Map`*), `MapTool`*, `BrushTile`*, `MapTileset`* | C# classes | Map mode's editing, its tools, a brush's tiles, a tileset as shown |
+| `Shell.EnterMapMode`*, `ExitMapMode`*, `InMapMode`*, `FrameMap`*, `MapRootOf`*, `LayerEntity`*, `AddLayer`*, `DeleteLayer`*, `RenameLayer`*, `MoveLayer`*, `SetLayerVisible`*, `SetLayerCollides`*, `MissingLayers`*, `RecreateLayerEntity`*, `AddTilesetToMap`*, `RemoveTilesetFromMap`*, `CreateTileset`*, `MakeSprite`*, `OpenTilesetDialog`* | C# functions | Map mode, layers, and tilesets |
+| Map mode's panel IDs `Palette`*, `Layers`* | Layout IDs | Saved layouts |
+| "Edit Grid…"*, "Remove from Map"*, "New Tileset…"* (the + tab's menu), "Image"* (the dialog's field), "Save"* (editing a grid) | UI text | The Palette's tabs and New Tileset |
+| "Convert to Layers"* | Undo step | A map from before layers given them |
+| "Add a tileset first: the + tab in the Palette"*, the Palette's and Layers' hints | Status and hint text | What to do next |
+| `TabButton`*, `LayerName`*, `RenameField`*, `TileGlyph.Stamp`*, `Eraser`*, `Select`* | C# classes, enum values | The panels' parts and the tools' symbols |
+| `ApplyImportSettings(…, openSheet)`* | C# parameter | Making a texture a sprite without opening its sheet |
+
 ## Tests in parallel (2026-11-19, ADR 0109)
 
 Names added while building, to settle after the owner's look (`*`):

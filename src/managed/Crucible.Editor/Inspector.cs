@@ -308,6 +308,13 @@ public sealed class ComponentSection : UIElement, IFieldOwner
                 _fields.Add(_editPoints);
             }
         }
+        // A map's (or a layer's) tiles, edited in map mode (ADR 0112).
+        if (saved.Type == typeof(Crucible.Render2D.TilemapLayers) || saved.Type == typeof(Crucible.Render2D.Tilemap))
+        {
+            Button editMap = new("Edit Map") { HorizontalAlignment = HorizontalAlignment.Start };
+            editMap.Clicked += _ => Shell.EnterMapMode(Entity);
+            _fields.Add(editMap);
+        }
         if (saved.Fields.Count == 0)
         {
             Label tag = new("No fields");

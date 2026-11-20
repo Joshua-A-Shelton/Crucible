@@ -326,6 +326,7 @@ PhysicsWorld& worldOf(const ecs::World& world)
 struct ChainData
 {
     assets::AssetId id{};
+    uint32_t layer = 0;          // a tilemap's layer, by its id (ADR 0112); 0 for a chain
     Vector<Vector2> points{tag}; // empty: unreadable (said once)
     bool loop = false;
     // A tilemap's outlines (ADR 0108): each loop's point count, in turn;
@@ -343,9 +344,10 @@ bool isNone(const assets::AssetId& id)
     return id == assets::AssetId{};
 }
 
-// A tilemap's outlines from its map file's bytes (ADR 0108), every loop
-// closed; false if they're wrong.
-bool readTilemapOutlines(std::span<const uint8_t> bytes, Vector<Vector2>& points, Vector<uint32_t>& loops)
+// A tilemap layer's outlines from its map file's bytes (ADR 0108, 0112),
+// every loop closed; none for a layer the map hasn't; false if they're wrong.
+bool readTilemapOutlines(std::span<const uint8_t> bytes, uint32_t layer, Vector<Vector2>& points,
+                         Vector<uint32_t>& loops)
 {
     Result<binary::File*> opened = binary::parseFile(bytes, assets::tilemapFileKind, assets::tilemapFileVersion);
     if (!opened)
@@ -367,19 +369,37 @@ bool readTilemapOutlines(std::span<const uint8_t> bytes, Vector<Vector2>& points
                                 std::span(reinterpret_cast<uint8_t*>(out.data()), out.size() * sizeof(T))));
     };
     Vector<assets::TilemapLoop> ranges(tag);
-    bool good = read("LOOP", ranges) && read("PNTS", points);
+    Vector<assets::TilemapLayer> layers(tag);
+    Vector<Vector2> all(tag);
+    bool good = read("LAYR", layers) && read("LOOP", ranges) && read("PNTS", all);
     binary::closeFile(file);
-    for (const assets::TilemapLoop& range : ranges)
+    points.clear();
+    for (const assets::TilemapLayer& found : layers)
     {
-        good = good && range.count >= 3 && uint64_t{range.first} + range.count <= points.size();
-        loops.pushBack(range.count);
+        if (found.id != layer)
+        {
+            continue;
+        }
+        good = good && uint64_t{found.firstLoop} + found.loopCount <= ranges.size();
+        for (uint32_t i = found.firstLoop; good && i < found.firstLoop + found.loopCount; ++i)
+        {
+            const assets::TilemapLoop& range = ranges[i];
+            good = range.count >= 3 && uint64_t{range.first} + range.count <= all.size();
+            for (uint32_t p = 0; good && p < range.count; ++p)
+            {
+                points.pushBack(all[range.first + p]);
+            }
+            loops.pushBack(range.count);
+        }
+        break;
     }
     return good;
 }
 
 // Its points from the chain file's bytes, or a tilemap's outlines from its
 // map file's; false if they're wrong. Any thread (a load's job, ADR 0099).
-bool readChainFrom(std::span<const uint8_t> bytes, Vector<Vector2>& points, bool& loop, Vector<uint32_t>& loops)
+bool readChainFrom(std::span<const uint8_t> bytes, uint32_t layer, Vector<Vector2>& points, bool& loop,
+                   Vector<uint32_t>& loops)
 {
     points.clear();
     loops.clear();
@@ -387,7 +407,7 @@ bool readChainFrom(std::span<const uint8_t> bytes, Vector<Vector2>& points, bool
     if (!opened)
     {
         loop = true;
-        if (!readTilemapOutlines(bytes, points, loops))
+        if (!readTilemapOutlines(bytes, layer, points, loops))
         {
             points.clear();
             loops.clear();
@@ -437,21 +457,23 @@ bool readChain(ChainData& data)
     {
         return false;
     }
-    return readChainFrom(bytes.span(), data.points, data.loop, data.loops);
+    return readChainFrom(bytes.span(), data.layer, data.points, data.loop, data.loops);
 }
 
 // A chain read on a job into the entry waiting for it (ADR 0099).
 struct ChainLoad
 {
     ChainData* data = nullptr;
+    uint32_t layer = 0;
     Vector<Vector2> points{tag};
     Vector<uint32_t> loops{tag};
     bool loop = false;
     bool good = false;
 };
 
-// A chain asset's points, read if they haven't been; null for none.
-const ChainData* chainOf(const assets::AssetId& id)
+// A chain asset's points (or a tilemap layer's outlines), read if they
+// haven't been; null for none.
+const ChainData* chainOf(const assets::AssetId& id, uint32_t layer)
 {
     if (isNone(id))
     {
@@ -459,24 +481,26 @@ const ChainData* chainOf(const assets::AssetId& id)
     }
     for (const ChainData* data : chainData)
     {
-        if (data->id == id)
+        if (data->id == id && data->layer == layer)
         {
             return data;
         }
     }
     ChainData* data = create<ChainData>(tag);
     data->id = id;
+    data->layer = layer;
     data->loading = true;
     chainData.pushBack(data);
     auto* load = create<ChainLoad>(tag);
     load->data = data;
+    load->layer = layer;
     assets::startLoad({
         .id = id,
         .context = load,
         .prepare =
             [](void* context, std::span<const uint8_t> bytes, bool found) {
                 auto& self = *static_cast<ChainLoad*>(context);
-                self.good = found && readChainFrom(bytes, self.points, self.loop, self.loops);
+                self.good = found && readChainFrom(bytes, self.layer, self.points, self.loop, self.loops);
             },
         .publish =
             [](void* context) {
@@ -505,7 +529,9 @@ const ChainData* chainOf(const assets::AssetId& id)
 }
 
 // The collider as the physics builds it: a Tilemap one's chain is its
-// entity's map (ADR 0108), whose outlines are read as a chain's points.
+// entity's map (ADR 0108), whose layer's outlines are read as a chain's
+// points. The layer rides in pointCount, which a Tilemap collider has no
+// use for (ADR 0112), so a changed layer is a changed collider.
 Collider2D resolvedCollider(const ecs::World& world, ecs::Entity entity, const Collider2D& collider)
 {
     Collider2D resolved = collider;
@@ -515,8 +541,16 @@ Collider2D resolvedCollider(const ecs::World& world, ecs::Entity entity, const C
                                                ? ecs::read<render2d::Tilemap>(world, entity)
                                                : nullptr;
         resolved.chain = tilemap != nullptr ? tilemap->map : assets::AssetId{};
+        resolved.pointCount = tilemap != nullptr ? static_cast<int32_t>(tilemap->layer) : 0;
     }
     return resolved;
+}
+
+// A resolved Chain or Tilemap collider's points.
+const ChainData* chainOf(const Collider2D& resolved)
+{
+    return chainOf(resolved.chain,
+                   resolved.shape == ShapeKind2D::Tilemap ? static_cast<uint32_t>(resolved.pointCount) : 0u);
 }
 
 bool chainShaped(const Collider2D& collider)
@@ -532,7 +566,7 @@ bool chainLoading(const Collider2D& collider)
     {
         return false;
     }
-    const ChainData* data = chainOf(collider.chain);
+    const ChainData* data = chainOf(collider);
     return data != nullptr && data->loading;
 }
 
@@ -666,7 +700,7 @@ void buildShape(Body& body, ecs::Entity entity, const Collider2D& collider, Vect
     case ShapeKind2D::Chain:
     case ShapeKind2D::Tilemap:
     {
-        const ChainData* data = chainOf(collider.chain);
+        const ChainData* data = chainOf(collider);
         body.chainVersion = data != nullptr ? data->version : 0;
         if (data == nullptr || data->loading || data->points.empty())
         {
@@ -768,11 +802,11 @@ void syncBody(ecs::World& world, PhysicsWorld& physics, ecs::Entity entity, floa
         b2Body_SetType(body->body, typeOf(kind));
         body->kind = kind;
     }
-    if (!waiting && (!same(collider, body->collider) ||
-                     std::fabs(pose.scale.x - body->scale.x) + std::fabs(pose.scale.y - body->scale.y) > 1e-5f ||
-                     layers != body->layers || mask != body->mask || kindChanged ||
-                     (chainShaped(collider) && chainOf(collider.chain) != nullptr &&
-                      chainOf(collider.chain)->version != body->chainVersion)))
+    if (!waiting &&
+        (!same(collider, body->collider) ||
+         std::fabs(pose.scale.x - body->scale.x) + std::fabs(pose.scale.y - body->scale.y) > 1e-5f ||
+         layers != body->layers || mask != body->mask || kindChanged ||
+         (chainShaped(collider) && chainOf(collider) != nullptr && chainOf(collider)->version != body->chainVersion)))
     {
         buildShape(*body, entity, collider, pose.scale, layers, mask);
         applyMass(*body, rigid != nullptr ? rigid->mass : 0);
@@ -1830,7 +1864,7 @@ void outline(const Collider2D& collider, const Matrix4x4& toWorld, Vector4 color
     }
     case ShapeKind2D::Chain:
     case ShapeKind2D::Tilemap:
-        if (const ChainData* data = chainOf(collider.chain); data != nullptr && data->points.size() >= 2)
+        if (const ChainData* data = chainOf(collider); data != nullptr && data->points.size() >= 2)
         {
             // A chain's points, or each of a tilemap's outlines.
             const uint32_t whole = static_cast<uint32_t>(data->points.size());
@@ -2002,18 +2036,19 @@ void releasePhysics2D(const ecs::World& world)
 
 bool reloadChainAsset(assets::AssetId chain)
 {
+    bool loaded = false;
     for (ChainData* data : chainData)
     {
-        if (data->id == chain)
+        if (data->id == chain) // a chain, or each of a tilemap's layers in use
         {
             if (!readChain(*data))
             {
                 log::warning("a Chain collider's chain can't be read (reimport it)");
             }
-            return true;
+            loaded = true;
         }
     }
-    return false;
+    return loaded;
 }
 
 void drawColliders2D(const ecs::World& world, Vector4 color)

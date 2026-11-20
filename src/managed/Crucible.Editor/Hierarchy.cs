@@ -213,6 +213,11 @@ public sealed class HierarchyPanel : EditorPanel
         Menu twoD = new();
         twoD.Add("Tilemap", () => _shell.CreateTilemapEntity(entity));
         menu.Add(new MenuItem("2D") { Submenu = twoD });
+        if (node is not null && _shell.HasWorld && _shell.World.IsAlive(entity) &&
+            (_shell.MapRootOf(entity) is not null || _shell.World.Has(entity, Crucible.Ecs.Components.Of<Crucible.Render2D.Tilemap>())))
+        {
+            menu.Add("Edit Map", () => _shell.EnterMapMode(entity));
+        }
         if (node is not null)
         {
             menu.AddSeparator();
