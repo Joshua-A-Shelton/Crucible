@@ -75,6 +75,12 @@ Decided by the owner (2026-11-20):
 Auto-tiling (terrain brushes, resolved while painting into ordinary
 tiles) is its own step after the owner's try.
 
+**Leaving, made plain** (2026-11-20, after the owner's try didn't find
+Done): the Palette's top bar names map mode with its own **Done** ("Map
+Mode — Done (or Escape) to leave"*), the View menu has **Leave Map
+Mode*** (on only in map mode), and leaving puts the viewport's camera
+back where it was before map mode.
+
 ## How it works
 
 - **The file** (`.crtilemap`): `Tilesets`* (IDs), `Layers`* bottom first,

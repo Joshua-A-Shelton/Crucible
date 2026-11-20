@@ -1487,6 +1487,7 @@ Names added while building, to settle after the owner's try (`*`):
 | "Add a tileset first: the + tab in the Palette"*, the Palette's and Layers' hints | Status and hint text | What to do next |
 | `TabButton`*, `LayerName`*, `RenameField`*, `TileGlyph.Stamp`*, `Eraser`*, `Select`* | C# classes, enum values | The panels' parts and the tools' symbols |
 | `ApplyImportSettings(…, openSheet)`* | C# parameter | Making a texture a sprite without opening its sheet |
+| View > "Leave Map Mode"* (command `View.LeaveMapMode`*), the Palette's "Map Mode — Done (or Escape) to leave"* | Menu item, UI text | Leaving map mode where it's seen |
 
 ## 2D lighting (2026-11-20, ADR 0113)
 

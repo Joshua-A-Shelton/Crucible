@@ -221,8 +221,15 @@ public class ListBox : UIElement
             Array.Fill(_heights, float.NaN);
             _measuredSum = 0;
             _measuredCount = 0;
-            foreach (ListItem row in Realized.Values)
+            foreach ((int index, ListItem row) in Realized.ToArray())
             {
+                if (index >= list._itemCount)
+                {
+                    // Past the new end, focused or not: its item is gone.
+                    Realized.Remove(index);
+                    RemoveChild(row);
+                    _free.Push(row);
+                }
                 row.Index = -1; // bound again when next shown
             }
             InvalidateMeasure();
@@ -367,6 +374,10 @@ public class ListBox : UIElement
         {
             foreach ((int index, ListItem row) in Realized)
             {
+                if (index >= _heights.Length)
+                {
+                    continue; // let go at the next measure
+                }
                 (float top, float height) = Span(index);
                 row.Arrange(new RectangleF(content.X, content.Y + top, content.Width, height));
             }

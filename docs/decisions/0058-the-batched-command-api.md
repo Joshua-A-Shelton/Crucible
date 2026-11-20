@@ -148,3 +148,16 @@ ViewConstants' slots).
   - `launcher.jit.render-steps`: a C# game's step drawing through every
     command, a deliberate exception failing one frame, the frame read
     back and checked.
+
+## Amended: a step that throws is left out (2026-11-20)
+
+The owner's editor hung after its UI step threw (a list's bug): the frame
+was given up after the window's image was acquired, so the image was
+never presented and the next acquire waited forever. A C# step's passes
+reach the graph only once its AddPasses returns, so one that throws has
+added nothing: the frame now goes on without it (`skipThrownStep`*), is
+submitted and shown, and the failure is reported after it as before (the
+caller rethrows it). A step that added passes which then fail their
+checks still fails its frame. `launcher.jit.render-steps` checks the
+thrown frame is submitted without the step; it was also run windowed,
+the window's frames going on.

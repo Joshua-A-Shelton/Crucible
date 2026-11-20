@@ -50,6 +50,7 @@ struct FrameState
     Vector<Entry> entries{MemoryTag::Render};
     std::string_view step;
     bool failed = false;
+    bool stepThrew = false;      // a C# step threw and was left out; the frame went on
     uint32_t descriptorBase = 0; // the surface's reserved resource-heap slots
     const ShadowFrame* shadows = nullptr;
     const DrawState* drawState = nullptr;
@@ -272,6 +273,10 @@ struct FrameBuilder
             state.step = schedule.stepName(i);
             step.addPasses(context, step.userData);
         }
+        if (inputs.stepThrew != nullptr)
+        {
+            *inputs.stepThrew = state.stepThrew;
+        }
         return state.failed ? Result<void>(Status::InvalidData) : Result<void>();
     }
 };
@@ -309,6 +314,11 @@ uint32_t frameSlotOf(const RenderStepContext& context)
 void failFrame(RenderStepContext& context)
 {
     FrameBuilder::state(context).failed = true;
+}
+
+void skipThrownStep(RenderStepContext& context)
+{
+    FrameBuilder::state(context).stepThrew = true;
 }
 
 Result<void> addStepPasses(const FrameInputs& inputs)

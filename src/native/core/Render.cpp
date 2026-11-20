@@ -349,8 +349,9 @@ struct Recording
 // frame semaphore after all of it, for pacing and GPU timing.
 Result<void> renderWithGraph(Surface& surface, slag::Texture* texture, slag::AttachmentView* view,
                              const slag::rendergraph::ImportedTextureDesc& import, ecs::World* world,
-                             uint32_t lastRunVersion, const float color[4])
+                             uint32_t lastRunVersion, const float color[4], bool& stepThrew)
 {
+    stepThrew = false;
     slag::rendergraph::RenderGraph& graph = *surface.graph;
     collectAssets();
     text::updateGlyphCache();
@@ -391,11 +392,26 @@ Result<void> renderWithGraph(Surface& surface, slag::Texture* texture, slag::Att
     }
     // A destroyed schedule leaves its surfaces on the default.
     const RenderSchedule* schedule = scheduleById(surface.schedule);
-    if (Result<void> added = addStepPasses(
-            {graph, *renderer.device, surface.width, surface.height, surface.submitted + 1, color, backbuffer,
-             graph.importBuffer(viewBuffer), graph.importBuffer(lightBuffer(*surface.lights, frameSlot)), constants,
-             draws.value(), world, drawDescriptorBase(*surface.draws), shadows, *surface.draws, *surface.managed,
-             frameSlot, schedule != nullptr ? *schedule : renderSchedule(), handleOf(&surface).value});
+    if (Result<void> added = addStepPasses({graph,
+                                            *renderer.device,
+                                            surface.width,
+                                            surface.height,
+                                            surface.submitted + 1,
+                                            color,
+                                            backbuffer,
+                                            graph.importBuffer(viewBuffer),
+                                            graph.importBuffer(lightBuffer(*surface.lights, frameSlot)),
+                                            constants,
+                                            draws.value(),
+                                            world,
+                                            drawDescriptorBase(*surface.draws),
+                                            shadows,
+                                            *surface.draws,
+                                            *surface.managed,
+                                            frameSlot,
+                                            schedule != nullptr ? *schedule : renderSchedule(),
+                                            handleOf(&surface).value,
+                                            &stepThrew});
         !added)
     {
         return added;
@@ -857,9 +873,10 @@ Result<void> renderFrame(SurfaceHandle surface, ecs::World* world, uint32_t last
         const slag::TextureLayout initial = target.offscreenRendered ? target.resting : slag::TextureLayout::Undefined;
         const slag::TextureLayout final =
             target.sampled.generation != 0 ? slag::TextureLayout::ShaderRead : slag::TextureLayout::RenderTarget;
-        if (Result<void> rendered =
-                renderWithGraph(target, target.offscreenTexture, target.offscreenView,
-                                {.initialLayout = initial, .finalLayout = final}, world, lastRunVersion, color);
+        bool stepThrew = false;
+        if (Result<void> rendered = renderWithGraph(target, target.offscreenTexture, target.offscreenView,
+                                                    {.initialLayout = initial, .finalLayout = final}, world,
+                                                    lastRunVersion, color, stepThrew);
             !rendered)
         {
             return rendered;
@@ -867,7 +884,7 @@ Result<void> renderFrame(SurfaceHandle surface, ecs::World* world, uint32_t last
         target.offscreenRendered = true;
         target.resting = final;
         target.presentedLastFrame = true; // pacing waits behind it, as behind a present
-        return {};
+        return stepThrew ? Result<void>(Status::InvalidData) : Result<void>();
     }
 
     const platform::WindowSize size = platform::windowPixelSize(target.window);
@@ -913,16 +930,20 @@ Result<void> renderFrame(SurfaceHandle surface, ecs::World* world, uint32_t last
     // The previous contents are discarded; the graph's first submit waits for
     // the acquired image.
     const uint32_t image = acquired.value();
+    bool stepThrew = false;
     if (Result<void> rendered =
             renderWithGraph(target, target.swapchain->texture(image), target.swapchain->srgbAttachmentView(image),
                             {.initialLayout = slag::TextureLayout::Undefined,
                              .finalLayout = slag::TextureLayout::Present,
                              .swapchain = target.swapchain},
-                            world, lastRunVersion, color);
+                            world, lastRunVersion, color, stepThrew);
         !rendered)
     {
         return rendered;
     }
+    // A C# step that threw was left out: the frame is shown, then the
+    // failure reported (the caller rethrows it).
+    const Result<void> threw = stepThrew ? Result<void>(Status::InvalidData) : Result<void>();
 
     slag::Result<void> presented;
     {
@@ -933,15 +954,15 @@ Result<void> renderFrame(SurfaceHandle surface, ecs::World* world, uint32_t last
     {
     case slag::Status::Ok:
         target.presentedLastFrame = true;
-        return {};
+        return threw;
     case slag::Status::Suboptimal:
         target.presentedLastFrame = true;
         target.needsResize = true;
-        return {};
+        return threw;
     case slag::Status::OutOfDate:
         target.needsResize = true;
         target.presentedLastFrame = false;
-        return {};
+        return threw;
     case slag::Status::Occluded:
         return skip(target);
     default:

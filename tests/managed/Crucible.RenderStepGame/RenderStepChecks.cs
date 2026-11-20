@@ -134,12 +134,14 @@ public sealed class RenderStepChecks : GameSystem
         }
         else if (_frame == 4)
         {
-            Check(Render.Api.FramesSubmitted(context.Surface) == _submittedBeforeThrow,
-                "the frame the step threw in isn't submitted");
+            // The step that threw is left out, and the frame still shown: a
+            // window's image never kept back (ADR 0058, amended).
+            Check(Render.Api.FramesSubmitted(context.Surface) == _submittedBeforeThrow + 1,
+                "the frame the step threw in is submitted without it");
         }
         else if (_frame == 5)
         {
-            Check(Render.Api.FramesSubmitted(context.Surface) == _submittedBeforeThrow + 1, "the next frame is");
+            Check(Render.Api.FramesSubmitted(context.Surface) == _submittedBeforeThrow + 2, "and so is the next");
         }
         else if (_frame == 6)
         {

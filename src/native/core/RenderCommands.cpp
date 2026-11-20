@@ -652,6 +652,14 @@ void addManagedPasses(RenderStepContext& context, void* userData)
     frame.firstPass = frame.state->passCount;
     frame.view = context.buffer(viewKey());
     const int32_t result = callStep(stepId(userData), StepCall::AddPasses, &frame);
+    if (result != 0 && frame.state->passCount == frame.firstPass)
+    {
+        // It threw before committing anything: the frame goes on without it,
+        // so a window's image is still shown (a frame given up after
+        // acquiring it would never give it back).
+        skipThrownStep(context);
+        return;
+    }
     bool good = result == 0;
     for (uint32_t i = frame.firstPass; good && i < frame.state->passCount; ++i)
     {

@@ -111,6 +111,11 @@ internal sealed class TilemapChecks : GameSystem
         AssetEntry ground = database.Find("Ground.tga")!, odd = database.Find("Odd.tga")!;
         Check(database.ImportedFile(odd.Id) is null, "the odd sheet doesn't import as it's set (the bug a tileset of it hit)");
 
+        // The camera before map mode, to see it come back.
+        (float Pitch, float Distance) cameraBefore = Panel<ViewportPanel>(shell) is { } before
+            ? (before.View.Camera.Pitch, before.View.Camera.Distance)
+            : default;
+
         // Create > 2D > Tilemap: the map entity, its layer, its file, map mode.
         Entity root = shell.CreateTilemapEntity(Entity.Null);
         World world = shell.World;
@@ -344,11 +349,16 @@ internal sealed class TilemapChecks : GameSystem
             "Delete deletes the layer and its entity");
         Check(!shell.DeleteLayer(0), "the last layer stays");
 
-        // Done: the layout back; map mode again from the layer's entity.
-        shell.ExitMapMode();
+        // Leaving (View > Leave Map Mode, as Done does): the layout and the camera back.
+        Check(shell.Commands.Find("View.LeaveMapMode")!.CanExecute, "View > Leave Map Mode is on in map mode");
+        shell.Commands.Find("View.LeaveMapMode")!.Execute();
         yield return 2;
         Check(!shell.InMapMode && Panel<HierarchyPanel>(shell) is not null && Panel<PalettePanel>(shell) is null,
-            "Done leaves map mode, the layout before it back");
+            "leaving map mode brings the layout before it back");
+        Check(Panel<ViewportPanel>(shell) is { } normalView && normalView.View.Camera.Pitch == cameraBefore.Pitch &&
+              normalView.View.Camera.Distance == cameraBefore.Distance,
+            "and the viewport's camera as it was");
+        Check(!shell.Commands.Find("View.LeaveMapMode")!.CanExecute, "Leave Map Mode is off outside it");
         Check(shell.EnterMapMode(layer1) && editor.Root.Value == root.Value, "Edit Map on a layer opens its map");
         shell.ExitMapMode();
         yield return 2;

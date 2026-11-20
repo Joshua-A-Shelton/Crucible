@@ -630,6 +630,7 @@ internal sealed partial class Shell
         {
             IsChecked = () => ShowsColliders,
         });
+        Commands.Add(new Command("View.LeaveMapMode", "Leave Map Mode", ExitMapMode, () => InMapMode));
         Commands.Add(new Command("View.Queries", "Queries", () => ShowsQueries = !ShowsQueries)
         {
             IsChecked = () => ShowsQueries,
@@ -691,6 +692,8 @@ internal sealed partial class Shell
         viewMenu.Add(Commands.Find("View.Skeletons")!);
         viewMenu.Add(Commands.Find("View.Colliders")!);
         viewMenu.Add(Commands.Find("View.Queries")!);
+        viewMenu.AddSeparator();
+        viewMenu.Add(Commands.Find("View.LeaveMapMode")!);
 
         Menu build = Main.MenuBar.Add("Build");
         build.Add(Commands.Find("Build.Settings")!);

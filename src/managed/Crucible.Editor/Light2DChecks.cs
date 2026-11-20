@@ -13,7 +13,8 @@ namespace Crucible.Editor;
 /// launcher.jit.lights-2d: run with the Walker's project and <c>--game-arg
 /// check-lights-2d=&lt;folder&gt;</c>. On a copy of the project: the
 /// hierarchy's Create > 2D makes a Point Light, a Spot Light, and an Ambient
-/// Light with their defaults, undoably; a scene with them saves and opens
+/// Light with their defaults, undoably, and deleted (the hierarchy shrinking
+/// under its focused row, which once crashed the editor); a scene with them saves and opens
 /// again with them; a selected spot's cone is drawn over the viewport (the
 /// window saved as lights-2d.png); a sorting layer marked Unlit reaches the
 /// renderer.
@@ -88,6 +89,36 @@ internal sealed class Light2DChecks : GameSystem
         Entity spot = shell.CreateLight2D(Entity.Null, Light2DKind.Spot);
         Check(world.Read<SpotLight2D>(spot) is { Range: 3 } s && s.OuterConeAngle > s.InnerConeAngle && s.InnerConeAngle > 0,
             "a Spot Light has a cone, full inside its inner angle");
+        // Deleted (as the Delete command does), its frames drawn, and back.
+        point = SceneIds.Find(world, pointId); // made again by redo
+        shell.Selection.Selected = point;
+        yield return 2;
+        shell.Delete(point, deleteMaps: null);
+        yield return 3;
+        Check(SceneIds.Find(world, pointId).IsNull, "deleting a light deletes it");
+        shell.Undo();
+        yield return 3;
+        Check(!SceneIds.Find(world, pointId).IsNull, "undo brings it back");
+        point = SceneIds.Find(world, pointId);
+
+        // The Delete command; a light made under a map, deleted in map mode.
+        shell.Selection.Selected = point;
+        yield return 2;
+        shell.Commands.Find("Edit.Delete")!.Execute();
+        yield return 3;
+        Check(SceneIds.Find(world, pointId).IsNull, "the Delete command deletes a selected light");
+        shell.Undo();
+        yield return 3;
+        Entity map = shell.CreateTilemapEntity(Entity.Null);
+        yield return 3;
+        Entity under = shell.CreateLight2D(map, Light2DKind.Point);
+        yield return 3;
+        shell.Commands.Find("Edit.Delete")!.Execute();
+        yield return 3;
+        Check(shell.InMapMode && !world.IsAlive(under), "a light under a map deletes in map mode");
+        shell.ExitMapMode();
+        yield return 3;
+        point = SceneIds.Find(world, pointId);
         Entity ambient = shell.CreateLight2D(Entity.Null, Light2DKind.Ambient);
         Check(world.Read<AmbientLight2D>(ambient) is { Intensity: 1 } a && a.Color.Z > a.Color.X,
             "an Ambient Light starts as a dim blue night");

@@ -22,6 +22,9 @@ internal sealed partial class Shell
 {
     private Dialog? _deleteMaps;
     private JsonObject? _normalLayout; // the layout map mode replaced
+    private (Vector3 Pivot, float Distance, float Yaw, float Pitch)? _normalCamera; // and the viewport's camera
+
+    private static (Vector3, float, float, float) CameraOf(EditorCamera camera) => (camera.Pivot, camera.Distance, camera.Yaw, camera.Pitch);
     private MapEditor? _mapEditor;
 
     /// <summary>Map mode's editing (ADR 0112).</summary>
@@ -223,6 +226,7 @@ internal sealed partial class Shell
         }
         if (!InMapMode)
         {
+            _normalCamera = _open.GetValueOrDefault("Viewport") is ViewportPanel before ? CameraOf(before.View.Camera) : null;
             _normalLayout = SaveLayout();
             RestoreLayout(MapLayout());
         }
@@ -241,6 +245,13 @@ internal sealed partial class Shell
         Map.Close();
         _normalLayout = null;
         RestoreLayout(normal);
+        // The viewport looking where it did before map mode.
+        if (_normalCamera is { } camera && _open.GetValueOrDefault("Viewport") is ViewportPanel viewport)
+        {
+            (viewport.View.Camera.Pivot, viewport.View.Camera.Distance, viewport.View.Camera.Yaw, viewport.View.Camera.Pitch) = camera;
+        }
+        _normalCamera = null;
+        Status("Left map mode");
         MapModeChanged?.Invoke();
     }
 

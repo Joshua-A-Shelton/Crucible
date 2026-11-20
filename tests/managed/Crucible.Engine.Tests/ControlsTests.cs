@@ -268,6 +268,24 @@ public class ControlsTests
         await Assert.That(list.ScrollView.Extent.Y).IsNotEqualTo(extent);
     }
 
+    // The hierarchy's crash on deleting the last entity: its row was focused,
+    // and a focused row was kept past the list's new end.
+    [Test]
+    public async Task ListBoxesLetGoOfRowsPastTheirEndWhenTheyShrink()
+    {
+        using Rig rig = new();
+        ListBox list = rig.Add(Numbers(10));
+        list.FocusItem(9);
+        rig.Layout();
+        list.ItemCount = 3;
+        rig.Layout();
+        rig.Layout();
+        await Assert.That(list.RealizedCount).IsLessThanOrEqualTo(3);
+        list.ItemCount = 0;
+        rig.Layout();
+        await Assert.That(list.RealizedCount).IsEqualTo(0);
+    }
+
     [Test]
     public async Task ListBoxesNavigateRowByRowAndSelectOnActivate()
     {

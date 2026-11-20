@@ -143,6 +143,7 @@ struct FrameInputs
     uint32_t frameSlot;
     const RenderSchedule& schedule; // the surface's (ADR 0066)
     uint32_t surface;               // its handle's value
+    bool* stepThrew = nullptr;      // set if a C# step threw and was left out
 };
 
 // Every schedule's steps, prepared when the renderer starts and released when
@@ -167,6 +168,9 @@ const DrawState& frameDrawState(const RenderStepContext& context);
 ManagedState& managedState(const RenderStepContext& context);
 uint32_t frameSlotOf(const RenderStepContext& context);
 void failFrame(RenderStepContext& context);
+// A C# step that threw before adding any passes: left out of the frame, which
+// goes on and is shown, the failure reported after it (ADR 0058).
+void skipThrownStep(RenderStepContext& context);
 
 // RenderCommands.cpp (ADR 0058): a surface's state for C# steps (their
 // passes' commands and descriptors, and the frame data's buffers), begun
