@@ -202,4 +202,31 @@ public class TilemapImporterTests
         await Assert.That(result.Outcome).IsEqualTo(ImportOutcome.Failed);
         await Assert.That(result.Error).Contains("the cell at (5, 5) is tile 7, but the tileset has 2");
     }
+
+    [Test]
+    public async Task ANewMapWithoutATilesetImportsEmpty()
+    {
+        using Scratch scratch = new();
+        (AssetDatabase database, _, _) = Project(scratch);
+        TilemapData fresh = new() { Id = AssetId.New() };
+        File.WriteAllText(scratch.PathOf("Fresh.crtilemap"), TilemapImporter.Format(fresh));
+        database.Refresh();
+        ImportResult result = database.ImportAll().Single(r => r.Id == fresh.Id);
+        await Assert.That(result.Outcome).IsEqualTo(ImportOutcome.Imported).Because(result.Error ?? "");
+        using ImportedFile file = ImportedFile.Open(database.ImportedFile(fresh.Id)!, TilemapImporter.Kind, TilemapImporter.KindVersion);
+        await Assert.That(MemoryMarshal.Read<TilemapInfo>(file.Read(file.Find(Tag.Of("INFO")))).CellCount).IsEqualTo(0u);
+    }
+
+    [Test]
+    public async Task AMapWithCellsButNoTilesetFails()
+    {
+        using Scratch scratch = new();
+        (AssetDatabase database, _, _) = Project(scratch);
+        TilemapData orphan = new() { Id = AssetId.New() };
+        orphan.Cells[(0, 0)] = new TileCell(0, 0, 0, 0);
+        File.WriteAllText(scratch.PathOf("Orphan.crtilemap"), TilemapImporter.Format(orphan));
+        database.Refresh();
+        ImportResult result = database.ImportAll().Single(r => r.Id == orphan.Id);
+        await Assert.That(result.Outcome).IsEqualTo(ImportOutcome.Failed);
+    }
 }

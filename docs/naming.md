@@ -1430,12 +1430,30 @@ Names added while building, to settle after the owner's try (`*`):
 | `render2d::reloadTilemap`* | C++ function | Forgets a map read before, after painting |
 | `TilesetData`*, `TilemapData`*, `TileCell`*; `TilesetImporter.Read`*, `Format`*; `TilemapImporter.Read`*, `Format`*, `Outlines`* | C# types and functions | Reading, writing, and merging collision |
 | `ImportContext.PathOf`* | C# function | Another asset's path, to read it as a dependency |
-| `TilesetEditorPanel`*, `TilePalettePanel`*, panel IDs `TilesetEditor`*, `TilePalette`* | C# classes, layout IDs | The two panels |
-| `TileGridView`* | C# class | The zoomable tile grid both panels show |
-| `TilePainter`*, `TileTool`*, `TileEdit`* | C# classes | Edit Tiles, its tools, and a stroke's undo step |
-| "Flip X"*, "Flip Y"* | Tile Palette toggles | Painting tiles mirrored |
-| "Open"* (on a tileset) | Asset browser menu item | Opens the Tileset Editor |
-| `Shell.CreateTileset`*, `CreateTilemap`*, `ShowTilesetEditor`*, `ShowTilePalette`*, `SetTileTool`* | C# functions | Making the files and showing the panels |
+| `TileGridView`* | C# class | The zoomable tile grid the Tiles panel shows |
+| `TilePainter`*, `TileTool`*, `TileEdit`* | C# classes | Painting the selected map, its tools, and a stroke's undo step |
+| `Shell.CreateTileset`*, `SetTileTool`* | C# functions | Create > Tileset, and choosing a painting tool |
 | `TilemapCache`*, `TileRow`*, `TileRun`*, `gatherTilemaps`*, `resolvedCollider`*, `makeChain`* | Internal C++ | Drawing and colliding with maps |
 | TilemapImporterTests*, Tilemap2DTests.cpp*, TilemapChecks*, CTest `launcher.jit.tilemaps`* | Tests | C#, native, and the editor checking itself |
+
+Redesigned editing (2026-11-19, after the owner's try): settled before
+building: Create > 2D > Tilemap; the Tiles panel and its tabs Paint and
+Collision; the tools Paint (B), Rectangle (R), Erase (E), Fill (G), Pick
+(I); Flip X and Flip Y; the presets Full, Half, Slope, Shallow Low, Shallow
+High, Custom, Clear; Use Another Map; a new map named after its entity
+("Tilemap.crtilemap"), in a folder beside the scene ("Level Tilemaps",
+"Tilemaps" for an unsaved scene). Replaced: the Tileset Editor, the Tile
+Palette, Edit Tiles (T), Create > Tilemap, and their classes.
+
+Names added while building, to settle after the owner's try (`*`):
+
+| Name | What it names | What it is |
+|---|---|---|
+| `TilesPanel`*, panel ID `Tiles`* | C# class, layout ID | The Tiles panel |
+| `Shell.CreateTilemapEntity`*, `TilemapFolder`*, `IsMapShared`*, `CreateTilesetFor`*, `ShowTiles`*, `ShowTileset`*, `EditTileset`*, `SetMapTileset`*, `UseMap`* | C# functions | Making tilemaps and their files, and the panel's edits |
+| `Shell.Delete(entity, deleteMaps)`* | C# function | Deleting with its maps, or asking ("Also delete Ground.crtilemap?": Delete File*, Keep File*, Cancel) |
+| `TilePreset`* (`Full`, `Half`, `Slope`, `ShallowLow`, `ShallowHigh`) | C# enum | The Collision tab's shapes |
+| `TilePainter.IsPainting`* | C# property | Painting on, the viewport's left button using the tool |
+| `TileGlyph`*, `TileGlyphView`* | C# enum, class | The tools' symbols |
+| "Ground.crtileset"* | File name | A tileset made from a dropped texture, named after it, beside it |
 

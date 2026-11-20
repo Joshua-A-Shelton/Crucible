@@ -1,8 +1,9 @@
 # 0108 — Tilemaps
 
-**Status:** Accepted (2026-11-19); M11 step 4 built. The design's names
-were settled before building; those added while building are marked `*`
-until the owner settles them (docs/naming.md).
+**Status:** Accepted (2026-11-19); M11 step 4 built. Editing amended
+the same day (see "Amended: editing redesigned"). The design's names were
+settled before building; those added while building are marked `*` until
+the owner settles them (docs/naming.md).
 
 ## Context
 
@@ -41,9 +42,9 @@ Decided by the owner (2026-11-19):
 4. **Collision** through a static `RigidBody2D` and a `Collider2D` of the
    new shape `Tilemap`, built from the map on its entity.
 5. **Flips** on X and Y per cell, mirroring picture and shapes together.
-6. **Editing:** the Tileset Editor (Select, Draw Shape; Full, Clear), the
-   Tile Palette (Paint, Erase, Fill, Pick), Edit Tiles (T) in the scene
-   view, and "New Tileset" and "New Tilemap" from the asset browser.
+6. **Editing:** Create > 2D > Tilemap and the Tiles panel (as amended
+   below; first built as the Tileset Editor, the Tile Palette, Edit Tiles
+   (T), and "New Tilemap" in the asset browser).
 
 ## Why
 
@@ -88,13 +89,10 @@ turns would mostly matter once shapes are more than squares, and wait.
   row is one, sorted by its bottom. Each frame the items are placed by the
   entity's transform (snapped to the pixel camera's grid) and copied into
   the instance buffer; `render2d::reloadTilemap` drops a map read before.
-- **The editor:** the Tileset Editor* and Tile Palette* panels share a
-  zoomable grid view (`TileGridView`*). Painting (`TilePainter`*) writes
-  the map file and imports it as each cell changes, so the map and its
-  collision follow the brush; a stroke is one undo step (`TileEdit`*).
-  Fill reaches the cells joined to the one pressed that share its tile,
-  an empty area only within the painted bounds. A flipped brush mirrors
-  its arrangement too.
+- **The editor:** see the amendment below. Painting (`TilePainter`*)
+  writes the map file and imports it as each cell changes, so the map and
+  its collision follow the brush; a stroke is one undo step (`TileEdit`*).
+  A flipped brush mirrors its arrangement too.
 
 ## Known limitations
 
@@ -116,12 +114,61 @@ turns would mostly matter once shapes are more than squares, and wait.
   `TilemapData`*, `TileCell`*, `ImportContext.PathOf`*; the `Tilemap`
   component's white tint; `SpriteAnimator` and `Tilemap` registered for
   scenes (`SpriteAnimator` had been missed in step 3).
-- Editor: `TilesetEditorPanel`*, `TilePalettePanel`*, `TilePainter`*,
-  `TileTool`*, `Shell.CreateTileset`*, `CreateTilemap`*,
-  `ShowTilesetEditor`*, `ShowTilePalette`*, `SetTileTool`*; the
-  Inspector's Edit Tiles button; the palette's Flip X* and Flip Y*.
+- Editor (as amended): `TilesPanel`*, `TileGridView`*, `TilePainter`*,
+  `TileTool`*, `TilePreset`*; `Shell.CreateTilemapEntity`*,
+  `CreateTilesetFor`*, `ShowTiles`*, `ShowTileset`*, `EditTileset`*,
+  `SetMapTileset`*, `UseMap`*, `IsMapShared`*, and `Delete(entity,
+  deleteMaps)`* in Shell.Tilemaps.cs.
 - Tests: C# (TilemapImporterTests*): merging, holes, corners, flips, files
   read and written, a map imported in meters, reimporting on a tileset's
   change, errors. Native: Tilemap2DTests* (resting, sliding without
   catching, loops and holes, reloading) and a drawing test on every
   backend. The editor's TilemapChecks* (CTest `launcher.jit.tilemaps`*).
+
+## Amended: editing redesigned (2026-11-19)
+
+The owner's try found the first editor unintuitive: from a texture to a
+map that's painted and collides took nine steps in five places (a texture
+set to Sprite; Create > Tileset; shapes drawn and Applied; Create >
+Tilemap; a Tilemap added and its map picked; a Collider2D added and set to
+Tilemap; Edit Tiles; the palette), in an order nothing pointed to;
+painting was a hidden mode; Fill couldn't fill an empty area. Godot (one
+node, one panel with paint and tileset tabs) and Unity (one menu item, a
+palette window) were looked at.
+
+Decided by the owner:
+
+1. **One Tiles panel**, shown when a tilemap is selected, replacing the
+   Tileset Editor, the Tile Palette, and Edit Tiles. At its top, the map
+   file (**Use Another Map** points the entity at another), the tileset (a
+   texture **dropped** on the panel makes one beside it, cut like its
+   sprite sheet grid, the texture made a sprite if it wasn't), and the
+   tileset's grid. Two tabs: **Paint** — a toolbar with each tool's
+   symbol, name, and key (Paint B, Rectangle R, Erase E, Fill G, Pick I),
+   Flip X and Flip Y; choosing a tile (or a block of them) or a tool
+   starts painting, Escape stops; while painting, the brush's tiles show
+   faintly under the pointer and the grid around the map — and
+   **Collision** — presets for the chosen tiles (Full, Half, Slope,
+   Shallow Low, Shallow High), Custom (points as before), Clear, and Flip
+   X and Y mirroring their shapes, each saved at once as an undo step (no
+   Apply). Double-clicking a tileset shows it alone, on Collision.
+2. **Maps stay files of their own, made and kept by the editor** (the
+   owner weighed keeping cells in the scene, as Godot and Unity do, and
+   chose this: collision stays merged at import and scenes are
+   unchanged). **Create > 2D > Tilemap** in the hierarchy makes the entity
+   and its file, `<entity name>.crtilemap` in a folder beside the scene
+   (`Level Tilemaps` for Level.crscene; `Tilemaps` while it isn't saved).
+   Duplicating the entity copies the file; renaming it renames the file
+   unless another entity (in the scene, or named in another scene or
+   prefab) uses it; deleting it asks whether its file goes too ("Delete
+   File", "Keep File"). Each file change is part of the edit's undo step.
+   Create > Tilemap left the asset browser.
+3. **Collision added for you:** the new entity has a static Collider2D of
+   shape Tilemap (and a Transform2D); it's a normal collider, removable.
+4. **Fill on an empty area** reaches one cell beyond the painted ones;
+   Rectangle covers a new area. A map just made, before it has a tileset,
+   imports as empty.
+
+The tool keys work while a tilemap is selected, so E and R choose Erase
+and Rectangle there instead of the transform handles' Rotate and Scale.
+

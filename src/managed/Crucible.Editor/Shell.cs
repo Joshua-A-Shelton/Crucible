@@ -431,6 +431,8 @@ internal sealed partial class Shell
             Crucible.Physics.Api.DrawQueries(_queryMissColor, _queryHitColor);
             Crucible.Physics2D.Api.DrawQueries2D(_queryMissColor, _queryHitColor);
         }
+        // The tile painter follows the selection (ADR 0108), viewport shown or not.
+        Tiles.Update();
         foreach (EditorPanel panel in _open.Values)
         {
             if (panel is ViewportPanel viewport && viewport.Root is not null)
@@ -450,13 +452,9 @@ internal sealed partial class Shell
             {
                 sheet.Tick();
             }
-            else if (panel is TilesetEditorPanel tileset)
+            else if (panel is TilesPanel tiles)
             {
-                tileset.Tick();
-            }
-            else if (panel is TilePalettePanel palette)
-            {
-                palette.Tick();
+                tiles.Tick();
             }
         }
         if (_pickView is { } view && view.Surface.Value != 0)
@@ -734,8 +732,7 @@ internal sealed partial class Shell
         Panels.Register("Log", "Log", () => new LogPanel());
         Panels.Register("BuildSettings", "Build Settings", () => new BuildSettingsPanel(this));
         Panels.Register("SpriteSheet", "Sprite Sheet Editor", () => new SpriteSheetPanel(this));
-        Panels.Register("TilesetEditor", "Tileset Editor", () => new TilesetEditorPanel(this));
-        Panels.Register("TilePalette", "Tile Palette", () => new TilePalettePanel(this));
+        Panels.Register("Tiles", "Tiles", () => new TilesPanel(this));
     }
 
     // The open panel of an ID, made if it isn't open.

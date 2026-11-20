@@ -10,27 +10,32 @@ using Crucible.UI;
 
 namespace Crucible.Editor;
 
-/// <summary>The Tile Palette's tools (ADR 0108).</summary>
+/// <summary>The Tiles panel's painting tools (ADR 0108).</summary>
 public enum TileTool
 {
-    Paint, // the brush's tiles where it's pressed and dragged
-    Erase, // the cells under the brush's footprint emptied
-    Fill,  // the cells joined to the one pressed that have its tile (or none), the brush repeated over them
-    Pick,  // the tile pressed becomes the brush, and Paint the tool
+    Paint,     // the brush's tiles where it's pressed and dragged
+    Rectangle, // the rectangle dragged out, the brush repeated over it
+    Erase,     // the cells under the brush's footprint emptied
+    Fill,      // the cells joined to the one pressed that have its tile (or none), the brush repeated over them
+    Pick,      // the tile pressed becomes the brush, and Paint the tool
 }
 
 /// <summary>
-/// Paints a tilemap over the viewports (ADR 0108), while Edit Tiles (T) is on
-/// for the selected entity: the Tile Palette's tool and brush apply where
-/// the left button presses and drags, cell by cell in the entity's XY plane.
-/// Each change saves the .crtilemap and imports it, so the map and its
-/// collision follow as it's painted; a stroke is one undo step. The scene
-/// isn't marked modified, as with chains.
+/// Paints a tilemap over the viewports (ADR 0108). It follows the selection:
+/// with an entity whose Tilemap has a map selected, choosing a tile or a tool
+/// in the Tiles panel (or B, R, E, G, I) starts painting, and Escape stops
+/// it. While painting, the tool and brush apply where the left button
+/// presses and drags, cell by cell in the entity's XY plane, the brush shown
+/// faintly under the pointer and the grid around it. Each change saves the
+/// .crtilemap and imports it, so the map and its collision follow as it's
+/// painted; a stroke is one undo step. The scene isn't marked modified, as
+/// with chains.
 /// </summary>
 internal sealed class TilePainter
 {
     private static readonly Vector4 _edge = new(0.08f, 0.08f, 0.1f, 0.85f), _brush = new(0.32f, 0.52f, 0.98f, 1);
-    private static readonly Vector4 _erase = new(0.95f, 0.35f, 0.3f, 1);
+    private static readonly Vector4 _erase = new(0.95f, 0.35f, 0.3f, 1), _gridLine = new(1, 1, 1, 0.12f);
+    private static readonly Vector4 _ghost = new(1, 1, 1, 0.55f);
 
     private readonly Shell _shell;
     private Entity _entity;
@@ -38,17 +43,12 @@ internal sealed class TilePainter
     private TilemapData _data = new();
     private Dictionary<(int X, int Y), TileCell>? _before;
     private (int X, int Y)? _last;
+    private (int X, int Y)? _from; // where a Rectangle stroke started
 
     public TilePainter(Shell shell)
     {
         _shell = shell;
-        _shell.Selection.Changed += selection =>
-        {
-            if (selection.Selected.Value != _entity.Value)
-            {
-                Stop();
-            }
-        };
+        _shell.Selection.Changed += selection => Follow(selection.Selected);
         _shell.AssetsChanged += () =>
         {
             if (IsEditing && _before is null)
@@ -58,7 +58,29 @@ internal sealed class TilePainter
         };
     }
 
+    /// <summary>A tilemap is selected whose map can be painted.</summary>
     public bool IsEditing => _entity.Value != 0;
+
+    /// <summary>Painting: the viewports' left button uses the tool instead of selecting.</summary>
+    public bool IsPainting
+    {
+        get => _painting && IsEditing;
+        set
+        {
+            if (!value && _before is not null)
+            {
+                EndStroke();
+            }
+            _painting = value && IsEditing;
+            Hover = _painting ? Hover : null;
+            BrushChanged?.Invoke();
+        }
+    }
+
+    private bool _painting;
+
+    /// <summary>The tileset's texture, for the brush drawn under the pointer; the Tiles panel's.</summary>
+    public Crucible.Render.TextureHandle Texture { get; set; }
 
     public Entity Entity => _entity;
 
@@ -87,23 +109,25 @@ internal sealed class TilePainter
     /// <summary>The cell under the pointer; null off the map's plane.</summary>
     public (int X, int Y)? Hover { get; private set; }
 
-    /// <summary>Raised when Pick changes the brush or the tool.</summary>
+    /// <summary>Raised when the brush, the tool, or painting changes other than by the panel.</summary>
     public event Action? BrushChanged;
 
     public bool CanEdit(Entity entity) => MapOf(entity) is not null;
 
-    public void Toggle()
+    // The selection's map taken up (and the Tiles panel shown), or let go.
+    private void Follow(Entity selected)
     {
-        if (IsEditing)
+        if (selected.Value == _entity.Value && MapOf(selected) == _map)
         {
-            Stop();
+            return;
         }
-        else
+        if (Start(selected))
         {
-            Start(_shell.Selection.Selected);
+            _shell.ShowTiles();
         }
     }
 
+    /// <summary>Takes up an entity's map to paint (not yet painting); false if it has none.</summary>
     public bool Start(Entity entity)
     {
         Stop();
@@ -118,7 +142,7 @@ internal sealed class TilePainter
             Stop();
             return false;
         }
-        _shell.ShowTilePalette();
+        BrushChanged?.Invoke();
         return true;
     }
 
@@ -128,6 +152,7 @@ internal sealed class TilePainter
         {
             EndStroke();
         }
+        _painting = false;
         _entity = Entity.Null;
         _map = AssetId.None;
         _data = new TilemapData();
@@ -217,12 +242,25 @@ internal sealed class TilePainter
         return ((int)info.Width, (int)info.Height, pixelsPerUnit > 0 ? pixelsPerUnit : 16);
     }
 
-    // Each frame, before drawing: off if the entity stopped having that map.
+    // Each frame, before drawing: the selection followed, so a map given to
+    // it (or taken away, or changed) is taken up.
     internal void Update()
     {
-        if (IsEditing && MapOf(_entity) != _map)
+        Entity selected = _shell.HasWorld ? _shell.Selection.Selected : Entity.Null;
+        if (selected.Value != _entity.Value || (IsEditing && MapOf(_entity) != _map))
         {
-            Stop();
+            bool painting = _painting && selected.Value == _entity.Value;
+            Follow(selected);
+            _painting = painting && IsEditing;
+        }
+    }
+
+    /// <summary>The map's tileset read again (the Tiles panel changed it).</summary>
+    internal void Reread()
+    {
+        if (IsEditing && _before is null)
+        {
+            Read();
         }
     }
 
@@ -280,9 +318,15 @@ internal sealed class TilePainter
         {
             return false;
         }
+        _painting = true;
         _before = new Dictionary<(int, int), TileCell>(_data.Cells);
         _last = null;
         Hover = cell;
+        if (Tool == TileTool.Rectangle)
+        {
+            _from = cell;
+            return true;
+        }
         ApplyAt(cell);
         return true;
     }
@@ -308,20 +352,31 @@ internal sealed class TilePainter
         }
     }
 
-    /// <summary>Ends a stroke: its changes one undo step, if it changed anything.</summary>
+    /// <summary>Ends a stroke (a Rectangle's filled now): its changes one undo step, if it changed anything.</summary>
     internal void EndStroke()
     {
         if (_before is not { } before)
         {
             return;
         }
+        if (Tool == TileTool.Rectangle && _from is { } from && Hover is { } to && FillRectangle(from, to))
+        {
+            Write(_map, _data.Cells);
+        }
+        _from = null;
         _before = null;
         _last = null;
         if (before.Count == _data.Cells.Count && before.All(pair => _data.Cells.TryGetValue(pair.Key, out TileCell now) && now == pair.Value))
         {
             return;
         }
-        string title = Tool switch { TileTool.Erase => "Erase Tiles", TileTool.Fill => "Fill Tiles", _ => "Paint Tiles" };
+        string title = Tool switch
+        {
+            TileTool.Erase => "Erase Tiles",
+            TileTool.Fill => "Fill Tiles",
+            TileTool.Rectangle => "Paint Rectangle",
+            _ => "Paint Tiles",
+        };
         _shell.History.Push(new TileEdit(this, title, _map, before, new Dictionary<(int, int), TileCell>(_data.Cells)));
     }
 
@@ -384,35 +439,66 @@ internal sealed class TilePainter
         return changed;
     }
 
+    // The brush's tile for a cell when it's repeated from `origin`, mirrored with the flips.
+    private int? PatternAt((int X, int Y) origin, int x, int y)
+    {
+        (int width, int height) = BrushSize;
+        int dx = ((x - origin.X) % width + width) % width, dy = ((y - origin.Y) % height + height) % height;
+        dx = FlipX ? width - 1 - dx : dx;
+        dy = FlipY ? height - 1 - dy : dy;
+        foreach ((int Dx, int Dy, int Tile) entry in Brush)
+        {
+            if (entry.Dx == dx && entry.Dy == dy)
+            {
+                return entry.Tile;
+            }
+        }
+        return null;
+    }
+
+    // Rectangle: the cells between two corners, the brush repeated over them from the first.
+    private bool FillRectangle((int X, int Y) a, (int X, int Y) b)
+    {
+        bool changed = false;
+        for (int y = Math.Min(a.Y, b.Y); y <= Math.Max(a.Y, b.Y); ++y)
+        {
+            for (int x = Math.Min(a.X, b.X); x <= Math.Max(a.X, b.X); ++x)
+            {
+                if (PatternAt(a, x, y) is { } tile)
+                {
+                    TileCell painted = new(x, y, tile, Flags);
+                    changed |= !_data.Cells.TryGetValue((x, y), out TileCell was) || was != painted;
+                    _data.Cells[(x, y)] = painted;
+                }
+            }
+        }
+        return changed;
+    }
+
     // The cells joined to this one (left, right, up, down) with its tile (or
-    // none), the brush repeated over them; an empty area only as far as the
-    // map's painted bounds, so it can't run on forever.
+    // none), the brush repeated over them; an empty area only as far as one
+    // cell beyond the map's painted bounds, so it can't run on forever.
     private bool Fill((int X, int Y) start)
     {
         if (_data.Cells.Count == 0)
         {
-            _shell.Log("Fill needs painted cells around the area to fill");
+            _shell.Status("Fill fills around painted tiles: paint some first, or drag out a Rectangle (R)");
             return false;
         }
-        int minX = _data.Cells.Keys.Min(c => c.X), maxX = _data.Cells.Keys.Max(c => c.X);
-        int minY = _data.Cells.Keys.Min(c => c.Y), maxY = _data.Cells.Keys.Max(c => c.Y);
+        int minX = _data.Cells.Keys.Min(c => c.X) - 1, maxX = _data.Cells.Keys.Max(c => c.X) + 1;
+        int minY = _data.Cells.Keys.Min(c => c.Y) - 1, maxY = _data.Cells.Keys.Max(c => c.Y) + 1;
         if (start.X < minX || start.X > maxX || start.Y < minY || start.Y > maxY)
         {
             return false;
         }
         int? target = _data.Cells.TryGetValue(start, out TileCell first) ? first.Tile : null;
-        (int width, int height) = BrushSize;
-        Dictionary<(int, int), int> pattern = Brush.ToDictionary(b => (b.Dx, b.Dy), b => b.Tile);
         HashSet<(int, int)> seen = [start];
         Queue<(int X, int Y)> queue = new([start]);
         bool changed = false;
         while (queue.Count > 0)
         {
             (int x, int y) = queue.Dequeue();
-            int dx = ((x - start.X) % width + width) % width, dy = ((y - start.Y) % height + height) % height;
-            dx = FlipX ? width - 1 - dx : dx;
-            dy = FlipY ? height - 1 - dy : dy;
-            if (pattern.TryGetValue((dx, dy), out int tile))
+            if (PatternAt(start, x, y) is { } tile)
             {
                 TileCell painted = new(x, y, tile, Flags);
                 changed |= !_data.Cells.TryGetValue((x, y), out TileCell was) || was != painted;
@@ -479,24 +565,109 @@ internal sealed class TilePainter
         return true;
     }
 
-    /// <summary>The brush's footprint at the cell under the pointer, over a viewport.</summary>
+    /// <summary>
+    /// While painting, over a viewport: the grid around the map, and the
+    /// brush's tiles faintly at the cell under the pointer with its outline
+    /// (red for Erase; a Rectangle's whole rectangle while it's dragged out).
+    /// </summary>
     internal void Draw(Canvas canvas, EditorCamera camera, Vector2 size)
     {
-        if (Hover is not { } cell || !Frame(out Matrix4x4 world))
+        if (!IsPainting || !Frame(out Matrix4x4 world))
         {
             return;
         }
         Vector2? Shown(float x, float y) => camera.Project(Vector3.Transform(new Vector3(x * CellSize.X, y * CellSize.Y, 0), world), size);
-        Vector4 color = Tool == TileTool.Erase ? _erase : _brush;
-        IEnumerable<(int X, int Y)> cells = Tool is TileTool.Paint or TileTool.Erase
-            ? Brush.Select(entry => Placed(cell, entry))
-            : [cell];
-        foreach ((int x, int y) in cells)
+        DrawGrid(canvas, Shown);
+        if (Hover is not { } cell)
         {
-            if (Shown(x, y) is { } a && Shown(x + 1, y) is { } b && Shown(x + 1, y + 1) is { } c && Shown(x, y + 1) is { } d)
+            return;
+        }
+        List<(int X, int Y, int? Tile)> cells = [];
+        if (Tool == TileTool.Rectangle && _from is { } from)
+        {
+            for (int y = Math.Min(from.Y, cell.Y); y <= Math.Max(from.Y, cell.Y); ++y)
             {
-                canvas.DrawPolyline([a, b, c, d, a], 3.5f, _edge);
-                canvas.DrawPolyline([a, b, c, d, a], 1.5f, color);
+                for (int x = Math.Min(from.X, cell.X); x <= Math.Max(from.X, cell.X); ++x)
+                {
+                    cells.Add((x, y, PatternAt(from, x, y)));
+                }
+            }
+        }
+        else if (Tool is TileTool.Paint or TileTool.Rectangle or TileTool.Erase)
+        {
+            foreach ((int Dx, int Dy, int Tile) entry in Brush)
+            {
+                (int x, int y) = Placed(cell, entry);
+                cells.Add((x, y, Tool == TileTool.Erase ? null : entry.Tile));
+            }
+        }
+        else
+        {
+            cells.Add((cell.X, cell.Y, null));
+        }
+        Vector4 color = Tool == TileTool.Erase ? _erase : _brush;
+        foreach ((int x, int y, int? tile) in cells)
+        {
+            if (Shown(x, y) is not { } a || Shown(x + 1, y) is not { } b || Shown(x + 1, y + 1) is not { } c ||
+                Shown(x, y + 1) is not { } d)
+            {
+                continue;
+            }
+            if (tile is { } t && Ghost(t) is { } uv)
+            {
+                Vector2 min = Vector2.Min(Vector2.Min(a, b), Vector2.Min(c, d)), max = Vector2.Max(Vector2.Max(a, b), Vector2.Max(c, d));
+                canvas.DrawImage(Texture, min, max - min, uv, _ghost, default, pixelated: true);
+            }
+            canvas.DrawPolyline([a, b, c, d, a], 3.5f, _edge);
+            canvas.DrawPolyline([a, b, c, d, a], 1.5f, color);
+        }
+    }
+
+    // A tile's place in the texture as uv, mirrored with the flips; null before the texture loads.
+    private Vector4? Ghost(int tile)
+    {
+        if (Texture.Generation == 0 || Tileset is not { } tileset || Columns == 0)
+        {
+            return null;
+        }
+        Crucible.Render.TextureSize size = Crucible.Render.Api.TextureSize(Texture);
+        if (size.Width == 0 || size.Height == 0)
+        {
+            return null;
+        }
+        (int px, int py) = tileset.PixelOf(tile, Columns);
+        float u0 = px / (float)size.Width, v0 = py / (float)size.Height;
+        float u1 = (px + tileset.TileWidth) / (float)size.Width, v1 = (py + tileset.TileHeight) / (float)size.Height;
+        return new Vector4(FlipX ? u1 : u0, FlipY ? v1 : v0, FlipX ? u0 : u1, FlipY ? v0 : v1);
+    }
+
+    // Faint lines along the cells over the painted area and eight cells around it.
+    private void DrawGrid(Canvas canvas, Func<float, float, Vector2?> shown)
+    {
+        int minX = -8, maxX = 8, minY = -8, maxY = 8;
+        if (_data.Cells.Count > 0)
+        {
+            minX = _data.Cells.Keys.Min(c => c.X) - 8;
+            maxX = _data.Cells.Keys.Max(c => c.X) + 9;
+            minY = _data.Cells.Keys.Min(c => c.Y) - 8;
+            maxY = _data.Cells.Keys.Max(c => c.Y) + 9;
+        }
+        if ((long)(maxX - minX) + (maxY - minY) > 2000)
+        {
+            return;
+        }
+        for (int x = minX; x <= maxX; ++x)
+        {
+            if (shown(x, minY) is { } a && shown(x, maxY) is { } b)
+            {
+                canvas.DrawLine(a, b, 1, _gridLine);
+            }
+        }
+        for (int y = minY; y <= maxY; ++y)
+        {
+            if (shown(minX, y) is { } a && shown(maxX, y) is { } b)
+            {
+                canvas.DrawLine(a, b, 1, _gridLine);
             }
         }
     }

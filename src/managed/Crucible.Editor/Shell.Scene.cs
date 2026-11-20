@@ -29,7 +29,7 @@ internal sealed partial class Shell
 
     private ChainHandles? _chains;
 
-    /// <summary>Edit Tiles: painting a Tilemap over the viewports (ADR 0108).</summary>
+    /// <summary>Painting the selected Tilemap over the viewports (ADR 0108).</summary>
     internal TilePainter Tiles => _tiles ??= new TilePainter(this);
 
     private TilePainter? _tiles;
@@ -81,7 +81,7 @@ internal sealed partial class Shell
         {
             if (!Chains.DeleteSelected())
             {
-                Delete(Selection.Selected);
+                Delete(Selection.Selected, deleteMaps: null);
             }
         }, HasSelection)
         {
@@ -354,6 +354,8 @@ internal sealed partial class Shell
         }
         JsonNode? before = SceneIds.Read(World, entity, _nameName);
         name = name.Trim();
+        History.BeginGroup("Rename");
+        RenameTilemap(entity, name);
         if (name.Length > 0)
         {
             World.SetManaged(entity, new EntityName { Value = name });
@@ -363,6 +365,7 @@ internal sealed partial class Shell
             World.Remove(entity, Components.Of<EntityName>());
         }
         RecordComponent(entity, _nameName, before, "Rename");
+        History.EndGroup();
     }
 
     /// <summary>A new entity with only a transform and a name, under a parent (or at the top).</summary>
@@ -397,7 +400,10 @@ internal sealed partial class Shell
         byte[] subtree = SceneIds.Capture(World, entity, Prefabs);
         Entity copy = SceneIds.Restore(World, subtree, SceneIds.IdOf(World, parent), index < 0 ? -1 : index + 1, Prefabs,
             newIds: true);
+        History.BeginGroup("Duplicate");
+        CopyTilemaps(copy);
         RecordCreated("Duplicate", copy);
+        History.EndGroup();
         Selection.Selected = copy;
         return copy;
     }

@@ -27,7 +27,28 @@ from the map as the new brush. Flipping a tile mirrors it, so one drawing
 of a wall serves both sides of a room.
 
 Fill needs a boundary. Filling an empty area of an infinite grid would
-never stop, so it only reaches as far as the area already painted.
+never stop, so it only reaches one cell beyond the area already painted;
+a rectangle tool covers a new area.
+
+## Making the editing easy to find
+
+The first version of this editor worked but was hard to discover: a map
+took nine steps in five places, in an order nothing pointed to. That's a
+common trap for tools: each step made sense alone, but nobody would guess
+the sequence. The fix borrowed from Godot and Unity: **one entry point**
+(Create > 2D > Tilemap makes everything needed, collision included),
+**one place to work** (a panel that appears when a tilemap is selected),
+and **visible state** (the tools on a toolbar with their keys, the brush
+drawn under the pointer, painting started by choosing a tile and stopped
+with Escape instead of a hidden mode).
+
+Files the user never asked for need looking after too. A map is still a
+file of its own, but the editor treats it as belonging to its entity:
+made with it, copied when it's duplicated (so painting one copy doesn't
+change the other — the same surprise as a shared material), renamed with
+it, and offered for deletion with it. Each of those file changes is part
+of the same undo step as the entity's change, so undo never leaves a
+stray file behind.
 
 ## Drawing cheaply
 

@@ -64,6 +64,15 @@ public sealed class TilemapImporter : Importer<TilemapImportSettings>
     public override void Import(ImportContext context, TilemapImportSettings settings)
     {
         TilemapData map = Read(context.ReadSource());
+        if (map.Tileset.IsNone && map.Cells.Count == 0)
+        {
+            // A map just made, before it's given a tileset: empty.
+            TilemapInfo empty = new();
+            ImportedFileWriter none = context.CreateOutput(Kind, KindVersion);
+            none.Add(Tag.Of("INFO"), 1, MemoryMarshal.AsBytes(new ReadOnlySpan<TilemapInfo>(in empty)));
+            none.Add(Tag.Of("CELL"), 1, ReadOnlySpan<byte>.Empty);
+            return;
+        }
         string tilesetPath = (map.Tileset.IsNone ? null : context.PathOf(map.Tileset)) ??
                              throw new InvalidDataException("its Tileset isn't a tileset in the project");
         TilesetData tileset;

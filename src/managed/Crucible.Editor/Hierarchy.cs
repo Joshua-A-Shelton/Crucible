@@ -210,6 +210,9 @@ public sealed class HierarchyPanel : EditorPanel
         ContextMenu menu = new();
         Entity entity = node is { } value ? EntityOf(value) : Entity.Null;
         menu.Add("Create Empty", () => _shell.CreateEmpty(entity));
+        Menu twoD = new();
+        twoD.Add("Tilemap", () => _shell.CreateTilemapEntity(entity));
+        menu.Add(new MenuItem("2D") { Submenu = twoD });
         if (node is not null)
         {
             menu.AddSeparator();

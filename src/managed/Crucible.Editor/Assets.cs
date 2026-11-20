@@ -169,7 +169,7 @@ public sealed class AssetsPanel : EditorPanel
         }
         else if (tile.Asset is { Importer: "Tileset" } tileset)
         {
-            _shell.ShowTilesetEditor(tileset.Id);
+            _shell.ShowTileset(tileset.Id);
         }
     }
 
@@ -186,7 +186,7 @@ public sealed class AssetsPanel : EditorPanel
         }
         if (tile.Asset is { Importer: "Tileset" } editable)
         {
-            menu.Add("Open", () => _shell.ShowTilesetEditor(editable.Id));
+            menu.Add("Open", () => _shell.ShowTileset(editable.Id));
         }
         if (tile.Asset is { Importer.Length: > 0 } asset)
         {
@@ -216,11 +216,9 @@ public sealed class AssetsPanel : EditorPanel
         string folder = tile.IsFolder ? tile.Path : Path.GetDirectoryName(tile.Path)?.Replace('\\', '/') ?? "";
         Menu create = new();
         create.Add("Chain", () => _shell.CreateChain(folder));
-        // A texture's own tileset, a tileset's own map.
+        // A texture's own tileset (maps are made with their entities, ADR 0108).
         AssetId texture = tile.Asset is { Importer: "Texture" } image ? image.Id : AssetId.None;
-        AssetId tileset = tile.Asset is { Importer: "Tileset" } set ? set.Id : AssetId.None;
         create.Add("Tileset", () => _shell.CreateTileset(folder, texture));
-        create.Add("Tilemap", () => _shell.CreateTilemap(folder, tileset));
         menu.Add(new MenuItem("Create") { Submenu = create });
         menu.Add("Refresh", _shell.RefreshAssets);
         menu.Open(tile, at);

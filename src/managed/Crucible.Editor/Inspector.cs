@@ -237,7 +237,6 @@ public sealed class ComponentSection : UIElement, IFieldOwner
     private readonly List<FieldEditor> _editors = [];
     private readonly ColliderNotice? _notice;
     private readonly Button? _editPoints;
-    private readonly Button? _editTiles;
     private JsonNode? _value;
 
     internal ComponentSection(InspectorPanel inspector, SavedComponent saved)
@@ -308,23 +307,6 @@ public sealed class ComponentSection : UIElement, IFieldOwner
                 };
                 _fields.Add(_editPoints);
             }
-            // A Tilemap's cells, painted in the viewports (ADR 0108).
-            if (saved.Type == typeof(Crucible.Render2D.Tilemap) && field.Name == "Map")
-            {
-                _editTiles = new Button("Edit Tiles") { HorizontalAlignment = HorizontalAlignment.Start };
-                _editTiles.Clicked += _ =>
-                {
-                    if (Shell.Tiles.IsEditing)
-                    {
-                        Shell.Tiles.Stop();
-                    }
-                    else
-                    {
-                        Shell.Tiles.Start(Entity);
-                    }
-                };
-                _fields.Add(_editTiles);
-            }
         }
         if (saved.Fields.Count == 0)
         {
@@ -365,11 +347,6 @@ public sealed class ComponentSection : UIElement, IFieldOwner
         {
             _editPoints.Visibility = Shell.Chains.CanEdit(Entity) ? Visibility.Visible : Visibility.Collapsed;
             _editPoints.Classes.Set("on", Shell.Chains.IsEditing && Shell.Chains.Entity.Value == Entity.Value);
-        }
-        if (_editTiles is not null)
-        {
-            _editTiles.Visibility = Shell.Tiles.CanEdit(Entity) ? Visibility.Visible : Visibility.Collapsed;
-            _editTiles.Classes.Set("on", Shell.Tiles.IsEditing && Shell.Tiles.Entity.Value == Entity.Value);
         }
         if (_notice is not null)
         {

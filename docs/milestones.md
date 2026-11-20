@@ -1252,6 +1252,23 @@ the Tileset Editor, the Tile Palette, and Edit Tiles in the scene view.
 importer tests, native collision and drawing tests, and the editor's
 `launcher.jit.tilemaps` check.
 
+Step 4 redesigned (2026-11-19, after the owner's try found the editing
+unintuitive): nine steps in five places became one entry point and one
+panel. **Create > 2D > Tilemap** in the hierarchy makes the entity (a
+Tilemap and a static Tilemap collider) and its map file, in a folder
+beside the scene ("Level Tilemaps"); the file follows its entity:
+duplicated with it, renamed with it unless shared, deleted with it if
+chosen, all undoable. The **Tiles** panel replaces the Tileset Editor, the
+Tile Palette, and Edit Tiles: shown when a tilemap is selected, with the
+map (Use Another Map), the tileset (a texture dropped makes one, cut like
+its sprite sheet), and two tabs, **Paint** (Paint, Rectangle, Erase, Fill,
+Pick with symbols and keys, flips; choosing a tile starts painting, Escape
+stops; the brush shown faintly under the pointer, and the grid) and
+**Collision** (presets Full, Half, Slope, Shallow Low, Shallow High, plus
+Custom, Clear, and Flip X and Y, saved at once with undo). Fill reaches a
+cell beyond the painted ones. The file formats, collision, and drawing are
+unchanged; scenes aren't affected. ADR 0108 amended.
+
 ## After M11: importing by dropping files
 
 Asked for by the owner (2026-11-18): files dragged from the system's file

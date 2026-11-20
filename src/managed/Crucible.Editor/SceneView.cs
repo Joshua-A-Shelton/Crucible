@@ -144,12 +144,11 @@ public sealed class SceneView : UIElement
         }
         canvas.DrawImage(_texture, Vector2.Zero, ActualSize);
         _shell.Chains.Update();
-        _shell.Tiles.Update();
         if (_shell.Chains.IsEditing)
         {
             _shell.Chains.Draw(canvas, Camera, ActualSize);
         }
-        else if (_shell.Tiles.IsEditing)
+        else if (_shell.Tiles.IsPainting)
         {
             _shell.Tiles.Draw(canvas, Camera, ActualSize);
         }
@@ -206,7 +205,7 @@ public sealed class SceneView : UIElement
             case PointerButton.Left when (e.Modifiers & KeyModifiers.Alt) != 0:
                 _mode = Mode.Orbit;
                 break;
-            case PointerButton.Left when _shell.Tiles.IsEditing:
+            case PointerButton.Left when _shell.Tiles.IsPainting:
                 if (_shell.Tiles.BeginStroke(Camera, ActualSize, at))
                 {
                     _mode = Mode.Tiles;
@@ -259,7 +258,7 @@ public sealed class SceneView : UIElement
                 _shell.Tiles.Stroke(Camera, ActualSize, Local(e));
                 break;
             default:
-                if (_shell.Tiles.IsEditing)
+                if (_shell.Tiles.IsPainting)
                 {
                     if (_shell.Tiles.Track(Camera, ActualSize, Local(e)))
                     {
@@ -334,10 +333,19 @@ public sealed class SceneView : UIElement
         {
             return;
         }
-        // Painting tiles (ADR 0108): the palette's tools by key.
+        // Painting tiles (ADR 0108): with a tilemap selected, its tools by
+        // key, each starting painting; Escape stops.
+        if (_shell.Tiles.IsPainting && e.Scancode == ScancodeEscape)
+        {
+            _shell.Tiles.IsPainting = false;
+            InvalidateVisual();
+            e.Handled = true;
+            return;
+        }
         if (_shell.Tiles.IsEditing && e.Keycode switch
         {
             Keycode.B => TileTool.Paint,
+            Keycode.R => TileTool.Rectangle,
             Keycode.E => TileTool.Erase,
             Keycode.G => TileTool.Fill,
             Keycode.I => TileTool.Pick,
@@ -364,9 +372,6 @@ public sealed class SceneView : UIElement
                 break;
             case Keycode.P:
                 _shell.Chains.Toggle();
-                break;
-            case Keycode.T:
-                _shell.Tiles.Toggle();
                 break;
             case Keycode.Delete when _shell.Chains.DeleteSelected():
                 break;

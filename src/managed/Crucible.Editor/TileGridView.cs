@@ -6,11 +6,11 @@ using Crucible.UI;
 namespace Crucible.Editor;
 
 /// <summary>
-/// A tileset's texture (ADR 0108) for the Tileset Editor and the Tile
-/// Palette: zoomed by whole numbers with square pixels (the wheel zooms, the
-/// middle or right button pans), its tile grid drawn, a rectangle of tiles
-/// selected by dragging. With <see cref="Drawing"/> set, a left click gives
-/// the texel instead (the Tileset Editor's Draw Shape).
+/// A tileset's texture (ADR 0108) for the Tiles panel: zoomed by whole
+/// numbers with square pixels (the wheel zooms, the middle or right button
+/// pans), its tile grid drawn, a rectangle of tiles selected by dragging.
+/// With <see cref="Drawing"/> set, a left click gives the texel instead (the
+/// Collision tab's Custom).
 /// </summary>
 internal sealed class TileGridView : UIElement
 {

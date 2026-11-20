@@ -120,9 +120,8 @@ internal sealed partial class Shell
     /// <summary>
     /// A new tileset (ADR 0108) in a folder of the Assets folder: "New
     /// Tileset.crtileset" (numbered if taken), cutting <paramref name="texture"/>
-    /// (if given) into 16x16 tiles, imported at once and opened in the
-    /// Tileset Editor. Returns its path in the Assets folder; null if it
-    /// can't be made.
+    /// (if given) into 16x16 tiles, imported at once and shown in the Tiles
+    /// panel. Returns its path in the Assets folder; null if it can't be made.
     /// </summary>
     public string? CreateTileset(string folder, AssetId texture = default)
     {
@@ -130,21 +129,9 @@ internal sealed partial class Shell
         string? path = CreateOwnFile(folder, "New Tileset", TilesetImporter.FileExtension, TilesetImporter.Format(tileset));
         if (path is not null)
         {
-            ShowTilesetEditor(tileset.Id);
+            ShowTileset(tileset.Id);
         }
         return path;
-    }
-
-    /// <summary>
-    /// A new tilemap (ADR 0108) in a folder of the Assets folder: "New
-    /// Tilemap.crtilemap" (numbered if taken), painting with
-    /// <paramref name="tileset"/> (if given), empty, imported at once.
-    /// Returns its path in the Assets folder; null if it can't be made.
-    /// </summary>
-    public string? CreateTilemap(string folder, AssetId tileset = default)
-    {
-        TilemapData map = new() { Id = AssetId.New(), Tileset = tileset };
-        return CreateOwnFile(folder, "New Tilemap", TilemapImporter.FileExtension, TilemapImporter.Format(map));
     }
 
     // A file of Crucible's own made in a folder of the Assets folder, named
@@ -174,46 +161,6 @@ internal sealed partial class Shell
         string path = folder.Length == 0 ? name : $"{folder}/{name}";
         Log($"Made {path}");
         return path;
-    }
-
-    /// <summary>The Tileset Editor (ADR 0108) on a tileset, opened or brought to the front.</summary>
-    public void ShowTilesetEditor(AssetId tileset)
-    {
-        if (!_open.ContainsKey("TilesetEditor"))
-        {
-            TogglePanel("TilesetEditor");
-        }
-        if (_open.GetValueOrDefault("TilesetEditor") is TilesetEditorPanel panel)
-        {
-            panel.Group?.Activate(panel);
-            panel.Show(tileset);
-        }
-    }
-
-    /// <summary>The Tile Palette's tool (ADR 0108), as its toolbar or a key chooses it.</summary>
-    internal void SetTileTool(TileTool tool)
-    {
-        if (_open.GetValueOrDefault("TilePalette") is TilePalettePanel panel)
-        {
-            panel.SetTool(tool);
-        }
-        else
-        {
-            Tiles.Tool = tool;
-        }
-    }
-
-    /// <summary>The Tile Palette (ADR 0108), opened or brought to the front.</summary>
-    public void ShowTilePalette()
-    {
-        if (!_open.ContainsKey("TilePalette"))
-        {
-            TogglePanel("TilePalette");
-        }
-        if (_open.GetValueOrDefault("TilePalette") is TilePalettePanel panel)
-        {
-            panel.Group?.Activate(panel);
-        }
     }
 
     /// <summary>

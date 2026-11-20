@@ -525,9 +525,10 @@ if(CRUCIBLE_BUILD_TESTS)
         PASS_REGULAR_EXPRESSION "SpriteSheetChecks: all [0-9]+ checks passed")
 
     # Tilesets and tilemaps checking themselves (ADR 0108): a copy of the
-    # Walker's project with a sheet added, a tileset and a map made from the
-    # asset browser, tile shapes drawn, and the map painted, erased, filled,
-    # and picked from, with undo.
+    # Walker's project with a sheet added, a tilemap entity made from the
+    # hierarchy, a tileset made by dropping the sheet on the Tiles panel,
+    # tile shapes set, the map painted, erased, filled, and picked from with
+    # undo, and its file renamed, copied, and deleted with the entity.
     add_test(NAME launcher.jit.tilemaps
         COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
             --project "${PROJECT_SOURCE_DIR}/samples/Walker/Project/Walker.crproject"
