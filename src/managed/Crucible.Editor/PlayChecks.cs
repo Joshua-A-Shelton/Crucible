@@ -73,7 +73,7 @@ internal sealed class PlayChecks : GameSystem
     private IEnumerable<int> Script()
     {
         Shell shell = Shell.Current ?? throw new InvalidOperationException("No editor shell");
-        string source = Path.GetDirectoryName(shell.Project?.ProjectFilePath ?? "") ?? "";
+        string source = Path.GetDirectoryName(AssetChecks.SourceProjectFile(shell)) ?? "";
         string copy = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(_capture))!, "play-project");
         if (Directory.Exists(copy))
         {
@@ -83,7 +83,7 @@ internal sealed class PlayChecks : GameSystem
         string code = Path.Combine(copy, "Code");
 
         // Opening the project builds its code: the game's components are known before the scene.
-        shell.OpenProject(Path.Combine(copy, Path.GetFileName(shell.Project!.ProjectFilePath)));
+        shell.OpenProject(Path.Combine(copy, Path.GetFileName(AssetChecks.SourceProjectFile(shell))));
         Check(shell.Game is not null, "opening the project builds and loads its code", LogText(shell));
         SavedComponent? spin = SavedComponents.Find("Diorama.Spin");
         Check(spin is not null, "the game's components are registered");

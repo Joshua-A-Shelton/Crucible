@@ -358,6 +358,13 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
   game time pass the launcher's `--fixed-clock` with `--frame-rate` (ADR
   0105), so they take as long as their frames, not real time; real-time
   pacing has tests of its own.
+- **Tests run in parallel** (ADR 0109): the editor's checks start with no
+  project open and copy the sample named by `--game-arg
+  source-project=<.crproject>` into their own folder, Cache left out, so
+  nothing writes into the samples and no test waits on another. Run one
+  preset at a time with as many jobs as the machine has room for (`-j16`
+  on the 24-core Linux machine, `-j8` on the 8-core Windows one); both
+  presets at once ran the Linux machine out of memory.
 - **x64 level** (ADR 0024): x86-64-v3 (AVX2) by default, for everything
   including dependencies and the NativeAOT engine; `CRUCIBLE_X86_LEVEL=v2`
   builds for SSE4.2. `CRUCIBLE_FORCE_SCALAR_SIMD` tests the SIMD types'
@@ -418,7 +425,7 @@ cmake --preset debug && cmake --build --preset debug
 ```
 
 ```bash
-ctest --preset debug
+ctest --preset debug -j16
 ```
 
 ## 7. Working with Claude on this repo

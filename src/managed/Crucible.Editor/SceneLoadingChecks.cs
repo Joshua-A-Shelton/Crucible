@@ -7,8 +7,10 @@ namespace Crucible.Editor;
 
 /// <summary>
 /// Loading a scene while frames go on checking itself (ADR 0099), for
-/// CTest's launcher.jit.scene-loading: run with the Walker's project and
-/// <c>--game-arg check-scene-loading=&lt;folder&gt;</c>. The Level scene is
+/// CTest's launcher.jit.scene-loading: run with
+/// <c>--game-arg source-project=&lt;Walker.crproject&gt;</c> and
+/// <c>--game-arg check-scene-loading=&lt;folder&gt;</c>, on a copy of the
+/// project in the folder. The Level scene is
 /// loaded into the editor's world with <see cref="Scene.LoadAsync"/>: frames
 /// run while it loads, none of its entities are there until all of them are,
 /// in one frame, and then nothing they need still waits. Nothing is saved.
@@ -22,14 +24,16 @@ internal sealed class SceneLoadingChecks : GameSystem
     private int _wait;
     private int _checks;
     private int _failures;
+    private string _folder = "";
 
     public override void Start(FrameContext context)
     {
-        if (!context.GameArguments.ContainsKey("check-scene-loading"))
+        if (!context.GameArguments.TryGetValue("check-scene-loading", out string? folder))
         {
             Enabled = false;
             return;
         }
+        _folder = folder;
         _script = Script().GetEnumerator();
         _wait = 3;
     }
@@ -62,6 +66,8 @@ internal sealed class SceneLoadingChecks : GameSystem
     private IEnumerable<int> Script()
     {
         Shell shell = Shell.Current ?? throw new InvalidOperationException("No editor shell");
+        AssetChecks.OpenCopy(shell, Path.Combine(Path.GetFullPath(_folder), "scene-loading-project"), null);
+        yield return 3;
         World world = shell.World;
         int before = world.EntityCount;
 

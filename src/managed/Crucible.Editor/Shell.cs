@@ -40,6 +40,9 @@ internal sealed partial class Shell
     private readonly bool _debugDrags = Environment.GetEnvironmentVariable("CRUCIBLE_DEBUG_DRAGS") == "1";
     private uint _debugOver = uint.MaxValue;
 
+    /// <summary>The <c>--game-arg</c> values the editor was started with.</summary>
+    internal IReadOnlyDictionary<string, string> GameArguments => _context.GameArguments;
+
     public Shell(FrameContext context, string? settingsPath)
     {
         Current = this;

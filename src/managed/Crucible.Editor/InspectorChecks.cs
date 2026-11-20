@@ -74,6 +74,8 @@ internal sealed class InspectorChecks : GameSystem
     private IEnumerable<int> Script()
     {
         Shell shell = Shell.Current ?? throw new InvalidOperationException("No editor shell");
+        AssetChecks.OpenCopy(shell, Path.Combine(Path.GetDirectoryName(Path.GetFullPath(_capture))!, "inspector-project"),
+            Path.Combine("Assets", "Scenes", "Village.crscene"));
         shell.RestoreLayout(null);
         yield return 3;
         InspectorPanel inspector = shell.Main.DockSpace.Panels.OfType<InspectorPanel>().Single();

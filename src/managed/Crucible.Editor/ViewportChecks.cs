@@ -71,6 +71,8 @@ internal sealed class ViewportChecks : GameSystem
     private IEnumerable<int> Script()
     {
         Shell shell = Shell.Current ?? throw new InvalidOperationException("No editor shell");
+        AssetChecks.OpenCopy(shell, Path.Combine(Path.GetDirectoryName(Path.GetFullPath(_capture))!, "viewport-project"),
+            Path.Combine("Assets", "Scenes", "Village.crscene"));
         shell.RestoreLayout(null);
         yield return 3;
         ViewportPanel viewport = shell.Main.DockSpace.Panels.OfType<ViewportPanel>().Single();

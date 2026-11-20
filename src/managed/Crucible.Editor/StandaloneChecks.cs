@@ -64,14 +64,14 @@ internal sealed class StandaloneChecks : GameSystem
     private IEnumerable<int> Script()
     {
         Shell shell = Shell.Current ?? throw new InvalidOperationException("No editor shell");
-        string source = Path.GetDirectoryName(shell.Project?.ProjectFilePath ?? "") ?? "";
+        string source = Path.GetDirectoryName(AssetChecks.SourceProjectFile(shell)) ?? "";
         string copy = Path.Combine(Path.GetFullPath(_folder), "standalone-project");
         if (Directory.Exists(copy))
         {
             Directory.Delete(copy, recursive: true);
         }
         AssetChecks.CopyProject(source, copy);
-        shell.OpenProject(Path.Combine(copy, Path.GetFileName(shell.Project!.ProjectFilePath)));
+        shell.OpenProject(Path.Combine(copy, Path.GetFileName(AssetChecks.SourceProjectFile(shell))));
         shell.OpenScene(Path.Combine(copy, "Assets", "Scenes", "Village.crscene"));
         yield return 3;
         World world = shell.World;

@@ -94,7 +94,7 @@ internal sealed partial class LevelChecks : GameSystem
     private IEnumerable<int> Script()
     {
         Shell shell = Shell.Current ?? throw new InvalidOperationException("No editor shell");
-        string source = Path.GetDirectoryName(shell.Project?.ProjectFilePath ?? "") ?? "";
+        string source = Path.GetDirectoryName(AssetChecks.SourceProjectFile(shell)) ?? "";
         string copy = Path.Combine(Path.GetFullPath(_folder),
             _archive ? "archive-project" : _packaged ? "packaged-project" : "level-project");
         if (Directory.Exists(copy))
@@ -102,7 +102,7 @@ internal sealed partial class LevelChecks : GameSystem
             Directory.Delete(copy, recursive: true);
         }
         AssetChecks.CopyProject(source, copy);
-        string projectFile = Path.Combine(copy, Path.GetFileName(shell.Project!.ProjectFilePath));
+        string projectFile = Path.Combine(copy, Path.GetFileName(AssetChecks.SourceProjectFile(shell)));
         // Known build settings, whatever the sources' say: the Level scene alone.
         Assets.Project.Open(projectFile).SaveBuild(new Assets.BuildSettings
         {

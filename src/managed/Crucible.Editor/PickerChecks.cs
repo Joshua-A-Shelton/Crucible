@@ -69,7 +69,7 @@ internal sealed class PickerChecks : GameSystem
     private IEnumerable<int> Script()
     {
         Shell shell = Shell.Current ?? throw new InvalidOperationException("No editor shell");
-        string source = Path.GetDirectoryName(shell.Project?.ProjectFilePath ?? "") ?? "";
+        string source = Path.GetDirectoryName(AssetChecks.SourceProjectFile(shell)) ?? "";
         string copy = Path.Combine(Path.GetFullPath(_folder), "pickers-project");
         if (Directory.Exists(copy))
         {
@@ -82,7 +82,7 @@ internal sealed class PickerChecks : GameSystem
         {
             File.Copy(Path.Combine(diorama, file), Path.Combine(copy, "Assets", "Models", file));
         }
-        shell.OpenProject(Path.Combine(copy, Path.GetFileName(shell.Project!.ProjectFilePath)));
+        shell.OpenProject(Path.Combine(copy, Path.GetFileName(AssetChecks.SourceProjectFile(shell))));
         shell.OpenScene(Path.Combine(copy, "Assets", "Scenes", "Walk.crscene"));
         yield return 3;
         Assets.AssetDatabase database = shell.Database!;

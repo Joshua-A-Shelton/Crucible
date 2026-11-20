@@ -72,6 +72,8 @@ internal sealed class HierarchyChecks : GameSystem
     private IEnumerable<int> Script()
     {
         Shell shell = Shell.Current ?? throw new InvalidOperationException("No editor shell");
+        AssetChecks.OpenCopy(shell, Path.Combine(Path.GetDirectoryName(Path.GetFullPath(_capture))!, "hierarchy-project"),
+            Path.Combine("Assets", "Scenes", "Village.crscene"));
         shell.RestoreLayout(null);
         yield return 3;
         HierarchyPanel hierarchy = shell.Main.DockSpace.Panels.OfType<HierarchyPanel>().Single();

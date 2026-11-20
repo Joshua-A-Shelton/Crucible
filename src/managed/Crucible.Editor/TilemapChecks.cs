@@ -72,7 +72,7 @@ internal sealed class TilemapChecks : GameSystem
     private IEnumerable<int> Script()
     {
         Shell shell = Shell.Current ?? throw new InvalidOperationException("No editor shell");
-        string source = Path.GetDirectoryName(shell.Project?.ProjectFilePath ?? "") ?? "";
+        string source = Path.GetDirectoryName(AssetChecks.SourceProjectFile(shell)) ?? "";
         string copy = Path.Combine(Path.GetFullPath(_folder), "tilemaps-project");
         if (Directory.Exists(copy))
         {
@@ -88,7 +88,7 @@ internal sealed class TilemapChecks : GameSystem
         tga[17] = 0x28;
         Array.Fill(tga, (byte)200, 18, tga.Length - 18);
         File.WriteAllBytes(Path.Combine(copy, "Assets", "Ground.tga"), tga);
-        shell.OpenProject(Path.Combine(copy, Path.GetFileName(shell.Project!.ProjectFilePath)));
+        shell.OpenProject(Path.Combine(copy, Path.GetFileName(AssetChecks.SourceProjectFile(shell))));
         yield return 3;
 
         AssetDatabase database = shell.Database!;

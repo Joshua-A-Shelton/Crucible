@@ -64,7 +64,7 @@ internal sealed class SpriteSheetChecks : GameSystem
     private IEnumerable<int> Script()
     {
         Shell shell = Shell.Current ?? throw new InvalidOperationException("No editor shell");
-        string source = Path.GetDirectoryName(shell.Project?.ProjectFilePath ?? "") ?? "";
+        string source = Path.GetDirectoryName(AssetChecks.SourceProjectFile(shell)) ?? "";
         string copy = Path.Combine(Path.GetFullPath(_folder), "sprite-sheet-project");
         if (Directory.Exists(copy))
         {
@@ -74,7 +74,7 @@ internal sealed class SpriteSheetChecks : GameSystem
         // A sheet of 4x2 cells of 8x8, each its own color.
         File.WriteAllBytes(Path.Combine(copy, "Assets", "Hero.tga"),
             Tga(32, 16, (x, y) => ((byte)(x / 8 * 60), (byte)(y / 8 * 120), 200, 255)));
-        shell.OpenProject(Path.Combine(copy, Path.GetFileName(shell.Project!.ProjectFilePath)));
+        shell.OpenProject(Path.Combine(copy, Path.GetFileName(AssetChecks.SourceProjectFile(shell))));
         yield return 3;
 
         AssetDatabase database = shell.Database!;

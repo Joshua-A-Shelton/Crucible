@@ -74,14 +74,14 @@ internal sealed class AssetChecks : GameSystem
     {
         Shell shell = Shell.Current ?? throw new InvalidOperationException("No editor shell");
         // A copy of the project to change freely.
-        string source = Path.GetDirectoryName(shell.Project?.ProjectFilePath ?? "") ?? "";
+        string source = Path.GetDirectoryName(AssetChecks.SourceProjectFile(shell)) ?? "";
         string copy = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(_capture))!, "assets-project");
         if (Directory.Exists(copy))
         {
             Directory.Delete(copy, recursive: true);
         }
         CopyProject(source, copy);
-        shell.OpenProject(Path.Combine(copy, Path.GetFileName(shell.Project!.ProjectFilePath)));
+        shell.OpenProject(Path.Combine(copy, Path.GetFileName(AssetChecks.SourceProjectFile(shell))));
         shell.OpenScene(Path.Combine(copy, "Assets", "Scenes", "Village.crscene"));
         shell.RestoreLayout(null);
         yield return 3;
@@ -223,6 +223,37 @@ internal sealed class AssetChecks : GameSystem
         H.Send(root, V.Motion(from), V.Button(from, true), V.Motion(from + new Vector2(8, 0)), V.Motion(to));
 
     private static string Names(AssetsPanel assets) => string.Join(",", assets.Tiles.Select(tile => tile.Path));
+
+    /// <summary>
+    /// The project a check copies: its <c>source-project</c> game argument,
+    /// so CTest starts the editor with no project open and nothing imports
+    /// into the samples' own Caches (the checks can run at once); else the
+    /// project that's open.
+    /// </summary>
+    internal static string SourceProjectFile(Shell shell) =>
+        shell.GameArguments.TryGetValue("source-project", out string? file)
+            ? Path.GetFullPath(file)
+            : shell.Project?.ProjectFilePath ?? "";
+
+    /// <summary>
+    /// The source project copied into <paramref name="copy"/> (emptied
+    /// first, the Cache left out) and opened, with a scene of it if given,
+    /// for a check that would otherwise work on the sample itself.
+    /// </summary>
+    internal static void OpenCopy(Shell shell, string copy, string? scene)
+    {
+        string file = SourceProjectFile(shell);
+        if (Directory.Exists(copy))
+        {
+            Directory.Delete(copy, recursive: true);
+        }
+        CopyProject(Path.GetDirectoryName(file) ?? "", copy);
+        shell.OpenProject(Path.Combine(copy, Path.GetFileName(file)));
+        if (scene is not null)
+        {
+            shell.OpenScene(Path.Combine(copy, scene));
+        }
+    }
 
     internal static void CopyProject(string from, string to)
     {

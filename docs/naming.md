@@ -1457,3 +1457,15 @@ Names added while building, to settle after the owner's try (`*`):
 | `TileGlyph`*, `TileGlyphView`* | C# enum, class | The tools' symbols |
 | "Ground.crtileset"* | File name | A tileset made from a dropped texture, named after it, beside it |
 
+## Tests in parallel (2026-11-19, ADR 0109)
+
+Names added while building, to settle after the owner's look (`*`):
+
+| Name | What it names | What it is |
+|---|---|---|
+| ADR 0109 "Tests in parallel"* | Decision record | Removing the sample locks |
+| `source-project`* | Editor game argument | The sample a check copies, the editor starting with no project |
+| `AssetChecks.SourceProjectFile`*, `AssetChecks.OpenCopy`* | C# functions | The project to copy; copying and opening it |
+| `Shell.GameArguments`* | C# property | The editor's `--game-arg` values |
+| `viewport-project`*, `hierarchy-project`*, `inspector-project`*, `scene-loading-project`* | Test folders | The copies those checks work on |
+

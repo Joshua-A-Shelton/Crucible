@@ -70,7 +70,7 @@ internal sealed class NativeChecks : GameSystem
     private IEnumerable<int> Script()
     {
         Shell shell = Shell.Current ?? throw new InvalidOperationException("No editor shell");
-        string source = Path.GetDirectoryName(shell.Project?.ProjectFilePath ?? "") ?? "";
+        string source = Path.GetDirectoryName(AssetChecks.SourceProjectFile(shell)) ?? "";
         string copy = Path.Combine(Path.GetFullPath(_folder), "native-project");
         if (Directory.Exists(copy))
         {
@@ -79,7 +79,7 @@ internal sealed class NativeChecks : GameSystem
         AssetChecks.CopyProject(source, copy);
 
         // Opening the project: the module built and loaded, then the C# with its bindings.
-        shell.OpenProject(Path.Combine(copy, Path.GetFileName(shell.Project!.ProjectFilePath)));
+        shell.OpenProject(Path.Combine(copy, Path.GetFileName(AssetChecks.SourceProjectFile(shell))));
         string log = Log(shell);
         Check(Shell.ModuleLoaded && log.Contains("Loaded Diorama.Core", StringComparison.Ordinal),
             "opening the project builds and loads its module", Tail(log));
