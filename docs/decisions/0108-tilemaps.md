@@ -2,9 +2,10 @@
 
 **Status:** Accepted (2026-11-19); M11 step 4 built. Editing amended
 the same day (see "Amended: editing redesigned"), then superseded by ADR
-0112 (map mode, layers as child entities, several tilesets a map). The design's names were
-settled before building; those added while building are marked `*` until
-the owner settles them (docs/naming.md).
+0112 (map mode, layers as child entities, several tilesets a map). The
+design's names were settled before building; those added while building
+were settled by the owner as drafted (2026-11-20; docs/naming.md), those
+ADR 0112 replaced marked so.
 
 ## Context
 
@@ -60,16 +61,16 @@ turns would mostly matter once shapes are more than squares, and wait.
 
 ## How it works
 
-- **Importing a tileset** (`TilesetImporter`, into `.crtls`*): the file
+- **Importing a tileset** (`TilesetImporter`, into `.crtls`): the file
   checked (shapes inside their tile, whole pixels, tiles on the texture),
   and a TSET file with its grid. Nothing at run time reads it.
-- **Importing a map** (`TilemapImporter`, into `.crtmap`*): everything the
-  runtime needs is baked into a TMAP file (crucible/TilemapFile.h*): each
+- **Importing a map** (`TilemapImporter`, into `.crtmap`): everything the
+  runtime needs is baked into a TMAP file (crucible/TilemapFile.h): each
   cell's tile as its corner in the texture, the cell's size in meters (the
   tile's pixels over the texture's pixels per unit), and collision. The
   tileset's file and texture are dependencies: changing either imports
   the map again.
-- **Merging collision** (`TilemapImporter.Outlines`*): every painted
+- **Merging collision** (`TilemapImporter.Outlines`): every painted
   cell's shapes, mirrored with the cell, placed on the map in whole pixels
   and made counterclockwise. Each edge is split where another shape's
   corner (in its cell or the eight around) lies on it, so a slope meeting
@@ -90,9 +91,9 @@ turns would mostly matter once shapes are more than squares, and wait.
   row is one, sorted by its bottom. Each frame the items are placed by the
   entity's transform (snapped to the pixel camera's grid) and copied into
   the instance buffer; `render2d::reloadTilemap` drops a map read before.
-- **The editor:** see the amendment below. Painting (`TilePainter`*)
+- **The editor:** see the amendment below. Painting (`TilePainter`)
   writes the map file and imports it as each cell changes, so the map and
-  its collision follow the brush; a stroke is one undo step (`TileEdit`*).
+  its collision follow the brush; a stroke is one undo step (`TileEdit`).
   A flipped brush mirrors its arrangement too.
 
 ## Known limitations
@@ -107,24 +108,24 @@ turns would mostly matter once shapes are more than squares, and wait.
 ## As built
 
 - Native: crucible/Tilemap.h (`Tilemap`, `reloadTilemap`),
-  crucible/TilemapFile.h (`TilesetInfo`*, `TilemapInfo`*, `TilemapCell`*,
-  `TileFlip`*, `TilemapLoop`*); Sprites.cpp's `TilemapCache`*, `TileRow`*,
-  `TileRun`*, `gatherTilemaps`*; Box2dPhysics.cpp's `ShapeKind2D::Tilemap`,
-  `resolvedCollider`*, `makeChain`*, a chain's `loops`.
-- C#: `TilesetImporter`, `TilemapImporter`, `TilesetData`*,
-  `TilemapData`*, `TileCell`*, `ImportContext.PathOf`*; the `Tilemap`
+  crucible/TilemapFile.h (`TilesetInfo`, `TilemapInfo`, `TilemapCell`,
+  `TileFlip`, `TilemapLoop`); Sprites.cpp's `TilemapCache`, `TileRow`,
+  `TileRun`, `gatherTilemaps`; Box2dPhysics.cpp's `ShapeKind2D::Tilemap`,
+  `resolvedCollider`, `makeChain`, a chain's `loops`.
+- C#: `TilesetImporter`, `TilemapImporter`, `TilesetData`,
+  `TilemapData`, `TileCell`, `ImportContext.PathOf`; the `Tilemap`
   component's white tint; `SpriteAnimator` and `Tilemap` registered for
   scenes (`SpriteAnimator` had been missed in step 3).
-- Editor (as amended): `TilesPanel`*, `TileGridView`*, `TilePainter`*,
-  `TileTool`*, `TilePreset`*; `Shell.CreateTilemapEntity`*,
-  `CreateTilesetFor`*, `ShowTiles`*, `ShowTileset`*, `EditTileset`*,
-  `SetMapTileset`*, `UseMap`*, `IsMapShared`*, and `Delete(entity,
-  deleteMaps)`* in Shell.Tilemaps.cs.
-- Tests: C# (TilemapImporterTests*): merging, holes, corners, flips, files
+- Editor (as amended): `TilesPanel`, `TileGridView`, `TilePainter`,
+  `TileTool`, `TilePreset`; `Shell.CreateTilemapEntity`,
+  `CreateTilesetFor`, `ShowTiles`, `ShowTileset`, `EditTileset`,
+  `SetMapTileset`, `UseMap`, `IsMapShared`, and `Delete(entity,
+  deleteMaps)` in Shell.Tilemaps.cs.
+- Tests: C# (TilemapImporterTests): merging, holes, corners, flips, files
   read and written, a map imported in meters, reimporting on a tileset's
-  change, errors. Native: Tilemap2DTests* (resting, sliding without
+  change, errors. Native: Tilemap2DTests (resting, sliding without
   catching, loops and holes, reloading) and a drawing test on every
-  backend. The editor's TilemapChecks* (CTest `launcher.jit.tilemaps`*).
+  backend. The editor's TilemapChecks (CTest `launcher.jit.tilemaps`).
 
 ## Amended: editing redesigned (2026-11-19)
 

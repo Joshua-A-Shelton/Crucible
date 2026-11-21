@@ -1,7 +1,6 @@
 # 0111 — Unpaced check runs
 
-**Status:** Accepted (2026-11-19). Names added are marked `*` until the
-owner settles them (docs/naming.md).
+**Status:** Accepted (2026-11-19). Names settled by the owner as drafted (2026-11-20; docs/naming.md).
 
 ## Context
 
@@ -65,7 +64,7 @@ exercised on the GPU (`Host.RunHeadless`), and only the wait goes.
 Decided by the owner (2026-11-19): options 1 and 2, test-only; the engine
 doesn't change.
 
-- `LevelChecks.RunOptions`* gives each standalone, cooked, and package run
+- `LevelChecks.RunOptions` gives each standalone, cooked, and package run
   `--headless --fixed-clock --no-pacing --frame-rate N`.
 - `samples.walker-level`, `samples.walker-archive`, and
   `samples.walker-packaged` run their editor with `--frame-rate 60`.

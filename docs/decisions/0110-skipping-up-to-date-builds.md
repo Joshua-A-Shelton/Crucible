@@ -1,7 +1,7 @@
 # 0110 — Skipping up-to-date builds
 
-**Status:** Accepted (2026-11-19). Names added are marked `*` until the
-owner settles them (docs/naming.md).
+**Status:** Accepted (2026-11-19). Names settled by the owner as drafted
+(2026-11-20; docs/naming.md).
 
 ## Context
 
@@ -18,11 +18,11 @@ in each of its 8 checks (5.5 s alone).
 Decided by the owner (2026-11-19).
 
 1. **The editor skips a C# build that's up to date.** A build that
-   succeeds writes `Cache/Build/<Game>.stamp`*: a hash of its inputs, the
+   succeeds writes `Cache/Build/<Game>.stamp`: a hash of its inputs, the
    hash of the assembly it made, and the folder it was built in. Before
-   building, the editor (`GameBuilder.InputHash`*, `IsUpToDate`*) hashes the
+   building, the editor (`GameBuilder.InputHash`, `IsUpToDate`) hashes the
    inputs again; if they and the assembly match the stamp, nothing builds
-   and the log says "`Walker.dll` is up to date"*. The inputs, by contents
+   and the log says "`Walker.dll` is up to date". The inputs, by contents
    (not file times, which copies and checkouts change):
    - the project file the editor writes, with the project's folder left
      out, so a copy elsewhere hashes the same;
@@ -30,7 +30,7 @@ Decided by the owner (2026-11-19).
    - the C++ module's bindings (`Bindings.g.cs`), if any;
    - the engine assembly and its source generators.
    A change that changes nothing (a file saved as it was) neither builds
-   nor reloads ("Game up to date"* in the status bar). Packages always
+   nor reloads ("Game up to date" in the status bar). Packages always
    build.
 2. **Not the C++ module.** Its inputs reach outside the project (engine
    headers, the toolkit, the compiler), and CMake already skips work in
@@ -41,14 +41,14 @@ Decided by the owner (2026-11-19).
    build clears the `obj` folders first; the C++ module's build folder is
    cleared when its `CMakeCache.txt` was made elsewhere
    (`NativeBuilder.ClearIfMoved`).
-4. **Warm copies for the tests.** `samples.walker-warm`* and
-   `samples.diorama-warm`* (fixtures `walker-warm`*, `diorama-warm`*,
-   script `tests/warm/warm_project.cmake`*) copy their sample without its
-   Cache into `<build>/src/native/launcher/warm/<Sample>/`*, open it cold
+4. **Warm copies for the tests.** `samples.walker-warm` and
+   `samples.diorama-warm` (fixtures `walker-warm`, `diorama-warm`,
+   script `tests/warm/warm_project.cmake`) copy their sample without its
+   Cache into `<build>/src/native/launcher/warm/<Sample>/`, open it cold
    (checking everything imported and built), and open it again (checking
    nothing imported and the build was skipped). The checks get the copy as
-   `--game-arg warm-project=`* and copy it Cache and all
-   (`AssetChecks.IsWarm`*); the package tests start from it too, clearing
+   `--game-arg warm-project=` and copy it Cache and all
+   (`AssetChecks.IsWarm`); the package tests start from it too, clearing
    only their package builds. `launcher.jit.assets`, which is about
    importing, still copies the sample cold. The warm-ups start first
    (`COST`), since the checks wait on them.

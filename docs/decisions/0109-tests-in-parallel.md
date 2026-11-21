@@ -1,7 +1,6 @@
 # 0109 — Tests in parallel
 
-**Status:** Accepted (2026-11-19). Names added are marked `*` until the
-owner settles them (docs/naming.md).
+**Status:** Accepted (2026-11-19). Names settled by the owner as drafted (2026-11-20; docs/naming.md).
 
 ## Context
 
@@ -21,11 +20,11 @@ the locks.
 Decided by the owner (2026-11-19): keep every test, and remove the locks.
 
 1. **Checks start with no project open.** CTest passes the sample as
-   `--game-arg source-project=<.crproject>`* instead of `--project`; a
-   check copies it into its own folder (`AssetChecks.SourceProjectFile`*)
+   `--game-arg source-project=<.crproject>` instead of `--project`; a
+   check copies it into its own folder (`AssetChecks.SourceProjectFile`)
    and opens the copy. The four checks that worked on the sample in place
    (viewport, hierarchy, inspector, scene loading) copy it too
-   (`AssetChecks.OpenCopy`*); the first three run until they finish
+   (`AssetChecks.OpenCopy`); the first three run until they finish
    (`--frames 100000`, as the others) since the copy imports cold.
 2. **The locks are gone.** Nothing writes into the samples during a run,
    so the package tests copying a sample with its Cache need no lock

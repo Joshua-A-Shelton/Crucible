@@ -32,7 +32,7 @@ the frame renders.
 
 ## Decision
 
-1. **A C# step is an `IRenderStep`** (`Prepare`, `AddPasses`, `Release`),
+1. **A C# step is an `IRenderStep`* (`Prepare`, `AddPasses`, `Release`),
    placed in the schedule by name with `RenderSchedule.Add`,
    `InsertBefore`, `InsertAfter`, `Replace` and `Remove`, among the C++
    steps. Native code calls it through one engine trampoline with a step
@@ -155,7 +155,7 @@ The owner's editor hung after its UI step threw (a list's bug): the frame
 was given up after the window's image was acquired, so the image was
 never presented and the next acquire waited forever. A C# step's passes
 reach the graph only once its AddPasses returns, so one that throws has
-added nothing: the frame now goes on without it (`skipThrownStep`*), is
+added nothing: the frame now goes on without it (`skipThrownStep`), is
 submitted and shown, and the failure is reported after it as before (the
 caller rethrows it). A step that added passes which then fail their
 checks still fails its frame. `launcher.jit.render-steps` checks the

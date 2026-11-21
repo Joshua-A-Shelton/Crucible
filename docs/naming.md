@@ -1420,21 +1420,22 @@ Tileset Editor (Select, Draw Shape, Full, Clear); the Tile Palette (Paint
 (B), Erase (E), Fill (G), Pick (I)); Edit Tiles (T); New Tileset and New
 Tilemap (Create > Tileset and Create > Tilemap, as Create > Chain).
 
-Names added while building, to settle after the owner's try (`*`):
+Names added while building, settled as drafted after the owner tried
+map mode (2026-11-20); those a redesign replaced are marked:
 
 | Name | What it names | What it is |
 |---|---|---|
-| `.crtls`*, `.crtmap`* | Imported file extensions | A tileset's and a tilemap's imported files |
-| crucible/TilemapFile.h*, `TilesetInfo`*, `TilemapInfo`*, `TilemapCell`*, `TileFlip`* (`X`, `Y`), `TilemapLoop`*; kinds `TSET`*, `TMAP`*; sections CELL*, LOOP*, PNTS | C++ header, structs, enum, file tags | The imported files' layout |
-| A cell in a `.crtilemap` as `[x, y, tile, flips]`* | File format | Flips 1 for X, 2 for Y |
-| `render2d::reloadTilemap`* | C++ function | Forgets a map read before, after painting |
-| `TilesetData`*, `TilemapData`*, `TileCell`*; `TilesetImporter.Read`*, `Format`*; `TilemapImporter.Read`*, `Format`*, `Outlines`* | C# types and functions | Reading, writing, and merging collision |
-| `ImportContext.PathOf`* | C# function | Another asset's path, to read it as a dependency |
-| `TileGridView`* | C# class | The zoomable tile grid the Tiles panel shows |
-| `TilePainter`*, `TileTool`*, `TileEdit`* | C# classes | Painting the selected map, its tools, and a stroke's undo step |
-| `Shell.CreateTileset`*, `SetTileTool`* | C# functions | Create > Tileset, and choosing a painting tool |
-| `TilemapCache`*, `TileRow`*, `TileRun`*, `gatherTilemaps`*, `resolvedCollider`*, `makeChain`* | Internal C++ | Drawing and colliding with maps |
-| TilemapImporterTests*, Tilemap2DTests.cpp*, TilemapChecks*, CTest `launcher.jit.tilemaps`* | Tests | C#, native, and the editor checking itself |
+| `.crtls`, `.crtmap` | Imported file extensions | A tileset's and a tilemap's imported files |
+| crucible/TilemapFile.h, `TilesetInfo`, `TilemapInfo`, `TilemapCell`, `TileFlip` (`X`, `Y`), `TilemapLoop`; kinds `TSET`, `TMAP`; sections CELL, LOOP, PNTS | C++ header, structs, enum, file tags | The imported files' layout |
+| A cell in a `.crtilemap` as `[x, y, tile, flips]` (replaced by `[x, y, tileset, tile, flips]`, ADR 0112; still read) | File format | Flips 1 for X, 2 for Y |
+| `render2d::reloadTilemap` | C++ function | Forgets a map read before, after painting |
+| `TilesetData`, `TilemapData`, `TileCell`; `TilesetImporter.Read`, `Format`; `TilemapImporter.Read`, `Format`, `Outlines` | C# types and functions | Reading, writing, and merging collision |
+| `ImportContext.PathOf` | C# function | Another asset's path, to read it as a dependency |
+| `TileGridView` | C# class | The zoomable tile grid the Tiles panel shows |
+| `TilePainter`, `TileTool`, `TileEdit` (replaced by `MapEditor`, `MapTool`, ADR 0112) | C# classes | Painting the selected map, its tools, and a stroke's undo step |
+| `Shell.CreateTileset` (now New Tileset's), `SetTileTool` (replaced by `SetMapTool`) | C# functions | Create > Tileset, and choosing a painting tool |
+| `TilemapCache`, `TileRow`, `TileRun`, `gatherTilemaps`, `resolvedCollider`, `makeChain` | Internal C++ | Drawing and colliding with maps |
+| TilemapImporterTests, Tilemap2DTests.cpp, TilemapChecks, CTest `launcher.jit.tilemaps` | Tests | C#, native, and the editor checking itself |
 
 Redesigned editing (2026-11-19, after the owner's try): settled before
 building: Create > 2D > Tilemap; the Tiles panel and its tabs Paint and
@@ -1445,17 +1446,18 @@ High, Custom, Clear; Use Another Map; a new map named after its entity
 "Tilemaps" for an unsaved scene). Replaced: the Tileset Editor, the Tile
 Palette, Edit Tiles (T), Create > Tilemap, and their classes.
 
-Names added while building, to settle after the owner's try (`*`):
+Names added while building, settled as drafted after the owner tried
+map mode (2026-11-20); those a redesign replaced are marked:
 
 | Name | What it names | What it is |
 |---|---|---|
-| `TilesPanel`*, panel ID `Tiles`* | C# class, layout ID | The Tiles panel |
-| `Shell.CreateTilemapEntity`*, `TilemapFolder`*, `IsMapShared`*, `CreateTilesetFor`*, `ShowTiles`*, `ShowTileset`*, `EditTileset`*, `SetMapTileset`*, `UseMap`* | C# functions | Making tilemaps and their files, and the panel's edits |
-| `Shell.Delete(entity, deleteMaps)`* | C# function | Deleting with its maps, or asking ("Also delete Ground.crtilemap?": Delete File*, Keep File*, Cancel) |
-| `TilePreset`* (`Full`, `Half`, `Slope`, `ShallowLow`, `ShallowHigh`) | C# enum | The Collision tab's shapes |
-| `TilePainter.IsPainting`* | C# property | Painting on, the viewport's left button using the tool |
-| `TileGlyph`*, `TileGlyphView`* | C# enum, class | The tools' symbols |
-| "Ground.crtileset"* | File name | A tileset made from a dropped texture, named after it, beside it |
+| `TilesPanel`, panel ID `Tiles` (replaced by the Palette and Layers, ADR 0112) | C# class, layout ID | The Tiles panel |
+| `Shell.CreateTilemapEntity`, `TilemapFolder`, `IsMapShared`, `ShowTileset`, `EditTileset`; replaced by ADR 0112: `CreateTilesetFor`, `ShowTiles`, `SetMapTileset`, `UseMap` | C# functions | Making tilemaps and their files, and the panel's edits |
+| `Shell.Delete(entity, deleteMaps)` | C# function | Deleting with its maps, or asking ("Also delete Ground.crtilemap?": Delete File, Keep File, Cancel) |
+| `TilePreset` (`Full`, `Half`, `Slope`, `ShallowLow`, `ShallowHigh`) | C# enum | The Collision tab's shapes |
+| `TilePainter.IsPainting` (replaced: map mode paints while it's on) | C# property | Painting on, the viewport's left button using the tool |
+| `TileGlyph`, `TileGlyphView` | C# enum, class | The tools' symbols |
+| "Ground.crtileset" | File name | A tileset made from a dropped texture, named after it, beside it |
 
 ## Map mode and layers (2026-11-20, ADR 0112)
 
@@ -1471,80 +1473,83 @@ docs/learning/map-editing.md. Replaced: the Tiles panel and its tabs, Paint
 (B), Erase, Fill (G), Pick (I), Use Another Map, Create > Tileset (now
 Create > Tileset…, opening New Tileset).
 
-Names added while building, to settle after the owner's try (`*`):
+Names added while building, settled as drafted after the owner tried
+map mode (2026-11-20); those a redesign replaced are marked:
 
 | Name | What it names | What it is |
 |---|---|---|
-| `TilemapLayers`* (C++ `crucible::render2d`, C# `Crucible.Render2D`), its field `map` | Component | A map whose layers are the entity's children |
-| A layer's `Id`* in a `.crtilemap`; a cell `[x, y, tileset, tile, flips]`* | File format | The id a Tilemap names its layer by; the cell's tileset by its place |
-| TMAP version 2: sections `TXTR`*, `LAYR`*; `TilemapLayer`*; `TilemapCell.texture`* | C++ file layout | Textures, layers' ranges, a cell's texture |
-| `TileLayer`*, `TilemapData.Tilesets`*, `Layers`*, `Layer(id)`*, `NewLayerId`*; `TileCell.Set`* | C# types and members | The map file read |
-| `MapEditor`* (`Shell.Map`*), `MapTool`*, `BrushTile`*, `MapTileset`* | C# classes | Map mode's editing, its tools, a brush's tiles, a tileset as shown |
-| `Shell.EnterMapMode`*, `ExitMapMode`*, `InMapMode`*, `FrameMap`*, `MapRootOf`*, `LayerEntity`*, `AddLayer`*, `DeleteLayer`*, `RenameLayer`*, `MoveLayer`*, `SetLayerVisible`*, `SetLayerCollides`*, `MissingLayers`*, `RecreateLayerEntity`*, `AddTilesetToMap`*, `RemoveTilesetFromMap`*, `CreateTileset`*, `MakeSprite`*, `OpenTilesetDialog`* | C# functions | Map mode, layers, and tilesets |
-| Map mode's panel IDs `Palette`*, `Layers`* | Layout IDs | Saved layouts |
-| "Edit Grid…"*, "Remove from Map"*, "New Tileset…"* (the + tab's menu), "Image"* (the dialog's field), "Save"* (editing a grid) | UI text | The Palette's tabs and New Tileset |
-| "Convert to Layers"* | Undo step | A map from before layers given them |
-| "Add a tileset first: the + tab in the Palette"*, the Palette's and Layers' hints | Status and hint text | What to do next |
-| `TabButton`*, `LayerName`*, `RenameField`*, `TileGlyph.Stamp`*, `Eraser`*, `Select`* | C# classes, enum values | The panels' parts and the tools' symbols |
-| `ApplyImportSettings(…, openSheet)`* | C# parameter | Making a texture a sprite without opening its sheet |
-| View > "Leave Map Mode"* (command `View.LeaveMapMode`*), the Palette's "Map Mode — Done (or Escape) to leave"* | Menu item, UI text | Leaving map mode where it's seen |
+| `TilemapLayers` (C++ `crucible::render2d`, C# `Crucible.Render2D`), its field `map` | Component | A map whose layers are the entity's children |
+| A layer's `Id` in a `.crtilemap`; a cell `[x, y, tileset, tile, flips]` | File format | The id a Tilemap names its layer by; the cell's tileset by its place |
+| TMAP version 2: sections `TXTR`, `LAYR`; `TilemapLayer`; `TilemapCell.texture` | C++ file layout | Textures, layers' ranges, a cell's texture |
+| `TileLayer`, `TilemapData.Tilesets`, `Layers`, `Layer(id)`, `NewLayerId`; `TileCell.Set` | C# types and members | The map file read |
+| `MapEditor` (`Shell.Map`), `MapTool`, `BrushTile`, `MapTileset` | C# classes | Map mode's editing, its tools, a brush's tiles, a tileset as shown |
+| `Shell.EnterMapMode`, `ExitMapMode`, `InMapMode`, `FrameMap`, `MapRootOf`, `LayerEntity`, `AddLayer`, `DeleteLayer`, `RenameLayer`, `MoveLayer`, `SetLayerVisible`, `SetLayerCollides`, `MissingLayers`, `RecreateLayerEntity`, `AddTilesetToMap`, `RemoveTilesetFromMap`, `CreateTileset`, `MakeSprite`, `OpenTilesetDialog` | C# functions | Map mode, layers, and tilesets |
+| Map mode's panel IDs `Palette`, `Layers` | Layout IDs | Saved layouts |
+| "Edit Grid…", "Remove from Map", "New Tileset…" (the + tab's menu), "Image" (the dialog's field), "Save" (editing a grid) | UI text | The Palette's tabs and New Tileset |
+| "Convert to Layers" | Undo step | A map from before layers given them |
+| "Add a tileset first: the + tab in the Palette", the Palette's and Layers' hints | Status and hint text | What to do next |
+| `TabButton`, `LayerName`, `RenameField`, `TileGlyph.Stamp`, `Eraser`, `Select` | C# classes, enum values | The panels' parts and the tools' symbols |
+| `ApplyImportSettings(…, openSheet)` | C# parameter | Making a texture a sprite without opening its sheet |
+| View > "Leave Map Mode" (command `View.LeaveMapMode`), the Palette's "Map Mode — Done (or Escape) to leave" | Menu item, UI text | Leaving map mode where it's seen |
 
 ## 2D lighting (2026-11-20, ADR 0113)
 
-Names proposed before building, to settle after the owner's try (`*`):
+Names proposed before building, settled as drafted after the owner tried
+step 5 by hand (2026-11-20):
 
 | Name | What it names | What it is |
 |---|---|---|
-| ADR 0113 "2D lighting"* | Decision record | M11 step 5 |
-| `PointLight2D`*: `color`, `intensity`, `range`, `bands` | Component (C++ `crucible::render2d`, crucible/Light2D.h*; C# `Crucible.Render2D`) | A circle of 2D light |
-| `SpotLight2D`*: also `innerConeAngle`, `outerConeAngle` | Component | A cone of 2D light along local down |
-| `AmbientLight2D`*: `color`, `intensity` | Component | The light everything lit starts from |
-| `Sprite.unlit`*, `Tilemap.unlit`* | Component fields | Not lit |
-| `Unlit`* on a sorting layer | Project setting | The layer isn't lit |
-| Create > 2D > Point Light*, Spot Light*, Ambient Light* | Hierarchy menu | Making lights |
-| light2d.slang*, `Light2DInstance`*, `Light2DConstants`*, the `Lights2D`* pass, `LightBuffer`*, `lights2DDescriptor`*, `lightBufferDescriptor`*, `SpriteInstance.lit`*, `render2d::setUnlitLayers`*, `unlitLayers`* | Internal | The light buffer and its plumbing |
-| `Shell.CreateLight2D`*, `Light2DKind`*, `DrawLight2D`* | C# | The editor's lights |
-| Light2DChecks*, CTest `launcher.jit.lights-2d`* | Tests | The editor checking 2D lights |
-| docs/learning/2d-lighting.md* | Learning note | Light buffers, linear light, falloff and bands |
+| ADR 0113 "2D lighting" | Decision record | M11 step 5 |
+| `PointLight2D`: `color`, `intensity`, `range`, `bands` | Component (C++ `crucible::render2d`, crucible/Light2D.h; C# `Crucible.Render2D`) | A circle of 2D light |
+| `SpotLight2D`: also `innerConeAngle`, `outerConeAngle` | Component | A cone of 2D light along local down |
+| `AmbientLight2D`: `color`, `intensity` | Component | The light everything lit starts from |
+| `Sprite.unlit`, `Tilemap.unlit` | Component fields | Not lit |
+| `Unlit` on a sorting layer | Project setting | The layer isn't lit |
+| Create > 2D > Point Light, Spot Light, Ambient Light | Hierarchy menu | Making lights |
+| light2d.slang, `Light2DInstance`, `Light2DConstants`, the `Lights2D` pass, `LightBuffer`, `lights2DDescriptor`, `lightBufferDescriptor`, `SpriteInstance.lit`, `render2d::setUnlitLayers`, `unlitLayers` | Internal | The light buffer and its plumbing |
+| `Shell.CreateLight2D`, `Light2DKind`, `DrawLight2D` | C# | The editor's lights |
+| Light2DChecks, CTest `launcher.jit.lights-2d` | Tests | The editor checking 2D lights |
+| `skipThrownStep`, `FrameInputs.stepThrew` (ADR 0058, amended) | Internal C++ | A thrown C# step left out of a frame that's still shown |
+| docs/learning/2d-lighting.md | Learning note | Light buffers, linear light, falloff and bands |
 
 ## Tests in parallel (2026-11-19, ADR 0109)
 
-Names added while building, to settle after the owner's look (`*`):
+Names added while building, settled as drafted by the owner (2026-11-20):
 
 | Name | What it names | What it is |
 |---|---|---|
-| ADR 0109 "Tests in parallel"* | Decision record | Removing the sample locks |
-| `source-project`* | Editor game argument | The sample a check copies, the editor starting with no project |
-| `AssetChecks.SourceProjectFile`*, `AssetChecks.OpenCopy`* | C# functions | The project to copy; copying and opening it |
-| `Shell.GameArguments`* | C# property | The editor's `--game-arg` values |
-| `viewport-project`*, `hierarchy-project`*, `inspector-project`*, `scene-loading-project`* | Test folders | The copies those checks work on |
+| ADR 0109 "Tests in parallel" | Decision record | Removing the sample locks |
+| `source-project` | Editor game argument | The sample a check copies, the editor starting with no project |
+| `AssetChecks.SourceProjectFile`, `AssetChecks.OpenCopy` | C# functions | The project to copy; copying and opening it |
+| `Shell.GameArguments` | C# property | The editor's `--game-arg` values |
+| `viewport-project`, `hierarchy-project`, `inspector-project`, `scene-loading-project` | Test folders | The copies those checks work on |
 
 ## Skipping up-to-date builds (2026-11-19, ADR 0110)
 
-Names added while building, to settle after the owner's look (`*`):
+Names added while building, settled as drafted by the owner (2026-11-20):
 
 | Name | What it names | What it is |
 |---|---|---|
-| ADR 0110 "Skipping up-to-date builds"* | Decision record | The C# build stamp and warm test copies |
-| `Cache/Build/<Game>.stamp`* | File | Hash of the last good build's inputs and output, and where it was built |
-| "`Walker.dll` is up to date"* | Log line | Shown instead of "Building Walker…" when the build is skipped |
-| "Game up to date"* | Status bar text | A code change that changed nothing |
-| `GameBuilder.StampFile`*, `InputHash`*, `IsUpToDate`* | C# members | The stamp's path, the inputs' hash, the check |
-| `GameBuild.UpToDate`* | C# record field | A build that was skipped |
-| `NativeBuilder.ClearIfMoved`* | C# function | Clearing a CMake folder configured elsewhere |
-| `samples.walker-warm`*, `samples.diorama-warm`* | CTest tests | Warming up a sample |
-| `walker-warm`*, `diorama-warm`* | CTest fixtures | What the checks require |
-| `tests/warm/warm_project.cmake`* | CMake script | Copying, opening cold, opening warm |
-| `<build>/src/native/launcher/warm/<Sample>/`* | Test folder | The warm copies |
-| `warm-project`* | Editor game argument | The warm copy a check copies, Cache and all |
-| `AssetChecks.IsWarm`* | C# function | Whether the check's source is warm |
-| `docs/learning/up-to-date-builds.md`* | Learning note | File times versus content hashes |
+| ADR 0110 "Skipping up-to-date builds" | Decision record | The C# build stamp and warm test copies |
+| `Cache/Build/<Game>.stamp` | File | Hash of the last good build's inputs and output, and where it was built |
+| "`Walker.dll` is up to date" | Log line | Shown instead of "Building Walker…" when the build is skipped |
+| "Game up to date" | Status bar text | A code change that changed nothing |
+| `GameBuilder.StampFile`, `InputHash`, `IsUpToDate` | C# members | The stamp's path, the inputs' hash, the check |
+| `GameBuild.UpToDate` | C# record field | A build that was skipped |
+| `NativeBuilder.ClearIfMoved` | C# function | Clearing a CMake folder configured elsewhere |
+| `samples.walker-warm`, `samples.diorama-warm` | CTest tests | Warming up a sample |
+| `walker-warm`, `diorama-warm` | CTest fixtures | What the checks require |
+| `tests/warm/warm_project.cmake` | CMake script | Copying, opening cold, opening warm |
+| `<build>/src/native/launcher/warm/<Sample>/` | Test folder | The warm copies |
+| `warm-project` | Editor game argument | The warm copy a check copies, Cache and all |
+| `AssetChecks.IsWarm` | C# function | Whether the check's source is warm |
+| `docs/learning/up-to-date-builds.md` | Learning note | File times versus content hashes |
 
 ## Unpaced check runs (2026-11-19, ADR 0111)
 
-Names added while building, to settle after the owner's look (`*`):
+Names added while building, settled as drafted by the owner (2026-11-20):
 
 | Name | What it names | What it is |
 |---|---|---|
-| ADR 0111 "Unpaced check runs"* | Decision record | The Walker checks' runs without the pacing wait, and their editor capped at 60 fps |
-| `LevelChecks.RunOptions`* | C# function (private) | The launcher options each of the Walker checks' runs gets |
+| ADR 0111 "Unpaced check runs" | Decision record | The Walker checks' runs without the pacing wait, and their editor capped at 60 fps |
+| `LevelChecks.RunOptions` | C# function (private) | The launcher options each of the Walker checks' runs gets |

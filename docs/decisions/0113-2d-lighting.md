@@ -1,7 +1,6 @@
 # 0113 — 2D lighting
 
-**Status:** Accepted (2026-11-20); M11 step 5. Names added are marked `*`
-until the owner settles them (docs/naming.md).
+**Status:** Accepted (2026-11-20); M11 step 5. Names settled by the owner as drafted (2026-11-20; docs/naming.md).
 
 ## Context
 
@@ -32,10 +31,10 @@ Decided by the owner (2026-11-20):
    ambient light; each lit sprite and tile is multiplied by it at its
    pixel. Light changes a (virtual) pixel at a time. Without point or spot
    lights there's no buffer: the ambient multiplies as a constant.
-2. **`PointLight2D`*** (`color`, `intensity`, `range`, `bands`),
-   **`SpotLight2D`*** (also `innerConeAngle`, `outerConeAngle`, full
+2. **`PointLight2D`** (`color`, `intensity`, `range`, `bands`),
+   **`SpotLight2D`** (also `innerConeAngle`, `outerConeAngle`, full
    angles in radians as SpotLight's, shining along its entity's local
-   down, so a lamp shines down unturned), **`AmbientLight2D`*** (`color`,
+   down, so a lamp shines down unturned), **`AmbientLight2D`** (`color`,
    `intensity`; one per world, the lowest entity index's, as in 3D).
    Without an ambient light the ambient is white: the art as drawn,
    lights only brightening; existing scenes look as they did.
@@ -44,13 +43,13 @@ Decided by the owner (2026-11-20):
 4. **Bands:** 0 fades smoothly (`(1 - (d / range)²)²`); more steps the fade
    into that many flat rings.
 5. **Every lit layer** gets every light (one buffer).
-6. **Both switches:** a sorting layer's **`Unlit`*** in the project file
-   (a UI or sky layer), and **`Sprite.unlit`***, **`Tilemap.unlit`*** (a
+6. **Both switches:** a sorting layer's **`Unlit`** in the project file
+   (a UI or sky layer), and **`Sprite.unlit`**, **`Tilemap.unlit`** (a
    glowing eye in a lit layer). Lit is the default everywhere.
 7. **No shadows yet**; normal maps and lights for some layers only also
    wait (open items).
-8. **The editor:** the hierarchy's Create > 2D > **Point Light***, **Spot
-   Light***, **Ambient Light***; a selected light's range (and a spot's
+8. **The editor:** the hierarchy's Create > 2D > **Point Light**, **Spot
+   Light**, **Ambient Light**; a selected light's range (and a spot's
    cone) drawn over the viewports.
 
 ## How it works
@@ -64,8 +63,8 @@ Decided by the owner (2026-11-20):
   the ambient; sprite passes read it at their own pixel
   (`lightBufferDescriptor`, written while recording), through a pixel
   camera for the image behind the 3D and the one in front alike.
-- `SpriteInstance.lit`*, from the sorting layer's mask
-  (`render2d::setUnlitLayers`*, from RuntimeSettings) and the sprite's or
+- `SpriteInstance.lit`, from the sorting layer's mask
+  (`render2d::setUnlitLayers`, from RuntimeSettings) and the sprite's or
   tilemap's own switch. `SpriteConstants` gains the light buffer's slot
   and the ambient.
 - Light multiplies the art's linear colors (the GPU decodes the sRGB
@@ -80,4 +79,4 @@ Decided by the owner (2026-11-20):
 - Tests: native, on every backend (ambient per channel, a point light's
   fade and range, bands, the 2x cap, an unlit sprite and an Unlit layer,
   a spot's cone turned with its entity, and light a virtual pixel at a
-  time through a pixel camera); the editor's `launcher.jit.lights-2d`*.
+  time through a pixel camera); the editor's `launcher.jit.lights-2d`.
