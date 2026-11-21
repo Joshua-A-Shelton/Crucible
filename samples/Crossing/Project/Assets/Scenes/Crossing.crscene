@@ -474,7 +474,7 @@
           "FlipX": false,
           "FlipY": false,
           "Unlit": false,
-          "SortingLayer": 1,
+          "SortingLayer": 3,
           "OrderInLayer": 0
         }
       },
@@ -550,7 +550,7 @@
           "FlipX": false,
           "FlipY": false,
           "Unlit": false,
-          "SortingLayer": 1,
+          "SortingLayer": 3,
           "OrderInLayer": 0
         }
       },
@@ -626,7 +626,7 @@
           "FlipX": false,
           "FlipY": false,
           "Unlit": false,
-          "SortingLayer": 1,
+          "SortingLayer": 3,
           "OrderInLayer": 0
         }
       },
@@ -702,7 +702,7 @@
           "FlipX": false,
           "FlipY": false,
           "Unlit": false,
-          "SortingLayer": 1,
+          "SortingLayer": 3,
           "OrderInLayer": 0
         }
       },
@@ -778,7 +778,7 @@
           "FlipX": false,
           "FlipY": false,
           "Unlit": false,
-          "SortingLayer": 3,
+          "SortingLayer": 4,
           "OrderInLayer": 0
         }
       },
@@ -854,7 +854,7 @@
           "FlipX": false,
           "FlipY": false,
           "Unlit": false,
-          "SortingLayer": 3,
+          "SortingLayer": 4,
           "OrderInLayer": 0
         }
       },
@@ -927,6 +927,32 @@
       "Id": "c7055e0000000018",
       "Components": {
         "Crucible.Scenes.EntityName": {
+          "Value": "Under the Deck"
+        },
+        "Crucible.Scenes.Transform2D": {
+          "Position": [
+            0,
+            0
+          ],
+          "Angle": 0.0,
+          "Scale": [
+            1,
+            1
+          ],
+          "Depth": 0
+        },
+        "Crossing.Cover": {
+          "Size": [
+            6,
+            4
+          ]
+        }
+      }
+    },
+    {
+      "Id": "c7055e0000000019",
+      "Components": {
+        "Crucible.Scenes.EntityName": {
           "Value": "West Stairs Bottom"
         },
         "Crucible.Scenes.Transform2D": {
@@ -951,7 +977,7 @@
       }
     },
     {
-      "Id": "c7055e0000000019",
+      "Id": "c7055e000000001a",
       "Components": {
         "Crucible.Scenes.EntityName": {
           "Value": "West Stairs Top"
@@ -978,7 +1004,7 @@
       }
     },
     {
-      "Id": "c7055e000000001a",
+      "Id": "c7055e000000001b",
       "Components": {
         "Crucible.Scenes.EntityName": {
           "Value": "East Stairs Top"
@@ -1005,7 +1031,7 @@
       }
     },
     {
-      "Id": "c7055e000000001b",
+      "Id": "c7055e000000001c",
       "Components": {
         "Crucible.Scenes.EntityName": {
           "Value": "East Stairs Bottom"
@@ -1032,7 +1058,7 @@
       }
     },
     {
-      "Id": "c7055e000000001d",
+      "Id": "c7055e000000001e",
       "Components": {
         "Crucible.Scenes.EntityName": {
           "Value": "Hero"
@@ -1070,7 +1096,7 @@
           "FlipX": false,
           "FlipY": false,
           "Unlit": false,
-          "SortingLayer": 1,
+          "SortingLayer": 3,
           "OrderInLayer": 0
         },
         "Crucible.Render2D.SpriteAnimator": {
@@ -1154,7 +1180,7 @@
       },
       "Children": [
         {
-          "Id": "c7055e000000001c",
+          "Id": "c7055e000000001d",
           "Components": {
             "Crucible.Scenes.EntityName": {
               "Value": "Lantern"
@@ -1186,7 +1212,7 @@
       ]
     },
     {
-      "Id": "c7055e000000001e",
+      "Id": "c7055e000000001f",
       "Components": {
         "Crucible.Scenes.EntityName": {
           "Value": "Pixel Camera"
@@ -1210,7 +1236,7 @@
           "Fit": "Exact"
         },
         "Crossing.Follow": {
-          "Target": "c7055e000000001d"
+          "Target": "c7055e000000001e"
         }
       }
     }

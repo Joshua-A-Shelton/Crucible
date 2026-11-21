@@ -1520,7 +1520,8 @@ Names proposed before building, to settle after the owner's try (`*`):
 |---|---|---|
 | `samples/Crossing`*, project "Crossing"*, `make_crossing.py`* | Sample, script | The demonstration and what writes it |
 | Crossing.crscene*; Hero.png*, Tiles.png*, Tiles.crtileset*, Lamp.png*, Crossing.crtilemap*, Sea.gltf*, Rock.gltf* | Assets | The scene, art, map, and 3D |
-| Sorting layers "Ground"*, "Low"*, "Deck"*, "High"*; physics layers "Ground"*, "Bridge"* | Project settings | The two floors |
+| Sorting layers "Ground"*, "Under"*, "Deck"*, "Low"*, "High"*; physics layers "Ground"*, "Bridge"* | Project settings | The two floors |
+| `Cover`* (`Size`) | Game code | Where a hero on the ground is drawn under the deck |
 | Map layers "Ground"*, "Deck"*, "Railings"* | Tilemap layers | What draws and collides on each floor |
 | `Hero`* (`Speed`, `WalkDown`*… `IdleUp`*), `HeroSystem`* | Game code | Walking the hero from input or the script |
 | `FloorTrigger`* (`Floor`*, `Size`*), `FloorSystem`* (`FloorOf`*, `SetFloor`*) | Game code | Switching floors at the stairs |

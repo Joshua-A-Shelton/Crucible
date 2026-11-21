@@ -461,8 +461,11 @@ def make_background():
 # The project and the scene
 # ---------------------------------------------------------------------------
 
-SORTING = ["Ground", "Low", "Deck", "High"]
-LOW, DECK_LAYER, HIGH = 1, 2, 3
+# In drawing order: the ground's tiles; a hero on the ground under the deck
+# (inside a Cover); the deck; everything else on the ground, y-sorted (in
+# front of the deck from the south); everything on the bridge.
+SORTING = ["Ground", "Under", "Deck", "Low", "High"]
+UNDER, DECK_LAYER, LOW, HIGH = 1, 2, 3, 4
 GROUND_BIT, BRIDGE_BIT = 1, 2
 
 
@@ -470,8 +473,8 @@ def make_project():
     project = {
         "Name": "Crossing",
         "PhysicsLayers": ["Ground", "Bridge"],
-        "SortingLayers": [{"Name": "Ground"}, {"Name": "Low", "YSort": True}, {"Name": "Deck"},
-                          {"Name": "High", "YSort": True}],
+        "SortingLayers": [{"Name": "Ground"}, {"Name": "Under", "YSort": True}, {"Name": "Deck"},
+                          {"Name": "Low", "YSort": True}, {"Name": "High", "YSort": True}],
         "Build": {"Scenes": [guid("Crossing.crscene")], "Include": []},
     }
     PROJECT.mkdir(parents=True, exist_ok=True)
@@ -568,6 +571,9 @@ def make_scene():
         named("Under the Bridge", {**t2(0, -1.5), "Crucible.Render2D.SpotLight2D": {
             "Color": [0.6, 0.8, 1.0], "Intensity": 1.0, "Range": 3.5, "InnerConeAngle": 0.6, "OuterConeAngle": 1.2,
             "Bands": 0}}),
+        # Under the deck where the sunken road passes: a hero on the ground
+        # with its feet in here is drawn under it.
+        named("Under the Deck", {**t2(0, 0), "Crossing.Cover": {"Size": [6, 4]}}),
         # The stairs' floor triggers: their bottoms set the ground, their tops the bridge.
         named("West Stairs Bottom", {**t2(-10.7, 0), "Crossing.FloorTrigger": {"Floor": 0, "Size": [0.6, 2]}}),
         named("West Stairs Top", {**t2(-9.35, 0), "Crossing.FloorTrigger": {"Floor": 1, "Size": [0.7, 2]}}),

@@ -14,10 +14,11 @@ namespace Crossing;
 
 // The M11 demonstration's game code (ADR 0114): a hero walked with the keys
 // or a gamepad round an island, under a bridge and over it. FloorTriggers at
-// the bridge's stairs switch the hero's floor: its sorting layer and its
-// physics layer together, so on the ground it's drawn under the deck and held
-// by the sunken road's walls, and on the bridge drawn over it and held by
-// its railings.
+// the bridge's stairs switch the hero's floor: its physics layer and its
+// sorting layer together, so on the ground it's held by the sunken road's
+// walls, and on the bridge drawn over the deck and held by its railings. On
+// the ground it's drawn under the deck only while its feet are under it (in
+// a Cover), so from the south its head shows in front of the bridge.
 
 /// <summary>Walks its entity with the keys (WASD, arrows) or a gamepad's left stick or d-pad, facing where it goes.</summary>
 [Component, Serialized]
@@ -48,6 +49,22 @@ public partial struct FloorTrigger
     public Vector2 Size;
 
     public FloorTrigger()
+    {
+        Size = new Vector2(1, 1);
+    }
+}
+
+/// <summary>
+/// A box (Size, metres, centred on it) under something a Hero on the ground
+/// walks under (the deck): with its feet inside, it's drawn in the sorting
+/// layer Under, below the deck; elsewhere on the ground, in Low, over it.
+/// </summary>
+[Component, Serialized]
+public partial struct Cover
+{
+    public Vector2 Size;
+
+    public Cover()
     {
         Size = new Vector2(1, 1);
     }
@@ -262,62 +279,66 @@ public sealed class HeroSystem : GameSystem
 }
 
 /// <summary>
-/// Puts a Hero inside a FloorTrigger on its floor: the ground draws it in
-/// the sorting layer Low and collides it as Ground; the bridge, High and
-/// Bridge (bits 0 and 1 of the project's physics layers). Logs each change.
+/// Puts a Hero inside a FloorTrigger on its floor: the ground collides it
+/// as Ground, the bridge as Bridge (bits 0 and 1 of the project's physics
+/// layers), logging each change. Then draws it for where it is: on the
+/// bridge in the sorting layer High; on the ground in Under with its feet
+/// in a Cover, else in Low.
 /// </summary>
 [System(Phases.Update)]
 public sealed class FloorSystem : GameSystem
 {
-    private Query? _heroes, _triggers;
+    private Query? _heroes, _triggers, _covers;
 
     public override void Start(FrameContext context)
     {
         _heroes = context.World.CreateQuery([Components.Of<Hero>(), Components.Of<Transform2D>()]);
         _triggers = context.World.CreateQuery([Components.Of<FloorTrigger>(), Components.Of<Transform2D>()]);
+        _covers = context.World.CreateQuery([Components.Of<Cover>(), Components.Of<Transform2D>()]);
     }
 
-    /// <summary>A hero's floor, from its sorting layer: 1 in High, else 0.</summary>
+    /// <summary>A hero's floor, from its physics layer: 1 on Bridge, else 0.</summary>
     public static int FloorOf(World world, Entity hero) =>
-        world.Has(hero, Components.Of<Crucible.Render2D.Sprite>()) &&
-        world.Read<Crucible.Render2D.Sprite>(hero).SortingLayer == RuntimeSettings.Current.SortingLayer("High")
-            ? 1
-            : 0;
+        world.Has(hero, Components.Of<RigidBody2D>()) && world.Read<RigidBody2D>(hero).Layers == 2u ? 1 : 0;
+
+    private static bool Inside(Vector2 at, Vector2 center, Vector2 size) =>
+        MathF.Abs(at.X - center.X) <= size.X * 0.5f && MathF.Abs(at.Y - center.Y) <= size.Y * 0.5f;
 
     public override void Run(FrameContext context)
     {
         World world = context.World;
-        List<Entity> heroes = [], triggers = [];
+        List<Entity> heroes = [], triggers = [], covers = [];
         HeroSystem.Collect collect = new() { Found = heroes };
         _heroes?.ForEachChunk(ref collect);
         collect.Found = triggers;
         _triggers?.ForEachChunk(ref collect);
+        collect.Found = covers;
+        _covers?.ForEachChunk(ref collect);
         foreach (Entity hero in heroes)
         {
             Vector2 at = world.Read<Transform2D>(hero).Position;
             foreach (Entity trigger in triggers)
             {
                 FloorTrigger floor = world.Read<FloorTrigger>(trigger);
-                Vector2 center = world.Read<Transform2D>(trigger).Position;
-                Vector2 half = floor.Size * 0.5f;
-                if (MathF.Abs(at.X - center.X) <= half.X && MathF.Abs(at.Y - center.Y) <= half.Y && FloorOf(world, hero) != floor.Floor)
+                if (Inside(at, world.Read<Transform2D>(trigger).Position, floor.Size) && FloorOf(world, hero) != floor.Floor)
                 {
                     SetFloor(world, hero, floor.Floor);
                     Log.Info(FormattableString.Invariant(
                         $"Crossing.Floor: to the {(floor.Floor == 1 ? "bridge" : "ground")} at ({at.X:0.00}, {at.Y:0.00})"));
                 }
             }
+            bool covered = covers.Any(cover => Inside(at, world.Read<Transform2D>(cover).Position, world.Read<Cover>(cover).Size));
+            if (world.Has(hero, Components.Of<Crucible.Render2D.Sprite>()))
+            {
+                string layer = FloorOf(world, hero) == 1 ? "High" : covered ? "Under" : "Low";
+                world.Get<Crucible.Render2D.Sprite>(hero).SortingLayer = (uint)Math.Max(RuntimeSettings.Current.SortingLayer(layer), 0);
+            }
         }
     }
 
-    /// <summary>A hero put on a floor: its sorting layer and its physics layer together.</summary>
+    /// <summary>A hero put on a floor: its physics layer (its sorting layer follows each frame).</summary>
     public static void SetFloor(World world, Entity hero, int floor)
     {
-        if (world.Has(hero, Components.Of<Crucible.Render2D.Sprite>()))
-        {
-            world.Get<Crucible.Render2D.Sprite>(hero).SortingLayer =
-                (uint)Math.Max(RuntimeSettings.Current.SortingLayer(floor == 1 ? "High" : "Low"), 0);
-        }
         if (world.Has(hero, Components.Of<RigidBody2D>()))
         {
             ref RigidBody2D body = ref world.Get<RigidBody2D>(hero);
@@ -330,6 +351,7 @@ public sealed class FloorSystem : GameSystem
     {
         _heroes?.Dispose();
         _triggers?.Dispose();
+        _covers?.Dispose();
     }
 }
 

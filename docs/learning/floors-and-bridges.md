@@ -18,9 +18,10 @@ The Crossing sample gives the hero a floor, kept in two settings that
 always change together:
 
 - **Its sorting layer.** The sorting layers are, in drawing order, Ground
-  (the grass and the road), Low (characters on the ground), Deck (the
-  bridge), and High (characters on the bridge). On the ground the hero is
-  in Low, under the deck; on the bridge in High, over it.
+  (the grass and the road), Under (characters on the ground under the
+  deck), Deck (the bridge), Low (everything else on the ground), and High
+  (characters on the bridge). On the bridge the hero is in High, over the
+  deck; on the ground in Under or Low, as below.
 - **Its physics layer.** The map's colliders are split by floor: the road's
   walls and the bank under the deck are on the Ground layer, the railings
   on the Bridge layer. The hero's body is on, and collides with, only its
@@ -29,6 +30,18 @@ always change together:
 Change one without the other and something breaks: drawn over the deck
 but held by the road's walls, or walking through railings it's drawn
 behind.
+
+## Under only while under
+
+The first try drew everyone on the ground under the deck. Top-down, a
+sprite stands up from its feet, so someone on the road just south of the
+bridge, feet in front of it, has their head over the deck's first row,
+and that head vanished behind the bridge. What decides "under" is where
+the feet are. The sample keeps a box (a Cover) over the deck's footprint:
+with its feet inside, a hero on the ground is drawn in a layer under the
+deck; outside, in one over it, y-sorted with the lamps. Walking north, the
+hero disappears as its feet cross the bridge's edge, and reappears whole
+as they leave the far side.
 
 ## Where the floor changes
 

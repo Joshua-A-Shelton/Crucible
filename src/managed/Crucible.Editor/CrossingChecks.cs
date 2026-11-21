@@ -24,7 +24,8 @@ namespace Crucible.Editor;
 /// 640x360, 1280x720, 1920x1080, and 1000x700: the 2D exactly its 320x180
 /// image scaled up by whole pixels (black bars round the last), the sea
 /// showing round the island, a lamp's light, and the hero drawn under the
-/// deck on the ground and over it on the bridge. The images are saved as
+/// deck on the ground and over it on the bridge, and its head in front of
+/// the bridge from the road south of it. The images are saved as
 /// crossing-&lt;width&gt;.png.
 /// </summary>
 [System(Phases.RenderPrepare)]
@@ -185,7 +186,7 @@ internal sealed partial class CrossingChecks : GameSystem
         foreach ((Action set, Action<byte[]> keep) in new (Action, Action<byte[]>)[]
                  {
                      (() => world.Set(hero, sprite with { Tint = Vector4.Zero }), image => hidden = image),
-                     (() => world.Set(hero, sprite with { SortingLayer = Layer("Low") }), image => onGround = image),
+                     (() => world.Set(hero, sprite with { SortingLayer = Layer("Under") }), image => onGround = image),
                      (() => world.Set(hero, sprite with { SortingLayer = Layer("High") }), image => onBridge = image),
                  })
         {
@@ -199,6 +200,28 @@ internal sealed partial class CrossingChecks : GameSystem
         // The hero's 16x16 frame, its feet at the camera's middle.
         Check(Same(hidden, onGround, 640, 2, 152, 74, 168, 90), "on the ground the hero is drawn under the deck: hidden");
         Check(!Same(hidden, onBridge, 640, 2, 152, 74, 168, 90), "on the bridge it's drawn over it");
+
+        // On the road just south of the bridge, out of the Cover, in Low:
+        // its head, over the railing's row, drawn in front of the bridge.
+        Vector2 south = new(0, -2.6f);
+        world.Set(hero, world.Read<Transform2D>(hero) with { Position = south });
+        world.Set(camera, world.Read<Transform2D>(camera) with { Position = south });
+        byte[] southHidden = [], inFront = [];
+        foreach ((Action set, Action<byte[]> keep) in new (Action, Action<byte[]>)[]
+                 {
+                     (() => world.Set(hero, sprite with { Tint = Vector4.Zero }), image => southHidden = image),
+                     (() => world.Set(hero, sprite with { SortingLayer = Layer("Low") }), image => inFront = image),
+                 })
+        {
+            set();
+            yield return 2;
+            foreach (int wait in Capture(640, 360, keep))
+            {
+                yield return wait;
+            }
+        }
+        // Its head: the frame's top six rows, over the railing's row.
+        Check(!Same(southHidden, inFront, 640, 2, 152, 74, 168, 80), "in front of the bridge its head shows over the railing");
         world.Set(hero, sprite);
     }
 

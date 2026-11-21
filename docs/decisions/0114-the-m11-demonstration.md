@@ -74,3 +74,20 @@ Decided by the owner (2026-11-20):
 - M11 is done once the owner has tried it by hand.
 - The sample is also where 2D features are tried from now on: art made by
   a script keeps it reproducible and licence-free.
+
+## Amended: under only while under (2026-11-20, after the owner's try)
+
+The owner found the hero's head drawn behind the bridge when standing on
+the ground just south of it: the ground's whole sorting layer was under
+the deck, so whatever of the sprite overlapped the deck's rows was hidden,
+though its feet were still in front. Now a hero on the ground is drawn
+under the deck only while its feet are under it: a **`Cover`*** box (the
+deck's footprint over the road) puts it in a new sorting layer
+**Under***, below Deck; elsewhere on the ground it's in **Low**, now
+*above* Deck, so from the south it's drawn in front of the bridge and
+still y-sorts with the lamps. The sorting layers, in drawing order:
+Ground, Under, Deck, Low, High. The floor is kept by the physics layer
+alone; `FloorSystem` sets the sorting layer each frame from the floor and
+the Cover. `samples.crossing` checks the head in front of the railing from
+the road south of the bridge (and fails with the old layering).
+
