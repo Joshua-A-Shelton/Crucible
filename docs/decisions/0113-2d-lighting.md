@@ -1,6 +1,7 @@
 # 0113 — 2D lighting
 
-**Status:** Accepted (2026-11-20); M11 step 5. Names settled by the owner as drafted (2026-11-20; docs/naming.md).
+**Status:** Accepted (2026-11-20); M11 step 5, tried by hand by the owner.
+Names settled by the owner as drafted (2026-11-20; docs/naming.md).
 
 ## Context
 

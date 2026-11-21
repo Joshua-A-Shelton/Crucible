@@ -1,6 +1,7 @@
 # 0109 — Tests in parallel
 
-**Status:** Accepted (2026-11-19). Names settled by the owner as drafted (2026-11-20; docs/naming.md).
+**Status:** Accepted (2026-11-19). Names settled by the owner as drafted
+(2026-11-20; docs/naming.md).
 
 ## Context
 
