@@ -24,8 +24,9 @@ namespace Crucible.Editor;
 /// 640x360, 1280x720, 1920x1080, and 1000x700: the 2D exactly its 320x180
 /// image scaled up by whole pixels (black bars round the last), the sea
 /// showing round the island, a lamp's light, and the hero drawn under the
-/// deck on the ground and over it on the bridge, and its head in front of
-/// the bridge from the road south of it. The images are saved as
+/// deck on the ground and over it on the bridge, its head going under the
+/// deck first coming up the road, and drawn over the railing behind it on
+/// the stairs. The images are saved as
 /// crossing-&lt;width&gt;.png.
 /// </summary>
 [System(Phases.RenderPrepare)]
@@ -78,13 +79,14 @@ internal sealed partial class CrossingChecks : GameSystem
 
     // The walk: points (x, y[, seconds to try]) from the hero's start at (-12.5, -8).
     private const string Walk =
-        "-6,-2.5,3;" +           // 1: north into the bank's face: held below it
-        "-4.5,-8;-0.5,-8;" +     // 2, 3: east, through the south ramp into the sunken road
-        "-0.5,6;0,7.8;3.5,7.8;" + // 4-6: north under the bridge, out through the north ramp
-        "11,3;11,0;" +           // 7, 8: round to the east stairs
-        "7,0;-0.5,0;" +          // 9, 10: up them onto the bridge, and over the road
-        "-0.5,-2.5,3;" +         // 11: south into the railing: held by it
-        "-8.5,0;-12,0";          // 12, 13: west, down the west stairs
+        "-6,-2.5,3;" +            // 1: north into the bank's face: held below it
+        "-4.5,-8;-0.5,-8;" +      // 2, 3: east, through the south ramp into the sunken road
+        "-0.5,-2.4;" +            // 4: north to just short of the deck: drawn Under it already
+        "-0.5,6;0,7.8;3.5,7.8;" + // 5-7: on under the bridge, out through the north ramp
+        "11,3;11,0.44;9,0.44;" +  // 8-10: round to the east stairs, partway up them: still on the ground, in Low
+        "7,0;-0.5,0;" +           // 11, 12: on up onto the bridge, and over the road
+        "-0.5,-2.5,3;" +          // 13: south into the railing: held by it
+        "-8.5,0;-12,0";           // 14, 15: west, down the west stairs
 
     private IEnumerable<int> Script()
     {
@@ -112,15 +114,21 @@ internal sealed partial class CrossingChecks : GameSystem
         string run = LastRun(Log(shell));
         Console.WriteLine("CrossingChecks: the walk:\n  " + string.Join("\n  ", run.Split('\n').Where(line => line.Contains("Crossing.", StringComparison.Ordinal))));
         MatchCollection points = Point().Matches(run);
-        Check(points.Count == 13, "the hero walks every point of the script", $"{points.Count} | {Tail(run)}");
-        if (points.Count == 13)
+        Check(points.Count == 15, "the hero walks every point of the script", $"{points.Count} | {Tail(run)}");
+        if (points.Count == 15)
         {
             Check(points[0].Groups["how"].Value == "gave up on" && Y(points[0]) < -3.3f,
                 "on the ground the bank holds it below its face", points[0].Value);
-            Check(points.Cast<Match>().Where((_, i) => i is not 0 and not 10).All(p => p.Groups["how"].Value == "reached"),
+            Check(points.Cast<Match>().Where((_, i) => i is not 0 and not 12).All(p => p.Groups["how"].Value == "reached"),
                 "it reaches every other point: the ramps, the road under the bridge, the stairs");
-            Check(points[10].Groups["how"].Value == "gave up on" && Y(points[10]) > -1.2f,
-                "on the bridge the railing holds it", points[10].Value);
+            Check(points[12].Groups["how"].Value == "gave up on" && Y(points[12]) > -1.2f,
+                "on the bridge the railing holds it", points[12].Value);
+            Check(points[2].Groups["layer"].Value == "Low" && points[3].Groups["layer"].Value == "Under",
+                "on the road it's drawn in Low, and Under as it comes up to the deck: its head goes under first",
+                $"{points[2].Value} | {points[3].Value}");
+            Check(points[9].Groups["layer"].Value == "Low" && points[11].Groups["layer"].Value == "High",
+                "partway up the stairs on the ground it's in Low (over the railing behind it); on the bridge in High",
+                $"{points[9].Value} | {points[11].Value}");
         }
         Check(run.Contains("Crossing.Under: under the deck on the ground", StringComparison.Ordinal),
             "it walks under the deck on the ground");
@@ -201,27 +209,34 @@ internal sealed partial class CrossingChecks : GameSystem
         Check(Same(hidden, onGround, 640, 2, 152, 74, 168, 90), "on the ground the hero is drawn under the deck: hidden");
         Check(!Same(hidden, onBridge, 640, 2, 152, 74, 168, 90), "on the bridge it's drawn over it");
 
-        // On the road just south of the bridge, out of the Cover, in Low:
-        // its head, over the railing's row, drawn in front of the bridge.
-        Vector2 south = new(0, -2.6f);
-        world.Set(hero, world.Read<Transform2D>(hero) with { Position = south });
-        world.Set(camera, world.Read<Transform2D>(camera) with { Position = south });
-        byte[] southHidden = [], inFront = [];
-        foreach ((Action set, Action<byte[]> keep) in new (Action, Action<byte[]>)[]
+        // Coming up the road to the bridge, in Under: its head goes under
+        // the deck's south railing first. Partway up the stairs, on the
+        // ground in Low: its head is drawn over the north railing behind it.
+        foreach ((Vector2 at, string layer, bool shows, string what) in new[]
                  {
-                     (() => world.Set(hero, sprite with { Tint = Vector4.Zero }), image => southHidden = image),
-                     (() => world.Set(hero, sprite with { SortingLayer = Layer("Low") }), image => inFront = image),
+                     (new Vector2(0, -2.4f), "Under", false, "coming up the road to the bridge its head goes under the railing first"),
+                     (new Vector2(9, 0.44f), "Low", true, "partway up the stairs its head is drawn over the railing behind it"),
                  })
         {
-            set();
-            yield return 2;
-            foreach (int wait in Capture(640, 360, keep))
+            world.Set(hero, world.Read<Transform2D>(hero) with { Position = at });
+            world.Set(camera, world.Read<Transform2D>(camera) with { Position = at });
+            byte[] without = [], with = [];
+            foreach ((Action set, Action<byte[]> keep) in new (Action, Action<byte[]>)[]
+                     {
+                         (() => world.Set(hero, sprite with { Tint = Vector4.Zero }), image => without = image),
+                         (() => world.Set(hero, sprite with { SortingLayer = Layer(layer) }), image => with = image),
+                     })
             {
-                yield return wait;
+                set();
+                yield return 2;
+                foreach (int wait in Capture(640, 360, keep))
+                {
+                    yield return wait;
+                }
             }
+            // Its head: the frame's top six rows, over a railing's row.
+            Check(Same(without, with, 640, 2, 152, 74, 168, 80) != shows, what);
         }
-        // Its head: the frame's top six rows, over the railing's row.
-        Check(!Same(southHidden, inFront, 640, 2, 152, 74, 168, 80), "in front of the bridge its head shows over the railing");
         world.Set(hero, sprite);
     }
 
@@ -344,7 +359,7 @@ internal sealed partial class CrossingChecks : GameSystem
 
     private static float Y(Match match) => float.Parse(match.Groups["y"].Value, CultureInfo.InvariantCulture);
 
-    [GeneratedRegex(@"Crossing\.Route: (?<how>reached|gave up on) point (?<n>\d+) at \((?<x>-?[\d.]+), (?<y>-?[\d.]+)\)")]
+    [GeneratedRegex(@"Crossing\.Route: (?<how>reached|gave up on) point (?<n>\d+) at \((?<x>-?[\d.]+), (?<y>-?[\d.]+)\) in (?<layer>\w+)")]
     private static partial Regex Point();
 
     [GeneratedRegex(@"Crossing\.Floor: to the (?<floor>bridge|ground) at \((?<x>-?[\d.]+), (?<y>-?[\d.]+)\)")]

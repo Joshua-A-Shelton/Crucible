@@ -75,19 +75,26 @@ Decided by the owner (2026-11-20):
 - The sample is also where 2D features are tried from now on: art made by
   a script keeps it reproducible and licence-free.
 
-## Amended: under only while under (2026-11-20, after the owner's try)
+## Amended: drawn under the deck where it's under it (2026-11-21, after the owner's tries)
 
-The owner found the hero's head drawn behind the bridge when standing on
-the ground just south of it: the ground's whole sorting layer was under
-the deck, so whatever of the sprite overlapped the deck's rows was hidden,
-though its feet were still in front. Now a hero on the ground is drawn
-under the deck only while its feet are under it: a **`Cover`*** box (the
-deck's footprint over the road) puts it in a new sorting layer
-**Under***, below Deck; elsewhere on the ground it's in **Low**, now
-*above* Deck, so from the south it's drawn in front of the bridge and
-still y-sorts with the lamps. The sorting layers, in drawing order:
-Ground, Under, Deck, Low, High. The floor is kept by the physics layer
-alone; `FloorSystem` sets the sorting layer each frame from the floor and
-the Cover. `samples.crossing` checks the head in front of the railing from
-the road south of the bridge (and fails with the old layering).
+The owner's first try found the hero's head drawn behind the bridge's
+north railing while climbing the stairs: on the ground, the hero's whole
+sorting layer was under the deck and its railings, though that railing is
+behind it. Now a hero on the ground is drawn under the deck only inside a
+**`Cover`*** box; elsewhere on the ground it's in **Low**, now *above*
+Deck, so on the stairs it's drawn over the railing behind it and still
+y-sorts with the lamps. Inside the Cover it's in a new sorting layer
+**Under***, below Deck. The sorting layers, in drawing order: Ground,
+Under, Deck, Low, High.
 
+The second try found the Cover too tight: covering only the deck's
+footprint, a hero coming up the sunken road had its head drawn over the
+deck's south edge until its feet were under it. Under a raised deck, the
+head goes under first: the Cover over the road reaches a sprite's height
+(0.8 m) south of the deck. The stairs, beside the road, aren't covered.
+
+The floor is kept by the physics layer alone; `FloorSystem` sets the
+sorting layer each frame from the floor and the Cover, and the walk's log
+names it at each point. `samples.crossing` checks the hero's layer along
+the road and up the stairs, and draws its head under the railing coming up
+the road and over the railing behind it on the stairs.

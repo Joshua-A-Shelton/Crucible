@@ -31,17 +31,22 @@ Change one without the other and something breaks: drawn over the deck
 but held by the road's walls, or walking through railings it's drawn
 behind.
 
-## Under only while under
+## Drawn under where it's under
 
-The first try drew everyone on the ground under the deck. Top-down, a
-sprite stands up from its feet, so someone on the road just south of the
-bridge, feet in front of it, has their head over the deck's first row,
-and that head vanished behind the bridge. What decides "under" is where
-the feet are. The sample keeps a box (a Cover) over the deck's footprint:
-with its feet inside, a hero on the ground is drawn in a layer under the
-deck; outside, in one over it, y-sorted with the lamps. Walking north, the
-hero disappears as its feet cross the bridge's edge, and reappears whole
-as they leave the far side.
+Top-down, a sprite stands up from its feet, so what it overlaps depends on
+where it is, not only on its floor. The first try drew everyone on the
+ground under the deck and its railings: climbing the stairs, the hero's
+head went behind the north railing, which is behind it. Drawing the ground
+over the deck fixes that, but then a hero walking up the road toward the
+bridge has its head over the deck's edge until its feet are under it,
+where under a raised deck the head goes under first.
+
+So the sample keeps a box (a Cover) over the road under the deck,
+reaching a sprite's height south of it: with its feet inside, a hero on
+the ground is drawn in a layer under the deck; outside, in one over it,
+y-sorted with the lamps. Walking north up the road, its head goes under
+the deck first and it reappears whole once its feet leave the far side;
+on the stairs beside the road it stays over the railing behind it.
 
 ## Where the floor changes
 

@@ -932,7 +932,7 @@
         "Crucible.Scenes.Transform2D": {
           "Position": [
             0,
-            0
+            -0.4
           ],
           "Angle": 0.0,
           "Scale": [
@@ -944,7 +944,7 @@
         "Crossing.Cover": {
           "Size": [
             6,
-            4
+            4.8
           ]
         }
       }

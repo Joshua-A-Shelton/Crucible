@@ -167,7 +167,7 @@ public sealed class HeroSystem : GameSystem
         foreach (Entity entity in heroes)
         {
             Vector2 position = world.Read<Transform2D>(entity).Position;
-            Vector2 move = _script is null ? Held() : Scripted(context, position);
+            Vector2 move = _script is null ? Held() : Scripted(context, entity, position);
             Steer(world, entity, move);
             Watch(world, entity, position);
         }
@@ -190,7 +190,7 @@ public sealed class HeroSystem : GameSystem
     }
 
     // Toward the script's point, until it's reached (or given up on).
-    private Vector2 Scripted(FrameContext context, Vector2 position)
+    private Vector2 Scripted(FrameContext context, Entity entity, Vector2 position)
     {
         if (_next >= _script!.Count)
         {
@@ -207,12 +207,19 @@ public sealed class HeroSystem : GameSystem
         if (reached || _onPoint >= seconds)
         {
             Log.Info(FormattableString.Invariant(
-                $"Crossing.Route: {(reached ? "reached" : "gave up on")} point {_next + 1} at ({position.X:0.00}, {position.Y:0.00})"));
+                $"Crossing.Route: {(reached ? "reached" : "gave up on")} point {_next + 1} at ({position.X:0.00}, {position.Y:0.00}) in {LayerOf(context.World, entity)}"));
             ++_next;
             _onPoint = 0;
             return Vector2.Zero;
         }
         return Vector2.Normalize(to);
+    }
+
+    // The sorting layer a hero is drawn in, by name.
+    private static string LayerOf(World world, Entity entity)
+    {
+        uint layer = world.Has(entity, Components.Of<Crucible.Render2D.Sprite>()) ? world.Read<Crucible.Render2D.Sprite>(entity).SortingLayer : 0;
+        return layer < RuntimeSettings.Current.SortingLayers.Count ? RuntimeSettings.Current.SortingLayers[(int)layer].Name : "?";
     }
 
     // The hero's velocity, kept upright, and its clip for its facing.

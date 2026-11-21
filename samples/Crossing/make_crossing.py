@@ -572,8 +572,11 @@ def make_scene():
             "Color": [0.6, 0.8, 1.0], "Intensity": 1.0, "Range": 3.5, "InnerConeAngle": 0.6, "OuterConeAngle": 1.2,
             "Bands": 0}}),
         # Under the deck where the sunken road passes: a hero on the ground
-        # with its feet in here is drawn under it.
-        named("Under the Deck", {**t2(0, 0), "Crossing.Cover": {"Size": [6, 4]}}),
+        # with its feet in here is drawn under it. It reaches a sprite's
+        # height (0.8 m) south of the deck, so a hero walking north under it
+        # has its head go under first; on the stairs beside it (not covered),
+        # a hero is drawn over the railings behind it.
+        named("Under the Deck", {**t2(0, -0.4), "Crossing.Cover": {"Size": [6, 4.8]}}),
         # The stairs' floor triggers: their bottoms set the ground, their tops the bridge.
         named("West Stairs Bottom", {**t2(-10.7, 0), "Crossing.FloorTrigger": {"Floor": 0, "Size": [0.6, 2]}}),
         named("West Stairs Top", {**t2(-9.35, 0), "Crossing.FloorTrigger": {"Floor": 1, "Size": [0.7, 2]}}),
