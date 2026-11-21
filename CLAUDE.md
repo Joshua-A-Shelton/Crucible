@@ -419,6 +419,10 @@ Accepted architecture decisions, summarized. Details live in the ADRs.
 - **Samples** (ADR 0037): `samples/Particles` is the M3 demonstration, a game
   the JIT launcher loads with `--game <dll>` and configures with
   `--game-arg key=value`; it prints per-step timings.
+  `samples/Crossing` (ADR 0114) is the M11 demonstration and where 2D is
+  tried: a project written by `make_crossing.py` (run it again after
+  changing it, and commit what it writes), its game code in
+  `Project/Code`.
 - Slag comes from a pinned tag; to work on Slag side by side, configure with
   `-DFETCHCONTENT_SOURCE_DIR_SLAG=~/Claude/Slag`.
 - **Verification by hand** (no hosted CI for now: Actions minutes are spent

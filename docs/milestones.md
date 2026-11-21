@@ -1297,6 +1297,16 @@ show in the viewport. Shadows, normal maps, and per-light layers wait
 (open items). Native tests on every backend and the editor's
 `launcher.jit.lights-2d`.
 
+Step 6 built (2026-11-20, ADR 0114): the Crossing sample
+(`samples/Crossing`, written by `make_crossing.py`): a hero walked with the
+keys or a gamepad round a pixel-art island over a 3D sea, under a raised
+road and over it, its sorting and physics layers switching together at
+the stairs; lit at dusk by lamps, a spot, and the hero's lantern; a pixel
+camera at 320x180. `samples.crossing` walks it by script (held by the bank
+and the railing, under the deck on the ground, over the road on the
+bridge) and draws it at four window sizes, exactly its 320x180 image
+scaled up. Then the owner tries it by hand.
+
 ## After M11: importing by dropping files
 
 Asked for by the owner (2026-11-18): files dragged from the system's file

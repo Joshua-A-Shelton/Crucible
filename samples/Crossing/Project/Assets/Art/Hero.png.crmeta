@@ -1,0 +1,188 @@
+{
+  "Guid": "f8dc76f8-5d35-50aa-bfb0-2c162b58ba84",
+  "Importer": "Texture",
+  "Settings": {
+    "Usage": "Sprite",
+    "Mipmaps": false,
+    "Wrap": false,
+    "PreserveAlphaCoverage": false,
+    "AlphaCutoff": 0.5,
+    "RdoLambda": 1,
+    "Quality": 2,
+    "PixelsPerUnit": 16,
+    "Slicing": "Grid",
+    "CellWidth": 16,
+    "CellHeight": 16,
+    "Margin": 0,
+    "Spacing": 0,
+    "Frames": [],
+    "Clips": [
+      {
+        "Name": "WalkDown",
+        "FramesPerSecond": 8,
+        "Loop": true,
+        "Frames": [
+          {
+            "Frame": 0,
+            "Duration": 0.125,
+            "Events": []
+          },
+          {
+            "Frame": 1,
+            "Duration": 0.125,
+            "Events": []
+          },
+          {
+            "Frame": 2,
+            "Duration": 0.125,
+            "Events": []
+          },
+          {
+            "Frame": 3,
+            "Duration": 0.125,
+            "Events": []
+          }
+        ]
+      },
+      {
+        "Name": "IdleDown",
+        "FramesPerSecond": 8,
+        "Loop": true,
+        "Frames": [
+          {
+            "Frame": 0,
+            "Duration": 0.5,
+            "Events": []
+          }
+        ]
+      },
+      {
+        "Name": "WalkLeft",
+        "FramesPerSecond": 8,
+        "Loop": true,
+        "Frames": [
+          {
+            "Frame": 4,
+            "Duration": 0.125,
+            "Events": []
+          },
+          {
+            "Frame": 5,
+            "Duration": 0.125,
+            "Events": []
+          },
+          {
+            "Frame": 6,
+            "Duration": 0.125,
+            "Events": []
+          },
+          {
+            "Frame": 7,
+            "Duration": 0.125,
+            "Events": []
+          }
+        ]
+      },
+      {
+        "Name": "IdleLeft",
+        "FramesPerSecond": 8,
+        "Loop": true,
+        "Frames": [
+          {
+            "Frame": 4,
+            "Duration": 0.5,
+            "Events": []
+          }
+        ]
+      },
+      {
+        "Name": "WalkRight",
+        "FramesPerSecond": 8,
+        "Loop": true,
+        "Frames": [
+          {
+            "Frame": 8,
+            "Duration": 0.125,
+            "Events": []
+          },
+          {
+            "Frame": 9,
+            "Duration": 0.125,
+            "Events": []
+          },
+          {
+            "Frame": 10,
+            "Duration": 0.125,
+            "Events": []
+          },
+          {
+            "Frame": 11,
+            "Duration": 0.125,
+            "Events": []
+          }
+        ]
+      },
+      {
+        "Name": "IdleRight",
+        "FramesPerSecond": 8,
+        "Loop": true,
+        "Frames": [
+          {
+            "Frame": 8,
+            "Duration": 0.5,
+            "Events": []
+          }
+        ]
+      },
+      {
+        "Name": "WalkUp",
+        "FramesPerSecond": 8,
+        "Loop": true,
+        "Frames": [
+          {
+            "Frame": 12,
+            "Duration": 0.125,
+            "Events": []
+          },
+          {
+            "Frame": 13,
+            "Duration": 0.125,
+            "Events": []
+          },
+          {
+            "Frame": 14,
+            "Duration": 0.125,
+            "Events": []
+          },
+          {
+            "Frame": 15,
+            "Duration": 0.125,
+            "Events": []
+          }
+        ]
+      },
+      {
+        "Name": "IdleUp",
+        "FramesPerSecond": 8,
+        "Loop": true,
+        "Frames": [
+          {
+            "Frame": 12,
+            "Duration": 0.5,
+            "Events": []
+          }
+        ]
+      }
+    ]
+  },
+  "SubAssets": {
+    "IdleDown": "acd03f95-78ec-5f64-b6f6-a30b5085c6f2",
+    "IdleLeft": "46537563-10d9-5875-81a8-d134ecd81139",
+    "IdleRight": "ec8f63b7-b311-5316-8f09-2f9635b5bcb4",
+    "IdleUp": "8b1614b7-f6e1-5ea1-9d68-a5f95807465c",
+    "WalkDown": "86471e65-3371-5ab3-a1e5-e1211080515b",
+    "WalkLeft": "c2a14911-3cfa-5356-bdc8-91691abe4ad1",
+    "WalkRight": "9a2a7bec-421c-5028-86a7-88222c4e8189",
+    "WalkUp": "458f2b8e-bfa7-58b8-abc9-5aa3e4aca210"
+  }
+}

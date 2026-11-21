@@ -1,0 +1,21 @@
+{
+  "Guid": "db5c6f50-008e-50d1-b0da-076a33900bd6",
+  "Importer": "Texture",
+  "Settings": {
+    "Usage": "Sprite",
+    "Mipmaps": false,
+    "Wrap": false,
+    "PreserveAlphaCoverage": false,
+    "AlphaCutoff": 0.5,
+    "RdoLambda": 1,
+    "Quality": 2,
+    "PixelsPerUnit": 16,
+    "Slicing": "Grid",
+    "CellWidth": 0,
+    "CellHeight": 0,
+    "Margin": 0,
+    "Spacing": 0,
+    "Frames": [],
+    "Clips": []
+  }
+}

@@ -1512,6 +1512,23 @@ step 5 by hand (2026-11-20):
 | `skipThrownStep`, `FrameInputs.stepThrew` (ADR 0058, amended) | Internal C++ | A thrown C# step left out of a frame that's still shown |
 | docs/learning/2d-lighting.md | Learning note | Light buffers, linear light, falloff and bands |
 
+## The M11 demonstration (2026-11-20, ADR 0114)
+
+Names proposed before building, to settle after the owner's try (`*`):
+
+| Name | What it names | What it is |
+|---|---|---|
+| `samples/Crossing`*, project "Crossing"*, `make_crossing.py`* | Sample, script | The demonstration and what writes it |
+| Crossing.crscene*; Hero.png*, Tiles.png*, Tiles.crtileset*, Lamp.png*, Crossing.crtilemap*, Sea.gltf*, Rock.gltf* | Assets | The scene, art, map, and 3D |
+| Sorting layers "Ground"*, "Low"*, "Deck"*, "High"*; physics layers "Ground"*, "Bridge"* | Project settings | The two floors |
+| Map layers "Ground"*, "Deck"*, "Railings"* | Tilemap layers | What draws and collides on each floor |
+| `Hero`* (`Speed`, `WalkDown`*… `IdleUp`*), `HeroSystem`* | Game code | Walking the hero from input or the script |
+| `FloorTrigger`* (`Floor`*, `Size`*), `FloorSystem`* (`FloorOf`*, `SetFloor`*) | Game code | Switching floors at the stairs |
+| `Follow`* (`Target`), `FollowSystem`*; `Spin`* (`RadiansPerSecond`*), `SpinSystem`* | Game code | The camera following, the rock turning |
+| "Crossing.Route"*, "Crossing.Floor"*, "Crossing.Under"*, "Crossing.Over"* | Log lines | What the check reads |
+| `CrossingChecks`*, CTest `samples.crossing`*, game args `check-crossing`*, `walk-script`*; crossing-&lt;width&gt;.png* | Tests | The check and its captures |
+| ADR 0114 "The M11 demonstration"*; docs/learning/floors-and-bridges.md* | Docs | Decision record, learning note |
+
 ## Tests in parallel (2026-11-19, ADR 0109)
 
 Names added while building, settled as drafted by the owner (2026-11-20):

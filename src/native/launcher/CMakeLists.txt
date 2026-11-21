@@ -553,6 +553,20 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "TilemapChecks: all [0-9]+ checks passed")
 
+    # The M11 demonstration (ADR 0114): a copy of the Crossing sample, its
+    # scene run standalone with the hero walked by a script under the bridge
+    # and over it, then drawn in the editor at four window sizes: exactly its
+    # 320x180 image scaled up, the sea round the island, a lamp's light, and
+    # the hero under the deck or over it by its floor.
+    add_test(NAME samples.crossing
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
+            --game-arg "source-project=${PROJECT_SOURCE_DIR}/samples/Crossing/Project/Crossing.crproject"
+            --game-arg "check-crossing=${CMAKE_CURRENT_BINARY_DIR}"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/crossing-settings.json")
+    set_tests_properties(samples.crossing PROPERTIES LABELS "integration;gpu" TIMEOUT 400
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "CrossingChecks: all [0-9]+ checks passed")
+
     # 2D lights checking themselves (ADR 0113): on a copy of the Walker's
     # project, Create > 2D's lights made with their defaults and undone, a
     # scene of them saved and opened again, a spot's cone drawn (the window

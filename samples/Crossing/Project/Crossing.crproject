@@ -1,0 +1,29 @@
+{
+  "Name": "Crossing",
+  "PhysicsLayers": [
+    "Ground",
+    "Bridge"
+  ],
+  "SortingLayers": [
+    {
+      "Name": "Ground"
+    },
+    {
+      "Name": "Low",
+      "YSort": true
+    },
+    {
+      "Name": "Deck"
+    },
+    {
+      "Name": "High",
+      "YSort": true
+    }
+  ],
+  "Build": {
+    "Scenes": [
+      "4814b668-c632-575c-9a3a-9561b3270bea"
+    ],
+    "Include": []
+  }
+}
