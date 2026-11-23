@@ -210,6 +210,9 @@ Longer explanations of decisions, written to be reread:
 - [Dropping files](docs/learning/dropping-files.md) (ADR 0115): how a
   file dragged from a file manager reaches a program on Windows, X11, and
   Wayland, and guessing whether an image is pixel art.
+- [Editor assemblies](docs/learning/editor-assemblies.md) (ADR 0116):
+  separate assemblies against conditional compilation, load contexts and
+  hot reload, and how an unload leaks.
 - [Up-to-date builds](docs/learning/up-to-date-builds.md) (ADR 0110): file
   times versus content hashes, what makes a build stamp trustworthy, and
   why copies need one.

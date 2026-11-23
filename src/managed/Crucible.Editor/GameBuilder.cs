@@ -99,7 +99,13 @@ public sealed partial class GameBuilder
     /// runtime for this platform, copied in with the engine, and ReadyToRun
     /// unless <paramref name="readyToRun"/> is false (ADR 0100).
     /// </summary>
-    public string ProjectText(bool package = false, bool readyToRun = true)
+    /// <remarks>
+    /// Code under a folder named <c>Editor</c> is left out: it's the editor
+    /// assembly's (ADR 0116). <c>CRUCIBLE_EDITOR</c> is defined for the
+    /// editor's own build (<paramref name="editorSymbol"/>, by default every
+    /// build but a package's).
+    /// </remarks>
+    public string ProjectText(bool package = false, bool readyToRun = true, bool? editorSymbol = null)
     {
         string engine = _engine ?? EngineAssembly();
         string framework = typeof(Crucible.Ecs.World).Assembly.GetCustomAttribute<TargetFrameworkAttribute>()?.FrameworkName
@@ -129,7 +135,8 @@ public sealed partial class GameBuilder
             """);
         // Log.Info is kept only where CRUCIBLE_LOG_INFO is defined: every
         // build but a Shipping package's (ADR 0103).
-        text.Append($"    <DefineConstants>$(DefineConstants);{(_shipping ? "CRUCIBLE_SHIPPING" : "CRUCIBLE_LOG_INFO")}</DefineConstants>\n");
+        string editor = editorSymbol ?? !package ? ";CRUCIBLE_EDITOR" : "";
+        text.Append($"    <DefineConstants>$(DefineConstants);{(_shipping ? "CRUCIBLE_SHIPPING" : "CRUCIBLE_LOG_INFO")}{editor}</DefineConstants>\n");
         if (package)
         {
             // The game's assembly is the app its runtime starts for: its
@@ -150,7 +157,8 @@ public sealed partial class GameBuilder
               <ItemGroup>
 
             """);
-        text.Append($"    <Compile Include=\"{Escape(Path.Combine(_project.CodeFolder, "**", "*.cs"))}\" />\n");
+        text.Append($"    <Compile Include=\"{Escape(Path.Combine(_project.CodeFolder, "**", "*.cs"))}\" " +
+                    $"Exclude=\"{Escape(EditorGlob)}\" />\n");
         // The native module's bindings (ADR 0074), when it exposes anything.
         string bindings = Escape(Path.Combine(_project.CacheFolder, "Build", "Native" + Variant, "Bindings.g.cs"));
         text.Append($"    <Compile Include=\"{bindings}\" Condition=\"Exists('{bindings}')\" />\n");
@@ -168,14 +176,130 @@ public sealed partial class GameBuilder
         return text.ToString();
     }
 
+    /// <summary>
+    /// Whether the game's code (not its Editor folders') mentions
+    /// <c>CRUCIBLE_EDITOR</c>: then each build is followed by a check that it
+    /// builds without it (ADR 0116), as a package will.
+    /// </summary>
+    public bool UsesEditorSymbol =>
+        Directory.Exists(_project.CodeFolder) &&
+        Directory.EnumerateFiles(_project.CodeFolder, "*.cs", SearchOption.AllDirectories)
+            .Where(file => !IsEditorSource(file))
+            .Any(file => File.ReadAllText(file).Contains(EditorSymbol, StringComparison.Ordinal));
+
+    /// <summary>The symbol defined in the editor's own build of the game's code (ADR 0002, 0116).</summary>
+    public const string EditorSymbol = "CRUCIBLE_EDITOR";
+
+    private Task<GameBuild>? _symbolCheck;
+
+    /// <summary>The game's project without <c>CRUCIBLE_EDITOR</c>, in a folder of its own.</summary>
+    public string SymbolCheckProjectFile => Path.Combine(_project.CacheFolder, "Build", "SymbolCheck", AssemblyName + ".csproj");
+
+    /// <summary>Starts building the game's code without <c>CRUCIBLE_EDITOR</c> in the background; false if one is running.</summary>
+    public bool StartSymbolCheck()
+    {
+        if (_symbolCheck is { IsCompleted: false })
+        {
+            return false;
+        }
+        Write(SymbolCheckProjectFile, ProjectText(editorSymbol: false));
+        string output = Path.Combine(Path.GetDirectoryName(SymbolCheckProjectFile)!, "bin", AssemblyName + ".dll");
+        _symbolCheck = Task.Run(() => RunDotnet(["build", SymbolCheckProjectFile], output));
+        return true;
+    }
+
+    /// <summary>The finished symbol check, once; null while it's running or if none was started.</summary>
+    public GameBuild? TakeSymbolCheck()
+    {
+        if (_symbolCheck is not { IsCompleted: true } done)
+        {
+            return null;
+        }
+        _symbolCheck = null;
+        return done.IsFaulted
+            ? new GameBuild(false, null, [new BuildError("", 0, 0, done.Exception?.GetBaseException().Message ?? "the check failed")], "")
+            : done.Result;
+    }
+
+    /// <summary>Waits for a symbol check started (the checks wait on it).</summary>
+    public GameBuild? WaitForSymbolCheck()
+    {
+        _symbolCheck?.Wait();
+        return TakeSymbolCheck();
+    }
+
+    // Every .cs file under a folder named Editor, at any depth in Code.
+    private string EditorGlob => Path.Combine(_project.CodeFolder, "**", EditorFolder, "**", "*.cs");
+
+    /// <summary>The name of the folders whose code is the editor assembly's (ADR 0116).</summary>
+    public const string EditorFolder = "Editor";
+
+    /// <summary>The project's editor assembly's name: "Walker.Editor" (ADR 0116).</summary>
+    public string EditorAssemblyName => AssemblyName + ".Editor";
+
+    /// <summary>Its project file, in a folder of its own so the two projects' obj folders stay apart.</summary>
+    public string EditorProjectFile => Path.Combine(_project.CacheFolder, "Build", EditorFolder, EditorAssemblyName + ".csproj");
+
+    /// <summary>Where the editor assembly lands, beside the game's.</summary>
+    public string EditorOutputPath => Path.Combine(_project.CacheFolder, "Build", "bin", EditorAssemblyName + ".dll");
+
+    /// <summary>Whether the project has editor code: .cs files under a folder named Editor in Code.</summary>
+    public bool HasEditorCode => EditorSources().Any();
+
+    private IEnumerable<string> EditorSources() =>
+        Directory.Exists(_project.CodeFolder)
+            ? Directory.EnumerateFiles(_project.CodeFolder, "*.cs", SearchOption.AllDirectories).Where(IsEditorSource)
+            : [];
+
+    private bool IsEditorSource(string file) =>
+        Path.GetRelativePath(_project.CodeFolder, file).Replace('\\', '/').Split('/').SkipLast(1).Contains(EditorFolder);
+
+    /// <summary>
+    /// The editor project's text (ADR 0116): the Editor folders' code, with
+    /// <c>CRUCIBLE_EDITOR</c>, referencing the game's project and the
+    /// editor's assemblies; built into the game's output folder.
+    /// </summary>
+    public string EditorProjectText()
+    {
+        string game = ProjectText();
+        int start = game.IndexOf("    <AssemblyName>", StringComparison.Ordinal);
+        int end = game.IndexOf("</AssemblyName>\n", start, StringComparison.Ordinal) + "</AssemblyName>\n".Length;
+        StringBuilder text = new(game[..start]);
+        text.Append($"    <AssemblyName>{EditorAssemblyName}</AssemblyName>\n");
+        text.Append(game[end..game.IndexOf("  <ItemGroup>", StringComparison.Ordinal)]
+            .Replace("<OutputPath>bin/</OutputPath>", "<OutputPath>../bin/</OutputPath>", StringComparison.Ordinal)
+            .Replace("<IsAotCompatible>true</IsAotCompatible>", "<IsAotCompatible>false</IsAotCompatible>", StringComparison.Ordinal));
+        text.Append("  <ItemGroup>\n");
+        text.Append($"    <Compile Include=\"{Escape(EditorGlob)}\" />\n");
+        text.Append($"    <ProjectReference Include=\"{Escape(ProjectFile)}\" Private=\"false\" />\n");
+        foreach (string assembly in (string[])[_engine ?? EngineAssembly(), EditorAssembly(), AssetsAssembly()])
+        {
+            text.Append($"    <Reference Include=\"{Path.GetFileNameWithoutExtension(assembly)}\" HintPath=\"{Escape(assembly)}\" Private=\"false\" />\n");
+        }
+        text.Append("""
+              </ItemGroup>
+            </Project>
+
+            """);
+        return text.ToString();
+    }
+
     private void WriteProject()
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(ProjectFile)!);
-        string text = ProjectText();
-        // Unchanged, it's left alone, so the build stays incremental.
-        if (!File.Exists(ProjectFile) || File.ReadAllText(ProjectFile) != text)
+        Write(ProjectFile, ProjectText());
+        if (HasEditorCode)
         {
-            File.WriteAllText(ProjectFile, text);
+            Write(EditorProjectFile, EditorProjectText());
+        }
+    }
+
+    // Unchanged, a project file is left alone, so the build stays incremental.
+    private static void Write(string file, string text)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+        if (!File.Exists(file) || File.ReadAllText(file) != text)
+        {
+            File.WriteAllText(file, text);
         }
     }
 
@@ -310,6 +434,9 @@ public sealed partial class GameBuilder
         XxHash128 hash = new();
         void Add(string text) => hash.Append(Encoding.UTF8.GetBytes(text + "\n"));
         Add(ProjectText().Replace(Escape(_project.Root), "$(Project)", StringComparison.Ordinal));
+        Add(HasEditorCode
+            ? EditorProjectText().Replace(Escape(_project.Root), "$(Project)", StringComparison.Ordinal) + ContentHash.OfFile(EditorAssembly())
+            : "no editor code");
         if (Directory.Exists(_project.CodeFolder))
         {
             foreach (string file in Directory.EnumerateFiles(_project.CodeFolder, "*.cs", SearchOption.AllDirectories)
@@ -334,8 +461,21 @@ public sealed partial class GameBuilder
     public bool IsUpToDate() => Current(ReadStamp(), InputHash());
 
     private bool Current(Stamp? stamp, string inputs) =>
-        stamp is not null && stamp.Inputs == inputs && File.Exists(OutputPath) &&
-        stamp.Output == ContentHash.OfFile(OutputPath);
+        stamp is not null && stamp.Inputs == inputs && OutputHash() is { } output && stamp.Output == output;
+
+    // The game's assembly's hash, and the editor's after it when there's editor code; null if one is missing.
+    private string? OutputHash()
+    {
+        if (!File.Exists(OutputPath))
+        {
+            return null;
+        }
+        if (!HasEditorCode)
+        {
+            return ContentHash.OfFile(OutputPath);
+        }
+        return File.Exists(EditorOutputPath) ? ContentHash.OfFile(OutputPath) + "+" + ContentHash.OfFile(EditorOutputPath) : null;
+    }
 
     private sealed record Stamp(string Inputs, string Output, string Root);
 
@@ -358,9 +498,10 @@ public sealed partial class GameBuilder
     {
         string inputs = InputHash();
         Stamp? stamp = ReadStamp();
+        bool editor = HasEditorCode;
         if (Current(stamp, inputs))
         {
-            return new GameBuild(true, OutputPath, [], "", UpToDate: true);
+            return new GameBuild(true, OutputPath, [], "", UpToDate: true) { EditorAssembly = editor ? EditorOutputPath : null };
         }
         // dotnet's obj folders hold the project's absolute paths: a project
         // moved (or copied) with its Cache restores and compiles from scratch.
@@ -374,10 +515,17 @@ public sealed partial class GameBuilder
             }
         }
         File.Delete(StampFile);
-        GameBuild build = RunDotnet(["build", ProjectFile], OutputPath);
-        if (build.Succeeded)
+        // The editor project builds the game's too, which it references.
+        GameBuild build = RunDotnet(["build", editor ? EditorProjectFile : ProjectFile], editor ? EditorOutputPath : OutputPath);
+        if (editor)
         {
-            File.WriteAllLines(StampFile, ["crucible-build-stamp 1", inputs, ContentHash.OfFile(OutputPath), _project.Root]);
+            build = build.Succeeded && File.Exists(OutputPath)
+                ? build with { Assembly = OutputPath, EditorAssembly = EditorOutputPath }
+                : build with { Succeeded = false, Assembly = null };
+        }
+        if (build.Succeeded && OutputHash() is { } output)
+        {
+            File.WriteAllLines(StampFile, ["crucible-build-stamp 1", inputs, output, _project.Root]);
         }
         return build;
     }
@@ -473,6 +621,22 @@ public sealed partial class GameBuilder
         Justification = "The editor is never published as a single file")]
     internal static string EngineAssembly() => typeof(Crucible.Ecs.World).Assembly.Location;
 
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("SingleFile", "IL3000",
+        Justification = "The editor is never published as a single file")]
+    internal static string EditorAssembly() =>
+        typeof(GameBuilder).Assembly.Location is { Length: > 0 } location
+            ? location
+            // Loaded from a stream as the launcher's game (Dependencies): at its --game path.
+            : Path.GetFullPath(Crucible.Api.GamePath());
+
+    // Beside the editor, where Dependencies finds it.
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("SingleFile", "IL3000",
+        Justification = "The editor is never published as a single file")]
+    internal static string AssetsAssembly() =>
+        typeof(Crucible.Assets.AssetDatabase).Assembly.Location is { Length: > 0 } location
+            ? location
+            : Path.Combine(Path.GetDirectoryName(EditorAssembly())!, "Crucible.Assets.dll");
+
     // An identifier, and not a name already taken in a package's Data folder
     // (ADR 0100): the engine's core (Crucible.Core) or the runtime's own
     // assemblies (System.dll, mscorlib.dll).
@@ -499,4 +663,8 @@ public sealed record BuildError(string File, int Line, int Column, string Messag
 /// dotnet's whole output; <c>UpToDate</c> when nothing was built, the last
 /// build's assembly being current (ADR 0110).
 /// </summary>
-public sealed record GameBuild(bool Succeeded, string? Assembly, IReadOnlyList<BuildError> Errors, string Output, bool UpToDate = false);
+public sealed record GameBuild(bool Succeeded, string? Assembly, IReadOnlyList<BuildError> Errors, string Output, bool UpToDate = false)
+{
+    /// <summary>The project's editor assembly (ADR 0116), built with the game's; null when it has no editor code.</summary>
+    public string? EditorAssembly { get; init; }
+}

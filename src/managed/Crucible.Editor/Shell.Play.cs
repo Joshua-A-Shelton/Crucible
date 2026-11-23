@@ -187,7 +187,31 @@ internal sealed partial class Shell
         {
             Loaded(build);
         }
+        if (_builder.TakeSymbolCheck() is { } check)
+        {
+            SymbolChecked(check);
+        }
     }
+
+    // ADR 0116: what packages will meet, said while it's still fresh.
+    internal void SymbolChecked(GameBuild check)
+    {
+        if (check.Succeeded || _builder is null)
+        {
+            return;
+        }
+        string game = _builder.AssemblyName;
+        foreach (BuildError error in check.Errors.Count > 0 ? check.Errors : [new BuildError("", 0, 0, "the build failed")])
+        {
+            LogWarning($"{game} doesn't build without {GameBuilder.EditorSymbol}: {Relative(error)}");
+        }
+    }
+
+    // An error's file as a path in the project, as the rest of the Log names files.
+    private string Relative(BuildError error) =>
+        Project is { } project && error.File.Length > 0 && Path.IsPathRooted(error.File)
+            ? (error with { File = Path.GetRelativePath(project.Root, error.File).Replace('\\', '/') }).ToString()
+            : error.ToString();
 
     /// <summary>Builds the project's code now, and loads it if it built.</summary>
     public bool BuildCode()
@@ -226,17 +250,21 @@ internal sealed partial class Shell
         }
         try
         {
+            // The editor assembly (ADR 0116) in the game's context, with it.
+            string loaded = build.EditorAssembly is { } editor
+                ? $"{Path.GetFileName(build.Assembly)} and {Path.GetFileName(editor)}"
+                : Path.GetFileName(build.Assembly);
             if (_game is null)
             {
-                _game = GameLoader.Load(build.Assembly);
+                _game = GameLoader.Load(build.Assembly, build.EditorAssembly);
                 _game.RegisterComponents();
-                Log($"Loaded {Path.GetFileName(build.Assembly)}");
+                Log($"Loaded {loaded}");
             }
             else
             {
                 LoadedGame old = _game;
                 GameReloading?.Invoke();
-                _game = GameLoader.Reload(old, build.Assembly, out IReadOnlyList<MigrationNote> notes);
+                _game = GameLoader.Reload(old, build.Assembly, out IReadOnlyList<MigrationNote> notes, build.EditorAssembly);
                 _game.RegisterComponents();
                 foreach (MigrationNote note in notes)
                 {
@@ -248,7 +276,7 @@ internal sealed partial class Shell
                 {
                     Log("The previous build didn't unload: something still holds on to it");
                 }
-                Log($"Reloaded {Path.GetFileName(build.Assembly)}");
+                Log($"Reloaded {loaded}");
             }
         }
         catch (Exception exception) when (exception is IOException or BadImageFormatException or InvalidOperationException)
@@ -258,6 +286,11 @@ internal sealed partial class Shell
             return false;
         }
         _gameIsCurrent = true;
+        // Game code using CRUCIBLE_EDITOR checked to build without it, as a package will.
+        if (_builder is { UsesEditorSymbol: true } builder)
+        {
+            builder.StartSymbolCheck();
+        }
         if (wasPlaying)
         {
             StartSystems();

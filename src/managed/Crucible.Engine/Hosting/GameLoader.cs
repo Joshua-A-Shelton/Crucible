@@ -27,11 +27,16 @@ public static class GameLoader
     /// to the default one for it, so the game and the engine share one
     /// <see cref="IGameEntry"/> type.
     /// </remarks>
+    /// <remarks>
+    /// The project's editor assembly (ADR 0116), <paramref name="editorPath"/>,
+    /// is loaded into the same context: it references the game's types, so
+    /// the two load, reload, and unload together.
+    /// </remarks>
     [RequiresUnreferencedCode(JitOnly)]
-    public static LoadedGame Load(string path)
+    public static LoadedGame Load(string path, string? editorPath = null)
     {
-        (AssemblyLoadContext context, Assembly assembly) = LoadAssembly(path);
-        return new LoadedGame(context, CreateEntry(assembly), CreateRegistrations(assembly), DriverOf(assembly));
+        (AssemblyLoadContext context, Assembly assembly, Assembly? editor) = LoadAssembly(path, editorPath);
+        return new LoadedGame(context, CreateEntry(assembly), CreateRegistrations(assembly), DriverOf(assembly)) { EditorAssembly = editor };
     }
 
     /// <summary>
@@ -85,26 +90,52 @@ public static class GameLoader
     /// </remarks>
     [RequiresUnreferencedCode(JitOnly)]
     [RequiresDynamicCode(JitOnly)]
-    public static LoadedGame Reload(LoadedGame current, string path, out IReadOnlyList<MigrationNote> notes)
+    public static LoadedGame Reload(LoadedGame current, string path, out IReadOnlyList<MigrationNote> notes, string? editorPath = null)
     {
         AssemblyLoadContext oldContext = current.Context;
-        (AssemblyLoadContext context, Assembly assembly) = LoadAssembly(path);
+        (AssemblyLoadContext context, Assembly assembly, Assembly? editor) = LoadAssembly(path, editorPath);
         notes = ComponentMigration.Migrate(oldContext, context);
-        return new LoadedGame(context, CreateEntry(assembly), CreateRegistrations(assembly), DriverOf(assembly));
+        return new LoadedGame(context, CreateEntry(assembly), CreateRegistrations(assembly), DriverOf(assembly)) { EditorAssembly = editor };
     }
 
     // The assembly is read from a stream, not opened by path, so the file
     // isn't locked: a rebuild can overwrite it while the old version runs.
     [RequiresUnreferencedCode(JitOnly)]
-    private static (AssemblyLoadContext Context, Assembly Assembly) LoadAssembly(string path)
+    private static (AssemblyLoadContext Context, Assembly Assembly, Assembly? Editor) LoadAssembly(string path, string? editorPath)
     {
         AssemblyLoadContext context = new($"Game: {Path.GetFileName(path)}", isCollectible: true);
         // The game's bindings into its native module (ADR 0074) name the
         // module's library, which the launcher or editor already loaded.
         context.ResolvingUnmanagedDll += ResolveModule;
-        using FileStream stream = File.OpenRead(path);
-        return (context, context.LoadFromStream(stream));
+        Assembly game;
+        using (FileStream stream = File.OpenRead(path))
+        {
+            game = context.LoadFromStream(stream);
+        }
+        // The editor assembly's references (ADR 0116): the game loaded here,
+        // and the editor's own assemblies, shared rather than loaded again.
+        // Looked up by name, not captured: a context holding its own assembly
+        // in a handler would never be collected.
+        context.Resolving += ResolveShared;
+        Assembly? editor = null;
+        if (editorPath is not null)
+        {
+            using FileStream stream = File.OpenRead(editorPath);
+            editor = context.LoadFromStream(stream);
+        }
+        return (context, game, editor);
     }
+
+    /// <summary>
+    /// Assemblies a game's context takes from elsewhere instead of loading
+    /// them (ADR 0116): the editor's, which its editor assembly references.
+    /// Set by the editor; null finds none.
+    /// </summary>
+    public static Func<AssemblyName, Assembly?>? SharedAssemblies { get; set; }
+
+    private static Assembly? ResolveShared(AssemblyLoadContext context, AssemblyName name) =>
+        context.Assemblies.FirstOrDefault(assembly => AssemblyName.ReferenceMatchesDefinition(name, assembly.GetName())) ??
+        SharedAssemblies?.Invoke(name);
 
     // A loaded module whose file is named <library>.so or <library>.dll.
     private static nint ResolveModule(Assembly assembly, string library)
@@ -229,6 +260,9 @@ public sealed class LoadedGame
     private Registrations Live =>
         _registrations ?? throw new InvalidOperationException("The game has been unloaded.");
 
+    /// <summary>The project's editor assembly loaded beside the game (ADR 0116), or null.</summary>
+    public Assembly? EditorAssembly { get; internal set; }
+
     internal AssemblyLoadContext Context =>
         _context ?? throw new InvalidOperationException("The game has been unloaded.");
 
@@ -243,6 +277,7 @@ public sealed class LoadedGame
         _entry = null;
         _registrations = null;
         _driver = null;
+        EditorAssembly = null;
         _context = null;
         // The saved-component table would otherwise keep the game's types.
         SavedComponents.Forget(context);

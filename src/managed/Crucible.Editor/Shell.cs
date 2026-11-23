@@ -1272,6 +1272,15 @@ internal sealed partial class Shell
         Main.StatusBar.Text = Project is null ? message : $"{Project.Name} — {message}";
     }
 
+    /// <summary>A warning in the Log, marked and coloured as the core's are.</summary>
+    public void LogWarning(string message)
+    {
+        Console.WriteLine($"Crucible.Editor: Warning: {message}");
+        LogPanel?.Add($"Warning: {message}", "log-warning");
+        Logged?.Invoke(message);
+        Main.StatusBar.Text = Project is null ? message : $"{Project.Name} — {message}";
+    }
+
     // The core's messages (ADR 0087), already printed to the terminal by
     // the core: in the Log, warnings and errors marked and coloured.
     private void EngineMessage(Crucible.Log.LogLevel level, string text)

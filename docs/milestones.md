@@ -1334,10 +1334,11 @@ on the viewport or the hierarchy is placed there.
 
 ## After M11: editor extensions
 
-**Status:** Draft (2026-11-20), to design with the owner at its start.
-Placed by the owner after importing by dropping files and before the
-engine review and the first game, so the game's own tools are built on
-it; its number and every name in it are open.
+**Status:** In progress (started 2026-11-23). Placed by the owner after
+importing by dropping files and before the engine review and the first
+game, so the game's own tools are built on it. Step 1 built (ADR 0116),
+to be tried by hand by the owner; reopening a project's panels after a
+reload moved to step 2, where projects can first make them.
 
 Asked for by the owner (2026-11-20): a game's own editors, as specialized
 as map mode (ADR 0112), built by the people making the game, for example

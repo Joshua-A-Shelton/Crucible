@@ -28,6 +28,10 @@ internal static class Dependencies
         {
             return;
         }
+        // A project's editor assembly (ADR 0116), in the game's context,
+        // references the editor's: these, not copies loaded again.
+        Crucible.Hosting.GameLoader.SharedAssemblies = name =>
+            context.Assemblies.FirstOrDefault(assembly => assembly.GetName().Name == name.Name);
         string folder = Path.GetDirectoryName(Path.GetFullPath(Crucible.Api.GamePath()))!;
         context.Resolving += (resolving, name) =>
         {

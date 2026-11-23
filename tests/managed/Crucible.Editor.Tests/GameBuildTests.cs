@@ -54,6 +54,100 @@ public class GameBuildTests
         }
     }
 
+    // Editor assemblies (ADR 0116): code under any folder named Editor
+    // builds into <Game>.Editor.dll beside the game's, referencing it; the
+    // game's own build has CRUCIBLE_EDITOR, a package's doesn't, and a check
+    // builds the game's code without it.
+    [Test]
+    public async Task EditorFoldersBuildIntoAnEditorAssemblyReferencingTheGame()
+    {
+        string folder = Path.Combine(Path.GetTempPath(), "crucible-build-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Project project = Project.Create(folder, "Tiny Game");
+            GameBuilder builder = new(project);
+            File.WriteAllText(Path.Combine(project.CodeFolder, "Stats.cs"), """
+                namespace TinyGame;
+                public sealed class Stats { public int Health = 10; }
+                #if CRUCIBLE_EDITOR
+                public sealed class OnlyInTheEditor { }
+                #endif
+                """);
+            await Assert.That(builder.HasEditorCode).IsFalse();
+            await Assert.That(builder.UsesEditorSymbol).IsTrue();
+            string nested = Path.Combine(project.CodeFolder, "Characters", "Editor");
+            Directory.CreateDirectory(nested);
+            File.WriteAllText(Path.Combine(nested, "StatsTool.cs"), """
+                namespace TinyGame.Tools;
+                public static class StatsTool
+                {
+                    public static int Read(TinyGame.Stats stats) => stats.Health;
+                    public static string Editor => typeof(Crucible.Editor.GameBuilder).Name;
+                }
+                """);
+            await Assert.That(builder.HasEditorCode).IsTrue();
+            await Assert.That(builder.EditorAssemblyName).IsEqualTo("TinyGame.Editor");
+            await Assert.That(builder.ProjectText()).Contains("CRUCIBLE_EDITOR");
+            await Assert.That(builder.ProjectText(package: true)).DoesNotContain("CRUCIBLE_EDITOR");
+            await Assert.That(builder.ProjectText(package: true)).Contains("Exclude=");
+
+            GameBuild built = builder.BuildNow();
+            await Assert.That(built.Succeeded).IsTrue().Because(built.Output);
+            await Assert.That(built.Assembly).IsEqualTo(builder.OutputPath);
+            await Assert.That(built.EditorAssembly).IsEqualTo(builder.EditorOutputPath);
+            string[] gameTypes = TypeNames(builder.OutputPath);
+            string[] editorTypes = TypeNames(builder.EditorOutputPath);
+            await Assert.That(gameTypes).Contains("Stats");
+            await Assert.That(gameTypes).Contains("OnlyInTheEditor");
+            await Assert.That(gameTypes).DoesNotContain("StatsTool");
+            await Assert.That(editorTypes).Contains("StatsTool");
+            await Assert.That(builder.IsUpToDate()).IsTrue();
+            await Assert.That(builder.BuildNow().UpToDate).IsTrue();
+
+            // An editor file changed: the pair builds again.
+            string before = builder.InputHash();
+            File.AppendAllText(Path.Combine(nested, "StatsTool.cs"), "// changed\n");
+            await Assert.That(builder.InputHash()).IsNotEqualTo(before);
+
+            // Editor code in the game's folders isn't the game's: an error there names the editor file.
+            File.WriteAllText(Path.Combine(nested, "Broken.cs"), "namespace TinyGame.Tools;\npublic class Broken { int x = ; }\n");
+            GameBuild broken = builder.BuildNow();
+            await Assert.That(broken.Succeeded).IsFalse();
+            await Assert.That(broken.Assembly).IsNull();
+            await Assert.That(Path.GetFileName(broken.Errors.First().File)).IsEqualTo("Broken.cs");
+            File.Delete(Path.Combine(nested, "Broken.cs"));
+
+            // Game code that only builds with CRUCIBLE_EDITOR: the check says so.
+            await Assert.That(builder.StartSymbolCheck()).IsTrue();
+            await Assert.That(builder.WaitForSymbolCheck()?.Succeeded).IsTrue();
+            File.WriteAllText(Path.Combine(project.CodeFolder, "Uses.cs"), """
+                namespace TinyGame;
+                public static class Uses { public static object Make() => new OnlyInTheEditor(); }
+                """);
+            await Assert.That(builder.BuildNow().Succeeded).IsTrue();
+            await Assert.That(builder.StartSymbolCheck()).IsTrue();
+            GameBuild? check = builder.WaitForSymbolCheck();
+            await Assert.That(check?.Succeeded).IsFalse();
+            await Assert.That(Path.GetFileName(check!.Errors.First().File)).IsEqualTo("Uses.cs");
+        }
+        finally
+        {
+            if (Directory.Exists(folder))
+            {
+                Directory.Delete(folder, recursive: true);
+            }
+        }
+    }
+
+    // An assembly's type names, read without loading it.
+    private static string[] TypeNames(string path)
+    {
+        using FileStream stream = File.OpenRead(path);
+        using System.Reflection.PortableExecutable.PEReader pe = new(stream);
+        System.Reflection.Metadata.MetadataReader reader = System.Reflection.Metadata.PEReaderExtensions.GetMetadataReader(pe);
+        return [.. reader.TypeDefinitions.Select(handle => reader.GetString(reader.GetTypeDefinition(handle).Name))];
+    }
+
     // Skipping up-to-date builds (ADR 0110): a stamp of the build's inputs,
     // kept only while they and the assembly it made are unchanged, and the
     // same for a copy of the project elsewhere.

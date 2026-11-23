@@ -580,6 +580,19 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "Light2DChecks: all [0-9]+ checks passed")
 
+    # Editor assemblies checking themselves (ADR 0116): on a copy of the
+    # Walker's project, Code/Editor built into Walker.Editor.dll and loaded
+    # in the game's context, reloaded with it, game code needing
+    # CRUCIBLE_EDITOR warned about, and a package without the editor code.
+    add_test(NAME launcher.jit.editor-code
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
+            --game-arg "warm-project=${walkerWarm}/Walker.crproject"
+            --game-arg "check-editor-code=${CMAKE_CURRENT_BINARY_DIR}"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/editor-code-settings.json")
+    set_tests_properties(launcher.jit.editor-code PROPERTIES LABELS "integration;gpu" TIMEOUT 600
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "EditorCodeChecks: all [0-9]+ checks passed")
+
     # Importing dropped files checking itself (ADR 0115): on a copy of the
     # Walker's project, the platform's file drag events handed to the editor
     # as a drop would give them: the note and highlight, the image and name
@@ -685,6 +698,7 @@ if(CRUCIBLE_BUILD_TESTS)
         launcher.jit.pickers
         launcher.jit.lights-2d
         launcher.jit.drops
+        launcher.jit.editor-code
         samples.walker-package
         samples.walker-package-shipping
         APPEND PROPERTY FIXTURES_REQUIRED walker-warm)
