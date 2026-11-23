@@ -1324,8 +1324,7 @@ import settings set as they need (a pixel-art image as a Sprite), without
 opening the project's folders. A pixel-art image dropped in can ask for
 Sprite usage and open the Sprite Sheet Editor (ADR 0107).
 
-**Status:** built (2026-11-23, ADR 0115), to be tried by hand by the
-owner. Files from other programs dropped anywhere in the editor go into
+**Status:** done (2026-11-23, ADR 0115), tried by hand by the owner. Files from other programs dropped anywhere in the editor go into
 the Assets panel's folder (or the folder tile under them), highlighted
 and noted while dragged; a name already there asks Replace, Keep Both,
 or Skip; a new image asks Pixel Art, Texture, or UI with a guess from its

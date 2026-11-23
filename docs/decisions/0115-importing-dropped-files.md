@@ -1,7 +1,7 @@
 # 0115 — Importing dropped files
 
-**Status:** Accepted (2026-11-23). Names marked `*` in docs/naming.md are
-placeholders until the owner has tried it.
+**Status:** Accepted (2026-11-23), tried by hand by the owner. Names
+settled by the owner as drafted (2026-11-23; docs/naming.md).
 
 ## Context
 
@@ -36,11 +36,11 @@ feedback, or where they'll go.
 
 Decided by the owner (2026-11-23):
 
-1. **Platform events.** `InputEventType.FileDragMoved`* (over a window,
-   in pixels), `FileDropped`* (one per file or folder, its path in the
-   polled text, as typed text is), and `FileDragEnded`* (after the
+1. **Platform events.** `InputEventType.FileDragMoved` (over a window,
+   in pixels), `FileDropped` (one per file or folder, its path in the
+   polled text, as typed text is), and `FileDragEnded` (after the
    dropped paths, or on leaving without a drop), translated from SDL's.
-2. **A UI drag.** The shell carries the files as a `FileDrag`* payload
+2. **A UI drag.** The shell carries the files as a `FileDrag` payload
    through the window's drag routing (`ContinueDrag`, `DropAt`, as a drag
    carried between windows is), so the element under the pointer says
    where they'd go:
@@ -51,29 +51,29 @@ Decided by the owner (2026-11-23):
      viewport: on the surface under the pointer, pixel art on the 2D
      plane; on the hierarchy: under the row, or at the top).
    - **Anywhere else:** the Assets panel's folder.
-   A note beside the pointer says where: "Drop to import into Textures/"*.
-3. **Copying** (`Shell.ImportFiles`*). A folder is copied whole (hidden
+   A note beside the pointer says where: "Drop to import into Textures/".
+3. **Copying** (`Shell.ImportFiles`). A folder is copied whole (hidden
    files left out); a `.gltf` brings its buffers and images named by
    relative URI. A companion that would land on a different file of the
    same name gets a free name, and the copy's URI follows it; one already
    there as it is isn't copied again. A sidecar beside a dropped file
    comes with it, its settings kept, with a GUID of its own. Files no
    importer reads are copied anyway, and the Log says so: "Copied
-   Props/notes.xyz: nothing imports .xyz files"*.
-4. **A name already there** asks: "Hero.png is already there"*, with
-   **Replace***, **Keep Both*** (the first guess: "Hero 2.png"), and
-   **Skip***. A replaced file keeps its sidecar, so its GUID and settings
+   Props/notes.xyz: nothing imports .xyz files".
+4. **A name already there** asks: "Hero.png is already there", with
+   **Replace**, **Keep Both** (the first guess: "Hero 2.png"), and
+   **Skip**. A replaced file keeps its sidecar, so its GUID and settings
    stay and what uses it keeps working.
-5. **A new image** asks: "Import Hero.png as"*, with **Pixel Art***
-   (`Sprite` usage), **Texture*** (`Color`), and **UI*** (`Ui`); the
-   guess (`ImageGuess`*) is the primary button. Pixel art if it's at most
+5. **A new image** asks: "Import Hero.png as", with **Pixel Art**
+   (`Sprite` usage), **Texture** (`Color`), and **UI** (`Ui`); the
+   guess (`ImageGuess`) is the primary button. Pixel art if it's at most
    512x512, at most 256 colors, and its alpha only clear or opaque; else
    a texture, or UI when block compression can't store its size (not a
    multiple of 4), where Texture isn't offered. Its sidecar is written
    before the image, so no rescan imports it with the defaults. Exactly
    one image made pixel art opens the Sprite Sheet Editor (ADR 0107).
-6. **One question at a time** (`DropQuestion`*), each with **Do this for
-   the rest*** while more files would ask the same. Escape cancels the
+6. **One question at a time** (`DropQuestion`), each with **Do this for
+   the rest** while more files would ask the same. Escape cancels the
    drop: nothing is copied. A drop while one is still asking is refused.
 
 ## Consequences
@@ -82,7 +82,7 @@ Decided by the owner (2026-11-23):
   imports first as a block-compressed texture (which fails at sizes that
   aren't multiples of 4).
 - A headless run gets no drop from the system, so the checks
-  (`DropChecks`*, CTest `launcher.jit.drops`*) hand the shell the events
+  (`DropChecks`, CTest `launcher.jit.drops`) hand the shell the events
   the platform would give; the native test pushes SDL's drop events
   through the translation.
 - The guess reads the whole image once (a sprite import, the source's
