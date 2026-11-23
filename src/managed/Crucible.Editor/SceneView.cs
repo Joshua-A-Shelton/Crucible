@@ -68,6 +68,17 @@ public sealed class SceneView : UIElement
 
     protected override void OnDragOver(DragEvent e)
     {
+        // Files from other programs (ADR 0115): placed where dropped once
+        // imported; picking under the pointer meanwhile, for where that is.
+        if (e.Payload is FileDrag files)
+        {
+            e.Accepted = true;
+            files.View = this;
+            files.ViewPoint = e.Position - new Vector2(Bounds.X, Bounds.Y);
+            Vector2 pixel = DragPixel(e);
+            Crucible.Render.Api.RequestPick(Surface, (uint)MathF.Max(pixel.X, 0), (uint)MathF.Max(pixel.Y, 0));
+            return;
+        }
         // Started here too, not only on entering: a drag handed over from
         // another window can arrive already over the view (ADR 0071).
         if (_shell.Placing.IsNull && e.Payload is AssetDrag drag)

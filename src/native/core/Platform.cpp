@@ -250,6 +250,38 @@ bool translate(const SDL_Event& event, InputEvent& out)
         // Sticks -32768 to 32767, triggers 0 to 32767.
         out.x = std::max(static_cast<float>(event.gaxis.value) / 32767.0f, -1.0f);
         return true;
+    // Other programs' files, through SDL on every platform: on Wayland,
+    // Crucible's own data device takes only its window drags (ADR 0066).
+    case SDL_EVENT_DROP_POSITION:
+    {
+        out.type = InputEventType::FileDragMoved;
+        out.window.value = event.drop.windowID;
+        const float density = pixelDensity(event.drop.windowID);
+        out.x = event.drop.x * density;
+        out.y = event.drop.y * density;
+        return true;
+    }
+    case SDL_EVENT_DROP_FILE:
+    {
+        out.type = InputEventType::FileDropped;
+        out.window.value = event.drop.windowID;
+        const float density = pixelDensity(event.drop.windowID);
+        out.x = event.drop.x * density;
+        out.y = event.drop.y * density;
+        const char* path = event.drop.data;
+        const size_t length = path != nullptr ? std::strlen(path) : 0;
+        out.code = static_cast<int32_t>(polled().size());
+        out.value = static_cast<int32_t>(length);
+        for (size_t i = 0; i < length; ++i)
+        {
+            polled().pushBack(path[i]);
+        }
+        return true;
+    }
+    case SDL_EVENT_DROP_COMPLETE:
+        out.type = InputEventType::FileDragEnded;
+        out.window.value = event.drop.windowID;
+        return true;
     case SDL_EVENT_TEXT_INPUT:
     {
         out.type = InputEventType::TextInput;

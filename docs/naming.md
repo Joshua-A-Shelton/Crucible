@@ -1531,6 +1531,30 @@ step 6 by hand (2026-11-23):
 | `CrossingChecks`, CTest `samples.crossing`, game args `check-crossing`, `walk-script`; crossing-&lt;width&gt;.png | Tests | The check and its captures |
 | ADR 0114 "The M11 demonstration"; docs/learning/floors-and-bridges.md | Docs | Decision record, learning note |
 
+## Importing dropped files (2026-11-23, ADR 0115)
+
+Names proposed before building (approved to build with, 2026-11-23) and
+added while building; all placeholders (`*`) until the owner has tried it:
+
+| Name | What it names | What it is |
+|---|---|---|
+| ADR 0115 "Importing dropped files"* | Decision record | Files from other programs copied in and imported |
+| `InputEventType.FileDragMoved`*, `FileDropped`*, `FileDragEnded`* | Platform events (C++ and C#) | Files over a window, each path dropped, the drag's end |
+| `FileDrag`* | C# class (editor) | The UI drag payload for files from outside |
+| `DropPlacement`* | C# record (editor) | Where dropped models and pixel art are placed |
+| `Shell.ImportFiles`*, `Shell.DropQuestion`*, `Shell.Dropping`*, `Shell.DropNote`*, `Shell.CreateSprite`* | C# members | Copying and importing; the open question; a drop in progress; the note; placing pixel art |
+| `DropQuestion`* (`Answer`, `ForTheRest`, `Suggested`) | C# class (editor) | A drop's question |
+| `ImageGuess`*, `ImageKind`* (`PixelArt`, `Texture`, `Ui`) | C# types (editor) | The image prompt's guess |
+| "Drop to import into Textures/"* | Note beside the pointer | Where the files will go |
+| "… is already there"*: **Replace***, **Keep Both***, **Skip*** | Question | A name taken |
+| "Import Grass.png as"*: **Pixel Art***, **Texture***, **UI*** | Question | How an image imports |
+| **Do this for the rest*** | Checkbox | The same answer for the files after |
+| "Copied … : nothing imports .xyz files"*, "Skipped … : one is already there"*, "Dropped 3 files into Art/"*, "Import canceled"* | Log and status lines | What a drop did |
+| `drop-over` on `AssetTile` and `AssetsPanel`* | Style class | The highlight under files dragged in |
+| `DropChecks`*, CTest `launcher.jit.drops`*, game arg `check-drops`*; test folders `drops-project`, `drops-source`* | Tests | The editor checking drops |
+| `Shell.Logged`* | C# event (internal) | Log lines, for the checks |
+| docs/learning/dropping-files.md* | Learning note | OLE, XDND, Wayland offers; guessing pixel art |
+
 ## Tests in parallel (2026-11-19, ADR 0109)
 
 Names added while building, settled as drafted by the owner (2026-11-20):

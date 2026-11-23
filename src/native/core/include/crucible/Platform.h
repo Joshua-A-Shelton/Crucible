@@ -65,6 +65,10 @@ enum class CRUCIBLE_EXPOSE InputEventType : uint32_t
     FileDialogResult, // code = offset, value = length (0: none chosen) of the path's UTF-8 in polledText()
     // Added for the asset browser (ADR 0071):
     WindowFocusGained, // (window) became the one with keyboard focus
+    // Added for importing dropped files (ADR 0115):
+    FileDragMoved, // another program's files dragged over (window); x, y = position in it
+    FileDropped,   // a file or folder dropped on (window); x, y; code, value: its path in polledText()
+    FileDragEnded, // the drag over (window) ended: after its FileDropped events, or left without a drop
 };
 
 // What startWindowDrag can do here (ADR 0066).

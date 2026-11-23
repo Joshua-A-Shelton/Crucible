@@ -158,6 +158,18 @@ internal sealed partial class Shell
                 case InputEventType.DragCanceled:
                     PlatformDragEnded();
                     break;
+                case InputEventType.FileDragMoved:
+                    FileDragMoved(input.Window, new Vector2(input.X, input.Y));
+                    break;
+                case InputEventType.FileDropped:
+                    FileDropped(input.Window, new Vector2(input.X, input.Y),
+                        input.Value > 0 && input.Code >= 0 && input.Code + input.Value <= text.Length
+                            ? System.Text.Encoding.UTF8.GetString(text.Slice(input.Code, input.Value))
+                            : null);
+                    break;
+                case InputEventType.FileDragEnded:
+                    FileDragEnded();
+                    break;
                 case InputEventType.WindowFocusGained:
                     _watcher?.MarkAll(); // changes made in other programs meanwhile
                     break;
@@ -1249,10 +1261,14 @@ internal sealed partial class Shell
 
     public void Status(string text) => Main.StatusBar.Text = text;
 
+    /// <summary>Each message as it's logged (the checks read them).</summary>
+    internal event Action<string>? Logged;
+
     public void Log(string message)
     {
         Console.WriteLine($"Crucible.Editor: {message}");
         LogPanel?.Add(message);
+        Logged?.Invoke(message);
         Main.StatusBar.Text = Project is null ? message : $"{Project.Name} — {message}";
     }
 
@@ -1380,6 +1396,8 @@ internal sealed partial class Shell
             .Set(UIElement.ForegroundProperty, muted)
             .Set(UIElement.BorderColorProperty, accent));
         theme.Add(new Style("AssetTile:hover").Set(UIElement.BackgroundProperty, hover));
+        theme.Add(new Style("AssetTile.drop-over").Set(UIElement.BackgroundProperty, accent with { W = 0.45f }));
+        theme.Add(new Style("AssetsPanel.drop-over").Set(UIElement.BackgroundProperty, accent with { W = 0.12f }));
         theme.Add(new Style("AssetTile.selected").Set(UIElement.BackgroundProperty, accent with { W = 0.3f }).Set(UIElement.ForegroundProperty, text));
         theme.Add(new Style("AssetTile:focus").Set(UIElement.BorderWidthProperty, 1f));
         theme.Add(new Style("Label.asset-name").Set(UIElement.FontSizeProperty, 12f));

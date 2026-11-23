@@ -60,7 +60,23 @@ public sealed class AssetsPanel : EditorPanel
         page.Add(_folders);
         page.Add(right);
         AddChild(page);
+        AllowDrop = true;
     }
+
+    // Files from other programs (ADR 0115): into the folder shown, outlined.
+    protected override void OnDragOver(DragEvent e)
+    {
+        if (e.Payload is FileDrag files)
+        {
+            e.Accepted = true;
+            files.Folder = _folder;
+            Classes.Add("drop-over");
+        }
+    }
+
+    protected override void OnDragLeave(DragEvent e) => Classes.Remove("drop-over");
+
+    protected override void OnDrop(DragEvent e) => Classes.Remove("drop-over");
 
     /// <summary>The folder shown, as a path under Assets ("" for Assets itself, "Models").</summary>
     public string Folder => _folder;
@@ -352,7 +368,23 @@ public sealed class AssetTile : UIElement
         body.Add(_icon);
         body.Add(name);
         AddChild(body);
+        AllowDrop = isFolder;
     }
+
+    // Files from other programs dropped on a folder go into it (ADR 0115).
+    protected override void OnDragOver(DragEvent e)
+    {
+        if (e.Payload is FileDrag files && IsFolder)
+        {
+            e.Accepted = true;
+            files.Folder = Path;
+            Classes.Add("drop-over");
+        }
+    }
+
+    protected override void OnDragLeave(DragEvent e) => Classes.Remove("drop-over");
+
+    protected override void OnDrop(DragEvent e) => Classes.Remove("drop-over");
 
     /// <summary>Its path under Assets.</summary>
     public string Path { get; }

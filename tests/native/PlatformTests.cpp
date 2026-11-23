@@ -191,6 +191,56 @@ TEST_CASE("Typed text comes back as TextInput events pointing into the polled te
     CHECK(polledText(text) == 0);
 }
 
+TEST_CASE("Files dragged from other programs come back as file drag events with their paths in the polled text")
+{
+    PlatformScope platform;
+    drain();
+
+    // Over a window, then two files dropped, then the drop's end (ADR 0115).
+    SDL_Event over{};
+    over.type = SDL_EVENT_DROP_POSITION;
+    over.drop.windowID = 5;
+    over.drop.x = 12.0f;
+    over.drop.y = 34.0f;
+    REQUIRE(SDL_PushEvent(&over));
+    SDL_Event first{};
+    first.type = SDL_EVENT_DROP_FILE;
+    first.drop.windowID = 5;
+    first.drop.x = 12.0f;
+    first.drop.y = 34.0f;
+    first.drop.data = "/home/a/Gr\xC3\xA4s.png";
+    REQUIRE(SDL_PushEvent(&first));
+    SDL_Event second{};
+    second.type = SDL_EVENT_DROP_FILE;
+    second.drop.windowID = 5;
+    second.drop.data = "/b";
+    REQUIRE(SDL_PushEvent(&second));
+    SDL_Event done{};
+    done.type = SDL_EVENT_DROP_COMPLETE;
+    done.drop.windowID = 5;
+    REQUIRE(SDL_PushEvent(&done));
+
+    std::array<InputEvent, 8> events;
+    REQUIRE(pollEvents(events) == 4);
+    CHECK(events[0].type == InputEventType::FileDragMoved);
+    CHECK(events[0].window.value == 5);
+    CHECK(events[0].x == 12.0f); // no such window: a density of 1
+    CHECK(events[0].y == 34.0f);
+    CHECK(events[1].type == InputEventType::FileDropped);
+    CHECK(events[1].x == 12.0f);
+    CHECK(events[1].code == 0);
+    CHECK(events[1].value == 17); // ä is two bytes
+    CHECK(events[2].type == InputEventType::FileDropped);
+    CHECK(events[2].code == 17);
+    CHECK(events[2].value == 2);
+    CHECK(events[3].type == InputEventType::FileDragEnded);
+    CHECK(events[3].window.value == 5);
+
+    std::array<uint8_t, 32> text{};
+    REQUIRE(polledText(text) == 19);
+    CHECK(std::string_view(reinterpret_cast<const char*>(text.data()), 19) == "/home/a/Gr\xC3\xA4s.png/b");
+}
+
 TEST_CASE("Text input turns on and off for a window and the clipboard holds text")
 {
     PlatformScope platform;

@@ -161,8 +161,12 @@ internal sealed partial class Shell
         Debug($"  placed {LabelOf(placed)} at {World.Read<LocalTransform>(placed).Position}");
     }
 
-    /// <summary>Places an asset under <paramref name="parent"/> (or at the top) at its origin: a drop on the hierarchy.</summary>
-    public Entity Place(AssetDrag drag, Entity parent)
+    /// <summary>
+    /// Places an asset under <paramref name="parent"/> (or at the top) at its
+    /// origin, or at <paramref name="at"/>: a drop on the hierarchy, or
+    /// dropped files (ADR 0115).
+    /// </summary>
+    public Entity Place(AssetDrag drag, Entity parent, Vector3? at = null)
     {
         if (!_context.HasWorld || !CanPlace(drag))
         {
@@ -177,6 +181,10 @@ internal sealed partial class Shell
         {
             Status($"Can't place {drag.Path}: {exception.Message}");
             return Entity.Null;
+        }
+        if (at is { } position)
+        {
+            World.Set(placed, World.Read<LocalTransform>(placed) with { Position = position });
         }
         RecordCreated($"Place {LabelOf(placed)}", placed);
         Selection.Selected = placed;
@@ -214,7 +222,7 @@ internal sealed partial class Shell
         }
         Debug($"a UI drag left window {_windows.Find(window => window.Root == root)?.Window.Value} at {position}" +
               $" (support {Platform.Api.WindowDragSupport()}, carrying {_carried is not null})");
-        if (_carried is not null || root.DragPayload is not { } payload ||
+        if (_carried is not null || root.DragPayload is not { } payload || payload is FileDrag ||
             Platform.Api.WindowDragSupport() == WindowDragSupport.None ||
             _windows.Find(window => window.Root == root) is not { } source)
         {

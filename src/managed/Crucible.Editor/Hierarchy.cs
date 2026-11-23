@@ -181,7 +181,30 @@ public sealed class HierarchyPanel : EditorPanel
     private static Entity EntityOf(ulong node) => new() { Value = node };
 
     // An asset dropped here (ADR 0071): placed under the row it's on, or at the top below the rows.
-    protected override void OnDragOver(DragEvent e) => e.Accepted = _shell.CanPlace(e.Payload);
+    // Files from other programs (ADR 0115) too: imported, then placed the same way.
+    protected override void OnDragOver(DragEvent e)
+    {
+        if (e.Payload is FileDrag files)
+        {
+            e.Accepted = true;
+            files.OnHierarchy = true;
+            files.Parent = RowAt(e.Position);
+            return;
+        }
+        e.Accepted = _shell.CanPlace(e.Payload);
+    }
+
+    private Entity RowAt(System.Numerics.Vector2 position)
+    {
+        for (int i = 0; i < Tree.RowCount; ++i)
+        {
+            if (Tree.RowOf(Tree.RowNode(i))?.Parent is { } row && row.Bounds.Contains(position.X, position.Y))
+            {
+                return EntityOf(Tree.RowNode(i));
+            }
+        }
+        return Entity.Null;
+    }
 
     protected override void OnDrop(DragEvent e)
     {
@@ -189,15 +212,7 @@ public sealed class HierarchyPanel : EditorPanel
         {
             return;
         }
-        Entity parent = Entity.Null;
-        for (int i = 0; i < Tree.RowCount; ++i)
-        {
-            if (Tree.RowOf(Tree.RowNode(i))?.Parent is { } row && row.Bounds.Contains(e.Position.X, e.Position.Y))
-            {
-                parent = EntityOf(Tree.RowNode(i));
-                break;
-            }
-        }
+        Entity parent = RowAt(e.Position);
         Entity placed = _shell.Place(drag, parent);
         if (!placed.IsNull && !parent.IsNull)
         {

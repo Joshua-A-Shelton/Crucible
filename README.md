@@ -207,6 +207,9 @@ Longer explanations of decisions, written to be reread:
 - [Floors and bridges](docs/learning/floors-and-bridges.md) (ADR 0114):
   walking under a bridge and over it top-down, sorting and physics layers
   switching together.
+- [Dropping files](docs/learning/dropping-files.md) (ADR 0115): how a
+  file dragged from a file manager reaches a program on Windows, X11, and
+  Wayland, and guessing whether an image is pixel art.
 - [Up-to-date builds](docs/learning/up-to-date-builds.md) (ADR 0110): file
   times versus content hashes, what makes a build stamp trustworthy, and
   why copies need one.

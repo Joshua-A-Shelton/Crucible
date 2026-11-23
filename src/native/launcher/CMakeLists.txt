@@ -580,6 +580,20 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "Light2DChecks: all [0-9]+ checks passed")
 
+    # Importing dropped files checking itself (ADR 0115): on a copy of the
+    # Walker's project, the platform's file drag events handed to the editor
+    # as a drop would give them: the note and highlight, the image and name
+    # questions, folders, .gltf buffers, and placing on the viewport and the
+    # hierarchy.
+    add_test(NAME launcher.jit.drops
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
+            --game-arg "warm-project=${walkerWarm}/Walker.crproject"
+            --game-arg "check-drops=${CMAKE_CURRENT_BINARY_DIR}"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/drops-settings.json")
+    set_tests_properties(launcher.jit.drops PROPERTIES LABELS "integration;gpu" TIMEOUT 300
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "DropChecks: all [0-9]+ checks passed")
+
     # The play toolbar checking itself (ADR 0088): a copy of the Walker's
     # project (in the test's folder), a ball timed through Pause before
     # Play, Step, Pause off, and Stop, each a click on the toolbar.
@@ -670,6 +684,7 @@ if(CRUCIBLE_BUILD_TESTS)
         launcher.jit.chain-handles
         launcher.jit.pickers
         launcher.jit.lights-2d
+        launcher.jit.drops
         samples.walker-package
         samples.walker-package-shipping
         APPEND PROPERTY FIXTURES_REQUIRED walker-warm)

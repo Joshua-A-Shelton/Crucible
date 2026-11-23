@@ -1321,9 +1321,17 @@ Signed off by the owner on 2026-11-23; M11 is done.
 Asked for by the owner (2026-11-18): files dragged from the system's file
 manager onto the editor are copied into the project and imported, their
 import settings set as they need (a pixel-art image as a Sprite), without
-opening the project's folders. The editor receives no dropped files yet.
-A pixel-art image dropped in can ask for Sprite usage and open the Sprite
-Sheet Editor (ADR 0107). Designed with the owner at its start.
+opening the project's folders. A pixel-art image dropped in can ask for
+Sprite usage and open the Sprite Sheet Editor (ADR 0107).
+
+**Status:** built (2026-11-23, ADR 0115), to be tried by hand by the
+owner. Files from other programs dropped anywhere in the editor go into
+the Assets panel's folder (or the folder tile under them), highlighted
+and noted while dragged; a name already there asks Replace, Keep Both,
+or Skip; a new image asks Pixel Art, Texture, or UI with a guess from its
+pixels; folders come whole, a `.gltf` with its buffers and images, and
+files nothing imports are copied and logged; a model or pixel art dropped
+on the viewport or the hierarchy is placed there.
 
 ## After M11: editor extensions
 
