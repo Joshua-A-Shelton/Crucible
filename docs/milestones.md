@@ -1307,6 +1307,15 @@ and the railing, under the deck on the ground, over the road on the
 bridge) and draws it at four window sizes, exactly its 320x180 image
 scaled up. Then the owner tries it by hand.
 
+Tried by hand by the owner (2026-11-21 to 2026-11-23): the try found the
+hero drawn behind the bridge's railing on the stairs, then its head over
+the deck's edge coming up the road; both fixed (ADR 0114, amended) and
+tried again. Step 6 is done, its names settled as drafted.
+
+M11's "done when" is met: the Crossing sample is exactly its 320x180 image
+at 640x360, 1280x720, 1920x1080, and 1000x700, composited over a 3D sea.
+Signed off by the owner on 2026-11-23; M11 is done.
+
 ## After M11: importing by dropping files
 
 Asked for by the owner (2026-11-18): files dragged from the system's file

@@ -1,7 +1,8 @@
 # 0114 — The M11 demonstration
 
-**Status:** Accepted (2026-11-20); M11 step 6 built. Names added are
-marked `*` until the owner settles them (docs/naming.md).
+**Status:** Accepted (2026-11-20); M11 step 6 built, tried by hand by
+the owner (fixed twice, see the amendment); M11 is done. Names settled by
+the owner as drafted (2026-11-23; docs/naming.md).
 
 ## Context
 
@@ -16,8 +17,8 @@ tried by hand.
 
 Decided by the owner (2026-11-20):
 
-1. **A new sample, `samples/Crossing`***, written by
-   **`make_crossing.py`*** (project, art, map, 3D, scene; standard library
+1. **A new sample, `samples/Crossing`**, written by
+   **`make_crossing.py`** (project, art, map, 3D, scene; standard library
    only, every ID fixed); its game code, `Project/Code/Crossing.cs`, by
    hand. The Walker sample is left as it is.
 2. **Art drawn by the script**: the hero (16x16, idle and a four-frame
@@ -25,28 +26,28 @@ Decided by the owner (2026-11-20):
    (grass, a sunken road, stone, rock, the bank, the deck, railings,
    stairs, ramps), and a lamp post; 16 pixels a meter.
 3. **Top-down**, an island of 32 by 22 tiles over a **3D sea and sky** with
-   a slowly turning rock (`Spin`*), shown wherever the island has no tiles.
+   a slowly turning rock (`Spin`), shown wherever the island has no tiles.
 4. **The crossing:** a sunken road (walls both sides, a ramp through each
    end) passes under a raised road (railings, stairs at each end).
-   `FloorTrigger`*s (`floor`*, `size`*: boxes the hero's position is
+   `FloorTrigger`s (`floor`, `size`: boxes the hero's position is
    tested against) at the stairs' tops and bottoms put the hero on the
-   bridge or the ground: its sorting layer **High*** or **Low*** and its
-   physics layer **Bridge*** or **Ground*** together. The map's layers:
-   **Ground*** (collides as Ground, the bank solid under the deck),
-   **Deck*** (draws only, in the sorting layer **Deck***), **Railings***
+   bridge or the ground: its sorting layer **High** or **Low** and its
+   physics layer **Bridge** or **Ground** together. The map's layers:
+   **Ground** (collides as Ground, the bank solid under the deck),
+   **Deck** (draws only, in the sorting layer **Deck**), **Railings**
    (collides as Bridge).
 5. **Controls:** WASD or arrows, a gamepad's left stick or d-pad, in
-   eight directions (`Hero`*: `speed`, and a walking and a standing clip
+   eight directions (`Hero`: `speed`, and a walking and a standing clip
    for each facing). The hero is a dynamic body with a circle, its
    velocity set from its input, kept upright.
 6. **Light:** a dusk ambient, lamps along both roads (some banded), a spot
    under the bridge, a lantern the hero carries; the 3D has its own sun
    and sky.
 7. **The camera:** a pixel camera at **320x180**, Exact (whole scales,
-   bars), following the hero (`Follow`*).
-8. **The check** (`CrossingChecks`*, CTest `samples.crossing`*, game arg
-   `check-crossing`*): the scene run standalone, headless, at a fixed 60
-   fps, the hero walked by a script (`walk-script`*: points, each with
+   bars), following the hero (`Follow`).
+8. **The check** (`CrossingChecks`, CTest `samples.crossing`, game arg
+   `check-crossing`): the scene run standalone, headless, at a fixed 60
+   fps, the hero walked by a script (`walk-script`: points, each with
    seconds to try), its floors and points read from the game's log; then
    the scene drawn in the editor at 640x360, 1280x720, 1920x1080, and
    1000x700.
@@ -71,7 +72,7 @@ Decided by the owner (2026-11-20):
 
 ## Consequences
 
-- M11 is done once the owner has tried it by hand.
+- M11 is done (2026-11-23).
 - The sample is also where 2D features are tried from now on: art made by
   a script keeps it reproducible and licence-free.
 
@@ -81,10 +82,10 @@ The owner's first try found the hero's head drawn behind the bridge's
 north railing while climbing the stairs: on the ground, the hero's whole
 sorting layer was under the deck and its railings, though that railing is
 behind it. Now a hero on the ground is drawn under the deck only inside a
-**`Cover`*** box; elsewhere on the ground it's in **Low**, now *above*
+**`Cover`** box; elsewhere on the ground it's in **Low**, now *above
 Deck, so on the stairs it's drawn over the railing behind it and still
 y-sorts with the lamps. Inside the Cover it's in a new sorting layer
-**Under***, below Deck. The sorting layers, in drawing order: Ground,
+**Under**, below Deck. The sorting layers, in drawing order: Ground,
 Under, Deck, Low, High.
 
 The second try found the Cover too tight: covering only the deck's

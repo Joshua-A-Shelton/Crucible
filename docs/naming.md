@@ -1514,21 +1514,22 @@ step 5 by hand (2026-11-20):
 
 ## The M11 demonstration (2026-11-20, ADR 0114)
 
-Names proposed before building, to settle after the owner's try (`*`):
+Names proposed before building, settled as drafted after the owner tried
+step 6 by hand (2026-11-23):
 
 | Name | What it names | What it is |
 |---|---|---|
-| `samples/Crossing`*, project "Crossing"*, `make_crossing.py`* | Sample, script | The demonstration and what writes it |
-| Crossing.crscene*; Hero.png*, Tiles.png*, Tiles.crtileset*, Lamp.png*, Crossing.crtilemap*, Sea.gltf*, Rock.gltf* | Assets | The scene, art, map, and 3D |
-| Sorting layers "Ground"*, "Under"*, "Deck"*, "Low"*, "High"*; physics layers "Ground"*, "Bridge"* | Project settings | The two floors |
-| `Cover`* (`Size`) | Game code | Where a hero on the ground is drawn under the deck |
-| Map layers "Ground"*, "Deck"*, "Railings"* | Tilemap layers | What draws and collides on each floor |
-| `Hero`* (`Speed`, `WalkDown`*… `IdleUp`*), `HeroSystem`* | Game code | Walking the hero from input or the script |
-| `FloorTrigger`* (`Floor`*, `Size`*), `FloorSystem`* (`FloorOf`*, `SetFloor`*) | Game code | Switching floors at the stairs |
-| `Follow`* (`Target`), `FollowSystem`*; `Spin`* (`RadiansPerSecond`*), `SpinSystem`* | Game code | The camera following, the rock turning |
-| "Crossing.Route"*, "Crossing.Floor"*, "Crossing.Under"*, "Crossing.Over"* | Log lines | What the check reads |
-| `CrossingChecks`*, CTest `samples.crossing`*, game args `check-crossing`*, `walk-script`*; crossing-&lt;width&gt;.png* | Tests | The check and its captures |
-| ADR 0114 "The M11 demonstration"*; docs/learning/floors-and-bridges.md* | Docs | Decision record, learning note |
+| `samples/Crossing`, project "Crossing", `make_crossing.py` | Sample, script | The demonstration and what writes it |
+| Crossing.crscene; Hero.png, Tiles.png, Tiles.crtileset, Lamp.png, Crossing.crtilemap, Sea.gltf, Rock.gltf | Assets | The scene, art, map, and 3D |
+| Sorting layers "Ground", "Under", "Deck", "Low", "High"; physics layers "Ground", "Bridge" | Project settings | The two floors |
+| `Cover` (`Size`) | Game code | Where a hero on the ground is drawn under the deck |
+| Map layers "Ground", "Deck", "Railings" | Tilemap layers | What draws and collides on each floor |
+| `Hero` (`Speed`, `WalkDown`… `IdleUp`), `HeroSystem` | Game code | Walking the hero from input or the script |
+| `FloorTrigger` (`Floor`, `Size`), `FloorSystem` (`FloorOf`, `SetFloor`) | Game code | Switching floors at the stairs |
+| `Follow` (`Target`), `FollowSystem`; `Spin` (`RadiansPerSecond`), `SpinSystem` | Game code | The camera following, the rock turning |
+| "Crossing.Route", "Crossing.Floor", "Crossing.Under", "Crossing.Over" | Log lines | What the check reads |
+| `CrossingChecks`, CTest `samples.crossing`, game args `check-crossing`, `walk-script`; crossing-&lt;width&gt;.png | Tests | The check and its captures |
+| ADR 0114 "The M11 demonstration"; docs/learning/floors-and-bridges.md | Docs | Decision record, learning note |
 
 ## Tests in parallel (2026-11-19, ADR 0109)
 
