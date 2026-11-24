@@ -1,7 +1,8 @@
 # 0119 — Workspaces
 
-**Status:** Accepted (2026-11-24); step 4 of editor extensions. Names
-marked `*` in docs/naming.md are placeholders until the owner has tried it.
+**Status:** Accepted (2026-11-24); step 4 of editor extensions, tried by
+hand by the owner. Names settled by the owner as drafted (2026-11-24;
+docs/naming.md).
 
 ## Context
 
@@ -37,22 +38,22 @@ Decided by the owner (2026-11-23):
    editor stays as it is. The owner's own picture of it; the cost, a
    second scene view, was mostly there already (`SceneView` is a control
    with its own camera and surface).
-2. **A `Workspace`* subclass** (an `EditorPanel`), registered by an
-   extension with `editor.Workspaces.Add(id, title, create)`* and opened
-   with `editor.Workspaces.Open(id, entity or asset)`*, from what it's for.
-   Its subject, `Entity`* or `Asset`*, is set before the subclass's
+2. **A `Workspace` subclass** (an `EditorPanel`), registered by an
+   extension with `editor.Workspaces.Add(id, title, create)` and opened
+   with `editor.Workspaces.Open(id, entity or asset)`, from what it's for.
+   Its subject, `Entity` or `Asset`, is set before the subclass's
    constructor runs, so its `Title` can name it; panels may now change
    their title, and their tabs follow.
-3. **Fixed splits inside.** `Arrange(left, center, right, bottom)`*: the
+3. **Fixed splits inside.** `Arrange(left, center, right, bottom)`: the
    center usually a `SceneView`, now public (`new SceneView()`); the
    splits resizable, their sizes remembered.
-4. **Its tools and keys.** `Toolbar`* (`Add(command)`*, `Add(control)`, and
-   **Done*** at the end); `Commands`* whose shortcuts run while focus is in
+4. **Its tools and keys.** `Toolbar` (`Add(command)`, `Add(control)`, and
+   **Done** at the end); `Commands` whose shortcuts run while focus is in
    its tab, before the editor's.
 5. **Every visible view renders**; a view in a tab not shown draws
    nothing.
-6. **Done or the tab's ×** close it, calling `Closed()`*; Escape doesn't.
-7. **The workspace says how many tabs.** `AllowsSeveral`* (false by
+6. **Done or the tab's ×** close it, calling `Closed()`; Escape doesn't.
+7. **The workspace says how many tabs.** `AllowsSeveral` (false by
    default): opening it again for something else moves its one tab there
    (closing the old, the new made in the same place); with several, a tab
    per subject, `Inspect`, `Inspect#2`, …; opened again for the same
@@ -61,12 +62,15 @@ Decided by the owner (2026-11-23):
    it works on (an entity by its scene ID and its scene, or an asset), its
    splits, and its state (`SaveState`/`LoadState`). Restored, it waits as
    a placeholder ("Map: Level 1 opens again when what it works on is
-   open"*) until its workspace is registered and its subject is open; an
+   open") until its workspace is registered and its subject is open; an
    extension's waits the same way across a reload of its code.
-9. **The workspace decides when it's done.** `KeepOpen()`*, asked each
-   frame: false closes its tab. By default, while its entity is in the
-   scene it was opened in and its asset is in the project.
-10. **Map mode is the editor's own workspace**: a tab "Map: &lt;name&gt;"*
+9. **The workspace decides when it's done.** `KeepOpen()`, asked each
+   frame: false closes its tab. It's asked as it opens too: one that
+   wouldn't stay open isn't opened (found trying the Spin example, which
+   flashed a tab open and shut with nothing to spin selected). By default,
+   while its entity is in the scene it was opened in and its asset is in
+   the project.
+10. **Map mode is the editor's own workspace**: a tab "Map: &lt;name&gt;"
     with its Palette, its own view framed on the map, and its Layers; its
     tools, flips, Show Collision, and Done above them; B, R, F, E, S, X, Y
     its keys; one tab (`AllowsSeveral` false). View > Leave Map Mode, the
@@ -84,7 +88,7 @@ Decided by the owner (2026-11-23):
   Allowing several waits for map mode's rebuild (step 6).
 - A workspace with no `SceneView` is fine: its parts are whatever it
   arranges.
-- `WorkspaceChecks`* (CTest `launcher.jit.workspaces`*) runs an extension's
+- `WorkspaceChecks` (CTest `launcher.jit.workspaces`) runs an extension's
   two workspaces through opening, several tabs, moving, rendering, keys,
   closing when their entity goes, the layout, and a reload; the map checks
   (`TilemapChecks`) now check map mode's tab, its keys, and Done.

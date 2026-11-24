@@ -1342,9 +1342,9 @@ the owner: the public editor API, with a project's panels reopened in
 place after a reload. Step 3, plugins, placed here by the owner
 (2026-11-23) and the steps after renumbered; done (ADR 0118), tried by
 hand by the owner: source and compiled plugins with code and assets, a
-version check, and Build Plugin. Step 4 built (ADR 0119), to be tried
-by hand by the owner: workspaces as tabs among the panels, map mode
-moved onto one.
+version check, and Build Plugin. Step 4 done (ADR 0119), tried by hand
+by the owner: workspaces as tabs among the panels, map mode moved onto
+one.
 
 Asked for by the owner (2026-11-20): a game's own editors, as specialized
 as map mode (ADR 0112), built by the people making the game, for example
