@@ -1709,20 +1709,20 @@ drafted after the owner tried it by hand (2026-11-24):
 
 ## Opening editors (2026-11-24, ADR 0120)
 
-Names proposed before building (approved to build with, 2026-11-23) and
-added while building; all placeholders (`*`) until the owner has tried it:
+Names proposed before building and added while building, settled as
+drafted after the owner tried it by hand (2026-11-24):
 
 | Name | What it names | What it is |
 |---|---|---|
-| ADR 0120 "Opening editors"* | Decision record | Editor extensions step 5 |
-| `editor.Workspaces.OpensAssets(id, kinds…)`*, `OpensComponent<T>(id)`* | Methods | What a workspace opens: importers' names or file extensions; a component |
-| **Open With*** ▸ (the editors, ✓ on the remembered one) · **Ask Each Time*** | Assets' right-click submenu | Several editors for an asset |
-| "Open in Sprite Sheet Editor"*, "Open in Map"*, "Open in Notes"* | Menu items | One editor, by name: Assets, the Inspector's header, the Hierarchy |
-| "Open in Map"* / "Open…"* | The Inspector's header button | Changed while building from "Open" with a tooltip: the UI has none |
-| "Open Grass.png with:"*, **Always Open With*** | Question, its checkbox | Several editors, none remembered |
-| "Which map uses Level 1.crtilemap?"*, "No entity in Walk.crscene uses Level 1.crtilemap"* | Question, Log warning | A map's file opened through its entity |
-| `"OpenWith"`* (kind or component → editor ID) | Editor settings key | Always Open With's choices |
-| `Shell.OpenAsset`*, `OpenEntity`*, `OpenEntityIn`*, `EditorsFor`*, `AddOpenItems`*, `RememberedEditor`*, `ForgetEditor`* | Editor members | Finding and opening editors |
-| "SpriteSheet"*, "Palette"*, "Map"* | Editor IDs | The editor's own editors, as Always Open With stores them |
-| `OpenWithChecks`*, CTest `launcher.jit.open-with`*, game arg `check-open-with`*, test folder `open-with-project`* | Tests | Editors found, asked for, remembered |
-| docs/learning/opening-editors.md* | Learning note | Associations, kinds, several editors, opening through what uses it |
+| ADR 0120 "Opening editors" | Decision record | Editor extensions step 5 |
+| `editor.Workspaces.OpensAssets(id, kinds…)`, `OpensComponent<T>(id)` | Methods | What a workspace opens: importers' names or file extensions; a component |
+| **Open With** ▸ (the editors, ✓ on the remembered one) · **Ask Each Time** | Assets' right-click submenu | Several editors for an asset |
+| "Open in Sprite Sheet Editor", "Open in Map", "Open in Notes" | Menu items | One editor, by name: Assets, the Inspector's header, the Hierarchy |
+| "Open in Map" / "Open…" | The Inspector's header button | Changed while building from "Open" with a tooltip: the UI has none |
+| "Open Grass.png with:", **Always Open With** | Question, its checkbox | Several editors, none remembered |
+| "Which map uses Level 1.crtilemap?", "No entity in Walk.crscene uses Level 1.crtilemap" | Question, Log warning | A map's file opened through its entity |
+| `"OpenWith"` (kind or component → editor ID) | Editor settings key | Always Open With's choices |
+| `Shell.OpenAsset`, `OpenEntity`, `OpenEntityIn`, `EditorsFor`, `AddOpenItems`, `RememberedEditor`, `ForgetEditor` | Editor members | Finding and opening editors |
+| "SpriteSheet", "Palette", "Map" | Editor IDs | The editor's own editors, as Always Open With stores them |
+| `OpenWithChecks`, CTest `launcher.jit.open-with`, game arg `check-open-with`, test folder `open-with-project` | Tests | Editors found, asked for, remembered |
+| docs/learning/opening-editors.md | Learning note | Associations, kinds, several editors, opening through what uses it |

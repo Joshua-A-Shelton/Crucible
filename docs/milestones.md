@@ -1345,7 +1345,7 @@ hand by the owner: source and compiled plugins with code and assets, a
 version check, and Build Plugin. Step 4 done (ADR 0119), tried by hand
 by the owner: workspaces as tabs among the panels, map mode moved onto
 one. Step 5, opening editors, placed here by the owner (2026-11-23) and
-the steps after renumbered; built (ADR 0120), to be tried by hand by the
+the steps after renumbered; done (ADR 0120), tried by hand by the
 owner: editors registered for kinds of asset and components, opened by
 double-click, the Inspector, and Open With.
 
