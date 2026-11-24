@@ -1490,7 +1490,7 @@ map mode (2026-11-20); those a redesign replaced are marked:
 | "Add a tileset first: the + tab in the Palette", the Palette's and Layers' hints | Status and hint text | What to do next |
 | `TabButton`, `LayerName`, `RenameField`, `TileGlyph.Stamp`, `Eraser`, `Select` | C# classes, enum values | The panels' parts and the tools' symbols |
 | `ApplyImportSettings(…, openSheet)` | C# parameter | Making a texture a sprite without opening its sheet |
-| View > "Leave Map Mode" (command `View.LeaveMapMode`), the Palette's "Map Mode — Done (or Escape) to leave" | Menu item, UI text | Leaving map mode where it's seen |
+| View > "Leave Map Mode" (command `View.LeaveMapMode`), the Palette's "Map Mode — Done (or Escape) to leave" | Menu item, UI text | Leaving map mode where it's seen; removed by ADR 0119 (map mode's tab has Done and ×) |
 
 ## 2D lighting (2026-11-20, ADR 0113)
 
@@ -1679,3 +1679,30 @@ drafted after the owner tried it by hand (2026-11-23):
 | `EditorExtension` (was `EditorPlugin`) | Abstract class | ADR 0117's entry point, renamed by the owner: "plugin" names the package |
 | `PluginChecks`, CTest `launcher.jit.plugins`, `samples.plugins-package`, `samples.plugins-package-aot`, game arg `check-plugins`, test folders `plugins-project`, `plugins-shared`, `plugins-compiled-project`; `PluginTests`; package test options `INCLUDE`, `EXPECT` | Tests | Plugins built, loaded, packaged, and refused |
 | docs/learning/plugins.md | Learning note | Source and compiled, binary compatibility, ordering, finding plugins |
+
+## Workspaces (2026-11-24, ADR 0119)
+
+Names proposed before building (approved to build with, 2026-11-23) and
+added while building; all placeholders (`*`) until the owner has tried it:
+
+| Name | What it names | What it is |
+|---|---|---|
+| ADR 0119 "Workspaces"* | Decision record | Editor extensions step 4 |
+| `Workspace`* | Abstract class (an `EditorPanel`) | A workspace's tab, subclassed by extensions |
+| `Workspace.Entity`*, `Workspace.Asset`* | Properties | What it was opened for |
+| `Workspace.Arrange(left, center, right, bottom)`* | Method | Its fixed splits, sizes remembered |
+| `Workspace.Toolbar`* (`WorkspaceToolbar`*: `Add(command)`*, `Add(control)`*) | Property, class | Its tools, above its parts |
+| **Done*** | Toolbar button | Closes the tab, as its × does |
+| `Workspace.Commands`* | Property | Its keys, first while focus is in its tab |
+| `Workspace.AllowsSeveral`* | Property | Several tabs at once, one per subject |
+| `Workspace.KeepOpen()`*, `Workspace.Closed()`* | Methods | Asked each frame whether it goes on; called as it closes |
+| `editor.Workspaces`* (`EditorWorkspaces`*): `Add(id, title, create)`*, `Open(id, entity or asset)`*, `Close(workspace)`* | Facade | Registering and opening workspaces |
+| `EditorPanel.Title`'s setter (protected) | Property | A panel changing its tab's text |
+| `new SceneView()` (public) | Constructor | A workspace's own view of the scene |
+| "Map: Level 1"*, `MapWorkspace`* (internal) | Tab title, class | Map mode's tab |
+| `Inspect#2`* | Tab ID | A workspace's second tab |
+| "Map: Level 1 opens again when what it works on is open"* | Placeholder text | A workspace's tab waiting after a restart |
+| `"Workspace"`* (`"Id"`, `"Entity"`, `"Scene"`, `"Asset"`, `"Columns"`, `"Rows"`) | Layout JSON keys | What the layout keeps of a workspace's tab |
+| `Map.Stamp`*, `Map.Rectangle`*, `Map.Fill`*, `Map.Eraser`*, `Map.Select`*, `Map.FlipX`*, `Map.FlipY`* | Command IDs | Map mode's keys, its workspace's |
+| `WorkspaceChecks`*, CTest `launcher.jit.workspaces`*, game arg `check-workspaces`*, test folder `workspaces-project`* | Tests | Workspaces opened, moved, closed, restored, reloaded |
+| docs/learning/workspaces.md* | Learning note | Modes and documents, views, keys and focus, stable names |

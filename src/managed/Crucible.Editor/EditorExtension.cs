@@ -39,6 +39,7 @@ public sealed class EditorContext
         _shell = shell;
         Extension = extension;
         Panels = new EditorPanels(shell, this);
+        Workspaces = new EditorWorkspaces(shell, this);
         Commands = new EditorCommands(shell, this);
         Scene = new EditorScene(shell);
         Assets = new EditorAssets(shell);
@@ -48,6 +49,8 @@ public sealed class EditorContext
     internal string Extension { get; }
 
     public EditorPanels Panels { get; }
+
+    public EditorWorkspaces Workspaces { get; }
 
     public EditorCommands Commands { get; }
 
@@ -115,6 +118,42 @@ public sealed class EditorPanels
 
     /// <summary>Closes a panel if it's open.</summary>
     public void Close(string id) => _shell.ClosePanel(id);
+}
+
+/// <summary>
+/// An extension's workspaces (ADR 0119): registered by ID, opened as tabs
+/// for what they work on.
+/// </summary>
+public sealed class EditorWorkspaces
+{
+    private readonly Shell _shell;
+    private readonly EditorContext _context;
+
+    internal EditorWorkspaces(Shell shell, EditorContext context)
+    {
+        _shell = shell;
+        _context = context;
+    }
+
+    /// <summary>Registers a workspace; false (with a warning in the Log) if its ID is taken.</summary>
+    public bool Add(string id, string title, Func<Workspace> create)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(id);
+        ArgumentNullException.ThrowIfNull(create);
+        return _shell.AddWorkspace(id, title ?? id, create, _context);
+    }
+
+    /// <summary>Opens it for an entity of the open scene (or shows its tab, if it's open for it); null if it can't.</summary>
+    public Workspace? Open(string id, Entity entity) => _shell.OpenWorkspace(id, entity, AssetId.None);
+
+    /// <summary>Opens it for an asset.</summary>
+    public Workspace? Open(string id, AssetId asset) => _shell.OpenWorkspace(id, Entity.Null, asset);
+
+    /// <summary>Opens it for nothing in particular.</summary>
+    public Workspace? Open(string id) => _shell.OpenWorkspace(id, Entity.Null, AssetId.None);
+
+    /// <summary>Closes a workspace's tab, as Done does.</summary>
+    public void Close(Workspace workspace) => _shell.CloseWorkspace(workspace);
 }
 
 /// <summary>An extension's commands (ADR 0117): in menus, and run by their shortcuts.</summary>

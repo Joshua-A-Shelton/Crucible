@@ -30,7 +30,6 @@ public sealed class PalettePanel : EditorPanel
     private readonly StackPanel _collisionBar = new() { Orientation = Orientation.Horizontal, Spacing = 4 };
     private readonly Button _custom = new("Custom");
     private readonly Label _hint = new() { Wrap = true };
-    private readonly DockPanel _modeBar = new() { Margin = new Thickness(0, 0, 0, 4) };
     private readonly List<Vector2> _pending = [];
     private AssetId _alone; // a tileset shown outside map mode
     private TilesetData? _aloneData;
@@ -77,15 +76,8 @@ public sealed class PalettePanel : EditorPanel
             _tabsKey = "";
         };
 
-        // Map mode named, and the way out of it, where it's always in view.
-        Button done = new("Done");
-        done.Classes.Add("primary");
-        done.Clicked += _ => _shell.ExitMapMode();
-        DockPanel.SetDock(done, Dock.Right);
-        _modeBar.Add(done);
-        _modeBar.Add(new Label("Map Mode — Done (or Escape) to leave") { VerticalAlignment = VerticalAlignment.Center, Wrap = true });
+        // Map mode's name and Done are its tab's (ADR 0119).
         StackPanel head = new() { Spacing = 4, Margin = new Thickness(8, 6, 8, 4) };
-        head.Add(_modeBar);
         head.Add(_tabs);
         head.Add(_collision);
         head.Add(_collisionBar);
@@ -471,7 +463,6 @@ public sealed class PalettePanel : EditorPanel
     internal void Refresh()
     {
         MapEditor map = _shell.Map;
-        _modeBar.Visibility = _shell.InMapMode ? Visibility.Visible : Visibility.Collapsed;
         _collisionBar.Visibility = OnCollision ? Visibility.Visible : Visibility.Collapsed;
         _custom.Classes.Set("primary", View.Drawing);
         _collision.Visibility = _alone.IsNone && !map.IsOpen ? Visibility.Collapsed : Visibility.Visible;

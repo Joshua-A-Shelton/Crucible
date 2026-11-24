@@ -622,6 +622,19 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "EditorApiChecks: all [0-9]+ checks passed")
 
+    # Workspaces checking themselves (ADR 0119): on a copy of the Walker's
+    # project, an extension's workspaces opened as tabs for entities, shown
+    # again, moved, their views rendered, their keys first while focused,
+    # closed when their entity goes, and back after a restore or a reload.
+    add_test(NAME launcher.jit.workspaces
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
+            --game-arg "warm-project=${walkerWarm}/Walker.crproject"
+            --game-arg "check-workspaces=${CMAKE_CURRENT_BINARY_DIR}"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/workspaces-settings.json")
+    set_tests_properties(launcher.jit.workspaces PROPERTIES LABELS "integration;gpu" TIMEOUT 600
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "WorkspaceChecks: all [0-9]+ checks passed")
+
     # Plugins checking themselves (ADR 0118): on a copy of the Walker's
     # project, a source plugin built, loaded, run, and reloaded with the
     # game, packaged without its editor code, and built to share; a second
@@ -743,6 +756,7 @@ if(CRUCIBLE_BUILD_TESTS)
         launcher.jit.editor-code
         launcher.jit.editor-api
         launcher.jit.plugins
+        launcher.jit.workspaces
         samples.walker-package
         samples.walker-package-shipping
         APPEND PROPERTY FIXTURES_REQUIRED walker-warm)

@@ -56,6 +56,8 @@ internal sealed partial class Shell
         Main.AddStrip(Toolbar);
         Add(Main);
         RegisterPanels();
+        // Map mode (ADR 0112) as the editor's own workspace (ADR 0119).
+        AddWorkspace("Map", "Map", () => new MapWorkspace(this), owner: null);
         RegisterCommands();
         BuildMenus();
         RestoreLayout(Settings.Layout);
@@ -248,7 +250,7 @@ internal sealed partial class Shell
         {
             StopSystems();
         }
-        Settings.Layout = LayoutToSave();
+        Settings.Layout = SaveLayout();
         SaveSettings();
         ClosePlugins();
         foreach (EditorWindow window in _windows.ToArray())
@@ -431,8 +433,8 @@ internal sealed partial class Shell
         {
             assets.Update();
         }
-        // Map mode (ADR 0112) paints on the map: no outline over its tiles.
-        Entity[] outlined = InMapMode ? [] : Outlined(world);
+        // Map mode's view (ADR 0112) paints on the map: no outline there (RenderViews).
+        Entity[] outlined = Outlined(world);
         if (ShowsSkeletons)
         {
             // Every posed character's bones (ADR 0079), in every view.
@@ -452,8 +454,10 @@ internal sealed partial class Shell
             Crucible.Physics.Api.DrawQueries(_queryMissColor, _queryHitColor);
             Crucible.Physics2D.Api.DrawQueries2D(_queryMissColor, _queryHitColor);
         }
-        // Map mode (ADR 0112) ends when its map entity goes, viewport shown or not.
+        // Workspaces (ADR 0119) close when what they work on goes, shown or not.
         TickMapMode();
+        TickWorkspaces();
+        RenderWorkspaces(world, outlined);
         foreach (EditorPanel panel in _open.Values)
         {
             if (panel is ViewportPanel viewport && viewport.Root is not null)
@@ -648,7 +652,6 @@ internal sealed partial class Shell
         {
             IsChecked = () => ShowsColliders,
         });
-        Commands.Add(new Command("View.LeaveMapMode", "Leave Map Mode", ExitMapMode, () => InMapMode));
         Commands.Add(new Command("View.Queries", "Queries", () => ShowsQueries = !ShowsQueries)
         {
             IsChecked = () => ShowsQueries,
@@ -712,8 +715,6 @@ internal sealed partial class Shell
         viewMenu.Add(Commands.Find("View.Skeletons")!);
         viewMenu.Add(Commands.Find("View.Colliders")!);
         viewMenu.Add(Commands.Find("View.Queries")!);
-        viewMenu.AddSeparator();
-        viewMenu.Add(Commands.Find("View.LeaveMapMode")!);
 
         Menu build = Main.MenuBar.Add("Build");
         build.Add(Commands.Find("Build.Settings")!);
@@ -748,7 +749,14 @@ internal sealed partial class Shell
     }
 
     // Keys no focused element used: the commands' shortcuts.
-    private void HandleKeys(UIElement element, KeyEvent e) => Commands.HandleShortcut(e);
+    // A workspace's first, while focus is in it (ADR 0119).
+    private void HandleKeys(UIElement element, KeyEvent e)
+    {
+        if (!WorkspaceKey(element, e))
+        {
+            Commands.HandleShortcut(e);
+        }
+    }
 
     // -----------------------------------------------------------------------
     // Panels
@@ -765,7 +773,6 @@ internal sealed partial class Shell
         Panels.Register("BuildSettings", "Build Settings", () => new BuildSettingsPanel(this));
         Panels.Register("SpriteSheet", "Sprite Sheet Editor", () => new SpriteSheetPanel(this));
         Panels.Register("Palette", "Palette", () => new PalettePanel(this));
-        Panels.Register("Layers", "Layers", () => new LayersPanel(this));
     }
 
     // The open panel of an ID, made if it isn't open.
@@ -797,6 +804,12 @@ internal sealed partial class Shell
 
     public void ClosePanel(EditorPanel panel)
     {
+        // A workspace's tab (ADR 0119) is its end.
+        if (panel is Workspace workspace)
+        {
+            ClosedGuarded(workspace);
+            _extensionPanels.Remove(panel.Id);
+        }
         EditorWindow? window = WindowOf(panel);
         window?.DockSpace.Take(panel);
         _open.Remove(panel.Id);

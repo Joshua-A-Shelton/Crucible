@@ -158,7 +158,14 @@ internal sealed partial class Shell
             {
                 if (keepPanels)
                 {
-                    Replace(panel, new PendingPanel(id, panel.Title, StateOf(panel)));
+                    // A workspace's tab (ADR 0119) waits for its workspace again.
+                    JsonObject? workspace = panel is Workspace open ? WorkspaceInfo(open) : null;
+                    PanelState state = StateOf(panel);
+                    if (panel is Workspace closing)
+                    {
+                        ClosedGuarded(closing);
+                    }
+                    Replace(panel, new PendingPanel(id, panel.Title, state) { Workspace = workspace });
                 }
                 else
                 {
@@ -204,7 +211,7 @@ internal sealed partial class Shell
     {
         foreach (EditorPanel panel in _open.Values.ToArray())
         {
-            if (panel is not PendingPanel pending)
+            if (panel is not PendingPanel pending || pending.Workspace is not null)
             {
                 continue;
             }
@@ -281,13 +288,17 @@ internal sealed partial class Shell
         {
             bool extension = panel is PendingPanel || _extensionPanels.ContainsKey(id);
             PanelState state = StateOf(panel);
-            if (extension || !state.IsEmpty)
+            // A workspace's tab (ADR 0119): which it is and what it works on.
+            JsonObject? workspace = panel is Workspace open ? WorkspaceInfo(open)
+                : (panel as PendingPanel)?.Workspace?.DeepClone().AsObject();
+            if (extension || workspace is not null || !state.IsEmpty)
             {
                 states[id] = new JsonObject
                 {
                     ["Title"] = panel.Title,
                     ["Extension"] = extension,
                     ["Values"] = state.ToJson(),
+                    ["Workspace"] = workspace,
                 };
             }
         }
@@ -300,6 +311,17 @@ internal sealed partial class Shell
     {
         JsonObject? saved = _layoutStates?[id] as JsonObject;
         PanelState? state = saved?["Values"] is JsonObject values ? new PanelState(values) : null;
+        // A workspace's tab (ADR 0119) waits until what it works on is open.
+        if (saved?["Workspace"] is JsonObject workspace)
+        {
+            string tab = saved["Title"]?.GetValueKind() == JsonValueKind.String ? saved["Title"]!.GetValue<string>() : id;
+            PendingPanel waiting = new(id, tab, state, $"{tab} opens again when what it works on is open.")
+            {
+                Workspace = workspace.DeepClone().AsObject(),
+            };
+            _open[id] = waiting;
+            return waiting;
+        }
         if (Panel(id) is { } panel)
         {
             if (state is { IsEmpty: false } && panel is not PendingPanel)
@@ -644,4 +666,7 @@ internal sealed class PendingPanel : EditorPanel
     }
 
     public PanelState? Saved { get; }
+
+    /// <summary>A workspace's tab waiting (ADR 0119): which workspace, and what it works on.</summary>
+    public JsonObject? Workspace { get; init; }
 }

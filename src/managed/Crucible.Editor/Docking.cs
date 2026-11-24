@@ -290,6 +290,9 @@ public sealed class DockSplit : UIElement
 
     public Orientation Orientation { get; }
 
+    // A workspace's own splits (ADR 0119), outside the dock tree, hold any element.
+    internal bool HoldsAnything { get; init; }
+
     public IReadOnlyList<UIElement> Nodes => _nodes;
 
     /// <summary>Each node's share of the room along the split, adding to 1.</summary>
@@ -307,7 +310,7 @@ public sealed class DockSplit : UIElement
     /// <summary>Adds a node (a split or a group) with a weight for its share.</summary>
     public void Insert(int index, UIElement node, float weight)
     {
-        if (node is not (DockSplit or DockGroup))
+        if (!HoldsAnything && node is not (DockSplit or DockGroup))
         {
             throw new ArgumentException("A split holds DockSplits and DockGroups", nameof(node));
         }
@@ -324,6 +327,20 @@ public sealed class DockSplit : UIElement
     }
 
     public void Add(UIElement node, float weight) => Insert(_nodes.Count, node, weight);
+
+    // Its shares set again (a workspace's remembered sizes, ADR 0119); ignored if the count differs.
+    internal void SetSizes(IReadOnlyList<float> sizes)
+    {
+        if (sizes.Count != _weights.Count || sizes.Any(size => !float.IsFinite(size) || size <= 0))
+        {
+            return;
+        }
+        for (int i = 0; i < sizes.Count; ++i)
+        {
+            _weights[i] = sizes[i];
+        }
+        InvalidateMeasure();
+    }
 
     public void Remove(UIElement node)
     {
@@ -708,6 +725,11 @@ public sealed class DockTab : UIElement
         Panel = panel;
         _title = new Label(panel.Title) { VerticalAlignment = VerticalAlignment.Center };
         AddChild(_title);
+        panel.TitleChanged += () =>
+        {
+            _title.Text = panel.Title;
+            InvalidateMeasure();
+        };
     }
 
     public EditorPanel Panel { get; }

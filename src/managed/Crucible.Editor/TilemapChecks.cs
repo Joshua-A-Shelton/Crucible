@@ -6,8 +6,10 @@ using Crucible.Binary;
 using Crucible.Ecs;
 using Crucible.Loop;
 using Crucible.Physics2D;
+using Crucible.Platform;
 using Crucible.Render2D;
 using Crucible.Scenes;
+using Crucible.UI;
 using V = Crucible.Editor.ViewportChecks;
 
 namespace Crucible.Editor;
@@ -34,6 +36,8 @@ namespace Crucible.Editor;
 [System(Phases.RenderPrepare)]
 internal sealed class TilemapChecks : GameSystem
 {
+    private const int ScancodeR = 21; // SDL's, for R
+
     private IEnumerator<int>? _script;
     private int _wait;
     private int _checks;
@@ -105,6 +109,8 @@ internal sealed class TilemapChecks : GameSystem
         WriteSheet(Path.Combine(copy, "Assets", "Ground.tga"), 32, 16, 200);
         WriteSheet(Path.Combine(copy, "Assets", "Odd.tga"), 34, 18, 90);
         shell.OpenProject(Path.Combine(copy, Path.GetFileName(AssetChecks.SourceProjectFile(shell))));
+        // The default layout, not a last run's (its Sprite Sheet Editor, say).
+        shell.RestoreLayout(null);
         yield return 3;
 
         AssetDatabase database = shell.Database!;
@@ -133,23 +139,42 @@ internal sealed class TilemapChecks : GameSystem
             "its map file is made in the scene's tilemap folder, named after it", database.Find(map)?.Path ?? "none");
         yield return 3;
         MapEditor editor = shell.Map;
-        PalettePanel? palette = Panel<PalettePanel>(shell);
-        LayersPanel? layers = Panel<LayersPanel>(shell);
+        MapWorkspace? tab = shell.MapTab;
         Check(shell.InMapMode && editor.IsOpen && editor.Root.Value == root.Value && editor.ActiveLayer == 0,
             "map mode opens on it, editing its layer");
-        Check(palette is not null && layers is not null && Panel<ViewportPanel>(shell) is not null &&
-              Panel<InspectorPanel>(shell) is not null && Panel<HierarchyPanel>(shell) is null,
-            "in its layout: the Palette, the viewport, Layers, and the Inspector");
-        if (palette is null || layers is null || Panel<ViewportPanel>(shell) is not { } viewport)
+        // A tab of its own (ADR 0119) beside the Viewport; the rest of the editor stays.
+        Check(tab is not null && tab.Title == "Map: Tilemap" && tab.Group?.ActivePanel == tab &&
+              Panel<ViewportPanel>(shell) is { } beside && beside.Group == tab.Group &&
+              Panel<InspectorPanel>(shell) is not null && Panel<HierarchyPanel>(shell) is not null,
+            "in a tab of its own beside the Viewport, the Hierarchy and Inspector staying", tab?.Title ?? "no tab");
+        if (tab is null)
         {
             yield break;
         }
-        EditorCamera camera = viewport.View.Camera;
+        PalettePanel palette = tab.Palette;
+        LayersPanel layers = tab.Layers;
+        EditorCamera camera = tab.View.Camera;
         Vector2 size = new(400, 300);
         Check(camera.Project(Vector3.Zero, size) is { } o && camera.Project(Vector3.UnitX, size) is { } right &&
               camera.Project(Vector3.UnitY, size) is { } up && right.X > o.X && up.Y < o.Y && MathF.Abs(right.Y - o.Y) < 0.5f,
             "the viewport looks straight at the map: x to the right, y up");
-        Check(viewport.MapToolButtons.Count == 5, "the map tools are above the viewport");
+        Check(tab.ToolButtons.Count == 5, "the map tools are above its view");
+        // Its keys while it has focus (ADR 0119): R is Rectangle in its view, Scale in the Viewport's.
+        UIRoot ui = shell.Main.Root;
+        tab.View.Focus();
+        HierarchyChecks.Send(ui, HierarchyChecks.KeyDown(ScancodeR, Keycode.R));
+        Check(editor.Tool == MapTool.Rectangle, "its keys pick its tools while it has focus");
+        if (Panel<ViewportPanel>(shell) is { } normal)
+        {
+            normal.View.Handles.Mode = HandleMode.Move;
+            normal.Group?.Activate(normal);
+            normal.View.Focus();
+            HierarchyChecks.Send(ui, HierarchyChecks.KeyDown(ScancodeR, Keycode.R));
+            Check(normal.View.Handles.Mode == HandleMode.Scale && editor.Tool == MapTool.Rectangle,
+                "and the editor's keys are the editor's again elsewhere");
+            tab.Group?.Activate(tab);
+        }
+        shell.SetMapTool(MapTool.Stamp);
 
         // New Tileset with the odd sheet: made a sprite, so it imports and shows; a margin cuts it.
         TilesetDialog dialog = shell.OpenTilesetDialog(odd.Id);
@@ -349,16 +374,14 @@ internal sealed class TilemapChecks : GameSystem
             "Delete deletes the layer and its entity");
         Check(!shell.DeleteLayer(0), "the last layer stays");
 
-        // Leaving (View > Leave Map Mode, as Done does): the layout and the camera back.
-        Check(shell.Commands.Find("View.LeaveMapMode")!.CanExecute, "View > Leave Map Mode is on in map mode");
-        shell.Commands.Find("View.LeaveMapMode")!.Execute();
+        // Done: its tab closes; the Viewport never moved.
+        shell.CloseWorkspace(tab);
         yield return 2;
-        Check(!shell.InMapMode && Panel<HierarchyPanel>(shell) is not null && Panel<PalettePanel>(shell) is null,
-            "leaving map mode brings the layout before it back");
+        Check(!shell.InMapMode && !editor.IsOpen && shell.MapTab is null && Panel<HierarchyPanel>(shell) is not null,
+            "Done closes its tab and its map");
         Check(Panel<ViewportPanel>(shell) is { } normalView && normalView.View.Camera.Pitch == cameraBefore.Pitch &&
               normalView.View.Camera.Distance == cameraBefore.Distance,
-            "and the viewport's camera as it was");
-        Check(!shell.Commands.Find("View.LeaveMapMode")!.CanExecute, "Leave Map Mode is off outside it");
+            "and the Viewport's camera is as it was");
         Check(shell.EnterMapMode(layer1) && editor.Root.Value == root.Value, "Edit Map on a layer opens its map");
         shell.ExitMapMode();
         yield return 2;

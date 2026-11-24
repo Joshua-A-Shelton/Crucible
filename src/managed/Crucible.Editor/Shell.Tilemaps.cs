@@ -13,7 +13,7 @@ namespace Crucible.Editor;
 // Tilemaps (ADR 0108, 0112): a map is an entity (TilemapLayers naming its
 // .crtilemap) with a child per layer, each child's Tilemap drawing one layer
 // and, if it collides, its Collider2D of shape Tilemap. Map mode edits them
-// as one, in a layout of its own. The map file is kept with its entity:
+// as one, in a workspace tab of its own (ADR 0119). The map file is kept with its entity:
 // Create > 2D > Tilemap makes both, duplicating the entity copies the file,
 // renaming it renames the file (unless another entity uses it), deleting it
 // asks whether the file goes too. Each file change is part of the edit's
@@ -21,17 +21,16 @@ namespace Crucible.Editor;
 internal sealed partial class Shell
 {
     private Dialog? _deleteMaps;
-    private JsonObject? _normalLayout; // the layout map mode replaced
-    private (Vector3 Pivot, float Distance, float Yaw, float Pitch)? _normalCamera; // and the viewport's camera
-
-    private static (Vector3, float, float, float) CameraOf(EditorCamera camera) => (camera.Pivot, camera.Distance, camera.Yaw, camera.Pitch);
     private MapEditor? _mapEditor;
 
     /// <summary>Map mode's editing (ADR 0112).</summary>
     internal MapEditor Map => _mapEditor ??= new MapEditor(this);
 
-    /// <summary>The editor is in map mode: its own layout, the tools applying to a map.</summary>
-    public bool InMapMode => _normalLayout is not null;
+    /// <summary>The editor is in map mode: its tab is open (ADR 0119), the tools applying to a map in its view.</summary>
+    public bool InMapMode => MapTab is not null;
+
+    /// <summary>Map mode's tab, if it's open.</summary>
+    internal MapWorkspace? MapTab => Workspaces.OfType<MapWorkspace>().FirstOrDefault();
 
     private static readonly string _tilemapName = Components.NameOf(typeof(Tilemap));
     private static readonly string _layersName = Components.NameOf(typeof(TilemapLayers));
@@ -203,9 +202,9 @@ internal sealed partial class Shell
 
     /// <summary>
     /// Map mode on the map an entity is (or is a layer of; a map from before
-    /// layers is given them first): the Palette on the left, the viewport
-    /// framed on the map with the map tools above it, the Layers and the
-    /// Inspector on the right. It stays whatever is clicked, until Done.
+    /// layers is given them first): its tab (ADR 0119) beside the Viewport,
+    /// the Palette, its view framed on the map with the map tools above it,
+    /// and the Layers. It stays whatever is clicked, until Done or its ×.
     /// </summary>
     public bool EnterMapMode(Entity entity)
     {
@@ -224,33 +223,24 @@ internal sealed partial class Shell
         {
             Map.ActiveLayer = drawn.Id;
         }
-        if (!InMapMode)
+        if (OpenWorkspace("Map", found, AssetId.None) is null)
         {
-            _normalCamera = _open.GetValueOrDefault("Viewport") is ViewportPanel before ? CameraOf(before.View.Camera) : null;
-            _normalLayout = SaveLayout();
-            RestoreLayout(MapLayout());
+            Map.Close();
+            return false;
         }
         FrameMap();
         MapModeChanged?.Invoke();
         return true;
     }
 
-    /// <summary>Done: map mode left, the layout before it back.</summary>
+    /// <summary>Done: map mode's tab closed.</summary>
     public void ExitMapMode()
     {
-        if (_normalLayout is not { } normal)
+        if (MapTab is not { } tab)
         {
             return;
         }
-        Map.Close();
-        _normalLayout = null;
-        RestoreLayout(normal);
-        // The viewport looking where it did before map mode.
-        if (_normalCamera is { } camera && _open.GetValueOrDefault("Viewport") is ViewportPanel viewport)
-        {
-            (viewport.View.Camera.Pivot, viewport.View.Camera.Distance, viewport.View.Camera.Yaw, viewport.View.Camera.Pitch) = camera;
-        }
-        _normalCamera = null;
+        CloseWorkspace(tab);
         Status("Left map mode");
         MapModeChanged?.Invoke();
     }
@@ -258,55 +248,24 @@ internal sealed partial class Shell
     /// <summary>Raised when map mode starts or ends.</summary>
     public event Action? MapModeChanged;
 
-    // The layout to save: the one map mode replaced, if it's on.
-    private JsonObject LayoutToSave() => _normalLayout?.DeepClone().AsObject() ?? SaveLayout();
-
-    // Palette | viewport | Layers over the Inspector.
-    private static JsonObject MapLayout() => new()
-    {
-        ["Main"] = new JsonObject
-        {
-            ["Split"] = "Horizontal",
-            ["Sizes"] = new JsonArray(0.24f, 0.54f, 0.22f),
-            ["Children"] = new JsonArray(
-                new JsonObject { ["Panels"] = new JsonArray("Palette") },
-                new JsonObject { ["Panels"] = new JsonArray("Viewport") },
-                new JsonObject
-                {
-                    ["Split"] = "Vertical",
-                    ["Sizes"] = new JsonArray(0.45f, 0.55f),
-                    ["Children"] = new JsonArray(
-                        new JsonObject { ["Panels"] = new JsonArray("Layers") },
-                        new JsonObject { ["Panels"] = new JsonArray("Inspector") }),
-                }),
-        },
-        ["Floating"] = new JsonArray(),
-    };
-
     /// <summary>The viewport looking straight at the map, all of it in view.</summary>
     public void FrameMap()
     {
-        if (!Map.IsOpen || _open.GetValueOrDefault("Viewport") is not ViewportPanel viewport)
+        if (!Map.IsOpen || MapTab is not { } tab)
         {
             return;
         }
         (Vector3 center, float radius) = Map.Bounds();
-        EditorCamera camera = viewport.View.Camera;
+        EditorCamera camera = tab.View.Camera;
         camera.Yaw = 0;
         camera.Pitch = 0;
         camera.Pivot = center;
         camera.Distance = radius * 1.15f / MathF.Tan(camera.FieldOfViewY * 0.5f);
     }
 
-    // Each frame: map mode ends if its map entity went (undone, deleted, another scene).
-    internal void TickMapMode()
-    {
-        Map.Tick();
-        if (InMapMode && !Map.IsOpen)
-        {
-            ExitMapMode();
-        }
-    }
+    // Each frame: the map's state; its tab closes itself if its map entity
+    // went (undone, deleted, another scene; MapWorkspace.KeepOpen).
+    internal void TickMapMode() => Map.Tick();
 
     /// <summary>A tool chosen, by its button or key.</summary>
     internal void SetMapTool(MapTool tool)

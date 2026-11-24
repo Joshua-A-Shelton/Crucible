@@ -19,8 +19,18 @@ public abstract class EditorPanel : UIElement
     /// <summary>What the layout saves it as: "Hierarchy".</summary>
     public string Id { get; }
 
-    /// <summary>Its tab's text.</summary>
-    public string Title { get; }
+    /// <summary>Its tab's text; a panel may change it (a workspace naming what it works on, ADR 0119).</summary>
+    public string Title
+    {
+        get;
+        protected set
+        {
+            field = value ?? "";
+            TitleChanged?.Invoke();
+        }
+    }
+
+    internal event Action? TitleChanged;
 
     /// <summary>The group showing it, if it's docked.</summary>
     public DockGroup? Group => Parent as DockGroup;
@@ -92,10 +102,8 @@ public abstract class PlaceholderPanel : EditorPanel
 
 /// <summary>
 /// The scene, rendered (ADR 0067): a toolbar (the handles' mode and space,
-/// the grid, the last frame's time) over a <see cref="SceneView"/>. In map
-/// mode (ADR 0112) the toolbar holds the map tools instead: Stamp B,
-/// Rectangle R, Fill F, Eraser E, Select S, Flip X and Flip Y (X, Y), Show
-/// Collision, and Done.
+/// the grid, the last frame's time) over a <see cref="SceneView"/>. Map
+/// mode's tools are its own tab's (ADR 0119).
 /// </summary>
 public sealed class ViewportPanel : EditorPanel
 {
@@ -103,18 +111,9 @@ public sealed class ViewportPanel : EditorPanel
     private readonly Button _space = Tool("World");
     private readonly Toggle _grid = new("Grid") { IsOn = true, VerticalAlignment = VerticalAlignment.Center };
     private readonly Label _time = new() { VerticalAlignment = VerticalAlignment.Center };
-    private readonly Shell _shell;
-    private readonly StackPanel _tools = new() { Orientation = Orientation.Horizontal, Spacing = 4 };
-    private readonly StackPanel _mapTools = new() { Orientation = Orientation.Vertical, Spacing = 4 };
-    private readonly Dictionary<MapTool, Button> _mapToolButtons = [];
-    private readonly Toggle _flipX = new("Flip X") { VerticalAlignment = VerticalAlignment.Center };
-    private readonly Toggle _flipY = new("Flip Y") { VerticalAlignment = VerticalAlignment.Center };
-    private readonly Toggle _showCollision = new("Show Collision") { VerticalAlignment = VerticalAlignment.Center };
-    private bool _refreshing;
 
     internal ViewportPanel(Shell shell) : base("Viewport", "Viewport")
     {
-        _shell = shell;
         View = new SceneView(shell);
         _move.Clicked += _ => View.Handles.Mode = HandleMode.Move;
         _rotate.Clicked += _ => View.Handles.Mode = HandleMode.Rotate;
@@ -123,50 +122,15 @@ public sealed class ViewportPanel : EditorPanel
             View.Handles.Space = View.Handles.Space == HandleSpace.World ? HandleSpace.Local : HandleSpace.World;
         _grid.Changed += toggle => View.ShowsGrid = toggle.IsOn;
         _time.Classes.Add("frame-time");
-        StackPanel tools = _tools;
+        StackPanel tools = new() { Orientation = Orientation.Horizontal, Spacing = 4 };
         tools.Classes.Add("viewport-tools");
         foreach (UIElement tool in (UIElement[])[_move, _rotate, _scale, _space, _grid, _time])
         {
             tools.Add(tool);
         }
-        // Two rows, so a narrow viewport shows them all: the tools; the
-        // flips, Show Collision, and Done.
-        StackPanel toolRow = new() { Orientation = Orientation.Horizontal, Spacing = 4 };
-        DockPanel optionRow = new();
-        _mapTools.Classes.Add("viewport-tools");
-        _mapTools.Add(toolRow);
-        _mapTools.Add(optionRow);
-        foreach ((MapTool tool, TileGlyph glyph, string label) in new[]
-                 {
-                     (MapTool.Stamp, TileGlyph.Stamp, "Stamp (B)"), (MapTool.Rectangle, TileGlyph.Rectangle, "Rectangle (R)"),
-                     (MapTool.Fill, TileGlyph.Fill, "Fill (F)"), (MapTool.Eraser, TileGlyph.Eraser, "Eraser (E)"),
-                     (MapTool.Select, TileGlyph.Select, "Select (S)"),
-                 })
-        {
-            Button button = GlyphButton(glyph, label);
-            button.Clicked += _ => shell.SetMapTool(tool);
-            _mapToolButtons[tool] = button;
-            toolRow.Add(button);
-        }
-        _flipX.Changed += toggle => SetMap(() => shell.Map.FlipX = toggle.IsOn);
-        _flipY.Changed += toggle => SetMap(() => shell.Map.FlipY = toggle.IsOn);
-        _showCollision.Changed += toggle => SetMap(() => shell.Map.ShowCollision = toggle.IsOn);
-        Button done = new("Done") { VerticalAlignment = VerticalAlignment.Center };
-        done.Classes.Add("primary");
-        done.Clicked += _ => shell.ExitMapMode();
-        StackPanel options = new() { Orientation = Orientation.Horizontal, Spacing = 10 };
-        foreach (UIElement option in (UIElement[])[_flipX, _flipY, _showCollision])
-        {
-            options.Add(option);
-        }
-        DockPanel.SetDock(done, Dock.Right);
-        optionRow.Add(done);
-        optionRow.Add(options);
         DockPanel page = new();
         DockPanel.SetDock(tools, Dock.Top);
-        DockPanel.SetDock(_mapTools, Dock.Top);
         page.Add(tools);
-        page.Add(_mapTools);
         page.Add(View);
         AddChild(page);
         Refresh();
@@ -174,36 +138,9 @@ public sealed class ViewportPanel : EditorPanel
 
     public SceneView View { get; }
 
-    private void SetMap(Action set)
-    {
-        if (!_refreshing)
-        {
-            set();
-            View.InvalidateVisual();
-        }
-    }
-
-    /// <summary>The map tools' buttons, by tool (the checks).</summary>
-    internal IReadOnlyDictionary<MapTool, Button> MapToolButtons => _mapToolButtons;
-
     // The toolbar shows the view's state, which keys change too; each frame.
     internal void Refresh()
     {
-        bool mapMode = _shell.InMapMode;
-        _tools.Visibility = mapMode ? Visibility.Collapsed : Visibility.Visible;
-        _mapTools.Visibility = mapMode ? Visibility.Visible : Visibility.Collapsed;
-        if (mapMode)
-        {
-            _refreshing = true;
-            foreach ((MapTool tool, Button button) in _mapToolButtons)
-            {
-                button.Classes.Set("primary", tool == _shell.Map.Tool);
-            }
-            _flipX.IsOn = _shell.Map.FlipX;
-            _flipY.IsOn = _shell.Map.FlipY;
-            _showCollision.IsOn = _shell.Map.ShowCollision;
-            _refreshing = false;
-        }
         Mark(_move, View.Handles.Mode == HandleMode.Move);
         Mark(_rotate, View.Handles.Mode == HandleMode.Rotate);
         Mark(_scale, View.Handles.Mode == HandleMode.Scale);
@@ -211,7 +148,8 @@ public sealed class ViewportPanel : EditorPanel
         _time.Text = View.Surface.Value != 0 ? $"{View.LastFrameMilliseconds:0.0} ms" : "";
     }
 
-    private static Button GlyphButton(TileGlyph glyph, string label)
+    // A map tool's button (ADR 0108, 0112): its glyph and label.
+    internal static Button GlyphButton(TileGlyph glyph, string label)
     {
         StackPanel content = new() { Orientation = Orientation.Horizontal, Spacing = 5, HorizontalAlignment = HorizontalAlignment.Center };
         content.Add(new TileGlyphView(glyph));

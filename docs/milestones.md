@@ -1342,7 +1342,9 @@ the owner: the public editor API, with a project's panels reopened in
 place after a reload. Step 3, plugins, placed here by the owner
 (2026-11-23) and the steps after renumbered; done (ADR 0118), tried by
 hand by the owner: source and compiled plugins with code and assets, a
-version check, and Build Plugin.
+version check, and Build Plugin. Step 4 built (ADR 0119), to be tried
+by hand by the owner: workspaces as tabs among the panels, map mode
+moved onto one.
 
 Asked for by the owner (2026-11-20): a game's own editors, as specialized
 as map mode (ADR 0112), built by the people making the game, for example
@@ -1390,9 +1392,10 @@ reload per assembly, the shipping check).
    shared between games, checked against the Crucible version they were
    built for), and a command building a source plugin to share. Decides
    what a plugin is, how plugins find each other, and versions.
-4. **Workspaces.** What map mode is, made general: a layout, a toolbar,
-   a viewport tool, and keys, entered and left (Done), the layout before
-   coming back. Decides the workspace model.
+4. **Workspaces.** What map mode is, made general: a place of its own
+   for one task, with its tools and keys, opened for what it's for and
+   left with Done. Decided (ADR 0119): a tab among the panels with its
+   own parts and view, not a layout swapped in.
 5. **Viewport tools.** Pointer and key input in a viewport routed to a
    plugin's tool, drawing over the view (lines, shapes, images, in world
    or screen space), and picking under the pointer. Chain editing (ADR

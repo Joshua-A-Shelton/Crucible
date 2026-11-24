@@ -128,7 +128,9 @@ is, and record which version fixed it.
 - **`samples.walker` footstep timing failed twice on Windows** (release,
   in full parallel runs, 2026-11-23): at 144 fps one of four steps was
   heard 437 frames late. Passed three times alone after the first, and in
-  the next full run after the second. Investigate under load. → 0037
+  the next full run after the second. Once on Linux too (debug, full run,
+  2026-11-24), passing three times alone after. Investigate under load.
+  → 0037
 - **Stray KB in NativeAOT's allocation counter:** the "allocates nothing"
   tests (frames, ECS iteration, `ParallelFor`, the latency recorder) saw
   about 8 KB (8112 bytes) more on their own thread in some NativeAOT

@@ -54,6 +54,17 @@ public sealed class SceneView : UIElement
         AllowDrop = true;
     }
 
+    /// <summary>A view of the open scene for a workspace (ADR 0119), rendered while its tab is shown.</summary>
+    public SceneView() : this(Shell.Current ?? throw new InvalidOperationException("A SceneView needs the editor running"))
+    {
+    }
+
+    /// <summary>Map mode's view (ADR 0112, 0119): the map's tools and grid instead of handles and the floor's.</summary>
+    internal bool IsMapView { get; init; }
+
+    // Map mode's view with its map open.
+    private bool OnMap => IsMapView && _shell.Map.IsOpen;
+
     // An asset dragged in (ADR 0071): placed under the pointer as it moves.
     private Vector2 DragPixel(DragEvent e) =>
         (e.Position - new Vector2(Bounds.X, Bounds.Y)) * (Root?.Scale ?? 1);
@@ -134,7 +145,7 @@ public sealed class SceneView : UIElement
         }
         Crucible.Render.Api.SetSurfaceCamera(_surface, Camera.Position, Camera.Rotation, Camera.Camera);
         // Map mode (ADR 0112) draws the map's own grid instead of the floor's.
-        Crucible.Render.Api.SetSurfaceGrid(_surface, ShowsGrid && !_shell.InMapMode);
+        Crucible.Render.Api.SetSurfaceGrid(_surface, ShowsGrid && !IsMapView);
         Crucible.Render.Api.SetSurfaceSelection(_surface, outlined);
         Stopwatch watch = Stopwatch.StartNew();
         Status status = Crucible.Render.Api.RenderFrame(_surface, world.Handle, _lastRun, 0.05f, 0.05f, 0.06f, 1);
@@ -161,7 +172,7 @@ public sealed class SceneView : UIElement
         {
             _shell.Chains.Draw(canvas, Camera, ActualSize);
         }
-        else if (_shell.InMapMode)
+        else if (OnMap)
         {
             _shell.Map.Draw(canvas, Camera, ActualSize);
         }
@@ -214,7 +225,7 @@ public sealed class SceneView : UIElement
         Vector2 at = Local(e);
         // Map mode (ADR 0112): the left button uses the tool, the right picks
         // up painted tiles, the middle pans, the wheel zooms.
-        if (_shell.InMapMode && e.Button is PointerButton.Left or PointerButton.Right &&
+        if (OnMap && e.Button is PointerButton.Left or PointerButton.Right &&
             (e.Modifiers & KeyModifiers.Alt) == 0)
         {
             if (_shell.Map.CellAt(Camera, ActualSize, at) is { } cell)
@@ -296,7 +307,7 @@ public sealed class SceneView : UIElement
                 _shell.Map.Track(_shell.Map.CellAt(Camera, ActualSize, Local(e)) ?? _shell.Map.Hover);
                 break;
             default:
-                if (_shell.InMapMode)
+                if (OnMap)
                 {
                     if (_shell.Map.Track(_shell.Map.CellAt(Camera, ActualSize, Local(e))))
                     {
@@ -372,7 +383,7 @@ public sealed class SceneView : UIElement
             e.Handled = true;
             return;
         }
-        if (_shell.InMapMode)
+        if (OnMap)
         {
             if (MapKey(e))
             {
@@ -416,9 +427,9 @@ public sealed class SceneView : UIElement
         InvalidateVisual();
     }
 
-    // Map mode's keys (ADR 0112): the tools, the flips, F to frame the map;
-    // Ctrl+C, Ctrl+X, and Delete on the Select tool's region; Escape lets go
-    // of the region, else leaves map mode.
+    // Map mode's keys here (ADR 0112): Ctrl+C, Ctrl+X, and Delete on the
+    // Select tool's region, and Escape lets go of it. The tools' and flips'
+    // keys are the map workspace's commands (ADR 0119), anywhere in its tab.
     private bool MapKey(KeyEvent e)
     {
         MapEditor map = _shell.Map;
@@ -441,44 +452,15 @@ public sealed class SceneView : UIElement
             }
             return done;
         }
-        if (e.Keycode switch
+        if (e.Keycode == Keycode.Delete)
         {
-            Keycode.B => MapTool.Stamp,
-            Keycode.R => MapTool.Rectangle,
-            Keycode.F => MapTool.Fill,
-            Keycode.E => MapTool.Eraser,
-            Keycode.S => MapTool.Select,
-            _ => (MapTool?)null,
-        } is { } tool)
-        {
-            _shell.SetMapTool(tool);
-            return true;
+            return map.DeleteRegion();
         }
-        switch (e.Keycode)
-        {
-            case Keycode.X:
-                map.FlipX = !map.FlipX;
-                _shell.RaiseMapToolChanged();
-                return true;
-            case Keycode.Y:
-                map.FlipY = !map.FlipY;
-                _shell.RaiseMapToolChanged();
-                return true;
-            case Keycode.Delete:
-                return map.DeleteRegion();
-        }
-        if (e.Scancode != ScancodeEscape)
+        if (e.Scancode != ScancodeEscape || map.Region is null)
         {
             return false;
         }
-        if (map.Region is not null)
-        {
-            map.Region = null;
-        }
-        else
-        {
-            _shell.ExitMapMode();
-        }
+        map.Region = null;
         return true;
     }
 

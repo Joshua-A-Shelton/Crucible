@@ -219,6 +219,9 @@ Longer explanations of decisions, written to be reread:
 - [Plugins](docs/learning/plugins.md) (ADR 0118): source while you write
   it and compiled when you share it, binary compatibility and semantic
   versioning, ordering by dependencies, and finding plugins nobody names.
+- [Workspaces](docs/learning/workspaces.md) (ADR 0119): modes and
+  documents, sharing panels, several views of one scene, keys and focus,
+  pointing at things that may go away, and debug builds' lifetimes.
 - [Up-to-date builds](docs/learning/up-to-date-builds.md) (ADR 0110): file
   times versus content hashes, what makes a build stamp trustworthy, and
   why copies need one.
