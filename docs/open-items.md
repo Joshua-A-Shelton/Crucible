@@ -125,6 +125,10 @@ is, and record which version fixed it.
   missing, the rest of the output again lost; it passed 5 times alone and
   in a full rerun. Run Windows suites with `--output-on-failure` and keep
   the log; investigate from the first one caught. → 0037
+- **`samples.walker` footstep timing failed once on Windows** (release,
+  in a full parallel run, 2026-11-23): at 144 fps one of four steps was
+  heard 437 frames late. Passed three times alone right after. Watch for
+  it under load; investigate if it comes back. → 0037
 - **Stray KB in NativeAOT's allocation counter:** the "allocates nothing"
   tests (frames, ECS iteration, `ParallelFor`, the latency recorder) saw
   about 8 KB (8112 bytes) more on their own thread in some NativeAOT
@@ -252,7 +256,7 @@ is, and record which version fixed it.
 - JSON as the authored text format. → 0021 [M4]
 - No AOT-analyzer opt-out for game code: expected to stay, but confirm
   with real game code. → 0001 [M10]
-- Plugins are source-only in v1; revisit prebuilt (binary) plugins. → 0002
+- Native modules (ADR 0074) in plugins: a plugin's C++, per platform when compiled. → 0118
 - The save-data format. → 0021 [first game]
 - SDL3 audio output latency per platform (miniaudio if it falls short).
   → 0028 [M8]

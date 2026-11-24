@@ -191,7 +191,11 @@ internal sealed partial class Shell
                     string? answer = input.Value > 0 && input.Code >= 0 && input.Code + input.Value <= text.Length
                         ? System.Text.Encoding.UTF8.GetString(text.Slice(input.Code, input.Value))
                         : null;
-                    if (_savingAs)
+                    if (_buildingPlugin is not null)
+                    {
+                        PluginFolderChosen(answer);
+                    }
+                    else if (_savingAs)
                     {
                         SaveDialogAnswered(answer);
                     }
@@ -246,7 +250,7 @@ internal sealed partial class Shell
         }
         Settings.Layout = LayoutToSave();
         SaveSettings();
-        StopPlugins(keepPanels: false);
+        ClosePlugins();
         foreach (EditorWindow window in _windows.ToArray())
         {
             Remove(window);
@@ -313,7 +317,7 @@ internal sealed partial class Shell
         // Imported assets, and scenes as they're saved (Scene.LoadAsync, ADR 0099).
         AssetSource.Install(id => database.ImportedFile(id) is { } path ? File.ReadAllBytes(path)
             : database.Find(id) is { } entry && entry.Path.EndsWith(Scene.Extension, StringComparison.OrdinalIgnoreCase)
-                ? File.ReadAllBytes(Path.Combine(project.AssetsFolder, entry.Path))
+                ? File.ReadAllBytes(project.FileOf(entry.Path))
                 : null);
         Log($"{database.Assets.Count()} assets, {imported} imported" + (failed > 0 ? $", {failed} failed" : ""));
         WatchAssets(project);
@@ -626,6 +630,7 @@ internal sealed partial class Shell
         RegisterPlayCommands();
         RegisterStandaloneCommands();
         RegisterBuildCommands();
+        RegisterPluginCommands();
         Commands.Add(new Command("File.Quit", "Quit", RequestQuit)
         {
             Shortcut = new Shortcut(KeyModifiers.Ctrl, Keycode.Q),
@@ -683,6 +688,8 @@ internal sealed partial class Shell
         file.Add(Commands.Find("File.OpenScene")!);
         file.Add(Commands.Find("File.SaveScene")!);
         file.Add(Commands.Find("File.SaveSceneAs")!);
+        file.AddSeparator();
+        file.Add(Commands.Find("File.BuildPlugin")!);
         file.AddSeparator();
         file.Add(Commands.Find("File.Quit")!);
 

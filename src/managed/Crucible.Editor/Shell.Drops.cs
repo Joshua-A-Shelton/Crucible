@@ -137,7 +137,8 @@ internal sealed partial class Shell
     private string DropFolder(FileDrag drag) =>
         drag.Folder ?? (_open.GetValueOrDefault("Assets") as AssetsPanel)?.Folder ?? "";
 
-    private static string FolderLabel(string folder) => folder.Length == 0 ? "Assets/" : folder + "/";
+    private static string FolderLabel(string folder) =>
+        folder.Length == 0 ? "Assets/" : folder.EndsWith(AssetPaths.PluginSeparator) ? folder : folder + "/";
 
     private DropPlacement? PlacementOf(FileDrag drag)
     {
@@ -175,6 +176,10 @@ internal sealed partial class Shell
         if (_dropImport is not null)
         {
             Status("Finish the drop in progress first");
+            return;
+        }
+        if (!CanChange(folder))
+        {
             return;
         }
         _dropImport = new DropImport(this, [.. paths], folder, place);
@@ -250,11 +255,9 @@ internal sealed partial class Shell
         private Clash? _clashRest;
         private ImageKind? _imageRest;
 
-        private string AssetsFolder => shell.Project!.AssetsFolder;
+        private string Full(string assetPath) => shell.Project!.FileOf(assetPath);
 
-        private string Full(string assetPath) => Path.Combine(AssetsFolder, assetPath);
-
-        private static string Join(string folder, string name) => folder.Length == 0 ? name : folder + "/" + name;
+        private static string Join(string folder, string name) => AssetPaths.Join(folder, name);
 
         /// <summary>Plans, asks, and finishes as far as it can before the next question.</summary>
         public void Continue()

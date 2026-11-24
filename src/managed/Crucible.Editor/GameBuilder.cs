@@ -49,10 +49,20 @@ public sealed partial class GameBuilder
     /// <summary>Where the built assembly lands.</summary>
     public string OutputPath => Path.Combine(_project.CacheFolder, "Build", "bin", AssemblyName + ".dll");
 
-    /// <summary>Whether the project has code to build (a Code folder with .cs files in it).</summary>
+    /// <summary>
+    /// Whether the project has code to build: a Code folder with .cs files in
+    /// it, or a plugin with code (ADR 0118), which the game's assembly names.
+    /// </summary>
     public bool HasCode =>
-        Directory.Exists(_project.CodeFolder) &&
-        Directory.EnumerateFiles(_project.CodeFolder, "*.cs", SearchOption.AllDirectories).Any();
+        (Directory.Exists(_project.CodeFolder) &&
+         Directory.EnumerateFiles(_project.CodeFolder, "*.cs", SearchOption.AllDirectories).Any()) ||
+        _project.Plugins.Any(plugin => plugin.HasCode);
+
+    // The plugins with code, in the order they load (ADR 0118); the source
+    // ones are built with the game, the compiled ones referenced.
+    private IEnumerable<Plugin> CodePlugins => _project.Plugins.Where(plugin => plugin.HasCode);
+
+    private IEnumerable<Plugin> SourcePlugins => CodePlugins.Where(plugin => !plugin.IsCompiled);
 
     public bool IsBuilding => _running is { IsCompleted: false };
 
@@ -108,35 +118,8 @@ public sealed partial class GameBuilder
     public string ProjectText(bool package = false, bool readyToRun = true, bool? editorSymbol = null)
     {
         string engine = _engine ?? EngineAssembly();
-        string framework = typeof(Crucible.Ecs.World).Assembly.GetCustomAttribute<TargetFrameworkAttribute>()?.FrameworkName
-            is { } name && name.Contains("Version=v", StringComparison.Ordinal)
-            ? "net" + name[(name.IndexOf("Version=v", StringComparison.Ordinal) + 9)..]
-            : "net10.0";
         StringBuilder text = new();
-        text.Append("""
-            <Project Sdk="Microsoft.NET.Sdk">
-              <!-- Written by the Crucible editor (ADR 0072); rewritten before every build. -->
-              <PropertyGroup>
-
-            """);
-        text.Append($"    <TargetFramework>{framework}</TargetFramework>\n");
-        text.Append($"    <AssemblyName>{AssemblyName}</AssemblyName>\n");
-        text.Append($"    <RootNamespace>{Sanitize(_project.Name)}</RootNamespace>\n");
-        text.Append("""
-                <Nullable>enable</Nullable>
-                <ImplicitUsings>enable</ImplicitUsings>
-                <IsAotCompatible>true</IsAotCompatible>
-                <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-                <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
-                <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-                <OutputPath>bin/</OutputPath>
-                <GenerateDocumentationFile>false</GenerateDocumentationFile>
-
-            """);
-        // Log.Info is kept only where CRUCIBLE_LOG_INFO is defined: every
-        // build but a Shipping package's (ADR 0103).
-        string editor = editorSymbol ?? !package ? ";CRUCIBLE_EDITOR" : "";
-        text.Append($"    <DefineConstants>$(DefineConstants);{(_shipping ? "CRUCIBLE_SHIPPING" : "CRUCIBLE_LOG_INFO")}{editor}</DefineConstants>\n");
+        text.Append(Header(AssemblyName, Sanitize(_project.Name), "bin/", editorSymbol ?? !package));
         if (package)
         {
             // The game's assembly is the app its runtime starts for: its
@@ -159,6 +142,11 @@ public sealed partial class GameBuilder
             """);
         text.Append($"    <Compile Include=\"{Escape(Path.Combine(_project.CodeFolder, "**", "*.cs"))}\" " +
                     $"Exclude=\"{Escape(EditorGlob)}\" />\n");
+        // The plugins it uses (ADR 0118): the list the game loader reads, the
+        // source ones' projects, and the compiled ones' assemblies.
+        string variant = VariantFolder(package, editorSymbol);
+        text.Append($"    <Compile Include=\"{Escape(Path.Combine(variant, PluginListFile))}\" Condition=\"Exists('{Escape(Path.Combine(variant, PluginListFile))}')\" />\n");
+        text.Append(PluginReferences(CodePlugins, variant, copySource: package, copyCompiled: true));
         // The native module's bindings (ADR 0074), when it exposes anything.
         string bindings = Escape(Path.Combine(_project.CacheFolder, "Build", "Native" + Variant, "Bindings.g.cs"));
         text.Append($"    <Compile Include=\"{bindings}\" Condition=\"Exists('{bindings}')\" />\n");
@@ -176,16 +164,56 @@ public sealed partial class GameBuilder
         return text.ToString();
     }
 
+    // A project's start (ADR 0072): its framework, names, the engine's
+    // settings, where it builds to, and its symbols. Log.Info is kept only
+    // where CRUCIBLE_LOG_INFO is defined: every build but a Shipping
+    // package's (ADR 0103).
+    private string Header(string assemblyName, string rootNamespace, string outputPath, bool editorSymbol, bool aotCompatible = true)
+    {
+        string framework = typeof(Crucible.Ecs.World).Assembly.GetCustomAttribute<TargetFrameworkAttribute>()?.FrameworkName
+            is { } name && name.Contains("Version=v", StringComparison.Ordinal)
+            ? "net" + name[(name.IndexOf("Version=v", StringComparison.Ordinal) + 9)..]
+            : "net10.0";
+        StringBuilder text = new();
+        text.Append("""
+            <Project Sdk="Microsoft.NET.Sdk">
+              <!-- Written by the Crucible editor (ADR 0072); rewritten before every build. -->
+              <PropertyGroup>
+
+            """);
+        text.Append($"    <TargetFramework>{framework}</TargetFramework>\n");
+        text.Append($"    <AssemblyName>{assemblyName}</AssemblyName>\n");
+        text.Append($"    <RootNamespace>{rootNamespace}</RootNamespace>\n");
+        text.Append("""
+                <Nullable>enable</Nullable>
+                <ImplicitUsings>enable</ImplicitUsings>
+
+            """);
+        text.Append($"    <IsAotCompatible>{(aotCompatible ? "true" : "false")}</IsAotCompatible>\n");
+        text.Append("""
+                <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+                <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+                <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+
+            """);
+        text.Append($"    <OutputPath>{Escape(outputPath)}</OutputPath>\n");
+        text.Append("    <GenerateDocumentationFile>false</GenerateDocumentationFile>\n");
+        string editor = editorSymbol ? ";CRUCIBLE_EDITOR" : "";
+        text.Append($"    <DefineConstants>$(DefineConstants);{(_shipping ? "CRUCIBLE_SHIPPING" : "CRUCIBLE_LOG_INFO")}{editor}</DefineConstants>\n");
+        return text.ToString();
+    }
+
     /// <summary>
     /// Whether the game's code (not its Editor folders') mentions
     /// <c>CRUCIBLE_EDITOR</c>: then each build is followed by a check that it
     /// builds without it (ADR 0116), as a package will.
     /// </summary>
+    /// <remarks>Source plugins' code (not their Editor folders') counts too (ADR 0118).</remarks>
     public bool UsesEditorSymbol =>
-        Directory.Exists(_project.CodeFolder) &&
-        Directory.EnumerateFiles(_project.CodeFolder, "*.cs", SearchOption.AllDirectories)
-            .Where(file => !IsEditorSource(file))
-            .Any(file => File.ReadAllText(file).Contains(EditorSymbol, StringComparison.Ordinal));
+        ((string[])[_project.CodeFolder, .. SourcePlugins.Select(plugin => plugin.CodeFolder)])
+        .Where(Directory.Exists)
+        .SelectMany(root => Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories).Where(file => !IsEditorSourceIn(root, file)))
+        .Any(file => File.ReadAllText(file).Contains(EditorSymbol, StringComparison.Ordinal));
 
     /// <summary>The symbol defined in the editor's own build of the game's code (ADR 0002, 0116).</summary>
     public const string EditorSymbol = "CRUCIBLE_EDITOR";
@@ -203,6 +231,7 @@ public sealed partial class GameBuilder
             return false;
         }
         Write(SymbolCheckProjectFile, ProjectText(editorSymbol: false));
+        WritePlugins(package: false, editorSymbol: false);
         string output = Path.Combine(Path.GetDirectoryName(SymbolCheckProjectFile)!, "bin", AssemblyName + ".dll");
         _symbolCheck = Task.Run(() => RunDotnet(["build", SymbolCheckProjectFile], output));
         return true;
@@ -246,13 +275,16 @@ public sealed partial class GameBuilder
     /// <summary>Whether the project has editor code: .cs files under a folder named Editor in Code.</summary>
     public bool HasEditorCode => EditorSources().Any();
 
-    private IEnumerable<string> EditorSources() =>
-        Directory.Exists(_project.CodeFolder)
-            ? Directory.EnumerateFiles(_project.CodeFolder, "*.cs", SearchOption.AllDirectories).Where(IsEditorSource)
+    private IEnumerable<string> EditorSources() => EditorSourcesIn(_project.CodeFolder);
+
+    // A code folder's editor code: .cs files under a folder named Editor in it.
+    private static IEnumerable<string> EditorSourcesIn(string root) =>
+        Directory.Exists(root)
+            ? Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories).Where(file => IsEditorSourceIn(root, file))
             : [];
 
-    private bool IsEditorSource(string file) =>
-        Path.GetRelativePath(_project.CodeFolder, file).Replace('\\', '/').Split('/').SkipLast(1).Contains(EditorFolder);
+    private static bool IsEditorSourceIn(string root, string file) =>
+        Path.GetRelativePath(root, file).Replace('\\', '/').Split('/').SkipLast(1).Contains(EditorFolder);
 
     /// <summary>
     /// The editor project's text (ADR 0116): the Editor folders' code, with
@@ -276,6 +308,11 @@ public sealed partial class GameBuilder
         {
             text.Append($"    <Reference Include=\"{Path.GetFileNameWithoutExtension(assembly)}\" HintPath=\"{Escape(assembly)}\" Private=\"false\" />\n");
         }
+        // Every plugin's assemblies, its editor assembly too (ADR 0118): the
+        // game's project passes on only its source plugins' to the compiler.
+        string variant = VariantFolder(false, null);
+        text.Append(PluginReferences(CodePlugins, variant, copySource: false, copyCompiled: false));
+        text.Append(PluginEditorReferences(CodePlugins, variant));
         text.Append("""
               </ItemGroup>
             </Project>
@@ -287,7 +324,8 @@ public sealed partial class GameBuilder
     private void WriteProject()
     {
         Write(ProjectFile, ProjectText());
-        if (HasEditorCode)
+        WritePlugins(package: false, editorSymbol: null);
+        if (NeedsEditorProject)
         {
             Write(EditorProjectFile, EditorProjectText());
         }
@@ -317,6 +355,7 @@ public sealed partial class GameBuilder
         _running = null;
         Directory.CreateDirectory(Path.GetDirectoryName(PackageProjectFile)!);
         File.WriteAllText(PackageProjectFile, ProjectText(package: true, readyToRun));
+        WritePlugins(package: true, editorSymbol: null);
         string assembly = Path.Combine(folder, AssemblyName + ".dll");
         return RunDotnet(["publish", PackageProjectFile, "-c", "Release", "-o", folder], assembly);
     }
@@ -361,6 +400,11 @@ public sealed partial class GameBuilder
         // Nothing outside the game refers to it, so it's kept whole: its
         // bootstrap, and the systems and components its attributes name.
         items.Append($"    <TrimmerRootAssembly Include=\"{AssemblyName}\" />\n");
+        // Its plugins too (ADR 0118): the game loader finds them by name.
+        foreach (Plugin plugin in CodePlugins)
+        {
+            items.Append($"    <TrimmerRootAssembly Include=\"{plugin.Name}\" />\n");
+        }
         if (module is not null)
         {
             items.Append($"    <DirectPInvoke Include=\"{module}\" />\n");
@@ -397,6 +441,8 @@ public sealed partial class GameBuilder
         _running = null;
         Directory.CreateDirectory(AotFolder);
         File.WriteAllText(AotProjectFile, AotProjectText(module, instructionSet));
+        // Its plugins' projects are the package's (ADR 0118).
+        WritePlugins(package: true, editorSymbol: null);
         File.WriteAllText(Path.Combine(AotFolder, "Bootstrap.g.cs"), """
             // Written by the Crucible editor (ADR 0101): hands the engine this
             // game, compiled into its NativeAOT executable, before it starts.
@@ -433,10 +479,11 @@ public sealed partial class GameBuilder
     {
         XxHash128 hash = new();
         void Add(string text) => hash.Append(Encoding.UTF8.GetBytes(text + "\n"));
-        Add(ProjectText().Replace(Escape(_project.Root), "$(Project)", StringComparison.Ordinal));
-        Add(HasEditorCode
-            ? EditorProjectText().Replace(Escape(_project.Root), "$(Project)", StringComparison.Ordinal) + ContentHash.OfFile(EditorAssembly())
+        Add(Relocatable(ProjectText()));
+        Add(NeedsEditorProject
+            ? Relocatable(EditorProjectText()) + ContentHash.OfFile(EditorAssembly())
             : "no editor code");
+        HashPlugins(Add);
         if (Directory.Exists(_project.CodeFolder))
         {
             foreach (string file in Directory.EnumerateFiles(_project.CodeFolder, "*.cs", SearchOption.AllDirectories)
@@ -463,18 +510,19 @@ public sealed partial class GameBuilder
     private bool Current(Stamp? stamp, string inputs) =>
         stamp is not null && stamp.Inputs == inputs && OutputHash() is { } output && stamp.Output == output;
 
-    // The game's assembly's hash, and the editor's after it when there's editor code; null if one is missing.
+    // The game's assembly's hash, the editor's after it when there's editor
+    // code, then the source plugins'; null if one is missing.
     private string? OutputHash()
     {
-        if (!File.Exists(OutputPath))
+        if (!File.Exists(OutputPath) || PluginOutputHash() is not { } plugins)
         {
             return null;
         }
-        if (!HasEditorCode)
+        if (!NeedsEditorProject)
         {
-            return ContentHash.OfFile(OutputPath);
+            return ContentHash.OfFile(OutputPath) + plugins;
         }
-        return File.Exists(EditorOutputPath) ? ContentHash.OfFile(OutputPath) + "+" + ContentHash.OfFile(EditorOutputPath) : null;
+        return File.Exists(EditorOutputPath) ? ContentHash.OfFile(OutputPath) + "+" + ContentHash.OfFile(EditorOutputPath) + plugins : null;
     }
 
     private sealed record Stamp(string Inputs, string Output, string Root);
@@ -498,10 +546,10 @@ public sealed partial class GameBuilder
     {
         string inputs = InputHash();
         Stamp? stamp = ReadStamp();
-        bool editor = HasEditorCode;
+        bool editor = NeedsEditorProject;
         if (Current(stamp, inputs))
         {
-            return new GameBuild(true, OutputPath, [], "", UpToDate: true) { EditorAssembly = editor ? EditorOutputPath : null };
+            return WithPlugins(new GameBuild(true, OutputPath, [], "", UpToDate: true) { EditorAssembly = editor ? EditorOutputPath : null });
         }
         // dotnet's obj folders hold the project's absolute paths: a project
         // moved (or copied) with its Cache restores and compiles from scratch.
@@ -527,7 +575,7 @@ public sealed partial class GameBuilder
         {
             File.WriteAllLines(StampFile, ["crucible-build-stamp 1", inputs, output, _project.Root]);
         }
-        return build;
+        return build.Succeeded ? WithPlugins(build) : build;
     }
 
     private static GameBuild RunDotnet(string[] command, string result)
@@ -667,4 +715,10 @@ public sealed record GameBuild(bool Succeeded, string? Assembly, IReadOnlyList<B
 {
     /// <summary>The project's editor assembly (ADR 0116), built with the game's; null when it has no editor code.</summary>
     public string? EditorAssembly { get; init; }
+
+    /// <summary>The source plugins' assemblies built with it (ADR 0118), in the order they load.</summary>
+    public IReadOnlyList<string> PluginAssemblies { get; init; } = [];
+
+    /// <summary>Their editor assemblies, for those with editor code, in the same order.</summary>
+    public IReadOnlyList<string> PluginEditorAssemblies { get; init; } = [];
 }

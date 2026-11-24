@@ -185,9 +185,14 @@ public sealed class BuildSettingsPanel : EditorPanel
             return [];
         }
         List<(string, Action)> choices = [];
-        foreach (string folder in Folders(project.AssetsFolder, "").Where(folder => !project.Build.Include.Contains(folder)))
+        // The game's folders, then each plugin's, itself included (ADR 0118).
+        foreach ((string root, string prefix) in project.AssetRoots().Where(root => Directory.Exists(root.Folder)))
         {
-            choices.Add((folder + "/", () => AddInclude(folder)));
+            IEnumerable<string> folders = prefix.Length == 0 ? Folders(root, "") : [prefix, .. Folders(root, prefix)];
+            foreach (string folder in folders.Where(folder => !project.Build.Include.Contains(folder)))
+            {
+                choices.Add((folder.EndsWith(AssetPaths.PluginSeparator) ? folder : folder + "/", () => AddInclude(folder)));
+            }
         }
         foreach (AssetEntry asset in database.Assets.Where(asset => !project.Build.Include.Contains(asset.Path))
                      .OrderBy(asset => asset.Path, StringComparer.Ordinal))
@@ -199,10 +204,10 @@ public sealed class BuildSettingsPanel : EditorPanel
 
     private static IEnumerable<string> Folders(string root, string folder)
     {
-        string full = Path.Combine(root, folder);
+        string full = Path.Combine(root, AssetPaths.WithinRoot(folder));
         foreach (string directory in Directory.EnumerateDirectories(full).Where(AssetsPanel.Visible).Order(StringComparer.Ordinal))
         {
-            string path = folder.Length == 0 ? Path.GetFileName(directory) : folder + "/" + Path.GetFileName(directory);
+            string path = AssetPaths.Join(folder, Path.GetFileName(directory));
             yield return path;
             foreach (string inner in Folders(root, path))
             {
@@ -250,11 +255,11 @@ public sealed class BuildSettingsPanel : EditorPanel
     private (string Name, string? Detail) IncludeRow(Project project, string path)
     {
         string name = path.Contains('/', StringComparison.Ordinal) ? path[(path.LastIndexOf('/') + 1)..] : path;
-        if (Directory.Exists(Path.Combine(project.AssetsFolder, path)))
+        if (Directory.Exists(project.FileOf(path)))
         {
-            string prefix = path + "/";
+            string prefix = path.EndsWith(AssetPaths.PluginSeparator) ? path : path + "/";
             int count = _shell.Database?.Assets.Count(asset => asset.Path.StartsWith(prefix, StringComparison.Ordinal)) ?? 0;
-            return (name + "/", $"{FolderOf(path)}folder, {count} {(count == 1 ? "asset" : "assets")}");
+            return (name.EndsWith(AssetPaths.PluginSeparator) ? name : name + "/", $"{FolderOf(path)}folder, {count} {(count == 1 ? "asset" : "assets")}");
         }
         return _shell.Database?.Find(path) is not null ? (name, FolderOf(path)) : (name, null);
     }

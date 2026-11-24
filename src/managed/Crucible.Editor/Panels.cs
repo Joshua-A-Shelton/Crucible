@@ -61,7 +61,7 @@ public sealed class PanelRegistry
 
     public bool Contains(string id) => _panels.Exists(panel => panel.Id == id);
 
-    /// <summary>Forgets a panel (a plugin's, as its code reloads); open ones stay open.</summary>
+    /// <summary>Forgets a panel (an extension's, as its code reloads); open ones stay open.</summary>
     internal bool Unregister(string id) => _panels.RemoveAll(panel => panel.Id == id) > 0;
 
     /// <summary>A registered panel's title; null for one not registered.</summary>

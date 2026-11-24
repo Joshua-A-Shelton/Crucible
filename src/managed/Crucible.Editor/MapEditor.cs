@@ -156,7 +156,7 @@ internal sealed class MapEditor
     }
 
     private string? FileOf(AssetId id) =>
-        _shell.Project is { } project && _shell.Database?.Find(id) is { } entry ? Path.Combine(project.AssetsFolder, entry.Path) : null;
+        _shell.Project is { } project && _shell.Database?.Find(id) is { } entry ? project.FileOf(entry.Path) : null;
 
     /// <summary>The map's file and its tilesets read again; false (said) if the map can't be read.</summary>
     public bool Read()
@@ -733,7 +733,7 @@ internal sealed class MapEditor
     // The .crtilemap written, and imported at once so the map and its collision follow.
     private void Write(string text)
     {
-        if (FileOf(Map) is not { } file)
+        if (FileOf(Map) is not { } file || !_shell.CanChangeFile(file))
         {
             return;
         }

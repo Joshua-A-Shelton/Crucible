@@ -11,7 +11,7 @@ namespace Crucible.Editor;
 /// The public editor API checking itself (ADR 0117), for CTest's
 /// launcher.jit.editor-api: run with the Walker's project and
 /// <c>--game-arg check-editor-api=&lt;folder&gt;</c>. On a copy of the
-/// project, a plugin in Code/Editor, changed version by version: its
+/// project, an extension in Code/Editor, changed version by version: its
 /// panel, commands, and menus; a component edit, a file write, and a step
 /// of its own, each undoable; its panel's state across reloads and in the
 /// layout; and nothing of an old version left to keep it loaded.
@@ -68,23 +68,23 @@ internal sealed class EditorApiChecks : GameSystem
         Shell shell = Shell.Current ?? throw new InvalidOperationException("No editor shell");
         shell.Logged += _logged.Add;
         string copy = Path.Combine(Path.GetFullPath(_folder), "editor-api-project");
-        AssetChecks.OpenCopy(shell, copy, Path.Combine("Assets", "Scenes", "Walk.crscene"));
+        AssetChecks.OpenCopy(shell, copy, Path.Combine("Assets", "Scenes", "Walk.crscene"), withoutEditorCode: true);
         shell.RestoreLayout(null);
         yield return 3;
         Project project = shell.Project!;
         string editorFolder = Path.Combine(project.CodeFolder, "Editor");
         Directory.CreateDirectory(editorFolder);
-        string plugin = Path.Combine(editorFolder, "WalkerPlugin.cs");
+        string toolsFile = Path.Combine(editorFolder, "WalkerTools.cs");
         MenuBar bar = shell.Main.MenuBar;
         Menu edit = bar.Menus.First(menu => menu.Title == "Edit");
         Menu window = bar.Menus.First(menu => menu.Title == "Window");
         int editItems = edit.Items.Count, windowItems = window.Items.Count, menus = bar.Menus.Count;
 
         // Started: its panel, commands, and menus.
-        File.WriteAllText(plugin, Plugin(1, panel: true));
+        File.WriteAllText(toolsFile, Tools(1, panel: true));
         _logged.Clear();
-        Check(shell.BuildCode(), "the project builds with a plugin", Logged());
-        Check(shell.Plugins.Count() == 1, "the plugin starts");
+        Check(shell.BuildCode(), "the project builds with an extension", Logged());
+        Check(shell.Extensions.Count() == 1, "the extension starts");
         Menu? tools = bar.Menus.FirstOrDefault(menu => menu.Title == "Tools");
         Check(tools is not null && IndexOf(bar, tools) == IndexOf(bar, window) - 1, "a Tools menu, before Window");
         Menu? walker = tools?.Items.OfType<MenuItem>().FirstOrDefault(item => item.Title == "Walker")?.Submenu;
@@ -106,7 +106,7 @@ internal sealed class EditorApiChecks : GameSystem
         Run(shell, "Walker.Click");
         _logged.Clear();
         Run(shell, "Walker.Boom");
-        Check(_logged.Contains("Walker.Tools.WalkerPlugin: Walker.Boom failed: InvalidOperationException: boom"),
+        Check(_logged.Contains("Walker.Tools.WalkerTools: Walker.Boom failed: InvalidOperationException: boom"),
             "a command that throws is logged, and the editor goes on", Logged());
 
         // A component edit, as an undo step.
@@ -120,7 +120,7 @@ internal sealed class EditorApiChecks : GameSystem
         Check(Y(shell, entity) == 1, "and redone");
 
         // A file written, as an undo step.
-        string note = Path.Combine(project.AssetsFolder, "Notes", "Plugin.txt");
+        string note = Path.Combine(project.AssetsFolder, "Notes", "Extension.txt");
         Run(shell, "Walker.Note");
         Check(File.Exists(note) && File.ReadAllText(note) == "v1" && shell.History.NextUndo?.Title == "Write Note",
             "a file written, one undo step");
@@ -136,23 +136,23 @@ internal sealed class EditorApiChecks : GameSystem
 
         // A step of its own: dropped with its code.
         Run(shell, "Walker.Step");
-        Check(shell.History.NextUndo?.Title == "Plugin Step", "a step of its own");
+        Check(shell.History.NextUndo?.Title == "Extension Step", "a step of its own");
         yield return 2;
 
         // Reloaded: everything again, once, and the panel in its place with its state.
         WeakReference first = EditorAssembly(shell);
-        File.WriteAllText(plugin, Plugin(2, panel: true));
+        File.WriteAllText(toolsFile, Tools(2, panel: true));
         _logged.Clear();
-        Check(shell.BuildCode(), "a changed plugin builds", Logged());
+        Check(shell.BuildCode(), "a changed extension builds", Logged());
         Check(!_logged.Any(line => line.Contains("didn't unload", StringComparison.Ordinal)) && Collected(first),
-            "the old plugin unloads", Logged());
-        Check(_logged.Any(line => line.StartsWith("Undo can't go back past \"Plugin Step\": its step came from the editor code just reloaded (", StringComparison.Ordinal)),
+            "the old extension unloads", Logged());
+        Check(_logged.Any(line => line.StartsWith("Undo can't go back past \"Extension Step\": its step came from the editor code just reloaded (", StringComparison.Ordinal)),
             "its step dropped, and the steps before it", Logged());
         Check(shell.History.UndoCount == 0, "nothing left to undo past it");
         // The old submenu went with the old version; the new one is made again.
         walker = bar.Menus.FirstOrDefault(menu => menu.Title == "Tools")?.Items.OfType<MenuItem>()
             .FirstOrDefault(item => item.Title == "Walker")?.Submenu;
-        Check(shell.Plugins.Count() == 1 && walker?.Items.Count == 6 && window.Items.Count == windowItems + 2 &&
+        Check(shell.Extensions.Count() == 1 && walker?.Items.Count == 6 && window.Items.Count == windowItems + 2 &&
               edit.Items.Count == editItems + 2 && bar.Menus.Count == menus + 1,
             "its commands and menus once, not twice");
         Check(!stats.IsAlive && Locate(shell, "Walker.Stats") is ({ } again, int at, { IsAlive: true }) && again == group && at == tab,
@@ -166,15 +166,15 @@ internal sealed class EditorApiChecks : GameSystem
         // The layout keeps its state, and a placeholder until its code is there.
         JsonObject layout = shell.SaveLayout();
         Check(layout["PanelStates"]?["Walker.Stats"]?["Values"]?["Clicks"]?.GetValue<double>() == 2 &&
-              layout["PanelStates"]?["Walker.Stats"]?["Plugin"]?.GetValue<bool>() == true,
+              layout["PanelStates"]?["Walker.Stats"]?["Extension"]?.GetValue<bool>() == true,
             "the layout saves its state", layout["PanelStates"]?.ToJsonString());
-        File.WriteAllText(plugin, Plugin(3, panel: false));
+        File.WriteAllText(toolsFile, Tools(3, panel: false));
         Check(shell.BuildCode(), "a version without the panel builds");
         Check(OpenPanel(shell, "Walker.Stats") is null && window.Items.Count == windowItems,
             "its panel closes, and leaves the Window menu as it was");
         shell.RestoreLayout(layout);
         Check(OpenPanel(shell, "Walker.Stats") is PendingPanel, "restored without its code: a placeholder");
-        File.WriteAllText(plugin, Plugin(4, panel: true));
+        File.WriteAllText(toolsFile, Tools(4, panel: true));
         Check(shell.BuildCode(), "the panel back");
         _logged.Clear();
         Run(shell, "Walker.Report");
@@ -182,16 +182,16 @@ internal sealed class EditorApiChecks : GameSystem
             "made from the placeholder, with the layout's state", Logged());
 
         // Gone: nothing of it left.
-        File.Delete(plugin);
+        File.Delete(toolsFile);
         Check(shell.BuildCode(), "the project builds without its editor code");
-        Check(!shell.Plugins.Any() && OpenPanel(shell, "Walker.Stats") is null && bar.Menus.Count == menus &&
+        Check(!shell.Extensions.Any() && OpenPanel(shell, "Walker.Stats") is null && bar.Menus.Count == menus &&
               edit.Items.Count == editItems && window.Items.Count == windowItems && shell.Commands.Find("Walker.Click") is null,
-            "the plugin, its panel, commands, and menus gone");
+            "the extension, its panel, commands, and menus gone");
         shell.Logged -= _logged.Add;
     }
 
-    // Version `version` of the plugin; with or without its panel.
-    private static string Plugin(int version, bool panel) => $$"""
+    // Version `version` of the extension; with or without its panel.
+    private static string Tools(int version, bool panel) => $$"""
         using Crucible.Ecs;
         using Crucible.Editor;
         using Crucible.Platform;
@@ -212,14 +212,14 @@ internal sealed class EditorApiChecks : GameSystem
             public override void LoadState(PanelState state) => Clicks = (int)state.GetNumber("Clicks");
         }
 
-        public sealed class PluginStep() : UndoStep("Plugin Step")
+        public sealed class ExtensionStep() : UndoStep("Extension Step")
         {
             public override bool ChangesScene => false;
             public override void Undo(World world) { }
             public override void Redo(World world) { }
         }
 
-        public sealed class WalkerPlugin : EditorPlugin
+        public sealed class WalkerTools : EditorExtension
         {
             public override void Start(EditorContext editor)
             {
@@ -227,8 +227,8 @@ internal sealed class EditorApiChecks : GameSystem
                 editor.Commands.Add(new Command("Walker.Click", "Click", () => { if (StatsPanel.Shown is { } shown) { shown.Clicks++; } }), "Tools/Walker");
                 editor.Commands.Add(new Command("Walker.Report", "Report", () => editor.Log($"v{{version}} clicks {StatsPanel.Shown?.Clicks}")), "Tools/Walker");
                 editor.Commands.Add(new Command("Walker.Save", "Save", () => { }) { Shortcut = new Shortcut(KeyModifiers.Ctrl, Keycode.S) }, "Tools/Walker");
-                editor.Commands.Add(new Command("Walker.Note", "Note", () => editor.Assets.WriteText("Notes/Plugin.txt", "v{{version}}", "Write Note")), "Tools/Walker");
-                editor.Commands.Add(new Command("Walker.Step", "Step", () => editor.Undo.Push(new PluginStep())), "Tools/Walker");
+                editor.Commands.Add(new Command("Walker.Note", "Note", () => editor.Assets.WriteText("Notes/Extension.txt", "v{{version}}", "Write Note")), "Tools/Walker");
+                editor.Commands.Add(new Command("Walker.Step", "Step", () => editor.Undo.Push(new ExtensionStep())), "Tools/Walker");
                 editor.Commands.Add(new Command("Walker.Boom", "Boom", () => throw new System.InvalidOperationException("boom")), "Tools/Walker");
                 editor.Commands.Add(new Command("Walker.Escape", "Escape", () => editor.Assets.WriteText("../Outside.txt", "out", "Escape")), null);
                 editor.Commands.Add(new Command("Walker.Raise", "Raise", () =>

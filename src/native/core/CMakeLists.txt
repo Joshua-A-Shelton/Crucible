@@ -8,6 +8,8 @@ crucible_set_compile_options(crucible_core_objects)
 # crucible/Version.h is generated from the project version.
 set(CRUCIBLE_GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
 configure_file("${PROJECT_SOURCE_DIR}/cmake/Version.h.in" "${CRUCIBLE_GENERATED_INCLUDE_DIR}/crucible/Version.h" @ONLY)
+# And the engine's CrucibleVersion (ADR 0118), which compiled plugins are checked against.
+configure_file("${PROJECT_SOURCE_DIR}/cmake/CrucibleVersion.g.cs.in" "${CRUCIBLE_GENERATED_DIR}/managed/CrucibleVersion.g.cs" @ONLY)
 
 target_include_directories(crucible_core_objects PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"

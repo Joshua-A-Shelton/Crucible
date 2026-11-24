@@ -27,7 +27,7 @@ public sealed class Selection
 
     public event Action<Selection>? Changed;
 
-    /// <summary>Takes out handlers a plugin's unloading code added (ADR 0117).</summary>
+    /// <summary>Takes out handlers an extension's unloading code added (ADR 0117).</summary>
     internal void RemoveHandlers(Func<Delegate, bool> remove)
     {
         foreach (Delegate handler in Changed?.GetInvocationList() ?? [])

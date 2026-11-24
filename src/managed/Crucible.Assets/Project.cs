@@ -120,6 +120,65 @@ public sealed class Project
     public string PluginsFolder => Path.Combine(Root, "Plugins");
     public string CacheFolder => Path.Combine(Root, "Cache");
 
+    /// <summary>
+    /// The plugins in <c>Plugins/</c> that can be used (ADR 0118), in the order
+    /// they load; read when the project opens, and by <see cref="RefreshPlugins"/>.
+    /// </summary>
+    public IReadOnlyList<Plugin> Plugins { get; private set; } = [];
+
+    /// <summary>Why plugins in <c>Plugins/</c> were left out, for the editor to show.</summary>
+    public IReadOnlyList<string> PluginProblems { get; private set; } = [];
+
+    /// <summary>Reads <c>Plugins/</c> again.</summary>
+    public void RefreshPlugins() =>
+        (Plugins, PluginProblems) = ProjectPlugins.Read(PluginsFolder, reserved: Name);
+
+    /// <summary>A plugin by name, if it's one that can be used.</summary>
+    public Plugin? PluginNamed(string name) => Plugins.FirstOrDefault(plugin => plugin.Name == name);
+
+    /// <summary>
+    /// The file or folder an asset path names (ADR 0118): under <c>Assets/</c>
+    /// for the game's ("Models/Walker.gltf", "" for the folder itself), under
+    /// a plugin's <c>Assets/</c> for one of its ("Dialogue:Icons/Talk.png",
+    /// "Dialogue:" for the folder).
+    /// </summary>
+    public string FileOf(string assetPath)
+    {
+        string root = AssetPaths.PluginOf(assetPath) is { } plugin
+            ? Path.Combine(PluginsFolder, plugin, "Assets")
+            : AssetsFolder;
+        string within = AssetPaths.WithinRoot(assetPath);
+        return within.Length == 0 ? root : Path.Combine(root, within.Replace('/', Path.DirectorySeparatorChar));
+    }
+
+    /// <summary>The asset path of a file under <c>Assets/</c> or a plugin's, or null for one in neither.</summary>
+    public string? AssetPathOf(string fullPath)
+    {
+        string file = Path.GetFullPath(fullPath);
+        StringComparison comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        foreach ((string root, string prefix) in AssetRoots())
+        {
+            string folder = Path.GetFullPath(root);
+            if (file.Equals(folder, comparison))
+            {
+                return prefix;
+            }
+            if (file.StartsWith(folder + Path.DirectorySeparatorChar, comparison))
+            {
+                return prefix + Path.GetRelativePath(folder, file).Replace('\\', '/');
+            }
+        }
+        return null;
+    }
+
+    /// <summary>The folders assets are in, with their paths' roots: Assets ("") and each plugin's ("Dialogue:").</summary>
+    public IEnumerable<(string Folder, string Root)> AssetRoots() =>
+        [(AssetsFolder, ""), .. Plugins.Select(plugin => (plugin.AssetsFolder, plugin.AssetRoot))];
+
+    /// <summary>Whether an asset path is in a compiled plugin, whose assets the editor doesn't change (ADR 0118).</summary>
+    public bool IsReadOnly(string assetPath) =>
+        AssetPaths.PluginOf(assetPath) is { } name && PluginNamed(name) is { IsCompiled: true };
+
     public static Project Open(string projectFile)
     {
         ProjectFile file = Json.Deserialize<ProjectFile>(File.ReadAllBytes(projectFile));
@@ -127,6 +186,7 @@ public sealed class Project
             [.. file.SortingLayers.Take(32)]);
         Directory.CreateDirectory(project.AssetsFolder);
         Directory.CreateDirectory(project.CacheFolder);
+        project.RefreshPlugins();
         return project;
     }
 

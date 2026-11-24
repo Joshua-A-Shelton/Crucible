@@ -1,609 +1,226 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.Loader;
-using System.Text.Json;
-using System.Text.Json.Nodes;
-using Crucible.Ecs;
+using Crucible.Assets;
+using Crucible.Hosting;
 using Crucible.UI;
 
 namespace Crucible.Editor;
 
 /// <summary>
-/// Plugins (ADR 0117): the project's editor assembly's
-/// <see cref="EditorPlugin"/>s started after each load and stopped before
-/// the next, their panels made again in place with their state, their
-/// commands in the menus.
+/// Plugins (ADR 0118): what's wrong with the project's, its compiled ones
+/// loaded once (their extensions started) and kept across the game's
+/// reloads, compiled plugins' assets kept as they are, and Build Plugin.
+/// Source plugins build and reload with the game (GameBuilder, Shell.Play).
 /// </summary>
 internal sealed partial class Shell
 {
-    private readonly List<(EditorPlugin Plugin, EditorContext Context)> _plugins = [];
-    // The panels plugins registered, by ID.
-    private readonly HashSet<string> _pluginPanels = new(StringComparer.Ordinal);
-    // Menus plugins added to: the separator before their items in a menu of
-    // the editor's own, and how many there are.
-    private readonly Dictionary<Menu, (MenuSeparator? Separator, int Items)> _pluginSections = [];
-    private Menu? _windowMenu;
-    // While a layout is restored: its panels' saved states.
-    private JsonObject? _layoutStates;
+    private LoadedPlugins? _compiledPlugins;
+    // The compiled plugins as loaded: names and their assemblies' hashes, to
+    // tell when Plugins/ changed under them.
+    private string _compiledLoaded = "";
+    private AssetWatcher? _pluginsWatcher;
+    // The plugin File > Build Plugin… is choosing a folder for.
+    private Plugin? _buildingPlugin;
 
-    /// <summary>The plugins running now, for the checks.</summary>
-    internal IEnumerable<EditorPlugin> Plugins => _plugins.Select(plugin => plugin.Plugin);
+    /// <summary>The compiled plugins loaded now, for the game's context and theirs to share (Dependencies).</summary>
+    internal static LoadedPlugins? CompiledPlugins { get; private set; }
 
-    /// <summary>An error in the Log, marked and coloured as the core's are.</summary>
-    public void LogError(string message)
+    /// <summary>
+    /// Whether the editor may change an asset path (ADR 0118): not in a
+    /// compiled plugin, whose assets are as it was built with; says so if not.
+    /// </summary>
+    public bool CanChange(string assetPath)
     {
-        Console.WriteLine($"Crucible.Editor: Error: {message}");
-        LogPanel?.Add($"Error: {message}", "log-error");
-        Logged?.Invoke(message);
-        Main.StatusBar.Text = $"Error: {message}";
-    }
-
-    /// <summary>Opens a registered panel, or shows it if it's open; false for one not registered.</summary>
-    public bool OpenPanel(string id)
-    {
-        if (_open.TryGetValue(id, out EditorPanel? open))
+        if (Project is not { } project || !project.IsReadOnly(assetPath))
         {
-            open.Group?.Activate(open);
             return true;
         }
-        if (!Panels.Contains(id) || Panel(id) is not { } made)
-        {
-            return false;
-        }
-        Main.DockSpace.Dock(made, null, DockTarget.Center);
-        return true;
+        LogWarning($"{AssetPaths.PluginOf(assetPath)} is a compiled plugin; its assets can't be changed here");
+        return false;
     }
 
-    public void ClosePanel(string id)
-    {
-        if (_open.TryGetValue(id, out EditorPanel? panel))
-        {
-            ClosePanel(panel);
-        }
-    }
+    /// <summary>As <see cref="CanChange"/>, for a file by its full path.</summary>
+    public bool CanChangeFile(string file) => Project?.AssetPathOf(file) is not { } path || CanChange(path);
 
-    // -----------------------------------------------------------------------
-    // Starting and stopping
-    // -----------------------------------------------------------------------
-
+    // Opening a project: what's wrong with its plugins, and its compiled ones loaded.
     [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = JitOnly)]
-    [UnconditionalSuppressMessage("Trimming", "IL2072", Justification = JitOnly)]
-    private void StartPlugins()
+    private void OpenProjectPlugins(Project project)
     {
-        if (_game?.EditorAssembly is { } assembly)
+        ClosePlugins();
+        foreach (string problem in project.PluginProblems)
         {
-            foreach (Type type in PluginTypes(assembly))
+            LogWarning(problem);
+        }
+        if (project.Plugins.Count > 0)
+        {
+            Log("Plugins: " + string.Join(", ", project.Plugins.Select(plugin =>
+                $"{plugin.Name}{(plugin.Manifest.Version.Length > 0 ? " " + plugin.Manifest.Version : "")} ({(plugin.IsCompiled ? "compiled" : "source")})")));
+        }
+        Plugin[] compiled = [.. project.Plugins.Where(plugin => plugin.IsCompiled && plugin.HasCode)];
+        _compiledLoaded = CompiledSignature(project);
+        if (compiled.Length > 0)
+        {
+            try
             {
-                string name = type.FullName ?? type.Name;
-                EditorPlugin plugin;
-                try
-                {
-                    plugin = (EditorPlugin)Activator.CreateInstance(type)!;
-                }
-                catch (Exception exception) when (exception is MissingMethodException or MemberAccessException or TargetInvocationException)
-                {
-                    LogError($"Can't make {name}: {Message(exception)}");
-                    continue;
-                }
-                EditorContext context = new(this, name);
-                _plugins.Add((plugin, context));
-                Guard(context, "Start", () => plugin.Start(context));
+                _compiledPlugins = GameLoader.LoadPlugins([.. compiled.Select(plugin =>
+                    (plugin.Assembly, File.Exists(plugin.EditorAssembly) ? plugin.EditorAssembly : null))]);
+                CompiledPlugins = _compiledPlugins;
+            }
+            catch (Exception exception) when (exception is IOException or BadImageFormatException or FileLoadException)
+            {
+                LogError($"The compiled plugins can't be loaded: {exception.Message}");
+            }
+            foreach (Assembly assembly in _compiledPlugins?.EditorAssemblies ?? [])
+            {
+                StartExtensions(assembly, kept: true);
             }
         }
-        ResolvePending();
+        _pluginsWatcher?.Dispose();
+        _pluginsWatcher = null;
+        if (Directory.Exists(project.PluginsFolder))
+        {
+            try
+            {
+                _pluginsWatcher = new AssetWatcher(project.PluginsFolder);
+            }
+            catch (Exception exception) when (exception is IOException or ArgumentException or PlatformNotSupportedException)
+            {
+                Log($"Can't watch {project.PluginsFolder} for changes: {exception.Message}");
+            }
+        }
     }
 
-    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = JitOnly)]
-    private static IEnumerable<Type> PluginTypes(Assembly assembly)
+    // Closing a project (or opening another): its compiled plugins'
+    // extensions stopped and the plugins unloaded.
+    private void ClosePlugins()
     {
-        Type?[] types;
-        try
+        StopExtensions(keepPanels: false, all: true);
+        _pluginsWatcher?.Dispose();
+        _pluginsWatcher = null;
+        if (_compiledPlugins is not { } loaded)
         {
-            types = assembly.GetTypes();
+            return;
         }
-        catch (ReflectionTypeLoadException exception)
+        if (loaded.Assemblies.FirstOrDefault() is { } any && AssemblyLoadContext.GetLoadContext(any) is { } context)
         {
-            types = exception.Types;
+            Forget(context);
         }
-        return types.OfType<Type>()
-            .Where(type => type is { IsClass: true, IsAbstract: false } && type.IsSubclassOf(typeof(EditorPlugin)))
-            .OrderBy(type => type.FullName, StringComparer.Ordinal);
+        _compiledPlugins = null;
+        CompiledPlugins = null;
+        WeakReference unloaded = loaded.Unload();
+        // A game still loaded (another project's, until this one's replaces
+        // it) holds them until then.
+        if (_game is null && !GameLoader.WaitForUnload(unloaded))
+        {
+            Log("The compiled plugins didn't unload: something still holds on to them");
+        }
+    }
+
+    // Each frame: a change in Plugins/ reads them again. A source plugin's
+    // code and assets follow (a build, a rescan); compiled plugins changed
+    // need the project opened again, as they load once.
+    private void PollPlugins()
+    {
+        if (_pluginsWatcher is null || !_pluginsWatcher.TakeSettled(out _, out _) || Project is not { } project)
+        {
+            return;
+        }
+        string[] before = [.. project.PluginProblems];
+        project.RefreshPlugins();
+        foreach (string problem in project.PluginProblems.Except(before))
+        {
+            LogWarning(problem);
+        }
+        if (CompiledSignature(project) != _compiledLoaded)
+        {
+            LogWarning("The compiled plugins changed: open the project again to load them");
+        }
+        RefreshAssets();
+        if (_builder is { HasCode: true } builder && builder.Start())
+        {
+            Status($"Building {builder.AssemblyName}…");
+        }
+    }
+
+    private static string CompiledSignature(Project project) =>
+        string.Join("\n", project.Plugins.Where(plugin => plugin.IsCompiled).Select(plugin =>
+            $"{plugin.Name} {(File.Exists(plugin.Assembly) ? ContentHash.OfFile(plugin.Assembly) : "")} " +
+            (File.Exists(plugin.EditorAssembly) ? ContentHash.OfFile(plugin.EditorAssembly) : "")));
+
+    // -----------------------------------------------------------------------
+    // Build Plugin
+    // -----------------------------------------------------------------------
+
+    private void RegisterPluginCommands()
+    {
+        Commands.Add(new Command("File.BuildPlugin", "Build Plugin…", ChooseBuiltPlugin,
+            () => Project?.Plugins.Any(plugin => !plugin.IsCompiled) == true && !(_builder?.IsBuilding ?? false)));
+    }
+
+    // Which source plugin, if there's more than one; then where.
+    private void ChooseBuiltPlugin()
+    {
+        Plugin[] sources = [.. Project?.Plugins.Where(plugin => !plugin.IsCompiled) ?? []];
+        if (sources.Length == 1)
+        {
+            ChoosePluginFolder(sources[0]);
+            return;
+        }
+        if (sources.Length > 1)
+        {
+            AskDrop("Which plugin?", [.. sources.Select(plugin => plugin.Name)], 0, offerRest: false,
+                (choice, _) =>
+                {
+                    if (choice >= 0 && choice < sources.Length)
+                    {
+                        ChoosePluginFolder(sources[choice]);
+                    }
+                });
+        }
+    }
+
+    private void ChoosePluginFolder(Plugin plugin)
+    {
+        _buildingPlugin = plugin;
+        Platform.Api.ShowOpenFolderDialog(Main.Window, Project?.Root ?? "");
+    }
+
+    // The folder dialog's answer: the plugin built into it, or nothing if cancelled.
+    private void PluginFolderChosen(string? folder)
+    {
+        Plugin? plugin = _buildingPlugin;
+        _buildingPlugin = null;
+        if (plugin is not null && folder is not null)
+        {
+            BuildPlugin(plugin, folder);
+        }
     }
 
     /// <summary>
-    /// Stops the plugins and takes out what they added. Their open panels
-    /// become placeholders holding their state (<paramref name="keepPanels"/>,
-    /// a reload) or close (another project). Then nothing of the old code is
-    /// left for it to unload: the handlers it added to the selection and the
-    /// history, and undo steps of its own types, the history cut after the
-    /// newest of them.
+    /// Builds a source plugin into <c>&lt;folder&gt;/&lt;Name&gt;</c> (ADR 0118), ready for
+    /// another game's Plugins/: its assemblies, its assets, and its manifest
+    /// stamped with this Crucible's version. Waits for the build.
     /// </summary>
-    private void StopPlugins(bool keepPanels)
+    public bool BuildPlugin(Plugin plugin, string folder)
     {
-        if (_plugins.Count == 0)
+        if (_builder is not { } builder)
         {
-            return;
-        }
-        for (int i = _plugins.Count - 1; i >= 0; --i)
-        {
-            (EditorPlugin plugin, EditorContext context) = _plugins[i];
-            Guard(context, "Stop", plugin.Stop);
-        }
-        foreach (string id in _pluginPanels)
-        {
-            if (_open.TryGetValue(id, out EditorPanel? panel) && panel is not PendingPanel)
-            {
-                if (keepPanels)
-                {
-                    Replace(panel, new PendingPanel(id, panel.Title, StateOf(panel)));
-                }
-                else
-                {
-                    ClosePanel(panel);
-                }
-            }
-            Panels.Unregister(id);
-        }
-        _pluginPanels.Clear();
-        for (int i = _plugins.Count - 1; i >= 0; --i)
-        {
-            _plugins[i].Context.Cleanup();
-        }
-        _plugins.Clear();
-        if (_game?.EditorAssembly is { } assembly && AssemblyLoadContext.GetLoadContext(assembly) is { } old)
-        {
-            Forget(old);
-        }
-    }
-
-    private void Forget(AssemblyLoadContext old)
-    {
-        bool Old(Type? type) => type is not null && AssemblyLoadContext.GetLoadContext(type.Assembly) == old;
-        bool OldHandler(Delegate handler) => Old(handler.Method.DeclaringType) || Old(handler.Target?.GetType());
-        Selection.RemoveHandlers(OldHandler);
-        History.RemoveHandlers(OldHandler);
-        (int dropped, string? title) = History.DropSteps(step => Old(step.GetType()));
-        if (_historyAtPlay is { } atPlay)
-        {
-            _historyAtPlay = UndoHistory.DropSteps(atPlay, step => Old(step.GetType()));
-        }
-        if (dropped > 0)
-        {
-            LogWarning($"Undo can't go back past \"{title}\": its step came from the editor code just reloaded ({dropped} steps dropped)");
-        }
-    }
-
-    // Placeholders whose panels are registered now are made again, with
-    // their state; the rest close (a plugin that no longer has them).
-    private void ResolvePending()
-    {
-        foreach (EditorPanel panel in _open.Values.ToArray())
-        {
-            if (panel is not PendingPanel pending)
-            {
-                continue;
-            }
-            if (!Panels.Contains(pending.Id) || Panels.Create(pending.Id) is not { } made)
-            {
-                ClosePanel(pending);
-                continue;
-            }
-            Replace(pending, made);
-            if (pending.Saved is { IsEmpty: false } state)
-            {
-                LoadStateOf(made, state);
-            }
-        }
-    }
-
-    // One panel for another in the same place: its group, its tab's index,
-    // and shown if it was.
-    private void Replace(EditorPanel old, EditorPanel made)
-    {
-        _open[old.Id] = made;
-        if (old.Group is not { } group)
-        {
-            return;
-        }
-        int at = 0;
-        while (at < group.Panels.Count && group.Panels[at] != old)
-        {
-            ++at;
-        }
-        EditorPanel? shown = group.ActivePanel;
-        group.Add(made, at);
-        group.Remove(old);
-        group.Activate(shown == old ? made : shown ?? made);
-    }
-
-    private PanelState StateOf(EditorPanel panel)
-    {
-        if (panel is PendingPanel pending)
-        {
-            return pending.Saved ?? new PanelState();
-        }
-        PanelState state = new();
-        try
-        {
-            panel.SaveState(state);
-        }
-        catch (Exception exception)
-        {
-            LogError($"The {panel.Title} panel's state can't be saved: {Message(exception)}");
-        }
-        return state;
-    }
-
-    private void LoadStateOf(EditorPanel panel, PanelState state)
-    {
-        try
-        {
-            panel.LoadState(state);
-        }
-        catch (Exception exception)
-        {
-            LogError($"The {panel.Title} panel's state can't be loaded: {Message(exception)}");
-        }
-    }
-
-    // The layout's panel states (ADR 0117): those with any, and every
-    // plugin's panel, so a placeholder can stand in for it until its code
-    // has loaded.
-    private JsonObject SavePanelStates()
-    {
-        JsonObject states = [];
-        foreach ((string id, EditorPanel panel) in _open)
-        {
-            bool plugin = panel is PendingPanel || _pluginPanels.Contains(id);
-            PanelState state = StateOf(panel);
-            if (plugin || !state.IsEmpty)
-            {
-                states[id] = new JsonObject
-                {
-                    ["Title"] = panel.Title,
-                    ["Plugin"] = plugin,
-                    ["Values"] = state.ToJson(),
-                };
-            }
-        }
-        return states;
-    }
-
-    // A panel the restored layout names: made, with its saved state; a
-    // plugin's not registered yet, a placeholder; null for neither.
-    private EditorPanel? RestorePanel(string id)
-    {
-        JsonObject? saved = _layoutStates?[id] as JsonObject;
-        PanelState? state = saved?["Values"] is JsonObject values ? new PanelState(values) : null;
-        if (Panel(id) is { } panel)
-        {
-            if (state is { IsEmpty: false } && panel is not PendingPanel)
-            {
-                LoadStateOf(panel, state);
-            }
-            return panel;
-        }
-        if (saved?["Plugin"]?.GetValueKind() != JsonValueKind.True)
-        {
-            return null;
-        }
-        string title = saved["Title"]?.GetValueKind() == JsonValueKind.String ? saved["Title"]!.GetValue<string>() : id;
-        PendingPanel pending = new(id, title, state);
-        _open[id] = pending;
-        return pending;
-    }
-
-    // -----------------------------------------------------------------------
-    // What plugins add
-    // -----------------------------------------------------------------------
-
-    internal bool AddPluginPanel(EditorContext context, string id, string title, Func<EditorPanel> create)
-    {
-        if (Panels.Contains(id))
-        {
-            LogWarning($"{context.Plugin}: a panel \"{id}\" is already registered");
             return false;
         }
-        Panels.Register(id, title, () => MakePluginPanel(context, id, title, create));
-        _pluginPanels.Add(id);
-        string commandId = $"Window.{id}";
-        if (Commands.Find(commandId) is null)
+        Log($"Building the plugin {plugin.Name}…");
+        PluginBuild built = builder.BuildPlugin(plugin, folder);
+        if (!built.Succeeded)
         {
-            Command toggle = Commands.Add(new Command(commandId, title, () => TogglePanel(id))
+            foreach (BuildError error in built.Errors)
             {
-                IsChecked = () => _open.ContainsKey(id),
-            });
-            context.OnStop(() => Commands.Remove(toggle.Id));
-            if (_windowMenu is { } window)
-            {
-                MenuItem item = new(toggle);
-                Place(window, item);
-                context.OnStop(() => Unplace(window, item));
+                LogError($"Build Plugin: {Relative(error)}");
             }
+            Status($"{plugin.Name} didn't build");
+            return false;
         }
+        Log($"Built {plugin.Name} into {built.Folder}");
+        Status($"Built {plugin.Name}");
         return true;
     }
-
-    private EditorPanel MakePluginPanel(EditorContext context, string id, string title, Func<EditorPanel> create)
-    {
-        EditorPanel? made;
-        try
-        {
-            made = create();
-        }
-        catch (Exception exception)
-        {
-            LogError($"{context.Plugin}: the {title} panel can't be made: {Message(exception)}");
-            return new PendingPanel(id, title, null, $"{title} couldn't be made: {Message(exception)}");
-        }
-        if (made is null || made.Id != id)
-        {
-            LogError($"{context.Plugin}: the {title} panel was made with the ID \"{made?.Id}\", not \"{id}\"");
-            return new PendingPanel(id, title, null, $"{title} couldn't be made.");
-        }
-        return made;
-    }
-
-    internal bool AddPluginCommand(EditorContext context, Command command, string? menu)
-    {
-        if (Commands.Find(command.Id) is not null)
-        {
-            LogWarning($"{context.Plugin}: a command \"{command.Id}\" is already registered");
-            return false;
-        }
-        Shortcut? shortcut = command.Shortcut;
-        if (shortcut is { } wanted && Commands.Commands.FirstOrDefault(other => other.Shortcut == wanted) is { } taken)
-        {
-            LogWarning($"{command.Id} wants {wanted}, already used by {taken.Id}; it has no shortcut");
-            shortcut = null;
-        }
-        // The plugin's code runs guarded: an exception is logged, not the editor's end.
-        Func<bool>? isChecked = command.IsChecked;
-        Func<string>? currentTitle = command.CurrentTitle;
-        Command wrapped = Commands.Add(new Command(command.Id, command.Title,
-            () => Guard(context, command.Id, () => command.Execute()),
-            () => Guard(context, command.Id, () => command.CanExecute, false))
-        {
-            Shortcut = shortcut,
-            IsChecked = isChecked is null ? null : () => Guard(context, command.Id, isChecked, false),
-            CurrentTitle = currentTitle is null ? null : () => Guard(context, command.Id, currentTitle, command.Title),
-        });
-        context.OnStop(() => Commands.Remove(wrapped.Id));
-        if (menu is not null && MenuAt(context, menu) is { } target)
-        {
-            MenuItem item = new(wrapped);
-            Place(target, item);
-            context.OnStop(() => Unplace(target, item));
-        }
-        return true;
-    }
-
-    // The menu a path names ("Tools/Walker"), made as needed: a top-level
-    // menu before Window, submenus as items. Null for an empty path.
-    private Menu? MenuAt(EditorContext context, string path)
-    {
-        string[] parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length == 0)
-        {
-            return null;
-        }
-        MenuBar bar = Main.MenuBar;
-        Menu? menu = bar.Menus.FirstOrDefault(menu => menu.Title == parts[0]);
-        if (menu is null)
-        {
-            Menu made = new(parts[0]);
-            int window = _windowMenu is null ? -1 : IndexOf(bar.Menus, _windowMenu);
-            bar.Insert(window < 0 ? bar.Menus.Count : window, made);
-            context.OnStop(() =>
-            {
-                if (made.Items.Count == 0)
-                {
-                    bar.Remove(made);
-                }
-            });
-            menu = made;
-        }
-        foreach (string part in parts.Skip(1))
-        {
-            if (menu.Items.OfType<MenuItem>().FirstOrDefault(item => item.Submenu is not null && item.Title == part) is { } existing)
-            {
-                menu = existing.Submenu!;
-                continue;
-            }
-            Menu parent = menu;
-            Menu submenu = new(part);
-            MenuItem item = new(part) { Submenu = submenu };
-            Place(parent, item);
-            context.OnStop(() =>
-            {
-                if (submenu.Items.Count == 0)
-                {
-                    Unplace(parent, item);
-                }
-            });
-            menu = submenu;
-        }
-        return menu;
-    }
-
-    private static int IndexOf(IReadOnlyList<Menu> menus, Menu menu)
-    {
-        for (int i = 0; i < menus.Count; ++i)
-        {
-            if (menus[i] == menu)
-            {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    // A plugin's item at the end of the plugins' part of a menu: after a
-    // separator in a menu of the editor's own; in Window, before Reset Layout.
-    private void Place(Menu menu, MenuItem item)
-    {
-        (MenuSeparator? separator, int items) = _pluginSections.GetValueOrDefault(menu);
-        if (separator is null && items == 0 && menu.Items.Count > 0)
-        {
-            separator = menu.Insert(SectionEnd(menu), new MenuSeparator());
-        }
-        menu.Insert(SectionEnd(menu), item);
-        _pluginSections[menu] = (separator, items + 1);
-    }
-
-    private void Unplace(Menu menu, MenuItem item)
-    {
-        menu.Remove(item);
-        if (!_pluginSections.TryGetValue(menu, out (MenuSeparator? Separator, int Items) section))
-        {
-            return;
-        }
-        if (section.Items > 1)
-        {
-            _pluginSections[menu] = (section.Separator, section.Items - 1);
-            return;
-        }
-        if (section.Separator is { } separator)
-        {
-            menu.Remove(separator);
-        }
-        _pluginSections.Remove(menu);
-    }
-
-    private int SectionEnd(Menu menu)
-    {
-        if (menu != _windowMenu)
-        {
-            return menu.Items.Count;
-        }
-        for (int i = menu.Items.Count - 1; i >= 0; --i)
-        {
-            if (menu.Items[i] is MenuSeparator)
-            {
-                return i;
-            }
-        }
-        return menu.Items.Count;
-    }
-
-    // -----------------------------------------------------------------------
-    // Edits for plugins
-    // -----------------------------------------------------------------------
-
-    internal bool SetPluginComponent<T>(Entity entity, in T value, string title, bool adding) where T : unmanaged
-    {
-        string name = Components.NameOf(typeof(T));
-        if (!HasLive(entity) || SavedComponents.Find(name) is null || World.Has(entity, Components.Of<T>()) == adding)
-        {
-            return false;
-        }
-        JsonNode? before = SceneIds.Read(World, entity, name);
-        World.Set(entity, value);
-        RecordComponent(entity, name, before, title);
-        return true;
-    }
-
-    internal bool RemovePluginComponent<T>(Entity entity, string title) where T : unmanaged
-    {
-        string name = Components.NameOf(typeof(T));
-        if (!HasLive(entity) || SavedComponents.Find(name) is null || !World.Has(entity, Components.Of<T>()))
-        {
-            return false;
-        }
-        SetComponent(entity, name, null, title);
-        return true;
-    }
-
-    internal bool WritePluginFile(string path, byte[] contents, string title)
-    {
-        if (Project is not { } project || string.IsNullOrWhiteSpace(path))
-        {
-            return false;
-        }
-        string relative = path.Replace('\\', '/');
-        string root = Path.GetFullPath(project.AssetsFolder);
-        string file = Path.GetFullPath(Path.Combine(root, relative));
-        StringComparison comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-        if (Path.IsPathRooted(relative) || !file.StartsWith(root + Path.DirectorySeparatorChar, comparison))
-        {
-            LogWarning($"Can't write {path}: it isn't in the Assets folder");
-            return false;
-        }
-        relative = Path.GetRelativePath(root, file).Replace('\\', '/');
-        byte[]? before;
-        try
-        {
-            before = File.Exists(file) ? File.ReadAllBytes(file) : null;
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            Log($"Can't read {relative}: {exception.Message}");
-            return false;
-        }
-        if (before is not null && before.AsSpan().SequenceEqual(contents))
-        {
-            return true;
-        }
-        byte[] after = [.. contents];
-        if (!AssetFileEdit.Write(this, relative, after))
-        {
-            return false;
-        }
-        History.Push(new AssetFileEdit(this, title, relative, before, after));
-        return true;
-    }
-
-    // -----------------------------------------------------------------------
-    // Running plugin code
-    // -----------------------------------------------------------------------
-
-    private void Guard(EditorContext context, string what, Action run)
-    {
-        try
-        {
-            run();
-        }
-        catch (Exception exception)
-        {
-            LogError($"{context.Plugin}: {what} failed: {Message(exception)}");
-        }
-    }
-
-    private T Guard<T>(EditorContext context, string what, Func<T> run, T fallback)
-    {
-        try
-        {
-            return run();
-        }
-        catch (Exception exception)
-        {
-            LogError($"{context.Plugin}: {what} failed: {Message(exception)}");
-            return fallback;
-        }
-    }
-
-    private static string Message(Exception exception) =>
-        exception is TargetInvocationException { InnerException: { } inner } ? Message(inner) : $"{exception.GetType().Name}: {exception.Message}";
-}
-
-/// <summary>
-/// A plugin's panel while its code is building (ADR 0117), holding the
-/// panel's place in the layout and its state; made again once the code has
-/// loaded, or closed if the plugin no longer has it.
-/// </summary>
-internal sealed class PendingPanel : EditorPanel
-{
-    public PendingPanel(string id, string title, PanelState? state, string? note = null) : base(id, title)
-    {
-        Saved = state;
-        Label label = new(note ?? $"{title} opens when the project's editor code has built.")
-        {
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        label.Classes.Add("placeholder");
-        AddChild(label);
-    }
-
-    public PanelState? Saved { get; }
 }

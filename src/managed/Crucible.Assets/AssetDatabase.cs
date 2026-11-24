@@ -290,7 +290,7 @@ public sealed class AssetDatabase
         AssetEntry updated = entry with { Settings = canonical };
         _byId[id] = updated;
         _byPath[entry.Path] = updated;
-        string sidecarPath = FullPath(Project.AssetsFolder, entry.Path) + Sidecar.Extension;
+        string sidecarPath = Project.FileOf(entry.Path) + Sidecar.Extension;
         Files.WriteAtomically(sidecarPath, new Sidecar(entry.Id, entry.Importer, canonical) { SubAssets = entry.SubAssets }.Write(importer));
     }
 
@@ -320,23 +320,38 @@ public sealed class AssetDatabase
         _warnings.Clear();
         FilesHashed = 0;
 
-        string root = Project.AssetsFolder;
         List<string> files = [];
         HashSet<string> sidecars = new(StringComparer.Ordinal);
-        foreach (string file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
+        // The game's Assets, then each plugin's, its paths under its root (ADR 0118).
+        foreach ((string folder, string prefix) in Project.AssetRoots())
         {
-            string path = AssetPath(root, file);
-            if (path.Split('/').Any(part => part.StartsWith('.')) || path.Contains(".tmp-", StringComparison.Ordinal))
+            if (!Directory.Exists(folder))
             {
-                continue; // hidden files and folders, and writes in progress
+                continue;
             }
-            if (path.EndsWith(Sidecar.Extension, StringComparison.Ordinal))
+            foreach (string file in Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories))
             {
-                sidecars.Add(path);
-            }
-            else
-            {
-                files.Add(path);
+                string within = AssetPath(folder, file);
+                if (within.Split('/').Any(part => part.StartsWith('.')) || within.Contains(".tmp-", StringComparison.Ordinal))
+                {
+                    continue; // hidden files and folders, and writes in progress
+                }
+                if (within.Contains(AssetPaths.PluginSeparator))
+                {
+                    // Only possible off Windows; a plugin's paths are told apart by it.
+                    _warnings.Add(new AssetWarning(prefix + within,
+                        "has a colon in its path, which plugins' assets' paths use, so it is skipped: rename it"));
+                    continue;
+                }
+                string path = prefix + within;
+                if (path.EndsWith(Sidecar.Extension, StringComparison.Ordinal))
+                {
+                    sidecars.Add(path);
+                }
+                else
+                {
+                    files.Add(path);
+                }
             }
         }
         // Ordinal order makes every scan the same, and decides which copy of
@@ -347,7 +362,7 @@ public sealed class AssetDatabase
         StampFile newStamps = new();
         foreach (string path in files)
         {
-            string fullPath = FullPath(root, path);
+            string fullPath = Project.FileOf(path);
             sidecars.Remove(path + Sidecar.Extension);
             _hashes[path] = HashWithStamp(fullPath, path, stamps, newStamps);
             AddAsset(path, fullPath);
@@ -541,7 +556,7 @@ public sealed class AssetDatabase
         }
         if (entry.Path.EndsWith(Prefab.Extension, StringComparison.OrdinalIgnoreCase))
         {
-            return File.ReadAllBytes(FullPath(Project.AssetsFolder, entry.Path));
+            return File.ReadAllBytes(Project.FileOf(entry.Path));
         }
         string? output = ImportedFile(id) ?? Import(id).OutputPath;
         return output is null ? null : File.ReadAllBytes(output);
@@ -606,7 +621,7 @@ public sealed class AssetDatabase
             return new ImportResult(entry.Id, entry.Path, ImportOutcome.UpToDate, cached, null);
         }
 
-        using ImportContext context = new(entry.Id, entry.Path, Project.AssetsFolder,
+        using ImportContext context = new(entry.Id, entry.Path, Project,
             path => Find(path)?.Id ?? AssetId.None, ImportedFor);
         try
         {
@@ -682,7 +697,7 @@ public sealed class AssetDatabase
         _byId[entry.Id] = updated;
         _byPath[entry.Path] = updated;
         AddSubAssets(updated);
-        string sidecarPath = FullPath(Project.AssetsFolder, entry.Path) + Sidecar.Extension;
+        string sidecarPath = Project.FileOf(entry.Path) + Sidecar.Extension;
         Sidecar sidecar = new(entry.Id, entry.Importer, entry.Settings) { SubAssets = ids };
         Files.WriteAtomically(sidecarPath, sidecar.Write(importer));
     }
@@ -715,7 +730,7 @@ public sealed class AssetDatabase
         SortedDictionary<string, string> hashes = new(StringComparer.Ordinal);
         foreach (string dependency in dependencies)
         {
-            string fullPath = FullPath(Project.AssetsFolder, dependency);
+            string fullPath = Project.FileOf(dependency);
             if (_hashes.TryGetValue(dependency, out string? hash))
             {
                 hashes[dependency] = hash;

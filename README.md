@@ -216,6 +216,9 @@ Longer explanations of decisions, written to be reread:
 - [Editor plugins](docs/learning/editor-plugins.md) (ADR 0117): a facade
   instead of the editor's insides, an entry point instead of attributes,
   and keeping a panel's state across a reload without keeping old code.
+- [Plugins](docs/learning/plugins.md) (ADR 0118): source while you write
+  it and compiled when you share it, binary compatibility and semantic
+  versioning, ordering by dependencies, and finding plugins nobody names.
 - [Up-to-date builds](docs/learning/up-to-date-builds.md) (ADR 0110): file
   times versus content hashes, what makes a build stamp trustworthy, and
   why copies need one.

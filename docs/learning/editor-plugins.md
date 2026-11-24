@@ -4,6 +4,10 @@ How a project's editor code plugs into the editor, and how it keeps its
 panels across a reload without keeping the old code alive (ADR 0117,
 after ADR 0116).
 
+Since ADR 0118 this is an *editor extension* (`EditorExtension`), and a
+*plugin* is a package of runtime and editor code that a game uses (see
+[plugins](plugins.md)); "plugin" below means the editor code.
+
 ## A facade, not the editor's insides
 
 Editor code could be given the editor itself: its shell, every panel,
@@ -24,7 +28,7 @@ remember.
 Attributes (`[EditorCommand] static void Bake()`) need no setup code, but
 their order and their setup are implicit: what if two commands need the
 same state, or a panel only makes sense with a project open? An entry
-point (`EditorPlugin.Start`) is one ordinary method, run at a known time,
+point (`EditorExtension.Start`) is one ordinary method, run at a known time,
 where the plugin decides what to add. It's also where unloading starts:
 the editor calls `Stop`, then takes out what `Start` added.
 

@@ -15,7 +15,8 @@ public sealed record AssetDrag(AssetId Id, string Path);
 public sealed record FolderDrag(string Path);
 
 /// <summary>
-/// The project's assets (ADR 0071): the folders of Assets on the left, the
+/// The project's assets (ADR 0071): the folders of Assets, and of each
+/// plugin's (ADR 0118), on the left, the
 /// chosen folder's subfolders and files as <see cref="AssetTile"/>s on the
 /// right, under a breadcrumb. A tile is selected by a click; a double-click
 /// opens a folder or a scene; a drag carries an <see cref="AssetDrag"/> (a
@@ -40,7 +41,7 @@ public sealed class AssetsPanel : EditorPanel
     {
         _shell = shell;
         _folders.ChildrenOf = FolderChildren;
-        _folders.BindRow = row => row.Text = row.Node == 1 ? "Assets" : Path.GetFileName(_folderPaths[row.Node]);
+        _folders.BindRow = row => row.Text = RowText(_folderPaths[row.Node]);
         _folders.SetExpanded(1, true);
         _folders.SelectionChanged += tree =>
         {
@@ -78,7 +79,7 @@ public sealed class AssetsPanel : EditorPanel
 
     protected override void OnDrop(DragEvent e) => Classes.Remove("drop-over");
 
-    /// <summary>The folder shown, as a path under Assets ("" for Assets itself, "Models").</summary>
+    /// <summary>The folder shown, as a path under Assets ("" for Assets itself, "Models"; "Dialogue:", "Dialogue:Icons" in a plugin's).</summary>
     public string Folder => _folder;
 
     /// <summary>The selected tile's asset, if it's one the database knows.</summary>
@@ -109,7 +110,7 @@ public sealed class AssetsPanel : EditorPanel
         }
         _stale = false;
         string? keep = SelectedAsset?.Path;
-        if (_shell.Project is null || !Directory.Exists(Path.Combine(_shell.Project.AssetsFolder, _folder)))
+        if (_shell.Project is null || !Directory.Exists(_shell.Project.FileOf(_folder)))
         {
             _folder = "";
         }
@@ -122,14 +123,16 @@ public sealed class AssetsPanel : EditorPanel
     public void ShowFolder(string folder, string? select = null)
     {
         _folder = folder;
-        _crumb.Text = folder.Length == 0 ? "Assets" : "Assets / " + folder.Replace("/", " / ", StringComparison.Ordinal);
+        string within = AssetPaths.WithinRoot(folder);
+        string root = AssetPaths.PluginOf(folder) ?? "Assets";
+        _crumb.Text = within.Length == 0 ? root : root + " / " + within.Replace("/", " / ", StringComparison.Ordinal);
         _tiles.Clear();
         if (_shell.Project is not { } project)
         {
             _tiles.Add(_empty);
             return;
         }
-        string full = Path.Combine(project.AssetsFolder, folder);
+        string full = project.FileOf(folder);
         if (!Directory.Exists(full))
         {
             return;
@@ -176,7 +179,7 @@ public sealed class AssetsPanel : EditorPanel
         }
         else if (tile.Path.EndsWith(Scene.Extension, StringComparison.OrdinalIgnoreCase) && _shell.Project is { } project)
         {
-            string file = Path.Combine(project.AssetsFolder, tile.Path);
+            string file = project.FileOf(tile.Path);
             _shell.ConfirmDiscard("opening another scene", () => _shell.OpenScene(file));
         }
         else if (tile.Kind == "Texture" && tile.Asset is { } texture)
@@ -229,7 +232,7 @@ public sealed class AssetsPanel : EditorPanel
             }
         }
         // New assets beside it, or in it if it's a folder.
-        string folder = tile.IsFolder ? tile.Path : Path.GetDirectoryName(tile.Path)?.Replace('\\', '/') ?? "";
+        string folder = tile.IsFolder ? tile.Path : AssetPaths.FolderOf(tile.Path);
         Menu create = new();
         create.Add("Chain", () => _shell.CreateChain(folder));
         // A tileset through New Tileset, with this texture if it's one
@@ -244,9 +247,9 @@ public sealed class AssetsPanel : EditorPanel
 
     private void ExpandTo(string folder)
     {
-        string path = "";
-        _folders.SetExpanded(1, true);
-        foreach (string part in folder.Split('/', StringSplitOptions.RemoveEmptyEntries))
+        string path = AssetPaths.RootOf(folder);
+        _folders.SetExpanded(FolderId(path), true);
+        foreach (string part in AssetPaths.WithinRoot(folder).Split('/', StringSplitOptions.RemoveEmptyEntries))
         {
             path = Join(path, part);
             _folders.SetExpanded(FolderId(path), true);
@@ -257,13 +260,14 @@ public sealed class AssetsPanel : EditorPanel
     {
         if (node is null)
         {
-            return _shell.Project is null ? [] : [1];
+            // Assets, then each plugin's (ADR 0118).
+            return _shell.Project is not { } open ? [] : [1, .. open.Plugins.Select(plugin => FolderId(plugin.AssetRoot))];
         }
         if (_shell.Project is not { } project || !_folderPaths.TryGetValue(node.Value, out string? folder))
         {
             return [];
         }
-        string full = Path.Combine(project.AssetsFolder, folder);
+        string full = project.FileOf(folder);
         return Directory.Exists(full)
             ? [.. Directory.EnumerateDirectories(full).Where(Visible).Order(StringComparer.Ordinal)
                 .Select(directory => FolderId(Join(folder, Path.GetFileName(directory))))]
@@ -282,7 +286,13 @@ public sealed class AssetsPanel : EditorPanel
         return id;
     }
 
-    private static string Join(string folder, string name) => folder.Length == 0 ? name : folder + "/" + name;
+    private static string Join(string folder, string name) => AssetPaths.Join(folder, name);
+
+    // A folder's row: "Assets", a plugin's name, or the folder's own name.
+    private static string RowText(string folder) =>
+        folder.Length == 0 ? "Assets"
+        : AssetPaths.WithinRoot(folder).Length == 0 ? AssetPaths.PluginOf(folder)!
+        : Path.GetFileName(AssetPaths.WithinRoot(folder));
 
     internal static bool Visible(string path)
     {

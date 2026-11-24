@@ -868,6 +868,17 @@ void showSaveFileDialog(WindowHandle window, std::string_view filterName, std::s
                            pattern.empty() ? 0 : 1, defaultLocation.empty() ? nullptr : kept.location.data());
 }
 
+void showOpenFolderDialog(WindowHandle window, std::string_view defaultLocation)
+{
+    if (dialogEventType == 0)
+    {
+        return;
+    }
+    DialogFilter& kept = keepFilter({}, {}, defaultLocation);
+    SDL_ShowOpenFolderDialog(dialogAnswered, nullptr, find(window),
+                             defaultLocation.empty() ? nullptr : kept.location.data(), false);
+}
+
 std::string_view preferencesPath()
 {
     Vector<char>& path = preferences();

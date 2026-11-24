@@ -194,7 +194,7 @@ public sealed class UndoHistory
         Changed?.Invoke(this);
     }
 
-    /// <summary>Takes out handlers a plugin's unloading code added (ADR 0117).</summary>
+    /// <summary>Takes out handlers an extension's unloading code added (ADR 0117).</summary>
     internal void RemoveHandlers(Func<Delegate, bool> remove)
     {
         foreach (Delegate handler in Changed?.GetInvocationList() ?? [])
@@ -207,7 +207,7 @@ public sealed class UndoHistory
     }
 
     /// <summary>
-    /// Drops the steps <paramref name="old"/> picks (a reloaded plugin's own,
+    /// Drops the steps <paramref name="old"/> picks (a reloaded extension's own,
     /// ADR 0117) and every step that can only be reached through them: those
     /// done before the newest of them, those to redo after the oldest. Returns
     /// how many went, and the newest picked step's title.

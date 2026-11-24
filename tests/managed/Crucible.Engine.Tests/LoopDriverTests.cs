@@ -36,7 +36,7 @@ public class LoopDriverTests
     {
         Schedule schedule = new ScheduleBuilder().AddPhase("Update").Build();
         AssemblyLoadContext context = new("LoopDriverTests", isCollectible: true);
-        LoadedGame withDriver = new(context, null, new Registrations(null, null, null), typeof(CountingLoop));
+        LoadedGame withDriver = new(context, null, [new Registrations(null, null, null)], typeof(CountingLoop));
         ILoopDriver? driver = withDriver.CreateLoopDriver(schedule);
         await Assert.That(driver).IsTypeOf<CountingLoop>();
         await Assert.That(driver!.Schedule).IsSameReferenceAs(schedule);
@@ -47,7 +47,7 @@ public class LoopDriverTests
         await Assert.That(frames).IsEqualTo(3ul);
         await Assert.That(CountingLoop.Runs - before).IsEqualTo(1);
 
-        LoadedGame without = new(context, null, new Registrations(null, null, null));
+        LoadedGame without = new(context, null, [new Registrations(null, null, null)]);
         await Assert.That(without.CreateLoopDriver(schedule)).IsNull();
         context.Unload();
     }

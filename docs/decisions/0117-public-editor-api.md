@@ -2,7 +2,8 @@
 
 **Status:** Accepted (2026-11-23); step 2 of editor extensions, tried by
 hand by the owner. Names settled by the owner as drafted (2026-11-23;
-docs/naming.md).
+docs/naming.md). `EditorPlugin` renamed `EditorExtension` by ADR 0118,
+where "plugin" came to mean a package of runtime and editor code.
 
 ## Context
 
@@ -30,7 +31,8 @@ keeps it, with a warning; the plugin's wins.
 
 Decided by the owner (2026-11-23):
 
-1. **An entry-point class.** Every non-abstract `EditorPlugin` in the
+1. **An entry-point class.** Every non-abstract `EditorExtension` (named
+   `EditorPlugin` until ADR 0118) in the
    editor assembly with a public parameterless constructor is made and
    its `Start(EditorContext editor)` called after each load, in the order
    of their full names. Before the next load (or another project), `Stop()`
@@ -78,7 +80,7 @@ Decided by the owner (2026-11-23):
    File.SaveScene; it has no shortcut".
 
 Plugin code runs guarded: an exception from `Start`, `Stop`, a command,
-or a panel's making or state is logged as an error ("Walker.Tools.WalkerPlugin:
+or a panel's making or state is logged as an error ("Walker.Tools.WalkerTools:
 Walker.Boom failed: InvalidOperationException: boom") and the editor goes
 on.
 

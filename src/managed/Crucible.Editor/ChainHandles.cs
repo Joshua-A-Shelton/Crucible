@@ -139,7 +139,7 @@ internal sealed class ChainHandles
 
     private string? FileOf(AssetId chain) =>
         _shell.Project is { } project && _shell.Database?.Find(chain) is { } entry
-            ? Path.Combine(project.AssetsFolder, entry.Path)
+            ? project.FileOf(entry.Path)
             : null;
 
     // The points from the file; false (said) if it can't be read.
@@ -386,7 +386,7 @@ internal sealed class ChainHandles
     // The .crchain's Points replaced (everything else kept), and imported at once.
     private bool Write(AssetId chain, List<Vector2> points)
     {
-        if (FileOf(chain) is not { } file)
+        if (FileOf(chain) is not { } file || !_shell.CanChangeFile(file))
         {
             return false;
         }

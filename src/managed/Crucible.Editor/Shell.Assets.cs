@@ -125,11 +125,11 @@ internal sealed partial class Shell
     /// </summary>
     public string? CreateChain(string folder)
     {
-        if (Project is not { } project)
+        if (Project is not { } project || !CanChange(folder))
         {
             return null;
         }
-        string directory = Path.Combine(project.AssetsFolder, folder);
+        string directory = project.FileOf(folder);
         string name = "New Chain" + ChainImporter.FileExtension;
         for (int n = 2; File.Exists(Path.Combine(directory, name)); ++n)
         {
@@ -161,7 +161,7 @@ internal sealed partial class Shell
     /// </summary>
     public void ApplyImportSettings(AssetId id, JsonObject settings, bool openSheet = true)
     {
-        if (Database is not { } database || database.Find(id) is not { } entry)
+        if (Database is not { } database || database.Find(id) is not { } entry || !CanChange(entry.Path))
         {
             return;
         }

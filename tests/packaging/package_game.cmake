@@ -12,6 +12,7 @@
 #         -DASSETS=<assets cooked> -DENTITIES=<entities at the top>
 #         -DRUNTIME=Jit|NativeAot -DCONFIGURATION=Development|Shipping
 #         [-DSHIPPING_TOOLKIT=<the shipping build's CrucibleModule.json>]
+#         [-DINCLUDE=<asset path also packed>] [-DEXPECT=<text a Development run prints>]
 #         -DOUT=<folder> -P package_game.cmake
 
 foreach(variable EDITOR ENGINE PROJECT GAME SCENE ASSETS ENTITIES RUNTIME CONFIGURATION OUT)
@@ -35,7 +36,12 @@ file(COPY "${projectFolder}/" DESTINATION "${OUT}/project")
 file(GLOB packageBuilds "${OUT}/project/Cache/Build/Package*" "${OUT}/project/Cache/Build/Aot*")
 file(REMOVE_RECURSE "${OUT}/project/Build" ${packageBuilds})
 file(READ "${OUT}/project/${projectFile}" settings)
-string(JSON settings SET "${settings}" Build "{\"Scenes\": [\"${SCENE}\"], \"Include\": [], \"Runtime\": \"${RUNTIME}\", \"Configuration\": \"${CONFIGURATION}\"}")
+if(INCLUDE)
+    set(include "\"${INCLUDE}\"")
+else()
+    set(include "")
+endif()
+string(JSON settings SET "${settings}" Build "{\"Scenes\": [\"${SCENE}\"], \"Include\": [${include}], \"Runtime\": \"${RUNTIME}\", \"Configuration\": \"${CONFIGURATION}\"}")
 file(WRITE "${OUT}/project/${projectFile}" "${settings}")
 
 set(package "${OUT}/package")
@@ -139,8 +145,12 @@ endforeach()
 if(CONFIGURATION STREQUAL "Development")
     # Everything printed, and the same in the log file, the run before kept.
     file(READ "${logFile}" logged)
-    foreach(expected "${loaded}" "reading ${ASSETS} assets from Game.crpak"
-            "opened ${SCENE}: ${ENTITIES} entities at the top" "ran 120 frames")
+    set(expectations "${loaded}" "reading ${ASSETS} assets from Game.crpak"
+        "opened ${SCENE}: ${ENTITIES} entities at the top" "ran 120 frames")
+    if(EXPECT)
+        list(APPEND expectations "${EXPECT}")
+    endif()
+    foreach(expected ${expectations})
         string(FIND "${ran}" "${expected}" printed)
         string(FIND "${logged}" "${expected}" written)
         if(printed EQUAL -1 OR written EQUAL -1)

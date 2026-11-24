@@ -696,11 +696,10 @@ internal sealed partial class Shell
     {
         if (Project is { } project && ScenePath is { } scene)
         {
-            string folder = Path.GetRelativePath(project.AssetsFolder, Path.GetDirectoryName(scene) ?? "").Replace('\\', '/');
-            if (!folder.StartsWith("..", StringComparison.Ordinal) && !Path.IsPathRooted(folder))
+            // Beside the scene, in the game's Assets or a source plugin's (ADR 0118).
+            if (project.AssetPathOf(Path.GetDirectoryName(scene) ?? "") is { } folder && !project.IsReadOnly(folder))
             {
-                string own = Path.GetFileNameWithoutExtension(scene) + " Tilemaps";
-                return folder is "." or "" ? own : $"{folder}/{own}";
+                return AssetPaths.Join(folder, Path.GetFileNameWithoutExtension(scene) + " Tilemaps");
             }
         }
         return "Tilemaps";
@@ -721,9 +720,9 @@ internal sealed partial class Shell
         char[] invalid = Path.GetInvalidFileNameChars();
         string clean = new([.. name.Trim().Select(c => invalid.Contains(c) || c is '/' or '\\' or ':' ? '_' : c)]);
         clean = clean.Length == 0 ? "Tilemap" : clean;
-        string Of(string file) => folder.Length == 0 ? file : $"{folder}/{file}";
+        string Of(string file) => AssetPaths.Join(folder, file);
         string path = Of(clean + extension);
-        for (int n = 2; File.Exists(Path.Combine(project.AssetsFolder, path)) || taken?.Contains(path) == true; ++n)
+        for (int n = 2; File.Exists(project.FileOf(path)) || taken?.Contains(path) == true; ++n)
         {
             path = Of($"{clean} {n}{extension}");
         }
@@ -745,7 +744,7 @@ internal sealed partial class Shell
 
     private string? ReadAssetFile(string path)
     {
-        string file = Path.Combine(Project!.AssetsFolder, path);
+        string file = Project!.FileOf(path);
         return File.Exists(file) ? File.ReadAllText(file) : null;
     }
 
@@ -763,7 +762,7 @@ internal sealed partial class Shell
         {
             map = World.Read<Tilemap>(entity).Map;
         }
-        return AssetPathOf(map) is { } path && File.Exists(Path.Combine(Project!.AssetsFolder, path)) ? (map, path) : null;
+        return AssetPathOf(map) is { } path && File.Exists(Project!.FileOf(path)) ? (map, path) : null;
     }
 
     // An entity and everything under it.
@@ -800,13 +799,14 @@ internal sealed partial class Shell
                 return true;
             }
         }
-        if (Project is not { } project || !Directory.Exists(project.AssetsFolder))
+        if (Project is not { } project)
         {
             return false;
         }
         string id = map.ToString();
         string? open = ScenePath is { } scene ? Path.GetFullPath(scene) : null;
-        foreach (string file in Directory.EnumerateFiles(project.AssetsFolder, "*", SearchOption.AllDirectories))
+        foreach (string file in project.AssetRoots().Where(root => Directory.Exists(root.Folder))
+                     .SelectMany(root => Directory.EnumerateFiles(root.Folder, "*", SearchOption.AllDirectories)))
         {
             if ((file.EndsWith(Scene.Extension, StringComparison.OrdinalIgnoreCase) ||
                  file.EndsWith(Prefab.Extension, StringComparison.OrdinalIgnoreCase)) &&
@@ -985,11 +985,11 @@ internal sealed partial class Shell
 
         public static bool Write(Shell shell, string path, byte[]? contents)
         {
-            if (shell.Project is not { } project)
+            if (shell.Project is not { } project || !shell.CanChange(path))
             {
                 return false;
             }
-            string file = Path.Combine(project.AssetsFolder, path);
+            string file = project.FileOf(path);
             try
             {
                 if (contents is null)

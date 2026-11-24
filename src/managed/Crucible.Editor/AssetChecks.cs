@@ -244,7 +244,11 @@ internal sealed class AssetChecks : GameSystem
     /// first, the Cache left out unless it's warm) and opened, with a scene of it if given,
     /// for a check that would otherwise work on the sample itself.
     /// </summary>
-    internal static void OpenCopy(Shell shell, string copy, string? scene)
+    /// <remarks>
+    /// <paramref name="withoutEditorCode"/> leaves out the project's own
+    /// editor code (a local Walker may have some), for checks of editor code.
+    /// </remarks>
+    internal static void OpenCopy(Shell shell, string copy, string? scene, bool withoutEditorCode = false)
     {
         string file = SourceProjectFile(shell);
         if (Directory.Exists(copy))
@@ -252,6 +256,11 @@ internal sealed class AssetChecks : GameSystem
             Directory.Delete(copy, recursive: true);
         }
         CopyProject(Path.GetDirectoryName(file) ?? "", copy, IsWarm(shell));
+        string editorCode = Path.Combine(copy, "Code", GameBuilder.EditorFolder);
+        if (withoutEditorCode && Directory.Exists(editorCode))
+        {
+            Directory.Delete(editorCode, recursive: true);
+        }
         shell.OpenProject(Path.Combine(copy, Path.GetFileName(file)));
         if (scene is not null)
         {

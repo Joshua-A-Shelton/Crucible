@@ -1622,26 +1622,60 @@ Names added while building, settled as drafted by the owner (2026-11-20):
 ## The public editor API (2026-11-23, ADR 0117)
 
 Names proposed before building and added while building, settled as
-drafted after the owner tried it by hand (2026-11-23):
+drafted after the owner tried it by hand (2026-11-23). `EditorPlugin` was
+renamed `EditorExtension` by the owner with ADR 0118 (2026-11-23), when
+"plugin" came to name a package of runtime and editor code; the
+descriptions below say extension where they said plugin:
 
 | Name | What it names | What it is |
 |---|---|---|
 | ADR 0117 "The public editor API" | Decision record | Editor extensions step 2 |
-| `EditorPlugin`, `Start(EditorContext editor)`, `Stop()` | Abstract class, methods | An editor assembly's entry point, started after each load and stopped before the next |
-| `EditorContext` | Class | The facade a plugin gets; `Editor` would clash with the namespace |
-| `EditorPanels`: `Add(id, title, create)`, `Open(id)`, `Close(id)` | Class (`editor.Panels`), methods | A plugin's panels, listed in the Window menu |
-| `EditorCommands`: `Add(command, menu = "Tools")` | Class (`editor.Commands`), method | A plugin's commands, placed by menu path |
+| `EditorExtension` (was `EditorPlugin`), `Start(EditorContext editor)`, `Stop()` | Abstract class, methods | An editor assembly's entry point, started after each load and stopped before the next |
+| `EditorContext` | Class | The facade an extension gets; `Editor` would clash with the namespace |
+| `EditorPanels`: `Add(id, title, create)`, `Open(id)`, `Close(id)` | Class (`editor.Panels`), methods | An extension's panels, listed in the Window menu |
+| `EditorCommands`: `Add(command, menu = "Tools")` | Class (`editor.Commands`), method | An extension's commands, placed by menu path |
 | Tools | Top-level menu | Before Window, shown when something's in it |
 | `editor.Selection`, `editor.Undo` | Properties | The existing `Selection` and `UndoHistory` |
 | `EditorScene`: `World`, `Edit<T>`, `Add<T>`, `Remove<T>` | Class (`editor.Scene`), members | Component changes as undo steps |
 | `EditorAssets`: `Database`, `Write`, `WriteText` | Class (`editor.Assets`), members | Reading assets; whole-file undo steps |
 | `editor.Log`, `LogWarning`, `LogError`, `Status` | Members | The Log and the status bar |
 | `EditorPanel.SaveState`, `LoadState`; `PanelState`: `Set`, `GetString`, `GetNumber`, `GetBool` | Methods, class | A panel's state across reloads and in the layout |
-| `PendingPanel`, "Walker Stats opens when the project's editor code has built" | Internal class, placeholder text | A plugin's panel while its code builds |
-| `"PanelStates"` (`"Title"`, `"Plugin"`, `"Values"`) | Layout JSON keys | Panels' saved states in the settings |
+| `PendingPanel`, "Walker Stats opens when the project's editor code has built" | Internal class, placeholder text | An extension's panel while its code builds |
+| `"PanelStates"` (`"Title"`, `"Extension"` (was `"Plugin"`, still read), `"Values"`) | Layout JSON keys | Panels' saved states in the settings |
 | "Walker.BakePaths wants Ctrl+S, already used by File.SaveScene; it has no shortcut" | Log warning | A shortcut already in use |
-| "Walker.Tools.WalkerPlugin: Walker.Boom failed: InvalidOperationException: boom" | Log error | Plugin code that threw |
-| "Undo can't go back past "Plugin Step": its step came from the editor code just reloaded (5 steps dropped)" | Log warning | A plugin's undo steps dropped on reload |
-| `Shell.LogError`, `OpenPanel(id)`, `Plugins`; `Menu.Insert`, `Menu.Remove`, `MenuBar.Insert`, `MenuBar.Remove` | C# members (editor, UI) | What the facade is built on |
-| `EditorApiChecks`, CTest `launcher.jit.editor-api`, game arg `check-editor-api`, test folder `editor-api-project`; `PanelStateTests` | Tests | The API used by a plugin, version by version |
+| "Walker.Tools.WalkerTools: Walker.Boom failed: InvalidOperationException: boom" | Log error | Extension code that threw |
+| "Undo can't go back past "Extension Step": its step came from the editor code just reloaded (5 steps dropped)" | Log warning | An extension's undo steps dropped on reload |
+| `Shell.LogError`, `OpenPanel(id)`, `Extensions` (was `Plugins`); `Menu.Insert`, `Menu.Remove`, `MenuBar.Insert`, `MenuBar.Remove` | C# members (editor, UI) | What the facade is built on |
+| `EditorApiChecks`, CTest `launcher.jit.editor-api`, game arg `check-editor-api`, test folder `editor-api-project`; `PanelStateTests` | Tests | The API used by an extension, version by version |
 | docs/learning/editor-plugins.md | Learning note | Facades, entry points, state across a reload |
+
+## Plugins (2026-11-23, ADR 0118)
+
+Names proposed before building (approved to build with, 2026-11-23) and
+added while building; all placeholders (`*`) until the owner has tried it:
+
+| Name | What it names | What it is |
+|---|---|---|
+| ADR 0118 "Plugins"* | Decision record | Editor extensions step 3 |
+| `Plugins/<Name>/`* | Project folder | A plugin: `Code/` (its `Editor/` folders the editor's) and `Assets/`, or its compiled assemblies instead of `Code/` |
+| `<Name>.crplugin`*: `"Name"`*, `"Version"`*, `"Uses"`*, `"Crucible"`* | Manifest file, JSON keys | What a plugin is; `"Crucible"` stamped when it's built |
+| `<Name>.dll`*, `<Name>.Editor.dll`* | Assemblies | A plugin's runtime and editor code |
+| `Dialogue:Icons/Talk.png`* | Asset path | A plugin's asset: its name, a colon, its path in the plugin's `Assets/` |
+| **File > Build Plugin…*** (`File.BuildPlugin`*), "Which plugin?"* | Command, question | Builds a source plugin into a chosen folder |
+| "Plugins: Waypoints 1.0.0 (source)"* | Log message | The project's plugins, as it opens |
+| "Old was built for Crucible 0.0; this is 0.1. Rebuild it for 0.1"* | Log warning | The version check refusing a plugin |
+| "Quests uses Inventory, which isn't in Plugins/"*, "Journal uses Quests, which can't be used"* | Log warnings | A plugin it uses is missing, or left out |
+| "Dialogue and Quests use each other"* | Log warning | A cycle |
+| "Quests is compiled and uses Dialogue, which is source: build Dialogue too"* | Log warning | A compiled plugin built on a source one |
+| "Plugins/Loose has no Loose.crplugin, so it isn't a plugin"*, "Renamed.crplugin names the plugin "Other": a plugin's name is its folder's"*, "Game can't be a plugin's name: it's the game's"* | Log warnings | Folders that aren't plugins |
+| "Waypoints is a compiled plugin; its assets can't be changed here"* | Log warning | Changing a compiled plugin's assets |
+| "The compiled plugins changed: open the project again to load them"* | Log warning | Plugins/ changed under compiled plugins |
+| "Waypoints can't be built into its own folder"*, "Built Waypoints into …"* | Build Plugin's messages | Where it builds |
+| `CrucibleVersion`*: `Major`, `Minor`, `Patch`, `Text`, `Line`*, `LineOf`*, `Accepts`* | Class (`Crucible.Engine`), members | The version, generated from CMake; which compiled plugins it accepts |
+| `GamePluginsAttribute`* (`[assembly: GamePlugins(...)]`), `Plugins.g.cs`* | Attribute, generated file | The game's plugins in load order, for the game loader |
+| `GameFiles`*, `LoadedPlugins`*, `GameLoader.LoadPlugins`*, `PluginNamesOf`*; `LoadedGame.Plugins`*, `PluginEditorAssemblies`* | Engine types and members | Loading source plugins with the game and compiled ones on their own |
+| `PluginManifest`*, `Plugin`*, `ProjectPlugins`*, `AssetPaths`*; `Project.Plugins`*, `PluginProblems`*, `RefreshPlugins`*, `PluginNamed`*, `FileOf`*, `AssetPathOf`*, `AssetRoots`*, `IsReadOnly`* | `Crucible.Assets` types and members | Reading plugins, and asset paths across the game's and plugins' |
+| `Shell.CanChange`*, `CanChangeFile`*, `BuildPlugin`*; `GameBuilder.BuildPlugin`*, `PluginBuild`*, `PluginProjectFile`*, `PluginEditorProjectFile`*; folders `Cache/Build/Plugins/`*, `Cache/Build/PluginBuild/`* | Editor members, build folders | Building plugins |
+| `EditorExtension`* (was `EditorPlugin`) | Abstract class | ADR 0117's entry point, renamed by the owner: "plugin" names the package |
+| `PluginChecks`*, CTest `launcher.jit.plugins`*, `samples.plugins-package`*, `samples.plugins-package-aot`*, game arg `check-plugins`*, test folders `plugins-project`*, `plugins-shared`*, `plugins-compiled-project`*; `PluginTests`*; package test options `INCLUDE`*, `EXPECT`* | Tests | Plugins built, loaded, packaged, and refused |
+| docs/learning/plugins.md* | Learning note | Source and compiled, binary compatibility, ordering, finding plugins |

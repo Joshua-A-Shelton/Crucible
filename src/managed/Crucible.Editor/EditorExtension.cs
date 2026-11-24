@@ -11,50 +11,50 @@ namespace Crucible.Editor;
 /// Before a reload unloads it, <see cref="Stop"/> runs and everything it
 /// added through its <see cref="EditorContext"/> is taken out again.
 /// </summary>
-public abstract class EditorPlugin
+public abstract class EditorExtension
 {
-    /// <summary>Adds the plugin's panels and commands.</summary>
+    /// <summary>Adds the extension's panels and commands.</summary>
     public abstract void Start(EditorContext editor);
 
-    /// <summary>Called before the code unloads, for anything the plugin started itself.</summary>
+    /// <summary>Called before the code unloads, for anything the extension started itself.</summary>
     public virtual void Stop()
     {
     }
 }
 
 /// <summary>
-/// The editor as a plugin sees it (ADR 0117): one per plugin, handed to
-/// <see cref="EditorPlugin.Start"/>. It remembers what the plugin adds, so
+/// The editor as an extension sees it (ADR 0117): one per extension, handed to
+/// <see cref="EditorExtension.Start"/>. It remembers what the extension adds, so
 /// a reload takes all of it out. The shell behind it stays internal, so the
-/// editor's insides can change without breaking plugins.
+/// editor's insides can change without breaking extensions.
 /// </summary>
 public sealed class EditorContext
 {
     private readonly Shell _shell;
-    // What the plugin added, undone newest first when it stops.
+    // What the extension added, undone newest first when it stops.
     private readonly List<Action> _cleanup = [];
 
-    internal EditorContext(Shell shell, string plugin)
+    internal EditorContext(Shell shell, string extension)
     {
         _shell = shell;
-        Plugin = plugin;
+        Extension = extension;
         Panels = new EditorPanels(shell, this);
         Commands = new EditorCommands(shell, this);
         Scene = new EditorScene(shell);
         Assets = new EditorAssets(shell);
     }
 
-    /// <summary>The plugin's type, as messages name it.</summary>
-    internal string Plugin { get; }
+    /// <summary>The extension's type, as messages name it.</summary>
+    internal string Extension { get; }
 
     public EditorPanels Panels { get; }
 
     public EditorCommands Commands { get; }
 
-    /// <summary>What's selected. Handlers added to its event are removed when the plugin's code reloads.</summary>
+    /// <summary>What's selected. Handlers added to its event are removed when the extension's code reloads.</summary>
     public Selection Selection => _shell.Selection;
 
-    /// <summary>The editor's undo history: a plugin's own steps, groups, undo and redo.</summary>
+    /// <summary>The editor's undo history: an extension's own steps, groups, undo and redo.</summary>
     public UndoHistory Undo => _shell.History;
 
     public EditorScene Scene { get; }
@@ -76,7 +76,7 @@ public sealed class EditorContext
 
     internal void OnStop(Action cleanup) => _cleanup.Add(cleanup);
 
-    /// <summary>Takes out everything the plugin added (its panels already dealt with by the shell).</summary>
+    /// <summary>Takes out everything the extension added (its panels already dealt with by the shell).</summary>
     internal void Cleanup()
     {
         for (int i = _cleanup.Count - 1; i >= 0; --i)
@@ -87,7 +87,7 @@ public sealed class EditorContext
     }
 }
 
-/// <summary>A plugin's panels (ADR 0117): listed in the Window menu, docked like the editor's own.</summary>
+/// <summary>An extension's panels (ADR 0117): listed in the Window menu, docked like the editor's own.</summary>
 public sealed class EditorPanels
 {
     private readonly Shell _shell;
@@ -107,7 +107,7 @@ public sealed class EditorPanels
     {
         ArgumentException.ThrowIfNullOrEmpty(id);
         ArgumentNullException.ThrowIfNull(create);
-        return _shell.AddPluginPanel(_context, id, title ?? id, create);
+        return _shell.AddExtensionPanel(_context, id, title ?? id, create);
     }
 
     /// <summary>Opens a registered panel (or shows it, if it's open); false for one not registered.</summary>
@@ -117,7 +117,7 @@ public sealed class EditorPanels
     public void Close(string id) => _shell.ClosePanel(id);
 }
 
-/// <summary>A plugin's commands (ADR 0117): in menus, and run by their shortcuts.</summary>
+/// <summary>An extension's commands (ADR 0117): in menus, and run by their shortcuts.</summary>
 public sealed class EditorCommands
 {
     private readonly Shell _shell;
@@ -138,12 +138,12 @@ public sealed class EditorCommands
     public bool Add(Command command, string? menu = "Tools")
     {
         ArgumentNullException.ThrowIfNull(command);
-        return _shell.AddPluginCommand(_context, command, menu);
+        return _shell.AddExtensionCommand(_context, command, menu);
     }
 }
 
 /// <summary>
-/// The open scene, for a plugin (ADR 0117): components changed as undo
+/// The open scene, for an extension (ADR 0117): components changed as undo
 /// steps, recorded from their saved form as the Inspector's edits are.
 /// Only components scenes save can be changed this way.
 /// </summary>
@@ -158,19 +158,19 @@ public sealed class EditorScene
 
     /// <summary>Sets a component the entity has; false if it hasn't, or the component isn't saved.</summary>
     public bool Edit<T>(Entity entity, in T value, string title) where T : unmanaged =>
-        _shell.SetPluginComponent(entity, value, title, adding: false);
+        _shell.SetExtensionComponent(entity, value, title, adding: false);
 
     /// <summary>Adds a component the entity hasn't, with a value; false if it has, or the component isn't saved.</summary>
     public bool Add<T>(Entity entity, in T value, string title) where T : unmanaged =>
-        _shell.SetPluginComponent(entity, value, title, adding: true);
+        _shell.SetExtensionComponent(entity, value, title, adding: true);
 
     /// <summary>Removes a component; false if the entity hasn't it, or the component isn't saved.</summary>
     public bool Remove<T>(Entity entity, string title) where T : unmanaged =>
-        _shell.RemovePluginComponent<T>(entity, title);
+        _shell.RemoveExtensionComponent<T>(entity, title);
 }
 
 /// <summary>
-/// The project's assets, for a plugin (ADR 0117): read through the asset
+/// The project's assets, for an extension (ADR 0117): read through the asset
 /// database, written as whole-file undo steps and imported at once.
 /// </summary>
 public sealed class EditorAssets
@@ -191,12 +191,12 @@ public sealed class EditorAssets
     public bool Write(string path, byte[] contents, string title)
     {
         ArgumentNullException.ThrowIfNull(contents);
-        return _shell.WritePluginFile(path, contents, title);
+        return _shell.WriteExtensionFile(path, contents, title);
     }
 
     public bool WriteText(string path, string text, string title)
     {
         ArgumentNullException.ThrowIfNull(text);
-        return _shell.WritePluginFile(path, System.Text.Encoding.UTF8.GetBytes(text), title);
+        return _shell.WriteExtensionFile(path, System.Text.Encoding.UTF8.GetBytes(text), title);
     }
 }

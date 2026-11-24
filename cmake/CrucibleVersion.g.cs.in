@@ -1,0 +1,13 @@
+// Generated from the CMake project version (ADR 0118). Do not edit.
+
+namespace Crucible;
+
+public static partial class CrucibleVersion
+{
+    public const int Major = @PROJECT_VERSION_MAJOR@;
+    public const int Minor = @PROJECT_VERSION_MINOR@;
+    public const int Patch = @PROJECT_VERSION_PATCH@;
+
+    /// <summary>"0.1.0".</summary>
+    public const string Text = "@PROJECT_VERSION_MAJOR@.@PROJECT_VERSION_MINOR@.@PROJECT_VERSION_PATCH@";
+}

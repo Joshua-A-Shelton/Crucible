@@ -1339,7 +1339,10 @@ importing by dropping files and before the engine review and the first
 game, so the game's own tools are built on it. Step 1 done (ADR 0116),
 tried by hand by the owner. Step 2 done (ADR 0117), tried by hand by
 the owner: the public editor API, with a project's panels reopened in
-place after a reload.
+place after a reload. Step 3, plugins, placed here by the owner
+(2026-11-23) and the steps after renumbered; built (ADR 0118), to be
+tried by hand by the owner: source and compiled plugins with code and
+assets, a version check, and Build Plugin.
 
 Asked for by the owner (2026-11-20): a game's own editors, as specialized
 as map mode (ADR 0112), built by the people making the game, for example
@@ -1381,35 +1384,41 @@ reload per assembly, the shipping check).
    (reading, and file edits as undo steps); the log and status bar.
    Found by attribute or registered from an entry point. Decides its
    shape, and how much stays stable across Crucible versions.
-3. **Workspaces.** What map mode is, made general: a layout, a toolbar,
+3. **Plugins** (owner, 2026-11-23). Plugins other than the game: a
+   folder in `Plugins/` with runtime and editor code and assets, in
+   source (built and reloaded with the game) or compiled (assemblies
+   shared between games, checked against the Crucible version they were
+   built for), and a command building a source plugin to share. Decides
+   what a plugin is, how plugins find each other, and versions.
+4. **Workspaces.** What map mode is, made general: a layout, a toolbar,
    a viewport tool, and keys, entered and left (Done), the layout before
    coming back. Decides the workspace model.
-4. **Viewport tools.** Pointer and key input in a viewport routed to a
+5. **Viewport tools.** Pointer and key input in a viewport routed to a
    plugin's tool, drawing over the view (lines, shapes, images, in world
    or screen space), and picking under the pointer. Chain editing (ADR
    0095) moved onto it. Decides input routing.
-5. **Map mode rebuilt on the API** (owner, 2026-11-20): the test of the
-   API, a plugin's-eye rebuild using only what steps 2 to 4 offer,
+6. **Map mode rebuilt on the API** (owner, 2026-11-20): the test of the
+   API, a plugin's-eye rebuild using only what steps 2 to 5 offer,
    cleaning up as it goes: a "Map Mode" of its own, named and entered as
    a workspace rather than built into the editor; the brush under the
    pointer and the rest of the owner's notes from the try (open items).
-6. **Preview viewports.** A view a panel holds with a small world of its
+7. **Preview viewports.** A view a panel holds with a small world of its
    own (a model, a light, a camera that orbits), apart from the scene:
    assets loaded into it, animations played and scrubbed, components
    edited. Decides preview worlds (their own ECS world, render and asset
    isolation).
-7. **Custom inspectors and asset editors.** A plugin's drawer for a
+8. **Custom inspectors and asset editors.** A plugin's drawer for a
    component or a field type in the Inspector, and a plugin's panel
    opened by double-clicking an asset of a kind (a tileset opens the
    Palette today). Decides how drawers and the generated fields mix.
-8. **The demonstration:** the character editor above, as a sample
+9. **The demonstration:** the character editor above, as a sample
    plugin, only on the public API.
 
 **Not in it:** painting onto a model's textures. It needs engine work of
 its own (the texture coordinates under the pointer, painting into a
 texture on the GPU, saving it back to the texture's file) and is its own
-step, after this or with the first game that needs it. Prebuilt (binary)
-plugins stay an open item (ADR 0002).
+step, after this or with the first game that needs it. Native modules
+(ADR 0074) in plugins come later (ADR 0118).
 
 ## After editor extensions: an engine review
 

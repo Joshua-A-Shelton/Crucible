@@ -78,7 +78,7 @@ public abstract class Importer<TSettings> : Importer where TSettings : IJsonSeri
 /// <summary>What an importer sees while it runs.</summary>
 public sealed class ImportContext : IDisposable
 {
-    private readonly string _assetsFolder;
+    private readonly Project _project;
     private readonly SortedDictionary<string, string> _dependencies = new(StringComparer.Ordinal);
     private readonly SortedSet<string> _references = new(StringComparer.Ordinal);
     private readonly Func<string, AssetId> _idOf;
@@ -87,12 +87,12 @@ public sealed class ImportContext : IDisposable
     private ImportedFileWriter? _output;
     private readonly List<(string Name, string Extension, ImportedFileWriter Output)> _subAssets = [];
 
-    internal ImportContext(AssetId asset, string assetPath, string assetsFolder, Func<string, AssetId> idOf,
+    internal ImportContext(AssetId asset, string assetPath, Project project, Func<string, AssetId> idOf,
         Func<AssetId, (string Path, string Imported, IReadOnlyCollection<string> Dependencies)?>? imported = null)
     {
         Asset = asset;
         AssetPath = assetPath;
-        _assetsFolder = assetsFolder;
+        _project = project;
         _idOf = idOf;
         _imported = imported ?? (_ => null);
     }
@@ -152,11 +152,12 @@ public sealed class ImportContext : IDisposable
     /// A path inside <c>Assets/</c> for a file the source names relative to
     /// itself ("textures/brick.png" beside "models/wall.gltf" is
     /// "models/textures/brick.png"), with '.' and '..' resolved; throws if it
-    /// leaves <c>Assets/</c>.
+    /// leaves <c>Assets/</c> (a plugin's asset, its plugin's, ADR 0118).
     /// </summary>
     public string Resolve(string relative)
     {
-        List<string> parts = [.. AssetPath.Split('/')[..^1]];
+        string root = AssetPaths.RootOf(AssetPath);
+        List<string> parts = [.. AssetPaths.WithinRoot(AssetPath).Split('/')[..^1]];
         foreach (string part in relative.Replace('\\', '/').Split('/'))
         {
             if (part is "" or ".")
@@ -174,20 +175,26 @@ public sealed class ImportContext : IDisposable
             }
             parts.Add(part);
         }
-        return string.Join('/', parts);
+        return root + string.Join('/', parts);
     }
 
     public AssetId Asset { get; }
 
-    /// <summary>The source's path inside <c>Assets/</c>, with '/' separators.</summary>
+    /// <summary>The source's path inside <c>Assets/</c>, with '/' separators ("Dialogue:Icons/Talk.png" in a plugin, ADR 0118).</summary>
     public string AssetPath { get; }
 
-    public string SourcePath => AssetDatabase.FullPath(_assetsFolder, AssetPath);
+    public string SourcePath => _project.FileOf(AssetPath);
 
     public byte[] ReadSource() => File.ReadAllBytes(SourcePath);
 
-    /// <summary>The project's <c>Assets/</c> folder, for tools that look beside the source (shader imports).</summary>
-    public string AssetsFolder => _assetsFolder;
+    /// <summary>
+    /// The <c>Assets/</c> folder the source is in, the project's or its
+    /// plugin's, for tools that look beside the source (shader imports).
+    /// </summary>
+    public string AssetsFolder => _project.FileOf(AssetPaths.RootOf(AssetPath));
+
+    /// <summary>The asset path of a file the import found (a module a shader imported), or null outside every Assets folder.</summary>
+    public string? AssetPathOf(string fullPath) => _project.AssetPathOf(fullPath);
 
     /// <summary>
     /// Writes C# into the game's code (<c>Code/</c>, at
@@ -197,7 +204,13 @@ public sealed class ImportContext : IDisposable
     /// </summary>
     public void WriteGeneratedSource(string codePath, string text)
     {
-        string root = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(_assetsFolder))!, "Code");
+        // The code of the asset's owner: the game's, or a source plugin's. A
+        // compiled plugin's types were built into it with its assembly.
+        if (_project.IsReadOnly(AssetPath))
+        {
+            return;
+        }
+        string root = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(AssetsFolder))!, "Code");
         string path = AssetDatabase.FullPath(root, codePath);
         byte[] bytes = System.Text.Encoding.UTF8.GetBytes(text);
         if (File.Exists(path) && File.ReadAllBytes(path).AsSpan().SequenceEqual(bytes))
@@ -215,7 +228,7 @@ public sealed class ImportContext : IDisposable
     /// <param name="assetPath">Its path inside <c>Assets/</c>, with '/' separators.</param>
     public byte[] ReadDependency(string assetPath)
     {
-        byte[] bytes = File.ReadAllBytes(AssetDatabase.FullPath(_assetsFolder, assetPath));
+        byte[] bytes = File.ReadAllBytes(_project.FileOf(assetPath));
         _dependencies[assetPath] = ContentHash.Of(bytes);
         return bytes;
     }

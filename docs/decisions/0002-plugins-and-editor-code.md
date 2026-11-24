@@ -42,7 +42,9 @@ almost no cost in shipping builds.
   runtime/editor split to enforce on the C++ side. C++ may get its own,
   different extension mechanism for the runtime: native modules (ADR 0074).
 - **Plugins are source-only in v1,** compiled with the project. Prebuilt
-  plugins are revisited later.
+  plugins are revisited later. *Revised by ADR 0118 (2026-11-23):
+  plugins are compiled by and large, built from source plugins, with a
+  Crucible version check; a game's own code stays source.*
 - **The game is the root plugin.** A game is structured like any other
   plugin; its assembly is `<GameName>.dll`. A shipped game may have a
   native executable named after the game, but the only real difference

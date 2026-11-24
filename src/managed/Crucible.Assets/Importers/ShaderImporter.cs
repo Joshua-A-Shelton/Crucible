@@ -59,14 +59,13 @@ public sealed class ShaderImporter : Importer<ShaderImportSettings>
         }
         try
         {
-            // Modules it imported from Assets/ (not the library, not itself).
-            string assets = Path.GetFullPath(context.AssetsFolder) + Path.DirectorySeparatorChar;
+            // Modules it imported from an Assets folder (not the library, not itself).
             for (uint i = 0; i < ImportersApi.CompiledDependencyCount(shader); ++i)
             {
                 string path = Path.GetFullPath(ImportersApi.CompiledDependency(shader, i));
-                if (path.StartsWith(assets, StringComparison.Ordinal) && path != Path.GetFullPath(context.SourcePath))
+                if (path != Path.GetFullPath(context.SourcePath) && context.AssetPathOf(path) is { } dependency)
                 {
-                    context.ReadDependency(AssetDatabase.AssetPath(context.AssetsFolder, path));
+                    context.ReadDependency(dependency);
                 }
             }
             string warnings = ImportersApi.CompileWarnings(shader);

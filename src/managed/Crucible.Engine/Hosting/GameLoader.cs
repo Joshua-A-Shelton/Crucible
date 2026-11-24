@@ -33,11 +33,42 @@ public static class GameLoader
     /// the two load, reload, and unload together.
     /// </remarks>
     [RequiresUnreferencedCode(JitOnly)]
-    public static LoadedGame Load(string path, string? editorPath = null)
+    public static LoadedGame Load(string path, string? editorPath = null) => Load(new GameFiles(path) { Editor = editorPath });
+
+    /// <summary>
+    /// Loads a game and its source plugins' assemblies (ADR 0118) into a new
+    /// collectible load context: the plugins first, in order, then the game,
+    /// then the plugins' editor assemblies and the game's.
+    /// </summary>
+    /// <remarks>
+    /// The plugins the game names (<see cref="GamePluginsAttribute"/>) that
+    /// aren't loaded here (compiled ones) are found through
+    /// <see cref="SharedAssemblies"/>, else beside the game's assembly.
+    /// </remarks>
+    [RequiresUnreferencedCode(JitOnly)]
+    public static LoadedGame Load(GameFiles files)
     {
-        (AssemblyLoadContext context, Assembly assembly, Assembly? editor) = LoadAssembly(path, editorPath);
-        return new LoadedGame(context, CreateEntry(assembly), CreateRegistrations(assembly), DriverOf(assembly)) { EditorAssembly = editor };
+        (AssemblyLoadContext context, Assembly assembly, Assembly? editor, Assembly[] pluginEditors) = LoadAssembly(files);
+        return Create(context, assembly, name => context.LoadFromAssemblyName(name), editor, pluginEditors);
     }
+
+    // The game's entry and driver, and its plugins' registrations before its own.
+    private static LoadedGame Create(AssemblyLoadContext context, Assembly game, Func<AssemblyName, Assembly> plugin,
+        Assembly? editor = null, Assembly[]? pluginEditors = null)
+    {
+        Assembly[] plugins = [.. PluginNamesOf(game).Select(name => plugin(new AssemblyName(name)))];
+        Registrations[] registrations = [.. plugins.Select(CreateRegistrations), CreateRegistrations(game)];
+        return new LoadedGame(context, CreateEntry(game), registrations, DriverOf(game))
+        {
+            EditorAssembly = editor,
+            Plugins = plugins,
+            PluginEditorAssemblies = pluginEditors ?? [],
+        };
+    }
+
+    /// <summary>The plugins a game assembly names (ADR 0118), in the order they load; none for a game without.</summary>
+    public static IReadOnlyList<string> PluginNamesOf(Assembly game) =>
+        game.GetCustomAttribute<GamePluginsAttribute>()?.Names ?? [];
 
     /// <summary>
     /// Loads a package's game (ADR 0100), which its runtime was started for,
@@ -49,7 +80,8 @@ public static class GameLoader
     {
         AssemblyLoadContext.Default.ResolvingUnmanagedDll += ResolveModule;
         Assembly assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(path);
-        return new LoadedGame(AssemblyLoadContext.Default, CreateEntry(assembly), CreateRegistrations(assembly), DriverOf(assembly));
+        // Its plugins were published with it, so the runtime knows them.
+        return Create(AssemblyLoadContext.Default, assembly, AssemblyLoadContext.Default.LoadFromAssemblyName);
     }
 
     /// <summary>
@@ -63,8 +95,8 @@ public static class GameLoader
     /// assembly's attributes as a loaded game's are (ADR 0011's generated
     /// bootstrap): safe under NativeAOT, which keeps what they name.
     /// </summary>
-    public static LoadedGame LoadCompiledIn(Assembly assembly) =>
-        new(AssemblyLoadContext.Default, CreateEntry(assembly), CreateRegistrations(assembly), DriverOf(assembly));
+    /// <remarks>Its plugins are compiled in too, rooted whole by its build, and found by name (ADR 0118).</remarks>
+    public static LoadedGame LoadCompiledIn(Assembly assembly) => Create(AssemblyLoadContext.Default, assembly, Assembly.Load);
 
     /// <summary>
     /// Whether <paramref name="path"/> is one of the assemblies the runtime
@@ -90,40 +122,80 @@ public static class GameLoader
     /// </remarks>
     [RequiresUnreferencedCode(JitOnly)]
     [RequiresDynamicCode(JitOnly)]
-    public static LoadedGame Reload(LoadedGame current, string path, out IReadOnlyList<MigrationNote> notes, string? editorPath = null)
+    public static LoadedGame Reload(LoadedGame current, string path, out IReadOnlyList<MigrationNote> notes, string? editorPath = null) =>
+        Reload(current, new GameFiles(path) { Editor = editorPath }, out notes);
+
+    /// <summary>As the other overload, with the game's source plugins reloaded with it (ADR 0118).</summary>
+    [RequiresUnreferencedCode(JitOnly)]
+    [RequiresDynamicCode(JitOnly)]
+    public static LoadedGame Reload(LoadedGame current, GameFiles files, out IReadOnlyList<MigrationNote> notes)
     {
         AssemblyLoadContext oldContext = current.Context;
-        (AssemblyLoadContext context, Assembly assembly, Assembly? editor) = LoadAssembly(path, editorPath);
+        (AssemblyLoadContext context, Assembly assembly, Assembly? editor, Assembly[] pluginEditors) = LoadAssembly(files);
         notes = ComponentMigration.Migrate(oldContext, context);
-        return new LoadedGame(context, CreateEntry(assembly), CreateRegistrations(assembly), DriverOf(assembly)) { EditorAssembly = editor };
+        return Create(context, assembly, name => context.LoadFromAssemblyName(name), editor, pluginEditors);
     }
 
-    // The assembly is read from a stream, not opened by path, so the file
-    // isn't locked: a rebuild can overwrite it while the old version runs.
+    // Assemblies are read from streams, not opened by path, so the files
+    // aren't locked: a rebuild can overwrite them while the old version runs.
     [RequiresUnreferencedCode(JitOnly)]
-    private static (AssemblyLoadContext Context, Assembly Assembly, Assembly? Editor) LoadAssembly(string path, string? editorPath)
+    private static (AssemblyLoadContext Context, Assembly Game, Assembly? Editor, Assembly[] PluginEditors) LoadAssembly(GameFiles files)
     {
-        AssemblyLoadContext context = new($"Game: {Path.GetFileName(path)}", isCollectible: true);
+        AssemblyLoadContext context = new($"Game: {Path.GetFileName(files.Game)}", isCollectible: true);
         // The game's bindings into its native module (ADR 0074) name the
         // module's library, which the launcher or editor already loaded.
         context.ResolvingUnmanagedDll += ResolveModule;
-        Assembly game;
-        using (FileStream stream = File.OpenRead(path))
+        foreach (string plugin in files.Plugins)
         {
-            game = context.LoadFromStream(stream);
+            LoadFrom(context, plugin);
         }
-        // The editor assembly's references (ADR 0116): the game loaded here,
-        // and the editor's own assemblies, shared rather than loaded again.
-        // Looked up by name, not captured: a context holding its own assembly
-        // in a handler would never be collected.
+        Assembly game = LoadFrom(context, files.Game);
+        // References between the assemblies loaded here (ADR 0116, 0118), and
+        // to the editor's own and compiled plugins', shared rather than
+        // loaded again; then the game's plugins beside it (a standalone run),
+        // and only those: whoever loaded the game resolves the rest. Looked
+        // up by name, not captured: a context holding its own assembly in a
+        // handler would never be collected.
+        string beside = Path.GetDirectoryName(Path.GetFullPath(files.Game))!;
+        string[] plugins = [.. PluginNamesOf(game)];
+        context.Resolving += (resolving, name) =>
+            ResolveShared(resolving, name) ?? (plugins.Contains(name.Name) ? LoadBeside(resolving, name, beside) : null);
+        Assembly[] pluginEditors = [.. files.PluginEditors.Select(path => LoadFrom(context, path))];
+        Assembly? editor = files.Editor is { } editorPath ? LoadFrom(context, editorPath) : null;
+        return (context, game, editor, pluginEditors);
+    }
+
+    [RequiresUnreferencedCode(JitOnly)]
+    private static Assembly LoadFrom(AssemblyLoadContext context, string path)
+    {
+        using FileStream stream = File.OpenRead(path);
+        return context.LoadFromStream(stream);
+    }
+
+    // A plugin's assembly copied beside the game (a standalone run's).
+    [RequiresUnreferencedCode(JitOnly)]
+    private static Assembly? LoadBeside(AssemblyLoadContext context, AssemblyName name, string folder)
+    {
+        string path = Path.Combine(folder, $"{name.Name}.dll");
+        return File.Exists(path) ? LoadFrom(context, path) : null;
+    }
+
+    /// <summary>
+    /// Loads compiled plugins (ADR 0118), each runtime assembly then its editor
+    /// assembly, into one collectible context of their own: they don't change
+    /// while the editor runs, so a game's reload leaves them be. Their
+    /// references to the editor's assemblies go through
+    /// <see cref="SharedAssemblies"/>; games find them the same way.
+    /// </summary>
+    [RequiresUnreferencedCode(JitOnly)]
+    public static LoadedPlugins LoadPlugins(IReadOnlyList<(string Assembly, string? Editor)> plugins)
+    {
+        AssemblyLoadContext context = new("Plugins", isCollectible: true);
+        context.ResolvingUnmanagedDll += ResolveModule;
         context.Resolving += ResolveShared;
-        Assembly? editor = null;
-        if (editorPath is not null)
-        {
-            using FileStream stream = File.OpenRead(editorPath);
-            editor = context.LoadFromStream(stream);
-        }
-        return (context, game, editor);
+        Assembly[] runtime = [.. plugins.Select(plugin => LoadFrom(context, plugin.Assembly))];
+        Assembly[] editors = [.. plugins.Where(plugin => plugin.Editor is not null).Select(plugin => LoadFrom(context, plugin.Editor!))];
+        return new LoadedPlugins(context, runtime, editors);
     }
 
     /// <summary>
@@ -204,11 +276,11 @@ public sealed class LoadedGame
 {
     private AssemblyLoadContext? _context;
     private IGameEntry? _entry;
-    private Registrations? _registrations;
+    private Registrations[]? _registrations;
     [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
     private Type? _driver;
 
-    internal LoadedGame(AssemblyLoadContext context, IGameEntry? entry, Registrations registrations,
+    internal LoadedGame(AssemblyLoadContext context, IGameEntry? entry, Registrations[] registrations,
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type? driver = null)
     {
         _context = context;
@@ -245,23 +317,48 @@ public sealed class LoadedGame
     /// systems: they are new objects, so values in the old ones' fields are
     /// gone.
     /// </summary>
-    public void RegisterSystems(ScheduleBuilder builder) => Live.Systems?.Register(builder);
+    /// <remarks>Its plugins' systems first, in the order they load (ADR 0118).</remarks>
+    public void RegisterSystems(ScheduleBuilder builder)
+    {
+        foreach (Registrations registrations in Live)
+        {
+            registrations.Systems?.Register(builder);
+        }
+    }
 
     /// <summary>
     /// Registers the game's <see cref="ComponentAttribute"/> types, and which
     /// of them scenes save (ADR 0041). Call it before the game's systems
     /// start or a scene loads.
     /// </summary>
-    public void RegisterComponents() => Live.Components?.Register();
+    public void RegisterComponents()
+    {
+        foreach (Registrations registrations in Live)
+        {
+            registrations.Components?.Register();
+        }
+    }
 
     /// <summary>Creates the game's <see cref="ServiceAttribute"/> services into <paramref name="services"/> (ADR 0041).</summary>
-    public void RegisterServices(Services services) => Live.Services?.Register(services);
+    public void RegisterServices(Services services)
+    {
+        foreach (Registrations registrations in Live)
+        {
+            registrations.Services?.Register(services);
+        }
+    }
 
-    private Registrations Live =>
+    private Registrations[] Live =>
         _registrations ?? throw new InvalidOperationException("The game has been unloaded.");
 
     /// <summary>The project's editor assembly loaded beside the game (ADR 0116), or null.</summary>
     public Assembly? EditorAssembly { get; internal set; }
+
+    /// <summary>The plugins' runtime assemblies the game uses (ADR 0118), in the order they load.</summary>
+    public IReadOnlyList<Assembly> Plugins { get; internal set; } = [];
+
+    /// <summary>Its source plugins' editor assemblies, loaded with it (ADR 0118), in the plugins' order.</summary>
+    public IReadOnlyList<Assembly> PluginEditorAssemblies { get; internal set; } = [];
 
     internal AssemblyLoadContext Context =>
         _context ?? throw new InvalidOperationException("The game has been unloaded.");
@@ -278,6 +375,8 @@ public sealed class LoadedGame
         _registrations = null;
         _driver = null;
         EditorAssembly = null;
+        Plugins = [];
+        PluginEditorAssemblies = [];
         _context = null;
         // The saved-component table would otherwise keep the game's types.
         SavedComponents.Forget(context);
@@ -293,3 +392,56 @@ internal sealed record Registrations(
     ISystemRegistration? Systems,
     IComponentRegistration? Components,
     IServiceRegistration? Services);
+
+/// <summary>
+/// What <see cref="GameLoader.Load(GameFiles)"/> loads (ADR 0118): the game's
+/// assembly, its editor assembly, and its source plugins' assemblies, built
+/// with it.
+/// </summary>
+public sealed record GameFiles(string Game)
+{
+    public string? Editor { get; init; }
+
+    /// <summary>Source plugins' runtime assemblies, in the order they load.</summary>
+    public IReadOnlyList<string> Plugins { get; init; } = [];
+
+    /// <summary>Source plugins' editor assemblies, in the same order.</summary>
+    public IReadOnlyList<string> PluginEditors { get; init; } = [];
+}
+
+/// <summary>Compiled plugins loaded into a context of their own (ADR 0118).</summary>
+public sealed class LoadedPlugins
+{
+    private AssemblyLoadContext? _context;
+
+    internal LoadedPlugins(AssemblyLoadContext context, IReadOnlyList<Assembly> assemblies, IReadOnlyList<Assembly> editorAssemblies)
+    {
+        _context = context;
+        Assemblies = assemblies;
+        EditorAssemblies = editorAssemblies;
+    }
+
+    /// <summary>Their runtime assemblies, in the order given.</summary>
+    public IReadOnlyList<Assembly> Assemblies { get; private set; }
+
+    /// <summary>Their editor assemblies, for those that have one.</summary>
+    public IReadOnlyList<Assembly> EditorAssemblies { get; private set; }
+
+    /// <summary>One of them by name, as a load context resolving a reference asks.</summary>
+    public Assembly? Find(AssemblyName name) =>
+        _context?.Assemblies.FirstOrDefault(assembly => assembly.GetName().Name == name.Name);
+
+    /// <summary>Starts unloading them, as <see cref="LoadedGame.Unload"/> does a game.</summary>
+    public WeakReference Unload()
+    {
+        AssemblyLoadContext context = _context ?? throw new InvalidOperationException("Already unloaded.");
+        WeakReference weak = new(context);
+        Assemblies = [];
+        EditorAssemblies = [];
+        _context = null;
+        SavedComponents.Forget(context);
+        RenderSchedule.Forget(context);
+        context.Unload();
+        return weak;
+    }
+}

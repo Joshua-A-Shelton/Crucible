@@ -174,7 +174,7 @@ internal sealed partial class Shell
     /// <summary>Writes the scene to a file and makes it the scene's file; then does what was waiting on a save.</summary>
     public bool WriteScene(string path)
     {
-        if (!_context.HasWorld)
+        if (!_context.HasWorld || !CanChangeFile(path))
         {
             return false;
         }

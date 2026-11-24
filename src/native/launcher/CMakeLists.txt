@@ -472,11 +472,15 @@ if(CRUCIBLE_BUILD_TESTS)
     # without it), print no information.
     set(packageGame "${PROJECT_SOURCE_DIR}/tests/packaging/package_game.cmake")
     set(walkerLevel 28fe2d80-33ef-4ee4-a409-cc43b935bcc6)
+    # Optionally INCLUDE <asset path> packed besides the scene, and EXPECT
+    # <text> the Development run must print and log.
     function(crucible_add_package_test name project game scene assets entities runtime configuration)
+        cmake_parse_arguments(PARSE_ARGV 8 package "" "INCLUDE;EXPECT" "")
         add_test(NAME ${name}
             COMMAND "${CMAKE_COMMAND}" "-DEDITOR=$<TARGET_FILE:crucible_editor>" "-DENGINE=${engineDirectory}"
                 "-DPROJECT=${project}" -DGAME=${game} -DSCENE=${scene} -DASSETS=${assets} -DENTITIES=${entities}
                 -DRUNTIME=${runtime} -DCONFIGURATION=${configuration}
+                "-DINCLUDE=${package_INCLUDE}" "-DEXPECT=${package_EXPECT}"
                 "-DSHIPPING_TOOLKIT=${crucibleShippingDir}/src/native/launcher/CrucibleModule.json"
                 "-DOUT=${CMAKE_CURRENT_BINARY_DIR}/${name}" -P "${packageGame}")
         set(labels "integration;gpu")
@@ -498,6 +502,18 @@ if(CRUCIBLE_BUILD_TESTS)
         crucible_add_package_test(samples.diorama-package-aot
             "${dioramaWarm}/Diorama.crproject" Diorama
             6ea19c76-2e22-4a7a-be4d-df460ee6ee56 8 25 NativeAot Development)
+    endif()
+    # A game using a compiled plugin (ADR 0118), the copy launcher.jit.plugins
+    # leaves: the plugin's assembly published with it or compiled in, its
+    # asset cooked, and its system run.
+    set(pluginsProject "${CMAKE_CURRENT_BINARY_DIR}/plugins-compiled-project/Walker.crproject")
+    crucible_add_package_test(samples.plugins-package "${pluginsProject}" Walker ${walkerLevel} 9 12 Jit Development
+        INCLUDE "Waypoints:Paths" EXPECT "the plugin's system started")
+    set_property(TEST samples.plugins-package APPEND PROPERTY FIXTURES_REQUIRED plugins-project)
+    if(CRUCIBLE_BUILD_AOT)
+        crucible_add_package_test(samples.plugins-package-aot "${pluginsProject}" Walker ${walkerLevel} 9 12
+            NativeAot Development INCLUDE "Waypoints:Paths" EXPECT "the plugin's system started")
+        set_property(TEST samples.plugins-package-aot APPEND PROPERTY FIXTURES_REQUIRED plugins-project)
     endif()
 
     # The Build Settings window checking itself (ADR 0098, 0100): on a copy
@@ -606,6 +622,19 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "EditorApiChecks: all [0-9]+ checks passed")
 
+    # Plugins checking themselves (ADR 0118): on a copy of the Walker's
+    # project, a source plugin built, loaded, run, and reloaded with the
+    # game, packaged without its editor code, and built to share; a second
+    # copy using the compiled build, which the package tests below run.
+    add_test(NAME launcher.jit.plugins
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
+            --game-arg "warm-project=${walkerWarm}/Walker.crproject"
+            --game-arg "check-plugins=${CMAKE_CURRENT_BINARY_DIR}"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/plugins-settings.json")
+    set_tests_properties(launcher.jit.plugins PROPERTIES LABELS "integration;gpu" TIMEOUT 900
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen" FIXTURES_SETUP plugins-project
+        PASS_REGULAR_EXPRESSION "PluginChecks: all [0-9]+ checks passed")
+
     # Importing dropped files checking itself (ADR 0115): on a copy of the
     # Walker's project, the platform's file drag events handed to the editor
     # as a drop would give them: the note and highlight, the image and name
@@ -713,6 +742,7 @@ if(CRUCIBLE_BUILD_TESTS)
         launcher.jit.drops
         launcher.jit.editor-code
         launcher.jit.editor-api
+        launcher.jit.plugins
         samples.walker-package
         samples.walker-package-shipping
         APPEND PROPERTY FIXTURES_REQUIRED walker-warm)

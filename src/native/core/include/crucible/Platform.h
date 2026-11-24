@@ -257,6 +257,9 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void showOpenFileDialog(WindowHandle window, std
 // answer is a FileDialogResult too.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void showSaveFileDialog(WindowHandle window, std::string_view filterName,
                                                         std::string_view pattern, std::string_view defaultLocation);
+// The system's open-folder dialog (ADR 0118), starting at `defaultLocation`
+// (empty for the system's choice); its answer is a FileDialogResult too.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void showOpenFolderDialog(WindowHandle window, std::string_view defaultLocation);
 
 // The folder for the user's settings (ADR 0066), created if needed and
 // ending in a separator: ~/.local/share/Crucible/ on Linux,

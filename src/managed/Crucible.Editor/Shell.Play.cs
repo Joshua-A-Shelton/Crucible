@@ -142,8 +142,9 @@ internal sealed partial class Shell
         OpenProjectNative(project);
         _codeWatcher?.Dispose();
         _codeWatcher = null;
-        // Another project's plugins close, their panels with them.
-        StopPlugins(keepPanels: false);
+        // Another project's extensions close, their panels with them, and
+        // its compiled plugins with them; this one's load (ADR 0118).
+        OpenProjectPlugins(project);
         _builder = new GameBuilder(project);
         // Another project's game may still be loaded: this one's replaces it.
         _gameIsCurrent = false;
@@ -160,7 +161,7 @@ internal sealed partial class Shell
         }
         if (!_builder.HasCode)
         {
-            ResolvePending(); // no code, so no plugin panels
+            ResolvePending(); // no code, so no extension panels
             return;
         }
         if (_builder.IsUpToDate())
@@ -182,6 +183,7 @@ internal sealed partial class Shell
         {
             return;
         }
+        PollPlugins();
         if (_codeWatcher is not null && _codeWatcher.TakeSettled(out _, out _) && _builder.HasCode && _builder.Start())
         {
             Status($"Building {_builder.AssemblyName}…");
@@ -253,23 +255,35 @@ internal sealed partial class Shell
         }
         try
         {
-            // The editor assembly (ADR 0116) in the game's context, with it.
-            string loaded = build.EditorAssembly is { } editor
-                ? $"{Path.GetFileName(build.Assembly)} and {Path.GetFileName(editor)}"
-                : Path.GetFileName(build.Assembly);
+            // The editor assembly (ADR 0116) and the source plugins' (ADR
+            // 0118) in the game's context, with it.
+            GameFiles files = new(build.Assembly)
+            {
+                Editor = build.EditorAssembly,
+                Plugins = build.PluginAssemblies,
+                PluginEditors = build.PluginEditorAssemblies,
+            };
+            string[] names =
+            [
+                .. build.PluginAssemblies, build.Assembly, .. build.PluginEditorAssemblies,
+                .. build.EditorAssembly is { } editor ? [editor] : Array.Empty<string>(),
+            ];
+            string loaded = names.Length == 1
+                ? Path.GetFileName(names[0])
+                : $"{string.Join(", ", names[..^1].Select(Path.GetFileName))} and {Path.GetFileName(names[^1])}";
             if (_game is null)
             {
-                _game = GameLoader.Load(build.Assembly, build.EditorAssembly);
+                _game = GameLoader.Load(files);
                 _game.RegisterComponents();
                 Log($"Loaded {loaded}");
             }
             else
             {
-                // ADR 0117: the plugins go first, their panels kept as placeholders.
-                StopPlugins(keepPanels: true);
+                // ADR 0117: the extensions go first, their panels kept as placeholders.
+                StopExtensions(keepPanels: true);
                 LoadedGame old = _game;
                 GameReloading?.Invoke();
-                _game = GameLoader.Reload(old, build.Assembly, out IReadOnlyList<MigrationNote> notes, build.EditorAssembly);
+                _game = GameLoader.Reload(old, files, out IReadOnlyList<MigrationNote> notes);
                 _game.RegisterComponents();
                 foreach (MigrationNote note in notes)
                 {
@@ -291,7 +305,7 @@ internal sealed partial class Shell
             return false;
         }
         _gameIsCurrent = true;
-        StartPlugins();
+        StartExtensions();
         // Game code using CRUCIBLE_EDITOR checked to build without it, as a package will.
         if (_builder is { UsesEditorSymbol: true } builder)
         {

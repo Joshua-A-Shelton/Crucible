@@ -90,7 +90,7 @@ public sealed class Cooker(AssetDatabase database)
                     errors.Add($"{from}, which {next.From} needs, has no importer installed");
                     continue;
                 }
-                byte[] text = File.ReadAllBytes(AssetDatabase.FullPath(database.Project.AssetsFolder, entry.Path));
+                byte[] text = File.ReadAllBytes(database.Project.FileOf(entry.Path));
                 archive.Add(entry.Id, text, database.KindOf(entry.Id));
                 if (entry.Path.EndsWith(Crucible.Scenes.Scene.Extension, StringComparison.OrdinalIgnoreCase))
                 {
