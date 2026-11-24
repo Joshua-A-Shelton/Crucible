@@ -246,6 +246,7 @@ internal sealed partial class Shell
         }
         Settings.Layout = LayoutToSave();
         SaveSettings();
+        StopPlugins(keepPanels: false);
         foreach (EditorWindow window in _windows.ToArray())
         {
             Remove(window);
@@ -712,6 +713,7 @@ internal sealed partial class Shell
         build.Add(Commands.Find("Build.Cook")!);
 
         Menu window = Main.MenuBar.Add("Window");
+        _windowMenu = window;
         foreach ((string id, _) in Panels.Panels)
         {
             window.Add(Commands.Find($"Window.{id}")!);
@@ -1105,6 +1107,7 @@ internal sealed partial class Shell
         {
             ["Main"] = Main.DockSpace.Node is { } main ? Save(main) : null,
             ["Floating"] = floating,
+            ["PanelStates"] = SavePanelStates(),
         };
     }
 
@@ -1143,6 +1146,19 @@ internal sealed partial class Shell
             Main.DockSpace.Take(panel);
         }
         _open.Clear();
+        _layoutStates = layout?["PanelStates"] as JsonObject;
+        try
+        {
+            Restore(layout);
+        }
+        finally
+        {
+            _layoutStates = null;
+        }
+    }
+
+    private void Restore(JsonObject? layout)
+    {
         UIElement? main = layout?["Main"] is JsonObject saved ? Load(saved) : null;
         if (main is null)
         {
@@ -1208,7 +1224,7 @@ internal sealed partial class Shell
             foreach (JsonNode? id in ids)
             {
                 if (id?.GetValueKind() == System.Text.Json.JsonValueKind.String && !_open.ContainsKey(id.GetValue<string>()) &&
-                    Panel(id.GetValue<string>()) is { } panel)
+                    RestorePanel(id.GetValue<string>()) is { } panel)
                 {
                     group.Add(panel);
                 }

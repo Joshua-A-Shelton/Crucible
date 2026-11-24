@@ -213,6 +213,9 @@ Longer explanations of decisions, written to be reread:
 - [Editor assemblies](docs/learning/editor-assemblies.md) (ADR 0116):
   separate assemblies against conditional compilation, load contexts and
   hot reload, and how an unload leaks.
+- [Editor plugins](docs/learning/editor-plugins.md) (ADR 0117): a facade
+  instead of the editor's insides, an entry point instead of attributes,
+  and keeping a panel's state across a reload without keeping old code.
 - [Up-to-date builds](docs/learning/up-to-date-builds.md) (ADR 0110): file
   times versus content hashes, what makes a build stamp trustworthy, and
   why copies need one.

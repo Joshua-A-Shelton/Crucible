@@ -24,6 +24,20 @@ public abstract class EditorPanel : UIElement
 
     /// <summary>The group showing it, if it's docked.</summary>
     public DockGroup? Group => Parent as DockGroup;
+
+    /// <summary>
+    /// Writes what it wants kept (ADR 0117): called before a code reload
+    /// remakes it, and when the layout is saved. Plain values only, so they
+    /// outlive the code that wrote them.
+    /// </summary>
+    public virtual void SaveState(PanelState state)
+    {
+    }
+
+    /// <summary>Reads what <see cref="SaveState"/> kept, just after it's made; not called when there's nothing.</summary>
+    public virtual void LoadState(PanelState state)
+    {
+    }
 }
 
 /// <summary>The panels the editor knows (ADR 0066), by ID: what the Window menu lists and layouts name.</summary>
@@ -46,6 +60,12 @@ public sealed class PanelRegistry
     }
 
     public bool Contains(string id) => _panels.Exists(panel => panel.Id == id);
+
+    /// <summary>Forgets a panel (a plugin's, as its code reloads); open ones stay open.</summary>
+    internal bool Unregister(string id) => _panels.RemoveAll(panel => panel.Id == id) > 0;
+
+    /// <summary>A registered panel's title; null for one not registered.</summary>
+    internal string? TitleOf(string id) => _panels.Find(panel => panel.Id == id).Title;
 
     /// <summary>A new panel of that ID; null for one not registered.</summary>
     public EditorPanel? Create(string id)

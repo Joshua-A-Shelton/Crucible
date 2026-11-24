@@ -55,6 +55,9 @@ is, and record which version fixed it.
 - The pixel-art 2D path details. → 0005 [M11]
 - Upscaler licenses: DLSS, XeSS (FSR is MIT); SMAA's license. → 0004
   [when each is added]
+- A changelog for Crucible, starting with the public editor API's
+  changes (free to change until 1.0, every change listed). Where it lives
+  and what else it records. → 0117 [before the editor API's first change]
 
 ## Revisit (owner's notes)
 

@@ -110,4 +110,67 @@ public class UndoTests
         // Saved with nothing done, and the oldest steps dropped: still dirty after undoing all.
         await Assert.That(history.IsDirty).IsTrue();
     }
+    // ADR 0117: a reloaded plugin's steps go, and with them every step only
+    // reachable through them; the scene's saved state stays right.
+    private sealed class Plugin(string title) : UndoStep(title)
+    {
+        public override void Undo(World world)
+        {
+        }
+
+        public override void Redo(World world)
+        {
+        }
+    }
+
+    [Test]
+    public async Task DroppingAPluginsStepsCutsTheHistoryBehindThem()
+    {
+        using World world = new();
+        UndoHistory history = new();
+        List<int> log = [];
+        history.Push(new Add("One", log, 1));
+        history.BeginGroup("Grouped");
+        history.Push(new Plugin("Inside"));
+        history.EndGroup();
+        history.Push(new Add("Two", log, 2));
+        history.Push(new Add("Three", log, 3));
+        history.Undo(world); // Three to redo
+        (int dropped, string? title) = history.DropSteps(step => step is Plugin);
+        await Assert.That(dropped).IsEqualTo(2);
+        await Assert.That(title).IsEqualTo("Grouped");
+        await Assert.That(history.UndoCount).IsEqualTo(1);
+        await Assert.That(history.NextUndo!.Title).IsEqualTo("Two");
+        await Assert.That(history.NextRedo!.Title).IsEqualTo("Three");
+        await Assert.That(history.DropSteps(step => step is Plugin).Dropped).IsEqualTo(0);
+
+        // A plugin step to redo: it and what would be redone after it go.
+        history.Push(new Plugin("Redo Me"));
+        history.Push(new Add("Four", log, 4));
+        history.Undo(world);
+        history.Undo(world);
+        await Assert.That(history.DropSteps(step => step is Plugin).Dropped).IsEqualTo(2);
+        await Assert.That(history.CanRedo).IsFalse();
+    }
+
+    [Test]
+    public async Task SavedAtADroppedStepIsStillSavedWithNothingAfterIt()
+    {
+        using World world = new();
+        UndoHistory history = new();
+        List<int> log = [];
+        history.Push(new Add("One", log, 1));
+        history.Push(new Plugin("Plugin"));
+        history.MarkSaved();
+        history.DropSteps(step => step is Plugin);
+        await Assert.That(history.IsDirty).IsFalse();
+
+        history.Push(new Add("Two", log, 2));
+        history.Push(new Plugin("Plugin"));
+        history.MarkSaved();
+        history.Undo(world);
+        history.Undo(world); // back past the save
+        history.DropSteps(step => step is Plugin);
+        await Assert.That(history.IsDirty).IsTrue();
+    }
 }

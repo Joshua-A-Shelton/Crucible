@@ -194,6 +194,76 @@ public sealed class UndoHistory
         Changed?.Invoke(this);
     }
 
+    /// <summary>Takes out handlers a plugin's unloading code added (ADR 0117).</summary>
+    internal void RemoveHandlers(Func<Delegate, bool> remove)
+    {
+        foreach (Delegate handler in Changed?.GetInvocationList() ?? [])
+        {
+            if (remove(handler))
+            {
+                Changed -= (Action<UndoHistory>)handler;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Drops the steps <paramref name="old"/> picks (a reloaded plugin's own,
+    /// ADR 0117) and every step that can only be reached through them: those
+    /// done before the newest of them, those to redo after the oldest. Returns
+    /// how many went, and the newest picked step's title.
+    /// </summary>
+    internal (int Dropped, string? Title) DropSteps(Func<UndoStep, bool> old)
+    {
+        bool savedUndone = _saved is not null && _undone.Contains(_saved);
+        (int done, string? title) = Cut(_done, old);
+        (int undone, string? undoneTitle) = Cut(_undone, old);
+        if (done + undone == 0)
+        {
+            return (0, null);
+        }
+        if (_saved is not null && !_done.Contains(_saved) && !_undone.Contains(_saved))
+        {
+            // Saved at a step dropped. Done: what's left was done after it,
+            // so with no scene step left, the scene is as saved. Undone: the
+            // scene went back past it, so it differs.
+            _saved = null;
+            _savedLost = savedUndone;
+        }
+        _open = null;
+        _depth = 0;
+        Changed?.Invoke(this);
+        return (done + undone, title ?? undoneTitle);
+    }
+
+    /// <summary>The same for the history kept at Play.</summary>
+    internal static Saved DropSteps(Saved saved, Func<UndoStep, bool> old)
+    {
+        List<UndoStep> done = [.. saved.Done], undone = [.. saved.Undone];
+        if (Cut(done, old).Dropped + Cut(undone, old).Dropped == 0)
+        {
+            return saved;
+        }
+        UndoStep? savedAt = saved.SavedAt is { } at && (done.Contains(at) || undone.Contains(at)) ? at : null;
+        return new Saved([.. done], [.. undone], savedAt, saved.SavedLost);
+    }
+
+    // The picked step nearest the end (where undo, or redo, starts) and
+    // everything before it, which can only be reached through it.
+    private static (int Dropped, string? Title) Cut(List<UndoStep> steps, Func<UndoStep, bool> old)
+    {
+        int newest = steps.FindLastIndex(step => Picked(step, old));
+        if (newest < 0)
+        {
+            return (0, null);
+        }
+        string title = steps[newest].Title;
+        steps.RemoveRange(0, newest + 1);
+        return (newest + 1, title);
+    }
+
+    private static bool Picked(UndoStep step, Func<UndoStep, bool> old) =>
+        old(step) || (step is Group group && group.Steps.Exists(inner => Picked(inner, old)));
+
     private void Record(UndoStep step)
     {
         // A saved step cleared from the redo steps never comes back to the

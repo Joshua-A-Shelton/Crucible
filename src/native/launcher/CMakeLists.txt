@@ -593,6 +593,19 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "EditorCodeChecks: all [0-9]+ checks passed")
 
+    # The public editor API checking itself (ADR 0117): on a copy of the
+    # Walker's project, a plugin in Code/Editor changed version by version:
+    # its panel, commands, and menus, its undoable edits, its panel's state
+    # across reloads and in the layout, and nothing of an old version left.
+    add_test(NAME launcher.jit.editor-api
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
+            --game-arg "warm-project=${walkerWarm}/Walker.crproject"
+            --game-arg "check-editor-api=${CMAKE_CURRENT_BINARY_DIR}"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/editor-api-settings.json")
+    set_tests_properties(launcher.jit.editor-api PROPERTIES LABELS "integration;gpu" TIMEOUT 600
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "EditorApiChecks: all [0-9]+ checks passed")
+
     # Importing dropped files checking itself (ADR 0115): on a copy of the
     # Walker's project, the platform's file drag events handed to the editor
     # as a drop would give them: the note and highlight, the image and name
@@ -699,6 +712,7 @@ if(CRUCIBLE_BUILD_TESTS)
         launcher.jit.lights-2d
         launcher.jit.drops
         launcher.jit.editor-code
+        launcher.jit.editor-api
         samples.walker-package
         samples.walker-package-shipping
         APPEND PROPERTY FIXTURES_REQUIRED walker-warm)

@@ -142,6 +142,8 @@ internal sealed partial class Shell
         OpenProjectNative(project);
         _codeWatcher?.Dispose();
         _codeWatcher = null;
+        // Another project's plugins close, their panels with them.
+        StopPlugins(keepPanels: false);
         _builder = new GameBuilder(project);
         // Another project's game may still be loaded: this one's replaces it.
         _gameIsCurrent = false;
@@ -158,6 +160,7 @@ internal sealed partial class Shell
         }
         if (!_builder.HasCode)
         {
+            ResolvePending(); // no code, so no plugin panels
             return;
         }
         if (_builder.IsUpToDate())
@@ -262,6 +265,8 @@ internal sealed partial class Shell
             }
             else
             {
+                // ADR 0117: the plugins go first, their panels kept as placeholders.
+                StopPlugins(keepPanels: true);
                 LoadedGame old = _game;
                 GameReloading?.Invoke();
                 _game = GameLoader.Reload(old, build.Assembly, out IReadOnlyList<MigrationNote> notes, build.EditorAssembly);
@@ -286,6 +291,7 @@ internal sealed partial class Shell
             return false;
         }
         _gameIsCurrent = true;
+        StartPlugins();
         // Game code using CRUCIBLE_EDITOR checked to build without it, as a package will.
         if (_builder is { UsesEditorSymbol: true } builder)
         {

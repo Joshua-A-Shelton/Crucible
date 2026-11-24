@@ -47,6 +47,24 @@ public class Menu : UIElement
 
     public MenuSeparator AddSeparator() => Add(new MenuSeparator());
 
+    /// <summary>Puts an item or a separator at <paramref name="index"/> (clamped to the items).</summary>
+    public T Insert<T>(int index, T item) where T : UIElement
+    {
+        _items.Insert(Math.Clamp(index, 0, _items.Children.Count), item);
+        return item;
+    }
+
+    /// <summary>Takes an item or a separator out; false if it isn't one of this menu's.</summary>
+    public bool Remove(UIElement item)
+    {
+        if (item.Parent != _items)
+        {
+            return false;
+        }
+        _items.Remove(item);
+        return true;
+    }
+
     /// <summary>Closes it, and the submenus opened from it.</summary>
     public void Close() => _popup?.Close();
 
@@ -425,6 +443,32 @@ public class MenuBar : UIElement
     }
 
     public Menu Add(string title) => Add(new Menu(title));
+
+    /// <summary>Puts a menu at <paramref name="index"/> (clamped to the menus).</summary>
+    public Menu Insert(int index, Menu menu)
+    {
+        ArgumentNullException.ThrowIfNull(menu);
+        index = Math.Clamp(index, 0, _menus.Count);
+        MenuItem item = new(menu.Title) { Submenu = menu };
+        item.Classes.Add("bar");
+        _row.Insert(index, item);
+        _menus.Insert(index, menu);
+        return menu;
+    }
+
+    /// <summary>Takes a menu out of the bar; false if it isn't there.</summary>
+    public bool Remove(Menu menu)
+    {
+        int at = _menus.IndexOf(menu);
+        if (at < 0)
+        {
+            return false;
+        }
+        menu.Close();
+        _row.Remove(_row.Children[at]);
+        _menus.RemoveAt(at);
+        return true;
+    }
 
     // Opens the menu `step` places along from the one open from `from`.
     internal void Step(MenuItem from, int step)
