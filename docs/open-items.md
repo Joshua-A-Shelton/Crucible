@@ -61,6 +61,18 @@ is, and record which version fixed it.
 
 ## Revisit (owner's notes)
 
+- Viewport tool keys (owner's try of ADR 0121, 2026-11-24): W, E, R, P
+  and extensions' tool keys work only while a scene view has focus, so
+  after selecting in the Hierarchy they need a click in the view first.
+  The owner wants to change this after some hands-on time with the
+  engine; one option is editor shortcuts that work wherever no control
+  uses the key (as Unity's do). → 0121
+- Selecting what's drawn only as outlines (owner's try of ADR 0121,
+  2026-11-24): a click picks meshes and sprites only, so a scene of
+  colliders alone (Chains2D) can't be clicked into. When the pick finds
+  nothing, the nearest drawn outline within a few pixels (chain lines,
+  colliders, 2D lights) could be selected. → 0121, 0095
+
 - Animation clip storage (M8 step 1): clips are resampled at a fixed rate
   (30 Hz by default) and quantized to 16 bits (smallest-three rotations,
   translations and scales within each track's range). The owner asked to
