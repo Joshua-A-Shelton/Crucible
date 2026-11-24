@@ -3,7 +3,8 @@
 **Status:** Accepted (2026-11-16); M9 step 6c built, then tried by hand by
 the owner in the Walker's Chains2D scene (2026-11-16). Names, including those
 added while building (marked *), settled by the owner as drafted
-(2026-11-16, docs/naming.md).
+(2026-11-16, docs/naming.md). Edit Points is a viewport tool since ADR 0121
+(P and the Inspector's button turn it on; Escape goes back to Move).
 
 ## Context
 

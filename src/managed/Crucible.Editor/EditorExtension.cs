@@ -40,6 +40,7 @@ public sealed class EditorContext
         Extension = extension;
         Panels = new EditorPanels(shell, this);
         Workspaces = new EditorWorkspaces(shell, this);
+        Tools = new EditorTools(shell, this);
         Commands = new EditorCommands(shell, this);
         Scene = new EditorScene(shell);
         Assets = new EditorAssets(shell);
@@ -51,6 +52,8 @@ public sealed class EditorContext
     public EditorPanels Panels { get; }
 
     public EditorWorkspaces Workspaces { get; }
+
+    public EditorTools Tools { get; }
 
     public EditorCommands Commands { get; }
 

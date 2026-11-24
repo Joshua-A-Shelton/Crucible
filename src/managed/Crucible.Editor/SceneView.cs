@@ -10,12 +10,13 @@ namespace Crucible.Editor;
 /// <summary>
 /// A viewport's image (ADR 0067): the world rendered into an offscreen
 /// surface the element's size in pixels, from its own <see cref="Camera"/>,
-/// drawn as a texture, with the selection's <see cref="Handles"/> over it.
-/// Unity's controls: the right button held looks around and flies (WASD, Q
+/// drawn as a texture, with its <see cref="Tool"/>'s overlay over it (ADR
+/// 0121). Its tool gets the input first; what it doesn't take is Unity's
+/// camera controls: the right button held looks around and flies (WASD, Q
 /// and E; the wheel sets the speed), Alt and the left button orbit, the
-/// middle button pans, the wheel dollies, F frames the selection, W, E, and
-/// R pick the handles, P edits a chain's points instead (ADR 0095). A click
-/// picks what's under it.
+/// middle button pans, the wheel dollies. F frames the selection; W, E, R,
+/// and P choose Move, Rotate, Scale, and Edit Points (ADR 0095), and
+/// Escape goes back to Move.
 /// </summary>
 public sealed class SceneView : UIElement
 {
@@ -30,7 +31,13 @@ public sealed class SceneView : UIElement
     private uint _lastRun;
     private Mode _mode;
     private Vector2 _last;
-    private HandlePart _hot;
+    private Vector2 _lastLocal;
+    private PointerButton _toolButton;
+    private ViewportTool? _tool;
+    private ToolView? _toolView;
+    private readonly Dictionary<string, ShapedText> _texts = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _textsUsed = new(StringComparer.Ordinal);
+    private (ulong Frame, Action<PickResult> Then)? _pick;
     private Vector3 _flying; // x right, y up, z forward, from the keys held
     private double _lastTick = double.NaN;
 
@@ -40,10 +47,7 @@ public sealed class SceneView : UIElement
         Look,
         Orbit,
         Pan,
-        Handle,
-        Chain,
-        Tiles,
-        Pick,
+        Tool, // a press the tool took
     }
 
     internal SceneView(Shell shell)
@@ -62,8 +66,6 @@ public sealed class SceneView : UIElement
     /// <summary>Map mode's view (ADR 0112, 0119): the map's tools and grid instead of handles and the floor's.</summary>
     internal bool IsMapView { get; init; }
 
-    // Map mode's view with its map open.
-    private bool OnMap => IsMapView && _shell.Map.IsOpen;
 
     // An asset dragged in (ADR 0071): placed under the pointer as it moves.
     private Vector2 DragPixel(DragEvent e) =>
@@ -167,46 +169,31 @@ public sealed class SceneView : UIElement
             return;
         }
         canvas.DrawImage(_texture, Vector2.Zero, ActualSize);
-        _shell.Chains.Update();
-        if (_shell.Chains.IsEditing)
+        // Its tool's overlay (ADR 0121); text no longer drawn is let go.
+        if (_tool is { } tool)
         {
-            _shell.Chains.Draw(canvas, Camera, ActualSize);
-        }
-        else if (OnMap)
-        {
-            _shell.Map.Draw(canvas, Camera, ActualSize);
-        }
-        else if (_shell.SelectedTransform() is { } world)
-        {
-            _shell.DrawLight2D(canvas, Camera, ActualSize);
-            Handles.Draw(canvas, Camera, ActualSize, world, _hot);
+            _textsUsed.Clear();
+            ToolCanvas overlay = new(canvas, ToolView, _texts, _textsUsed);
+            _shell.GuardTool(tool, "Draw", () => tool.Draw(ToolView, overlay));
+            foreach (string stale in _texts.Keys.Where(text => !_textsUsed.Contains(text)).ToArray())
+            {
+                _texts[stale].Detach();
+                _texts.Remove(stale);
+            }
         }
     }
 
     protected override void OnDetached(UIRoot root)
     {
-        // Torn off mid-drag: the drag's group ends, so undo isn't stuck open.
-        if (_mode == Mode.Handle)
+        // Torn off mid-drag: the tool's press ends, so undo isn't stuck open.
+        EndToolDrag(null);
+        _mode = Mode.None;
+        foreach (ShapedText text in _texts.Values)
         {
-            Handles.EndDrag();
-            _shell.History.EndGroup();
-            _mode = Mode.None;
+            text.Detach();
         }
-        if (_mode == Mode.Chain)
-        {
-            _shell.Chains.EndDrag();
-            _mode = Mode.None;
-        }
-        if (_mode == Mode.Tiles)
-        {
-            _shell.Map.EndStroke();
-            _mode = Mode.None;
-        }
-        if (_mode == Mode.Pick)
-        {
-            _shell.Map.EndPick();
-            _mode = Mode.None;
-        }
+        _texts.Clear();
+        _pick = null;
         if (_surface.Value != 0)
         {
             Crucible.Render.Api.DestroySurface(_surface);
@@ -215,32 +202,106 @@ public sealed class SceneView : UIElement
         }
     }
 
+    // -----------------------------------------------------------------------
+    // Its tool (ADR 0121)
+    // -----------------------------------------------------------------------
+
+    /// <summary>What its tool asks of it.</summary>
+    internal ToolView ToolView => _toolView ??= new ToolView(this);
+
+    /// <summary>
+    /// The tool on in this view (ADR 0121): what clicks, drags, the wheel, and
+    /// keys do, and what's drawn over it; null for only the camera.
+    /// </summary>
+    public ViewportTool? Tool
+    {
+        get => _tool;
+        set
+        {
+            if (_tool == value)
+            {
+                return;
+            }
+            EndToolDrag(null);
+            ViewportTool? old = _tool;
+            _tool = value;
+            if (old is not null)
+            {
+                _shell.GuardTool(old, "Deactivated", () => old.Deactivated(ToolView));
+            }
+            if (value is not null)
+            {
+                _shell.GuardTool(value, "Activated", () => value.Activated(ToolView));
+            }
+            InvalidateVisual();
+        }
+    }
+
+    // The tool's press let go (released, or the view torn off or retooled).
+    private void EndToolDrag(ToolPointer? at)
+    {
+        if (_mode != Mode.Tool || _tool is not { } tool)
+        {
+            return;
+        }
+        _mode = Mode.None;
+        ToolPointer release = at ?? new ToolPointer(_lastLocal, _toolButton, KeyModifiers.None);
+        _shell.GuardTool(tool, "PointerUp", () => tool.PointerUp(ToolView, release));
+    }
+
+    /// <summary>Asks what's drawn at a point; the answer comes once the GPU has drawn it (one request at a time: a newer replaces it).</summary>
+    internal void Pick(Vector2 at, Action<PickResult> then)
+    {
+        if (_surface.Value == 0 || Root is not { } root)
+        {
+            then(default);
+            return;
+        }
+        Vector2 pixel = at * root.Scale;
+        Crucible.Render.Api.RequestPick(_surface, (uint)MathF.Max(pixel.X, 0), (uint)MathF.Max(pixel.Y, 0));
+        _pick = (Crucible.Render.Api.FramesSubmitted(_surface) + 1, then);
+    }
+
+    // Each frame after rendering: a pick answered.
+    internal void PollPick()
+    {
+        if (_pick is not { } pending || _surface.Value == 0)
+        {
+            return;
+        }
+        PickResult result = Crucible.Render.Api.PickResult(_surface);
+        if (result.Frame >= pending.Frame)
+        {
+            _pick = null;
+            try
+            {
+                pending.Then(result);
+            }
+            catch (Exception exception)
+            {
+                _shell.LogError($"A pick's answer failed: {exception.GetType().Name}: {exception.Message}");
+            }
+        }
+    }
+
     private Vector2 Local(PointerEvent e) => e.Position - new Vector2(Bounds.X, Bounds.Y);
 
+    private static ToolPointer Pointer(Vector2 at, PointerEvent e, PointerButton button) => new(at, button, e.Modifiers, e.Wheel);
+
+    // The tool first; what it doesn't take, the camera: the right button
+    // looks and flies, the middle pans, Alt and the left orbit.
     protected override void OnPointerDown(PointerEvent e)
     {
         Focus();
         e.Handled = true;
         _last = e.Position;
         Vector2 at = Local(e);
-        // Map mode (ADR 0112): the left button uses the tool, the right picks
-        // up painted tiles, the middle pans, the wheel zooms.
-        if (OnMap && e.Button is PointerButton.Left or PointerButton.Right &&
-            (e.Modifiers & KeyModifiers.Alt) == 0)
+        _lastLocal = at;
+        if (_tool is { } tool && _shell.GuardTool(tool, "PointerDown", () => tool.PointerDown(ToolView, Pointer(at, e, e.Button)), false))
         {
-            if (_shell.Map.CellAt(Camera, ActualSize, at) is { } cell)
-            {
-                if (e.Button == PointerButton.Right)
-                {
-                    _shell.Map.BeginPick(cell);
-                    _mode = Mode.Pick;
-                }
-                else if (_shell.Map.BeginStroke(cell))
-                {
-                    _mode = Mode.Tiles;
-                }
-                InvalidateVisual();
-            }
+            _mode = Mode.Tool;
+            _toolButton = e.Button;
+            InvalidateVisual();
             return;
         }
         switch (e.Button)
@@ -255,24 +316,6 @@ public sealed class SceneView : UIElement
             case PointerButton.Left when (e.Modifiers & KeyModifiers.Alt) != 0:
                 _mode = Mode.Orbit;
                 break;
-            case PointerButton.Left when _shell.Chains.IsEditing && _shell.Chains.BeginDrag(Camera, ActualSize, at):
-                _mode = Mode.Chain;
-                InvalidateVisual();
-                break;
-            case PointerButton.Left:
-                if (!_shell.Chains.IsEditing && _shell.SelectedTransform() is { } world &&
-                    Handles.HitTest(Camera, ActualSize, world, at) is var part && part != HandlePart.None)
-                {
-                    Handles.BeginDrag(part, Camera, ActualSize, world, at);
-                    _mode = Mode.Handle;
-                    // The drag's moves undo as one (ADR 0068).
-                    _shell.History.BeginGroup(Handles.Mode.ToString());
-                }
-                else if (_surface.Value != 0 && Root is { } root)
-                {
-                    _shell.RequestPick(this, at * root.Scale);
-                }
-                break;
         }
     }
 
@@ -280,6 +323,8 @@ public sealed class SceneView : UIElement
     {
         Vector2 moved = e.Position - _last;
         _last = e.Position;
+        Vector2 at = Local(e);
+        _lastLocal = at;
         switch (_mode)
         {
             case Mode.Look:
@@ -291,45 +336,14 @@ public sealed class SceneView : UIElement
             case Mode.Pan:
                 Camera.Pan(moved, ActualSize.Y);
                 break;
-            case Mode.Handle:
-                _shell.SetSelectedTransform(Handles.Drag(Camera, ActualSize, Local(e), (e.Modifiers & KeyModifiers.Ctrl) != 0));
-                break;
-            case Mode.Chain:
-                _shell.Chains.Drag(Camera, ActualSize, Local(e), (e.Modifiers & KeyModifiers.Ctrl) != 0);
-                break;
-            case Mode.Tiles:
-                if (_shell.Map.CellAt(Camera, ActualSize, Local(e)) is { } cell)
-                {
-                    _shell.Map.Stroke(cell);
-                }
-                break;
-            case Mode.Pick:
-                _shell.Map.Track(_shell.Map.CellAt(Camera, ActualSize, Local(e)) ?? _shell.Map.Hover);
+            case Mode.Tool when _tool is { } dragging:
+                _shell.GuardTool(dragging, "PointerMove", () => dragging.PointerMove(ToolView, Pointer(at, e, _toolButton)));
                 break;
             default:
-                if (OnMap)
+                // Hovering: the tool's to show what's under the pointer.
+                if (_tool is { } hovering)
                 {
-                    if (_shell.Map.Track(_shell.Map.CellAt(Camera, ActualSize, Local(e))))
-                    {
-                        InvalidateVisual();
-                    }
-                    return;
-                }
-                if (_shell.Chains.IsEditing)
-                {
-                    if (_shell.Chains.Hover(Camera, ActualSize, Local(e)))
-                    {
-                        InvalidateVisual();
-                    }
-                    return;
-                }
-                HandlePart hot = _shell.SelectedTransform() is { } world
-                    ? Handles.HitTest(Camera, ActualSize, world, Local(e))
-                    : HandlePart.None;
-                if (hot != _hot)
-                {
-                    _hot = hot;
-                    InvalidateVisual();
+                    _shell.GuardTool(hovering, "PointerMove", () => hovering.PointerMove(ToolView, Pointer(at, e, PointerButton.None)));
                 }
                 return;
         }
@@ -339,24 +353,9 @@ public sealed class SceneView : UIElement
 
     protected override void OnPointerUp(PointerEvent e)
     {
-        if (_mode == Mode.Handle)
+        if (_mode == Mode.Tool)
         {
-            Handles.EndDrag();
-            _shell.History.EndGroup();
-        }
-        else if (_mode == Mode.Chain)
-        {
-            _shell.Chains.EndDrag();
-            InvalidateVisual();
-        }
-        else if (_mode == Mode.Tiles)
-        {
-            _shell.Map.EndStroke();
-            InvalidateVisual();
-        }
-        else if (_mode == Mode.Pick)
-        {
-            _shell.Map.EndPick();
+            EndToolDrag(Pointer(Local(e), e, _toolButton));
             InvalidateVisual();
         }
         _mode = Mode.None;
@@ -366,6 +365,12 @@ public sealed class SceneView : UIElement
     protected override void OnPointerWheel(PointerEvent e)
     {
         e.Handled = true;
+        if (_mode != Mode.Look && _tool is { } tool &&
+            _shell.GuardTool(tool, "Wheel", () => tool.Wheel(ToolView, Pointer(Local(e), e, PointerButton.None)), false))
+        {
+            InvalidateVisual();
+            return;
+        }
         if (_mode == Mode.Look)
         {
             Camera.FlySpeed = Math.Clamp(Camera.FlySpeed * MathF.Pow(1.25f, e.Wheel.Y), 0.5f, 500);
@@ -376,6 +381,9 @@ public sealed class SceneView : UIElement
         }
     }
 
+    // Flying first while looking; then the tool; then, in a scene's view,
+    // choosing tools by their keys (Escape back to Move), F to frame, and
+    // Escape letting go of the selection. The rest goes on to the editor.
     protected override void OnKeyDown(KeyEvent e)
     {
         if (_mode == Mode.Look && Fly(e.Scancode, true))
@@ -383,85 +391,39 @@ public sealed class SceneView : UIElement
             e.Handled = true;
             return;
         }
-        if (OnMap)
+        if (_tool is { } tool && _shell.GuardTool(tool, "KeyDown", () => tool.KeyDown(ToolView, e), false))
         {
-            if (MapKey(e))
-            {
-                e.Handled = true;
-                InvalidateVisual();
-            }
+            e.Handled = true;
+            InvalidateVisual();
             return;
         }
-        if ((e.Modifiers & (KeyModifiers.Ctrl | KeyModifiers.Alt | KeyModifiers.Gui)) != 0)
+        if (IsMapView || (e.Modifiers & (KeyModifiers.Ctrl | KeyModifiers.Alt | KeyModifiers.Gui)) != 0)
         {
             return;
         }
-        switch (e.Keycode)
+        if (_shell.ToolForKey(e) is { } chosen)
         {
-            case Keycode.W:
-                Handles.Mode = HandleMode.Move;
-                break;
-            case Keycode.E:
-                Handles.Mode = HandleMode.Rotate;
-                break;
-            case Keycode.R:
-                Handles.Mode = HandleMode.Scale;
-                break;
-            case Keycode.F:
-                _shell.FrameSelection(this);
-                break;
-            case Keycode.P:
-                _shell.Chains.Toggle();
-                break;
-            case Keycode.Delete when _shell.Chains.DeleteSelected():
-                break;
-            default:
-                if (e.Scancode == ScancodeEscape && _shell.Selection.Selected.Value != 0)
-                {
-                    _shell.Selection.Selected = Entity.Null;
-                    break;
-                }
-                return;
+            // A tool's key while it's on: back to Move (P toggles Edit Points).
+            Tool = chosen == _tool ? _shell.DefaultTool : chosen;
+        }
+        else if (e.Keycode == Keycode.F)
+        {
+            _shell.FrameSelection(this);
+        }
+        else if (e.Scancode == ScancodeEscape && _tool != _shell.DefaultTool)
+        {
+            Tool = _shell.DefaultTool;
+        }
+        else if (e.Scancode == ScancodeEscape && _shell.Selection.Selected.Value != 0)
+        {
+            _shell.Selection.Selected = Entity.Null;
+        }
+        else
+        {
+            return;
         }
         e.Handled = true;
         InvalidateVisual();
-    }
-
-    // Map mode's keys here (ADR 0112): Ctrl+C, Ctrl+X, and Delete on the
-    // Select tool's region, and Escape lets go of it. The tools' and flips'
-    // keys are the map workspace's commands (ADR 0119), anywhere in its tab.
-    private bool MapKey(KeyEvent e)
-    {
-        MapEditor map = _shell.Map;
-        bool ctrl = (e.Modifiers & (KeyModifiers.Ctrl | KeyModifiers.Gui)) != 0;
-        if ((e.Modifiers & KeyModifiers.Alt) != 0)
-        {
-            return false;
-        }
-        if (ctrl)
-        {
-            bool done = e.Keycode switch
-            {
-                Keycode.C => map.Copy(),
-                Keycode.X => map.Cut(),
-                _ => false,
-            };
-            if (done)
-            {
-                _shell.RaiseMapToolChanged();
-            }
-            return done;
-        }
-        if (e.Keycode == Keycode.Delete)
-        {
-            return map.DeleteRegion();
-        }
-        if (e.Scancode != ScancodeEscape || map.Region is null)
-        {
-            return false;
-        }
-        map.Region = null;
-        return true;
     }
 
     protected override void OnKeyUp(KeyEvent e)

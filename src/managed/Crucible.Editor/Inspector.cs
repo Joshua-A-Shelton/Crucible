@@ -300,17 +300,8 @@ public sealed class ComponentSection : UIElement, IFieldOwner
             if (saved.Type == typeof(Crucible.Physics2D.Collider2D) && field.Name == "Chain")
             {
                 _editPoints = new Button("Edit Points") { HorizontalAlignment = HorizontalAlignment.Start };
-                _editPoints.Clicked += _ =>
-                {
-                    if (Shell.Chains.IsEditing)
-                    {
-                        Shell.Chains.Stop();
-                    }
-                    else
-                    {
-                        Shell.Chains.Start(Entity);
-                    }
-                };
+                // The Edit Points tool (ADR 0121) on, or Move back.
+                _editPoints.Clicked += _ => Shell.ActivateTool(Shell.Chains.IsEditing ? "Scene.Move" : "Scene.EditPoints");
                 _fields.Add(_editPoints);
             }
         }

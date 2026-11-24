@@ -648,6 +648,19 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "OpenWithChecks: all [0-9]+ checks passed")
 
+    # Viewport tools checking themselves (ADR 0121): on a copy of the
+    # Walker's project, an extension's tool chosen by its key and button,
+    # taking the left button while the camera keeps the right, its picks,
+    # overlay, and keys, Escape back to Move, and its code reloaded.
+    add_test(NAME launcher.jit.viewport-tools
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
+            --game-arg "warm-project=${walkerWarm}/Walker.crproject"
+            --game-arg "check-viewport-tools=${CMAKE_CURRENT_BINARY_DIR}"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/viewport-tools-settings.json")
+    set_tests_properties(launcher.jit.viewport-tools PROPERTIES LABELS "integration;gpu" TIMEOUT 600
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "ViewportToolChecks: all [0-9]+ checks passed")
+
     # Plugins checking themselves (ADR 0118): on a copy of the Walker's
     # project, a source plugin built, loaded, run, and reloaded with the
     # game, packaged without its editor code, and built to share; a second
@@ -771,6 +784,7 @@ if(CRUCIBLE_BUILD_TESTS)
         launcher.jit.plugins
         launcher.jit.workspaces
         launcher.jit.open-with
+        launcher.jit.viewport-tools
         samples.walker-package
         samples.walker-package-shipping
         APPEND PROPERTY FIXTURES_REQUIRED walker-warm)

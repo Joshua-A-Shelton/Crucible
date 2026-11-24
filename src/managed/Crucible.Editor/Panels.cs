@@ -107,24 +107,26 @@ public abstract class PlaceholderPanel : EditorPanel
 /// </summary>
 public sealed class ViewportPanel : EditorPanel
 {
-    private readonly Button _move = Tool("Move"), _rotate = Tool("Rotate"), _scale = Tool("Scale");
+    private readonly Shell _shell;
+    // The scene's tools (ADR 0121), a button each, made again when they change.
+    private readonly StackPanel _toolButtons = new() { Orientation = Orientation.Horizontal, Spacing = 4 };
+    private readonly List<(Button Button, ViewportTool Tool)> _buttons = [];
     private readonly Button _space = Tool("World");
     private readonly Toggle _grid = new("Grid") { IsOn = true, VerticalAlignment = VerticalAlignment.Center };
     private readonly Label _time = new() { VerticalAlignment = VerticalAlignment.Center };
 
     internal ViewportPanel(Shell shell) : base("Viewport", "Viewport")
     {
-        View = new SceneView(shell);
-        _move.Clicked += _ => View.Handles.Mode = HandleMode.Move;
-        _rotate.Clicked += _ => View.Handles.Mode = HandleMode.Rotate;
-        _scale.Clicked += _ => View.Handles.Mode = HandleMode.Scale;
+        _shell = shell;
+        View = new SceneView(shell) { Tool = shell.DefaultTool };
+        MakeToolButtons();
         _space.Clicked += _ =>
             View.Handles.Space = View.Handles.Space == HandleSpace.World ? HandleSpace.Local : HandleSpace.World;
         _grid.Changed += toggle => View.ShowsGrid = toggle.IsOn;
         _time.Classes.Add("frame-time");
         StackPanel tools = new() { Orientation = Orientation.Horizontal, Spacing = 4 };
         tools.Classes.Add("viewport-tools");
-        foreach (UIElement tool in (UIElement[])[_move, _rotate, _scale, _space, _grid, _time])
+        foreach (UIElement tool in (UIElement[])[_toolButtons, _space, _grid, _time])
         {
             tools.Add(tool);
         }
@@ -138,12 +140,37 @@ public sealed class ViewportPanel : EditorPanel
 
     public SceneView View { get; }
 
+    /// <summary>The tools' buttons, in order (the checks).</summary>
+    internal IReadOnlyList<(Button Button, ViewportTool Tool)> ToolButtons => _buttons;
+
+    protected override void OnAttached(UIRoot root)
+    {
+        _shell.ToolsChanged += MakeToolButtons;
+        MakeToolButtons();
+    }
+
+    protected override void OnDetached(UIRoot root) => _shell.ToolsChanged -= MakeToolButtons;
+
+    private void MakeToolButtons()
+    {
+        _toolButtons.Clear();
+        _buttons.Clear();
+        foreach ((ViewportTool tool, Shortcut? shortcut) in _shell.Tools)
+        {
+            Button button = Tool(shortcut is { } key ? $"{tool.Title} ({key})" : tool.Title);
+            button.Clicked += _ => View.Tool = tool;
+            _toolButtons.Add(button);
+            _buttons.Add((button, tool));
+        }
+    }
+
     // The toolbar shows the view's state, which keys change too; each frame.
     internal void Refresh()
     {
-        Mark(_move, View.Handles.Mode == HandleMode.Move);
-        Mark(_rotate, View.Handles.Mode == HandleMode.Rotate);
-        Mark(_scale, View.Handles.Mode == HandleMode.Scale);
+        foreach ((Button button, ViewportTool tool) in _buttons)
+        {
+            Mark(button, View.Tool == tool);
+        }
         _space.Text = View.Handles.Space == HandleSpace.World ? "World" : "Local";
         _time.Text = View.Surface.Value != 0 ? $"{View.LastFrameMilliseconds:0.0} ms" : "";
     }

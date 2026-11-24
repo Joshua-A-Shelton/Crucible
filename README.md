@@ -225,6 +225,9 @@ Longer explanations of decisions, written to be reread:
 - [Opening editors](docs/learning/opening-editors.md) (ADR 0120):
   associations, what a kind is, several editors for one kind, and opening
   something through what uses it.
+- [Viewport tools](docs/learning/viewport-tools.md) (ADR 0121): one tool
+  at a time, who gets the input and pointer capture, drawing on top, and
+  rays, planes, and picking under the pointer.
 - [Up-to-date builds](docs/learning/up-to-date-builds.md) (ADR 0110): file
   times versus content hashes, what makes a build stamp trustworthy, and
   why copies need one.

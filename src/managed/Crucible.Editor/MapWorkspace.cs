@@ -33,7 +33,8 @@ internal sealed class MapWorkspace : Workspace
         }
         Palette = new PalettePanel(shell);
         Layers = new LayersPanel(shell);
-        View = new SceneView(shell) { IsMapView = true, ShowsGrid = false };
+        // Its painting as its view's tool (ADR 0121).
+        View = new SceneView(shell) { IsMapView = true, ShowsGrid = false, Tool = new MapPaintTool(shell) };
         Arrange(Palette, View, Layers);
         foreach ((MapTool tool, TileGlyph glyph, string label, uint key) in new[]
                  {

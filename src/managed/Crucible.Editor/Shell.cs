@@ -28,8 +28,6 @@ internal sealed partial class Shell
     private readonly List<EditorWindow> _windows = [];
     private readonly Dictionary<string, EditorPanel> _open = new(StringComparer.Ordinal);
     // The pick asked for in a viewport, and the frame that answers it.
-    private SceneView? _pickView;
-    private ulong _pickFrame;
     private readonly Theme _theme;
     private readonly FontHandle _font;
     private readonly Menu _recentMenu = new();
@@ -58,8 +56,9 @@ internal sealed partial class Shell
         RegisterPanels();
         // Map mode (ADR 0112) as the editor's own workspace (ADR 0119).
         AddWorkspace("Map", "Map", () => new MapWorkspace(this), owner: null);
-        // What the editor's own editors open (ADR 0120).
+        // What the editor's own editors open (ADR 0120), and its tools (ADR 0121).
         RegisterOpeners();
+        RegisterTools();
         RegisterCommands();
         BuildMenus();
         RestoreLayout(Settings.Layout);
@@ -488,23 +487,10 @@ internal sealed partial class Shell
                 layers.Tick();
             }
         }
-        if (_pickView is { } view && view.Surface.Value != 0)
-        {
-            PickResult result = Render.Api.PickResult(view.Surface);
-            if (result.Frame >= _pickFrame)
-            {
-                Selection.Selected = result.Hit ? TopOf(world, result.Entity) : Entity.Null;
-                _pickView = null;
-            }
-        }
+        // The views' picks answered, for their tools (ADR 0121).
+        TickTools();
     }
 
-    internal void RequestPick(SceneView view, Vector2 pixel)
-    {
-        Render.Api.RequestPick(view.Surface, (uint)MathF.Max(pixel.X, 0), (uint)MathF.Max(pixel.Y, 0));
-        _pickView = view;
-        _pickFrame = Render.Api.FramesSubmitted(view.Surface) + 1;
-    }
 
     // A click picks a mesh; the selection is what it belongs to: the
     // topmost entity above it (a prefab instance's root).

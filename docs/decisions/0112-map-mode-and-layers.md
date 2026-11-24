@@ -7,7 +7,7 @@ is a workspace's tab since ADR 0119 (2026-11-24): its layout no longer
 replaces the editor's, Done or the tab's × close it, and View > Leave Map
 Mode and Escape leaving are gone. Edit Map is "Open in Map" since ADR 0120 (the
 Inspector's header button and the Hierarchy's menu), and a map's file
-opens it too.
+opens it too. Its painting is its view's viewport tool since ADR 0121.
 
 ## Context
 

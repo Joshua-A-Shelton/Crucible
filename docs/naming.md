@@ -1726,3 +1726,26 @@ drafted after the owner tried it by hand (2026-11-24):
 | "SpriteSheet", "Palette", "Map" | Editor IDs | The editor's own editors, as Always Open With stores them |
 | `OpenWithChecks`, CTest `launcher.jit.open-with`, game arg `check-open-with`, test folder `open-with-project` | Tests | Editors found, asked for, remembered |
 | docs/learning/opening-editors.md | Learning note | Associations, kinds, several editors, opening through what uses it |
+
+## Viewport tools (2026-11-24, ADR 0121)
+
+Names proposed before building (approved to build with, 2026-11-24) and
+added while building; all placeholders (`*`) until the owner has tried it:
+
+| Name | What it names | What it is |
+|---|---|---|
+| ADR 0121 "Viewport tools"* | Decision record | Editor extensions step 6 |
+| `ViewportTool`* (`Id`, `Title`) | Abstract class | A tool an extension writes |
+| `Activated(view)`*, `Deactivated(view)`* | Methods | Turned on and off in a view |
+| `PointerDown`*, `PointerMove`*, `PointerUp`*, `Wheel`*, `KeyDown`* | Methods | Input, each saying whether it took it |
+| `ToolPointer`* (`Position`, `Button`, `Modifiers`, `Wheel`; `Ctrl`, `Shift`, `Alt`) | Record | An input's position, button, and keys held |
+| `Draw(view, canvas)`* | Method | Its overlay |
+| `ToolView`*: `View`, `Camera`, `Size`, `Ray`*, `OnPlane`*, `Project`*, `PickEntity`*, `PickSurface`*, `Redraw`* | Class | What a tool asks of its view |
+| `ToolCanvas`*: `Canvas`, `Line`, `Rect`, `Circle`, `Image`, `Text`, `WorldLine`*, `WorldPoint`* | Class | The overlay |
+| `editor.Tools`* (`EditorTools`*): `Add(tool, shortcut)`*, `Activate(id)`* | Facade | Registering tools, turning one on |
+| `SceneView.Tool`* | Property | A view's tool |
+| Move (W), Rotate (E), Scale (R), Edit Points (P); `Scene.Move`*, `Scene.Rotate`*, `Scene.Scale`*, `Scene.EditPoints`*; "Move (W)"* | Tools, IDs, button text | The editor's own tools |
+| `TransformTool`*, `EditPointsTool`*, `MapPaintTool`* (`Map.Paint`*) | Internal classes | The editor's tools, map painting |
+| "Marks.Place: KeyDown failed: InvalidOperationException: j"* | Log error | Tool code that threw |
+| `ViewportToolChecks`*, CTest `launcher.jit.viewport-tools`*, game arg `check-viewport-tools`*, test folder `viewport-tools-project`* | Tests | An extension's tools |
+| docs/learning/viewport-tools.md* | Learning note | One tool at a time, input, overlays, picking |
