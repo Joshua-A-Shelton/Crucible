@@ -120,8 +120,11 @@ is, and record which version fixed it.
 - **`launcher.jit.particles` failed twice on Windows** (debug, in full
   parallel runs, 2026-11-03: during M6 steps 3 and 8), each time with its
   output lost, and passed in every rerun since (dozens alone and in full
-  runs). Run Windows suites with `--output-on-failure` and keep the log;
-  investigate from the first one caught. → 0037
+  runs). A third time on 2026-11-23 (release, full parallel run): its
+  expected line "Crucible.Particles: 5000 particles, 60 fixed steps" was
+  missing, the rest of the output again lost; it passed 5 times alone and
+  in a full rerun. Run Windows suites with `--output-on-failure` and keep
+  the log; investigate from the first one caught. → 0037
 - **Stray KB in NativeAOT's allocation counter:** the "allocates nothing"
   tests (frames, ECS iteration, `ParallelFor`, the latency recorder) saw
   about 8 KB (8112 bytes) more on their own thread in some NativeAOT

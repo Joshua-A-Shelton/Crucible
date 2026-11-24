@@ -446,7 +446,16 @@ Result<void> renderWithGraph(Surface& surface, slag::Texture* texture, slag::Att
     {
         return Status::Unsupported;
     }
-    if (slag::Result<void> executed = graph.execute(); !executed)
+    // execute submits the graph's batches to the graphics queue itself, so it
+    // takes the queue lock like every other submit: job threads submit
+    // uploads to the same queue (ADR 0099). The passes are recorded above,
+    // and execute doesn't wait on the GPU, so the lock is held only briefly.
+    slag::Result<void> executed;
+    {
+        std::lock_guard lock(queueLock());
+        executed = graph.execute();
+    }
+    if (!executed)
     {
         return toStatus(executed.status());
     }

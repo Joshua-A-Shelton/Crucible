@@ -82,7 +82,9 @@ above where marked:
   need a graphics-queue transition before its copy and another after. So a
   worker records the whole upload, its barriers as before, and submits it
   to the graphics queue under one lock (`queueLock`), which the frame's
-  submits, presents, and waits take too. Uploads signal their own timeline
+  submits, presents, and waits take too, the render graph's `execute`
+  included, since it submits the frame's batches itself (it was missed at
+  first: a Vulkan threading error during an editor reload, 2026-11-23). Uploads signal their own timeline
   semaphore; a load is published once its value is reached.
 - **The Animator's skeleton and state machine load on jobs too** (an
   addition). An Animator holds still (its time doesn't move) until its
