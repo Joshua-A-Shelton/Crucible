@@ -42,8 +42,8 @@ public sealed class EditorContext
         Workspaces = new EditorWorkspaces(shell, this);
         Tools = new EditorTools(shell, this);
         Commands = new EditorCommands(shell, this);
-        Scene = new EditorScene(shell);
-        Assets = new EditorAssets(shell);
+        Scene = new EditorScene(shell, this);
+        Assets = new EditorAssets(shell, this);
     }
 
     /// <summary>The extension's type, as messages name it.</summary>
@@ -214,8 +214,13 @@ public sealed class EditorCommands
 public sealed class EditorScene
 {
     private readonly Shell _shell;
+    private readonly EditorContext _context;
 
-    internal EditorScene(Shell shell) => _shell = shell;
+    internal EditorScene(Shell shell, EditorContext context)
+    {
+        _shell = shell;
+        _context = context;
+    }
 
     /// <summary>The world the editor shows (the playing one while playing); null before there's one.</summary>
     public World? World => _shell.HasWorld ? _shell.World : null;
@@ -231,6 +236,75 @@ public sealed class EditorScene
     /// <summary>Removes a component; false if the entity hasn't it, or the component isn't saved.</summary>
     public bool Remove<T>(Entity entity, string title) where T : unmanaged =>
         _shell.RemoveExtensionComponent<T>(entity, title);
+
+    // -----------------------------------------------------------------------
+    // Entities (ADR 0122)
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// A new entity of the open scene, named, under <paramref name="parent"/>
+    /// (none: at the top), with no components but its name: add what it
+    /// needs. One undo step (several made one with the history's groups).
+    /// </summary>
+    public Entity Create(string name, Entity parent = default) => _shell.CreateForExtension(name ?? "", parent);
+
+    /// <summary>Destroys an entity and what's under it, as one undo step; no questions, no events.</summary>
+    public bool Destroy(Entity entity) => _shell.DestroyForExtension(entity);
+
+    /// <summary>
+    /// Moves an entity under <paramref name="parent"/> (none: the top), at
+    /// <paramref name="index"/> among its children (-1: last), keeping where
+    /// it is in the world; one undo step. False if it can't be moved there.
+    /// </summary>
+    public bool SetParent(Entity entity, Entity parent, int index = -1) => _shell.Reparent(entity, parent, index);
+
+    /// <summary>Names an entity (empty: no name) as one undo step; no events.</summary>
+    public bool Rename(Entity entity, string name) => _shell.RenameForExtension(entity, name ?? "");
+
+    /// <summary>
+    /// An item in the Hierarchy's right-click Create menu, at a path
+    /// ("2D/Tilemap"), given the entity clicked (the parent) or none.
+    /// </summary>
+    public void AddCreate(string path, Action<Entity> create)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(path);
+        ArgumentNullException.ThrowIfNull(create);
+        _shell.AddCreateItem(path, create, _context);
+    }
+
+    // -----------------------------------------------------------------------
+    // The editor's own changes (ADR 0122): before, and after in their undo step
+    // -----------------------------------------------------------------------
+
+    /// <summary>Before Duplicate: cancel it, hold it for a question, or add work after it.</summary>
+    public event Action<SceneChange>? Duplicating;
+
+    /// <summary>After Duplicate, in its undo step: each original and its copy.</summary>
+    public event Action<IReadOnlyList<(Entity Original, Entity Copy)>>? Duplicated;
+
+    /// <summary>Before a rename (F2, the Hierarchy): <see cref="SceneChange.NewName"/> is the new name.</summary>
+    public event Action<SceneChange>? Renaming;
+
+    /// <summary>After a rename, in its undo step: the entity, its name before, and after.</summary>
+    public event Action<Entity, string, string>? Renamed;
+
+    /// <summary>Before Delete: the entities, with what's under them, still there.</summary>
+    public event Action<SceneChange>? Deleting;
+
+    /// <summary>After Delete, in its undo step: the deleted entities' scene IDs.</summary>
+    public event Action<IReadOnlyList<ulong>>? Deleted;
+
+    internal void RaiseDuplicating(SceneChange change) => Duplicating?.Invoke(change);
+
+    internal void RaiseDuplicated(IReadOnlyList<(Entity Original, Entity Copy)> copies) => Duplicated?.Invoke(copies);
+
+    internal void RaiseRenaming(SceneChange change) => Renaming?.Invoke(change);
+
+    internal void RaiseRenamed(Entity entity, string before, string after) => Renamed?.Invoke(entity, before, after);
+
+    internal void RaiseDeleting(SceneChange change) => Deleting?.Invoke(change);
+
+    internal void RaiseDeleted(IReadOnlyList<ulong> ids) => Deleted?.Invoke(ids);
 }
 
 /// <summary>
@@ -240,8 +314,44 @@ public sealed class EditorScene
 public sealed class EditorAssets
 {
     private readonly Shell _shell;
+    private readonly EditorContext _context;
+    // The textures acquired for this extension, released when it stops.
+    private readonly Dictionary<AssetId, Crucible.Render.TextureHandle> _textures = [];
 
-    internal EditorAssets(Shell shell) => _shell = shell;
+    internal EditorAssets(Shell shell, EditorContext context)
+    {
+        _shell = shell;
+        _context = context;
+        context.OnStop(() =>
+        {
+            foreach (Crucible.Render.TextureHandle texture in _textures.Values)
+            {
+                Crucible.Render.RenderAssets.ReleaseTexture(texture);
+            }
+            _textures.Clear();
+        });
+    }
+
+    /// <summary>
+    /// A texture asset's GPU texture, to draw in a panel or a tool's overlay
+    /// (ADR 0122): loaded on first asking and kept while the extension runs;
+    /// null until it's ready (a frame or two), or for an asset that isn't an
+    /// imported texture.
+    /// </summary>
+    public Crucible.Render.TextureHandle? Texture(AssetId texture)
+    {
+        if (!_textures.TryGetValue(texture, out Crucible.Render.TextureHandle handle))
+        {
+            if (texture.IsNone || _shell.Database?.Find(texture) is not { Importer: "Texture" } ||
+                _shell.Database.ImportedFile(texture) is null)
+            {
+                return null;
+            }
+            handle = Crucible.Render.RenderAssets.AcquireTexture(texture);
+            _textures[texture] = handle;
+        }
+        return handle.IsReady ? handle : null;
+    }
 
     /// <summary>The open project's assets; null with no project open.</summary>
     public AssetDatabase? Database => _shell.Database;

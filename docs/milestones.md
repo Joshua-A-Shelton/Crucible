@@ -1349,7 +1349,9 @@ the steps after renumbered; done (ADR 0120), tried by hand by the
 owner: editors registered for kinds of asset and components, opened by
 double-click, the Inspector, and Open With. Step 6 done (ADR 0121), tried
 by hand by the owner: viewport tools, the handles and Edit
-Points moved onto them, map painting its view's tool.
+Points moved onto them, map painting its view's tool. Step 7 split by the
+owner (2026-11-24) into 7a, 7b, and 7c; 7a built (ADR 0122), to be tried
+by hand by the owner: scene edits for extensions.
 
 Asked for by the owner (2026-11-20): a game's own editors, as specialized
 as map mode (ADR 0112), built by the people making the game, for example
@@ -1409,7 +1411,13 @@ reload per assembly, the shipping check).
    plugin's tool, drawing over the view (lines, shapes, images, in world
    or screen space), and picking under the pointer. Chain editing (ADR
    0095) moved onto it. Decides input routing.
-7. **Map mode rebuilt on the API** (owner, 2026-11-20): the test of the
+7. **Map mode rebuilt on the API** (owner, 2026-11-20), in three parts
+   (owner, 2026-11-24): **7a**, what the API lacks for it (entities made
+   and arranged with undo, a say in the editor's Duplicate, rename, and
+   Delete, the Hierarchy's Create menu, asset textures; ADR 0122); **7b**,
+   map mode moved onto it in an assembly of its own, so the compiler
+   proves the API is enough; **7c**, the owner's notes (the brush under
+   the pointer; buttons with images and tooltips). The test of the
    API, a plugin's-eye rebuild using only what steps 2 to 6 offer,
    cleaning up as it goes: a "Map Mode" of its own, named and entered as
    a workspace rather than built into the editor; the brush under the

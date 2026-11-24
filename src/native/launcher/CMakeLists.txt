@@ -661,6 +661,18 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "ViewportToolChecks: all [0-9]+ checks passed")
 
+    # Scene edits for extensions checking themselves (ADR 0122): on a copy
+    # of the Walker's project, an extension's Create item, and its say in
+    # the editor's renames, duplicates, and deletes, before and after.
+    add_test(NAME launcher.jit.scene-api
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
+            --game-arg "warm-project=${walkerWarm}/Walker.crproject"
+            --game-arg "check-scene-api=${CMAKE_CURRENT_BINARY_DIR}"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/scene-api-settings.json")
+    set_tests_properties(launcher.jit.scene-api PROPERTIES LABELS "integration;gpu" TIMEOUT 600
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "SceneApiChecks: all [0-9]+ checks passed")
+
     # Plugins checking themselves (ADR 0118): on a copy of the Walker's
     # project, a source plugin built, loaded, run, and reloaded with the
     # game, packaged without its editor code, and built to share; a second
@@ -785,6 +797,7 @@ if(CRUCIBLE_BUILD_TESTS)
         launcher.jit.workspaces
         launcher.jit.open-with
         launcher.jit.viewport-tools
+        launcher.jit.scene-api
         samples.walker-package
         samples.walker-package-shipping
         APPEND PROPERTY FIXTURES_REQUIRED walker-warm)

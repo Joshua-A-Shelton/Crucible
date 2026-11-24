@@ -67,7 +67,7 @@ internal sealed partial class Shell
         {
             Shortcut = new Shortcut(KeyModifiers.None, Keycode.F2),
         });
-        Commands.Add(new Command("Edit.Duplicate", "Duplicate", () => Duplicate(Selection.Selected), HasSelection)
+        Commands.Add(new Command("Edit.Duplicate", "Duplicate", () => DuplicateWithChanges(Selection.Selected), HasSelection)
         {
             Shortcut = new Shortcut(KeyModifiers.Ctrl, Keycode.D),
         });
@@ -76,7 +76,8 @@ internal sealed partial class Shell
         {
             if (!Chains.DeleteSelected())
             {
-                Delete(Selection.Selected, deleteMaps: null);
+                // Past extensions and the map files' question first (ADR 0122).
+                DeleteWithChanges(Selection.Selected);
             }
         }, HasSelection)
         {
@@ -448,15 +449,25 @@ internal sealed partial class Shell
             }
         }
         Entity oldParent = world.ParentOf(entity);
+        // Its place in the world kept, for an entity with a 3D transform; one
+        // without (a 2D entity, ADR 0093; one an extension just made, ADR
+        // 0122) keeps what it has.
+        bool placed = world.Has(entity, Components.Of<LocalTransform>());
         (ulong, int, LocalTransform) before = (SceneIds.IdOf(world, oldParent), SceneIds.SiblingIndex(world, entity),
-            world.Read<LocalTransform>(entity));
-        LocalTransform local = ParentEdit.Keeping(world, entity, parent);
+            placed ? world.Read<LocalTransform>(entity) : default);
+        LocalTransform local = placed ? ParentEdit.Keeping(world, entity, parent) : default;
         world.SetParent(entity, parent, parent.IsNull || index < 0 ? uint.MaxValue : (uint)index);
-        world.Set(entity, local);
+        if (placed)
+        {
+            world.Set(entity, local);
+        }
         (ulong, int, LocalTransform) after = (SceneIds.IdOf(world, parent), SceneIds.SiblingIndex(world, entity), local);
         if (before.Item1 == after.Item1 && before.Item2 == after.Item2)
         {
-            world.Set(entity, before.Item3);
+            if (placed)
+            {
+                world.Set(entity, before.Item3);
+            }
             return false;
         }
         History.Push(new ParentEdit("Move in Hierarchy", SceneIds.IdOf(world, entity), before, after));

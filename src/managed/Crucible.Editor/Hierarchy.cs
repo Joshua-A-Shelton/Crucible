@@ -32,7 +32,7 @@ public sealed class HierarchyPanel : EditorPanel
                 _shell.Selection.Selected = tree.SelectedNode is { } node ? EntityOf(node) : Entity.Null;
             }
         };
-        Tree.Renamed += (_, node, text) => _shell.Rename(EntityOf(node), text);
+        Tree.Renamed += (_, node, text) => _shell.RenameWithChanges(EntityOf(node), text);
         Tree.Dropped += (_, drop) => Move(drop);
         Tree.ContextRequested += (_, node, at) => ShowMenu(node, at);
         AddChild(Tree);
@@ -232,6 +232,8 @@ public sealed class HierarchyPanel : EditorPanel
         twoD.Add("Spot Light", () => _shell.CreateLight2D(entity, Light2DKind.Spot));
         twoD.Add("Ambient Light", () => _shell.CreateLight2D(entity, Light2DKind.Ambient));
         menu.Add(new MenuItem("2D") { Submenu = twoD });
+        // Extensions' (ADR 0122), by their paths.
+        _shell.AddCreateItems(menu, entity);
         // Its editors (ADR 0120): "Open in Map", and extensions'.
         if (node is not null && _shell.HasWorld && _shell.World.IsAlive(entity))
         {

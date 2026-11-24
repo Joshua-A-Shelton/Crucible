@@ -1749,3 +1749,22 @@ drafted after the owner tried it by hand (2026-11-24):
 | "Marks.Place: KeyDown failed: InvalidOperationException: j" | Log error | Tool code that threw |
 | `ViewportToolChecks`, CTest `launcher.jit.viewport-tools`, game arg `check-viewport-tools`, test folder `viewport-tools-project` | Tests | An extension's tools |
 | docs/learning/viewport-tools.md | Learning note | One tool at a time, input, overlays, picking |
+
+## Scene edits for extensions (2026-11-24, ADR 0122)
+
+Names proposed before building (approved to build with, 2026-11-24) and
+added while building; all placeholders (`*`) until the owner has tried it:
+
+| Name | What it names | What it is |
+|---|---|---|
+| ADR 0122 "Scene edits for extensions"* | Decision record | Editor extensions step 7a |
+| `editor.Scene.Create(name, parent)`*, `Destroy(entity)`*, `SetParent(entity, parent, index)`*, `Rename(entity, name)`* | Methods | Entities made and arranged, each one undo step |
+| `editor.Scene.AddCreate(path, create)`* | Method | An item in the Hierarchy's Create menu |
+| `Duplicating`*, `Renaming`*, `Deleting`* | Events | Before the editor's own operations |
+| `Duplicated`*, `Renamed`*, `Deleted`* | Events | After them, in their undo step |
+| `SceneChange`*: `Entities`, `NewName`*, `IsCancelled`*, `Cancel()`*, `Hold()`*, `Then(action)`* | Class | What a before event gets |
+| `SceneChangeHold`*: `Go()`*, `Cancel()`* | Class | An operation waiting on a question |
+| `editor.Assets.Texture(id)`* | Method | A texture asset's GPU texture |
+| `Shell.DeleteWithChanges`*, `DuplicateWithChanges`*, `RenameWithChanges`*, `AddCreateItems`* | Editor members | The editor's operations run past extensions |
+| `SceneApiChecks`*, CTest `launcher.jit.scene-api`*, game arg `check-scene-api`*, test folder `scene-api-project`* | Tests | An extension's say in the scene |
+| docs/learning/scene-changes.md* | Learning note | Before and after, holds, groups |

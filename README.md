@@ -228,6 +228,9 @@ Longer explanations of decisions, written to be reread:
 - [Viewport tools](docs/learning/viewport-tools.md) (ADR 0121): one tool
   at a time, who gets the input and pointer capture, drawing on top, and
   rays, planes, and picking under the pointer.
+- [Scene changes](docs/learning/scene-changes.md) (ADR 0122): before and
+  after events, holding an operation for a question, one undo step for
+  several edits, and not reacting to your own.
 - [Up-to-date builds](docs/learning/up-to-date-builds.md) (ADR 0110): file
   times versus content hashes, what makes a build stamp trustworthy, and
   why copies need one.
