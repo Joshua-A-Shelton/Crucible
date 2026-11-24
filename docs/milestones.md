@@ -1340,9 +1340,9 @@ game, so the game's own tools are built on it. Step 1 done (ADR 0116),
 tried by hand by the owner. Step 2 done (ADR 0117), tried by hand by
 the owner: the public editor API, with a project's panels reopened in
 place after a reload. Step 3, plugins, placed here by the owner
-(2026-11-23) and the steps after renumbered; built (ADR 0118), to be
-tried by hand by the owner: source and compiled plugins with code and
-assets, a version check, and Build Plugin.
+(2026-11-23) and the steps after renumbered; done (ADR 0118), tried by
+hand by the owner: source and compiled plugins with code and assets, a
+version check, and Build Plugin.
 
 Asked for by the owner (2026-11-20): a game's own editors, as specialized
 as map mode (ADR 0112), built by the people making the game, for example
