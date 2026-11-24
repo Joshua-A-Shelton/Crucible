@@ -1,7 +1,8 @@
 # 0117 — The public editor API
 
-**Status:** Accepted (2026-11-23); step 2 of editor extensions. Names
-marked `*` in docs/naming.md are placeholders until the owner has tried it.
+**Status:** Accepted (2026-11-23); step 2 of editor extensions, tried by
+hand by the owner. Names settled by the owner as drafted (2026-11-23;
+docs/naming.md).
 
 ## Context
 
@@ -29,32 +30,32 @@ keeps it, with a warning; the plugin's wins.
 
 Decided by the owner (2026-11-23):
 
-1. **An entry-point class.** Every non-abstract `EditorPlugin`* in the
+1. **An entry-point class.** Every non-abstract `EditorPlugin` in the
    editor assembly with a public parameterless constructor is made and
-   its `Start(EditorContext editor)`* called after each load, in the order
-   of their full names. Before the next load (or another project), `Stop()`*
+   its `Start(EditorContext editor)` called after each load, in the order
+   of their full names. Before the next load (or another project), `Stop()`
    runs and everything the plugin added is taken out again: one explicit
    place to read, and nothing left over from an old version.
-2. **A facade.** `EditorContext`* (one per plugin; `Editor` would clash
-   with the `Crucible.Editor` namespace) offers `Panels`* (`Add`, `Open`,
-   `Close`), `Commands`* (`Add(command, menu = "Tools")`), `Selection`,
-   `Undo` (the `UndoHistory`), `Scene`* (`Edit<T>`, `Add<T>`, `Remove<T>`),
-   `Assets`* (`Database`, `Write`, `WriteText`), `Log`, `LogWarning`,
-   `LogError`*, and `Status`. The shell stays internal, so the editor's
+2. **A facade.** `EditorContext` (one per plugin; `Editor` would clash
+   with the `Crucible.Editor` namespace) offers `Panels` (`Add`, `Open`,
+   `Close`), `Commands` (`Add(command, menu = "Tools")`), `Selection`,
+   `Undo` (the `UndoHistory`), `Scene` (`Edit<T>`, `Add<T>`, `Remove<T>`),
+   `Assets` (`Database`, `Write`, `WriteText`), `Log`, `LogWarning`,
+   `LogError`, and `Status`. The shell stays internal, so the editor's
    insides can change without breaking plugins. Panels are `EditorPanel`s,
    commands the UI's `Command`s.
 3. **Free until 1.0.** Any minor version may change the API, every change
    listed in a changelog (Crucible has none yet: an open item); revisited
    once map mode (step 5) and the first game have used it.
-4. **A save and load hook.** `EditorPanel.SaveState(PanelState)`* and
-   `LoadState(PanelState)`*, a bag of numbers, strings, and bools
-   (`PanelState`*), nothing that belongs to the code being unloaded. Before
+4. **A save and load hook.** `EditorPanel.SaveState(PanelState)` and
+   `LoadState(PanelState)`, a bag of numbers, strings, and bools
+   (`PanelState`), nothing that belongs to the code being unloaded. Before
    a reload, a plugin's open panels are replaced in place by placeholders
-   holding their state (`PendingPanel`*: "Walker Stats opens when the
-   project's editor code has built"*); after it, made again and given it.
+   holding their state (`PendingPanel`: "Walker Stats opens when the
+   project's editor code has built"); after it, made again and given it.
    A placeholder whose panel the new version doesn't register closes. The
    saved layout keeps every panel's state and marks plugins' panels
-   (`"PanelStates"`*), so after a restart a placeholder holds the place
+   (`"PanelStates"`), so after a restart a placeholder holds the place
    until the project's code has loaded.
 5. **Menu paths, Tools by default.** A command's menu is a path
    ("Tools/Walker", "Edit"): a missing top-level menu is made before
@@ -74,11 +75,11 @@ Decided by the owner (2026-11-23):
 8. **The first registered keeps a shortcut.** The editor's own register
    first; a plugin's command whose shortcut is taken registers without
    it, still in its menu: "Walker.BakePaths wants Ctrl+S, already used by
-   File.SaveScene; it has no shortcut"*.
+   File.SaveScene; it has no shortcut".
 
 Plugin code runs guarded: an exception from `Start`, `Stop`, a command,
 or a panel's making or state is logged as an error ("Walker.Tools.WalkerPlugin:
-Walker.Boom failed: InvalidOperationException: boom"*) and the editor goes
+Walker.Boom failed: InvalidOperationException: boom") and the editor goes
 on.
 
 ## Unloading
@@ -95,7 +96,7 @@ and outlive a plugin:
   newest of them goes, with every step only reachable through it: the
   steps done before it, and those to redo after it ("Undo can't go back
   past "Plugin Step": its step came from the editor code just reloaded (5
-  steps dropped)"*). The history kept at Play is cut the same way. Steps
+  steps dropped)"). The history kept at Play is cut the same way. Steps
   the facade records (component edits, file writes) are the editor's own
   types and survive.
 
@@ -107,7 +108,7 @@ and outlive a plugin:
   points in one assembly are allowed.
 - What a plugin needs and the facade lacks (viewport tools, workspaces,
   preview worlds, inspectors) comes in steps 3 to 7.
-- `EditorApiChecks`* (CTest `launcher.jit.editor-api`*) runs a plugin
+- `EditorApiChecks` (CTest `launcher.jit.editor-api`) runs a plugin
   through five versions on a copy of the Walker: its panel, commands, and
   menus; a command that throws; component, file, and its own undo steps;
   the old version unloading; its panel remade in place with its state;
