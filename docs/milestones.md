@@ -1347,8 +1347,8 @@ by the owner: workspaces as tabs among the panels, map mode moved onto
 one. Step 5, opening editors, placed here by the owner (2026-11-23) and
 the steps after renumbered; done (ADR 0120), tried by hand by the
 owner: editors registered for kinds of asset and components, opened by
-double-click, the Inspector, and Open With. Step 6 built (ADR 0121), to
-be tried by hand by the owner: viewport tools, the handles and Edit
+double-click, the Inspector, and Open With. Step 6 done (ADR 0121), tried
+by hand by the owner: viewport tools, the handles and Edit
 Points moved onto them, map painting its view's tool.
 
 Asked for by the owner (2026-11-20): a game's own editors, as specialized
