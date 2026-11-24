@@ -1557,25 +1557,25 @@ drafted after the owner tried it by hand (2026-11-23):
 
 ## Editor assemblies (2026-11-23, ADR 0116)
 
-Names proposed before building (approved to build with, 2026-11-23) and
-added while building; all placeholders (`*`) until the owner has tried it:
+Names proposed before building and added while building, settled as
+drafted after the owner tried it by hand (2026-11-23):
 
 | Name | What it names | What it is |
 |---|---|---|
-| ADR 0116 "Editor assemblies"* | Decision record | Editor extensions step 1 |
-| `Editor/`* (any folder of that name under `Code/`) | Project folder | Editor code |
-| `<Game>.Editor.dll`* (`Walker.Editor.dll`), `Cache/Build/Editor/<Game>.Editor.csproj`* | Assembly, project file | The project's editor code |
-| `CRUCIBLE_EDITOR`* | Compile symbol | Defined in the editor's builds, never in packages |
-| `Cache/Build/SymbolCheck/`* | Build folder | The game's code built without the symbol |
-| "Loaded Walker.dll and Walker.Editor.dll"*, "Reloaded …"* | Log lines | The pair loading |
-| "Walker doesn't build without CRUCIBLE_EDITOR: Code/Kicks.cs(12,5): …"* | Log warning | The symbol check failing |
-| `GameBuilder.EditorFolder`*, `EditorAssemblyName`*, `EditorProjectFile`*, `EditorOutputPath`*, `HasEditorCode`*, `EditorProjectText`* | C# members | The editor assembly's folder name, name, project, output, and whether there is one |
-| `GameBuilder.EditorSymbol`*, `UsesEditorSymbol`*, `SymbolCheckProjectFile`*, `StartSymbolCheck`*, `TakeSymbolCheck`*, `WaitForSymbolCheck`* | C# members | The symbol check |
-| `GameBuild.EditorAssembly`*, `LoadedGame.EditorAssembly`* | C# properties | The editor assembly built, and loaded |
-| `GameLoader.SharedAssemblies`* | C# property (engine) | Assemblies a game's context takes from the editor |
-| `Shell.LogWarning`*, `Shell.SymbolChecked`* | C# members | A warning in the Log; reporting the check |
-| `EditorCodeChecks`*, CTest `launcher.jit.editor-code`*, game arg `check-editor-code`*; test folders `editor-code-project`, `editor-code-package`* | Tests | The editor checking editor code |
-| docs/learning/editor-assemblies.md* | Learning note | Separate assemblies and conditional compilation, load contexts, unload leaks |
+| ADR 0116 "Editor assemblies" | Decision record | Editor extensions step 1 |
+| `Editor/` (any folder of that name under `Code/`) | Project folder | Editor code |
+| `<Game>.Editor.dll` (`Walker.Editor.dll`), `Cache/Build/Editor/<Game>.Editor.csproj` | Assembly, project file | The project's editor code |
+| `CRUCIBLE_EDITOR` | Compile symbol | Defined in the editor's builds, never in packages |
+| `Cache/Build/SymbolCheck/` | Build folder | The game's code built without the symbol |
+| "Loaded Walker.dll and Walker.Editor.dll", "Reloaded …" | Log lines | The pair loading |
+| "Walker doesn't build without CRUCIBLE_EDITOR: Code/Kicks.cs(12,5): …" | Log warning | The symbol check failing |
+| `GameBuilder.EditorFolder`, `EditorAssemblyName`, `EditorProjectFile`, `EditorOutputPath`, `HasEditorCode`, `EditorProjectText` | C# members | The editor assembly's folder name, name, project, output, and whether there is one |
+| `GameBuilder.EditorSymbol`, `UsesEditorSymbol`, `SymbolCheckProjectFile`, `StartSymbolCheck`, `TakeSymbolCheck`, `WaitForSymbolCheck` | C# members | The symbol check |
+| `GameBuild.EditorAssembly`, `LoadedGame.EditorAssembly` | C# properties | The editor assembly built, and loaded |
+| `GameLoader.SharedAssemblies` | C# property (engine) | Assemblies a game's context takes from the editor |
+| `Shell.LogWarning`, `Shell.SymbolChecked` | C# members | A warning in the Log; reporting the check |
+| `EditorCodeChecks`, CTest `launcher.jit.editor-code`, game arg `check-editor-code`; test folders `editor-code-project`, `editor-code-package` | Tests | The editor checking editor code |
+| docs/learning/editor-assemblies.md | Learning note | Separate assemblies and conditional compilation, load contexts, unload leaks |
 
 ## Tests in parallel (2026-11-19, ADR 0109)
 

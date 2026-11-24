@@ -1,7 +1,8 @@
 # 0116 — Editor assemblies
 
-**Status:** Accepted (2026-11-23); step 1 of editor extensions. Names
-marked `*` in docs/naming.md are placeholders until the owner has tried it.
+**Status:** Accepted (2026-11-23); step 1 of editor extensions, tried by
+hand by the owner. Names settled by the owner as drafted (2026-11-23;
+docs/naming.md).
 
 ## Context
 
@@ -32,8 +33,8 @@ Decided by the owner (2026-11-23):
    `Editor`, at any depth in `Code/` (`Code/Editor/`,
    `Code/Characters/Editor/`), is editor code, so a game's editor code can
    sit beside the game code it's for. The game's project excludes them.
-2. **`<Game>.Editor.dll`*.** The editor writes a second project,
-   `Cache/Build/Editor/<Game>.Editor.csproj`*, in a folder of its own (two
+2. **`<Game>.Editor.dll`.** The editor writes a second project,
+   `Cache/Build/Editor/<Game>.Editor.csproj`, in a folder of its own (two
    projects in one folder would share `obj/`). It compiles the Editor
    folders' code with `CRUCIBLE_EDITOR`, references the game's project
    and the editor's assemblies (`Crucible.Editor`, `Crucible.Assets`, the
@@ -41,25 +42,25 @@ Decided by the owner (2026-11-23):
    of it builds both. The build stamp (ADR 0110) covers both projects
    and both assemblies, and the editor's own assembly is an input.
 3. **Reloaded together.** The editor assembly is loaded into the game's
-   collectible context (`GameLoader.Load`, `Reload`; `LoadedGame.EditorAssembly`*),
+   collectible context (`GameLoader.Load`, `Reload`; `LoadedGame.EditorAssembly`),
    so the pair loads, reloads, and unloads as one, and an editor-only
    change also migrates the game's components (ADR 0035). "Loaded
-   Walker.dll and Walker.Editor.dll"*.
+   Walker.dll and Walker.Editor.dll".
 4. **Shared, not copied.** The game's context resolves the editor
    assembly's references to the assemblies already loaded: the game's own,
-   and the editor's (`GameLoader.SharedAssemblies`*, set by the editor), so
+   and the editor's (`GameLoader.SharedAssemblies`, set by the editor), so
    editor code and the editor use the same types. Found by name: with a
    resolving handler that captured the game's `Assembly`, the old context
    was never collected after a reload.
-5. **`CRUCIBLE_EDITOR`*.** Defined in the editor's build of the game's
+5. **`CRUCIBLE_EDITOR`.** Defined in the editor's build of the game's
    code and in the editor assembly; never in a package's. Packages
    (JIT and NativeAOT) build only the game's project, so editor code
    can't reach them.
 6. **The symbol check, in the background, when used.** When the game's
    code (not its Editor folders) mentions `CRUCIBLE_EDITOR`, each load is
    followed by a build without it (`Cache/Build/SymbolCheck/`,
-   `GameBuilder.StartSymbolCheck`*), and its errors are logged as warnings:
-   "Walker doesn't build without CRUCIBLE_EDITOR: Code/UsesEditor.cs(5,…)"*.
+   `GameBuilder.StartSymbolCheck`), and its errors are logged as warnings:
+   "Walker doesn't build without CRUCIBLE_EDITOR: Code/UsesEditor.cs(5,…)".
 7. **Panels reopened in place** after a reload, their state lost unless
    they keep it. A project can't make panels until the public editor API
    (step 2), so this is built there, with the hook for keeping state.
@@ -72,7 +73,7 @@ Decided by the owner (2026-11-23):
 - Projects with no Editor folder build exactly as before.
 - A build of a project with editor code takes a little longer: two
   assemblies, and with the symbol, a third build in the background.
-- `EditorCodeChecks`* (CTest `launcher.jit.editor-code`*) builds, loads,
+- `EditorCodeChecks` (CTest `launcher.jit.editor-code`) builds, loads,
   and reloads the pair on a copy of the Walker, checks the old pair is
   collected, the symbol check, and that a package has none of it;
   `GameBuildTests` checks the projects.

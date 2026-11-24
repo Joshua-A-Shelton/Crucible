@@ -1336,8 +1336,8 @@ on the viewport or the hierarchy is placed there.
 
 **Status:** In progress (started 2026-11-23). Placed by the owner after
 importing by dropping files and before the engine review and the first
-game, so the game's own tools are built on it. Step 1 built (ADR 0116),
-to be tried by hand by the owner; reopening a project's panels after a
+game, so the game's own tools are built on it. Step 1 done (ADR 0116),
+tried by hand by the owner; reopening a project's panels after a
 reload moved to step 2, where projects can first make them.
 
 Asked for by the owner (2026-11-20): a game's own editors, as specialized
