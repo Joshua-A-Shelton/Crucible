@@ -258,7 +258,7 @@ internal sealed class HierarchyChecks : GameSystem
         return tree.RowOf(node)?.Parent ?? throw new InvalidOperationException($"No row for {node}");
     }
 
-    private static Button DialogButton(Dialog dialog, string text) =>
+    internal static Button DialogButton(Dialog dialog, string text) =>
         Descendants(dialog).OfType<Button>().First(button => button.Text == text);
 
     internal static IEnumerable<UIElement> Descendants(UIElement element)

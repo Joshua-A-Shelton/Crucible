@@ -617,6 +617,8 @@ internal sealed partial class Shell
     // Running extension code
     // -----------------------------------------------------------------------
 
+    internal void GuardExtension(EditorContext context, string what, Action run) => Guard(context, what, run);
+
     private void Guard(EditorContext context, string what, Action run)
     {
         try

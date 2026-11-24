@@ -80,6 +80,23 @@ public sealed class EditorContext
 
     public void LogError(string text) => _shell.LogError(text ?? "");
 
+    /// <summary>
+    /// Asks a question in the editor's own dialog over the main window (ADR
+    /// 0122): <paramref name="answered"/> gets the chosen button's index (the
+    /// first is the primary one), or -1 when it's closed with Escape.
+    /// </summary>
+    public void Ask(string message, IReadOnlyList<string> choices, Action<int> answered)
+    {
+        ArgumentNullException.ThrowIfNull(choices);
+        ArgumentNullException.ThrowIfNull(answered);
+        Dialog dialog = new(message ?? "", [.. choices]);
+        dialog.Chosen += (_, chosen) => _shell.GuardExtension(this, "Ask", () => answered(chosen));
+        dialog.Open(_shell.Main.Root);
+    }
+
+    /// <summary>The main window's UI, for an extension's own popups and dialogs (ADR 0122).</summary>
+    public UIRoot Root => _shell.Main.Root;
+
     internal void OnStop(Action cleanup) => _cleanup.Add(cleanup);
 
     /// <summary>Takes out everything the extension added (its panels already dealt with by the shell).</summary>

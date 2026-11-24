@@ -125,6 +125,19 @@ internal sealed class SceneApiChecks : GameSystem
         shell.Commands.Find("Pairs.Stop")?.Execute();
         Check(world.IsAlive(made) && !_logged.Contains("then ran"), "a Delete it cancels doesn't happen", Logged());
 
+        // A question in the editor's dialog, answered by index.
+        _logged.Clear();
+        shell.Commands.Find("Pairs.Ask")?.Execute();
+        yield return 2;
+        Dialog? asked = shell.Main.Root.Popups.OfType<Dialog>().LastOrDefault();
+        Check(asked is not null, "an extension asks in the editor's dialog");
+        if (asked is not null)
+        {
+            ViewportChecks.Click(shell.Main.Root, ViewportChecks.Center(HierarchyChecks.DialogButton(asked, "Second")));
+            yield return 2;
+        }
+        Check(_logged.Contains("asked: 1"), "and hears the answer", Logged());
+
         // A texture to draw with, a frame or two after asking.
         AssetEntry? texture = shell.Database?.Assets.FirstOrDefault(asset => asset.Importer == "Texture");
         shell.Commands.Find("Pairs.Texture")?.Execute();
@@ -137,6 +150,7 @@ internal sealed class SceneApiChecks : GameSystem
         // old code's item, which would keep it from unloading.)
         menu = null!;
         pair = null;
+        asked = null;
         File.WriteAllText(tools, Pairs(2));
         yield return 1;
         _logged.Clear();
@@ -183,6 +197,8 @@ internal sealed class SceneApiChecks : GameSystem
                 editor.Commands.Add(new Command("Pairs.Make", "Make", () => Make(Entity.Null)), null);
                 editor.Commands.Add(new Command("Pairs.Go", "Go", () => _held?.Go()), null);
                 editor.Commands.Add(new Command("Pairs.Stop", "Stop", () => _held?.Cancel()), null);
+                editor.Commands.Add(new Command("Pairs.Ask", "Ask", () =>
+                    editor.Ask("Pick one", ["First", "Second"], chosen => editor.Log($"asked: {chosen}"))), null);
                 editor.Commands.Add(new Command("Pairs.Texture", "Texture", () =>
                 {
                     foreach (AssetEntry asset in editor.Assets.Database!.Assets)

@@ -53,6 +53,11 @@ Decided by the owner (2026-11-24):
 4. **`editor.Assets.Texture(id)`***: a texture asset's GPU texture, acquired
    on first asking and released when the extension stops; null until
    it's ready, or for an asset that isn't an imported texture.
+5. **Questions, and the window's UI** (added while trying it: a held
+   Delete needs to ask). `editor.Ask(message, choices, answered)`*: the
+   editor's own dialog over the main window, answered with the chosen
+   button's index (-1 for Escape); and `editor.Root`*, the main window's
+   UI, for an extension's own popups and dialogs.
 
 ## Consequences
 
