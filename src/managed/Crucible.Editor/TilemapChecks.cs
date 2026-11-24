@@ -382,6 +382,11 @@ internal sealed class TilemapChecks : GameSystem
         Check(Panel<ViewportPanel>(shell) is { } normalView && normalView.View.Camera.Pitch == cameraBefore.Pitch &&
               normalView.View.Camera.Distance == cameraBefore.Distance,
             "and the Viewport's camera is as it was");
+        // Its file double-clicked (ADR 0120): map mode on the entity using it.
+        Check(database.Find(map) is { } mapFile && shell.OpenAsset(mapFile) && shell.InMapMode && editor.Root.Value == root.Value,
+            "double-clicking its file opens map mode on its entity");
+        shell.ExitMapMode();
+        yield return 2;
         Check(shell.EnterMapMode(layer1) && editor.Root.Value == root.Value, "Edit Map on a layer opens its map");
         shell.ExitMapMode();
         yield return 2;
@@ -392,6 +397,13 @@ internal sealed class TilemapChecks : GameSystem
         File.WriteAllText(Path.Combine(copy, "Assets", oldPath),
             $"{{ \"$guid\": \"{oldMap}\", \"Tileset\": \"{groundSet}\", \"Cells\": [ [0, 0, 0, 0] ] }}");
         shell.RefreshAssets();
+        // A map file nothing in the scene uses: said, not opened (ADR 0120).
+        List<string> said = [];
+        shell.Logged += said.Add;
+        Check(database.Find(oldPath) is { } oldFile && shell.OpenAsset(oldFile) && !shell.InMapMode &&
+              said.Any(line => line.StartsWith("No entity in ", StringComparison.Ordinal) && line.EndsWith(" uses Old.crtilemap", StringComparison.Ordinal)),
+            "a map file no entity uses says so", string.Join(" | ", said));
+        shell.Logged -= said.Add;
         Entity old = world.CreateEntity();
         world.Set(old, Transform2D.Identity);
         world.Set(old, new SceneEntityId { Value = SceneIds.NewId() });

@@ -222,6 +222,9 @@ Longer explanations of decisions, written to be reread:
 - [Workspaces](docs/learning/workspaces.md) (ADR 0119): modes and
   documents, sharing panels, several views of one scene, keys and focus,
   pointing at things that may go away, and debug builds' lifetimes.
+- [Opening editors](docs/learning/opening-editors.md) (ADR 0120):
+  associations, what a kind is, several editors for one kind, and opening
+  something through what uses it.
 - [Up-to-date builds](docs/learning/up-to-date-builds.md) (ADR 0110): file
   times versus content hashes, what makes a build stamp trustworthy, and
   why copies need one.

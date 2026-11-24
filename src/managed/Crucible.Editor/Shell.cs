@@ -58,6 +58,8 @@ internal sealed partial class Shell
         RegisterPanels();
         // Map mode (ADR 0112) as the editor's own workspace (ADR 0119).
         AddWorkspace("Map", "Map", () => new MapWorkspace(this), owner: null);
+        // What the editor's own editors open (ADR 0120).
+        RegisterOpeners();
         RegisterCommands();
         BuildMenus();
         RestoreLayout(Settings.Layout);

@@ -10,11 +10,13 @@ namespace Crucible.Editor;
 /// </summary>
 public sealed class DropQuestion : Popup
 {
-    private readonly Toggle _rest = new("Do this for the rest");
+    private readonly Toggle _rest;
     private bool _answered;
 
-    internal DropQuestion(string message, IReadOnlyList<string> choices, int suggested, bool offerRest)
+    /// <remarks><paramref name="restLabel"/>: the checkbox's text, "Do this for the rest" by default ("Always Open With", ADR 0120).</remarks>
+    internal DropQuestion(string message, IReadOnlyList<string> choices, int suggested, bool offerRest, string? restLabel = null)
     {
+        _rest = new Toggle(restLabel ?? "Do this for the rest");
         IsModal = true;
         Message = message;
         Choices = choices;

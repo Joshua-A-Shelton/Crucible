@@ -182,13 +182,10 @@ public sealed class AssetsPanel : EditorPanel
             string file = project.FileOf(tile.Path);
             _shell.ConfirmDiscard("opening another scene", () => _shell.OpenScene(file));
         }
-        else if (tile.Kind == "Texture" && tile.Asset is { } texture)
+        else if (tile.Asset is { } asset)
         {
-            _shell.ShowSpriteSheet(texture.Id);
-        }
-        else if (tile.Asset is { Importer: "Tileset" } tileset)
-        {
-            _shell.ShowTileset(tileset.Id);
+            // Its editor (ADR 0120): the one there is, the one always chosen, else asked.
+            _shell.OpenAsset(asset);
         }
     }
 
@@ -199,13 +196,10 @@ public sealed class AssetsPanel : EditorPanel
         {
             menu.Add("Open", () => Open(tile));
         }
-        if (tile.Kind == "Texture" && tile.Asset is { } sheet)
+        // Its editors (ADR 0120): "Open in …", or Open With.
+        if (tile.Asset is { } editable)
         {
-            menu.Add("Edit Sprite Sheet…", () => _shell.ShowSpriteSheet(sheet.Id));
-        }
-        if (tile.Asset is { Importer: "Tileset" } editable)
-        {
-            menu.Add("Open", () => _shell.ShowTileset(editable.Id));
+            _shell.AddOpenItems(menu, editable);
         }
         if (tile.Asset is { Importer.Length: > 0 } asset)
         {

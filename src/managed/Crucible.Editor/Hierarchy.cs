@@ -232,10 +232,13 @@ public sealed class HierarchyPanel : EditorPanel
         twoD.Add("Spot Light", () => _shell.CreateLight2D(entity, Light2DKind.Spot));
         twoD.Add("Ambient Light", () => _shell.CreateLight2D(entity, Light2DKind.Ambient));
         menu.Add(new MenuItem("2D") { Submenu = twoD });
-        if (node is not null && _shell.HasWorld && _shell.World.IsAlive(entity) &&
-            (_shell.MapRootOf(entity) is not null || _shell.World.Has(entity, Crucible.Ecs.Components.Of<Crucible.Render2D.Tilemap>())))
+        // Its editors (ADR 0120): "Open in Map", and extensions'.
+        if (node is not null && _shell.HasWorld && _shell.World.IsAlive(entity))
         {
-            menu.Add("Edit Map", () => _shell.EnterMapMode(entity));
+            foreach ((string id, string title) in _shell.EditorsFor(entity))
+            {
+                menu.Add($"Open in {title}", () => _shell.OpenEntityIn(entity, id));
+            }
         }
         if (node is not null)
         {

@@ -5,7 +5,9 @@ amendment included), and its "one map is one layer with one tileset".
 Names settled by the owner as drafted (2026-11-20; docs/naming.md). Map mode
 is a workspace's tab since ADR 0119 (2026-11-24): its layout no longer
 replaces the editor's, Done or the tab's × close it, and View > Leave Map
-Mode and Escape leaving are gone.
+Mode and Escape leaving are gone. Edit Map is "Open in Map" since ADR 0120 (the
+Inspector's header button and the Hierarchy's menu), and a map's file
+opens it too.
 
 ## Context
 

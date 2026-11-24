@@ -1344,7 +1344,10 @@ place after a reload. Step 3, plugins, placed here by the owner
 hand by the owner: source and compiled plugins with code and assets, a
 version check, and Build Plugin. Step 4 done (ADR 0119), tried by hand
 by the owner: workspaces as tabs among the panels, map mode moved onto
-one.
+one. Step 5, opening editors, placed here by the owner (2026-11-23) and
+the steps after renumbered; built (ADR 0120), to be tried by hand by the
+owner: editors registered for kinds of asset and components, opened by
+double-click, the Inspector, and Open With.
 
 Asked for by the owner (2026-11-20): a game's own editors, as specialized
 as map mode (ADR 0112), built by the people making the game, for example
@@ -1396,26 +1399,29 @@ reload per assembly, the shipping check).
    for one task, with its tools and keys, opened for what it's for and
    left with Done. Decided (ADR 0119): a tab among the panels with its
    own parts and view, not a layout swapped in.
-5. **Viewport tools.** Pointer and key input in a viewport routed to a
+5. **Opening editors** (owner, 2026-11-23). Editors say which kinds of
+   asset and which components they open; Assets' double-click and Open
+   With, the Inspector's button and menu, and the Hierarchy's menu open
+   them, asking when several could. Decides how editors are found.
+6. **Viewport tools.** Pointer and key input in a viewport routed to a
    plugin's tool, drawing over the view (lines, shapes, images, in world
    or screen space), and picking under the pointer. Chain editing (ADR
    0095) moved onto it. Decides input routing.
-6. **Map mode rebuilt on the API** (owner, 2026-11-20): the test of the
-   API, a plugin's-eye rebuild using only what steps 2 to 5 offer,
+7. **Map mode rebuilt on the API** (owner, 2026-11-20): the test of the
+   API, a plugin's-eye rebuild using only what steps 2 to 6 offer,
    cleaning up as it goes: a "Map Mode" of its own, named and entered as
    a workspace rather than built into the editor; the brush under the
    pointer and the rest of the owner's notes from the try (open items).
-7. **Preview viewports.** A view a panel holds with a small world of its
+8. **Preview viewports.** A view a panel holds with a small world of its
    own (a model, a light, a camera that orbits), apart from the scene:
    assets loaded into it, animations played and scrubbed, components
    edited. Decides preview worlds (their own ECS world, render and asset
    isolation).
-8. **Custom inspectors and asset editors.** A plugin's drawer for a
-   component or a field type in the Inspector, and a plugin's panel
-   opened by double-clicking an asset of a kind (a tileset opens the
-   Palette today). Decides how drawers and the generated fields mix.
-9. **The demonstration:** the character editor above, as a sample
-   plugin, only on the public API.
+9. **Custom inspectors.** A plugin's drawer for a component or a field
+   type in the Inspector (opening an asset's editor by double-click moved
+   to step 5). Decides how drawers and the generated fields mix.
+10. **The demonstration:** the character editor above, as a sample
+    plugin, only on the public API.
 
 **Not in it:** painting onto a model's textures. It needs engine work of
 its own (the texture coordinates under the pointer, painting into a

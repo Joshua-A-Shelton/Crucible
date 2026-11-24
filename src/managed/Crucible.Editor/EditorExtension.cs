@@ -154,6 +154,28 @@ public sealed class EditorWorkspaces
 
     /// <summary>Closes a workspace's tab, as Done does.</summary>
     public void Close(Workspace workspace) => _shell.CloseWorkspace(workspace);
+
+    /// <summary>
+    /// The workspace opens assets of these kinds (ADR 0120): importers'
+    /// names ("Texture", "Mesh") or file extensions (".crtilemap"). Double-clicking
+    /// one in Assets opens it; false if there's no such workspace.
+    /// </summary>
+    public bool OpensAssets(string id, params string[] kinds)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(id);
+        ArgumentNullException.ThrowIfNull(kinds);
+        return _shell.AddWorkspaceOpener(_context, id, kinds);
+    }
+
+    /// <summary>
+    /// The workspace opens entities with this component (ADR 0120): from the
+    /// Inspector's Open button on it, and "Open in …" in the menus.
+    /// </summary>
+    public bool OpensComponent<T>(string id)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(id);
+        return _shell.AddWorkspaceOpener<T>(_context, id);
+    }
 }
 
 /// <summary>An extension's commands (ADR 0117): in menus, and run by their shortcuts.</summary>

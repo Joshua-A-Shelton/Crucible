@@ -186,9 +186,10 @@ internal sealed partial class Shell
         _dropImport.Continue();
     }
 
-    private void AskDrop(string message, IReadOnlyList<string> choices, int suggested, bool offerRest, Action<int, bool> answered)
+    private void AskDrop(string message, IReadOnlyList<string> choices, int suggested, bool offerRest, Action<int, bool> answered,
+        string? restLabel = null)
     {
-        DropQuestion question = new(message, choices, suggested, offerRest);
+        DropQuestion question = new(message, choices, suggested, offerRest, restLabel);
         question.Chosen += (asked, choice, rest) =>
         {
             if (DropQuestion == asked)

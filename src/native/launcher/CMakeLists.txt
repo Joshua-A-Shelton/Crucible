@@ -635,6 +635,19 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "WorkspaceChecks: all [0-9]+ checks passed")
 
+    # Opening editors checking itself (ADR 0120): on a copy of the Walker's
+    # project, an extension's workspace opening textures and transforms:
+    # asked which, Always Open With remembered and forgotten, and the
+    # Inspector's Open button.
+    add_test(NAME launcher.jit.open-with
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
+            --game-arg "warm-project=${walkerWarm}/Walker.crproject"
+            --game-arg "check-open-with=${CMAKE_CURRENT_BINARY_DIR}"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/open-with-settings.json")
+    set_tests_properties(launcher.jit.open-with PROPERTIES LABELS "integration;gpu" TIMEOUT 600
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "OpenWithChecks: all [0-9]+ checks passed")
+
     # Plugins checking themselves (ADR 0118): on a copy of the Walker's
     # project, a source plugin built, loaded, run, and reloaded with the
     # game, packaged without its editor code, and built to share; a second
@@ -757,6 +770,7 @@ if(CRUCIBLE_BUILD_TESTS)
         launcher.jit.editor-api
         launcher.jit.plugins
         launcher.jit.workspaces
+        launcher.jit.open-with
         samples.walker-package
         samples.walker-package-shipping
         APPEND PROPERTY FIXTURES_REQUIRED walker-warm)

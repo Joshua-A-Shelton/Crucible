@@ -257,20 +257,29 @@ internal sealed class AssetChecks : GameSystem
             Directory.Delete(copy, recursive: true);
         }
         CopyProject(Path.GetDirectoryName(file) ?? "", copy, IsWarm(shell));
-        string editorCode = Path.Combine(copy, "Code", GameBuilder.EditorFolder);
-        if (withoutEditorCode && Directory.Exists(editorCode))
+        if (withoutEditorCode)
         {
-            Directory.Delete(editorCode, recursive: true);
-        }
-        string plugins = Path.Combine(copy, "Plugins");
-        if (withoutEditorCode && Directory.Exists(plugins))
-        {
-            Directory.Delete(plugins, recursive: true);
+            LeaveOutLocalCode(copy);
         }
         shell.OpenProject(Path.Combine(copy, Path.GetFileName(file)));
         if (scene is not null)
         {
             shell.OpenScene(Path.Combine(copy, scene));
+        }
+    }
+
+    /// <summary>
+    /// A copy's own editor code and plugins taken out: a local Walker may
+    /// have some, which would add editors and extensions to what a check sees.
+    /// </summary>
+    internal static void LeaveOutLocalCode(string copy)
+    {
+        foreach (string folder in (string[])[Path.Combine(copy, "Code", GameBuilder.EditorFolder), Path.Combine(copy, "Plugins")])
+        {
+            if (Directory.Exists(folder))
+            {
+                Directory.Delete(folder, recursive: true);
+            }
         }
     }
 

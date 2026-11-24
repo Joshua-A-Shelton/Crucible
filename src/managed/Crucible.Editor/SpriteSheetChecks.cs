@@ -11,7 +11,7 @@ namespace Crucible.Editor;
 /// launcher.jit.sprite-sheet: run with the Walker's project and
 /// <c>--game-arg check-sprite-sheet=&lt;folder&gt;</c>. On a copy of the
 /// project (in the folder) with a 32x16 sheet added: the Inspector's and the
-/// asset browser's Edit Sprite Sheet… open it, and so does a texture
+/// asset browser's Open in Sprite Sheet Editor open it, and so does a texture
 /// becoming a sprite; a grid cut, a clip made and previewed, applied into
 /// sub-assets; rectangles drawn and reverted.
 /// </summary>
@@ -71,6 +71,8 @@ internal sealed class SpriteSheetChecks : GameSystem
             Directory.Delete(copy, recursive: true);
         }
         AssetChecks.CopyProject(source, copy, AssetChecks.IsWarm(shell));
+        // No local editors of textures beside the Sprite Sheet Editor (ADR 0120).
+        AssetChecks.LeaveOutLocalCode(copy);
         // A sheet of 4x2 cells of 8x8, each its own color.
         File.WriteAllBytes(Path.Combine(copy, "Assets", "Hero.tga"),
             Tga(32, 16, (x, y) => ((byte)(x / 8 * 60), (byte)(y / 8 * 120), 200, 255)));
@@ -112,8 +114,9 @@ internal sealed class SpriteSheetChecks : GameSystem
         {
             ContextMenu menu = assets.ShowMenu(tile, ViewportChecks.Center(tile));
             yield return 2;
-            Check(menu.Items.OfType<MenuItem>().Any(item => item.Title == "Edit Sprite Sheet…"),
-                "the asset browser's menu has Edit Sprite Sheet…");
+            // Its one editor, by name (ADR 0120).
+            Check(menu.Items.OfType<MenuItem>().Any(item => item.Title == "Open in Sprite Sheet Editor"),
+                "the asset browser's menu has Open in Sprite Sheet Editor");
             menu.Close();
             yield return 1;
         }

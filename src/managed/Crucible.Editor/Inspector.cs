@@ -237,6 +237,8 @@ public sealed class ComponentSection : UIElement, IFieldOwner
     private readonly List<FieldEditor> _editors = [];
     private readonly ColliderNotice? _notice;
     private readonly Button? _editPoints;
+    // Its editor (ADR 0120): "Open in Map", or "Open…" with several.
+    private readonly Button _open = new("Open") { VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
     private JsonNode? _value;
 
     internal ComponentSection(InspectorPanel inspector, SavedComponent saved)
@@ -252,12 +254,16 @@ public sealed class ComponentSection : UIElement, IFieldOwner
         };
         IconButton menu = new(IconButton.Icon.Menu);
         menu.Clicked += _ => ShowMenu(menu);
+        _open.Classes.Add("tool");
+        _open.Clicked += _ => Shell.OpenEntity(Entity, Component);
         DockPanel header = new();
         header.Classes.Add("component-header");
         DockPanel.SetDock(_fold, Dock.Left);
         DockPanel.SetDock(menu, Dock.Right);
+        DockPanel.SetDock(_open, Dock.Right);
         header.Add(_fold);
         header.Add(menu);
+        header.Add(_open);
         header.Add(_name);
         header.PointerDown += (_, e) =>
         {
@@ -308,13 +314,6 @@ public sealed class ComponentSection : UIElement, IFieldOwner
                 _fields.Add(_editPoints);
             }
         }
-        // A map's (or a layer's) tiles, edited in map mode (ADR 0112).
-        if (saved.Type == typeof(Crucible.Render2D.TilemapLayers) || saved.Type == typeof(Crucible.Render2D.Tilemap))
-        {
-            Button editMap = new("Edit Map") { HorizontalAlignment = HorizontalAlignment.Start };
-            editMap.Clicked += _ => Shell.EnterMapMode(Entity);
-            _fields.Add(editMap);
-        }
         if (saved.Fields.Count == 0)
         {
             Label tag = new("No fields");
@@ -341,6 +340,9 @@ public sealed class ComponentSection : UIElement, IFieldOwner
     internal void Update()
     {
         _value = SceneIds.Read(Shell.World, Entity, Component);
+        IReadOnlyList<(string Id, string Title)> editors = Shell.EditorsFor(Entity, Component);
+        _open.Visibility = editors.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        _open.Text = editors.Count == 1 ? $"Open in {editors[0].Title}" : "Open…";
         JsonObject? prefab = PrefabValue as JsonObject;
         bool added = InPrefab && PrefabValue is null;
         _name.Classes.Set("overridden", added);
@@ -409,6 +411,16 @@ public sealed class ComponentSection : UIElement, IFieldOwner
         ContextMenu menu = new();
         string component = Component;
         Entity entity = Entity;
+        // Its editors (ADR 0120), each by name.
+        IReadOnlyList<(string Id, string Title)> editors = Shell.EditorsFor(entity, component);
+        foreach ((string id, string title) in editors)
+        {
+            menu.Add($"Open in {title}", () => Shell.OpenEntity(entity, component, id));
+        }
+        if (editors.Count > 0)
+        {
+            menu.AddSeparator();
+        }
         menu.Add("Remove Component", () => Shell.RemoveComponent(entity, component));
         if (InPrefab && !JsonNode.DeepEquals(PrefabValue, _value))
         {

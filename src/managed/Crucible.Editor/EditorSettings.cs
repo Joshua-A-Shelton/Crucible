@@ -21,6 +21,12 @@ public sealed class EditorSettings
     /// <summary>The windows' layout as last saved (<see cref="Layout"/>'s format); null for the default.</summary>
     public JsonObject? Layout { get; set; }
 
+    /// <summary>
+    /// Always Open With (ADR 0120): the editor chosen for a kind of asset (its
+    /// importer, or its file's extension) or a component (its name), by ID.
+    /// </summary>
+    public Dictionary<string, string> OpenWith { get; } = new(StringComparer.Ordinal);
+
     /// <summary>Where the settings live; null when the platform has no preferences folder.</summary>
     public static string? DefaultPath
     {
@@ -55,6 +61,16 @@ public sealed class EditorSettings
                 }
             }
             settings.Layout = root["Layout"]?.DeepClone() as JsonObject;
+            if (root["OpenWith"] is JsonObject openWith)
+            {
+                foreach ((string kind, JsonNode? editor) in openWith)
+                {
+                    if (editor?.GetValueKind() == JsonValueKind.String)
+                    {
+                        settings.OpenWith[kind] = editor.GetValue<string>();
+                    }
+                }
+            }
         }
         catch (Exception exception) when (exception is JsonException or IOException or InvalidOperationException)
         {
@@ -77,6 +93,15 @@ public sealed class EditorSettings
         if (Layout is not null)
         {
             root["Layout"] = Layout.DeepClone();
+        }
+        if (OpenWith.Count > 0)
+        {
+            JsonObject openWith = [];
+            foreach ((string kind, string editor) in OpenWith.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+            {
+                openWith[kind] = editor;
+            }
+            root["OpenWith"] = openWith;
         }
         Files.WriteAtomically(path, Encoding.UTF8.GetBytes(root.ToJsonString(new JsonSerializerOptions { WriteIndented = true })));
     }
