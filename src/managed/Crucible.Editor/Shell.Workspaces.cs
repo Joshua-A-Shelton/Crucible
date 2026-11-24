@@ -69,6 +69,12 @@ internal sealed partial class Shell
         {
             return null;
         }
+        // One that wouldn't stay open (nothing it can work on) isn't opened,
+        // rather than shown for a frame; it was never open, so not Closed.
+        if (!KeepsOpen(made))
+        {
+            return null;
+        }
         if (replaced is not null)
         {
             ClosedGuarded(replaced);
@@ -135,6 +141,19 @@ internal sealed partial class Shell
         }
     }
 
+    private bool KeepsOpen(Workspace workspace)
+    {
+        try
+        {
+            return workspace.KeepOpen();
+        }
+        catch (Exception exception)
+        {
+            LogError($"{workspace.Title}: KeepOpen failed: {Message(exception)}");
+            return true;
+        }
+    }
+
     private void ClosedGuarded(Workspace workspace)
     {
         try
@@ -165,17 +184,7 @@ internal sealed partial class Shell
     {
         foreach (Workspace workspace in Workspaces.ToArray())
         {
-            bool keep;
-            try
-            {
-                keep = workspace.KeepOpen();
-            }
-            catch (Exception exception)
-            {
-                LogError($"{workspace.Title}: KeepOpen failed: {Message(exception)}");
-                keep = true;
-            }
-            if (!keep)
+            if (!KeepsOpen(workspace))
             {
                 ClosePanel(workspace);
                 continue;

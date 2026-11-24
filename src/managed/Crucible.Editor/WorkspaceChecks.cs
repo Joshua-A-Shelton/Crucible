@@ -91,6 +91,10 @@ internal sealed class WorkspaceChecks : GameSystem
               first.Entity.Value == a.Value && first.Group == viewport?.Group && first.Group?.ActivePanel == first,
             "a workspace opens as a tab beside the Viewport, for its entity", first?.Title ?? "none");
         Check(shell.OpenWorkspace("Inspect", a, AssetId.None) == first, "opened again for it, the same tab");
+        // One that wouldn't stay open (an asset the project hasn't) isn't opened at all.
+        _logged.Clear();
+        Check(shell.OpenWorkspace("Inspect", Entity.Null, AssetId.New()) is null && shell.Workspaces.Count() == 1 &&
+              !_logged.Contains("Inspect closed"), "a workspace with nothing to work on doesn't open", Logged());
         yield return 2;
         Check(ViewOf(first)?.Surface.Value != 0, "its view of the scene renders while it's shown");
 

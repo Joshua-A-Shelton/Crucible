@@ -59,7 +59,8 @@ public abstract class Workspace : EditorPanel
     public virtual bool AllowsSeveral => false;
 
     /// <summary>
-    /// Asked each frame: false closes its tab (what it works on is gone). By
+    /// Asked as it opens (false: it isn't opened) and each frame after
+    /// (false closes its tab: what it works on is gone). By
     /// default, while its entity is in the scene it was opened in, and its
     /// asset is in the project.
     /// </summary>
