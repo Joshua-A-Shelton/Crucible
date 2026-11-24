@@ -269,6 +269,29 @@ public class GameBuildTests
 
     // A package's Data folder holds the runtime's assemblies and the engine's
     // core beside the game's (ADR 0100), so their names are taken.
+    // Another build's copy of the engine beside the editor's projects (an
+    // old NativeAOT package's, in Cache/Build/Aot/bin) isn't taken for it.
+    [Test]
+    public async Task AStaleEngineInTheBuildFolderIsntUsed()
+    {
+        string folder = Path.Combine(Path.GetTempPath(), "crucible-build-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Project project = Project.Create(folder, "Stale");
+            File.WriteAllText(Path.Combine(project.CodeFolder, "Uses.cs"),
+                "namespace Stale;\n\npublic static class Uses { public static System.Type World => typeof(Crucible.Ecs.World); }\n");
+            string stale = Path.Combine(project.CacheFolder, "Build", "Aot", "bin", "linux-x64");
+            Directory.CreateDirectory(stale);
+            File.Copy(GameBuilder.AssetsAssembly(), Path.Combine(stale, "Crucible.Engine.dll"));
+            GameBuild build = new GameBuilder(project).BuildNow();
+            await Assert.That(build.Succeeded).IsTrue().Because(string.Join(" | ", build.Errors));
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
     [Test]
     public async Task AGameIsNotNamedLikeTheRuntimeOrTheEngine()
     {

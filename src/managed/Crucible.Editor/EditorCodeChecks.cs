@@ -67,7 +67,7 @@ internal sealed class EditorCodeChecks : GameSystem
         Shell shell = Shell.Current ?? throw new InvalidOperationException("No editor shell");
         shell.Logged += _logged.Add;
         string copy = Path.Combine(Path.GetFullPath(_folder), "editor-code-project");
-        AssetChecks.OpenCopy(shell, copy, null);
+        AssetChecks.OpenCopy(shell, copy, null, withoutEditorCode: true);
         yield return 3;
         Project project = shell.Project!;
         string editorFolder = Path.Combine(project.CodeFolder, "Editor");

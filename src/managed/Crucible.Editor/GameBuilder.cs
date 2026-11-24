@@ -165,7 +165,10 @@ public sealed partial class GameBuilder
     }
 
     // A project's start (ADR 0072): its framework, names, the engine's
-    // settings, where it builds to, and its symbols. Log.Info is kept only
+    // settings, where it builds to, and its symbols. No default items: the
+    // editor's projects sit in Cache/Build among other builds' outputs, and
+    // MSBuild would otherwise take a stale Crucible.Engine.dll there (an old
+    // NativeAOT package's) for the engine. Log.Info is kept only
     // where CRUCIBLE_LOG_INFO is defined: every build but a Shipping
     // package's (ADR 0103).
     private string Header(string assemblyName, string rootNamespace, string outputPath, bool editorSymbol, bool aotCompatible = true)
@@ -192,6 +195,7 @@ public sealed partial class GameBuilder
         text.Append($"    <IsAotCompatible>{(aotCompatible ? "true" : "false")}</IsAotCompatible>\n");
         text.Append("""
                 <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+                <EnableDefaultItems>false</EnableDefaultItems>
                 <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
                 <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 

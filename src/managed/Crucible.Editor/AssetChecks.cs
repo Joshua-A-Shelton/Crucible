@@ -246,7 +246,8 @@ internal sealed class AssetChecks : GameSystem
     /// </summary>
     /// <remarks>
     /// <paramref name="withoutEditorCode"/> leaves out the project's own
-    /// editor code (a local Walker may have some), for checks of editor code.
+    /// editor code and plugins (a local Walker may have some), for checks of
+    /// editor code and plugins.
     /// </remarks>
     internal static void OpenCopy(Shell shell, string copy, string? scene, bool withoutEditorCode = false)
     {
@@ -260,6 +261,11 @@ internal sealed class AssetChecks : GameSystem
         if (withoutEditorCode && Directory.Exists(editorCode))
         {
             Directory.Delete(editorCode, recursive: true);
+        }
+        string plugins = Path.Combine(copy, "Plugins");
+        if (withoutEditorCode && Directory.Exists(plugins))
+        {
+            Directory.Delete(plugins, recursive: true);
         }
         shell.OpenProject(Path.Combine(copy, Path.GetFileName(file)));
         if (scene is not null)
