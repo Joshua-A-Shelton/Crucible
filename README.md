@@ -15,6 +15,8 @@ first game), and what it decided to change:
 - [Assets and scenes](docs/review/03-assets-and-scenes.md): the asset
   database, importers and the cache, serialization, scenes and prefabs,
   cooking and loading.
+- [The renderer](docs/review/04-renderer.md): steps on the render graph,
+  meshes and materials, lights and shadows, and the finishing.
 - [Findings](docs/review/findings.md): what the review decided to change.
 
 ## Learning notes
