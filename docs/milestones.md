@@ -1459,7 +1459,8 @@ discussed, its findings noted (to come back to); the platform layer
 discussed, its findings noted; assets and scenes discussed, their findings
 noted (save games a priority), and mods noted to design; the renderer
 discussed, its findings noted; the UI library discussed, its findings
-noted; the animation and audio page written, to be discussed.
+noted; animation and audio discussed, their findings noted (sound latency
+a high priority); the physics page written, to be discussed.
 
 Asked for by the owner (2026-11-18), before any game is built: some parts
 of the engine have grown past what the owner knows well. Go over the

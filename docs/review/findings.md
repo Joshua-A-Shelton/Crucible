@@ -31,3 +31,7 @@ each as its own step.
 | UI | No data binding: controls are filled and read by hand; a light binding (a property path, an observable value). | Revisit before v1 (owner, 2026-11-25) | Noted |
 | UI | Latin text only: CJK (font fallback, larger glyph caches) for Japanese titles, names, or a localized release. | Revisit after v1 (owner, 2026-11-25) | Noted |
 | UI | Composition bugs found late (a menu in a scroll view, a list in a dialog); tests cover controls alone, not combined. | Revisit before v1 (owner, 2026-11-25) | Noted |
+| Animation and audio | Every sound is 50 ms late (the fixed schedule delay): a shorter delay for sounds triggered by input, or a measured, adaptive one. | Address, a high priority (owner, 2026-11-25) | Noted |
+| Animation and audio | State machines are hand-edited JSON; the graph editor (planned for the action RPG) as a workspace: every game will need it. | Address soon (owner, 2026-11-25) | Noted |
+| Animation and audio | No animation in the editor's scene: characters hold their first pose while editing; preview a clip on a scene's character with a preview's clock. | Address (owner, 2026-11-25) | Noted |
+| Animation and audio | Music is loaded whole into memory; stream it from disk. | Address before the first game (owner, 2026-11-25) | Noted |
