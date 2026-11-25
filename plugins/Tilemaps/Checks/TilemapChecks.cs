@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
+using System.Text.Json.Nodes;
 using Crucible.Assets;
 using Crucible.Assets.Importers;
 using Crucible.Binary;
@@ -453,6 +454,26 @@ internal sealed class TilemapChecks : OfficialPluginChecks
         shell.Undo();
         yield return 2;
         Check(database.Find(map) is not null && !SceneIds.Find(world, rootId).IsNull, "undo brings the entity and its map back");
+
+        // Left out of the project (ADR 0123): the layout's map tab doesn't wait for it.
+        Check(maps.EnterMapMode(SceneIds.Find(world, rootId)), "map mode opens again");
+        yield return 2;
+        JsonObject layout = shell.SaveLayout();
+        Check(layout["PanelStates"]?.AsObject().Any(entry => entry.Value?["Official"]?.GetValue<string>() == "Tilemaps") == true,
+            "the layout knows its tab is the official plugin Tilemaps'", layout["PanelStates"]?.ToJsonString() ?? "");
+        tab = null;
+        palette = null!;
+        layers = null!;
+        string projectFile = shell.Project!.ProjectFilePath;
+        JsonObject project = JsonNode.Parse(File.ReadAllText(projectFile))!.AsObject();
+        project["Official"] = new JsonArray();
+        File.WriteAllText(projectFile, project.ToJsonString());
+        shell.RestoreLayout(layout);
+        shell.OpenProject(projectFile);
+        yield return 3;
+        Check(TilemapsExtension.Current is null &&
+              !shell.Windows.SelectMany(window => window.DockSpace.Panels).OfType<PendingPanel>().Any(panel => panel.OfficialPlugin == "Tilemaps"),
+            "a project leaving it out drops its saved tab instead of waiting for it");
     }
 
     private static T? Panel<T>(Shell shell) where T : EditorPanel =>

@@ -85,3 +85,8 @@ Decided by the owner (2026-11-24):
   of theirs. Light2DChecks makes its map through the plugin's Create item.
 - The other engine systems that could become official plugins are to be
   gone over (open items).
+- Found in the owner's try: a layout saved with an official plugin's tab
+  or panel open kept it as a placeholder waiting forever once the project
+  left the plugin out. The layout now records the official plugin each
+  belongs to (`"Official"`* in its panel states), and opening a project
+  that doesn't use that plugin drops them (owner, 2026-11-24).

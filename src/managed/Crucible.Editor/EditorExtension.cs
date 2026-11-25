@@ -49,6 +49,9 @@ public sealed class EditorContext
     /// <summary>The extension's type, as messages name it.</summary>
     internal string Extension { get; }
 
+    /// <summary>The official plugin it's from (ADR 0123), if it is: saved with its panels in the layout.</summary>
+    internal string? OfficialPlugin { get; init; }
+
     public EditorPanels Panels { get; }
 
     public EditorWorkspaces Workspaces { get; }

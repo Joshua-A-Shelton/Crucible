@@ -1793,3 +1793,4 @@ added while building; all placeholders (`*`) until the owner has tried it:
 | `OfficialPluginChecks`*, `Shell.RunCreateItem`*, `RunAssetCreateItem`*, `AssetChecks.LeaveOutLocalCode` leaving the official plugins out | Editor internals | Checks for official plugins |
 | "Official plugins: Tilemaps 0.1.0"*, "Plugins/X has the name of an official plugin; rename it"*, "The project uses the official plugin X, which this editor doesn't have"* | Text users see | The log's lines |
 | docs/learning/official-plugins.md* | Learning note | Dogfooding, swappable parts, loading once |
+| The layout's panel states' `"Official"`*, `PendingPanel.OfficialPlugin`*, `EditorContext.OfficialPlugin`* | Layout key, editor internals | Whose a saved panel or tab is, to drop it when the project leaves that plugin out |

@@ -87,7 +87,7 @@ internal sealed partial class Shell
 
     [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = JitOnly)]
     [UnconditionalSuppressMessage("Trimming", "IL2072", Justification = JitOnly)]
-    private void StartExtensions(Assembly assembly, bool kept)
+    private void StartExtensions(Assembly assembly, bool kept, string? officialPlugin = null)
     {
         foreach (Type type in ExtensionTypes(assembly))
         {
@@ -102,7 +102,7 @@ internal sealed partial class Shell
                 LogError($"Can't make {name}: {Message(exception)}");
                 continue;
             }
-            EditorContext context = new(this, name);
+            EditorContext context = new(this, name) { OfficialPlugin = officialPlugin };
             _extensions.Add((extension, context, kept));
             Guard(context, "Start", () => extension.Start(context));
         }
@@ -165,7 +165,7 @@ internal sealed partial class Shell
                     {
                         ClosedGuarded(closing);
                     }
-                    Replace(panel, new PendingPanel(id, panel.Title, state) { Workspace = workspace });
+                    Replace(panel, new PendingPanel(id, panel.Title, state) { Workspace = workspace, OfficialPlugin = owner.OfficialPlugin });
                 }
                 else
                 {
@@ -291,6 +291,10 @@ internal sealed partial class Shell
             // A workspace's tab (ADR 0119): which it is and what it works on.
             JsonObject? workspace = panel is Workspace open ? WorkspaceInfo(open)
                 : (panel as PendingPanel)?.Workspace?.DeepClone().AsObject();
+            // An official plugin's (ADR 0123): left out when the project doesn't use it.
+            string? official = panel is PendingPanel pending ? pending.OfficialPlugin
+                : panel is Workspace shown && _workspaceTypes.TryGetValue(shown.WorkspaceId, out var type) ? type.Owner?.OfficialPlugin
+                : _extensionPanels.GetValueOrDefault(id)?.OfficialPlugin;
             if (extension || workspace is not null || !state.IsEmpty)
             {
                 states[id] = new JsonObject
@@ -299,6 +303,7 @@ internal sealed partial class Shell
                     ["Extension"] = extension,
                     ["Values"] = state.ToJson(),
                     ["Workspace"] = workspace,
+                    ["Official"] = official,
                 };
             }
         }
@@ -311,6 +316,7 @@ internal sealed partial class Shell
     {
         JsonObject? saved = _layoutStates?[id] as JsonObject;
         PanelState? state = saved?["Values"] is JsonObject values ? new PanelState(values) : null;
+        string? official = saved?["Official"]?.GetValueKind() == JsonValueKind.String ? saved["Official"]!.GetValue<string>() : null;
         // A workspace's tab (ADR 0119) waits until what it works on is open.
         if (saved?["Workspace"] is JsonObject workspace)
         {
@@ -318,6 +324,7 @@ internal sealed partial class Shell
             PendingPanel waiting = new(id, tab, state, $"{tab} opens again when what it works on is open.")
             {
                 Workspace = workspace.DeepClone().AsObject(),
+                OfficialPlugin = official,
             };
             _open[id] = waiting;
             return waiting;
@@ -336,7 +343,7 @@ internal sealed partial class Shell
             return null;
         }
         string title = saved["Title"]?.GetValueKind() == JsonValueKind.String ? saved["Title"]!.GetValue<string>() : id;
-        PendingPanel pending = new(id, title, state);
+        PendingPanel pending = new(id, title, state) { OfficialPlugin = official };
         _open[id] = pending;
         return pending;
     }
@@ -682,4 +689,7 @@ internal sealed class PendingPanel : EditorPanel
 
     /// <summary>A workspace's tab waiting (ADR 0119): which workspace, and what it works on.</summary>
     public JsonObject? Workspace { get; init; }
+
+    /// <summary>The official plugin it's from (ADR 0123), if it is: dropped when the project doesn't use it.</summary>
+    public string? OfficialPlugin { get; init; }
 }

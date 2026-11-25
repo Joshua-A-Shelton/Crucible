@@ -132,7 +132,17 @@ internal sealed partial class Shell
         {
             if (_officialEditors.TryGetValue(plugin.Name, out Assembly? editor))
             {
-                StartExtensions(editor, kept: true);
+                StartExtensions(editor, kept: true, plugin.Name);
+            }
+        }
+        // Their panels and workspaces the layout kept for an official plugin
+        // this project leaves out: dropped, as they'd never come.
+        HashSet<string> used = [.. project.OfficialPlugins.Select(plugin => plugin.Name)];
+        foreach (PendingPanel pending in _open.Values.OfType<PendingPanel>().ToArray())
+        {
+            if (pending.OfficialPlugin is { } official && !used.Contains(official))
+            {
+                ClosePanel(pending);
             }
         }
         Plugin[] compiled = [.. project.Plugins.Where(plugin => plugin.IsCompiled && !plugin.IsOfficial && plugin.HasCode)];
