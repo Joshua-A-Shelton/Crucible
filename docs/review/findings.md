@@ -38,3 +38,8 @@ each as its own step.
 | Physics | No physics while editing (the world isn't stepped, queries find nothing): a simulate mode, physics only, for level building. | Address at some point (owner, 2026-11-25) | Noted |
 | Physics | Joints have no motors, springs, or breaking (both libraries support them). | Address sooner rather than later (owner, 2026-11-25) | Noted |
 | Physics | No ragdoll workflow: bodies per bone, joints between them, blending from animation, all by hand. | Address at some point (owner, 2026-11-25) | Noted |
+| 2D | Sorting layers are edited in the project file by hand: no editor UI for adding, ordering, or y-sorting them; `Behind3D` untried by hand. | Address after v1, not critical (owner, 2026-11-25) | Noted |
+| 2D | No importing levels from Tiled or LDtk. | Address after v1, not critical (owner, 2026-11-25) | Noted |
+| 2D | Tilemap features waiting for a game: auto-tiling, animated tiles, 90° turns per cell, chunk culling, a trigger layer. | Address after v1, not critical (owner, 2026-11-25) | Noted |
+| 2D | 2D lighting has no shadows, normal maps, or lights limited to layers. | Address after v1, not critical (owner, 2026-11-25) | Noted |
+| 2D | The Sprite Sheet Editor needs Select and Draw tools; 2D sprite tooling could become an official plugin. | Address after v1, not critical (owner, 2026-11-25) | Noted |

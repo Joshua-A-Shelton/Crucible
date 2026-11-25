@@ -25,6 +25,8 @@ first game), and what it decided to change:
   colliders, joints, queries, characters, and hitboxes.
 - [The 2D path](docs/review/08-2d.md): sprites and sorting, the pixel
   camera, frame animation, tilemaps and map mode, and 2D lighting.
+- [The editor](docs/review/09-editor.md): the shell and viewport, undo,
+  the inspector, assets and imports, play, and the extensions API.
 - [Findings](docs/review/findings.md): what the review decided to change.
 
 ## Learning notes
