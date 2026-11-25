@@ -10,6 +10,8 @@ first game), and what it decided to change:
 
 - [The core](docs/review/01-core.md): C++ and C#, the ECS, the frame and
   its systems, jobs.
+- [The platform layer](docs/review/02-platform.md): windows and input,
+  latency, math and coordinates, errors, memory, and logging.
 - [Findings](docs/review/findings.md): what the review decided to change.
 
 ## Learning notes

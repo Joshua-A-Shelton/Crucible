@@ -1454,8 +1454,8 @@ step, after this or with the first game that needs it. Native modules
 
 **Status:** In progress (started 2026-11-25): foundations up, a written
 page per system in docs/review/ discussed with the owner, changes noted in
-docs/review/findings.md and made after (owner, 2026-11-25). The core's
-page is written, to be discussed.
+docs/review/findings.md and made after (owner, 2026-11-25). The core discussed, its findings noted (to come back to); the platform
+layer's page written, to be discussed.
 
 Asked for by the owner (2026-11-18), before any game is built: some parts
 of the engine have grown past what the owner knows well. Go over the
