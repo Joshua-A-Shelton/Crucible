@@ -23,6 +23,8 @@ first game), and what it decided to change:
   the pose runtime, state machines, events, skinning, and the mixer.
 - [Physics](docs/review/07-physics.md): 3D on Box3D, 2D on Box2D,
   colliders, joints, queries, characters, and hitboxes.
+- [The 2D path](docs/review/08-2d.md): sprites and sorting, the pixel
+  camera, frame animation, tilemaps and map mode, and 2D lighting.
 - [Findings](docs/review/findings.md): what the review decided to change.
 
 ## Learning notes

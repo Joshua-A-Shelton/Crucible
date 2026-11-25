@@ -35,3 +35,6 @@ each as its own step.
 | Animation and audio | State machines are hand-edited JSON; the graph editor (planned for the action RPG) as a workspace: every game will need it. | Address soon (owner, 2026-11-25) | Noted |
 | Animation and audio | No animation in the editor's scene: characters hold their first pose while editing; preview a clip on a scene's character with a preview's clock. | Address (owner, 2026-11-25) | Noted |
 | Animation and audio | Music is loaded whole into memory; stream it from disk. | Address before the first game (owner, 2026-11-25) | Noted |
+| Physics | No physics while editing (the world isn't stepped, queries find nothing): a simulate mode, physics only, for level building. | Address at some point (owner, 2026-11-25) | Noted |
+| Physics | Joints have no motors, springs, or breaking (both libraries support them). | Address sooner rather than later (owner, 2026-11-25) | Noted |
+| Physics | No ragdoll workflow: bodies per bone, joints between them, blending from animation, all by hand. | Address at some point (owner, 2026-11-25) | Noted |
