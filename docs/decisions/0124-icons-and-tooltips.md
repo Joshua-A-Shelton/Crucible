@@ -1,8 +1,8 @@
 # 0124 — Icons and tooltips
 
 **Status:** Accepted (2026-11-24); step 7c of editor extensions (the
-owner's notes from map mode). Names marked `*` in docs/naming.md are
-placeholders until the owner has tried it.
+owner's notes from map mode), tried by hand by the owner. Names settled
+by the owner as drafted (2026-11-24; docs/naming.md).
 
 ## Context
 
@@ -26,39 +26,39 @@ useful. **The icon set:** Lucide (ISC); Tabler Icons (MIT); Phosphor
 
 Decided by the owner (2026-11-24):
 
-1. **The brush is held where it was grabbed** (`MapEditor.BrushGrab`*):
+1. **The brush is held where it was grabbed** (`MapEditor.BrushGrab`):
    the cell its drag started on (in the Palette, picking up on the map, or
    the Select tool's region) stays under the pointer for Stamp and
    Eraser, flipping with the brush. Rectangle and Fill repeat it from the
    cell pressed, as before.
-2. **Tooltips: text on any element** (`UIElement.ToolTip`*), shown near the
-   pointer once it rests on the element for `UIRoot.ToolTipDelay`* (half a
-   second), styled by the theme's `tooltip`* class. An element without one
+2. **Tooltips: text on any element** (`UIElement.ToolTip`), shown near the
+   pointer once it rests on the element for `UIRoot.ToolTipDelay` (half a
+   second), styled by the theme's `tooltip` class. An element without one
    shows its nearest ancestor's. It's drawn in a layer of its own above
    the popups and takes no input or focus; a press, a key, the wheel, or
    leaving the element hides it, and it doesn't come back on that element
    until the pointer has left it.
 3. **An icon set: Lucide** 1.79.0 (ISC, its icons from Feather MIT),
-   checked in beside Noto Sans as its icon font (`Fonts/lucide.ttf`*) with
-   its names (`Fonts/lucide-codepoints.json`*) and license
-   (`Fonts/lucide-LICENSE.txt`*, `licenses/lucide.txt`*). An icon is one
-   character of it, drawn by the UI library's new `Icon`* control
-   (`IconFont`*, a font loaded in code, and `Glyph`*) in its `Foreground`, so
+   checked in beside Noto Sans as its icon font (`Fonts/lucide.ttf`) with
+   its names (`Fonts/lucide-codepoints.json`) and license
+   (`Fonts/lucide-LICENSE.txt`, `licenses/lucide.txt`). An icon is one
+   character of it, drawn by the UI library's new `Icon` control
+   (`IconFont`, a font loaded in code, and `Glyph`) in its `Foreground`, so
    icons follow the theme as text does and stay sharp at any size.
    (`IconFont` rather than the drafted `Font`, which every element already
-   has for a font asset.) The editor's `EditorIcons`* gives extensions and
-   itself icons by Lucide's names: `Icon(name)`*, `Button(name, toolTip)`*,
-   `Toggle(name, toolTip)`* (lit while on, no box), `Has`*, `Glyph`*.
-4. **Everywhere useful.** The Viewport's tools (`ViewportTool.Icon`*, null
+   has for a font asset.) The editor's `EditorIcons` gives extensions and
+   itself icons by Lucide's names: `Icon(name)`, `Button(name, toolTip)`,
+   `Toggle(name, toolTip)` (lit while on, no box), `Has`, `Glyph`.
+4. **Everywhere useful.** The Viewport's tools (`ViewportTool.Icon`, null
    keeping an extension's title as text), World/Local, and Grid; the play
-   toolbar (`PlayToolButton.IconName`*); map mode's tools, flips, and Show
+   toolbar (`PlayToolButton.IconName`); map mode's tools, flips, and Show
    Collision; the Layers panel's buttons and each layer's eye and
    collision toggles; the Palette's add, flips, Clear, and Custom; the
    Inspector's fold, menu, and Open buttons (Open's editors named in its
    tooltip, which ADR 0120 put on the button for want of tooltips); the
    Build Settings' and Sprite Sheet Editor's row buttons. Buttons that are
    words (Done, Add Component, Apply, Build) stay text. A workspace's
-   command can show one (`WorkspaceToolbar.Add(command, icon)`*).
+   command can show one (`WorkspaceToolbar.Add(command, icon)`).
 
 ## Consequences
 

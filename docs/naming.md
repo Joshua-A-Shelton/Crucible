@@ -1797,18 +1797,18 @@ drafted after the owner tried it by hand (2026-11-24):
 
 ## Icons and tooltips (2026-11-24, ADR 0124)
 
-Names proposed before building (approved to build with, 2026-11-24) and
-added while building; all placeholders (`*`) until the owner has tried it:
+Names proposed before building and added while building, settled as
+drafted after the owner tried it by hand (2026-11-24):
 
 | Name | What it names | What it is |
 |---|---|---|
-| ADR 0124 "Icons and tooltips"* | Decision record | Editor extensions step 7c |
-| `UIElement.ToolTip`*, `UIRoot.ToolTipDelay`*, `UIRoot.ShownToolTip`* (added while building), style class `tooltip`*, `tooltip-text`* | UI library | Tooltips |
-| `Icon`* (`IconFont`*, `Glyph`*; `IconFont` in place of the drafted `Font`), style classes `editor-icon`*, `small`* | UI control | One character of an icon font loaded in code |
-| `EditorIcons`* (`Icon(name)`*, `Button(name, toolTip)`*, `Toggle(name, toolTip)`*, `Has`*, `Glyph`*) | Public editor API | Lucide's icons by name, and buttons holding one |
-| `WorkspaceToolbar.Add(command, icon)`* | Overload | A command's button as an icon |
-| `ViewportTool.Icon`* | Virtual property | A tool's icon; null keeps its title |
-| `PlayToolButton.IconName`* (added while building), `IconButton(name, toolTip)`*, `IconButton.Shows`* as a name | Editor members | The play and small buttons, on Lucide |
-| `Fonts/lucide.ttf`*, `Fonts/lucide-codepoints.json`*, `Fonts/lucide-LICENSE.txt`*, `licenses/lucide.txt`* | Files | Lucide 1.79.0 (ISC) |
-| `MapEditor.BrushGrab`*, `SetBrush(…, grab)`*, `TileGridView.SelectionFrom`* (added while building) | Plugin members | The brush held where it was grabbed |
-| docs/learning/icons-and-tooltips.md* | Learning note | Icon fonts, tooltip timing, a brush's handle |
+| ADR 0124 "Icons and tooltips" | Decision record | Editor extensions step 7c |
+| `UIElement.ToolTip`, `UIRoot.ToolTipDelay`, `UIRoot.ShownToolTip` (added while building), style class `tooltip`, `tooltip-text` | UI library | Tooltips |
+| `Icon` (`IconFont`, `Glyph`; `IconFont` in place of the drafted `Font`), style classes `editor-icon`, `small` | UI control | One character of an icon font loaded in code |
+| `EditorIcons` (`Icon(name)`, `Button(name, toolTip)`, `Toggle(name, toolTip)`, `Has`, `Glyph`) | Public editor API | Lucide's icons by name, and buttons holding one |
+| `WorkspaceToolbar.Add(command, icon)` | Overload | A command's button as an icon |
+| `ViewportTool.Icon` | Virtual property | A tool's icon; null keeps its title |
+| `PlayToolButton.IconName` (added while building), `IconButton(name, toolTip)`, `IconButton.Shows` as a name | Editor members | The play and small buttons, on Lucide |
+| `Fonts/lucide.ttf`, `Fonts/lucide-codepoints.json`, `Fonts/lucide-LICENSE.txt`, `licenses/lucide.txt` | Files | Lucide 1.79.0 (ISC) |
+| `MapEditor.BrushGrab`, `SetBrush(…, grab)`, `TileGridView.SelectionFrom` (added while building) | Plugin members | The brush held where it was grabbed |
+| docs/learning/icons-and-tooltips.md | Learning note | Icon fonts, tooltip timing, a brush's handle |
