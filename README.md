@@ -3,6 +3,15 @@
 A game engine built on [Slag](https://github.com/Joshua-A-Shelton/Slag).
 Currently in the specification phase; see `CLAUDE.md` and `docs/`.
 
+## The engine review
+
+A walk-through of the engine, system by system, with the owner (before the
+first game), and what it decided to change:
+
+- [The core](docs/review/01-core.md): C++ and C#, the ECS, the frame and
+  its systems, jobs.
+- [Findings](docs/review/findings.md): what the review decided to change.
+
 ## Learning notes
 
 Longer explanations of decisions, written to be reread:

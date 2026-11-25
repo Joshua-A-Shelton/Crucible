@@ -1452,6 +1452,11 @@ step, after this or with the first game that needs it. Native modules
 
 ## After editor extensions: an engine review
 
+**Status:** In progress (started 2026-11-25): foundations up, a written
+page per system in docs/review/ discussed with the owner, changes noted in
+docs/review/findings.md and made after (owner, 2026-11-25). The core's
+page is written, to be discussed.
+
 Asked for by the owner (2026-11-18), before any game is built: some parts
 of the engine have grown past what the owner knows well. Go over the
 whole engine system by system with the owner (what each does, how it
