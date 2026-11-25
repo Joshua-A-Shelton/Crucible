@@ -106,7 +106,8 @@ internal sealed class EditorChecks : GameSystem
         yield return 2;
         pixels = Read(main.Surface);
         (int r, int g, int b) = Pixel(pixels, over + new Vector2(0, 40));
-        Check(b > r + 30 && b > g + 10, "the drop preview tints the hierarchy", $"({r}, {g}, {b})");
+        // Toward the theme's accent (ADR 0129: an orange), from its gray.
+        Check(r > b + 30 && r > g + 10, "the drop preview tints the hierarchy", $"({r}, {g}, {b})");
         Save(pixels, _capture);
         Send(root, Button(over, false));
         yield return 1;
@@ -144,6 +145,49 @@ internal sealed class EditorChecks : GameSystem
         Check(!main.DockSpace.Panels.Any(panel => panel.Id == "Assets"), "Window > Assets closed it");
         assets.Execute();
         Check(main.DockSpace.Panels.Any(panel => panel.Id == "Assets"), "and opened it again");
+
+        // The editor's look (ADR 0129): Editor.crstyle's tokens, icons
+        // following their buttons' states through descendant selectors.
+        Vector4 accent = shell.Theme.Color("accent");
+        Check(accent.X > 0.9f && accent.Y < 0.6f && accent.Z < 0.2f, "Editor.crstyle's accent is the orange", $"{accent}");
+        Button tool = HierarchyChecks.Descendants(main.Root.Content!).OfType<Button>()
+            .First(button => button.Classes.Contains("icon") && button.Content is Icon);
+        bool wasOn = tool.Classes.Contains("on");
+        tool.Classes.Add("on");
+        main.Root.UpdateStyles();
+        Check(((Icon)tool.Content!).Foreground == accent, "a tool that's on shows its icon in the accent",
+            $"{((Icon)tool.Content!).Foreground}");
+        tool.Classes.Set("on", wasOn);
+
+        // Changed while the editor runs, it's read again; a mistake leaves the
+        // look as it was and says where.
+        string folder = Path.Combine(Path.GetTempPath(), $"crucible-theme-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(folder);
+        string themeFile = Path.Combine(folder, EditorTheme.FileName);
+        File.WriteAllText(themeFile, """{ "Tokens": { "accent": "#00ff00" }, "Styles": [ { "Selector": "Label", "Set": { "Foreground": "@accent" } } ] }""");
+        using (EditorTheme theme = new(themeFile))
+        {
+            Check(theme.Load() is null && theme.Theme.Color("accent") == new Vector4(0, 1, 0, 1), "a theme file reads");
+            File.WriteAllText(themeFile, """{ "Tokens": { "accent": "#0000ff" }, "Styles": [ { "Selector": "Label", "Set": { "Foreground": "@acent" } } ] }""");
+            string? error = null;
+            long until = Environment.TickCount64 + 5000; // the watcher, then the settling time
+            while (Environment.TickCount64 < until && !theme.Poll(out error))
+            {
+                yield return 1;
+            }
+            Check(error?.Contains("no token @acent") == true && theme.Theme.Color("accent") == new Vector4(0, 1, 0, 1),
+                "a mistake keeps the look and says where", error ?? "no change seen");
+            File.WriteAllText(themeFile, """{ "Tokens": { "accent": "#0000ff" }, "Styles": [] }""");
+            bool read = false;
+            until = Environment.TickCount64 + 5000;
+            while (Environment.TickCount64 < until && !(read = theme.Poll(out error)))
+            {
+                yield return 1;
+            }
+            Check(read && error is null && theme.Theme.Color("accent") == new Vector4(0, 0, 1, 1), "fixed, it's read again",
+                error ?? "");
+        }
+        Directory.Delete(folder, true);
     }
 
     private static EditorPanel Panel(Shell shell, string id) =>

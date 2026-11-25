@@ -1871,3 +1871,23 @@ drafted after the owner tried it by hand (2026-11-25):
 | `CharactersExtension`, `CharacterWorkspace` (id `Characters.Character`, tab "Character: Walker", `Preview`, `Playing`, `Play`), `CharacterDrawer` | Editor code | The workspace and the drawer |
 | `CharacterEditorChecks`, CTest `launcher.jit.character-editor`, game arg `check-character-editor`, test folders `character-editor-project`, `character-editor-package`, `character-editor.png` | Tests | The demonstration checking itself |
 | docs/learning/a-games-own-editor.md | Learning note | A tour of the pieces |
+
+## The editor's theme (2026-11-25, ADR 0129)
+
+Names proposed before building (marked `*` until settled):
+
+| Name | What it names | What it is |
+|---|---|---|
+| ADR 0129 "The editor's theme" * | Decision record | The editor's look, step 1 |
+| `SelectorPart` (`Type`, `Classes`, `States`, `Combinator`, `Specificity`, `Matches`) * | UI library | One element's part of a selector |
+| `Combinator` (`Descendant`, `Child`) * | UI library | How the next part sits in a part's element |
+| `Selector.Parts` * | UI library | A selector's parts, outermost first |
+| `.crstyle` `"Tokens"`, `"@name"`, `"@name/50%"` * | Theme files | Named values, used at an opacity |
+| `Theme.Tokens`, `SetToken`, `TryGetToken`, `Color` * | UI library | Tokens from C# |
+| `Editor.crstyle` * | File beside the editor | The editor's look, read live |
+| `EditorTheme` (internal) * | Editor | Loads, watches, keeps the last good theme |
+| `EditorContext.Theme` * | Editor API | The editor's theme, for extensions' drawing |
+| Tokens `page`, `panel`, `strip`, `field`, `hover`, `divider`, `text`, `muted`, `accent`, `on-accent`, `selection`, `warning`, `error`, `radius` * | Editor.crstyle | The editor's palette and shapes |
+| Added while building: tokens `control`, `pressed`, `edge`, `small-radius` * | Editor.crstyle | A raised fill, a pressed fill, an outline, a small corner |
+| Added while building: class `inspector-sections` *; `Shell.ThemeColor` (internal) | Editor | The Inspector's divided list; a token for drawing |
+| docs/learning/themes-and-tokens.md * | Learning note | Rules, ancestor selectors, tokens |

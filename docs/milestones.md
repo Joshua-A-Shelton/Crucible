@@ -1505,7 +1505,8 @@ Decided by the owner (2026-11-25):
 Steps, each tried by hand:
 
 1. **Tokens, descendant selectors, and the theme file:** the palette,
-   density, dividers, and corners.
+   density, dividers, and corners. Built (2026-11-25, ADR 0129), to be
+   tried by hand.
 2. **Layout and clipping:** play controls into the menu bar's row; text
    ending in an ellipsis instead of wrapping mid-word or being cut off;
    the M7 fixes.

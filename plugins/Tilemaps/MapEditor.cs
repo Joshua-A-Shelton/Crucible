@@ -49,7 +49,7 @@ internal sealed class MapTileset
 /// </summary>
 internal sealed class MapEditor
 {
-    private static readonly Vector4 _edge = new(0.08f, 0.08f, 0.1f, 0.85f), _brush = new(0.32f, 0.52f, 0.98f, 1);
+    private static readonly Vector4 _edge = new(0.08f, 0.08f, 0.1f, 0.85f);
     private static readonly Vector4 _erase = new(0.95f, 0.35f, 0.3f, 1), _gridLine = new(1, 1, 1, 0.12f);
     private static readonly Vector4 _ghost = new(1, 1, 1, 0.55f), _region = new(1f, 0.85f, 0.2f, 1);
     private static readonly Vector4 _collision = new(0.35f, 0.95f, 0.45f, 0.95f);
@@ -867,7 +867,7 @@ internal sealed class MapEditor
         {
             cells.Add((hover.X, hover.Y, null));
         }
-        Vector4 color = Tool == MapTool.Eraser ? _erase : _brush;
+        Vector4 color = Tool == MapTool.Eraser ? _erase : _maps.Editor.Theme.Color("accent"); // the editor's (ADR 0129)
         foreach ((int x, int y, BrushTile? tile) in cells)
         {
             if (tile is { } t)

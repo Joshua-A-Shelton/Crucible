@@ -581,8 +581,7 @@ public sealed class SpriteSheetPanel : EditorPanel
     internal sealed class SheetView : UIElement
     {
         private static readonly int[] _zooms = [1, 2, 3, 4, 6, 8, 12, 16, 24, 32];
-        private static readonly Vector4 _backdrop = new(0.12f, 0.12f, 0.14f, 1), _check = new(0.17f, 0.17f, 0.2f, 1);
-        private static readonly Vector4 _outline = new(1, 1, 1, 0.55f), _selected = new(0.3f, 0.55f, 0.96f, 1);
+        private static readonly Vector4 _outline = new(1, 1, 1, 0.55f);
 
         private readonly SpriteSheetPanel _panel;
         private Vector2 _pan;
@@ -619,7 +618,8 @@ public sealed class SpriteSheetPanel : EditorPanel
         protected override void OnDraw(Canvas canvas)
         {
             Vector2 size = ActualSize;
-            canvas.FillRect(Vector2.Zero, size, _backdrop);
+            Vector4 check = Shell.ThemeColor("panel"), accent = Shell.ThemeColor("accent");
+            canvas.FillRect(Vector2.Zero, size, Shell.ThemeColor("field"));
             (int width, int height) = _panel.TextureSize;
             if (width <= 0)
             {
@@ -639,7 +639,7 @@ public sealed class SpriteSheetPanel : EditorPanel
             {
                 for (float x = ((int)(y / cell) % 2) * cell; x < extent.X; x += cell * 2)
                 {
-                    canvas.FillRect(origin + new Vector2(x, y), new Vector2(cell), _check);
+                    canvas.FillRect(origin + new Vector2(x, y), new Vector2(cell), check);
                 }
             }
             canvas.PopClip();
@@ -650,12 +650,12 @@ public sealed class SpriteSheetPanel : EditorPanel
                 SpriteFrameSettings f = frames[i];
                 bool selected = i == _panel.SelectedFrame;
                 canvas.StrokeRect(origin + new Vector2(f.X, f.Y) * Zoom, new Vector2(f.Width, f.Height) * Zoom,
-                    selected ? _selected : _outline, selected ? 2 : 1);
+                    selected ? accent : _outline, selected ? 2 : 1);
             }
             if (_drawFrom is { } from)
             {
                 (Vector2 at, Vector2 span) = Rectangle(from, _drawTo);
-                canvas.StrokeRect(origin + at * Zoom, span * Zoom, _selected, 2);
+                canvas.StrokeRect(origin + at * Zoom, span * Zoom, accent, 2);
             }
         }
 
@@ -830,7 +830,7 @@ public sealed class SpriteSheetPanel : EditorPanel
         protected override void OnDraw(Canvas canvas)
         {
             Vector2 size = ActualSize;
-            canvas.FillRect(Vector2.Zero, size, new Vector4(0.12f, 0.12f, 0.14f, 1), 4);
+            canvas.FillRect(Vector2.Zero, size, Shell.ThemeColor("field"), 4);
             SpriteClipSettings? clip = Clip();
             IReadOnlyList<SpriteFrameSettings> frames = _panel.Frames;
             (int width, int height) = _panel.TextureSize;

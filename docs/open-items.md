@@ -70,7 +70,10 @@ is, and record which version fixed it.
   and `ADefaultIsInstalledWhenNothingElseIs` each failed once and passed
   on rerun (the earlier unnamed engine-tests failure is likely the same).
   Both read state the engine keeps per process; look for a test changing
-  it in parallel. → testing
+  it in parallel. Also once each in the first full runs after ADR 0129
+  (Linux, 2026-11-25): `launcher.jit.editor` (debug) and
+  `launcher.jit.sprite-sheet` (release), both passing alone and in four
+  full reruns of each preset; their output wasn't kept. → testing
 
 - Other systems as official plugins (owner, 2026-11-24): go over the
   engine's systems that could follow Tilemaps (ADR 0123) as swappable

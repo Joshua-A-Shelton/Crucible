@@ -29,6 +29,8 @@ internal sealed partial class Shell
     private readonly Dictionary<string, EditorPanel> _open = new(StringComparer.Ordinal);
     // The pick asked for in a viewport, and the frame that answers it.
     private readonly Theme _theme;
+    private readonly EditorTheme _editorTheme;
+    private string? _themeError;
     private readonly FontHandle _font;
     private readonly Menu _recentMenu = new();
     private readonly MenuItem _recentItem = new("Recent Projects");
@@ -51,7 +53,13 @@ internal sealed partial class Shell
         Settings = EditorSettings.Load(settingsPath);
         _font = LoadFont();
         EditorIcons.Font = LoadFont("lucide.ttf");
-        _theme = CreateTheme();
+        // The editor's look (ADR 0129), from Editor.crstyle beside the editor.
+        _editorTheme = new EditorTheme(Path.Combine(Path.GetDirectoryName(FontsFolder())!, EditorTheme.FileName));
+        _theme = _editorTheme.Theme;
+        if (_editorTheme.Load() is { } themeError)
+        {
+            _themeError = themeError; // logged once the Log exists
+        }
         Main = new EditorWindow(context.Window, context.Surface, true, false, _theme, _font);
         Toolbar = new PlayToolbar(this);
         Main.AddStrip(Toolbar);
@@ -416,6 +424,7 @@ internal sealed partial class Shell
     /// </summary>
     public void RenderViewports()
     {
+        PollTheme();
         if (!_context.HasWorld)
         {
             return;
@@ -1369,141 +1378,41 @@ internal sealed partial class Shell
         }
     }
 
-    // The default theme, plus the editor's own parts.
-    private static Theme CreateTheme()
+    /// <summary>The editor's theme: the engine's default and Editor.crstyle's tokens and styles (ADR 0129).</summary>
+    internal Theme Theme => _theme;
+
+    /// <summary>A color token of the editor's theme, for drawing; grey if the theme lacks it (the Log says why).</summary>
+    internal static Vector4 ThemeColor(string token)
     {
-        Vector4 text = Color(0xe8e8ec), muted = Color(0x9aa0aa), accent = Color(0x4c8bf5);
-        Vector4 page = Color(0x1c1e22), panel = Color(0x26292e), strip = Color(0x202327), hover = Color(0x343941);
-        Theme theme = Theme.CreateDefault();
-        theme.Add(new Style("DockPanel.editor").Set(UIElement.BackgroundProperty, page));
-        theme.Add(new Style("DockSpace.editor").Set(UIElement.BackgroundProperty, page));
-        theme.Add(new Style("DockGroup")
-            .Set(UIElement.BackgroundProperty, panel)
-            .Set(UIElement.CornerRadiiProperty, new Vector4(4))
-            .Set(UIElement.MarginProperty, new Thickness(1)));
-        theme.Add(new Style("StackPanel.dock-tabs").Set(UIElement.BackgroundProperty, strip));
-        theme.Add(new Style("DockTab")
-            .Set(UIElement.PaddingProperty, new Thickness(10, 5, 6, 5))
-            .Set(UIElement.ForegroundProperty, muted)
-            .Set(UIElement.CornerRadiiProperty, new Vector4(4, 4, 0, 0)));
-        theme.Add(new Style("DockTab:hover").Set(UIElement.BackgroundProperty, hover));
-        theme.Add(new Style("DockTab.active")
-            .Set(UIElement.BackgroundProperty, panel)
-            .Set(UIElement.ForegroundProperty, text)
-            .Set(UIElement.BorderColorProperty, accent));
-        theme.Add(new Style("Label.placeholder").Set(UIElement.ForegroundProperty, muted));
-        theme.Add(new Style("Label.log-warning").Set(UIElement.ForegroundProperty, Color(0xf0c060)));
-        theme.Add(new Style("Label.log-error").Set(UIElement.ForegroundProperty, Color(0xf07070)));
-        theme.Add(new Style("Splitter").Set(UIElement.BackgroundProperty, page));
-        theme.Add(new Style("Splitter:hover").Set(UIElement.BackgroundProperty, accent with { W = 0.6f }));
-        theme.Add(new Style("Splitter:pressed").Set(UIElement.BackgroundProperty, accent));
-        theme.Add(new Style("StatusBar")
-            .Set(UIElement.BackgroundProperty, strip)
-            .Set(UIElement.PaddingProperty, new Thickness(10, 3, 10, 3)));
-        theme.Add(new Style("Label.status").Set(UIElement.ForegroundProperty, muted));
-        theme.Add(new Style("DropPreview").Set(UIElement.ForegroundProperty, accent));
-        // The viewport's toolbar (ADR 0067): flat tools, the active one lit.
-        theme.Add(new Style(".toolbar-separator").Set(UIElement.BackgroundProperty, hover));
-        theme.Add(new Style("DockPanel.viewport-tools")
-            .Set(UIElement.BackgroundProperty, strip)
-            .Set(UIElement.PaddingProperty, new Thickness(6, 4, 6, 4)));
-        theme.Add(new Style("StackPanel.viewport-tools")
-            .Set(UIElement.BackgroundProperty, strip)
-            .Set(UIElement.PaddingProperty, new Thickness(6, 4, 6, 4)));
-        theme.Add(new Style("Button.tool")
-            .Set(UIElement.PaddingProperty, new Thickness(10, 3, 10, 3))
-            .Set(UIElement.BackgroundProperty, panel));
-        theme.Add(new Style("Button.tool:hover").Set(UIElement.BackgroundProperty, hover));
-        theme.Add(new Style("Button.on").Set(UIElement.BackgroundProperty, accent with { W = 0.55f }));
-        theme.Add(new Style("Button:disabled").Set(UIElement.ForegroundProperty, muted));
-        theme.Add(new Style("PlayToolbar")
-            .Set(UIElement.BackgroundProperty, strip)
-            .Set(UIElement.PaddingProperty, new Thickness(0, 3, 0, 3)));
-        theme.Add(new Style("PlayToolButton.tool")
-            .Set(UIElement.ForegroundProperty, text)
-            .Set(UIElement.BackgroundProperty, panel)
-            .Set(UIElement.CornerRadiiProperty, new Vector4(3)));
-        theme.Add(new Style("PlayToolButton.tool:hover").Set(UIElement.BackgroundProperty, hover));
-        theme.Add(new Style("PlayToolButton.on").Set(UIElement.BackgroundProperty, accent with { W = 0.55f }));
-        theme.Add(new Style("PlayToolButton:disabled").Set(UIElement.OpacityProperty, 0.4f));
-        // Icons (ADR 0124): Lucide's, in the text's color; small ones muted.
-        theme.Add(new Style("Icon.editor-icon").Set(UIElement.FontSizeProperty, 16f).Set(UIElement.ForegroundProperty, text));
-        theme.Add(new Style("Icon.small").Set(UIElement.FontSizeProperty, 14f).Set(UIElement.ForegroundProperty, muted));
-        theme.Add(new Style("Button.icon").Set(UIElement.PaddingProperty, new Thickness(6, 3, 6, 3)));
-        theme.Add(new Style("Toggle.icon")
-            .Set(UIElement.PaddingProperty, new Thickness(6, 3, 6, 3))
-            .Set(UIElement.BackgroundProperty, panel)
-            .Set(UIElement.CornerRadiiProperty, new Vector4(3)));
-        theme.Add(new Style("Toggle.icon:hover").Set(UIElement.BackgroundProperty, hover));
-        theme.Add(new Style("Toggle.icon.on").Set(UIElement.BackgroundProperty, accent with { W = 0.55f }));
-        theme.Add(new Style("Label.frame-time").Set(UIElement.ForegroundProperty, muted).Set(UIElement.MarginProperty, new Thickness(8, 0, 0, 0)));
-        // The inspector (ADR 0069): a card per component; prefab overrides in the accent color.
-        theme.Add(new Style("DockPanel.inspector-header")
-            .Set(UIElement.BackgroundProperty, strip)
-            .Set(UIElement.PaddingProperty, new Thickness(8, 4, 6, 4)));
-        theme.Add(new Style("Label.inspector-title").Set(UIElement.FontSizeProperty, 15f));
-        theme.Add(new Style("StackPanel.component")
-            .Set(UIElement.BackgroundProperty, strip)
-            .Set(UIElement.CornerRadiiProperty, new Vector4(4))
-            .Set(UIElement.PaddingProperty, new Thickness(6, 4, 6, 6)));
-        theme.Add(new Style("IconButton")
-            .Set(UIElement.ForegroundProperty, muted)
-            .Set(UIElement.CornerRadiiProperty, new Vector4(3)));
-        theme.Add(new Style("IconButton:hover").Set(UIElement.BackgroundProperty, hover).Set(UIElement.ForegroundProperty, text));
-        theme.Add(new Style("IconButton:disabled").Set(UIElement.OpacityProperty, 0.3f));
-        theme.Add(new Style("Label.field-name").Set(UIElement.ForegroundProperty, muted));
-        theme.Add(new Style("Label.field-header")
-            .Set(UIElement.ForegroundProperty, text)
-            .Set(UIElement.MarginProperty, new Thickness(0, 6, 0, 0)));
-        theme.Add(new Style("Label.overridden").Set(UIElement.ForegroundProperty, accent));
-        theme.Add(new Style("Label.field-warning").Set(UIElement.ForegroundProperty, Color(0xf0c060)));
-        // The asset browser and drags (ADR 0071).
-        theme.Add(new Style("Label.asset-crumb")
-            .Set(UIElement.ForegroundProperty, muted)
-            .Set(UIElement.PaddingProperty, new Thickness(8, 4, 8, 4)));
-        theme.Add(new Style("AssetTile")
-            .Set(UIElement.PaddingProperty, new Thickness(4))
-            .Set(UIElement.CornerRadiiProperty, new Vector4(4))
-            .Set(UIElement.ForegroundProperty, muted)
-            .Set(UIElement.BorderColorProperty, accent));
-        theme.Add(new Style("AssetTile:hover").Set(UIElement.BackgroundProperty, hover));
-        theme.Add(new Style("AssetTile.drop-over").Set(UIElement.BackgroundProperty, accent with { W = 0.45f }));
-        theme.Add(new Style("AssetsPanel.drop-over").Set(UIElement.BackgroundProperty, accent with { W = 0.12f }));
-        theme.Add(new Style("AssetTile.selected").Set(UIElement.BackgroundProperty, accent with { W = 0.3f }).Set(UIElement.ForegroundProperty, text));
-        theme.Add(new Style("AssetTile:focus").Set(UIElement.BorderWidthProperty, 1f));
-        theme.Add(new Style("Label.asset-name").Set(UIElement.FontSizeProperty, 12f));
-        theme.Add(new Style("Label.drag-preview")
-            .Set(UIElement.BackgroundProperty, panel)
-            .Set(UIElement.BorderColorProperty, accent)
-            .Set(UIElement.BorderWidthProperty, 1f)
-            .Set(UIElement.CornerRadiiProperty, new Vector4(4))
-            .Set(UIElement.PaddingProperty, new Thickness(8, 3, 8, 3)));
-        // The Build Settings window (ADR 0098): cards with a title over muted hints, rows, and a primary Cook.
-        theme.Add(new Style("BuildCard")
-            .Set(UIElement.BackgroundProperty, strip)
-            .Set(UIElement.CornerRadiiProperty, new Vector4(4))
-            .Set(UIElement.PaddingProperty, new Thickness(10, 8, 10, 10))
-            .Set(UIElement.BorderColorProperty, accent));
-        theme.Add(new Style("BuildCard.drop-over").Set(UIElement.BorderWidthProperty, 2f));
-        theme.Add(new Style("Label.card-title").Set(UIElement.FontSizeProperty, 18f));
-        theme.Add(new Style("Label.hint").Set(UIElement.ForegroundProperty, muted).Set(UIElement.FontSizeProperty, 12f));
-        theme.Add(new Style("DockPanel.build-row")
-            .Set(UIElement.BackgroundProperty, panel)
-            .Set(UIElement.CornerRadiiProperty, new Vector4(3))
-            .Set(UIElement.PaddingProperty, new Thickness(8, 3, 4, 3)));
-        theme.Add(new Style("Label.row-index").Set(UIElement.ForegroundProperty, muted).Set(UIElement.WidthProperty, 18f));
-        theme.Add(new Style("Label.row-detail")
-            .Set(UIElement.ForegroundProperty, muted)
-            .Set(UIElement.FontSizeProperty, 12f)
-            .Set(UIElement.MarginProperty, new Thickness(8, 0, 0, 0)));
-        theme.Add(new Style("Label.start-tag")
-            .Set(UIElement.ForegroundProperty, accent)
-            .Set(UIElement.FontSizeProperty, 12f)
-            .Set(UIElement.MarginProperty, new Thickness(8, 0, 0, 0)));
-        theme.Add(new Style("Button.primary").Set(UIElement.BackgroundProperty, accent with { W = 0.75f }));
-        theme.Add(new Style("Button.primary:hover").Set(UIElement.BackgroundProperty, accent));
-        return theme;
+        try
+        {
+            return Current?._theme.Color(token) ?? new Vector4(0.5f, 0.5f, 0.5f, 1);
+        }
+        catch (InvalidDataException)
+        {
+            return new Vector4(0.5f, 0.5f, 0.5f, 1);
+        }
     }
 
-    private static Vector4 Color(uint rgb) => new((rgb >> 16) / 255f, ((rgb >> 8) & 255) / 255f, (rgb & 255) / 255f, 1);
+    // Editor.crstyle changed (or failed to read at start): the new look, or
+    // what's wrong with it in the Log, the look kept as it was.
+    private void PollTheme()
+    {
+        if (_themeError is not null && LogPanel is not null)
+        {
+            LogError(_themeError);
+            _themeError = null;
+        }
+        if (_editorTheme.Poll(out string? error))
+        {
+            if (error is not null)
+            {
+                LogError(error);
+            }
+            else
+            {
+                Log($"Read {EditorTheme.FileName} again");
+            }
+        }
+    }
 }

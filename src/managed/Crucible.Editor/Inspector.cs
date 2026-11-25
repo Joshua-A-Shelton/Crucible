@@ -24,7 +24,8 @@ public sealed class InspectorPanel : EditorPanel
     private readonly Shell _shell;
     private readonly Label _title = new() { VerticalAlignment = VerticalAlignment.Center };
     private readonly Button _add = new("Add Component") { HorizontalAlignment = HorizontalAlignment.End };
-    private readonly StackPanel _sections = new() { Spacing = 6 };
+    // Sections one unit apart over the divider color: hairlines between them (ADR 0129).
+    private readonly StackPanel _sections = new() { Spacing = 1, VerticalAlignment = VerticalAlignment.Start };
     private readonly Label _empty = new("Nothing selected") { HorizontalAlignment = HorizontalAlignment.Center };
     private Entity _entity;
     private string? _shape; // the entity and its component names, when the sections were made (null: not yet)
@@ -35,6 +36,7 @@ public sealed class InspectorPanel : EditorPanel
     {
         _shell = shell;
         _title.Classes.Add("inspector-title");
+        _sections.Classes.Add("inspector-sections");
         _empty.Classes.Add("placeholder");
         _add.Clicked += _ => ShowAddMenu();
         DockPanel header = new();
@@ -45,7 +47,7 @@ public sealed class InspectorPanel : EditorPanel
         DockPanel page = new();
         DockPanel.SetDock(header, Dock.Top);
         page.Add(header);
-        page.Add(new ScrollView { Content = _sections, Padding = new Thickness(6, 4, 6, 8) });
+        page.Add(new ScrollView { Content = _sections });
         AddChild(page);
     }
 

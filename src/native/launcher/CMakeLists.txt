@@ -308,7 +308,7 @@ if(CRUCIBLE_BUILD_TESTS)
     # preview, a panel torn off into a floating window and docked back,
     # checked at pixels; its settings kept in the build tree.
     add_test(NAME launcher.jit.editor
-        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 600
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 5000
             --game-arg "check=${CMAKE_CURRENT_BINARY_DIR}/editor.png"
             --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/editor-settings.json")
     set_tests_properties(launcher.jit.editor PROPERTIES LABELS "integration;gpu" TIMEOUT 60

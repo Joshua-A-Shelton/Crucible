@@ -664,8 +664,9 @@ public partial class UIElement
         });
     }
 
-    // A theme, a class, or a state changed: restyle on the root's next update.
-    internal void StyleChanged() => Root?.Restyle(this);
+    // A class or a state changed: restyle on the root's next update, with
+    // what's inside it if a style with an ancestor part may care (ADR 0129).
+    internal void StyleChanged() => Root?.RestyleChanged(this);
 
     // The styles matching now, for each property the winner's value and the
     // winner's transition; a changed value animates if the new winner (for
@@ -693,7 +694,7 @@ public partial class UIElement
             {
                 if (property.Owner.IsInstanceOfType(this))
                 {
-                    values[property] = value;
+                    values[property] = theme!.ValueFor(property, value);
                 }
             }
             foreach ((StyledProperty property, Transition transition) in style.Transitions)

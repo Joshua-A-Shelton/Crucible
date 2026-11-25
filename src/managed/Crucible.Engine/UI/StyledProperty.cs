@@ -64,6 +64,9 @@ public abstract class StyledProperty
     // what it expected.
     internal abstract object ReadJson(JsonElement value);
 
+    // The type of value it holds.
+    internal abstract Type ValueType { get; }
+
     internal abstract ValueSlot CreateSlot();
 }
 
@@ -95,6 +98,8 @@ public sealed class StyledProperty<T> : StyledProperty
         new(name, typeof(TOwner), defaultValue, invalidates, interpolate, readJson);
 
     internal override object ReadJson(JsonElement value) => _readJson(value)!;
+
+    internal override Type ValueType => typeof(T);
 
     internal override ValueSlot CreateSlot() => new ValueSlot<T>(this);
 }

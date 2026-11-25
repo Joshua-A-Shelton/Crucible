@@ -1,0 +1,188 @@
+{
+  // The editor's look (ADR 0129): "Forge", neutral charcoal with a molten
+  // orange accent, compact, hairline dividers. Layered over the engine's
+  // default theme; read at start and again whenever this file changes, so
+  // it can be tuned while the editor runs. Extensions read the tokens
+  // through editor.Theme.
+  "Tokens": {
+    "page": "#151515",
+    "panel": "#1e1e1e",
+    "strip": "#1a1a1a",
+    "field": "#141414",
+    "control": "#2a2a2a",
+    "hover": "#303030",
+    "pressed": "#242424",
+    "divider": "#2c2c2c",
+    "edge": "#3a3a3a",
+    "text": "#e8e8e8",
+    "muted": "#8c8c8c",
+    "accent": "#ff7418",
+    "on-accent": "#1a1a1a",
+    "selection": "#6e2c08",
+    "warning": "#f0c060",
+    "error": "#f07070",
+    "radius": 5,
+    "small-radius": 3
+  },
+  "Styles": [
+    // Text: compact, 13px everywhere unless a style says otherwise.
+    { "Selector": "*", "Set": { "FontSize": 13 } },
+    { "Selector": "Label", "Set": { "Foreground": "@text" } },
+    { "Selector": "Icon", "Set": { "Foreground": "@text" } },
+
+    // The engine's controls, in the editor's colors and density.
+    { "Selector": "Button", "Set": { "Background": "@control", "CornerRadii": "@radius", "Padding": [10, 4, 10, 4], "BorderColor": "@accent" } },
+    { "Selector": "Button:hover", "Set": { "Background": "@hover" } },
+    { "Selector": "Button:pressed", "Set": { "Background": "@pressed" } },
+    { "Selector": "Button:focus", "Set": { "BorderWidth": 1.5 } },
+    { "Selector": "Button:disabled", "Set": { "Opacity": 1 } },
+    { "Selector": "Button:disabled > Label", "Set": { "Foreground": "@muted" } },
+    { "Selector": "Button:disabled Icon", "Set": { "Foreground": "@muted" } },
+    { "Selector": "Button.primary", "Set": { "Background": "@accent" } },
+    { "Selector": "Button.primary:hover", "Set": { "Background": "@accent/85%" } },
+    { "Selector": "Button.primary > Label", "Set": { "Foreground": "@on-accent" } },
+
+    { "Selector": "Toggle", "Set": { "Padding": 3, "CornerRadii": "@radius", "BorderColor": "@accent" } },
+    { "Selector": "Toggle:focus", "Set": { "BorderWidth": 1.5 } },
+    { "Selector": "ToggleBox", "Set": { "Width": 14, "Height": 14, "CornerRadii": "@small-radius", "Background": "@field", "BorderColor": "@edge", "BorderWidth": 1 } },
+    { "Selector": "ToggleBox.on", "Set": { "Background": "@accent", "BorderColor": "@accent" } },
+    { "Selector": "ToggleMark", "Set": { "Width": 6, "Height": 6, "Background": "@on-accent" } },
+
+    { "Selector": "Slider", "Set": { "Height": 20, "BorderColor": "@accent" } },
+    { "Selector": "SliderTrack", "Set": { "Background": "@edge" } },
+    { "Selector": "SliderThumb", "Set": { "Width": 12, "Height": 12, "CornerRadii": 6, "Background": "@text" } },
+    { "Selector": "SliderThumb:pressed", "Set": { "Background": "@accent" } },
+
+    { "Selector": "ScrollThumb", "Set": { "Background": "@muted/40%" } },
+    { "Selector": "ScrollThumb:hover", "Set": { "Background": "@muted/75%" } },
+
+    { "Selector": "ListBox", "Set": { "Background": "@field", "CornerRadii": "@radius" } },
+    { "Selector": "ListItem", "Set": { "Padding": [8, 3, 8, 3], "CornerRadii": "@small-radius", "BorderColor": "@accent" } },
+    { "Selector": "ListItem:hover", "Set": { "Background": "@hover" } },
+    { "Selector": "ListItem.selected", "Set": { "Background": "@selection" } },
+    { "Selector": "ListItem:focus", "Set": { "BorderWidth": 1 } },
+    { "Selector": "ListItem.tree", "Set": { "Padding": [2, 2, 8, 2] } },
+    { "Selector": "TreeExpander", "Set": { "Width": 14, "Foreground": "@muted" } },
+    { "Selector": "TreeExpander:hover", "Set": { "Foreground": "@text" } },
+    { "Selector": ".tree-drop", "Set": { "Foreground": "@accent" } },
+
+    { "Selector": "Popup", "Set": { "Background": "@control", "CornerRadii": "@radius", "BorderColor": "@edge", "Padding": 3 } },
+    { "Selector": ".tooltip", "Set": { "Background": "@control", "CornerRadii": "@small-radius", "BorderColor": "@edge", "Padding": [6, 2, 6, 2] } },
+    { "Selector": "Label.tooltip-text", "Set": { "FontSize": 12 } },
+
+    { "Selector": "ColorField", "Set": { "Background": "@field", "CornerRadii": "@small-radius", "BorderColor": "@accent" } },
+    { "Selector": "Spinner", "Set": { "Background": "@field", "CornerRadii": "@small-radius", "BorderColor": "@accent" } },
+    { "Selector": "SpinnerArrow", "Set": { "Width": 18, "Height": 18, "Foreground": "@muted" } },
+    { "Selector": "SpinnerArrow:hover", "Set": { "Background": "@hover", "Foreground": "@text" } },
+    { "Selector": "SpinnerArrow:pressed", "Set": { "Background": "@pressed" } },
+
+    { "Selector": "ComboBox", "Set": { "Background": "@control", "CornerRadii": "@radius", "Padding": [8, 4, 6, 4], "MinWidth": 100, "BorderColor": "@accent" } },
+    { "Selector": "ComboBox:hover", "Set": { "Background": "@hover" } },
+    { "Selector": "ComboBox:focus", "Set": { "BorderWidth": 1.5 } },
+    { "Selector": "ComboBoxArrow", "Set": { "Width": 14, "Height": 14, "Margin": [6, 0, 0, 0], "Foreground": "@muted" } },
+
+    { "Selector": "TextField", "Set": { "Background": "@field", "Foreground": "@text", "CornerRadii": "@small-radius", "Padding": [6, 3, 6, 3], "MinWidth": 80, "BorderWidth": 1, "BorderColor": "@divider", "CaretColor": "@accent", "SelectionColor": "@accent/40%" } },
+    { "Selector": "TextField:hover", "Set": { "BorderColor": "@edge" } },
+    { "Selector": "TextField:focus", "Set": { "BorderColor": "@accent", "BorderWidth": 1 } },
+    { "Selector": "NumberField", "Set": { "MinWidth": 48 } },
+
+    { "Selector": "MenuBar", "Set": { "Background": "@strip", "Padding": [4, 0, 4, 0] } },
+    { "Selector": "Menu", "Set": { "MinWidth": 200 } },
+    { "Selector": "MenuItem", "Set": { "Padding": [8, 3, 10, 3], "CornerRadii": "@small-radius", "Foreground": "@text" } },
+    { "Selector": "MenuItem.bar", "Set": { "Padding": [8, 3, 8, 3] } },
+    { "Selector": "MenuItem:hover", "Set": { "Background": "@hover" } },
+    { "Selector": "MenuItem:focus", "Set": { "Background": "@hover" } },
+    { "Selector": "MenuItem.open", "Set": { "Background": "@hover" } },
+    { "Selector": "MenuSeparator", "Set": { "Margin": [6, 3, 6, 3], "Background": "@divider" } },
+    { "Selector": "Label.shortcut", "Set": { "Foreground": "@muted" } },
+
+    { "Selector": "TitleBar", "Set": { "Background": "@strip", "MinHeight": 30 } },
+    { "Selector": "Label.title", "Set": { "Foreground": "@muted" } },
+    { "Selector": "WindowButton", "Set": { "Width": 40, "Foreground": "@text" } },
+    { "Selector": "WindowButton:hover", "Set": { "Background": "@hover" } },
+    { "Selector": "WindowButton:pressed", "Set": { "Background": "@pressed" } },
+
+    // The shell: docking, tabs, splitters, the status bar.
+    { "Selector": "DockPanel.editor", "Set": { "Background": "@page" } },
+    { "Selector": "DockSpace.editor", "Set": { "Background": "@page" } },
+    { "Selector": "DockGroup", "Set": { "Background": "@panel", "CornerRadii": "@radius", "Margin": 1 } },
+    { "Selector": "StackPanel.dock-tabs", "Set": { "Background": "@strip" } },
+    { "Selector": "DockTab", "Set": { "Padding": [10, 4, 6, 4], "Foreground": "@muted", "CornerRadii": [5, 5, 0, 0] } },
+    { "Selector": "DockTab:hover", "Set": { "Background": "@hover" } },
+    { "Selector": "DockTab.active", "Set": { "Background": "@panel", "Foreground": "@text", "BorderColor": "@accent" } },
+    { "Selector": "DockTab Label", "Set": { "Foreground": "@muted" } },
+    { "Selector": "DockTab.active Label", "Set": { "Foreground": "@text" } },
+    { "Selector": "DropPreview", "Set": { "Foreground": "@accent" } },
+    { "Selector": "Splitter", "Set": { "Background": "@page" } },
+    { "Selector": "Splitter:hover", "Set": { "Background": "@accent/60%" } },
+    { "Selector": "Splitter:pressed", "Set": { "Background": "@accent" } },
+    { "Selector": "StatusBar", "Set": { "Background": "@strip", "Padding": [10, 2, 10, 2] } },
+    { "Selector": "Label.status", "Set": { "Foreground": "@muted" } },
+    { "Selector": "Label.placeholder", "Set": { "Foreground": "@muted" } },
+    { "Selector": "Label.log-warning", "Set": { "Foreground": "@warning" } },
+    { "Selector": "Label.log-error", "Set": { "Foreground": "@error" } },
+
+    // Toolbars: flat tools, the one that's on in the accent.
+    { "Selector": ".toolbar-separator", "Set": { "Background": "@divider" } },
+    { "Selector": "DockPanel.viewport-tools", "Set": { "Background": "@strip", "Padding": [6, 3, 6, 3] } },
+    { "Selector": "StackPanel.viewport-tools", "Set": { "Background": "@strip", "Padding": [6, 3, 6, 3] } },
+    { "Selector": "Button.tool", "Set": { "Padding": [8, 2, 8, 2], "Background": "@strip" } },
+    { "Selector": "Button.tool:hover", "Set": { "Background": "@hover" } },
+    { "Selector": "Button.on", "Set": { "Background": "@accent/30%" } },
+    { "Selector": "Button.on Icon", "Set": { "Foreground": "@accent" } },
+    { "Selector": "PlayToolbar", "Set": { "Background": "@strip", "Padding": [0, 2, 0, 2] } },
+    { "Selector": "PlayToolButton.tool", "Set": { "Foreground": "@text", "Background": "@strip", "CornerRadii": "@small-radius" } },
+    { "Selector": "PlayToolButton.tool:hover", "Set": { "Background": "@hover" } },
+    { "Selector": "PlayToolButton.on", "Set": { "Background": "@accent/30%" } },
+    { "Selector": "PlayToolButton.on Icon", "Set": { "Foreground": "@accent" } },
+    { "Selector": "PlayToolButton:disabled", "Set": { "Opacity": 1 } },
+    { "Selector": "PlayToolButton:disabled Icon", "Set": { "Foreground": "@muted/50%" } },
+
+    // Icons (ADR 0124): Lucide's, following their button's state.
+    { "Selector": "Icon.editor-icon", "Set": { "FontSize": 15, "Foreground": "@text" } },
+    { "Selector": "Icon.small", "Set": { "FontSize": 13, "Foreground": "@muted" } },
+    { "Selector": "Button.icon", "Set": { "Padding": [5, 2, 5, 2] } },
+    { "Selector": "Button.icon:hover Icon.small", "Set": { "Foreground": "@text" } },
+    { "Selector": "Toggle.icon", "Set": { "Padding": [5, 2, 5, 2], "Background": "@strip", "CornerRadii": "@small-radius" } },
+    { "Selector": "Toggle.icon:hover", "Set": { "Background": "@hover" } },
+    { "Selector": "Toggle.icon.on", "Set": { "Background": "@accent/30%" } },
+    { "Selector": "Toggle.icon.on Icon", "Set": { "Foreground": "@accent" } },
+    { "Selector": "Label.frame-time", "Set": { "Foreground": "@muted", "Margin": [8, 0, 0, 0] } },
+
+    // The inspector (ADR 0069): flat sections between hairlines; prefab
+    // overrides in the accent.
+    { "Selector": "DockPanel.inspector-header", "Set": { "Background": "@strip", "Padding": [8, 3, 6, 3] } },
+    { "Selector": "Label.inspector-title", "Set": { "FontSize": 14 } },
+    { "Selector": "StackPanel.inspector-sections", "Set": { "Background": "@divider" } },
+    { "Selector": "StackPanel.component", "Set": { "Background": "@panel", "Padding": [8, 4, 8, 6] } },
+    { "Selector": "IconButton", "Set": { "Foreground": "@muted", "CornerRadii": "@small-radius" } },
+    { "Selector": "IconButton:hover", "Set": { "Background": "@hover", "Foreground": "@text" } },
+    { "Selector": "IconButton:disabled", "Set": { "Opacity": 0.3 } },
+    { "Selector": "Label.field-name", "Set": { "Foreground": "@muted" } },
+    { "Selector": "Label.field-header", "Set": { "Foreground": "@text", "Margin": [0, 6, 0, 0] } },
+    { "Selector": "Label.overridden", "Set": { "Foreground": "@accent" } },
+    { "Selector": "Label.field-warning", "Set": { "Foreground": "@warning" } },
+
+    // The asset browser and drags (ADR 0071).
+    { "Selector": "Label.asset-crumb", "Set": { "Foreground": "@muted", "Padding": [8, 3, 8, 3] } },
+    { "Selector": "AssetTile", "Set": { "Padding": 4, "CornerRadii": "@radius", "Foreground": "@muted", "BorderColor": "@accent" } },
+    { "Selector": "AssetTile:hover", "Set": { "Background": "@hover" } },
+    { "Selector": "AssetTile.drop-over", "Set": { "Background": "@accent/45%" } },
+    { "Selector": "AssetsPanel.drop-over", "Set": { "Background": "@accent/12%" } },
+    { "Selector": "AssetTile.selected", "Set": { "Background": "@selection", "Foreground": "@text" } },
+    { "Selector": "AssetTile:focus", "Set": { "BorderWidth": 1 } },
+    { "Selector": "Label.asset-name", "Set": { "FontSize": 12 } },
+    { "Selector": "Label.drag-preview", "Set": { "Background": "@control", "BorderColor": "@accent", "BorderWidth": 1, "CornerRadii": "@radius", "Padding": [8, 3, 8, 3] } },
+
+    // The Build Settings window (ADR 0098): sections with a title over muted
+    // hints, rows, and a primary Build.
+    { "Selector": "BuildCard", "Set": { "Background": "@panel", "Padding": [10, 8, 10, 10], "BorderColor": "@accent" } },
+    { "Selector": "BuildCard.drop-over", "Set": { "BorderWidth": 2 } },
+    { "Selector": "Label.card-title", "Set": { "FontSize": 15 } },
+    { "Selector": "Label.hint", "Set": { "Foreground": "@muted", "FontSize": 12 } },
+    { "Selector": "DockPanel.build-row", "Set": { "Background": "@control", "CornerRadii": "@small-radius", "Padding": [8, 2, 4, 2] } },
+    { "Selector": "Label.row-index", "Set": { "Foreground": "@muted", "Width": 18 } },
+    { "Selector": "Label.row-detail", "Set": { "Foreground": "@muted", "FontSize": 12, "Margin": [8, 0, 0, 0] } },
+    { "Selector": "Label.start-tag", "Set": { "Foreground": "@accent", "FontSize": 12, "Margin": [8, 0, 0, 0] } }
+  ]
+}

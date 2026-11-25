@@ -16,8 +16,7 @@ namespace Crucible.Tilemaps.Editor;
 internal sealed class TileGridView : UIElement
 {
     private static readonly int[] _zooms = [1, 2, 3, 4, 6, 8, 12, 16];
-    private static readonly Vector4 _backdrop = new(0.12f, 0.12f, 0.14f, 1), _check = new(0.17f, 0.17f, 0.2f, 1);
-    private static readonly Vector4 _grid = new(1, 1, 1, 0.25f), _selected = new(0.3f, 0.55f, 0.96f, 1);
+    private static readonly Vector4 _grid = new(1, 1, 1, 0.25f);
 
     private Vector2 _pan;
     private bool _fit = true;
@@ -104,7 +103,8 @@ internal sealed class TileGridView : UIElement
     protected override void OnDraw(Canvas canvas)
     {
         Vector2 size = ActualSize;
-        canvas.FillRect(Vector2.Zero, size, _backdrop);
+        Theme theme = Root!.Theme!; // the editor's (ADR 0129)
+        canvas.FillRect(Vector2.Zero, size, theme.Color("field"));
         (int width, int height) = TextureSize;
         if (width <= 0)
         {
@@ -123,7 +123,7 @@ internal sealed class TileGridView : UIElement
         {
             for (float x = ((int)(y / cell) % 2) * cell; x < extent.X; x += cell * 2)
             {
-                canvas.FillRect(origin + new Vector2(x, y), new Vector2(cell), _check);
+                canvas.FillRect(origin + new Vector2(x, y), new Vector2(cell), theme.Color("panel"));
             }
         }
         canvas.PopClip();
@@ -146,7 +146,7 @@ internal sealed class TileGridView : UIElement
                 (int bx, int by) = tileset.PixelOf(s.Y1 * Math.Max(columns, 1) + s.X1, Math.Max(columns, 1));
                 Vector2 from = origin + new Vector2(ax, ay) * Zoom;
                 Vector2 to = origin + new Vector2(bx, by) * Zoom + tile;
-                canvas.StrokeRect(from, to - from, _selected, 2);
+                canvas.StrokeRect(from, to - from, theme.Color("accent"), 2);
             }
         }
         Overlay?.Invoke(canvas, texel => origin + texel * Zoom);

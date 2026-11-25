@@ -26,7 +26,6 @@ internal sealed class ChainHandles
 
     private static readonly Vector4 _line = new(0.92f, 0.92f, 0.94f, 0.9f), _point = new(0.92f, 0.92f, 0.94f, 1);
     private static readonly Vector4 _dot = new(0.6f, 0.6f, 0.64f, 1), _hot = new(1f, 0.85f, 0.2f, 1);
-    private static readonly Vector4 _selected = new(0.32f, 0.52f, 0.98f, 1);
     private static readonly Vector4 _edge = new(0.08f, 0.08f, 0.1f, 0.85f); // under everything, so it shows on light and dark
 
     private readonly Shell _shell;
@@ -468,7 +467,7 @@ internal sealed class ChainHandles
         {
             if (Shown(_points[i]) is { } point)
             {
-                Vector4 color = Hot == i ? _hot : Selected == i ? _selected : _point;
+                Vector4 color = Hot == i ? _hot : Selected == i ? Shell.ThemeColor("accent") : _point;
                 canvas.FillRect(point - new Vector2(PointPixels / 2 + 1.5f), new Vector2(PointPixels + 3), _edge,
                     PointPixels / 2 + 1.5f);
                 canvas.FillRect(point - new Vector2(PointPixels / 2), new Vector2(PointPixels), color, PointPixels / 2);

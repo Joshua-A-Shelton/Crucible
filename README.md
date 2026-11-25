@@ -274,6 +274,9 @@ Longer explanations of decisions, written to be reread:
   the platform's attributes.
 - [A game's own editor](docs/learning/a-games-own-editor.md) (ADR 0128):
   a tour of the pieces, by way of the Walker's character editor.
+- [Themes, tokens, and selectors](docs/learning/themes-and-tokens.md) (ADR
+  0129): rules and specificity, selectors that look at ancestors, naming
+  values once, and the editor's live theme file.
 - [Up-to-date builds](docs/learning/up-to-date-builds.md) (ADR 0110): file
   times versus content hashes, what makes a build stamp trustworthy, and
   why copies need one.

@@ -157,6 +157,20 @@ public sealed partial class UIRoot : IRenderStep
 
     internal void Restyle(UIElement element) => _restyle.Add(element);
 
+    // Its classes or states changed: it, and what's inside it when a style
+    // with an ancestor part may now match differently there.
+    internal void RestyleChanged(UIElement element)
+    {
+        if (_theme is not null && _theme.MayStyleInside(element))
+        {
+            RestyleAll(element);
+        }
+        else
+        {
+            _restyle.Add(element);
+        }
+    }
+
     // Styles an element and its children now, mid-layout.
     internal void StyleNow(UIElement element)
     {

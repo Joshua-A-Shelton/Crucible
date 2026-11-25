@@ -224,6 +224,114 @@ public class StyleTests
         await Fails("{ nope", "not JSON");
     }
 
+    // ADR 0129: parts for ancestors, a space for anywhere inside, > for directly inside.
+    [Test]
+    public async Task SelectorsMatchInsideAndDirectlyInside()
+    {
+        Rig rig = new(new Theme()
+            .Add(new Style("StackPanel.outer Probe").Set(UIElement.BackgroundProperty, _red))
+            .Add(new Style("StackPanel.outer > Probe").Set(UIElement.ForegroundProperty, _green)));
+        StackPanel outer = new(), middle = new();
+        outer.Classes.Add("outer");
+        Probe direct = new(), deep = new(), outside = new();
+        outer.Add(direct);
+        outer.Add(middle);
+        middle.Add(deep);
+        rig.Add(outer);
+        rig.Add(outside);
+        await Assert.That(direct.Background).IsEqualTo(_red);
+        await Assert.That(direct.Foreground).IsEqualTo(_green);
+        await Assert.That(deep.Background).IsEqualTo(_red);
+        await Assert.That(deep.Foreground).IsNotEqualTo(_green);
+        await Assert.That(outside.Background).IsEqualTo(Vector4.Zero);
+        Selector selector = Selector.Parse("  StackPanel.outer>Probe:hover ");
+        await Assert.That(selector.Parts.Count).IsEqualTo(2);
+        await Assert.That(selector.Parts[0].Combinator).IsEqualTo(Combinator.Child);
+        await Assert.That(selector.Type).IsEqualTo("Probe");
+        await Assert.That(selector.States).IsEqualTo(UIState.Hover);
+        await Assert.That(selector.Specificity).IsEqualTo(16 + 1 + 16 + 1);
+    }
+
+    [Test]
+    public async Task AnAncestorsStateOrClassesRestyleWhatsInside()
+    {
+        Rig rig = new(new Theme()
+            .Add(new Style("Probe").Set(UIElement.BackgroundProperty, _red))
+            .Add(new Style("StackPanel:hover Probe").Set(UIElement.BackgroundProperty, _green))
+            .Add(new Style("StackPanel.on Probe").Set(UIElement.BackgroundProperty, _blue)));
+        StackPanel box = new();
+        Probe probe = new();
+        box.Add(probe);
+        rig.Add(box);
+        await Assert.That(probe.Background).IsEqualTo(_red);
+        box.State = UIState.Hover;
+        rig.Update();
+        await Assert.That(probe.Background).IsEqualTo(_green);
+        box.Classes.Add("on"); // as specific, and later
+        rig.Update();
+        await Assert.That(probe.Background).IsEqualTo(_blue);
+        box.Classes.Remove("on");
+        box.State = UIState.None;
+        rig.Update();
+        await Assert.That(probe.Background).IsEqualTo(_red);
+    }
+
+    [Test]
+    public async Task TokensNameValuesAndOpacities()
+    {
+        Theme theme = Theme.Parse("""
+            {
+              "Tokens": { "accent": "#ff0000", "soft": "@accent/50%", "softer": "@soft/50%", "round": 6 },
+              "Styles": [
+                { "Selector": "Probe", "Set": { "Background": "@accent", "Foreground": "@softer", "CornerRadii": "@round" } },
+                { "Selector": "Probe.half", "Set": { "Background": "@accent/50%" } }
+              ]
+            }
+            """);
+        Rig rig = new(theme);
+        Probe probe = rig.Add(new Probe());
+        await Assert.That(probe.Background).IsEqualTo(_red);
+        await Assert.That(probe.Foreground).IsEqualTo(new Vector4(1, 0, 0, 0.25f));
+        await Assert.That(probe.CornerRadii).IsEqualTo(new Vector4(6));
+        await Assert.That(theme.Color("soft")).IsEqualTo(new Vector4(1, 0, 0, 0.5f));
+        probe.Classes.Add("half");
+        rig.Update();
+        await Assert.That(probe.Background).IsEqualTo(new Vector4(1, 0, 0, 0.5f));
+        // Set from code, as a value of the property's type: every root restyles.
+        theme.SetToken("accent", _blue);
+        rig.Update();
+        await Assert.That(probe.Background).IsEqualTo(_blue with { W = 0.5f });
+        await Assert.That(probe.Foreground).IsEqualTo(_blue with { W = 0.25f });
+        await Assert.That(theme.TryGetToken("round", out object round)).IsTrue();
+        await Assert.That(round.ToString()).IsEqualTo("6");
+    }
+
+    [Test]
+    public async Task TokenMistakesSayWhere()
+    {
+        async Task Fails(string json, string message) =>
+            await Assert.That(Assert.Throws<InvalidDataException>(() => Theme.Parse(json)).Message).Contains(message);
+
+        await Fails("""{ "Styles": [ { "Selector": "Probe", "Set": { "Background": "@acent" } } ] }""",
+            "Styles[0] (Probe).Set.Background: no token @acent");
+        await Fails("""{ "Tokens": { "a": "@b", "b": "@a" }, "Styles": [ { "Selector": "Probe", "Set": { "Background": "@a" } } ] }""",
+            "tokens refer to each other: @a → @b → @a");
+        await Fails("""{ "Tokens": { "r": 6 }, "Styles": [ { "Selector": "Probe", "Set": { "Opacity": "@r/50%" } } ] }""",
+            "Opacity isn't a color");
+        await Fails("""{ "Tokens": { "r": 6 }, "Styles": [ { "Selector": "Probe", "Set": { "Background": "@r" } } ] }""",
+            "@r as Background: expected a color");
+        await Fails("""{ "Styles": [ { "Selector": "Probe", "Set": { "Background": "@a/lots" } } ] }""",
+            "isn't a token: @name or @name/50%");
+        await Fails("""{ "Tokens": { "a b": 1 }, "Styles": [] }""", "isn't a token name");
+        await Fails("""{ "Styles": [ { "Selector": "Probe >" } ] }""", "isn't a selector");
+        await Fails("""{ "Styles": [ { "Selector": "> Probe" } ] }""", "isn't a selector");
+
+        Theme theme = Theme.Parse("""{ "Tokens": { "a": "#fff" }, "Styles": [ { "Selector": "Probe", "Set": { "Background": "@a" } } ] }""");
+        await Assert.That(Assert.Throws<InvalidDataException>(() => theme.SetToken("a", 3f)).Message)
+            .Contains("@a is a Single, but Background holds a Vector4");
+        await Assert.That(theme.Color("a")).IsEqualTo(Vector4.One); // left as it was
+    }
+
     [Test]
     public async Task OpacityPushesNeedPops()
     {

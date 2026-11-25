@@ -127,7 +127,7 @@ public sealed class GameView : UIElement
         }
         if (HasInput)
         {
-            canvas.StrokeRect(Vector2.Zero, ActualSize, new Vector4(0.3f, 0.55f, 0.95f, 1), 2);
+            canvas.StrokeRect(Vector2.Zero, ActualSize, Shell.ThemeColor("accent"), 2);
         }
     }
 

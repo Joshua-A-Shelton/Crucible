@@ -74,6 +74,13 @@ public sealed class EditorContext
     /// <summary>The Inspector's custom drawers (ADR 0126).</summary>
     public EditorInspector Inspector { get; }
 
+    /// <summary>
+    /// The editor's theme (ADR 0129): its tokens give custom drawing the
+    /// editor's colors, <c>Theme.Color("accent")</c>. Read them as you draw:
+    /// the theme changes when Editor.crstyle does.
+    /// </summary>
+    public Theme Theme => _shell.Theme;
+
     /// <summary>The status bar's text.</summary>
     public string Status
     {

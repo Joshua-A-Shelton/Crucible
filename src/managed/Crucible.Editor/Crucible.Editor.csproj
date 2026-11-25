@@ -22,6 +22,8 @@
          and its icons, Lucide 1.79.0's font and names (ISC, Fonts/lucide-LICENSE.txt; ADR 0124). -->
     <None Include="Fonts/NotoSans-Regular.ttf;Fonts/OFL.txt;Fonts/lucide.ttf;Fonts/lucide-codepoints.json;Fonts/lucide-LICENSE.txt"
           CopyToOutputDirectory="PreserveNewest" />
+    <!-- The editor's look (ADR 0129), read beside it and again when it changes. -->
+    <None Include="Editor.crstyle" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
