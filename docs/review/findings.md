@@ -5,6 +5,32 @@ review") decided to change, system by system, with the owner. Changes are
 made after the walk-through, or between systems when the owner says so,
 each as its own step.
 
+## Order
+
+Decided with the owner (2026-11-25). The editor's look pass comes first
+(milestones); findings that fit it may be pulled in there.
+
+1. **What players and shipping depend on:** an input layer (Steam Input
+   builds on it); save games (cloud saves build on them); layered archives
+   (patches and DLC, then mods' design on the same layering); store
+   integration (Steamworks as a plugin, its SDK's license needing the
+   owner's approval); packages for both platforms.
+2. **Feel:** the 50 ms sound delay; frame timing on Windows (D3D12 against
+   Vulkan), with late latching.
+3. **The editor for building levels:** autosave and recovery;
+   multi-select; prefab editing (made and applied from the scene, nested
+   overrides); keeping components nothing registers; animation in the
+   editor's scene, then the state machine graph editor; joint motors,
+   springs, and breaking.
+4. **Before v1:** the UI's (descendant selectors, layout assets, data
+   binding, composition tests); the renderer's revisits; physics while
+   editing, ragdolls; file watching's timing.
+5. **Before the first game:** music streaming; the Deck's Mesa; crash
+   reporting; the asset info API.
+6. **After v1, or come back to:** the 2D path's; CJK text; the core's.
+
+## Findings
+
 | System | Finding | Decision | Status |
 |---|---|---|---|
 | Core | Running a world outside the loop (a preview's) is hand work: animation steps, missing world transforms, the world's version. A way to run chosen systems on a world with its own clock. | Come back to (owner, 2026-11-25) | Noted |

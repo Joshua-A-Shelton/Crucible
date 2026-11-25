@@ -1452,8 +1452,8 @@ step, after this or with the first game that needs it. Native modules
 
 ## After editor extensions: an engine review
 
-**Status:** In progress (started 2026-11-25): foundations up, a written
-page per system in docs/review/ discussed with the owner, changes noted in
+**Status:** Done (2026-11-25): foundations up, a written page per system
+in docs/review/ discussed with the owner, changes noted in
 docs/review/findings.md and made after (owner, 2026-11-25). The core
 discussed, its findings noted (to come back to); the platform layer
 discussed, its findings noted; assets and scenes discussed, their findings
@@ -1464,8 +1464,9 @@ a high priority); physics discussed, its findings noted (joint motors and
 springs soon); the 2D path discussed, its findings noted (all after v1);
 the editor discussed, its findings noted (autosave, multi-select, prefab
 editing); shipping discussed, its findings noted (store integration and
-patches the most important). The walk-through is done (2026-11-25); next,
-the findings grouped and ordered into steps.
+patches the most important). Done (2026-11-25): the findings grouped and
+ordered (findings.md, "Order"), worked through after the editor's look
+pass.
 
 Asked for by the owner (2026-11-18), before any game is built: some parts
 of the engine have grown past what the owner knows well. Go over the
@@ -1473,6 +1474,19 @@ whole engine system by system with the owner (what each does, how it
 works, why it was built that way), clear up whatever isn't clear, and
 decide what, if anything, to change. The order of systems and the form of
 each walk-through are decided with the owner at its start.
+
+## After the review: the editor's look
+
+**Status:** Next (owner, 2026-11-25). A pass over the editor focused on
+making it look nicer. Steps decided with the owner at its start. Findings
+from the review that fit it may be pulled in (findings.md: the UI's
+descendant selectors and composition tests, the Add Component dialog's
+polish, among others), each marked in the findings when it is.
+
+## After the editor's look: the review's findings
+
+Worked through in the order findings.md gives ("Order"), each as its own
+step with design questions first.
 
 ## After the review: the first game
 
