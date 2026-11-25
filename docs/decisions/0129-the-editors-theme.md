@@ -1,8 +1,8 @@
 # 0129 — The editor's theme
 
 **Status:** Accepted (2026-11-25); step 1 of the editor's look
-(milestones). Names are placeholders until the owner settles them
-(docs/naming.md).
+(milestones), tried by hand by the owner. Names settled by the owner as
+drafted (2026-11-25; docs/naming.md).
 
 ## Context
 
@@ -95,7 +95,6 @@ takes several hundred unpaced frames.
   one read (copy changes back to `src/managed/Crucible.Editor/`).
 - Games' themes gain tokens and ancestor selectors with no change to
   existing files.
-- Plugins drawing their own controls can match the editor by token name;
-  the names are placeholders until settled.
+- Plugins drawing their own controls can match the editor by token name.
 - Not yet: a user's own theme file in the preferences folder; a light
   theme.

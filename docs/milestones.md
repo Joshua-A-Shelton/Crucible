@@ -1505,14 +1505,16 @@ Decided by the owner (2026-11-25):
 Steps, each tried by hand:
 
 1. **Tokens, descendant selectors, and the theme file:** the palette,
-   density, dividers, and corners. Built (2026-11-25, ADR 0129), to be
-   tried by hand.
+   density, dividers, and corners. Done (2026-11-25, ADR 0129): tried by
+   hand, everything behaving; the colors want more work (step 5).
 2. **Layout and clipping:** play controls into the menu bar's row; text
    ending in an ellipsis instead of wrapping mid-word or being cut off;
    the M7 fixes.
 3. **Icons:** the attribute, hierarchy rows, inspector headers, and Add
    Component with its polish.
 4. **Asset thumbnails.**
+5. **Tuning the colors** (the owner, after trying step 1): the palette
+   gone over once everything else is in.
 
 Composition tests are added in each step.
 
