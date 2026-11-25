@@ -244,6 +244,8 @@ Longer explanations of decisions, written to be reread:
 - [Choosing components](docs/learning/choosing-components.md) (ADR 0127):
   when menus stop working, search first, groups for browsing, and reusing
   the platform's attributes.
+- [A game's own editor](docs/learning/a-games-own-editor.md) (ADR 0128):
+  a tour of the pieces, by way of the Walker's character editor.
 - [Up-to-date builds](docs/learning/up-to-date-builds.md) (ADR 0110): file
   times versus content hashes, what makes a build stamp trustworthy, and
   why copies need one.

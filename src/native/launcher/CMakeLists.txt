@@ -673,6 +673,18 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "SceneApiChecks: all [0-9]+ checks passed")
 
+    # The editor extensions demonstration checking itself (ADR 0128): the
+    # Walker's Characters plugin, its workspace, preview, and stats drawer,
+    # and a package without its editor code.
+    add_test(NAME launcher.jit.character-editor
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
+            --game-arg "warm-project=${walkerWarm}/Walker.crproject"
+            --game-arg "check-character-editor=${CMAKE_CURRENT_BINARY_DIR}"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/character-editor-settings.json")
+    set_tests_properties(launcher.jit.character-editor PROPERTIES LABELS "integration;gpu" TIMEOUT 900
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "CharacterEditorChecks: all [0-9]+ checks passed")
+
     # Custom inspectors checking themselves (ADR 0126): on a copy of the
     # Walker's project, a component's, a field type's, and a marked field's
     # drawers, their values set as undo steps, and a reload.
@@ -824,6 +836,7 @@ if(CRUCIBLE_BUILD_TESTS)
         launcher.jit.scene-api
         launcher.jit.previews
         launcher.jit.drawers
+        launcher.jit.character-editor
         samples.walker-package
         samples.walker-package-shipping
         APPEND PROPERTY FIXTURES_REQUIRED walker-warm)

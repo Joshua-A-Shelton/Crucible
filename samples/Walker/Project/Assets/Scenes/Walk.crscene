@@ -140,6 +140,11 @@
             },
             "Walker.Circle": {
               "Radius": 3
+            },
+            "Characters.Character": {
+              "Strength": 10,
+              "Agility": 10,
+              "Pace": 1
             }
           }
         }
