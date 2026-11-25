@@ -112,9 +112,27 @@ internal sealed class CharacterEditorChecks : GameSystem
         yield return 3;
         V.Save(shell.Main.Surface, Path.Combine(_folder, "character-editor.png"));
 
-        // Paused, then scrubbed.
+        // Another clip, not loaded yet: it plays, and the slider follows it
+        // once it has (the owner's try: it stopped, its length measured 0).
         Toggle? pause = H.Descendants(workspace).OfType<Toggle>().FirstOrDefault(toggle => toggle.ToolTip.StartsWith("Pause", StringComparison.Ordinal));
         Slider? scrub = H.Descendants(workspace).OfType<Slider>().FirstOrDefault();
+        if (H.Descendants(workspace).OfType<Button>().FirstOrDefault(button => button.Text == "Swing") is { } swing)
+        {
+            V.Click(shell.Main.Root, V.Center(swing));
+        }
+        started = Environment.TickCount64;
+        float before = scrub?.Value ?? 0;
+        while (Environment.TickCount64 - started < 15000 && (scrub is null || scrub.Value <= 0 || scrub.Value == before))
+        {
+            yield return 1;
+        }
+        yield return 10;
+        float following = scrub?.Value ?? 0;
+        yield return 10;
+        Check(scrub is not null && scrub.Value > following && Labels(workspace).Any(text => text.EndsWith(" s", StringComparison.Ordinal) && !text.EndsWith("/ 0.00 s", StringComparison.Ordinal)),
+            "a clip played before it has loaded: the slider follows it once it has", $"{following} then {scrub?.Value}");
+
+        // Paused, then scrubbed.
         if (pause is not null)
         {
             V.Click(shell.Main.Root, V.Center(pause));

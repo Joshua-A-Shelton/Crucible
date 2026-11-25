@@ -132,7 +132,15 @@ public sealed class CharacterWorkspace : Workspace
             _clipButtons[i].Classes.Set("on", _clipIds[i] == _playing);
         }
         float time = Animator.TimeOf(Preview.World, _model, -1);
-        _time.Text = $"{time:0.00} / {_length:0.00} s";
+        // A clip played before it had loaded measured 0 long: measured again
+        // once it moves, put back where it had got to.
+        if (_length <= 0 && time > 0)
+        {
+            Animator.SetTime(Preview.World, _model, -1, float.MaxValue);
+            _length = Animator.TimeOf(Preview.World, _model, -1);
+            Animator.SetTime(Preview.World, _model, -1, time);
+        }
+        _time.Text = _length > 0 ? $"{time:0.00} / {_length:0.00} s" : "Loading…";
         if (Preview.IsRunning && _length > 0)
         {
             _following = true;
