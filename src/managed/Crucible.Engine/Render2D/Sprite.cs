@@ -8,6 +8,7 @@ namespace Crucible.Render2D;
 /// (crucible/Sprite.h); this half adds saving and the values it starts with:
 /// a centered pivot and a white tint.
 /// </summary>
+[System.ComponentModel.Category("2D"), System.ComponentModel.Description("Draws a texture, or a region of one, on the 2D plane.")]
 [Serialized]
 public partial struct Sprite
 {
@@ -28,6 +29,7 @@ public partial struct SpriteRegion;
 /// adds saving and the values it starts with: 320x180 at 16 pixels a meter,
 /// fitted sharply.
 /// </summary>
+[System.ComponentModel.Category("2D"), System.ComponentModel.Description("Renders the 2D view at a low resolution for crisp pixel art.")]
 [Serialized]
 public partial struct PixelCamera
 {
@@ -48,6 +50,7 @@ public partial struct PixelCamera
 /// 3D characters use (<see cref="Animation.Animator.SetFloat"/>,
 /// <see cref="Animation.Animator.Events"/>, ...).
 /// </summary>
+[System.ComponentModel.Category("2D"), System.ComponentModel.Description("Plays a sprite sheet's animation clips.")]
 [Serialized]
 public partial struct SpriteAnimator
 {

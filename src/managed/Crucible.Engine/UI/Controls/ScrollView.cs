@@ -47,7 +47,9 @@ public sealed class ScrollBar : UIElement
     private float ThumbLength(float length)
     {
         float minimum = Orientation == Orientation.Vertical ? _thumb.MinHeight : _thumb.MinWidth;
-        return Math.Clamp(_viewport * length, MathF.Max(minimum, 20), length);
+        // A bar shorter than the minimum (a view laid out small): its whole length.
+        length = MathF.Max(length, 0);
+        return Math.Clamp(_viewport * length, MathF.Min(MathF.Max(minimum, 20), length), length);
     }
 
     protected override void OnPointerDown(PointerEvent e)

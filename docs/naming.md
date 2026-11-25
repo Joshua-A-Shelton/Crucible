@@ -1843,3 +1843,16 @@ added while building; all placeholders (`*`) until the owner has tried it:
 | `ColliderDrawer`*, `Collider2DDrawer`*, and added while building `ComponentSection.HasDrawer`*, `FieldEditor.HasDrawer`*, `Shell.Drawers.cs`*, `DrawerHost`*, `DrawerCodecs`* | Editor | Its own drawers; internals |
 | `DrawerChecks`*, CTest `launcher.jit.drawers`*, game arg `check-drawers`*, test folder `drawers-project`* | Tests | Drawers checking themselves |
 | docs/learning/custom-inspectors.md* | Learning note | Drawers, defaults, typed values |
+
+## Choosing components (2026-11-25, ADR 0127)
+
+Names proposed before building (approved to build with, 2026-11-25) and
+added while building; all placeholders (`*`) until the owner has tried it:
+
+| Name | What it names | What it is |
+|---|---|---|
+| ADR 0127 "Choosing components"* | Decision record | Add Component's dialog, and scrolling menus |
+| `System.ComponentModel`'s `[Category]`, `[Description]` on components; the categories Scene*, Rendering*, Lights*, Physics*, Physics 2D*, Animation*, Audio*, 2D*, and a game's assembly name | Attributes, groups | Where a component is listed, and what it says |
+| `ComponentPicker`* (`Search`*, `List`*, `Shown`*, `Choice`*, `Pick`*, `Picked`*), and added while building `InspectorPanel.AddButton`*, `Picker`*, the capture `inspector.add-component.png`* | Editor dialog | Add Component |
+| `Popup.Room`* (internal) | UI library | The room a popup is measured against |
+| docs/learning/choosing-components.md* | Learning note | Long lists, search, groups |

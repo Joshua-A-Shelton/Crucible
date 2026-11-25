@@ -10,6 +10,7 @@ namespace Crucible.Render2D;
 /// with: white. A Collider2D of shape Tilemap on the same entity collides
 /// with that layer's tiles' shapes.
 /// </summary>
+[System.ComponentModel.Category("2D"), System.ComponentModel.Description("Draws one layer of a tilemap, and can collide with its tiles' shapes.")]
 [Serialized]
 public partial struct Tilemap
 {
@@ -25,5 +26,6 @@ public partial struct Tilemap
 /// them as one; nothing at run time reads it. Declared in C++
 /// (crucible/Tilemap.h); this half adds saving.
 /// </summary>
+[System.ComponentModel.Category("2D"), System.ComponentModel.Description("Makes the entity a map: its children draw the map's layers.")]
 [Serialized]
 public partial struct TilemapLayers;

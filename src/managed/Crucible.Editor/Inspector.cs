@@ -184,22 +184,23 @@ public sealed class InspectorPanel : EditorPanel
         }
     }
 
+    // Add Component's dialog (ADR 0127): the saved components it hasn't.
     private void ShowAddMenu()
     {
-        if (_entity.IsNull)
+        if (_entity.IsNull || Root is not { } root)
         {
             return;
         }
-        ContextMenu menu = new();
         World world = _shell.World;
-        foreach (SavedComponent saved in SavedComponents.All().Where(saved => !world.Has(_entity, saved.Id))
-                     .OrderBy(saved => saved.Type.Name, StringComparer.Ordinal))
-        {
-            string name = saved.Name;
-            menu.Add(saved.Type.Name, () => _shell.AddComponent(_entity, name));
-        }
-        menu.Open(_add, new Vector2(_add.Bounds.X, _add.Bounds.Bottom));
+        Picker = new ComponentPicker(_shell, _entity, SavedComponents.All().Where(saved => !world.Has(_entity, saved.Id)));
+        Picker.Show(_shell.Main.Root);
     }
+
+    /// <summary>Add Component (the checks click it).</summary>
+    internal Button AddButton => _add;
+
+    /// <summary>The Add Component dialog opened last (the checks answer it).</summary>
+    internal ComponentPicker? Picker { get; private set; }
 
     /// <summary>"FieldOfViewY" as "Field Of View Y"; "_secret" as "Secret".</summary>
     public static string Pretty(string name)
@@ -209,7 +210,8 @@ public sealed class InspectorPanel : EditorPanel
         for (int i = 0; i < trimmed.Length; ++i)
         {
             char c = trimmed[i];
-            bool boundary = i > 0 && char.IsUpper(c) &&
+            // A capital after a digit stays with it: "SpotLight2D" is "Spot Light 2D".
+            bool boundary = i > 0 && char.IsUpper(c) && !char.IsDigit(trimmed[i - 1]) &&
                             (!char.IsUpper(trimmed[i - 1]) || (i + 1 < trimmed.Length && char.IsLower(trimmed[i + 1])));
             if (boundary || (i > 0 && char.IsDigit(c) && !char.IsDigit(trimmed[i - 1])))
             {

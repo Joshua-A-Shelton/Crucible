@@ -213,6 +213,40 @@ internal sealed class InspectorChecks : GameSystem
         shell.Undo();
         yield return 2;
         Check(world.Has(empty, Components.Of<Crucible.Render.Camera>()), "undoing Remove brings it back");
+
+        // Add Component's dialog (ADR 0127): grouped, searched, picked with the keys.
+        shell.Selection.Selected = empty;
+        yield return 2;
+        UIRoot ui = shell.Main.Root;
+        V.Click(ui, V.Center(inspector.AddButton));
+        yield return 2;
+        ComponentPicker? picker = inspector.Picker;
+        Check(picker is { IsOpen: true } && picker.Search.IsFocused, "Add Component opens its dialog, the search focused");
+        if (picker is null)
+        {
+            yield break;
+        }
+        yield return 2;
+        V.Save(shell.Main.Surface, Path.ChangeExtension(_capture, ".add-component.png"));
+        string[] groups = [.. picker.Shown.Select((choice, i) => (choice, i)).Where(row => row.choice is null)
+            .Select(row => picker.Shown.Skip(row.i + 1).FirstOrDefault()?.Category ?? "")];
+        Check(groups.Contains("Physics 2D") && groups.Contains("Lights") && groups.SequenceEqual(groups.Order(StringComparer.Ordinal)),
+            "its components grouped by category", string.Join(", ", groups));
+        Check(picker.Shown.All(choice => choice is null || choice.Name != camera), "without the ones it has");
+        Check(picker.Shown.FirstOrDefault(choice => choice?.Title == "Rigid Body 2D")?.Description.Length > 0, "each with its description");
+        picker.Search.Text = "spot";
+        yield return 1;
+        Check(picker.Shown.All(choice => choice is not null) &&
+              picker.Shown.Select(choice => choice!.Title).SequenceEqual(["Spot Light", "Spot Light 2D"]),
+            "typing filters across the groups", string.Join(", ", picker.Shown.Select(choice => choice?.Title)));
+        H.Send(ui, H.KeyDown(40, Keycode.Return));
+        yield return 2;
+        Check(!picker.IsOpen && world.Has(empty, Components.Of<Crucible.Render.SpotLight>()), "Enter adds the first and closes it");
+        V.Click(ui, V.Center(inspector.AddButton));
+        yield return 2;
+        H.Send(ui, H.KeyDown(41, Keycode.Escape));
+        yield return 1;
+        Check(inspector.Picker is { IsOpen: false }, "Escape closes it");
     }
 
     private static IEnumerable<NumberField> Numbers(FieldEditor editor) =>

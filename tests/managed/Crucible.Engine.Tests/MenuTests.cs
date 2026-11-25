@@ -26,6 +26,7 @@ public class MenuTests
             Root.DefaultFont = _font;
             DockPanel.SetDock(Bar, Dock.Top);
             Page.Add(Bar);
+            Page.Add(new UIElement()); // the page below the bar, so the bar is its own height
             Root.Content = Page;
             Root.TestClock = () => Time;
         }
@@ -276,5 +277,37 @@ public class MenuTests
         rig.Click(Center((UIElement)menu.Items[0]));
         await Assert.That(copies).IsEqualTo(1);
         await Assert.That(menu.IsOpen).IsFalse();
+    }
+
+    [Test]
+    public async Task AMenuTallerThanTheRootScrollsAndKeepsTheItemMovedToInView()
+    {
+        using Rig rig = new();
+        Label target = new("Right-click me");
+        rig.Page.Add(target);
+        ContextMenu menu = new();
+        int picked = -1;
+        for (int i = 0; i < 80; ++i)
+        {
+            int item = i;
+            menu.Add($"Item {i}", () => picked = item);
+        }
+        rig.Layout();
+        menu.Open(target, new Vector2(100, 100));
+        rig.Layout();
+        System.Drawing.RectangleF bounds = menu.Parent!.Bounds;
+        await Assert.That(bounds.Height).IsLessThanOrEqualTo(600f);
+        await Assert.That(bounds.Bottom).IsLessThanOrEqualTo(600f);
+        // Down to the last item: it scrolls into view, and Enter picks it.
+        for (int i = 0; i < 80; ++i)
+        {
+            rig.Send(Key(Down));
+        }
+        rig.Layout();
+        UIElement last = (UIElement)menu.Items[^1];
+        await Assert.That(last.Bounds.Bottom).IsLessThanOrEqualTo(bounds.Bottom + 0.5f);
+        await Assert.That(last.Bounds.Top).IsGreaterThanOrEqualTo(bounds.Top - 0.5f);
+        rig.Send(Key(Return));
+        await Assert.That(picked).IsEqualTo(79);
     }
 }

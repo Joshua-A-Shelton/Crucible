@@ -1357,7 +1357,8 @@ plugin Tilemaps on the public API alone. 7c done (ADR 0124), tried by
 hand by the owner: icons and tooltips, and the brush held where
 it was grabbed. Step 8 done (ADR 0125), tried by hand by the
 owner: preview viewports. Step 9 built (ADR 0126), to be tried by hand by
-the owner: custom inspectors.
+the owner: custom inspectors; Add Component's dialog and scrolling menus
+found while trying it (ADR 0127).
 
 Asked for by the owner (2026-11-20): a game's own editors, as specialized
 as map mode (ADR 0112), built by the people making the game, for example

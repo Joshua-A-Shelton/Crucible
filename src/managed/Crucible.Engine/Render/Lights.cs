@@ -8,6 +8,7 @@ namespace Crucible.Render;
 // added (ADR 0077's by-hand run: all zeros is a light that lights nothing).
 
 /// <summary>A light from far away, shining along its entity's +Z: the sun.</summary>
+[System.ComponentModel.Category("Lights"), System.ComponentModel.Description("Light from far away along the entity's direction, as the sun's.")]
 [Serialized]
 public partial struct DirectionalLight
 {
@@ -21,6 +22,7 @@ public partial struct DirectionalLight
 }
 
 /// <summary>A light at its entity's position, fading to nothing at its range.</summary>
+[System.ComponentModel.Category("Lights"), System.ComponentModel.Description("Light from a point, fading out at its range.")]
 [Serialized]
 public partial struct PointLight
 {
@@ -33,6 +35,7 @@ public partial struct PointLight
 }
 
 /// <summary>A cone of light along its entity's +Z, fading to nothing at its range.</summary>
+[System.ComponentModel.Category("Lights"), System.ComponentModel.Description("A cone of light, fading out at its range.")]
 [Serialized]
 public partial struct SpotLight
 {
@@ -47,6 +50,7 @@ public partial struct SpotLight
 }
 
 /// <summary>Light that isn't from a light: sky above, ground below. One per world.</summary>
+[System.ComponentModel.Category("Lights"), System.ComponentModel.Description("Light from everywhere: the sky's color above, the ground's below.")]
 [Serialized]
 public partial struct AmbientLight
 {
@@ -59,6 +63,7 @@ public partial struct AmbientLight
 }
 
 /// <summary>The sky drawn behind everything (ADR 0055): a gradient and the sun's disk. One per world.</summary>
+[System.ComponentModel.Category("Rendering"), System.ComponentModel.Description("The sky drawn behind everything, and the sun's disk.")]
 [Serialized]
 public partial struct Sky
 {

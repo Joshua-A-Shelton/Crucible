@@ -15,6 +15,8 @@ public class InspectorTests
     [Arguments("_secret", "Secret")]
     [Arguments("HDRColor", "HDR Color")]
     [Arguments("Layer2", "Layer 2")]
+    [Arguments("SpotLight2D", "Spot Light 2D")]
+    [Arguments("Physics2DLayer", "Physics 2D Layer")]
     public async Task NamesAreShownAsWords(string name, string shown) =>
         await Assert.That(InspectorPanel.Pretty(name)).IsEqualTo(shown);
 

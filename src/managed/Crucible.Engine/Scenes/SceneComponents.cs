@@ -11,6 +11,7 @@ namespace Crucible.Scenes;
 /// (crucible/Transform.h, ADR 0050); this half adds saving and
 /// <see cref="Identity"/>.
 /// </summary>
+[System.ComponentModel.Category("Scene"), System.ComponentModel.Description("Position, rotation, and scale in 3D, relative to its parent.")]
 [Serialized]
 public partial struct LocalTransform
 {
@@ -23,6 +24,7 @@ public partial struct LocalTransform
 /// <c>Depth</c>. Declared in C++ (crucible/Transform.h); this half adds
 /// saving and a scale of 1.
 /// </summary>
+[System.ComponentModel.Category("Scene"), System.ComponentModel.Description("Position, angle, scale, and depth on the 2D plane, relative to its parent.")]
 [Serialized]
 public partial struct Transform2D
 {
@@ -36,6 +38,7 @@ public partial struct Transform2D
 /// Declared in C++ (crucible/MeshInstance.h, ADR 0051); this half adds
 /// saving.
 /// </summary>
+[System.ComponentModel.Category("Rendering"), System.ComponentModel.Description("Draws one mesh of a model.")]
 [Serialized]
 public partial struct MeshInstance;
 

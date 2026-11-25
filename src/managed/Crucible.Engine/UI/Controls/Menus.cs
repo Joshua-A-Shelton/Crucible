@@ -8,17 +8,27 @@ namespace Crucible.UI;
 /// (ADR 0066), shown in a popup: from a <see cref="MenuBar"/>, beside the
 /// item it's the submenu of, or as a <see cref="ContextMenu"/>. Up and down
 /// move between items, right opens a submenu, left closes one, Escape or a
-/// press outside closes the menus.
+/// press outside closes the menus. A menu taller than the room it has
+/// scrolls (ADR 0127), keeping the item moved to in view.
 /// </summary>
 public class Menu : UIElement
 {
     private readonly StackPanel _items = new();
+    private readonly ScrollView _scroll = new();
     private MenuPopup? _popup;
 
     public Menu(string title = "")
     {
         Title = title;
-        AddChild(_items);
+        _scroll.Content = _items;
+        AddChild(_scroll);
+    }
+
+    // The item moved to (the keys, the pointer) kept in view while it scrolls.
+    private T Watched<T>(T item) where T : UIElement
+    {
+        item.GotFocus += (focused, _) => _scroll.ScrollIntoView(focused.Bounds);
+        return item;
     }
 
     /// <summary>What a menu bar shows for it: "File".</summary>
@@ -31,7 +41,7 @@ public class Menu : UIElement
     /// <summary>Adds an item or a separator.</summary>
     public T Add<T>(T item) where T : UIElement
     {
-        _items.Add(item);
+        _items.Add(Watched(item));
         return item;
     }
 
@@ -50,7 +60,7 @@ public class Menu : UIElement
     /// <summary>Puts an item or a separator at <paramref name="index"/> (clamped to the items).</summary>
     public T Insert<T>(int index, T item) where T : UIElement
     {
-        _items.Insert(Math.Clamp(index, 0, _items.Children.Count), item);
+        _items.Insert(Math.Clamp(index, 0, _items.Children.Count), Watched(item));
         return item;
     }
 
@@ -247,7 +257,21 @@ public class MenuItem : UIElement
 
     private bool InBar => Parent?.Parent is MenuBar;
 
-    private Menu? OwnMenu => Parent?.Parent as Menu;
+    // The menu it's in: up through its list and the menu's scroll view.
+    private Menu? OwnMenu
+    {
+        get
+        {
+            for (UIElement? at = Parent; at is not null; at = at.Parent)
+            {
+                if (at is Menu menu)
+                {
+                    return menu;
+                }
+            }
+            return null;
+        }
+    }
 
     private void ShowShortcut() => _shortcut.Text = Shortcut?.ToString() ?? "";
 

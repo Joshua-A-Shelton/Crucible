@@ -14,6 +14,7 @@ namespace Crucible.Animation;
 /// clip its base plays, or a state machine choosing its clips (ADR 0081).
 /// Skinned meshes on it or below it use its pose.
 /// </summary>
+[System.ComponentModel.Category("Animation"), System.ComponentModel.Description("Plays a skeleton's clips or a state machine, posing the model.")]
 [Serialized]
 public partial struct Animator
 {
@@ -119,6 +120,7 @@ public partial struct Animator
 /// Its position and rotation follow the bone of the nearest Animator above
 /// it, at this offset; its own scale is kept.
 /// </summary>
+[System.ComponentModel.Category("Animation"), System.ComponentModel.Description("Keeps the entity on a bone of an Animator above it.")]
 [Serialized]
 public partial struct BoneAttachment
 {

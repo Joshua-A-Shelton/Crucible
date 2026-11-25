@@ -7,6 +7,7 @@ namespace Crucible.Scenes;
 /// sets it; optional, and saved in scenes. Entities without one are labeled
 /// by their prefab or their main component.
 /// </summary>
+[System.ComponentModel.Category("Scene"), System.ComponentModel.Description("The entity's name, as the Hierarchy shows it.")]
 [Serialized]
 public sealed partial class EntityName
 {

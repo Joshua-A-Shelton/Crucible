@@ -8,6 +8,7 @@ namespace Crucible.Physics;
 // layer, colliding with nothing).
 
 /// <summary>An entity simulated by physics; it needs a <see cref="Collider"/> too.</summary>
+[System.ComponentModel.Category("Physics"), System.ComponentModel.Description("Moves the entity by physics: dynamic, kinematic, or static.")]
 [Serialized]
 public partial struct RigidBody
 {
@@ -29,6 +30,7 @@ public partial struct RigidBody
 }
 
 /// <summary>The shape physics sees, in the entity's space.</summary>
+[System.ComponentModel.Category("Physics"), System.ComponentModel.Description("A shape for physics and queries: a box, sphere, capsule, or a model's mesh.")]
 [Serialized]
 public partial struct Collider
 {
@@ -63,6 +65,7 @@ public partial struct Collider
 }
 
 /// <summary>Joins its entity's body to another's.</summary>
+[System.ComponentModel.Category("Physics"), System.ComponentModel.Description("Connects two bodies: a hinge, a ball joint, a slider, a weld.")]
 [Serialized]
 public partial struct Joint;
 
@@ -71,6 +74,7 @@ public partial struct Joint;
 /// it hits, stepping over what's lower than its step height, and falling; its
 /// entity's position is its feet.
 /// </summary>
+[System.ComponentModel.Category("Physics"), System.ComponentModel.Description("Walks a character over the ground and up steps and slopes.")]
 [Serialized]
 public partial struct CharacterController
 {
@@ -95,6 +99,7 @@ public partial struct CharacterController
 /// A shape that strikes (ADR 0096), swept each frame while active, from where it was
 /// to where it is; read what it touched with <see cref="Physics.HitboxHits"/>.
 /// </summary>
+[System.ComponentModel.Category("Physics"), System.ComponentModel.Description("A shape that finds what it overlaps, for attacks and triggers.")]
 [Serialized]
 public partial struct Hitbox
 {

@@ -66,7 +66,7 @@ public sealed partial class UIRoot
     {
         foreach (Popup popup in _popups)
         {
-            popup.Measure(_size);
+            popup.Measure(popup.Room(_size));
             popup.Arrange(popup.Place(_size));
         }
     }

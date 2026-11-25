@@ -61,6 +61,13 @@ is, and record which version fixed it.
 
 ## Revisit (owner's notes)
 
+- Flaky Crucible.Engine.Tests (Linux debug, 2026-11-25): in full parallel
+  runs, `SettingsComeFromAProjectFileAndTellTheRendererWhichLayersYSort`
+  and `ADefaultIsInstalledWhenNothingElseIs` each failed once and passed
+  on rerun (the earlier unnamed engine-tests failure is likely the same).
+  Both read state the engine keeps per process; look for a test changing
+  it in parallel. → testing
+
 - Other systems as official plugins (owner, 2026-11-24): go over the
   engine's systems that could follow Tilemaps (ADR 0123) as swappable
   official plugins, used by default and removable per project.

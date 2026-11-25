@@ -82,6 +82,21 @@ public class Popup : UIElement
         Close();
     }
 
+    // The room it can have (ADR 0127): beside an anchor, the more of the
+    // space below or above it; otherwise the root. A taller popup is measured
+    // to fit (a long menu scrolls).
+    internal Vector2 Room(Vector2 rootSize)
+    {
+        if (Anchor is not { } anchor)
+        {
+            return rootSize;
+        }
+        RectangleF a = anchor.Bounds;
+        float side = MathF.Max(rootSize.Y - a.Bottom, a.Top);
+        // Neither side has much: the whole root, the popup kept on it over the anchor.
+        return new Vector2(rootSize.X, side >= rootSize.Y / 3 ? side : rootSize.Y);
+    }
+
     // Below the anchor, or above it if it fits there and not below; kept on the root.
     internal RectangleF Place(Vector2 rootSize)
     {
@@ -98,9 +113,9 @@ public class Popup : UIElement
         RectangleF a = anchor.Bounds;
         size.X = MathF.Max(size.X, a.Width);
         float y = a.Bottom;
-        if (y + size.Y > rootSize.Y && a.Top - size.Y >= 0)
+        if (y + size.Y > rootSize.Y)
         {
-            y = a.Top - size.Y;
+            y = a.Top - size.Y >= 0 ? a.Top - size.Y : MathF.Max(rootSize.Y - size.Y, 0);
         }
         float x = Math.Clamp(a.Left, 0, MathF.Max(rootSize.X - size.X, 0));
         return new RectangleF(x, y, size.X, size.Y);

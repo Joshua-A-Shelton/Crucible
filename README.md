@@ -241,6 +241,9 @@ Longer explanations of decisions, written to be reread:
 - [Custom inspectors](docs/learning/custom-inspectors.md) (ADR 0126):
   generated fields first, drawers at three levels, mixing with the
   defaults, and typed values over saved data.
+- [Choosing components](docs/learning/choosing-components.md) (ADR 0127):
+  when menus stop working, search first, groups for browsing, and reusing
+  the platform's attributes.
 - [Up-to-date builds](docs/learning/up-to-date-builds.md) (ADR 0110): file
   times versus content hashes, what makes a build stamp trustworthy, and
   why copies need one.
