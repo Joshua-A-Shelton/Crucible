@@ -1355,7 +1355,7 @@ by the owner: scene edits for extensions. 7b done (ADR 0123), tried by
 hand by the owner: official plugins, map mode the first, as the
 plugin Tilemaps on the public API alone. 7c done (ADR 0124), tried by
 hand by the owner: icons and tooltips, and the brush held where
-it was grabbed. Step 8 built (ADR 0125), to be tried by hand by the
+it was grabbed. Step 8 done (ADR 0125), tried by hand by the
 owner: preview viewports.
 
 Asked for by the owner (2026-11-20): a game's own editors, as specialized

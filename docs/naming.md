@@ -1815,15 +1815,15 @@ drafted after the owner tried it by hand (2026-11-24):
 
 ## Preview viewports (2026-11-24, ADR 0125)
 
-Names proposed before building (approved to build with, 2026-11-24) and
-added while building; all placeholders (`*`) until the owner has tried it:
+Names proposed before building and added while building, settled as
+drafted after the owner tried it by hand (2026-11-24):
 
 | Name | What it names | What it is |
 |---|---|---|
-| ADR 0125 "Preview viewports"* | Decision record | Editor extensions step 8 |
-| `PreviewView`* (`World`*, `Camera`*, `Frame()`*, `Load(asset)`*, `Is2D`*, `IsRunning`*, `Speed`*, `Time`*, `KeyLight`*, `FillLight`*, `Dispose()`*) | Public editor control | A view with a world of its own |
-| `PreviewView.BackgroundColor`* (in place of the drafted `Background`, every element's own fill), and added while building `ViewHeight`*, `IsDisposed`* | Members | What's behind; 2D's height; whether it's freed |
-| `Animator.SetTime(world, entity, layer, seconds)`*, `Animator.TimeOf(world, entity, layer)`*; native `setTime`*, `timeOf`*; layer -1 for the base | Engine API | Scrubbing |
-| `Shell.Previews`*, `Shell.Previews.cs`*, `AddPreview`*, `RemovePreview`*, `DisposePreviewsIn`* | Editor internals | Previews ticked and freed |
-| `PreviewChecks`*, CTest `launcher.jit.previews`*, game arg `check-previews`*, test folder `previews-project`*, `previews.png`*, the panel `Checks.Preview`* | Tests | Previews checking themselves |
-| docs/learning/preview-worlds.md* | Learning note | Several worlds, clocks, scrubbing, change tracking |
+| ADR 0125 "Preview viewports" | Decision record | Editor extensions step 8 |
+| `PreviewView` (`World`, `Camera`, `Frame()`, `Load(asset)`, `Is2D`, `IsRunning`, `Speed`, `Time`, `KeyLight`, `FillLight`, `Dispose()`) | Public editor control | A view with a world of its own |
+| `PreviewView.BackgroundColor` (in place of the drafted `Background`, every element's own fill), and added while building `ViewHeight`, `IsDisposed` | Members | What's behind; 2D's height; whether it's freed |
+| `Animator.SetTime(world, entity, layer, seconds)`, `Animator.TimeOf(world, entity, layer)`; native `setTime`, `timeOf`; layer -1 for the base | Engine API | Scrubbing |
+| `Shell.Previews`, `Shell.Previews.cs`, `AddPreview`, `RemovePreview`, `DisposePreviewsIn` | Editor internals | Previews ticked and freed |
+| `PreviewChecks`, CTest `launcher.jit.previews`, game arg `check-previews`, test folder `previews-project`, `previews.png`, the panel `Checks.Preview` | Tests | Previews checking themselves |
+| docs/learning/preview-worlds.md | Learning note | Several worlds, clocks, scrubbing, change tracking |
