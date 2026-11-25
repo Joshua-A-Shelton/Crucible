@@ -17,6 +17,8 @@ first game), and what it decided to change:
   cooking and loading.
 - [The renderer](docs/review/04-renderer.md): steps on the render graph,
   meshes and materials, lights and shadows, and the finishing.
+- [The UI library](docs/review/05-ui.md): elements and layout, drawing,
+  text, styling, input, and controls.
 - [Findings](docs/review/findings.md): what the review decided to change.
 
 ## Learning notes

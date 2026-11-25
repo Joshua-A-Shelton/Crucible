@@ -1457,8 +1457,9 @@ page per system in docs/review/ discussed with the owner, changes noted in
 docs/review/findings.md and made after (owner, 2026-11-25). The core
 discussed, its findings noted (to come back to); the platform layer
 discussed, its findings noted; assets and scenes discussed, their findings
-noted (save games a priority), and mods noted to design; the renderer's
-page written, to be discussed.
+noted (save games a priority), and mods noted to design; the renderer
+discussed, its findings noted; the UI library's page written, to be
+discussed.
 
 Asked for by the owner (2026-11-18), before any game is built: some parts
 of the engine have grown past what the owner knows well. Go over the
