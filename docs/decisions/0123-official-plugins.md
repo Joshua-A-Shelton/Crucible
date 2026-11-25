@@ -1,8 +1,8 @@
 # 0123 — Official plugins
 
 **Status:** Accepted (2026-11-24); step 7b of editor extensions (map mode
-on the public API, in an assembly of its own). Names marked `*` in
-docs/naming.md are placeholders until the owner has tried it.
+on the public API, in an assembly of its own), tried by hand by the owner.
+Names settled by the owner as drafted (2026-11-24; docs/naming.md).
 
 ## Context
 
@@ -34,41 +34,41 @@ internals; the public API only. **Panels each frame:** a virtual method on
 Decided by the owner (2026-11-24):
 
 1. **Official plugins.** Crucible's own plugins are built with the editor
-   into a `Plugins` folder beside it (`OfficialPlugins.Folder`*), each a
+   into a `Plugins` folder beside it (`OfficialPlugins.Folder`), each a
    folder as ADR 0118's with its manifest and assemblies, compiled and
    read-only. The editor loads them all once when it starts and keeps them
    until it quits (so their checks outlive the projects they open); a
    project's list decides whose extensions start. A project's plugins may
    use them, and can't take their names.
-2. **Listed in the project.** The project file's `"Official"`* lists the
-   ones it uses by name; `["*"]`*, the default and what a file without
+2. **Listed in the project.** The project file's `"Official"` lists the
+   ones it uses by name; `["*"]`, the default and what a file without
    the list gets, uses all of them, so new and existing projects have
    them. Leaving one out drops it; engine updates bring their updates. The
    list is edited by hand for now (a Plugins window is an open item).
-3. **Tilemaps*, the editor part only.** Map mode, the Palette, the
-   Layers, and New Tileset move to `plugins/Tilemaps/`* as
-   `Tilemaps.Editor.dll`* (namespace `Crucible.Tilemaps.Editor`*), which
+3. **Tilemaps, the editor part only.** Map mode, the Palette, the
+   Layers, and New Tileset move to `plugins/Tilemaps/` as
+   `Tilemaps.Editor.dll` (namespace `Crucible.Tilemaps.Editor`), which
    sees only the editor's public API. Tilemaps' runtime (drawing,
    collision, the components) and its importers stay in the engine until
    plugins can carry native code; then they move in, and a project
    leaving Tilemaps out loses them too.
 4. **What the API gained** for it (beside ADR 0122's):
-   `editor.Assets.AddOpener(id, title, kinds, open)`* (a callback opener:
+   `editor.Assets.AddOpener(id, title, kinds, open)` (a callback opener:
    a tileset alone in the Palette, a `.crtilemap` through the entity using
-   it), `editor.Assets.AddCreate(path, create)`* (the Assets panel's Create
-   menu: Create > Tileset…), `editor.Assets.Changed`*,
-   `CanWrite(path)`*, `Delete(path, title)`*, and, found while building,
-   `editor.Assets.Project`*, `ApplySettings(asset, settings)`* (a texture
-   made a sprite), `Reimport(asset)`* (a map saved as it's painted), and
-   `editor.Scene.Path`* (where new maps go) and
-   `editor.Scene.AddOpener<T>(id, title, open)`* (map mode from a map's
-   or a layer's components). `EditorPanel.Tick()`* runs every open panel
+   it), `editor.Assets.AddCreate(path, create)` (the Assets panel's Create
+   menu: Create > Tileset…), `editor.Assets.Changed`,
+   `CanWrite(path)`, `Delete(path, title)`, and, found while building,
+   `editor.Assets.Project`, `ApplySettings(asset, settings)` (a texture
+   made a sprite), `Reimport(asset)` (a map saved as it's painted), and
+   `editor.Scene.Path` (where new maps go) and
+   `editor.Scene.AddOpener<T>(id, title, open)` (map mode from a map's
+   or a layer's components). `EditorPanel.Tick()` runs every open panel
    each frame (the editor's own type tests gone), and
-   `SceneView.ShowsOutlines`* and `TakesToolKeys`* replace map mode's
+   `SceneView.ShowsOutlines` and `TakesToolKeys` replace map mode's
    internal switch on its view.
-5. **Its checks in an assembly of their own**, `Tilemaps.Editor.Checks.dll`*,
+5. **Its checks in an assembly of their own**, `Tilemaps.Editor.Checks.dll`,
    given the editor's internals and the plugin's for their test helpers:
-   an `OfficialPluginChecks`* the editor makes when it loads the plugin
+   an `OfficialPluginChecks` the editor makes when it loads the plugin
    and runs each frame. Beside the plugin in every build but shipping
    ones, and loaded when it's there.
 
@@ -88,5 +88,5 @@ Decided by the owner (2026-11-24):
 - Found in the owner's try: a layout saved with an official plugin's tab
   or panel open kept it as a placeholder waiting forever once the project
   left the plugin out. The layout now records the official plugin each
-  belongs to (`"Official"`* in its panel states), and opening a project
+  belongs to (`"Official"` in its panel states), and opening a project
   that doesn't use that plugin drops them (owner, 2026-11-24).

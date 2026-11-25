@@ -1351,8 +1351,8 @@ double-click, the Inspector, and Open With. Step 6 done (ADR 0121), tried
 by hand by the owner: viewport tools, the handles and Edit
 Points moved onto them, map painting its view's tool. Step 7 split by the
 owner (2026-11-24) into 7a, 7b, and 7c; 7a done (ADR 0122), tried by hand
-by the owner: scene edits for extensions. 7b built (ADR 0123), to be
-tried by hand by the owner: official plugins, map mode the first, as the
+by the owner: scene edits for extensions. 7b done (ADR 0123), tried by
+hand by the owner: official plugins, map mode the first, as the
 plugin Tilemaps on the public API alone.
 
 Asked for by the owner (2026-11-20): a game's own editors, as specialized
