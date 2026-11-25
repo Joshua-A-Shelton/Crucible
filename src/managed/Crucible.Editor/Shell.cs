@@ -60,6 +60,7 @@ internal sealed partial class Shell
         // What the editor's own editors open (ADR 0120), and its tools (ADR 0121).
         RegisterOpeners();
         RegisterTools();
+        RegisterDrawers();
         RegisterCommands();
         BuildMenus();
         RestoreLayout(Settings.Layout);

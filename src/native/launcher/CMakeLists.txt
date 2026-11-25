@@ -673,6 +673,18 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "SceneApiChecks: all [0-9]+ checks passed")
 
+    # Custom inspectors checking themselves (ADR 0126): on a copy of the
+    # Walker's project, a component's, a field type's, and a marked field's
+    # drawers, their values set as undo steps, and a reload.
+    add_test(NAME launcher.jit.drawers
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
+            --game-arg "warm-project=${walkerWarm}/Walker.crproject"
+            --game-arg "check-drawers=${CMAKE_CURRENT_BINARY_DIR}"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/drawers-settings.json")
+    set_tests_properties(launcher.jit.drawers PROPERTIES LABELS "integration;gpu" TIMEOUT 600
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "DrawerChecks: all [0-9]+ checks passed")
+
     # Preview viewports checking themselves (ADR 0125): the Walker in a
     # panel's preview world of its own, animating on its clock, held and
     # scrubbed; a sprite in 2D; the world freed with the panel.
@@ -811,6 +823,7 @@ if(CRUCIBLE_BUILD_TESTS)
         launcher.jit.viewport-tools
         launcher.jit.scene-api
         launcher.jit.previews
+        launcher.jit.drawers
         samples.walker-package
         samples.walker-package-shipping
         APPEND PROPERTY FIXTURES_REQUIRED walker-warm)

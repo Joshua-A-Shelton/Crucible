@@ -109,7 +109,7 @@ public sealed class InspectorPanel : EditorPanel
             ? _shell.Selection.Selected
             : Entity.Null;
         AssetEntry? asset = selected.IsNull ? _shell.Database?.Find(_shell.InspectedAsset) : null;
-        string shape = !selected.IsNull ? $"{selected.Value}:{string.Join(",", Components(selected))}"
+        string shape = !selected.IsNull ? $"{selected.Value}:{string.Join(",", Components(selected))}:drawers {_shell.DrawersVersion}"
             : asset is not null ? $"asset:{asset.Id}"
             : "";
         if (shape != _shape || (_stale && selected.Value != _entity.Value))
@@ -235,8 +235,10 @@ public sealed class ComponentSection : UIElement, IFieldOwner
     private readonly IconButton _fold = new("chevron-down", "Fold");
     private readonly Label _name;
     private readonly List<FieldEditor> _editors = [];
-    private readonly ColliderNotice? _notice;
-    private readonly Button? _editPoints;
+    // A custom inspector (ADR 0126) drawing its body, if one is registered.
+    private readonly DrawerHost? _host;
+    private readonly IDrawerInstance? _drawer;
+    private readonly DrawerRegistration? _registration;
     // Its editor (ADR 0120): "Open in Map", or "Open…" with several.
     // Its editors (ADR 0120), an icon naming them in its tooltip (ADR 0124).
     private readonly IconButton _open = new("square-arrow-out-up-right", "Open") { Visibility = Visibility.Collapsed };
@@ -280,6 +282,29 @@ public sealed class ComponentSection : UIElement, IFieldOwner
         body.Add(header);
         body.Add(_fields);
         AddChild(body);
+        if (inspector.Shell.ComponentDrawer(saved.Type) is { } registration)
+        {
+            DrawerHost host = new(this, saved.Type.Name, [], saved.Fields, () => _value,
+                (value, title) =>
+                {
+                    Shell.SetComponent(Entity, Component, value, title);
+                    Update();
+                }, Overridden);
+            IDrawerInstance? drawer = null;
+            UIElement? built = null;
+            if (inspector.Shell.GuardDrawer(registration, "Build", () =>
+                {
+                    drawer = registration.Create(host);
+                    built = drawer.Build();
+                }) && built is not null)
+            {
+                _registration = registration;
+                _host = host;
+                _drawer = drawer;
+                _fields.Add(built);
+                return;
+            }
+        }
         foreach (SerializedField field in saved.Fields)
         {
             if (field.Header is { } heading)
@@ -291,21 +316,6 @@ public sealed class ComponentSection : UIElement, IFieldOwner
             FieldEditor editor = new(this, field, field.Label ?? InspectorPanel.Pretty(field.Name), [field.Name]);
             _editors.Add(editor);
             _fields.Add(editor);
-            // A Collider's model without its collision: said right under
-            // where the model is chosen (ADR 0087).
-            if (saved.Type == typeof(Crucible.Physics.Collider) && field.Name == "MeshIndex")
-            {
-                _notice = new ColliderNotice(inspector.Shell);
-                _fields.Add(_notice);
-            }
-            // A Chain collider's points, edited in the viewports (ADR 0095).
-            if (saved.Type == typeof(Crucible.Physics2D.Collider2D) && field.Name == "Chain")
-            {
-                _editPoints = new Button("Edit Points") { HorizontalAlignment = HorizontalAlignment.Start };
-                // The Edit Points tool (ADR 0121) on, or Move back.
-                _editPoints.Clicked += _ => Shell.ActivateTool(Shell.Chains.IsEditing ? "Scene.Move" : "Scene.EditPoints");
-                _fields.Add(_editPoints);
-            }
         }
         if (saved.Fields.Count == 0)
         {
@@ -318,7 +328,27 @@ public sealed class ComponentSection : UIElement, IFieldOwner
     /// <summary>The component's name (its type's full name).</summary>
     public string Component => _saved.Name;
 
-    public IReadOnlyList<FieldEditor> Editors => _editors;
+    /// <summary>Its fields' generated editors: its own, or those its drawer placed.</summary>
+    public IReadOnlyList<FieldEditor> Editors => _host?.Defaults ?? _editors;
+
+    /// <summary>Whether a custom inspector (ADR 0126) draws it.</summary>
+    public bool HasDrawer => _drawer is not null;
+
+    // A field (or, with null, the whole component) differing from the prefab's, on an instance.
+    private bool Overridden(string? field)
+    {
+        if (!InPrefab)
+        {
+            return false;
+        }
+        if (PrefabValue is not JsonObject prefab)
+        {
+            return true; // added on the instance
+        }
+        return field is null
+            ? !JsonNode.DeepEquals(_value, prefab)
+            : !JsonNode.DeepEquals((_value as JsonObject)?[field], prefab[field]);
+    }
 
     internal Shell Shell => _inspector.Shell;
 
@@ -339,25 +369,17 @@ public sealed class ComponentSection : UIElement, IFieldOwner
         JsonObject? prefab = PrefabValue as JsonObject;
         bool added = InPrefab && PrefabValue is null;
         _name.Classes.Set("overridden", added);
+        if (_drawer is { } drawer && _host is { } host)
+        {
+            host.UpdateDefaults();
+            Shell.GuardDrawer(_registration!, "Update", drawer.Update);
+            return;
+        }
         foreach (FieldEditor editor in _editors)
         {
             JsonNode? value = (_value as JsonObject)?[editor.Field.Name];
             bool overridden = added || (prefab is not null && !JsonNode.DeepEquals(value, prefab[editor.Field.Name]));
             editor.Update(value, overridden);
-        }
-        if (_editPoints is not null)
-        {
-            _editPoints.Visibility = Shell.Chains.CanEdit(Entity) ? Visibility.Visible : Visibility.Collapsed;
-            _editPoints.Classes.Set("on", Shell.Chains.IsEditing && Shell.Chains.Entity.Value == Entity.Value);
-        }
-        if (_notice is not null)
-        {
-            _notice.Update(_value);
-            bool missing = _notice.Visibility == Visibility.Visible;
-            foreach (FieldEditor editor in _editors.Where(editor => editor.Field.Name is "Mesh" or "MeshIndex"))
-            {
-                editor.Warns = missing;
-            }
         }
     }
 
@@ -681,6 +703,10 @@ public sealed class FieldEditor : UIElement
     private bool _grouped; // an undo group is open for a drag
     private Quaternion _shownRotation = new(float.NaN, 0, 0, 0);
     private JsonNode? _value;
+    // A custom inspector (ADR 0126) for its type or its [Drawer] name.
+    private readonly DrawerHost? _host;
+    private readonly IDrawerInstance? _drawer;
+    private readonly DrawerRegistration? _registration;
 
     internal FieldEditor(IFieldOwner section, SerializedField field, string label, object[] path)
     {
@@ -697,7 +723,28 @@ public sealed class FieldEditor : UIElement
         all.Add(_row);
         all.Add(_children);
         AddChild(all);
-        Build();
+        if (section.Shell.FieldDrawer(field) is { } registration)
+        {
+            DrawerHost host = new(section, label, path, field.Kind == FieldKind.Serialized ? field.Fields : [], () => _value,
+                (value, title) => _section.Edit(_path, value, title), _ => IsOverridden);
+            IDrawerInstance? drawer = null;
+            UIElement? built = null;
+            if (section.Shell.GuardDrawer(registration, "Build", () =>
+                {
+                    drawer = registration.Create(host);
+                    built = drawer.Build();
+                }) && built is not null)
+            {
+                _registration = registration;
+                _host = host;
+                _drawer = drawer;
+                Add(built);
+            }
+        }
+        if (_drawer is null)
+        {
+            Build();
+        }
         PointerEnter += (_, _) =>
         {
             if (Field.Tooltip is { } tooltip)
@@ -718,6 +765,9 @@ public sealed class FieldEditor : UIElement
     }
 
     public SerializedField Field { get; }
+
+    /// <summary>Whether a custom inspector (ADR 0126) draws it.</summary>
+    public bool HasDrawer => _drawer is not null;
 
     /// <summary>Whether a prefab instance's value differs from its prefab's (class <c>overridden</c>).</summary>
     public bool IsOverridden { get; private set; }
@@ -744,6 +794,12 @@ public sealed class FieldEditor : UIElement
         IsOverridden = overridden;
         Classes.Set("overridden", overridden);
         _name.Classes.Set("overridden", overridden);
+        if (_drawer is { } drawer && _host is { } host)
+        {
+            host.UpdateDefaults();
+            _section.Shell.GuardDrawer(_registration!, "Update", drawer.Update);
+            return;
+        }
         _show?.Invoke(value);
         if (Field.Kind is FieldKind.Serialized)
         {

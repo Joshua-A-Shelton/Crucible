@@ -1827,3 +1827,19 @@ drafted after the owner tried it by hand (2026-11-24):
 | `Shell.Previews`, `Shell.Previews.cs`, `AddPreview`, `RemovePreview`, `DisposePreviewsIn` | Editor internals | Previews ticked and freed |
 | `PreviewChecks`, CTest `launcher.jit.previews`, game arg `check-previews`, test folder `previews-project`, `previews.png`, the panel `Checks.Preview` | Tests | Previews checking themselves |
 | docs/learning/preview-worlds.md | Learning note | Several worlds, clocks, scrubbing, change tracking |
+
+## Custom inspectors (2026-11-24, ADR 0126)
+
+Names proposed before building (approved to build with, 2026-11-24) and
+added while building; all placeholders (`*`) until the owner has tried it:
+
+| Name | What it names | What it is |
+|---|---|---|
+| ADR 0126 "Custom inspectors"* | Decision record | Editor extensions step 9 |
+| `editor.Inspector`* (`EditorInspector`*): `AddComponentDrawer<T>`*, `AddFieldDrawer<T>`*, `AddDrawer<T>(name)`* | Extension API | Registering drawers |
+| `[Drawer("name")]`* (`DrawerAttribute`*), `SerializedField.Drawer`* | Attribute, field table | A field drawn by a named drawer |
+| `Drawer<T>`* (`Build`*, `Update`*) | Abstract class | A custom inspector |
+| `DrawerContext<T>`* (`Value`*, `Set`*, `BeginChange`*, `EndChange`*, `Default(field)`*, `IsOverridden(field)`*, `Entity`*, `Editor`*, `Label`*) | Class | What a drawer draws and changes |
+| `ColliderDrawer`*, `Collider2DDrawer`*, and added while building `ComponentSection.HasDrawer`*, `FieldEditor.HasDrawer`*, `Shell.Drawers.cs`*, `DrawerHost`*, `DrawerCodecs`* | Editor | Its own drawers; internals |
+| `DrawerChecks`*, CTest `launcher.jit.drawers`*, game arg `check-drawers`*, test folder `drawers-project`* | Tests | Drawers checking themselves |
+| docs/learning/custom-inspectors.md* | Learning note | Drawers, defaults, typed values |

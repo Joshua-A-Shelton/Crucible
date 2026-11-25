@@ -238,6 +238,9 @@ Longer explanations of decisions, written to be reread:
   icon fonts, when a tooltip shows and hides, and where a brush is held.
 - [Preview worlds](docs/learning/preview-worlds.md) (ADR 0125): several
   worlds, systems and clocks, scrubbing, and change tracking.
+- [Custom inspectors](docs/learning/custom-inspectors.md) (ADR 0126):
+  generated fields first, drawers at three levels, mixing with the
+  defaults, and typed values over saved data.
 - [Up-to-date builds](docs/learning/up-to-date-builds.md) (ADR 0110): file
   times versus content hashes, what makes a build stamp trustworthy, and
   why copies need one.

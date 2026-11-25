@@ -44,6 +44,7 @@ public sealed class EditorContext
         Commands = new EditorCommands(shell, this);
         Scene = new EditorScene(shell, this);
         Assets = new EditorAssets(shell, this);
+        Inspector = new EditorInspector(shell, this);
     }
 
     /// <summary>The extension's type, as messages name it.</summary>
@@ -69,6 +70,9 @@ public sealed class EditorContext
     public EditorScene Scene { get; }
 
     public EditorAssets Assets { get; }
+
+    /// <summary>The Inspector's custom drawers (ADR 0126).</summary>
+    public EditorInspector Inspector { get; }
 
     /// <summary>The status bar's text.</summary>
     public string Status

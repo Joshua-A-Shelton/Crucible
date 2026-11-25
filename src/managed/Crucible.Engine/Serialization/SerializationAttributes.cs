@@ -102,6 +102,17 @@ public sealed class LabelAttribute(string text) : Attribute
     public string Text { get; } = text;
 }
 
+/// <summary>
+/// Editor hint (ADR 0126): the Inspector draws the member with the drawer an
+/// editor extension registered under this name (<c>editor.Inspector.AddDrawer</c>),
+/// whatever its type; the generated editor without one.
+/// </summary>
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false)]
+public sealed class DrawerAttribute(string name) : Attribute
+{
+    public string Name { get; } = name;
+}
+
 /// <summary>Editor hint (ADR 0069): a heading shown above the member, starting a group.</summary>
 [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false)]
 public sealed class HeaderAttribute(string text) : Attribute

@@ -27,6 +27,7 @@ public sealed class SerializerGenerator : IIncrementalGenerator
     private const string TooltipName = "Crucible.Serialization.TooltipAttribute";
     private const string HeaderName = "Crucible.Serialization.HeaderAttribute";
     private const string LabelName = "Crucible.Serialization.LabelAttribute";
+    private const string DrawerName = "Crucible.Serialization.DrawerAttribute";
     private const string AssetKindName = "Crucible.Serialization.AssetKindAttribute";
     private const string SkinnedName = "Crucible.Serialization.SkinnedAttribute";
     private const string EntityWithName = "Crucible.Serialization.EntityWithAttribute";
@@ -229,7 +230,7 @@ public sealed class SerializerGenerator : IIncrementalGenerator
         Action<DiagnosticDescriptor, LocationInfo?, string[]> report)
     {
         float min = float.NaN, max = float.NaN;
-        string? tooltip = null, header = null, label = null, meshOf = null;
+        string? tooltip = null, header = null, label = null, meshOf = null, drawer = null;
         bool color = false, layers = false, skinned = false, boneName = false, windowName = false, sortingLayer = false;
         string[] assetKinds = [], entityWith = [];
         foreach (AttributeData attribute in member.GetAttributes())
@@ -258,6 +259,9 @@ public sealed class SerializerGenerator : IIncrementalGenerator
                     break;
                 case LabelName when attribute.ConstructorArguments.Length == 1:
                     label = attribute.ConstructorArguments[0].Value as string;
+                    break;
+                case DrawerName when attribute.ConstructorArguments.Length == 1:
+                    drawer = attribute.ConstructorArguments[0].Value as string;
                     break;
                 case AssetKindName when attribute.ConstructorArguments.Length == 1:
                     assetKinds = [.. attribute.ConstructorArguments[0].Values.Select(value => value.Value as string ?? "")];
@@ -317,6 +321,7 @@ public sealed class SerializerGenerator : IIncrementalGenerator
             IsBoneName = boneName,
             IsWindowName = windowName,
             IsSortingLayer = sortingLayer,
+            Drawer = drawer,
         };
     }
 
@@ -678,6 +683,10 @@ public sealed class SerializerGenerator : IIncrementalGenerator
             {
                 arguments.Add("isSortingLayer: true");
             }
+            if (hints.Drawer is { } drawer)
+            {
+                arguments.Add($"drawer: {Literal(drawer)}");
+            }
         }
         return $"new {Field}({string.Join(", ", arguments)})";
     }
@@ -942,6 +951,7 @@ internal sealed record HintModel(float Min, float Max, string? Tooltip, string? 
     public bool IsBoneName { get; init; }
     public bool IsWindowName { get; init; }
     public bool IsSortingLayer { get; init; }
+    public string? Drawer { get; init; }
 
     // What a collection's items keep: only what picks them.
     public HintModel? ForItems() => AssetKinds.Length == 0 && !Skinned && EntityWith.Length == 0
