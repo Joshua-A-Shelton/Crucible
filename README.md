@@ -12,6 +12,9 @@ first game), and what it decided to change:
   its systems, jobs.
 - [The platform layer](docs/review/02-platform.md): windows and input,
   latency, math and coordinates, errors, memory, and logging.
+- [Assets and scenes](docs/review/03-assets-and-scenes.md): the asset
+  database, importers and the cache, serialization, scenes and prefabs,
+  cooking and loading.
 - [Findings](docs/review/findings.md): what the review decided to change.
 
 ## Learning notes
