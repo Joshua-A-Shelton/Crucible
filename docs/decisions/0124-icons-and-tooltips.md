@@ -62,6 +62,11 @@ Decided by the owner (2026-11-24):
 
 ## Consequences
 
+- The Viewport's toolbar in groups (owner's try, 2026-11-24): Move,
+  Rotate, Scale, and World/Local, which is theirs; the editor's other
+  tools (Edit Points); then extensions' tools, thin separators between;
+  Grid and the frame time, about the view, at the right end. A workspace's
+  toolbar has the same bar.
 - The hand-drawn symbols are gone: `PlayGlyph`, the play buttons'
   drawing, `IconButton.Icon` (now `IconButton(name, toolTip)`), and map
   mode's `TileGlyph`.

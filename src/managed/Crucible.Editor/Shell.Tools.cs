@@ -19,6 +19,9 @@ internal sealed partial class Shell
     /// <summary>The scene's tools, the editor's first, in the order registered.</summary>
     internal IReadOnlyList<(ViewportTool Tool, Shortcut? Shortcut)> Tools => _tools;
 
+    /// <summary>Whether a tool is the editor's own (the toolbar groups them before extensions').</summary>
+    internal static bool IsEditorTool(ViewportTool tool) => tool.GetType().Assembly == typeof(Shell).Assembly;
+
     /// <summary>Raised when tools are registered or taken out.</summary>
     internal event Action? ToolsChanged;
 

@@ -134,12 +134,15 @@ public sealed class ViewportPanel : EditorPanel
         _grid.IsOn = true;
         _grid.Changed += toggle => View.ShowsGrid = toggle.IsOn;
         _time.Classes.Add("frame-time");
-        StackPanel tools = new() { Orientation = Orientation.Horizontal, Spacing = 4 };
+        // The tools on the left, grouped; what the view shows at the right end.
+        StackPanel view = new() { Orientation = Orientation.Horizontal, Spacing = 4 };
+        view.Add(_grid);
+        view.Add(_time);
+        DockPanel tools = new();
         tools.Classes.Add("viewport-tools");
-        foreach (UIElement tool in (UIElement[])[_toolButtons, _space, _grid, _time])
-        {
-            tools.Add(tool);
-        }
+        DockPanel.SetDock(view, Dock.Right);
+        tools.Add(view);
+        tools.Add(_toolButtons);
         DockPanel page = new();
         DockPanel.SetDock(tools, Dock.Top);
         page.Add(tools);
@@ -161,17 +164,37 @@ public sealed class ViewportPanel : EditorPanel
 
     protected override void OnDetached(UIRoot root) => _shell.ToolsChanged -= MakeToolButtons;
 
+    // In groups: Move, Rotate, Scale, and World/Local, which is theirs; the
+    // editor's other tools (Edit Points); then extensions' tools.
     private void MakeToolButtons()
     {
         _toolButtons.Clear();
         _buttons.Clear();
+        int group = -1;
         foreach ((ViewportTool tool, Shortcut? shortcut) in _shell.Tools)
         {
+            int next = tool is TransformTool ? 0 : Shell.IsEditorTool(tool) ? 1 : 2;
+            if (next != group)
+            {
+                if (group == 0)
+                {
+                    _toolButtons.Add(_space);
+                }
+                if (group >= 0)
+                {
+                    _toolButtons.Add(Separator());
+                }
+                group = next;
+            }
             string title = shortcut is { } key ? $"{tool.Title} ({key})" : tool.Title;
             Button button = tool.Icon is { } icon && EditorIcons.Has(icon) ? ToolIcon(icon, title) : Tool(title);
             button.Clicked += _ => View.Tool = tool;
             _toolButtons.Add(button);
             _buttons.Add((button, tool));
+        }
+        if (group == 0)
+        {
+            _toolButtons.Add(_space);
         }
     }
 
@@ -191,6 +214,14 @@ public sealed class ViewportPanel : EditorPanel
             ? "World space: the handles follow the world's axes (click for Local)"
             : "Local space: the handles follow the selection's axes (click for World)";
         _time.Text = View.Surface.Value != 0 ? $"{View.LastFrameMilliseconds:0.0} ms" : "";
+    }
+
+    // A thin line between groups of tools.
+    private static UIElement Separator()
+    {
+        UIElement line = new() { Width = 1, Height = 18, Margin = new Thickness(4, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center };
+        line.Classes.Add("toolbar-separator");
+        return line;
     }
 
     // An icon in the toolbar's style, its tooltip saying what it is (ADR 0124).

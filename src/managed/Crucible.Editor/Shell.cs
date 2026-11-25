@@ -1392,6 +1392,10 @@ internal sealed partial class Shell
         theme.Add(new Style("Label.status").Set(UIElement.ForegroundProperty, muted));
         theme.Add(new Style("DropPreview").Set(UIElement.ForegroundProperty, accent));
         // The viewport's toolbar (ADR 0067): flat tools, the active one lit.
+        theme.Add(new Style(".toolbar-separator").Set(UIElement.BackgroundProperty, hover));
+        theme.Add(new Style("DockPanel.viewport-tools")
+            .Set(UIElement.BackgroundProperty, strip)
+            .Set(UIElement.PaddingProperty, new Thickness(6, 4, 6, 4)));
         theme.Add(new Style("StackPanel.viewport-tools")
             .Set(UIElement.BackgroundProperty, strip)
             .Set(UIElement.PaddingProperty, new Thickness(6, 4, 6, 4)));
