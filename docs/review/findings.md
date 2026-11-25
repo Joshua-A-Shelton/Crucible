@@ -46,3 +46,8 @@ each as its own step.
 | Editor | A native crash in Play (in the editor's process) loses unsaved scene edits: no autosave or recovery. | Address (owner, 2026-11-25) | Noted |
 | Editor | One entity selected at a time: no multi-select for moving, deleting, duplicating, or editing fields across several. | Address (owner, 2026-11-25) | Noted |
 | Editor | Prefabs can't be made or changed from the scene: no "make a prefab", "apply overrides", or editing a prefab on its own. | Address (owner, 2026-11-25) | Noted |
+| Shipping | Steam Deck untested; Slag needs RADV from Mesa 26.2 (`VK_EXT_descriptor_heap`), and whether SteamOS ships it isn't known. | Worth addressing (owner, 2026-11-25) | Noted |
+| Shipping | Packages build only for the editor's own platform: cross-building, or a documented second-machine or CI step. | Address next after store integration and patches (owner, 2026-11-25) | Noted |
+| Shipping | No crash reporting: no crash handler, minidump, or note in the log. | Worth addressing (owner, 2026-11-25) | Noted |
+| Shipping | No store integration (Steamworks: achievements, cloud saves, overlay, Steam Input, on-screen keyboard); touches platform, save games, input. | Most important (owner, 2026-11-25) | Noted |
+| Shipping | One archive per game: no layering, patches, or DLC; shares layering with mods. | Most important (owner, 2026-11-25) | Noted |
