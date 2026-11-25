@@ -1334,7 +1334,8 @@ on the viewport or the hierarchy is placed there.
 
 ## After M11: editor extensions
 
-**Status:** In progress (started 2026-11-23). Placed by the owner after
+**Status:** done (2026-11-23 to 2026-11-25, ADRs 0116 to 0128), every step
+tried by hand by the owner. Placed by the owner after
 importing by dropping files and before the engine review and the first
 game, so the game's own tools are built on it. Step 1 done (ADR 0116),
 tried by hand by the owner. Step 2 done (ADR 0117), tried by hand by
@@ -1358,8 +1359,8 @@ hand by the owner: icons and tooltips, and the brush held where
 it was grabbed. Step 8 done (ADR 0125), tried by hand by the
 owner: preview viewports. Step 9 done (ADR 0126), tried by hand by the
 owner: custom inspectors; Add Component's dialog and scrolling menus
-found while trying it (ADR 0127). Step 10 built (ADR 0128), to be tried
-by hand by the owner: the character editor, the Walker's Characters plugin.
+found while trying it (ADR 0127). Step 10 done (ADR 0128), tried by hand
+by the owner: the character editor, the Walker's Characters plugin.
 
 Asked for by the owner (2026-11-20): a game's own editors, as specialized
 as map mode (ADR 0112), built by the people making the game, for example

@@ -1,8 +1,8 @@
 # 0128 — The character editor
 
 **Status:** Accepted (2026-11-25); step 10 of editor extensions, its
-demonstration. Names marked `*` in docs/naming.md are placeholders until
-the owner has tried it.
+demonstration, tried by hand by the owner. Names settled by the owner as
+drafted (2026-11-25; docs/naming.md).
 
 ## Context
 
@@ -25,23 +25,23 @@ viewport tool. **The stats at runtime:** used lightly; editor data only.
 
 Decided by the owner (2026-11-25):
 
-1. **A source plugin in the Walker**, `Characters`*
-   (`samples/Walker/Project/Plugins/Characters/`*): its game code in
+1. **A source plugin in the Walker**, `Characters`
+   (`samples/Walker/Project/Plugins/Characters/`): its game code in
    `Code/`, its editor code in `Code/Editor/`, as any plugin's (ADR 0118).
-2. **Simple: the preview and the stats.** `Character`* (`Strength`*,
-   `Agility`*, `Pace`*; `[Category("Characters")]`) on the Walk scene's
-   Walker. `CharactersExtension`* registers `CharacterWorkspace`* (id
-   `Characters.Character`*, opened from the component; its tab "Character:
+2. **Simple: the preview and the stats.** `Character` (`Strength`,
+   `Agility`, `Pace`; `[Category("Characters")]`) on the Walk scene's
+   Walker. `CharactersExtension` registers `CharacterWorkspace` (id
+   `Characters.Character`, opened from the component; its tab "Character:
    Walker", named after the model for an instance without a name of its
    own): the model (its Animator's skeleton) in a `PreviewView`, orbiting;
    its clips listed, the one playing lit; Pause and a slider scrubbing it.
-   `CharacterDrawer`* draws the stats in the Inspector: a bar each, a
+   `CharacterDrawer` draws the stats in the Inspector: a bar each, a
    derived Power, and the generated editors below.
-3. **Used lightly at runtime.** `CharacterPaceSystem`* sets an Animator's
+3. **Used lightly at runtime.** `CharacterPaceSystem` sets an Animator's
    speed to its Character's Pace while the game runs, so editing it
    changes how fast the Walker walks. Pace 1 (the scene's) changes nothing.
-4. **Checked by a CTest drive**, `CharacterEditorChecks`* (CTest
-   `launcher.jit.character-editor`*): the workspace from the Character,
+4. **Checked by a CTest drive**, `CharacterEditorChecks` (CTest
+   `launcher.jit.character-editor`): the workspace from the Character,
    the model playing, paused, and scrubbed; the stats by their drawer,
    changed and undone; and a package with `Characters.dll` and without
    `Characters.Editor.dll`.

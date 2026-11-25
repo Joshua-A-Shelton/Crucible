@@ -1859,15 +1859,15 @@ drafted after the owner tried it by hand (2026-11-25):
 
 ## The character editor (2026-11-25, ADR 0128)
 
-Names proposed before building (approved to build with, 2026-11-25) and
-added while building; all placeholders (`*`) until the owner has tried it:
+Names proposed before building and added while building, settled as
+drafted after the owner tried it by hand (2026-11-25):
 
 | Name | What it names | What it is |
 |---|---|---|
-| ADR 0128 "The character editor"* | Decision record | Editor extensions step 10 |
-| Plugin `Characters`*, `samples/Walker/Project/Plugins/Characters/`* | Source plugin | The demonstration |
-| `Character`* (`Strength`*, `Agility`*, `Pace`*), category "Characters"* | Component | A character's stats |
-| `CharacterPaceSystem`* | Game system | Pace drives the Animator's speed |
-| `CharactersExtension`*, `CharacterWorkspace`* (id `Characters.Character`*, tab "Character: Walker"*, `Preview`*, `Playing`*, `Play`*), `CharacterDrawer`* | Editor code | The workspace and the drawer |
-| `CharacterEditorChecks`*, CTest `launcher.jit.character-editor`*, game arg `check-character-editor`*, test folders `character-editor-project`*, `character-editor-package`*, `character-editor.png`* | Tests | The demonstration checking itself |
-| docs/learning/a-games-own-editor.md* | Learning note | A tour of the pieces |
+| ADR 0128 "The character editor" | Decision record | Editor extensions step 10 |
+| Plugin `Characters`, `samples/Walker/Project/Plugins/Characters/` | Source plugin | The demonstration |
+| `Character` (`Strength`, `Agility`, `Pace`), category "Characters" | Component | A character's stats |
+| `CharacterPaceSystem` | Game system | Pace drives the Animator's speed |
+| `CharactersExtension`, `CharacterWorkspace` (id `Characters.Character`, tab "Character: Walker", `Preview`, `Playing`, `Play`), `CharacterDrawer` | Editor code | The workspace and the drawer |
+| `CharacterEditorChecks`, CTest `launcher.jit.character-editor`, game arg `check-character-editor`, test folders `character-editor-project`, `character-editor-package`, `character-editor.png` | Tests | The demonstration checking itself |
+| docs/learning/a-games-own-editor.md | Learning note | A tour of the pieces |
