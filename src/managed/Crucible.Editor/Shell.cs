@@ -244,6 +244,10 @@ internal sealed partial class Shell
             return;
         }
         _stopped = true;
+        foreach (PreviewView preview in _previews.ToArray())
+        {
+            preview.Dispose();
+        }
         Crucible.Log.Api.Received -= EngineMessage;
         _watcher?.Dispose();
         _codeWatcher?.Dispose();
@@ -485,6 +489,11 @@ internal sealed partial class Shell
         }
         // The views' picks answered, for their tools (ADR 0121).
         TickTools();
+        // Previews' worlds (ADR 0125): their clocks and animation, drawn while shown.
+        foreach (PreviewView preview in _previews.ToArray())
+        {
+            preview.Tick(_context.DeltaSeconds);
+        }
     }
 
 
@@ -800,6 +809,7 @@ internal sealed partial class Shell
 
     public void ClosePanel(EditorPanel panel)
     {
+        DisposePreviewsIn(panel);
         // A workspace's tab (ADR 0119) is its end.
         if (panel is Workspace workspace)
         {

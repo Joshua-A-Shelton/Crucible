@@ -2278,6 +2278,81 @@ Result<void> play(ecs::World& world, ecs::Entity entity, AssetId clip, float fad
     return {};
 }
 
+namespace {
+
+// A player held at a moment: its fade done, no events for the jump.
+void holdAt(Player& player, float seconds)
+{
+    float duration = clipDuration(player.clip);
+    player.time = std::clamp(seconds, 0.0f, std::max(duration, 0.0f));
+    player.previous = {};
+    player.fadeDuration = 0;
+    player.fadeElapsed = 0;
+    player.fresh = false;
+}
+
+} // namespace
+
+Result<void> setTime(ecs::World& world, ecs::Entity entity, int32_t layer, float seconds)
+{
+    if (layer >= static_cast<int32_t>(maxLayers) || layer < -1 || !std::isfinite(seconds))
+    {
+        return Status::NotFound;
+    }
+    Pose* pose = currentPose(world, entity);
+    if (pose == nullptr)
+    {
+        return Status::NotFound;
+    }
+    if (layer >= 0)
+    {
+        Layer& at = pose->layers[layer];
+        if (!at.active)
+        {
+            return Status::NotFound;
+        }
+        holdAt(at.player, seconds);
+        return {};
+    }
+    if (playsMachine(*pose))
+    {
+        StatePlay& state = pose->machine.current;
+        state.phase = state.duration > 0 ? std::clamp(seconds / state.duration, 0.0f, 1.0f) : 0.0f;
+        state.fresh = false;
+        pose->machine.previous = StatePlay{};
+        pose->machine.fadeDuration = 0;
+        return {};
+    }
+    if (isNone(pose->base.clip))
+    {
+        return Status::NotFound;
+    }
+    holdAt(pose->base, seconds);
+    return {};
+}
+
+float timeOf(ecs::World& world, ecs::Entity entity, int32_t layer)
+{
+    if (layer >= static_cast<int32_t>(maxLayers) || layer < -1)
+    {
+        return 0;
+    }
+    Pose* pose = currentPose(world, entity);
+    if (pose == nullptr)
+    {
+        return 0;
+    }
+    if (layer >= 0)
+    {
+        return pose->layers[layer].active ? pose->layers[layer].player.time : 0.0f;
+    }
+    if (playsMachine(*pose))
+    {
+        return pose->machine.current.phase * pose->machine.current.duration;
+    }
+    return pose->base.time;
+}
+
 Result<void> setLayer(ecs::World& world, ecs::Entity entity, uint32_t index, LayerDesc desc,
                       std::span<const MaskEntry> mask)
 {

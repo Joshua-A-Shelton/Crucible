@@ -673,6 +673,18 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "SceneApiChecks: all [0-9]+ checks passed")
 
+    # Preview viewports checking themselves (ADR 0125): the Walker in a
+    # panel's preview world of its own, animating on its clock, held and
+    # scrubbed; a sprite in 2D; the world freed with the panel.
+    add_test(NAME launcher.jit.previews
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
+            --game-arg "warm-project=${walkerWarm}/Walker.crproject"
+            --game-arg "check-previews=${CMAKE_CURRENT_BINARY_DIR}"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/previews-settings.json")
+    set_tests_properties(launcher.jit.previews PROPERTIES LABELS "integration;gpu" TIMEOUT 600
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "PreviewChecks: all [0-9]+ checks passed")
+
     # Plugins checking themselves (ADR 0118): on a copy of the Walker's
     # project, a source plugin built, loaded, run, and reloaded with the
     # game, packaged without its editor code, and built to share; a second
@@ -798,6 +810,7 @@ if(CRUCIBLE_BUILD_TESTS)
         launcher.jit.open-with
         launcher.jit.viewport-tools
         launcher.jit.scene-api
+        launcher.jit.previews
         samples.walker-package
         samples.walker-package-shipping
         APPEND PROPERTY FIXTURES_REQUIRED walker-warm)

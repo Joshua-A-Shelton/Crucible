@@ -145,3 +145,27 @@ TEST_CASE("Layers past the last are refused")
     CHECK(setLayer(*walker.world, walker.entity, 0, layer(9, 1.0f), {}).status() == Status::NotFound);
     CHECK(clearLayer(*walker.world, walker.entity, maxLayers, 0).status() == Status::NotFound);
 }
+
+TEST_CASE("Scrubbing holds a source at a moment and reads it back")
+{
+    const Reference reference;
+    const Clip walk = reference.clip(0), idle = reference.clip(1);
+    Character walker;
+    walker.step(0.2f);
+    // The base, moved on to 0.6 s: posed there, read back there.
+    REQUIRE(setTime(*walker.world, walker.entity, -1, 0.6f));
+    walker.step(0.0f);
+    CHECK(timeOf(*walker.world, walker.entity, -1) == doctest::Approx(0.6f));
+    CHECK(worstBone(walker, reference, reference.sample(walk, 0.6f)) < 1e-4f);
+    // A full override layer, moved back to 0.1 s, over it.
+    REQUIRE(setLayer(*walker.world, walker.entity, 0, layer(3, 1.0f), {}));
+    walker.step(0.4f);
+    REQUIRE(setTime(*walker.world, walker.entity, 0, 0.1f));
+    walker.step(0.0f);
+    CHECK(timeOf(*walker.world, walker.entity, 0) == doctest::Approx(0.1f));
+    CHECK(worstBone(walker, reference, reference.sample(idle, 0.1f)) < 1e-4f);
+    // A layer not playing, or past the last, isn't there to move.
+    CHECK(setTime(*walker.world, walker.entity, 1, 0.5f).status() == Status::NotFound);
+    CHECK(setTime(*walker.world, walker.entity, static_cast<int32_t>(maxLayers), 0.5f).status() == Status::NotFound);
+    CHECK(timeOf(*walker.world, walker.entity, 1) == 0.0f);
+}

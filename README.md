@@ -236,6 +236,8 @@ Longer explanations of decisions, written to be reread:
   loading them once, and tests that see more than the code they test.
 - [Icons and tooltips](docs/learning/icons-and-tooltips.md) (ADR 0124):
   icon fonts, when a tooltip shows and hides, and where a brush is held.
+- [Preview worlds](docs/learning/preview-worlds.md) (ADR 0125): several
+  worlds, systems and clocks, scrubbing, and change tracking.
 - [Up-to-date builds](docs/learning/up-to-date-builds.md) (ADR 0110): file
   times versus content hashes, what makes a build stamp trustworthy, and
   why copies need one.

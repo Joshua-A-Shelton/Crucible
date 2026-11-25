@@ -232,6 +232,7 @@ internal sealed partial class Shell
     // and shown if it was.
     private void Replace(EditorPanel old, EditorPanel made)
     {
+        DisposePreviewsIn(old);
         _open[old.Id] = made;
         if (old.Group is not { } group)
         {

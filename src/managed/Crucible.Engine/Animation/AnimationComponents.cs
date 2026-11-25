@@ -46,6 +46,19 @@ public partial struct Animator
     public static void ClearLayer(World world, Entity entity, int layer, float fadeSeconds = 0) =>
         Api.ClearLayer(world.Live, entity, (uint)layer, fadeSeconds);
 
+    /// <summary>
+    /// Scrubbing (ADR 0125): moves a source to a moment, in seconds from its
+    /// start, held between 0 and its length, its fade finished and no events
+    /// fired for the jump. <paramref name="layer"/> is -1 for the base (its
+    /// clip, or the state machine's current state) or a layer (0 to 7).
+    /// Throws if it isn't playing.
+    /// </summary>
+    public static void SetTime(World world, Entity entity, int layer, float seconds) =>
+        Api.SetTime(world.Live, entity, layer, seconds);
+
+    /// <summary>Where a source is, in seconds from its start (-1 the base, or a layer); 0 if it isn't playing.</summary>
+    public static float TimeOf(World world, Entity entity, int layer) => Api.TimeOf(world.Live, entity, layer);
+
     /// <summary>A bone of the entity's skeleton by name, or -1.</summary>
     public static int FindBone(World world, Entity entity, string name) =>
         Api.FindBone(world.Live, entity, name);

@@ -117,6 +117,18 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<void> setLayer(ecs::World& world, ecs::En
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<void> clearLayer(ecs::World& world, ecs::Entity entity, uint32_t layer,
                                                         float fadeSeconds);
 
+// Scrubbing (ADR 0125): a source moved to a moment, in seconds from its
+// start, held there between 0 and its length; any fade on it is finished
+// and no events fire for the jump. `layer` is -1 for the base (its clip, or
+// the state machine's current state, by its phase) or a layer's index.
+// NotFound for an entity without an Animator, a layer past maxLayers, or a
+// source not playing.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<void> setTime(ecs::World& world, ecs::Entity entity, int32_t layer,
+                                                     float seconds);
+// Where a source is, in seconds from its start (as setTime takes it); 0
+// for one not playing.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE float timeOf(ecs::World& world, ecs::Entity entity, int32_t layer);
+
 // --- State machines (ADR 0081) ---------------------------------------------
 
 // Sets a parameter of the entity's state machine by name: a Float, a Bool,
