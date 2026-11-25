@@ -1477,11 +1477,43 @@ each walk-through are decided with the owner at its start.
 
 ## After the review: the editor's look
 
-**Status:** Next (owner, 2026-11-25). A pass over the editor focused on
-making it look nicer. Steps decided with the owner at its start. Findings
-from the review that fit it may be pulled in (findings.md: the UI's
-descendant selectors and composition tests, the Add Component dialog's
-polish, among others), each marked in the findings when it is.
+**Status:** In progress (started 2026-11-25). A pass over the editor
+focused on making it look nicer, with an identity of its own.
+
+Decided by the owner (2026-11-25):
+
+- **Identity:** "Forge": neutral charcoal greys (panels #1e1e1e) with a
+  molten orange accent, more saturated than the first mockup (start at
+  #ff7418, tuned by hand once it's in the editor). Noto Sans kept.
+- **Compact:** 13px text, about 22px rows, tighter padding.
+- **Dividers, not cards:** flat panels, hairlines between components and
+  sections. Medium corners (4 to 6px).
+- **The theme as a file:** Editor.crstyle beside the editor (like its
+  fonts), read at start and again whenever it changes, so colors tune
+  live. Dark only.
+- **Tokens in .crstyle, for games too:** a table of named values that
+  styles refer to, readable from C# so custom drawing uses the same
+  colors.
+- **Icons from an attribute:** components name a Lucide glyph (C# and C++);
+  an entity's row shows its main component's.
+- **Thumbnails rendered and cached:** images shown as themselves; models,
+  prefabs, and materials rendered once offscreen and cached, redone on
+  reimport; other kinds an icon each.
+- **Pulled in from the review:** descendant selectors, composition tests,
+  Add Component's polish, the M7 small fixes.
+
+Steps, each tried by hand:
+
+1. **Tokens, descendant selectors, and the theme file:** the palette,
+   density, dividers, and corners.
+2. **Layout and clipping:** play controls into the menu bar's row; text
+   ending in an ellipsis instead of wrapping mid-word or being cut off;
+   the M7 fixes.
+3. **Icons:** the attribute, hierarchy rows, inspector headers, and Add
+   Component with its polish.
+4. **Asset thumbnails.**
+
+Composition tests are added in each step.
 
 ## After the editor's look: the review's findings
 
