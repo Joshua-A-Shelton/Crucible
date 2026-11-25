@@ -1830,29 +1830,29 @@ drafted after the owner tried it by hand (2026-11-24):
 
 ## Custom inspectors (2026-11-24, ADR 0126)
 
-Names proposed before building (approved to build with, 2026-11-24) and
-added while building; all placeholders (`*`) until the owner has tried it:
+Names proposed before building and added while building, settled as
+drafted after the owner tried it by hand (2026-11-25):
 
 | Name | What it names | What it is |
 |---|---|---|
-| ADR 0126 "Custom inspectors"* | Decision record | Editor extensions step 9 |
-| `editor.Inspector`* (`EditorInspector`*): `AddComponentDrawer<T>`*, `AddFieldDrawer<T>`*, `AddDrawer<T>(name)`* | Extension API | Registering drawers |
-| `[Drawer("name")]`* (`DrawerAttribute`*), `SerializedField.Drawer`* | Attribute, field table | A field drawn by a named drawer |
-| `Drawer<T>`* (`Build`*, `Update`*) | Abstract class | A custom inspector |
-| `DrawerContext<T>`* (`Value`*, `Set`*, `BeginChange`*, `EndChange`*, `Default(field)`*, `IsOverridden(field)`*, `Entity`*, `Editor`*, `Label`*) | Class | What a drawer draws and changes |
-| `ColliderDrawer`*, `Collider2DDrawer`*, and added while building `ComponentSection.HasDrawer`*, `FieldEditor.HasDrawer`*, `Shell.Drawers.cs`*, `DrawerHost`*, `DrawerCodecs`* | Editor | Its own drawers; internals |
-| `DrawerChecks`*, CTest `launcher.jit.drawers`*, game arg `check-drawers`*, test folder `drawers-project`* | Tests | Drawers checking themselves |
-| docs/learning/custom-inspectors.md* | Learning note | Drawers, defaults, typed values |
+| ADR 0126 "Custom inspectors" | Decision record | Editor extensions step 9 |
+| `editor.Inspector` (`EditorInspector`): `AddComponentDrawer<T>`, `AddFieldDrawer<T>`, `AddDrawer<T>(name)` | Extension API | Registering drawers |
+| `[Drawer("name")]` (`DrawerAttribute`), `SerializedField.Drawer` | Attribute, field table | A field drawn by a named drawer |
+| `Drawer<T>` (`Build`, `Update`) | Abstract class | A custom inspector |
+| `DrawerContext<T>` (`Value`, `Set`, `BeginChange`, `EndChange`, `Default(field)`, `IsOverridden(field)`, `Entity`, `Editor`, `Label`) | Class | What a drawer draws and changes |
+| `ColliderDrawer`, `Collider2DDrawer`, and added while building `ComponentSection.HasDrawer`, `FieldEditor.HasDrawer`, `Shell.Drawers.cs`, `DrawerHost`, `DrawerCodecs` | Editor | Its own drawers; internals |
+| `DrawerChecks`, CTest `launcher.jit.drawers`, game arg `check-drawers`, test folder `drawers-project` | Tests | Drawers checking themselves |
+| docs/learning/custom-inspectors.md | Learning note | Drawers, defaults, typed values |
 
 ## Choosing components (2026-11-25, ADR 0127)
 
-Names proposed before building (approved to build with, 2026-11-25) and
-added while building; all placeholders (`*`) until the owner has tried it:
+Names proposed before building and added while building, settled as
+drafted after the owner tried it by hand (2026-11-25):
 
 | Name | What it names | What it is |
 |---|---|---|
-| ADR 0127 "Choosing components"* | Decision record | Add Component's dialog, and scrolling menus |
-| `System.ComponentModel`'s `[Category]`, `[Description]` on components; the categories Scene*, Rendering*, Lights*, Physics*, Physics 2D*, Animation*, Audio*, 2D*, and a game's assembly name | Attributes, groups | Where a component is listed, and what it says |
-| `ComponentPicker`* (`Search`*, `List`*, `Shown`*, `Choice`*, `Pick`*, `Picked`*), and added while building `InspectorPanel.AddButton`*, `Picker`*, the capture `inspector.add-component.png`* | Editor dialog | Add Component |
-| `Popup.Room`* (internal) | UI library | The room a popup is measured against |
-| docs/learning/choosing-components.md* | Learning note | Long lists, search, groups |
+| ADR 0127 "Choosing components" | Decision record | Add Component's dialog, and scrolling menus |
+| `System.ComponentModel`'s `[Category]`, `[Description]` on components; the categories Scene, Rendering, Lights, Physics, Physics 2D, Animation, Audio, 2D, and a game's assembly name | Attributes, groups | Where a component is listed, and what it says |
+| `ComponentPicker` (`Search`, `List`, `Shown`, `Choice`, `Pick`, `Picked`), and added while building `InspectorPanel.AddButton`, `Picker`, the capture `inspector.add-component.png` | Editor dialog | Add Component |
+| `Popup.Room` (internal) | UI library | The room a popup is measured against |
+| docs/learning/choosing-components.md | Learning note | Long lists, search, groups |

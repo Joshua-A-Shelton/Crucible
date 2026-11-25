@@ -1,7 +1,8 @@
 # 0126 — Custom inspectors
 
-**Status:** Accepted (2026-11-24); step 9 of editor extensions. Names
-marked `*` in docs/naming.md are placeholders until the owner has tried it.
+**Status:** Accepted (2026-11-24); step 9 of editor extensions, tried by
+hand by the owner. Names settled by the owner as drafted (2026-11-25;
+docs/naming.md).
 
 ## Context
 
@@ -26,33 +27,33 @@ drawers; left.
 
 Decided by the owner (2026-11-24):
 
-1. **All three targets.** `editor.Inspector`* (`EditorInspector`*):
-   `AddComponentDrawer<T>(create)`* draws a component's whole section
-   body; `AddFieldDrawer<T>(create)`* every field of a `[Serialized]` type,
+1. **All three targets.** `editor.Inspector` (`EditorInspector`):
+   `AddComponentDrawer<T>(create)` draws a component's whole section
+   body; `AddFieldDrawer<T>(create)` every field of a `[Serialized]` type,
    wherever it appears (matched by the type's generated field table);
-   `AddDrawer<T>(name, create)`* the fields marked `[Drawer("name")]`*,
-   which the generator puts in the field table (`SerializedField.Drawer`*).
+   `AddDrawer<T>(name, create)` the fields marked `[Drawer("name")]`,
+   which the generator puts in the field table (`SerializedField.Drawer`).
    The last registered wins; each is taken out when its extension stops,
    and the Inspector is made again when drawers change, so a reloaded
    extension's drawers replace the old ones and the old code unloads.
-2. **The drawer builds; the generated editors on call.** `Drawer<T>`*
-   builds its UI once (`Build(context)`*) and follows the value each frame
-   (`Update(context)`*). `DrawerContext<T>`*`.Default(field)`* gives the
+2. **The drawer builds; the generated editors on call.** `Drawer<T>`
+   builds its UI once (`Build(context)`) and follows the value each frame
+   (`Update(context)`). `DrawerContext<T>.Default(field)` gives the
    generated editor for any of its fields, placed wherever the drawer puts
    it and kept up to date there (a field type's or a marked field's own
    drawer included).
-3. **Typed, with undo.** `Value`* is the value as its C# type, read again
-   each frame; `Set(value, title)`* is one undo step, and
-   `BeginChange(title)`*/`EndChange()`* make several one (a drag).
-   `IsOverridden(field)`* says whether a prefab instance's field (or, with
-   none, the whole component) differs from the prefab's; `Entity`*,
-   `Editor`*, and `Label`* the rest. T is a component or `[Serialized]` type
+3. **Typed, with undo.** `Value` is the value as its C# type, read again
+   each frame; `Set(value, title)` is one undo step, and
+   `BeginChange(title)`/`EndChange()` make several one (a drag).
+   `IsOverridden(field)` says whether a prefab instance's field (or, with
+   none, the whole component) differs from the prefab's; `Entity`,
+   `Editor`, and `Label` the rest. T is a component or `[Serialized]` type
    (through the generated serializer), or for a marked field a plain value:
    a number, a bool, a string, a vector or quaternion, an asset ID.
 4. **The editor's own special cases moved onto drawers**, registered
-   through the same API: `ColliderDrawer`* (the generated fields with the
+   through the same API: `ColliderDrawer` (the generated fields with the
    notice under the model, its fields marked while it shows) and
-   `Collider2DDrawer`* (Edit Points under the Chain).
+   `Collider2DDrawer` (Edit Points under the Chain).
 
 ## Consequences
 
@@ -61,7 +62,7 @@ Decided by the owner (2026-11-24):
 - The editor's drawers still read some of the editor's insides (the
   database's model contents, the chain editing state); the drawer API
   itself is public.
-- `DrawerChecks`* (CTest `launcher.jit.drawers`*) builds game code with a
+- `DrawerChecks` (CTest `launcher.jit.drawers`) builds game code with a
   Stats component holding a DamageRange and a `[Drawer("Percent")]`
   float, and editor code drawing each: the section by its drawer, the
   generated editors placed, the field type's and the marked field's

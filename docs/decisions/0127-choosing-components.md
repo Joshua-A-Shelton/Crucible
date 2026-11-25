@@ -1,8 +1,8 @@
 # 0127 — Choosing components
 
 **Status:** Accepted (2026-11-25); found by the owner while trying step 9
-of editor extensions. Names marked `*` in docs/naming.md are placeholders
-until the owner has tried it.
+of editor extensions, tried by hand by the owner. Names settled by the
+owner as drafted (2026-11-25; docs/naming.md).
 
 ## Context
 
@@ -22,7 +22,7 @@ don't fit; leave them.
 
 Decided by the owner (2026-11-25):
 
-1. **A dialog**, `ComponentPicker`*, over the main window: a search field
+1. **A dialog**, `ComponentPicker`, over the main window: a search field
    (focused when it opens), a list of every saved component the entity
    hasn't, with Cancel. Typing filters across the groups by name,
    category, and description; Down moves into the list; a click or Enter
