@@ -1,10 +1,11 @@
 using System.Numerics;
 using Crucible.Assets;
 using Crucible.Assets.Importers;
+using Crucible.Editor;
 using Crucible.Render;
 using Crucible.UI;
 
-namespace Crucible.Editor;
+namespace Crucible.Tilemaps.Editor;
 
 /// <summary>
 /// New Tileset (ADR 0112): the one way a tileset is made. An image chosen
@@ -17,7 +18,7 @@ namespace Crucible.Editor;
 /// </summary>
 public sealed class TilesetDialog : Popup
 {
-    private readonly Shell _shell;
+    private readonly MapMode _maps;
     private readonly AssetId _editing;
     private readonly ComboBox _image = new() { MinWidth = 260 };
     private readonly NumberField _width = Whole(1), _height = Whole(1), _margin = Whole(0), _spacing = Whole(0);
@@ -29,9 +30,9 @@ public sealed class TilesetDialog : Popup
     private AssetId _texture;
     private bool _answered;
 
-    internal TilesetDialog(Shell shell, AssetId texture, AssetId editing)
+    internal TilesetDialog(MapMode maps, AssetId texture, AssetId editing)
     {
-        _shell = shell;
+        _maps = maps;
         _editing = editing;
         IsModal = true;
         _note.Classes.Add("hint");
@@ -42,12 +43,12 @@ public sealed class TilesetDialog : Popup
         _create.Clicked += _ => Answer(true);
         cancel.Clicked += _ => Answer(false);
 
-        TilesetData? edited = editing.IsNone ? null : shell.ReadTileset(editing);
-        foreach (AssetEntry entry in (shell.Database?.Assets ?? []).Where(entry => entry.Importer == "Texture").OrderBy(entry => entry.Path))
+        TilesetData? edited = editing.IsNone ? null : maps.ReadTileset(editing);
+        foreach (AssetEntry entry in (maps.Database?.Assets ?? []).Where(entry => entry.Importer == "Texture").OrderBy(entry => entry.Path))
         {
             _textures.Add(entry.Id);
         }
-        _image.Options = [.. _textures.Select(id => shell.Database?.Find(id)?.Path ?? "")];
+        _image.Options = [.. _textures.Select(id => maps.Database?.Find(id)?.Path ?? "")];
         _image.SelectionChanged += box =>
         {
             if (box.SelectedIndex >= 0 && box.SelectedIndex < _textures.Count)
@@ -77,7 +78,7 @@ public sealed class TilesetDialog : Popup
         buttons.Add(_create);
         StackPanel body = new() { Spacing = 10 };
         body.Classes.Add("dialog");
-        body.Add(new Label(editing.IsNone ? "New Tileset" : $"Tileset {shell.Database?.Find(editing)?.Path}") { Classes = { "heading" } });
+        body.Add(new Label(editing.IsNone ? "New Tileset" : $"Tileset {maps.Database?.Find(editing)?.Path}") { Classes = { "heading" } });
         if (editing.IsNone)
         {
             body.Add(image);
@@ -134,20 +135,20 @@ public sealed class TilesetDialog : Popup
         _image.SelectedIndex = _textures.IndexOf(texture);
         if (resetGrid)
         {
-            (int width, int height, int margin, int spacing) = _shell.GridFor(texture);
+            (int width, int height, int margin, int spacing) = _maps.GridFor(texture);
             _width.Value = width;
             _height.Value = height;
             _margin.Value = margin;
             _spacing.Value = spacing;
         }
         ReleaseTexture();
-        if (!texture.IsNone && _shell.Database?.ImportedFile(texture) is null)
+        if (!texture.IsNone && _maps.Database?.ImportedFile(texture) is null)
         {
             // An image that doesn't import as it's set (one whose size block
             // compression can't take): a sprite, which a tileset needs anyway.
-            _shell.MakeSprite(texture);
+            _maps.MakeSprite(texture);
         }
-        if (!texture.IsNone && _shell.Database?.ImportedFile(texture) is not null)
+        if (!texture.IsNone && _maps.Database?.ImportedFile(texture) is not null)
         {
             _handle = RenderAssets.AcquireTexture(texture);
         }
@@ -168,7 +169,7 @@ public sealed class TilesetDialog : Popup
         string? problem = Problem();
         _note.Text = problem ?? (_texture.IsNone
             ? ""
-            : _shell.Database?.ImportedFile(_texture) is null
+            : _maps.Database?.ImportedFile(_texture) is null
                 ? "The image doesn't import: see the Log."
                 : $"{Preview.Grid.Columns} by {Preview.Grid.Rows} tiles.");
         _create.State = (_create.State & ~UIState.Disabled) | (problem is null ? 0 : UIState.Disabled);
@@ -181,7 +182,7 @@ public sealed class TilesetDialog : Popup
         {
             return "Choose an image.";
         }
-        if (_editing.IsNone && _shell.InMapMode && _shell.Map.TileSize is var (width, height) &&
+        if (_editing.IsNone && _maps.InMapMode && _maps.Map.TileSize is var (width, height) &&
             (_grid.TileWidth != width || _grid.TileHeight != height))
         {
             return $"This map's tiles are {width}x{height}: a tileset added to it needs tiles that size.";
@@ -207,20 +208,20 @@ public sealed class TilesetDialog : Popup
         if (create && !_editing.IsNone)
         {
             (int width, int height, int margin, int spacing) = (_grid.TileWidth, _grid.TileHeight, _grid.Margin, _grid.Spacing);
-            if (_shell.EditTileset(_editing, "Tile Grid", t => (t.TileWidth, t.TileHeight, t.Margin, t.Spacing) = (width, height, margin, spacing)))
+            if (_maps.EditTileset(_editing, "Tile Grid", t => (t.TileWidth, t.TileHeight, t.Margin, t.Spacing) = (width, height, margin, spacing)))
             {
                 made = _editing;
             }
         }
         else if (create)
         {
-            _shell.History.BeginGroup("New Tileset");
-            made = _shell.CreateTileset(_texture, _grid.TileWidth, _grid.TileHeight, _grid.Margin, _grid.Spacing);
-            if (!made.IsNone && _shell.InMapMode)
+            _maps.History.BeginGroup("New Tileset");
+            made = _maps.CreateTileset(_texture, _grid.TileWidth, _grid.TileHeight, _grid.Margin, _grid.Spacing);
+            if (!made.IsNone && _maps.InMapMode)
             {
-                _shell.AddTilesetToMap(made);
+                _maps.AddTilesetToMap(made);
             }
-            _shell.History.EndGroup();
+            _maps.History.EndGroup();
         }
         Close();
         Done?.Invoke(this, made);

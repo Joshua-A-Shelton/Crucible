@@ -47,6 +47,8 @@ public sealed class EditorSystem : GameSystem
         Crucible.Log.Api.Pump();
         _shell.ProcessEvents(context.Events, context.PolledText);
         _shell.RenderFloating();
+        // Official plugins' checks (ADR 0123), as the editor's own are systems.
+        _shell.RunOfficialChecks();
     }
 
     public override void Stop(FrameContext context)

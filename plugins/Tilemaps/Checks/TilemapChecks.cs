@@ -4,6 +4,7 @@ using Crucible.Assets;
 using Crucible.Assets.Importers;
 using Crucible.Binary;
 using Crucible.Ecs;
+using Crucible.Editor;
 using Crucible.Loop;
 using Crucible.Physics2D;
 using Crucible.Platform;
@@ -12,7 +13,7 @@ using Crucible.Scenes;
 using Crucible.UI;
 using V = Crucible.Editor.ViewportChecks;
 
-namespace Crucible.Editor;
+namespace Crucible.Tilemaps.Editor;
 
 /// <summary>
 /// Map mode checking itself in the editor (ADR 0108, 0112), for CTest's
@@ -32,9 +33,11 @@ namespace Crucible.Editor;
 /// entity goes; Done brings the layout back; a map from before layers is
 /// given them; renaming, duplicating, and deleting the map entity rename,
 /// copy, and delete its file. The window is saved as tilemaps.png in map mode.
+/// Shipped beside the official plugin Tilemaps (ADR 0123), whose map mode it
+/// drives (<see cref="TilemapsExtension.Current"/>); the editor's own
+/// operations it runs through the shell.
 /// </summary>
-[System(Phases.RenderPrepare)]
-internal sealed class TilemapChecks : GameSystem
+internal sealed class TilemapChecks : OfficialPluginChecks
 {
     private const int ScancodeR = 21; // SDL's, for R
 
@@ -44,11 +47,10 @@ internal sealed class TilemapChecks : GameSystem
     private int _failures;
     private string _folder = "";
 
-    public override void Start(FrameContext context)
+    public override void Start(Shell shell, FrameContext context)
     {
         if (!context.GameArguments.TryGetValue("check-tilemaps", out string? folder))
         {
-            Enabled = false;
             return;
         }
         _folder = folder;
@@ -56,7 +58,7 @@ internal sealed class TilemapChecks : GameSystem
         _wait = 3;
     }
 
-    public override void Run(FrameContext context)
+    public override void Run(Shell shell, FrameContext context)
     {
         if (_script is null || _wait-- > 0)
         {
@@ -112,6 +114,8 @@ internal sealed class TilemapChecks : GameSystem
         // The default layout, not a last run's (its Sprite Sheet Editor, say).
         shell.RestoreLayout(null);
         yield return 3;
+        // The plugin started again for the copy: its map mode now.
+        MapMode maps = TilemapsExtension.Current ?? throw new InvalidOperationException("The Tilemaps plugin isn't running");
 
         AssetDatabase database = shell.Database!;
         AssetEntry ground = database.Find("Ground.tga")!, odd = database.Find("Odd.tga")!;
@@ -123,24 +127,24 @@ internal sealed class TilemapChecks : GameSystem
             : default;
 
         // Create > 2D > Tilemap: the map entity, its layer, its file, map mode.
-        Entity root = shell.CreateTilemapEntity(Entity.Null);
+        Entity root = maps.CreateTilemapEntity(Entity.Null);
         World world = shell.World;
         Entity layer1 = SceneIds.ChildrenOf(world, root).FirstOrDefault();
         AssetId map = world.IsAlive(root) && world.Has(root, Components.Of<TilemapLayers>()) ? world.Read<TilemapLayers>(root).Map : AssetId.None;
         Check(!map.IsNone && world.Has(root, Components.Of<Transform2D>()) && !world.Has(root, Components.Of<Tilemap>()),
             "Create > 2D > Tilemap makes a map entity naming its map");
         Check(!layer1.IsNull && world.Read<Tilemap>(layer1) is { Layer: 0 } first && first.Map == map &&
-              world.Read<Collider2D>(layer1).Shape == ShapeKind2D.Tilemap && shell.LabelOf(layer1) == "Layer 1",
+              world.Read<Collider2D>(layer1).Shape == ShapeKind2D.Tilemap && maps.LabelOf(layer1) == "Layer 1",
             "with one layer, Layer 1: a Tilemap of layer 0 and a Tilemap collider");
-        string folder = shell.TilemapFolder();
+        string folder = maps.TilemapFolder();
         // Numbered if the sample has one by that name already.
         Check(database.Find(map)?.Path is { } made && made.StartsWith($"{folder}/Tilemap", StringComparison.Ordinal) &&
               made.EndsWith(TilemapImporter.FileExtension, StringComparison.Ordinal),
             "its map file is made in the scene's tilemap folder, named after it", database.Find(map)?.Path ?? "none");
         yield return 3;
-        MapEditor editor = shell.Map;
-        MapWorkspace? tab = shell.MapTab;
-        Check(shell.InMapMode && editor.IsOpen && editor.Root.Value == root.Value && editor.ActiveLayer == 0,
+        MapEditor editor = maps.Map;
+        MapWorkspace? tab = maps.MapTab;
+        Check(maps.InMapMode && editor.IsOpen && editor.Root.Value == root.Value && editor.ActiveLayer == 0,
             "map mode opens on it, editing its layer");
         // A tab of its own (ADR 0119) beside the Viewport; the rest of the editor stays.
         Check(tab is not null && tab.Title == "Map: Tilemap" && tab.Group?.ActivePanel == tab &&
@@ -174,10 +178,10 @@ internal sealed class TilemapChecks : GameSystem
                 "and the editor's keys are the editor's again elsewhere");
             tab.Group?.Activate(tab);
         }
-        shell.SetMapTool(MapTool.Stamp);
+        maps.SetMapTool(MapTool.Stamp);
 
         // New Tileset with the odd sheet: made a sprite, so it imports and shows; a margin cuts it.
-        TilesetDialog dialog = shell.OpenTilesetDialog(odd.Id);
+        TilesetDialog dialog = maps.OpenTilesetDialog(odd.Id);
         Check(database.SettingsOf(odd.Id)?["Usage"]?.ToString() == "Sprite" && database.ImportedFile(odd.Id) is not null,
             "choosing a sheet that doesn't import makes it a sprite, which does");
         dialog.Fields.Margin.Value = 1;
@@ -195,7 +199,7 @@ internal sealed class TilemapChecks : GameSystem
 
         // A sheet dropped on the Palette: New Tileset with it; a tile size not the map's is refused.
         palette.DropAsset(ground);
-        TilesetDialog second = shell.LastTilesetDialog!;
+        TilesetDialog second = maps.LastTilesetDialog!;
         second.Fields.Width.Value = 8;
         second.Answer(create: true);
         Check(second.IsOpen && database.Find("Ground.crtileset") is null, "a tileset of another tile size can't be made for the map");
@@ -249,7 +253,7 @@ internal sealed class TilemapChecks : GameSystem
         // Stamp: a two-tile block from the Palette; undo, redo.
         palette.View.Selection = (0, 0, 1, 0);
         editor.SetBrush(1, 0, 0, 1, 0);
-        shell.SetMapTool(MapTool.Stamp);
+        maps.SetMapTool(MapTool.Stamp);
         Check(editor.CellSize == Vector2.One, "a 16-pixel tile at 16 pixels a meter is a meter");
         Check(editor.BeginStroke((0, 0)), "a stroke starts");
         editor.Stroke((0, 1));
@@ -276,19 +280,19 @@ internal sealed class TilemapChecks : GameSystem
 
         // Eraser; a Rectangle; Fill the empty row between painted ones.
         editor.SetBrush(1, 0, 0, 0, 0);
-        shell.SetMapTool(MapTool.Eraser);
+        maps.SetMapTool(MapTool.Eraser);
         editor.BeginStroke((1, 1));
         editor.EndStroke();
         yield return 2;
         Check(!Cells(copy, map, 0).ContainsKey((1, 1)), "the Eraser empties the cell");
-        shell.SetMapTool(MapTool.Rectangle);
+        maps.SetMapTool(MapTool.Rectangle);
         editor.BeginStroke((0, 3));
         editor.Stroke((1, 4));
         editor.EndStroke();
         yield return 2;
         Check(Cells(copy, map, 0).ContainsKey((0, 3)) && Cells(copy, map, 0).ContainsKey((1, 4)), "a Rectangle paints between its corners",
             string.Join(" ", Cells(copy, map, 0).Keys));
-        shell.SetMapTool(MapTool.Fill);
+        maps.SetMapTool(MapTool.Fill);
         editor.BeginStroke((0, 2));
         editor.EndStroke();
         yield return 2;
@@ -305,13 +309,13 @@ internal sealed class TilemapChecks : GameSystem
             "right-dragging over painted cells makes them the brush, Stamp the tool");
 
         // Select: a region copied, moved, deleted.
-        shell.SetMapTool(MapTool.Select);
+        maps.SetMapTool(MapTool.Select);
         editor.BeginStroke((0, 3));
         editor.Stroke((1, 4));
         editor.EndStroke();
         Check(editor.Region == (0, 3, 1, 4), "Select drags out a region");
         Check(editor.Copy() && editor.Brush.Count == 4 && editor.Tool == MapTool.Stamp, "copying the region makes it the brush");
-        shell.SetMapTool(MapTool.Select);
+        maps.SetMapTool(MapTool.Select);
         editor.Region = (0, 3, 1, 4);
         editor.BeginStroke((0, 3));
         editor.Stroke((4, 3));
@@ -331,14 +335,14 @@ internal sealed class TilemapChecks : GameSystem
         V.Save(shell.Main.Surface, Path.Combine(_folder, "tilemaps.png"));
 
         // Layers: added above, painted apart, renamed, moved, hidden, made to collide.
-        int added = shell.AddLayer();
+        int added = maps.AddLayer();
         yield return 2;
-        Entity layer2 = shell.LayerEntity(root, added) ?? Entity.Null;
-        Check(added == 1 && editor.ActiveLayer == 1 && !layer2.IsNull && shell.LabelOf(layer2) == "Layer 2" &&
+        Entity layer2 = maps.LayerEntity(root, added) ?? Entity.Null;
+        Check(added == 1 && editor.ActiveLayer == 1 && !layer2.IsNull && maps.LabelOf(layer2) == "Layer 2" &&
               !world.Has(layer2, Components.Of<Collider2D>()) && world.Read<Tilemap>(layer2).OrderInLayer > world.Read<Tilemap>(layer1).OrderInLayer,
             "Add Layer makes Layer 2 above, its entity drawn over the first, not colliding, painted on now");
         editor.SetBrush(1, 0, 0, 0, 0);
-        shell.SetMapTool(MapTool.Stamp);
+        maps.SetMapTool(MapTool.Stamp);
         editor.BeginStroke((8, 8));
         editor.EndStroke();
         yield return 2;
@@ -346,8 +350,8 @@ internal sealed class TilemapChecks : GameSystem
         Check(Imported(database, map).Layers == 2, "the imported map has both layers");
         layers.Rename(1, "Trees");
         yield return 2;
-        Check(shell.LabelOf(layer2) == "Trees" && ReadMap(copy, map).Layer(1)?.Name == "Trees", "renaming a layer renames its entity too");
-        shell.MoveLayer(1, -1);
+        Check(maps.LabelOf(layer2) == "Trees" && ReadMap(copy, map).Layer(1)?.Name == "Trees", "renaming a layer renames its entity too");
+        maps.MoveLayer(1, -1);
         yield return 2;
         Check(ReadMap(copy, map).Layers[0].Id == 1 && world.Read<Tilemap>(layer2).OrderInLayer < world.Read<Tilemap>(layer1).OrderInLayer &&
               SceneIds.SiblingIndex(world, layer2) == 0,
@@ -355,40 +359,40 @@ internal sealed class TilemapChecks : GameSystem
         shell.Undo();
         yield return 2;
         Check(ReadMap(copy, map).Layers[0].Id == 0 && SceneIds.SiblingIndex(world, layer2) == 1, "undo moves it back");
-        shell.SetLayerVisible(1, false);
-        Check(world.Read<Tilemap>(layer2).Tint.W == 0 && !shell.IsLayerVisible(1), "Visible off hides the layer");
-        shell.SetLayerCollides(1, true);
+        maps.SetLayerVisible(1, false);
+        Check(world.Read<Tilemap>(layer2).Tint.W == 0 && !maps.IsLayerVisible(1), "Visible off hides the layer");
+        maps.SetLayerCollides(1, true);
         yield return 3;
-        Check(world.Read<Collider2D>(layer2).Shape == ShapeKind2D.Tilemap && shell.LayerCollides(1), "Collides gives its entity a collider");
+        Check(world.Read<Collider2D>(layer2).Shape == ShapeKind2D.Tilemap && maps.LayerCollides(1), "Collides gives its entity a collider");
         editor.ShowCollision = true;
         Check(editor.CollidingLayers().Count() == 2, "both layers collide now, shown with Show Collision");
 
         // A layer's entity deleted outside map mode: offered back.
         shell.Delete(layer2);
         yield return 2;
-        Check(shell.MissingLayers().Select(l => l.Id).SequenceEqual([1]), "a layer whose entity is deleted is missing");
-        shell.RecreateLayerEntity(1);
+        Check(maps.MissingLayers().Select(l => l.Id).SequenceEqual([1]), "a layer whose entity is deleted is missing");
+        maps.RecreateLayerEntity(1);
         yield return 2;
-        Check(shell.LayerEntity(root, 1) is not null && !shell.MissingLayers().Any(), "Re-create gives it an entity again");
-        Check(shell.DeleteLayer(1) && ReadMap(copy, map).Layers.Count == 1 && shell.LayerEntity(root, 1) is null,
+        Check(maps.LayerEntity(root, 1) is not null && !maps.MissingLayers().Any(), "Re-create gives it an entity again");
+        Check(maps.DeleteLayer(1) && ReadMap(copy, map).Layers.Count == 1 && maps.LayerEntity(root, 1) is null,
             "Delete deletes the layer and its entity");
-        Check(!shell.DeleteLayer(0), "the last layer stays");
+        Check(!maps.DeleteLayer(0), "the last layer stays");
 
         // Done: its tab closes; the Viewport never moved.
         shell.CloseWorkspace(tab);
         yield return 2;
-        Check(!shell.InMapMode && !editor.IsOpen && shell.MapTab is null && Panel<HierarchyPanel>(shell) is not null,
+        Check(!maps.InMapMode && !editor.IsOpen && maps.MapTab is null && Panel<HierarchyPanel>(shell) is not null,
             "Done closes its tab and its map");
         Check(Panel<ViewportPanel>(shell) is { } normalView && normalView.View.Camera.Pitch == cameraBefore.Pitch &&
               normalView.View.Camera.Distance == cameraBefore.Distance,
             "and the Viewport's camera is as it was");
         // Its file double-clicked (ADR 0120): map mode on the entity using it.
-        Check(database.Find(map) is { } mapFile && shell.OpenAsset(mapFile) && shell.InMapMode && editor.Root.Value == root.Value,
+        Check(database.Find(map) is { } mapFile && shell.OpenAsset(mapFile) && maps.InMapMode && editor.Root.Value == root.Value,
             "double-clicking its file opens map mode on its entity");
-        shell.ExitMapMode();
+        maps.ExitMapMode();
         yield return 2;
-        Check(shell.EnterMapMode(layer1) && editor.Root.Value == root.Value, "Edit Map on a layer opens its map");
-        shell.ExitMapMode();
+        Check(maps.EnterMapMode(layer1) && editor.Root.Value == root.Value, "Edit Map on a layer opens its map");
+        maps.ExitMapMode();
         yield return 2;
 
         // A map from before layers: given them.
@@ -400,7 +404,7 @@ internal sealed class TilemapChecks : GameSystem
         // A map file nothing in the scene uses: said, not opened (ADR 0120).
         List<string> said = [];
         shell.Logged += said.Add;
-        Check(database.Find(oldPath) is { } oldFile && shell.OpenAsset(oldFile) && !shell.InMapMode &&
+        Check(database.Find(oldPath) is { } oldFile && shell.OpenAsset(oldFile) && !maps.InMapMode &&
               said.Any(line => line.StartsWith("No entity in ", StringComparison.Ordinal) && line.EndsWith(" uses Old.crtilemap", StringComparison.Ordinal)),
             "a map file no entity uses says so", string.Join(" | ", said));
         shell.Logged -= said.Add;
@@ -409,21 +413,21 @@ internal sealed class TilemapChecks : GameSystem
         world.Set(old, new SceneEntityId { Value = SceneIds.NewId() });
         world.Set(old, new Tilemap { Map = oldMap });
         world.Set(old, new Collider2D { Shape = ShapeKind2D.Tilemap });
-        Check(shell.EnterMapMode(old) && world.Has(old, Components.Of<TilemapLayers>()) && !world.Has(old, Components.Of<Tilemap>()) &&
+        Check(maps.EnterMapMode(old) && world.Has(old, Components.Of<TilemapLayers>()) && !world.Has(old, Components.Of<Tilemap>()) &&
               SceneIds.ChildrenOf(world, old).FirstOrDefault() is { IsNull: false } moved && world.Read<Tilemap>(moved).Map == oldMap &&
               world.Has(moved, Components.Of<Collider2D>()),
             "Edit Map on a map from before layers moves its Tilemap and collider to a child, its layer");
-        shell.ExitMapMode();
+        maps.ExitMapMode();
         shell.Undo();
         yield return 2;
         Check(world.Has(old, Components.Of<Tilemap>()) && !world.Has(old, Components.Of<TilemapLayers>()), "undo takes that back");
         world.Destroy(old);
 
         // The map entity renamed, duplicated, deleted: its file follows.
-        shell.Rename(root, "Ground");
+        shell.RenameWithChanges(root, "Ground");
         yield return 2;
         Check(database.Find(map)?.Path == $"{folder}/Ground.crtilemap", "renaming the map entity renames its file", database.Find(map)?.Path ?? "none");
-        Entity twin = shell.Duplicate(root);
+        Entity twin = shell.DuplicateWithChanges(root);
         yield return 2;
         AssetId twinMap = world.IsAlive(twin) ? world.Read<TilemapLayers>(twin).Map : AssetId.None;
         Entity twinLayer = world.IsAlive(twin) ? SceneIds.ChildrenOf(world, twin).FirstOrDefault() : Entity.Null;
@@ -434,7 +438,16 @@ internal sealed class TilemapChecks : GameSystem
         yield return 2;
         Check(database.Find(twinMap) is null, "undo takes the copy's file away too");
         ulong rootId = SceneIds.IdOf(world, root);
-        shell.Delete(root, deleteMaps: true);
+        // Through the editor's Delete, past the plugin's question (ADR 0122): Delete File.
+        shell.DeleteWithChanges(root);
+        yield return 2;
+        Dialog? question = shell.Main.Root.Popups.OfType<Dialog>().LastOrDefault();
+        Check(question is not null && !SceneIds.Find(world, rootId).IsNull, "deleting the map entity asks about its file first");
+        if (question is not null)
+        {
+            V.Click(shell.Main.Root, V.Center(HierarchyChecks.DialogButton(question, "Delete File")));
+        }
+        question = null;
         yield return 2;
         Check(database.Find(map) is null, "deleting the map entity with Delete File deletes its map");
         shell.Undo();

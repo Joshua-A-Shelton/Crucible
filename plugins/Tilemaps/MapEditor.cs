@@ -4,12 +4,13 @@ using Crucible.Assets;
 using Crucible.Assets.Importers;
 using Crucible.Binary;
 using Crucible.Ecs;
+using Crucible.Editor;
 using Crucible.Importers;
 using Crucible.Render;
 using Crucible.Render2D;
 using Crucible.UI;
 
-namespace Crucible.Editor;
+namespace Crucible.Tilemaps.Editor;
 
 /// <summary>Map mode's tools (ADR 0112), each with its key.</summary>
 public enum MapTool
@@ -53,7 +54,7 @@ internal sealed class MapEditor
     private static readonly Vector4 _ghost = new(1, 1, 1, 0.55f), _region = new(1f, 0.85f, 0.2f, 1);
     private static readonly Vector4 _collision = new(0.35f, 0.95f, 0.45f, 0.95f);
 
-    private readonly Shell _shell;
+    private readonly MapMode _maps;
     private string? _before; // the file before a stroke
     private (int X, int Y)? _last, _from;
     private (int X, int Y)? _moveFrom; // a Select drag moving the region from here
@@ -61,10 +62,10 @@ internal sealed class MapEditor
     private (int X, int Y)? _pickFrom;
     private List<List<Vector2>>? _outlines; // Show Collision's, by the colliding layers; null when stale
 
-    public MapEditor(Shell shell)
+    public MapEditor(MapMode maps)
     {
-        _shell = shell;
-        _shell.AssetsChanged += () =>
+        _maps = maps;
+        _maps.AssetsChanged += () =>
         {
             if (IsOpen && _before is null)
             {
@@ -84,7 +85,7 @@ internal sealed class MapEditor
     public List<MapTileset> Tilesets { get; } = [];
 
     /// <summary>A map is open in map mode.</summary>
-    public bool IsOpen => Root.Value != 0 && _shell.HasWorld && _shell.World.IsAlive(Root);
+    public bool IsOpen => Root.Value != 0 && _maps.HasWorld && _maps.World.IsAlive(Root);
 
     /// <summary>The layer the tools apply to, by its id.</summary>
     public int ActiveLayer { get; set; }
@@ -156,7 +157,7 @@ internal sealed class MapEditor
     }
 
     private string? FileOf(AssetId id) =>
-        _shell.Project is { } project && _shell.Database?.Find(id) is { } entry ? project.FileOf(entry.Path) : null;
+        _maps.Project is { } project && _maps.Database?.Find(id) is { } entry ? project.FileOf(entry.Path) : null;
 
     /// <summary>The map's file and its tilesets read again; false (said) if the map can't be read.</summary>
     public bool Read()
@@ -171,7 +172,7 @@ internal sealed class MapEditor
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or System.Text.Json.JsonException)
         {
-            _shell.Log($"Can't edit {Path.GetFileName(file)}: {exception.Message}");
+            _maps.Log($"Can't edit {Path.GetFileName(file)}: {exception.Message}");
             return false;
         }
         _outlines = null;
@@ -198,7 +199,7 @@ internal sealed class MapEditor
     // A tileset's file, grid, and texture; left empty (said) if they can't be read.
     private void ReadTileset(MapTileset tileset)
     {
-        tileset.Path = _shell.Database?.Find(tileset.Id)?.Path ?? "";
+        tileset.Path = _maps.Database?.Find(tileset.Id)?.Path ?? "";
         tileset.Columns = tileset.Count = 0;
         try
         {
@@ -214,14 +215,14 @@ internal sealed class MapEditor
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or System.Text.Json.JsonException)
         {
-            _shell.Log($"Can't read the tileset {tileset.Path}: {exception.Message}");
+            _maps.Log($"Can't read the tileset {tileset.Path}: {exception.Message}");
         }
     }
 
     /// <summary>A texture's size, from its imported file, and its pixels per unit, from its settings.</summary>
     internal (int Width, int Height, float PixelsPerUnit) TextureOf(AssetId texture)
     {
-        if (texture.IsNone || _shell.Database?.ImportedFile(texture) is not { } path)
+        if (texture.IsNone || _maps.Database?.ImportedFile(texture) is not { } path)
         {
             return (0, 0, 16);
         }
@@ -229,7 +230,7 @@ internal sealed class MapEditor
         {
             using ImportedFile file = ImportedFile.Open(path, TextureImporter.Kind, TextureImporter.KindVersion);
             TextureInfo info = MemoryMarshal.Read<TextureInfo>(file.Read(file.Find(TextureImporter.InfoSection)));
-            float pixelsPerUnit = _shell.Database.SettingsOf(texture)?["PixelsPerUnit"]?.GetValue<float>() ?? 16;
+            float pixelsPerUnit = _maps.Database.SettingsOf(texture)?["PixelsPerUnit"]?.GetValue<float>() ?? 16;
             return ((int)info.Width, (int)info.Height, pixelsPerUnit > 0 ? pixelsPerUnit : 16);
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException)
@@ -251,7 +252,7 @@ internal sealed class MapEditor
         }
         foreach (MapTileset tileset in Tilesets)
         {
-            if (tileset.Texture.Generation == 0 && !tileset.Data.Texture.IsNone && _shell.Database?.ImportedFile(tileset.Data.Texture) is not null)
+            if (tileset.Texture.Generation == 0 && !tileset.Data.Texture.IsNone && _maps.Database?.ImportedFile(tileset.Data.Texture) is not null)
             {
                 tileset.Texture = RenderAssets.AcquireTexture(tileset.Data.Texture);
                 if (tileset.Columns == 0)
@@ -302,7 +303,7 @@ internal sealed class MapEditor
         {
             return false;
         }
-        world = _shell.World.ComputeWorldTransform(Root);
+        world = _maps.World.ComputeWorldTransform(Root);
         return true;
     }
 
@@ -370,7 +371,7 @@ internal sealed class MapEditor
         }
         if (Tool is MapTool.Stamp or MapTool.Rectangle or MapTool.Fill && Brush.Count == 0)
         {
-            _shell.Status(Tilesets.Count == 0
+            _maps.Status(Tilesets.Count == 0
                 ? "Add a tileset first: the + tab in the Palette"
                 : "Choose a tile in the Palette first (or right-drag over painted tiles to pick them up)");
             return false;
@@ -471,12 +472,12 @@ internal sealed class MapEditor
     internal bool Commit(string before, string title)
     {
         string after = TilemapImporter.Format(Data);
-        if (after == before || _shell.Database?.Find(Map)?.Path is not { } path)
+        if (after == before || _maps.Database?.Find(Map)?.Path is not { } path)
         {
             return false;
         }
         Write(after);
-        _shell.PushFileEdit(title, path, before, after);
+        _maps.History.Push(new MapFileEdit(_maps, title, Map, path, before, after));
         return true;
     }
 
@@ -586,7 +587,7 @@ internal sealed class MapEditor
     {
         if (PaintedBounds() is not var (minX, minY, maxX, maxY))
         {
-            _shell.Status("Fill fills around painted tiles: paint some first, or drag out a Rectangle (R)");
+            _maps.Status("Fill fills around painted tiles: paint some first, or drag out a Rectangle (R)");
             return false;
         }
         (minX, minY, maxX, maxY) = (minX - 1, minY - 1, maxX + 1, maxY + 1);
@@ -733,7 +734,7 @@ internal sealed class MapEditor
     // The .crtilemap written, and imported at once so the map and its collision follow.
     private void Write(string text)
     {
-        if (FileOf(Map) is not { } file || !_shell.CanChangeFile(file))
+        if (FileOf(Map) is not { } file || _maps.AssetPathOf(Map) is not { } path || !_maps.Editor.Assets.CanWrite(path))
         {
             return;
         }
@@ -743,11 +744,11 @@ internal sealed class MapEditor
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            _shell.Log($"Can't save {Path.GetFileName(file)}: {exception.Message}");
+            _maps.Log($"Can't save {Path.GetFileName(file)}: {exception.Message}");
             return;
         }
         _outlines = null;
-        _shell.Reimport(Map, quiet: true);
+        _maps.Editor.Assets.Reimport(Map);
     }
 
     /// <summary>A change to the map other than its cells (its tilesets, its layers): made to the data, saved, one undo step.</summary>
@@ -914,8 +915,8 @@ internal sealed class MapEditor
 
     /// <summary>The layers that collide: those whose entity has a Collider2D.</summary>
     internal IEnumerable<TileLayer> CollidingLayers() =>
-        Data.Layers.Where(layer => _shell.LayerEntity(Root, layer.Id) is { } entity &&
-                                   _shell.World.Has(entity, Components.Of<Crucible.Physics2D.Collider2D>()));
+        Data.Layers.Where(layer => _maps.LayerEntity(Root, layer.Id) is { } entity &&
+                                   _maps.World.Has(entity, Components.Of<Crucible.Physics2D.Collider2D>()));
 
     // The colliding layers' outlines, as their maps' import merges them.
     private void DrawCollision(Canvas canvas, EditorCamera camera, Vector2 size, Matrix4x4 world)

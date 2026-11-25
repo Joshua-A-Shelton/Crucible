@@ -242,6 +242,21 @@ public sealed class EditorScene
     /// <summary>The world the editor shows (the playing one while playing); null before there's one.</summary>
     public World? World => _shell.HasWorld ? _shell.World : null;
 
+    /// <summary>The open scene's file (its full path); null while it isn't saved (ADR 0123).</summary>
+    public string? Path => _shell.ScenePath;
+
+    /// <summary>
+    /// An editor opening entities with component <typeparamref name="T"/>
+    /// (ADR 0120, 0123): the Inspector's Open button on it and "Open in …"
+    /// call <paramref name="open"/> with the entity.
+    /// </summary>
+    public void AddOpener<T>(string id, string title, Action<Entity> open)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(id);
+        ArgumentNullException.ThrowIfNull(open);
+        _shell.AddComponentOpener<T>(id, title ?? id, entity => _shell.GuardExtension(_context, title ?? id, () => open(entity)), _context);
+    }
+
     /// <summary>Sets a component the entity has; false if it hasn't, or the component isn't saved.</summary>
     public bool Edit<T>(Entity entity, in T value, string title) where T : unmanaged =>
         _shell.SetExtensionComponent(entity, value, title, adding: false);
@@ -339,8 +354,11 @@ public sealed class EditorAssets
     {
         _shell = shell;
         _context = context;
+        Action changed = () => _shell.GuardExtension(context, "Assets.Changed", RaiseChanged);
+        shell.AssetsChanged += changed;
         context.OnStop(() =>
         {
+            shell.AssetsChanged -= changed;
             foreach (Crucible.Render.TextureHandle texture in _textures.Values)
             {
                 Crucible.Render.RenderAssets.ReleaseTexture(texture);
@@ -389,5 +407,66 @@ public sealed class EditorAssets
     {
         ArgumentNullException.ThrowIfNull(text);
         return _shell.WriteExtensionFile(path, System.Text.Encoding.UTF8.GetBytes(text), title);
+    }
+
+    /// <summary>Deletes a file under the Assets folder as one undo step that writes it back (ADR 0123); true if it's gone.</summary>
+    public bool Delete(string path, string title) => _shell.WriteExtensionFile(path, null, title);
+
+    /// <summary>
+    /// Whether a file there can be written (ADR 0123): under the game's or a
+    /// source plugin's Assets, not a compiled plugin's; says why in the log if not.
+    /// </summary>
+    public bool CanWrite(string path) => _shell.CanWriteExtensionFile(path);
+
+    /// <summary>The open project (its folders, plugins, and asset paths' files); null with none open.</summary>
+    public Project? Project => _shell.Project;
+
+    /// <summary>
+    /// Saves an asset's import settings and imports it with them, as the
+    /// Inspector's Apply does (ADR 0123): a texture made a sprite, say.
+    /// </summary>
+    public void ApplySettings(AssetId asset, System.Text.Json.Nodes.JsonObject settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        _shell.ApplyImportSettings(asset, settings, openSheet: false);
+    }
+
+    /// <summary>
+    /// Imports an asset again at once, quietly, after its file was written
+    /// outside <see cref="Write"/> (a map saved as it's painted, ADR 0123).
+    /// </summary>
+    public void Reimport(AssetId asset) => _shell.Reimport(asset, quiet: true);
+
+    /// <summary>Raised when assets are imported, added, moved, or removed (ADR 0123).</summary>
+    public event Action? Changed;
+
+    internal void RaiseChanged() => Changed?.Invoke();
+
+    /// <summary>
+    /// An editor opening assets of these kinds (ADR 0120, 0123): importers'
+    /// names ("Tileset") or file extensions (".crtilemap"). Double-clicking
+    /// one in Assets, or Open With, calls <paramref name="open"/> with it.
+    /// </summary>
+    public void AddOpener(string id, string title, IReadOnlyList<string> kinds, Action<AssetEntry> open)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(id);
+        ArgumentNullException.ThrowIfNull(kinds);
+        ArgumentNullException.ThrowIfNull(open);
+        foreach (string kind in kinds.Where(kind => kind.Length > 0))
+        {
+            _shell.AddAssetOpener(id, title ?? id, kind, asset => _shell.GuardExtension(_context, title ?? id, () => open(asset)), _context);
+        }
+    }
+
+    /// <summary>
+    /// An item in the Assets panel's right-click Create menu, at a path
+    /// ("Tileset…"), given the folder new assets go in and the asset clicked
+    /// (null for a folder) (ADR 0123).
+    /// </summary>
+    public void AddCreate(string path, Action<string, AssetEntry?> create)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(path);
+        ArgumentNullException.ThrowIfNull(create);
+        _shell.AddAssetCreateItem(path, create, _context);
     }
 }

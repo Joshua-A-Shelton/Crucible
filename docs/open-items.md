@@ -61,6 +61,15 @@ is, and record which version fixed it.
 
 ## Revisit (owner's notes)
 
+- Other systems as official plugins (owner, 2026-11-24): go over the
+  engine's systems that could follow Tilemaps (ADR 0123) as swappable
+  official plugins, used by default and removable per project.
+  Tilemaps' own runtime (drawing, collision, components) and importers
+  join it once plugins can carry native code. → 0123
+- A Plugins window (ADR 0123): the project's official plugins are listed
+  in its file by hand for now; a window to see and change them (and the
+  project's own) would replace that. → 0123
+
 - Viewport tool keys (owner's try of ADR 0121, 2026-11-24): W, E, R, P
   and extensions' tool keys work only while a scene view has focus, so
   after selecting in the Hierarchy they need a click in the view first.

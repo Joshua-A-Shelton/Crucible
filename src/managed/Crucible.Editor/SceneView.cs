@@ -63,8 +63,15 @@ public sealed class SceneView : UIElement
     {
     }
 
-    /// <summary>Map mode's view (ADR 0112, 0119): the map's tools and grid instead of handles and the floor's.</summary>
-    internal bool IsMapView { get; init; }
+    /// <summary>Whether it outlines the selection (ADR 0123): off for a view painting on something, as map mode's.</summary>
+    public bool ShowsOutlines { get; set; } = true;
+
+    /// <summary>
+    /// Whether the editor's tool keys (W, E, R, ...) choose its tool when no
+    /// tool takes them (ADR 0123): off for a workspace whose own commands use
+    /// those keys, as map mode's.
+    /// </summary>
+    public bool TakesToolKeys { get; set; } = true;
 
 
     // An asset dragged in (ADR 0071): placed under the pointer as it moves.
@@ -146,8 +153,8 @@ public sealed class SceneView : UIElement
             return;
         }
         Crucible.Render.Api.SetSurfaceCamera(_surface, Camera.Position, Camera.Rotation, Camera.Camera);
-        // Map mode (ADR 0112) draws the map's own grid instead of the floor's.
-        Crucible.Render.Api.SetSurfaceGrid(_surface, ShowsGrid && !IsMapView);
+        // A view drawing its own grid (map mode's, ADR 0112) turns the floor's off.
+        Crucible.Render.Api.SetSurfaceGrid(_surface, ShowsGrid);
         Crucible.Render.Api.SetSurfaceSelection(_surface, outlined);
         Stopwatch watch = Stopwatch.StartNew();
         Status status = Crucible.Render.Api.RenderFrame(_surface, world.Handle, _lastRun, 0.05f, 0.05f, 0.06f, 1);
@@ -397,7 +404,7 @@ public sealed class SceneView : UIElement
             InvalidateVisual();
             return;
         }
-        if (IsMapView || (e.Modifiers & (KeyModifiers.Ctrl | KeyModifiers.Alt | KeyModifiers.Gui)) != 0)
+        if (!TakesToolKeys || (e.Modifiers & (KeyModifiers.Ctrl | KeyModifiers.Alt | KeyModifiers.Gui)) != 0)
         {
             return;
         }

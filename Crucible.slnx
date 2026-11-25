@@ -4,6 +4,10 @@
     <Project Path="src/managed/Crucible.Editor/Crucible.Editor.csproj" />
     <Project Path="src/managed/Crucible.Engine/Crucible.Engine.csproj" />
   </Folder>
+  <Folder Name="/plugins/">
+    <Project Path="plugins/Tilemaps/Tilemaps.Editor.csproj" />
+    <Project Path="plugins/Tilemaps/Checks/Tilemaps.Editor.Checks.csproj" />
+  </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/Diorama/Crucible.Samples.Diorama.csproj" />
     <Project Path="samples/Metronome/Crucible.Samples.Metronome.csproj" />

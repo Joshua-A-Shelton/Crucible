@@ -1,3 +1,4 @@
+using Crucible.Assets;
 using Crucible.Ecs;
 using Crucible.Scenes;
 using Crucible.UI;
@@ -14,6 +15,7 @@ namespace Crucible.Editor;
 internal sealed partial class Shell
 {
     private readonly List<(string Path, Action<Entity> Create, EditorContext Owner)> _createItems = [];
+    private readonly List<(string Path, Action<string, AssetEntry?> Create, EditorContext Owner)> _assetCreateItems = [];
 
     // -----------------------------------------------------------------------
     // Extensions' own edits: no questions, no events
@@ -66,6 +68,41 @@ internal sealed partial class Shell
         owner.OnStop(() => _createItems.Remove(item));
     }
 
+    /// <summary>Runs an extension's Hierarchy Create item by its path (the checks); false if there's none.</summary>
+    internal bool RunCreateItem(string path, Entity parent)
+    {
+        foreach ((string at, Action<Entity> create, EditorContext owner) in _createItems.ToArray())
+        {
+            if (at == path)
+            {
+                Guard(owner, path, () => create(HasLive(parent) ? parent : Entity.Null));
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>Runs an extension's Assets Create item by its path (the checks); false if there's none.</summary>
+    internal bool RunAssetCreateItem(string path, string folder, AssetEntry? asset)
+    {
+        foreach ((string at, Action<string, AssetEntry?> create, EditorContext owner) in _assetCreateItems.ToArray())
+        {
+            if (at == path)
+            {
+                Guard(owner, path, () => create(folder, asset));
+                return true;
+            }
+        }
+        return false;
+    }
+
+    internal void AddAssetCreateItem(string path, Action<string, AssetEntry?> create, EditorContext owner)
+    {
+        (string, Action<string, AssetEntry?>, EditorContext) item = (path, create, owner);
+        _assetCreateItems.Add(item);
+        owner.OnStop(() => _assetCreateItems.Remove(item));
+    }
+
     /// <summary>
     /// Extensions' items in the Hierarchy's Create menu (a context menu or a
     /// submenu of it), by path, given the entity clicked.
@@ -74,25 +111,40 @@ internal sealed partial class Shell
     {
         foreach ((string path, Action<Entity> create, EditorContext owner) in _createItems)
         {
-            string[] parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            if (parts.Length == 0)
+            AddPathItem(menu, path, () => Guard(owner, path, () => create(HasLive(parent) ? parent : Entity.Null)));
+        }
+    }
+
+    /// <summary>Extensions' items in the Assets panel's Create menu (ADR 0123), given the folder and the asset clicked.</summary>
+    internal void AddAssetCreateItems(Menu menu, string folder, AssetEntry? asset)
+    {
+        foreach ((string path, Action<string, AssetEntry?> create, EditorContext owner) in _assetCreateItems)
+        {
+            AddPathItem(menu, path, () => Guard(owner, path, () => create(folder, asset)));
+        }
+    }
+
+    // An item at a path ("2D/Tilemap"), joining submenus already there.
+    private static void AddPathItem(Menu menu, string path, Action run)
+    {
+        string[] parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length == 0)
+        {
+            return;
+        }
+        Menu at = menu;
+        foreach (string part in parts[..^1])
+        {
+            if (at.Items.OfType<MenuItem>().FirstOrDefault(item => item.Submenu is not null && item.Title == part) is { } existing)
             {
+                at = existing.Submenu!;
                 continue;
             }
-            Menu at = menu;
-            foreach (string part in parts[..^1])
-            {
-                if (at.Items.OfType<MenuItem>().FirstOrDefault(item => item.Submenu is not null && item.Title == part) is { } existing)
-                {
-                    at = existing.Submenu!;
-                    continue;
-                }
-                Menu submenu = new();
-                at.Add(new MenuItem(part) { Submenu = submenu });
-                at = submenu;
-            }
-            at.Add(parts[^1], () => Guard(owner, path, () => create(HasLive(parent) ? parent : Entity.Null)));
+            Menu submenu = new();
+            at.Add(new MenuItem(part) { Submenu = submenu });
+            at = submenu;
         }
+        at.Add(parts[^1], run);
     }
 
     // -----------------------------------------------------------------------
@@ -151,7 +203,6 @@ internal sealed partial class Shell
             return;
         }
         SceneChange change = new([entity]);
-        AskAboutMapFiles(change, entity);
         RunChange(change, "Delete", scene => scene.RaiseDeleting(change), () =>
         {
             if (!HasLive(entity))
@@ -209,58 +260,5 @@ internal sealed partial class Shell
             Rename(entity, after);
             return scene => scene.RaiseRenamed(entity, before, after);
         });
-    }
-
-    // The editor's own question before a Delete (ADR 0112): map files only
-    // the deleted entities use go too, are kept, or the Delete is cancelled.
-    private void AskAboutMapFiles(SceneChange change, Entity entity)
-    {
-        List<string> own = [];
-        if (!SceneIds.IsInsideInstance(World, entity))
-        {
-            foreach (Entity under in SubtreeOf(entity))
-            {
-                if (OwnMapOf(under) is var (map, path) && !IsMapShared(map, under) && !own.Contains(path))
-                {
-                    own.Add(path);
-                }
-            }
-        }
-        if (own.Count == 0)
-        {
-            return;
-        }
-        if (_deleteMaps?.IsOpen == true)
-        {
-            change.Cancel(); // already asking about another
-            return;
-        }
-        SceneChangeHold hold = change.Hold();
-        string files = own.Count == 1 ? Path.GetFileName(own[0]) : $"its {own.Count} map files";
-        _deleteMaps = new Dialog($"Also delete {files}?", "Delete File", "Keep File", "Cancel");
-        _deleteMaps.Chosen += (_, chosen) =>
-        {
-            _deleteMaps = null;
-            if (chosen == 0)
-            {
-                change.Then(() =>
-                {
-                    foreach (string path in own)
-                    {
-                        WriteAssetFile(path, null);
-                    }
-                });
-                hold.Go();
-            }
-            else if (chosen == 1)
-            {
-                hold.Go();
-            }
-            else
-            {
-                hold.Cancel();
-            }
-        };
-        _deleteMaps.Open(Main.Root);
     }
 }

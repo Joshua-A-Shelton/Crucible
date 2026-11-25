@@ -3,7 +3,7 @@ using Crucible.Assets;
 namespace Crucible.Tests.Assets;
 
 // Plugins in a project (ADR 0118): read, ordered, refused with why, and
-// their assets' paths.
+// their assets' paths; and the official plugins beside the editor (ADR 0123).
 public class PluginTests
 {
     private sealed class Scratch : IDisposable
@@ -169,5 +169,73 @@ public class PluginTests
         await Assert.That(File.Exists(Path.Combine(dialogue, "Assets", "Lines", "Hello.txt" + Sidecar.Extension))).IsTrue();
         IReadOnlyList<ImportResult> results = database.ImportAll();
         await Assert.That(results.Single(result => result.Path == "Dialogue:Lines/Hello.txt").Outcome).IsEqualTo(ImportOutcome.Imported);
+    }
+
+    // An official plugins folder, as the editor's build makes beside it:
+    // each plugin a manifest (no Crucible version) and an editor assembly.
+    private sealed class OfficialFolder : IDisposable
+    {
+        public string Folder { get; } = Path.Combine(Path.GetTempPath(), "crucible-official-" + Guid.NewGuid().ToString("N"));
+
+        public void Add(string name)
+        {
+            string folder = Path.Combine(Folder, name);
+            Directory.CreateDirectory(folder);
+            File.WriteAllText(Path.Combine(folder, name + Plugin.Extension), $"{{ \"Name\": \"{name}\", \"Version\": \"0.1.0\", \"Uses\": [] }}");
+            File.WriteAllBytes(Path.Combine(folder, name + ".Editor.dll"), [0]);
+        }
+
+        public void Dispose() => Directory.Delete(Folder, recursive: true);
+    }
+
+    [Test]
+    public async Task OfficialPluginsAreAllUsedForStarAndOnlyThoseListedOtherwise()
+    {
+        using OfficialFolder official = new();
+        official.Add("Tilemaps");
+        official.Add("Particles");
+        List<string> problems = [];
+        IReadOnlyList<Plugin> all = OfficialPlugins.Read(official.Folder, [OfficialPlugins.All], problems);
+        await Assert.That(string.Join(", ", all.Select(plugin => plugin.Name))).IsEqualTo("Particles, Tilemaps");
+        await Assert.That(all.All(plugin => plugin is { IsOfficial: true, IsCompiled: true, HasEditorAssembly: true, HasCode: false })).IsTrue();
+        await Assert.That(string.Join(", ", OfficialPlugins.Read(official.Folder, ["Tilemaps"], problems).Select(plugin => plugin.Name)))
+            .IsEqualTo("Tilemaps");
+        await Assert.That(OfficialPlugins.Read(official.Folder, [], problems)).IsEmpty();
+        await Assert.That(problems).IsEmpty();
+        await Assert.That(OfficialPlugins.Read(official.Folder, ["Weather"], problems)).IsEmpty();
+        await Assert.That(problems).Contains("The project uses the official plugin Weather, which this editor doesn't have");
+        await Assert.That(OfficialPlugins.Read(null, [OfficialPlugins.All], problems)).IsEmpty();
+    }
+
+    [Test]
+    public async Task AProjectUsesEveryOfficialPluginUnlessItsFileListsThem()
+    {
+        using Scratch scratch = new();
+        await Assert.That(Project.Open(scratch.Project.ProjectFilePath).Official.Single()).IsEqualTo(OfficialPlugins.All);
+        // A file from before the list, without it: all of them too.
+        File.WriteAllText(scratch.Project.ProjectFilePath, "{ \"Name\": \"Game\" }");
+        await Assert.That(Project.Open(scratch.Project.ProjectFilePath).Official.Single()).IsEqualTo(OfficialPlugins.All);
+        File.WriteAllText(scratch.Project.ProjectFilePath, "{ \"Name\": \"Game\", \"Official\": [] }");
+        Project none = Project.Open(scratch.Project.ProjectFilePath);
+        await Assert.That(none.Official).IsEmpty();
+        // Saving the build settings keeps the list as it is.
+        none.SaveBuild(new BuildSettings());
+        await Assert.That(Project.Open(scratch.Project.ProjectFilePath).Official).IsEmpty();
+    }
+
+    [Test]
+    public async Task AProjectsPluginsMayUseOfficialOnesButNotTakeTheirNames()
+    {
+        using Scratch scratch = new();
+        using OfficialFolder official = new();
+        official.Add("Tilemaps");
+        scratch.Add("Tilemaps");
+        scratch.Add("Dungeons", uses: ["Tilemaps"]);
+        List<string> problems = [];
+        IReadOnlyList<Plugin> used = OfficialPlugins.Read(official.Folder, [OfficialPlugins.All], problems);
+        (IReadOnlyList<Plugin> plugins, IReadOnlyList<string> more) = ProjectPlugins.Read(scratch.Project.PluginsFolder, "Game", used);
+        await Assert.That(string.Join(", ", plugins.Select(plugin => $"{plugin.Name}{(plugin.IsOfficial ? " (official)" : "")}")))
+            .IsEqualTo("Tilemaps (official), Dungeons");
+        await Assert.That(more).Contains("Plugins/Tilemaps has the name of an official plugin; rename it");
     }
 }

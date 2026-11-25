@@ -226,8 +226,6 @@ public sealed class HierarchyPanel : EditorPanel
         Entity entity = node is { } value ? EntityOf(value) : Entity.Null;
         menu.Add("Create Empty", () => _shell.CreateEmpty(entity));
         Menu twoD = new();
-        twoD.Add("Tilemap", () => _shell.CreateTilemapEntity(entity));
-        twoD.AddSeparator();
         twoD.Add("Point Light", () => _shell.CreateLight2D(entity, Light2DKind.Point));
         twoD.Add("Spot Light", () => _shell.CreateLight2D(entity, Light2DKind.Spot));
         twoD.Add("Ambient Light", () => _shell.CreateLight2D(entity, Light2DKind.Ambient));

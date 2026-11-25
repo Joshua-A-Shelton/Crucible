@@ -13,6 +13,8 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Crucible.Editor.Tests" />
+    <!-- The official Tilemaps plugin's checks (ADR 0123); the plugin itself sees only the public API. -->
+    <InternalsVisibleTo Include="Tilemaps.Editor.Checks" />
   </ItemGroup>
 
   <ItemGroup>

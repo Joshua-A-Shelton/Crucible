@@ -188,12 +188,13 @@ public static class GameLoader
     /// <see cref="SharedAssemblies"/>; games find them the same way.
     /// </summary>
     [RequiresUnreferencedCode(JitOnly)]
-    public static LoadedPlugins LoadPlugins(IReadOnlyList<(string Assembly, string? Editor)> plugins)
+    public static LoadedPlugins LoadPlugins(IReadOnlyList<(string? Assembly, string? Editor)> plugins)
     {
         AssemblyLoadContext context = new("Plugins", isCollectible: true);
         context.ResolvingUnmanagedDll += ResolveModule;
         context.Resolving += ResolveShared;
-        Assembly[] runtime = [.. plugins.Select(plugin => LoadFrom(context, plugin.Assembly))];
+        // An official plugin may be editor-only (ADR 0123): no runtime assembly.
+        Assembly[] runtime = [.. plugins.Where(plugin => plugin.Assembly is not null).Select(plugin => LoadFrom(context, plugin.Assembly!))];
         Assembly[] editors = [.. plugins.Where(plugin => plugin.Editor is not null).Select(plugin => LoadFrom(context, plugin.Editor!))];
         return new LoadedPlugins(context, runtime, editors);
     }

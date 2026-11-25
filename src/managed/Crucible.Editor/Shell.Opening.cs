@@ -39,19 +39,11 @@ internal sealed partial class Shell
         owner?.OnStop(() => _componentOpeners.Remove(opener));
     }
 
-    // The editor's own (ADR 0107, 0112): textures' sprite sheets, tilesets
-    // alone in the Palette, maps in map mode (its file through its entity).
+    // The editor's own (ADR 0107): textures' sprite sheets. (Map mode's are
+    // the Tilemaps plugin's, ADR 0123.)
     private void RegisterOpeners()
     {
         AddAssetOpener("SpriteSheet", "Sprite Sheet Editor", "Texture", asset => ShowSpriteSheet(asset.Id));
-        AddAssetOpener("Palette", "Palette", "Tileset", asset => ShowTileset(asset.Id));
-        AddAssetOpener("Map", "Map", Crucible.Assets.Importers.TilemapImporter.FileExtension, OpenTilemapFile);
-        foreach (Type type in (Type[])[typeof(TilemapLayers), typeof(Tilemap)])
-        {
-            AddComponentOpener("Map", "Map", Components.NameOf(type),
-                entity => MapRootOf(entity) is not null || World.Has(entity, Components.Of<Tilemap>()),
-                entity => EnterMapMode(entity));
-        }
     }
 
     // An extension's workspace opening assets or a component's entities.
@@ -76,10 +68,13 @@ internal sealed partial class Shell
             LogWarning($"{owner.Extension}: there's no workspace \"{id}\" to open {typeof(T).Name} with");
             return false;
         }
-        AddComponentOpener(id, type.Title, Components.NameOf(typeof(T)), entity => HasComponent<T>(entity),
-            entity => OpenWorkspace(id, entity, AssetId.None), owner);
+        AddComponentOpener<T>(id, type.Title, entity => OpenWorkspace(id, entity, AssetId.None), owner);
         return true;
     }
+
+    // An editor opening entities with component T (an extension's callback, ADR 0123).
+    internal void AddComponentOpener<T>(string id, string title, Action<Entity> open, EditorContext owner) =>
+        AddComponentOpener(id, title, Components.NameOf(typeof(T)), entity => HasComponent<T>(entity), open, owner);
 
     private bool HasComponent<T>(Entity entity)
     {
@@ -253,38 +248,5 @@ internal sealed partial class Shell
         MenuItem ask = openWith.Add("Ask Each Time", () => ForgetEditor(kind));
         ask.IsChecked = RememberedEditor(kind) is null;
         menu.Add(new MenuItem("Open With") { Submenu = openWith });
-    }
-
-    // -----------------------------------------------------------------------
-    // A map's file: through the entity that uses it (ADR 0112)
-    // -----------------------------------------------------------------------
-
-    // One entity of the open scene using it: map mode on it; several: which;
-    // none: said.
-    private void OpenTilemapFile(AssetEntry asset)
-    {
-        Entity[] users = _context.HasWorld
-            ? [.. SceneIds.Of(World).Entities.Where(entity => World.IsAlive(entity) && World.Has(entity, Components.Of<TilemapLayers>()) &&
-                                                              World.Read<TilemapLayers>(entity).Map == asset.Id)]
-            : [];
-        string name = Path.GetFileName(AssetPaths.WithinRoot(asset.Path));
-        if (users.Length == 1)
-        {
-            EnterMapMode(users[0]);
-            return;
-        }
-        if (users.Length == 0)
-        {
-            string scene = ScenePath is { } path ? Path.GetFileName(path) : "the open scene";
-            LogWarning($"No entity in {scene} uses {name}");
-            return;
-        }
-        AskDrop($"Which map uses {name}?", [.. users.Select(LabelOf)], 0, offerRest: false, (choice, _) =>
-        {
-            if (choice >= 0 && choice < users.Length && HasLive(users[choice]))
-            {
-                EnterMapMode(users[choice]);
-            }
-        });
     }
 }

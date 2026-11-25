@@ -351,7 +351,6 @@ internal sealed partial class Shell
         JsonNode? before = SceneIds.Read(World, entity, _nameName);
         name = name.Trim();
         History.BeginGroup("Rename");
-        RenameTilemap(entity, name);
         if (name.Length > 0)
         {
             World.SetManaged(entity, new EntityName { Value = name });
@@ -396,10 +395,7 @@ internal sealed partial class Shell
         byte[] subtree = SceneIds.Capture(World, entity, Prefabs);
         Entity copy = SceneIds.Restore(World, subtree, SceneIds.IdOf(World, parent), index < 0 ? -1 : index + 1, Prefabs,
             newIds: true);
-        History.BeginGroup("Duplicate");
-        CopyTilemaps(copy);
         RecordCreated("Duplicate", copy);
-        History.EndGroup();
         Selection.Selected = copy;
         return copy;
     }

@@ -1351,7 +1351,9 @@ double-click, the Inspector, and Open With. Step 6 done (ADR 0121), tried
 by hand by the owner: viewport tools, the handles and Edit
 Points moved onto them, map painting its view's tool. Step 7 split by the
 owner (2026-11-24) into 7a, 7b, and 7c; 7a done (ADR 0122), tried by hand
-by the owner: scene edits for extensions.
+by the owner: scene edits for extensions. 7b built (ADR 0123), to be
+tried by hand by the owner: official plugins, map mode the first, as the
+plugin Tilemaps on the public API alone.
 
 Asked for by the owner (2026-11-20): a game's own editors, as specialized
 as map mode (ADR 0112), built by the people making the game, for example
@@ -1416,7 +1418,9 @@ reload per assembly, the shipping check).
    and arranged with undo, a say in the editor's Duplicate, rename, and
    Delete, the Hierarchy's Create menu, asset textures; ADR 0122); **7b**,
    map mode moved onto it in an assembly of its own, so the compiler
-   proves the API is enough; **7c**, the owner's notes (the brush under
+   proves the API is enough: the first official plugin, Tilemaps, used
+   by default and removable per project (owner, 2026-11-24; ADR 0123);
+   **7c**, the owner's notes (the brush under
    the pointer; buttons with images and tooltips). The test of the
    API, a plugin's-eye rebuild using only what steps 2 to 6 offer,
    cleaning up as it goes: a "Map Mode" of its own, named and entered as

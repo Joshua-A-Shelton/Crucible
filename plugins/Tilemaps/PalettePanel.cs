@@ -1,10 +1,11 @@
 using System.Numerics;
 using Crucible.Assets;
 using Crucible.Assets.Importers;
+using Crucible.Editor;
 using Crucible.Render;
 using Crucible.UI;
 
-namespace Crucible.Editor;
+namespace Crucible.Tilemaps.Editor;
 
 /// <summary>
 /// The Palette (ADR 0112): map mode's tilesets, a tab each, and a + tab to
@@ -24,7 +25,7 @@ public sealed class PalettePanel : EditorPanel
 
     private static readonly Vector4 _shape = new(0.35f, 0.85f, 0.45f, 0.95f), _drawing = new(1f, 0.85f, 0.2f, 1);
 
-    private readonly Shell _shell;
+    private readonly MapMode _maps;
     private readonly StackPanel _tabs = new() { Orientation = Orientation.Horizontal, Spacing = 2 };
     private readonly Toggle _collision = new("Collision");
     private readonly StackPanel _collisionBar = new() { Orientation = Orientation.Horizontal, Spacing = 4 };
@@ -38,9 +39,9 @@ public sealed class PalettePanel : EditorPanel
     private int _shownSet = -1;
     private string _tabsKey = ""; // the tilesets the tabs were made for
 
-    internal PalettePanel(Shell shell) : base("Palette", "Palette")
+    internal PalettePanel(MapMode maps) : base("Palette", "Palette")
     {
-        _shell = shell;
+        _maps = maps;
         _hint.Classes.Add("hint");
         View = new TileGridView { Overlay = DrawShapes };
         View.SelectionChanged += _ => Chosen();
@@ -69,8 +70,8 @@ public sealed class PalettePanel : EditorPanel
         _collisionBar.Add(mirrorX);
         _collisionBar.Add(mirrorY);
 
-        _shell.MapToolChanged += FromMap;
-        _shell.AssetsChanged += () =>
+        _maps.MapToolChanged += FromMap;
+        _maps.AssetsChanged += () =>
         {
             ReadAlone();
             _tabsKey = "";
@@ -101,11 +102,11 @@ public sealed class PalettePanel : EditorPanel
     public bool OnCollision => _collision.IsOn;
 
     /// <summary>The tileset shown: the map's of the tab, or one alone.</summary>
-    public AssetId Tileset => !_alone.IsNone ? _alone : _shell.Map.IsOpen && Set >= 0 && Set < _shell.Map.Tilesets.Count ? _shell.Map.Tilesets[Set].Id : AssetId.None;
+    public AssetId Tileset => !_alone.IsNone ? _alone : _maps.Map.IsOpen && Set >= 0 && Set < _maps.Map.Tilesets.Count ? _maps.Map.Tilesets[Set].Id : AssetId.None;
 
     /// <summary>The shown tileset as its file reads now; null if there's none.</summary>
     public TilesetData? TilesetData =>
-        !_alone.IsNone ? _aloneData : _shell.Map.IsOpen && Set >= 0 && Set < _shell.Map.Tilesets.Count ? _shell.Map.Tilesets[Set].Data : null;
+        !_alone.IsNone ? _aloneData : _maps.Map.IsOpen && Set >= 0 && Set < _maps.Map.Tilesets.Count ? _maps.Map.Tilesets[Set].Data : null;
 
     /// <summary>The points of the Custom shape being drawn, in the chosen tile's pixels.</summary>
     public IReadOnlyList<Vector2> Pending => _pending;
@@ -133,7 +134,7 @@ public sealed class PalettePanel : EditorPanel
     /// <summary>A tab chosen: one of the map's tilesets.</summary>
     public void ShowSet(int set)
     {
-        if (_shell.Map.IsOpen && set >= 0 && set < _shell.Map.Tilesets.Count)
+        if (_maps.Map.IsOpen && set >= 0 && set < _maps.Map.Tilesets.Count)
         {
             _alone = AssetId.None;
             Set = set;
@@ -158,14 +159,14 @@ public sealed class PalettePanel : EditorPanel
 
     private void ReadAlone()
     {
-        _aloneData = _alone.IsNone ? null : _shell.ReadTileset(_alone);
+        _aloneData = _alone.IsNone ? null : _maps.ReadTileset(_alone);
         AssetId texture = _aloneData?.Texture ?? AssetId.None;
         if (_aloneTexture.Generation != 0)
         {
             RenderAssets.ReleaseTexture(_aloneTexture);
             _aloneTexture = default;
         }
-        if (!texture.IsNone && _shell.Database?.ImportedFile(texture) is not null)
+        if (!texture.IsNone && _maps.Database?.ImportedFile(texture) is not null)
         {
             _aloneTexture = RenderAssets.AcquireTexture(texture);
         }
@@ -195,10 +196,10 @@ public sealed class PalettePanel : EditorPanel
     // Tiles dragged out: the brush (Stamp the tool), unless Collision is on.
     private void Chosen()
     {
-        if (!OnCollision && View.Selection is { } s && _shell.Map.IsOpen && _alone.IsNone)
+        if (!OnCollision && View.Selection is { } s && _maps.Map.IsOpen && _alone.IsNone)
         {
-            _shell.Map.SetBrush(Set, s.X0, s.Y0, s.X1, s.Y1);
-            _shell.RaiseMapToolChanged();
+            _maps.Map.SetBrush(Set, s.X0, s.Y0, s.X1, s.Y1);
+            _maps.RaiseMapToolChanged();
         }
         _pending.Clear();
         Refresh();
@@ -222,7 +223,7 @@ public sealed class PalettePanel : EditorPanel
             }
             else
             {
-                t.Shapes[n] = [Shell.Preset(TilePreset.Full, t.TileWidth, t.TileHeight)];
+                t.Shapes[n] = [MapMode.Preset(TilePreset.Full, t.TileWidth, t.TileHeight)];
             }
         });
     }
@@ -230,7 +231,7 @@ public sealed class PalettePanel : EditorPanel
     // The map's brush changed (a pick, a copy, a key): a one-tile brush shown on its tab.
     private void FromMap()
     {
-        MapEditor map = _shell.Map;
+        MapEditor map = _maps.Map;
         if (!OnCollision && _alone.IsNone && map.Brush.Count == 1 && map.Brush[0].Set is int set && set < map.Tilesets.Count &&
             map.Tilesets[set].Columns is int columns and > 0)
         {
@@ -242,10 +243,10 @@ public sealed class PalettePanel : EditorPanel
     }
 
     /// <summary>Each frame: the tabs kept to the map's tilesets, the tab's texture shown.</summary>
-    internal void Tick()
+    public override void Tick()
     {
-        MapEditor map = _shell.Map;
-        if (!_shell.InMapMode && _alone.IsNone)
+        MapEditor map = _maps.Map;
+        if (!_maps.InMapMode && _alone.IsNone)
         {
             Set = -1;
         }
@@ -275,10 +276,10 @@ public sealed class PalettePanel : EditorPanel
     private void RebuildTabs()
     {
         _tabs.Clear();
-        MapEditor map = _shell.Map;
+        MapEditor map = _maps.Map;
         if (!_alone.IsNone)
         {
-            Button only = new(Path.GetFileNameWithoutExtension(_shell.Database?.Find(_alone)?.Path ?? "Tileset"));
+            Button only = new(Path.GetFileNameWithoutExtension(_maps.Database?.Find(_alone)?.Path ?? "Tileset"));
             only.Classes.Add("primary");
             _tabs.Add(only);
             return;
@@ -305,9 +306,9 @@ public sealed class PalettePanel : EditorPanel
     private void TabMenu(Button tab, int set, Vector2 at)
     {
         ContextMenu menu = new();
-        AssetId id = _shell.Map.Tilesets[set].Id;
-        menu.Add("Edit Grid…", () => _shell.OpenTilesetDialog(AssetId.None, id));
-        menu.Add("Remove from Map", () => _shell.RemoveTilesetFromMap(set));
+        AssetId id = _maps.Map.Tilesets[set].Id;
+        menu.Add("Edit Grid…", () => _maps.OpenTilesetDialog(AssetId.None, id));
+        menu.Add("Remove from Map", () => _maps.RemoveTilesetFromMap(set));
         menu.Open(tab, at);
     }
 
@@ -315,21 +316,21 @@ public sealed class PalettePanel : EditorPanel
     private void AddMenu(ButtonBase button)
     {
         ContextMenu menu = new();
-        menu.Add("New Tileset…", () => _shell.OpenTilesetDialog(AssetId.None));
-        (int, int)? size = _shell.Map.TileSize;
-        foreach (AssetEntry entry in (_shell.Database?.Assets ?? []).Where(entry => entry.Importer == "Tileset").OrderBy(entry => entry.Path))
+        menu.Add("New Tileset…", () => _maps.OpenTilesetDialog(AssetId.None));
+        (int, int)? size = _maps.Map.TileSize;
+        foreach (AssetEntry entry in (_maps.Database?.Assets ?? []).Where(entry => entry.Importer == "Tileset").OrderBy(entry => entry.Path))
         {
             AssetId id = entry.Id;
-            if (_shell.Map.Data.Tilesets.Contains(id) || _shell.ReadTileset(id) is not { } data ||
+            if (_maps.Map.Data.Tilesets.Contains(id) || _maps.ReadTileset(id) is not { } data ||
                 (size is var (width, height) && (data.TileWidth != width || data.TileHeight != height)))
             {
                 continue;
             }
             menu.Add(entry.Path, () =>
             {
-                if (_shell.AddTilesetToMap(id))
+                if (_maps.AddTilesetToMap(id))
                 {
-                    ShowSet(_shell.Map.Tilesets.Count - 1);
+                    ShowSet(_maps.Map.Tilesets.Count - 1);
                 }
             });
         }
@@ -338,11 +339,11 @@ public sealed class PalettePanel : EditorPanel
 
     // A texture dropped opens New Tileset with it; a tileset dropped is added.
     protected override void OnDragOver(DragEvent e) =>
-        e.Accepted = _shell.InMapMode && e.Payload is AssetDrag drag && _shell.Database?.Find(drag.Id) is { Importer: "Texture" or "Tileset" };
+        e.Accepted = _maps.InMapMode && e.Payload is AssetDrag drag && _maps.Database?.Find(drag.Id) is { Importer: "Texture" or "Tileset" };
 
     protected override void OnDrop(DragEvent e)
     {
-        if (e.Payload is AssetDrag drag && _shell.Database?.Find(drag.Id) is { } entry)
+        if (e.Payload is AssetDrag drag && _maps.Database?.Find(drag.Id) is { } entry)
         {
             DropAsset(entry);
         }
@@ -353,17 +354,17 @@ public sealed class PalettePanel : EditorPanel
     {
         if (entry.Importer == "Texture")
         {
-            _shell.OpenTilesetDialog(entry.Id);
+            _maps.OpenTilesetDialog(entry.Id);
         }
-        else if (entry.Importer == "Tileset" && _shell.AddTilesetToMap(entry.Id))
+        else if (entry.Importer == "Tileset" && _maps.AddTilesetToMap(entry.Id))
         {
-            ShowSet(_shell.Map.Tilesets.Count - 1);
+            ShowSet(_maps.Map.Tilesets.Count - 1);
         }
     }
 
     /// <summary>The chosen tiles given a preset shape (only it).</summary>
     public void SetShape(TilePreset preset) =>
-        EditChosen("Tile Shape", (t, tile) => t.Shapes[tile] = [Shell.Preset(preset, t.TileWidth, t.TileHeight)]);
+        EditChosen("Tile Shape", (t, tile) => t.Shapes[tile] = [MapMode.Preset(preset, t.TileWidth, t.TileHeight)]);
 
     /// <summary>The chosen tiles' shapes taken away.</summary>
     public void ClearShapes() => EditChosen("Clear Tile Shape", (t, tile) => t.Shapes.Remove(tile));
@@ -393,7 +394,7 @@ public sealed class PalettePanel : EditorPanel
     private void Edit(string title, int[] tiles, Action<TilesetData, int> change)
     {
         SetDrawing(false);
-        _shell.EditTileset(Tileset, title, data =>
+        _maps.EditTileset(Tileset, title, data =>
         {
             foreach (int tile in tiles)
             {
@@ -462,7 +463,7 @@ public sealed class PalettePanel : EditorPanel
 
     internal void Refresh()
     {
-        MapEditor map = _shell.Map;
+        MapEditor map = _maps.Map;
         _collisionBar.Visibility = OnCollision ? Visibility.Visible : Visibility.Collapsed;
         _custom.Classes.Set("primary", View.Drawing);
         _collision.Visibility = _alone.IsNone && !map.IsOpen ? Visibility.Collapsed : Visibility.Visible;

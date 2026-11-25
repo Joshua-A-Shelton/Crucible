@@ -31,10 +31,11 @@ public sealed class Plugin
 {
     public const string Extension = ".crplugin";
 
-    internal Plugin(string folder, PluginManifest manifest)
+    internal Plugin(string folder, PluginManifest manifest, bool isOfficial = false)
     {
         Folder = folder;
         Manifest = manifest;
+        IsOfficial = isOfficial;
     }
 
     public string Name => Manifest.Name;
@@ -46,8 +47,17 @@ public sealed class Plugin
 
     public string ManifestPath => Path.Combine(Folder, Name + Extension);
 
-    /// <summary>Built and shared as assemblies (its manifest names the Crucible it was built with), not source.</summary>
-    public bool IsCompiled => Manifest.Crucible.Length > 0;
+    /// <summary>
+    /// One of Crucible's own (ADR 0123), shipped built beside the editor and
+    /// used by a project unless its file leaves it out.
+    /// </summary>
+    public bool IsOfficial { get; }
+
+    /// <summary>
+    /// Built and shared as assemblies (its manifest names the Crucible it was
+    /// built with; an official one is built with the editor), not source.
+    /// </summary>
+    public bool IsCompiled => IsOfficial || Manifest.Crucible.Length > 0;
 
     public string AssetsFolder => Path.Combine(Folder, "Assets");
 
@@ -60,7 +70,10 @@ public sealed class Plugin
     /// <summary>A compiled plugin's editor assembly, <c>&lt;Name&gt;.Editor.dll</c>, if it has one.</summary>
     public string EditorAssembly => Path.Combine(Folder, Name + ".Editor.dll");
 
-    /// <summary>Whether it has code: .cs files under Code for a source plugin, its assembly for a compiled one.</summary>
+    /// <summary>Whether a compiled plugin has an editor assembly (an official one may have only that).</summary>
+    public bool HasEditorAssembly => IsCompiled && File.Exists(EditorAssembly);
+
+    /// <summary>Whether it has game code: .cs files under Code for a source plugin, its assembly for a compiled one.</summary>
     public bool HasCode => IsCompiled
         ? File.Exists(Assembly)
         : Directory.Exists(CodeFolder) && Directory.EnumerateFiles(CodeFolder, "*.cs", SearchOption.AllDirectories).Any();
@@ -80,12 +93,21 @@ public sealed class Plugin
 /// </summary>
 public static class ProjectPlugins
 {
-    /// <summary>Reads every plugin folder under <paramref name="pluginsFolder"/>.</summary>
+    /// <summary>
+    /// Reads every plugin folder under <paramref name="pluginsFolder"/>, with
+    /// the official plugins the project uses (ADR 0123), which its own may use.
+    /// </summary>
     /// <param name="reserved">Names a plugin can't have: the game's assembly's, so the two don't clash.</param>
-    public static (IReadOnlyList<Plugin> Plugins, IReadOnlyList<string> Problems) Read(string pluginsFolder, string? reserved = null)
+    /// <param name="official">The official plugins the project uses (<see cref="OfficialPlugins.Read"/>); their names are taken too.</param>
+    public static (IReadOnlyList<Plugin> Plugins, IReadOnlyList<string> Problems) Read(string pluginsFolder, string? reserved = null,
+        IReadOnlyList<Plugin>? official = null)
     {
         List<string> problems = [];
         Dictionary<string, Plugin> found = new(StringComparer.Ordinal);
+        foreach (Plugin plugin in official ?? [])
+        {
+            found[plugin.Name] = plugin;
+        }
         if (Directory.Exists(pluginsFolder))
         {
             foreach (string folder in Directory.EnumerateDirectories(pluginsFolder).Order(StringComparer.Ordinal))
@@ -93,6 +115,11 @@ public static class ProjectPlugins
                 string name = Path.GetFileName(folder);
                 if (name.StartsWith('.'))
                 {
+                    continue;
+                }
+                if (found.TryGetValue(name, out Plugin? taken) && taken.IsOfficial)
+                {
+                    problems.Add($"Plugins/{name} has the name of an official plugin; rename it");
                     continue;
                 }
                 if (ReadOne(folder, name, reserved, problems) is { } plugin)
@@ -104,7 +131,7 @@ public static class ProjectPlugins
         return (Order(found, problems), problems);
     }
 
-    private static Plugin? ReadOne(string folder, string name, string? reserved, List<string> problems)
+    internal static Plugin? ReadOne(string folder, string name, string? reserved, List<string> problems, bool official = false)
     {
         string manifestPath = Path.Combine(folder, name + Plugin.Extension);
         if (!File.Exists(manifestPath))
@@ -134,8 +161,8 @@ public static class ProjectPlugins
                 : $"{name} can't be a plugin's name: use letters, digits, and _, not starting with a digit");
             return null;
         }
-        Plugin plugin = new(folder, manifest);
-        if (plugin.IsCompiled)
+        Plugin plugin = new(folder, manifest, official);
+        if (plugin.IsCompiled && !official)
         {
             if (CrucibleVersion.LineOf(manifest.Crucible) is not { } line)
             {
@@ -215,6 +242,55 @@ public static class ProjectPlugins
     public static bool IsName(string name) =>
         name.Length > 0 && !char.IsAsciiDigit(name[0]) && name.All(c => char.IsAsciiLetterOrDigit(c) || c == '_') &&
         !name.Equals("Crucible", StringComparison.OrdinalIgnoreCase);
+}
+
+/// <summary>
+/// Crucible's official plugins (ADR 0123): built with the editor into a
+/// <c>Plugins</c> folder beside it, read-only, each used by a project unless
+/// its file's <c>Official</c> list leaves it out (all of them when the list
+/// is <c>["*"]</c>, as it is by default).
+/// </summary>
+public static class OfficialPlugins
+{
+    /// <summary>What <see cref="ProjectFile.Official"/> holds to use every official plugin.</summary>
+    public const string All = "*";
+
+    /// <summary>
+    /// Where they are: set by the editor when it starts (beside its
+    /// assembly); null where there are none (the game, the tests).
+    /// </summary>
+    public static string? Folder { get; set; }
+
+    /// <summary>Every official plugin's name in <paramref name="folder"/>, by name.</summary>
+    public static IReadOnlyList<string> Names(string? folder) =>
+        folder is not null && Directory.Exists(folder)
+            ? [.. Directory.EnumerateDirectories(folder).Select(Path.GetFileName).OfType<string>()
+                .Where(name => !name.StartsWith('.')).Order(StringComparer.Ordinal)]
+            : [];
+
+    /// <summary>
+    /// The official plugins in <paramref name="folder"/> a project uses: the
+    /// names in <paramref name="used"/>, or all of them for <see cref="All"/>.
+    /// A name that isn't one is a problem.
+    /// </summary>
+    public static IReadOnlyList<Plugin> Read(string? folder, IReadOnlyList<string> used, List<string> problems)
+    {
+        IReadOnlyList<string> names = Names(folder);
+        List<Plugin> plugins = [];
+        foreach (string name in used.Contains(All) ? names : used.Distinct(StringComparer.Ordinal))
+        {
+            if (!names.Contains(name))
+            {
+                problems.Add($"The project uses the official plugin {name}, which this editor doesn't have");
+                continue;
+            }
+            if (ProjectPlugins.ReadOne(Path.Combine(folder!, name), name, reserved: null, problems, official: true) is { } plugin)
+            {
+                plugins.Add(plugin);
+            }
+        }
+        return plugins;
+    }
 }
 
 /// <summary>

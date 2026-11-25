@@ -229,10 +229,8 @@ public sealed class AssetsPanel : EditorPanel
         string folder = tile.IsFolder ? tile.Path : AssetPaths.FolderOf(tile.Path);
         Menu create = new();
         create.Add("Chain", () => _shell.CreateChain(folder));
-        // A tileset through New Tileset, with this texture if it's one
-        // (maps are made with their entities, ADR 0108, 0112).
-        AssetId texture = tile.Asset is { Importer: "Texture" } image ? image.Id : AssetId.None;
-        create.Add("Tileset…", () => _shell.OpenTilesetDialog(texture));
+        // Extensions' (ADR 0123): the Tilemaps plugin's Tileset…, say.
+        _shell.AddAssetCreateItems(create, folder, tile.IsFolder ? null : tile.Asset);
         menu.Add(new MenuItem("Create") { Submenu = create });
         menu.Add("Refresh", _shell.RefreshAssets);
         menu.Open(tile, at);

@@ -239,7 +239,7 @@ public sealed class SpriteSheetPanel : EditorPanel
     }
 
     /// <summary>Each frame: the preview moves on, and settings applied elsewhere are read again.</summary>
-    internal void Tick()
+    public override void Tick()
     {
         double now = _clock.Elapsed.TotalSeconds;
         Preview.Advance(now - _lastTick);

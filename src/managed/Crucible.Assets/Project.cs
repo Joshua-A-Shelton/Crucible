@@ -16,6 +16,12 @@ public partial class ProjectFile
 
     /// <summary>The sorting layers, in drawing order (ADR 0104); "Default" when there are none.</summary>
     public List<SortingLayer> SortingLayers = [];
+
+    /// <summary>
+    /// The official plugins it uses (ADR 0123), by name; "*" (the default,
+    /// and what a file without the list gets) for all of them.
+    /// </summary>
+    public List<string> Official = [OfficialPlugins.All];
 }
 
 /// <summary>What cooking packs (ADR 0098): the project file's "Build" section.</summary>
@@ -76,8 +82,9 @@ public sealed class Project
     public const string Extension = ".crproject";
 
     private Project(string projectFile, string name, IReadOnlyList<string>? physicsLayers = null,
-        BuildSettings? build = null, IReadOnlyList<SortingLayer>? sortingLayers = null)
+        BuildSettings? build = null, IReadOnlyList<SortingLayer>? sortingLayers = null, IReadOnlyList<string>? official = null)
     {
+        Official = official ?? [Crucible.Assets.OfficialPlugins.All];
         ProjectFilePath = Path.GetFullPath(projectFile);
         Root = Path.GetDirectoryName(ProjectFilePath)!;
         Name = name;
@@ -129,9 +136,20 @@ public sealed class Project
     /// <summary>Why plugins in <c>Plugins/</c> were left out, for the editor to show.</summary>
     public IReadOnlyList<string> PluginProblems { get; private set; } = [];
 
-    /// <summary>Reads <c>Plugins/</c> again.</summary>
-    public void RefreshPlugins() =>
-        (Plugins, PluginProblems) = ProjectPlugins.Read(PluginsFolder, reserved: Name);
+    /// <summary>The official plugins it uses (ADR 0123), as its file lists them: "*" for all.</summary>
+    public IReadOnlyList<string> Official { get; }
+
+    /// <summary>The official plugins it uses, read (ADR 0123): in <see cref="Plugins"/> too.</summary>
+    public IEnumerable<Plugin> OfficialPlugins => Plugins.Where(plugin => plugin.IsOfficial);
+
+    /// <summary>Reads <c>Plugins/</c>, and the official plugins it uses, again.</summary>
+    public void RefreshPlugins()
+    {
+        List<string> problems = [];
+        IReadOnlyList<Plugin> official = Crucible.Assets.OfficialPlugins.Read(Crucible.Assets.OfficialPlugins.Folder, Official, problems);
+        (Plugins, IReadOnlyList<string> more) = ProjectPlugins.Read(PluginsFolder, reserved: Name, official);
+        PluginProblems = [.. problems, .. more];
+    }
 
     /// <summary>A plugin by name, if it's one that can be used.</summary>
     public Plugin? PluginNamed(string name) => Plugins.FirstOrDefault(plugin => plugin.Name == name);
@@ -145,7 +163,7 @@ public sealed class Project
     public string FileOf(string assetPath)
     {
         string root = AssetPaths.PluginOf(assetPath) is { } plugin
-            ? Path.Combine(PluginsFolder, plugin, "Assets")
+            ? PluginNamed(plugin)?.AssetsFolder ?? Path.Combine(PluginsFolder, plugin, "Assets")
             : AssetsFolder;
         string within = AssetPaths.WithinRoot(assetPath);
         return within.Length == 0 ? root : Path.Combine(root, within.Replace('/', Path.DirectorySeparatorChar));
@@ -183,7 +201,7 @@ public sealed class Project
     {
         ProjectFile file = Json.Deserialize<ProjectFile>(File.ReadAllBytes(projectFile));
         Project project = new(projectFile, file.Name, [.. file.PhysicsLayers.Take(32)], file.Build,
-            [.. file.SortingLayers.Take(32)]);
+            [.. file.SortingLayers.Take(32)], [.. file.Official]);
         Directory.CreateDirectory(project.AssetsFolder);
         Directory.CreateDirectory(project.CacheFolder);
         project.RefreshPlugins();

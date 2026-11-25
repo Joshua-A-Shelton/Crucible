@@ -269,8 +269,10 @@ internal sealed class AssetChecks : GameSystem
     }
 
     /// <summary>
-    /// A copy's own editor code and plugins taken out: a local Walker may
-    /// have some, which would add editors and extensions to what a check sees.
+    /// A copy's own editor code and plugins taken out, and the official
+    /// plugins left out of its project file (ADR 0123): a local Walker may
+    /// have some, and the official ones add editors and extensions too, which
+    /// would add to what a check of extensions sees.
     /// </summary>
     internal static void LeaveOutLocalCode(string copy)
     {
@@ -279,6 +281,14 @@ internal sealed class AssetChecks : GameSystem
             if (Directory.Exists(folder))
             {
                 Directory.Delete(folder, recursive: true);
+            }
+        }
+        foreach (string file in Directory.EnumerateFiles(copy, "*" + Crucible.Assets.Project.Extension))
+        {
+            if (System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(file)) is System.Text.Json.Nodes.JsonObject project)
+            {
+                project["Official"] = new System.Text.Json.Nodes.JsonArray();
+                File.WriteAllText(file, project.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
             }
         }
     }

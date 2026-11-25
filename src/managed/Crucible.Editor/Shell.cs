@@ -46,6 +46,8 @@ internal sealed partial class Shell
         Current = this;
         _context = context;
         _settingsPath = settingsPath;
+        // Crucible's official plugins (ADR 0123), built beside the editor.
+        Crucible.Assets.OfficialPlugins.Folder = Path.Combine(Path.GetDirectoryName(GameBuilder.EditorAssembly())!, "Plugins");
         Settings = EditorSettings.Load(settingsPath);
         _font = LoadFont();
         _theme = CreateTheme();
@@ -54,8 +56,6 @@ internal sealed partial class Shell
         Main.AddStrip(Toolbar);
         Add(Main);
         RegisterPanels();
-        // Map mode (ADR 0112) as the editor's own workspace (ADR 0119).
-        AddWorkspace("Map", "Map", () => new MapWorkspace(this), owner: null);
         // What the editor's own editors open (ADR 0120), and its tools (ADR 0121).
         RegisterOpeners();
         RegisterTools();
@@ -73,6 +73,7 @@ internal sealed partial class Shell
         };
         Status("No project open");
         Log($"{EngineInfo.Name} editor started (window drags: {Platform.Api.WindowDragSupport()})");
+        LoadOfficialPlugins();
     }
 
     /// <summary>The running editor's shell (one per process), for its checks and tests.</summary>
@@ -434,7 +435,7 @@ internal sealed partial class Shell
         {
             assets.Update();
         }
-        // Map mode's view (ADR 0112) paints on the map: no outline there (RenderViews).
+        // A view may show no outline (SceneView.ShowsOutlines; RenderViews).
         Entity[] outlined = Outlined(world);
         if (ShowsSkeletons)
         {
@@ -456,7 +457,6 @@ internal sealed partial class Shell
             Crucible.Physics2D.Api.DrawQueries2D(_queryMissColor, _queryHitColor);
         }
         // Workspaces (ADR 0119) close when what they work on goes, shown or not.
-        TickMapMode();
         TickWorkspaces();
         RenderWorkspaces(world, outlined);
         foreach (EditorPanel panel in _open.Values)
@@ -474,23 +474,29 @@ internal sealed partial class Shell
             {
                 build.Refresh(); // another project opened
             }
-            else if (panel is SpriteSheetPanel sheet)
-            {
-                sheet.Tick();
-            }
-            else if (panel is PalettePanel palette)
-            {
-                palette.Tick();
-            }
-            else if (panel is LayersPanel layers)
-            {
-                layers.Tick();
-            }
+        }
+        // Every open panel's own frame (ADR 0123), extensions' guarded.
+        foreach (EditorPanel panel in _open.Values.ToArray())
+        {
+            TickPanel(panel);
         }
         // The views' picks answered, for their tools (ADR 0121).
         TickTools();
     }
 
+
+    // A panel's frame (EditorPanel.Tick), its throwing logged.
+    private void TickPanel(EditorPanel panel)
+    {
+        try
+        {
+            panel.Tick();
+        }
+        catch (Exception exception)
+        {
+            LogError($"{panel.Title}: {Message(exception)}");
+        }
+    }
 
     // A click picks a mesh; the selection is what it belongs to: the
     // topmost entity above it (a prefab instance's root).
@@ -760,7 +766,6 @@ internal sealed partial class Shell
         Panels.Register("Log", "Log", () => new LogPanel());
         Panels.Register("BuildSettings", "Build Settings", () => new BuildSettingsPanel(this));
         Panels.Register("SpriteSheet", "Sprite Sheet Editor", () => new SpriteSheetPanel(this));
-        Panels.Register("Palette", "Palette", () => new PalettePanel(this));
     }
 
     // The open panel of an ID, made if it isn't open.

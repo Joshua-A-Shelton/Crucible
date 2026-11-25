@@ -93,7 +93,7 @@ internal sealed class Light2DChecks : GameSystem
         point = SceneIds.Find(world, pointId); // made again by redo
         shell.Selection.Selected = point;
         yield return 2;
-        shell.Delete(point, deleteMaps: null);
+        shell.DeleteWithChanges(point);
         yield return 3;
         Check(SceneIds.Find(world, pointId).IsNull, "deleting a light deletes it");
         shell.Undo();
@@ -109,14 +109,21 @@ internal sealed class Light2DChecks : GameSystem
         Check(SceneIds.Find(world, pointId).IsNull, "the Delete command deletes a selected light");
         shell.Undo();
         yield return 3;
-        Entity map = shell.CreateTilemapEntity(Entity.Null);
+        // The map through the Tilemaps plugin's Create item (ADR 0123).
+        Check(shell.RunCreateItem("2D/Tilemap", Entity.Null), "the Tilemaps plugin's Create > 2D > Tilemap is there");
         yield return 3;
+        Entity map = shell.Selection.Selected;
         Entity under = shell.CreateLight2D(map, Light2DKind.Point);
         yield return 3;
         shell.Commands.Find("Edit.Delete")!.Execute();
         yield return 3;
-        Check(shell.InMapMode && !world.IsAlive(under), "a light under a map deletes in map mode");
-        shell.ExitMapMode();
+        Workspace? mapMode = shell.Workspaces.FirstOrDefault(workspace => workspace.WorkspaceId == "Map");
+        Check(mapMode is not null && !world.IsAlive(under), "a light under a map deletes in map mode");
+        if (mapMode is not null)
+        {
+            shell.CloseWorkspace(mapMode);
+        }
+        mapMode = null;
         yield return 3;
         point = SceneIds.Find(world, pointId);
         Entity ambient = shell.CreateLight2D(Entity.Null, Light2DKind.Ambient);

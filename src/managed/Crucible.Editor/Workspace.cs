@@ -127,11 +127,6 @@ public abstract class Workspace : EditorPanel
     internal DockSplit? Columns { get; private set; }
 
     internal DockSplit? Rows { get; private set; }
-
-    /// <summary>Each frame while it's open, for the editor's own workspaces' parts.</summary>
-    internal virtual void Tick()
-    {
-    }
 }
 
 /// <summary>A workspace's tools (ADR 0119): commands as buttons, other controls, and Done.</summary>

@@ -16,6 +16,11 @@ namespace Crucible.Editor;
 internal sealed partial class Shell
 {
     private LoadedPlugins? _compiledPlugins;
+    // The official plugins (ADR 0123): loaded once when the editor starts and
+    // kept until it quits; each project's list says whose extensions start.
+    private LoadedPlugins? _officialPlugins;
+    private readonly Dictionary<string, Assembly> _officialEditors = new(StringComparer.Ordinal);
+    private readonly List<OfficialPluginChecks> _officialChecks = [];
     // The compiled plugins as loaded: names and their assemblies' hashes, to
     // tell when Plugins/ changed under them.
     private string _compiledLoaded = "";
@@ -25,6 +30,65 @@ internal sealed partial class Shell
 
     /// <summary>The compiled plugins loaded now, for the game's context and theirs to share (Dependencies).</summary>
     internal static LoadedPlugins? CompiledPlugins { get; private set; }
+
+    /// <summary>The official plugins, loaded once (ADR 0123), for the game's context to share (Dependencies).</summary>
+    internal static LoadedPlugins? OfficialPluginsLoaded { get; private set; }
+
+    // Starting: every official plugin beside the editor loaded (its editor
+    // assembly, and its checks' where they're built), its checks made.
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = JitOnly)]
+    [UnconditionalSuppressMessage("Trimming", "IL2072", Justification = JitOnly)]
+    private void LoadOfficialPlugins()
+    {
+        List<string> problems = [];
+        Plugin[] official = [.. Crucible.Assets.OfficialPlugins.Read(Crucible.Assets.OfficialPlugins.Folder, [Crucible.Assets.OfficialPlugins.All], problems)
+            .Where(plugin => plugin.HasEditorAssembly)];
+        foreach (string problem in problems)
+        {
+            LogWarning(problem);
+        }
+        if (official.Length == 0)
+        {
+            return;
+        }
+        string[] checks = [.. official.Select(plugin => Path.Combine(plugin.Folder, plugin.Name + ".Editor.Checks.dll")).Where(File.Exists)];
+        try
+        {
+            _officialPlugins = GameLoader.LoadPlugins([.. official.Select(plugin => ((string?)null, (string?)plugin.EditorAssembly)),
+                .. checks.Select(path => ((string?)null, (string?)path))]);
+            OfficialPluginsLoaded = _officialPlugins;
+        }
+        catch (Exception exception) when (exception is IOException or BadImageFormatException or FileLoadException)
+        {
+            LogError($"The official plugins can't be loaded: {exception.Message}");
+            return;
+        }
+        for (int i = 0; i < official.Length; ++i)
+        {
+            _officialEditors[official[i].Name] = _officialPlugins.EditorAssemblies[i];
+        }
+        foreach (Assembly assembly in _officialPlugins.EditorAssemblies.Skip(official.Length))
+        {
+            foreach (Type type in assembly.GetTypes().Where(type => type is { IsClass: true, IsAbstract: false } &&
+                                                                     type.IsSubclassOf(typeof(OfficialPluginChecks))))
+            {
+                _officialChecks.Add((OfficialPluginChecks)Activator.CreateInstance(type, nonPublic: true)!);
+            }
+        }
+        foreach (OfficialPluginChecks check in _officialChecks)
+        {
+            check.Start(this, _context);
+        }
+    }
+
+    // Each frame: the official plugins' checks, if they're running.
+    internal void RunOfficialChecks()
+    {
+        foreach (OfficialPluginChecks check in _officialChecks)
+        {
+            check.Run(this, _context);
+        }
+    }
 
     /// <summary>
     /// Whether the editor may change an asset path (ADR 0118): not in a
@@ -52,19 +116,33 @@ internal sealed partial class Shell
         {
             LogWarning(problem);
         }
-        if (project.Plugins.Count > 0)
+        static string Named(Plugin plugin) => plugin.Name + (plugin.Manifest.Version.Length > 0 ? " " + plugin.Manifest.Version : "");
+        if (project.Plugins.Any(plugin => !plugin.IsOfficial))
         {
-            Log("Plugins: " + string.Join(", ", project.Plugins.Select(plugin =>
-                $"{plugin.Name}{(plugin.Manifest.Version.Length > 0 ? " " + plugin.Manifest.Version : "")} ({(plugin.IsCompiled ? "compiled" : "source")})")));
+            Log("Plugins: " + string.Join(", ", project.Plugins.Where(plugin => !plugin.IsOfficial).Select(plugin =>
+                $"{Named(plugin)} ({(plugin.IsCompiled ? "compiled" : "source")})")));
         }
-        Plugin[] compiled = [.. project.Plugins.Where(plugin => plugin.IsCompiled && plugin.HasCode)];
+        if (project.OfficialPlugins.Any())
+        {
+            Log("Official plugins: " + string.Join(", ", project.OfficialPlugins.Select(Named)));
+        }
+        // The official ones (ADR 0123) the project uses: their extensions
+        // started; they're loaded already.
+        foreach (Plugin plugin in project.OfficialPlugins)
+        {
+            if (_officialEditors.TryGetValue(plugin.Name, out Assembly? editor))
+            {
+                StartExtensions(editor, kept: true);
+            }
+        }
+        Plugin[] compiled = [.. project.Plugins.Where(plugin => plugin.IsCompiled && !plugin.IsOfficial && plugin.HasCode)];
         _compiledLoaded = CompiledSignature(project);
         if (compiled.Length > 0)
         {
             try
             {
                 _compiledPlugins = GameLoader.LoadPlugins([.. compiled.Select(plugin =>
-                    (plugin.Assembly, File.Exists(plugin.EditorAssembly) ? plugin.EditorAssembly : null))]);
+                    ((string?)plugin.Assembly, plugin.HasEditorAssembly ? plugin.EditorAssembly : null))]);
                 CompiledPlugins = _compiledPlugins;
             }
             catch (Exception exception) when (exception is IOException or BadImageFormatException or FileLoadException)
@@ -102,7 +180,7 @@ internal sealed partial class Shell
         {
             return;
         }
-        if (loaded.Assemblies.FirstOrDefault() is { } any && AssemblyLoadContext.GetLoadContext(any) is { } context)
+        if (loaded.Assemblies.Concat(loaded.EditorAssemblies).FirstOrDefault() is { } any && AssemblyLoadContext.GetLoadContext(any) is { } context)
         {
             Forget(context);
         }
@@ -144,7 +222,7 @@ internal sealed partial class Shell
     }
 
     private static string CompiledSignature(Project project) =>
-        string.Join("\n", project.Plugins.Where(plugin => plugin.IsCompiled).Select(plugin =>
+        string.Join("\n", project.Plugins.Where(plugin => plugin.IsCompiled && !plugin.IsOfficial).Select(plugin =>
             $"{plugin.Name} {(File.Exists(plugin.Assembly) ? ContentHash.OfFile(plugin.Assembly) : "")} " +
             (File.Exists(plugin.EditorAssembly) ? ContentHash.OfFile(plugin.EditorAssembly) : "")));
 

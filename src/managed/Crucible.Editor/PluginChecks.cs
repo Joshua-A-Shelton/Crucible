@@ -80,6 +80,10 @@ internal sealed class PluginChecks : GameSystem
         string copy = Path.Combine(folder, "plugins-project");
         AssetChecks.OpenCopy(shell, copy, null, withoutEditorCode: true);
         Project first = shell.Project!;
+        // Its file leaves the official plugins out (ADR 0123): no map mode.
+        Check(first.Official.Count == 0 && !first.OfficialPlugins.Any() && !shell.RunCreateItem("2D/Tilemap", Entity.Null) &&
+              !_logged.Any(line => line.StartsWith("Official plugins:", StringComparison.Ordinal)),
+            "a project leaving the official plugins out has none of theirs", Logged());
         string plugin = Path.Combine(first.PluginsFolder, "Waypoints");
         WritePlugin(plugin, version: 1);
         File.WriteAllText(Path.Combine(first.CodeFolder, "UsesWaypoints.cs"), UsesWaypoints("1"));

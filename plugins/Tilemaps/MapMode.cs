@@ -3,38 +3,64 @@ using System.Text.Json.Nodes;
 using Crucible.Assets;
 using Crucible.Assets.Importers;
 using Crucible.Ecs;
+using Crucible.Editor;
 using Crucible.Physics2D;
 using Crucible.Render2D;
 using Crucible.Scenes;
 using Crucible.UI;
 
-namespace Crucible.Editor;
+namespace Crucible.Tilemaps.Editor;
 
 // Tilemaps (ADR 0108, 0112): a map is an entity (TilemapLayers naming its
 // .crtilemap) with a child per layer, each child's Tilemap drawing one layer
 // and, if it collides, its Collider2D of shape Tilemap. Map mode edits them
-// as one, in a workspace tab of its own (ADR 0119). The map file is kept with its entity:
-// Create > 2D > Tilemap makes both, duplicating the entity copies the file,
-// renaming it renames the file (unless another entity uses it), deleting it
-// asks whether the file goes too. Each file change is part of the edit's
-// undo step.
-internal sealed partial class Shell
+// as one, in a workspace tab of its own (ADR 0119). The map file is kept with
+// its entity: Create > 2D > Tilemap makes both, duplicating the entity copies
+// the file, renaming it renames the file (unless another entity uses it),
+// deleting it asks whether the file goes too. Each file change is part of
+// the edit's undo step. All of it on the editor's public API (ADR 0123).
+internal sealed class MapMode
 {
     private Dialog? _deleteMaps;
     private MapEditor? _mapEditor;
 
+    public MapMode(EditorContext editor)
+    {
+        Editor = editor;
+    }
+
+    /// <summary>The editor, as the plugin's extension was given it.</summary>
+    public EditorContext Editor { get; }
+
     /// <summary>Map mode's editing (ADR 0112).</summary>
     internal MapEditor Map => _mapEditor ??= new MapEditor(this);
+
+    internal bool HasWorld => Editor.Scene.World is not null;
+
+    internal World World => Editor.Scene.World ?? throw new InvalidOperationException("There's no scene open");
+
+    internal AssetDatabase? Database => Editor.Assets.Database;
+
+    internal Project? Project => Editor.Assets.Project;
+
+    internal UndoHistory History => Editor.Undo;
+
+    internal void Log(string text) => Editor.Log(text);
+
+    internal void Status(string text) => Editor.Status = text;
+
+    /// <summary>Raised when assets change (the editor's, ADR 0123).</summary>
+    internal event Action? AssetsChanged;
+
+    internal void RaiseAssetsChanged() => AssetsChanged?.Invoke();
 
     /// <summary>The editor is in map mode: its tab is open (ADR 0119), the tools applying to a map in its view.</summary>
     public bool InMapMode => MapTab is not null;
 
-    /// <summary>Map mode's tab, if it's open.</summary>
-    internal MapWorkspace? MapTab => Workspaces.OfType<MapWorkspace>().FirstOrDefault();
+    /// <summary>Map mode's tab, if it's open: set by the tab itself.</summary>
+    internal MapWorkspace? MapTab { get; set; }
 
-    private static readonly string _tilemapName = Components.NameOf(typeof(Tilemap));
-    private static readonly string _layersName = Components.NameOf(typeof(TilemapLayers));
-    private static readonly string _colliderName = Components.NameOf(typeof(Collider2D));
+    internal bool HasLive(Entity entity) => HasWorld && !entity.IsNull && World.IsAlive(entity);
 
     /// <summary>
     /// Create > 2D > Tilemap: a map entity under <paramref name="parent"/>
@@ -45,54 +71,44 @@ internal sealed partial class Shell
     /// </summary>
     public Entity CreateTilemapEntity(Entity parent)
     {
-        if (!_context.HasWorld || Project is null)
+        if (!HasWorld || Project is null)
         {
             return Entity.Null;
         }
-        const string name = "Tilemap";
+        const string name = "Tilemap", title = "Create Tilemap";
         TilemapData data = new() { Id = AssetId.New() };
         if (FreeFileName(TilemapFolder(), name, TilemapImporter.FileExtension) is not { } path)
         {
             return Entity.Null;
         }
-        History.BeginGroup("Create Tilemap");
+        History.BeginGroup(title);
         Entity root = Entity.Null;
-        if (WriteAssetFile(path, TilemapImporter.Format(data)))
+        if (WriteAssetFile(path, TilemapImporter.Format(data), title))
         {
-            root = World.CreateEntity();
-            World.Set(root, Transform2D.Identity);
-            World.Set(root, new SceneEntityId { Value = SceneIds.NewId() });
-            World.SetManaged(root, new EntityName { Value = name });
-            World.Set(root, new TilemapLayers { Map = data.Id });
-            if (HasLive(parent))
-            {
-                World.SetParent(root, parent);
-            }
-            MakeLayerEntity(root, data.Id, data.Layers[0], sortingLayer: 0, order: 0, collides: true);
-            RecordCreated("Create Tilemap", root);
+            root = Editor.Scene.Create(name, HasLive(parent) ? parent : Entity.Null);
+            Editor.Scene.Add(root, Transform2D.Identity, title);
+            Editor.Scene.Add(root, new TilemapLayers { Map = data.Id }, title);
+            MakeLayerEntity(root, data.Id, data.Layers[0], sortingLayer: 0, order: 0, collides: true, title);
         }
         History.EndGroup();
         if (!root.IsNull)
         {
-            Selection.Selected = root;
+            Editor.Selection.Selected = root;
             EnterMapMode(root);
         }
         return root;
     }
 
-    // A layer's entity under a map's, not recorded (the caller records it).
-    private Entity MakeLayerEntity(Entity root, AssetId map, TileLayer layer, uint sortingLayer, int order, bool collides)
+    // A layer's entity under a map's, each part an undo step (the caller groups them).
+    private Entity MakeLayerEntity(Entity root, AssetId map, TileLayer layer, uint sortingLayer, int order, bool collides, string title)
     {
-        Entity entity = World.CreateEntity();
-        World.Set(entity, Transform2D.Identity);
-        World.Set(entity, new SceneEntityId { Value = SceneIds.NewId() });
-        World.SetManaged(entity, new EntityName { Value = layer.Name });
-        World.Set(entity, new Tilemap { Map = map, Layer = (uint)layer.Id, SortingLayer = sortingLayer, OrderInLayer = order });
+        Entity entity = Editor.Scene.Create(layer.Name, root);
+        Editor.Scene.Add(entity, Transform2D.Identity, title);
+        Editor.Scene.Add(entity, new Tilemap { Map = map, Layer = (uint)layer.Id, SortingLayer = sortingLayer, OrderInLayer = order }, title);
         if (collides)
         {
-            World.Set(entity, new Collider2D { Shape = ShapeKind2D.Tilemap });
+            Editor.Scene.Add(entity, new Collider2D { Shape = ShapeKind2D.Tilemap }, title);
         }
-        World.SetParent(entity, root);
         return entity;
     }
 
@@ -131,7 +147,7 @@ internal sealed partial class Shell
         {
             return null;
         }
-        foreach (Entity child in SceneIds.ChildrenOf(World, root))
+        foreach (Entity child in SceneTree.ChildrenOf(World, root))
         {
             if (World.Has(child, Components.Of<Tilemap>()) && World.Read<Tilemap>(child) is { } tilemap &&
                 tilemap.Map == map && tilemap.Layer == (uint)layer)
@@ -153,27 +169,27 @@ internal sealed partial class Shell
     /// </summary>
     private Entity ConvertToLayers(Entity entity)
     {
+        const string title = "Convert to Layers";
         Tilemap tilemap = World.Read<Tilemap>(entity);
         TilemapData data = ReadMap(tilemap.Map) ?? new TilemapData();
         TileLayer layer = data.Layer((int)tilemap.Layer) ?? data.Layers.FirstOrDefault() ?? new TileLayer();
-        History.BeginGroup("Convert to Layers");
-        string rigidName = Components.NameOf(typeof(RigidBody2D));
-        JsonNode? collider = SceneIds.Read(World, entity, _colliderName), rigid = SceneIds.Read(World, entity, rigidName);
-        Entity child = World.CreateEntity();
-        World.Set(child, Transform2D.Identity);
-        World.Set(child, new SceneEntityId { Value = SceneIds.NewId() });
-        World.SetManaged(child, new EntityName { Value = layer.Name });
-        World.Set(child, tilemap with { Layer = (uint)layer.Id });
-        SceneIds.Write(World, child, _colliderName, collider?.DeepClone());
-        SceneIds.Write(World, child, rigidName, rigid?.DeepClone());
-        World.SetParent(child, entity, 0);
-        RecordCreated("Convert to Layers", child);
-        SetComponent(entity, _tilemapName, null, "Convert to Layers");
-        SetComponent(entity, _colliderName, null, "Convert to Layers");
-        SetComponent(entity, rigidName, null, "Convert to Layers");
-        JsonNode? before = SceneIds.Read(World, entity, _layersName);
-        World.Set(entity, new TilemapLayers { Map = tilemap.Map });
-        RecordComponent(entity, _layersName, before, "Convert to Layers");
+        History.BeginGroup(title);
+        Entity child = Editor.Scene.Create(layer.Name, entity);
+        Editor.Scene.SetParent(child, entity, 0);
+        Editor.Scene.Add(child, Transform2D.Identity, title);
+        Editor.Scene.Add(child, tilemap with { Layer = (uint)layer.Id }, title);
+        if (World.Has(entity, Components.Of<Collider2D>()))
+        {
+            Editor.Scene.Add(child, World.Read<Collider2D>(entity), title);
+            Editor.Scene.Remove<Collider2D>(entity, title);
+        }
+        if (World.Has(entity, Components.Of<RigidBody2D>()))
+        {
+            Editor.Scene.Add(child, World.Read<RigidBody2D>(entity), title);
+            Editor.Scene.Remove<RigidBody2D>(entity, title);
+        }
+        Editor.Scene.Remove<Tilemap>(entity, title);
+        Editor.Scene.Add(entity, new TilemapLayers { Map = tilemap.Map }, title);
         History.EndGroup();
         Log($"{LabelOf(entity)}'s map has layers now: its tiles are drawn by its child {layer.Name}");
         return entity;
@@ -196,6 +212,12 @@ internal sealed partial class Shell
         }
     }
 
+    // An entity as the editor names it: its name, else "Entity".
+    internal string LabelOf(Entity entity) =>
+        HasLive(entity) && World.Has(entity, Components.Of<EntityName>()) && World.GetManaged<EntityName>(entity).Value is { Length: > 0 } name
+            ? name
+            : "Entity";
+
     // -----------------------------------------------------------------------
     // Map mode
     // -----------------------------------------------------------------------
@@ -209,8 +231,7 @@ internal sealed partial class Shell
     public bool EnterMapMode(Entity entity)
     {
         Entity? root = MapRootOf(entity);
-        if (root is null && HasLive(entity) && World.Has(entity, Components.Of<Tilemap>()) &&
-            !SceneIds.IsInsideInstance(World, entity))
+        if (root is null && HasLive(entity) && World.Has(entity, Components.Of<Tilemap>()) && !SceneTree.IsInsideInstance(World, entity))
         {
             root = ConvertToLayers(entity);
         }
@@ -223,7 +244,7 @@ internal sealed partial class Shell
         {
             Map.ActiveLayer = drawn.Id;
         }
-        if (OpenWorkspace("Map", found, AssetId.None) is null)
+        if (Editor.Workspaces.Open(TilemapsExtension.MapWorkspaceId, found) is null)
         {
             Map.Close();
             return false;
@@ -240,7 +261,7 @@ internal sealed partial class Shell
         {
             return;
         }
-        CloseWorkspace(tab);
+        Editor.Workspaces.Close(tab);
         Status("Left map mode");
         MapModeChanged?.Invoke();
     }
@@ -262,10 +283,6 @@ internal sealed partial class Shell
         camera.Pivot = center;
         camera.Distance = radius * 1.15f / MathF.Tan(camera.FieldOfViewY * 0.5f);
     }
-
-    // Each frame: the map's state; its tab closes itself if its map entity
-    // went (undone, deleted, another scene; MapWorkspace.KeepOpen).
-    internal void TickMapMode() => Map.Tick();
 
     /// <summary>A tool chosen, by its button or key.</summary>
     internal void SetMapTool(MapTool tool)
@@ -294,6 +311,7 @@ internal sealed partial class Shell
         {
             return -1;
         }
+        const string title = "Add Layer";
         Entity root = Map.Root;
         int id = Map.Data.NewLayerId;
         HashSet<string> names = [.. Map.Data.Layers.Select(layer => layer.Name)];
@@ -305,12 +323,11 @@ internal sealed partial class Shell
         Tilemap? under = LayerEntity(root, Map.ActiveLayer) is { } active ? World.Read<Tilemap>(active) : null;
         int order = Map.Data.Layers.Select(layer => LayerEntity(root, layer.Id)).Where(e => e is not null)
             .Select(e => World.Read<Tilemap>(e!.Value).OrderInLayer).DefaultIfEmpty(-1).Max() + 1;
-        History.BeginGroup("Add Layer");
+        History.BeginGroup(title);
         TileLayer made = new() { Id = id, Name = name };
-        Map.Change("Add Layer", data => data.Layers.Insert(above < 0 ? data.Layers.Count : above + 1, made));
-        Entity entity = MakeLayerEntity(root, Map.Map, made, under?.SortingLayer ?? 0, order, collides: false);
+        Map.Change(title, data => data.Layers.Insert(above < 0 ? data.Layers.Count : above + 1, made));
+        MakeLayerEntity(root, Map.Map, made, under?.SortingLayer ?? 0, order, collides: false, title);
         ArrangeLayerEntities(root);
-        RecordCreated("Add Layer", entity);
         History.EndGroup();
         Map.ActiveLayer = id;
         LayersChanged?.Invoke();
@@ -328,7 +345,7 @@ internal sealed partial class Shell
         History.BeginGroup("Delete Layer");
         if (LayerEntity(Map.Root, id) is { } entity)
         {
-            Delete(entity);
+            Editor.Scene.Destroy(entity);
         }
         Map.Change("Delete Layer", data => data.Layers.RemoveAll(layer => layer.Id == id));
         History.EndGroup();
@@ -350,9 +367,7 @@ internal sealed partial class Shell
         Map.Change("Rename Layer", data => data.Layer(id)!.Name = name);
         if (LayerEntity(Map.Root, id) is { } entity)
         {
-            JsonNode? before = SceneIds.Read(World, entity, _nameName);
-            World.SetManaged(entity, new EntityName { Value = name });
-            RecordComponent(entity, _nameName, before, "Rename Layer");
+            Editor.Scene.Rename(entity, name);
         }
         History.EndGroup();
         LayersChanged?.Invoke();
@@ -369,6 +384,7 @@ internal sealed partial class Shell
         {
             return false;
         }
+        const string title = "Move Layer";
         List<TileLayer> layers = Map.Data.Layers;
         int at = layers.FindIndex(layer => layer.Id == id), to = at + by;
         if (at < 0 || to < 0 || to >= layers.Count)
@@ -376,11 +392,10 @@ internal sealed partial class Shell
             return false;
         }
         int other = layers[to].Id;
-        History.BeginGroup("Move Layer");
-        Map.Change("Move Layer", data => (data.Layers[at], data.Layers[to]) = (data.Layers[to], data.Layers[at]));
+        History.BeginGroup(title);
+        Map.Change(title, data => (data.Layers[at], data.Layers[to]) = (data.Layers[to], data.Layers[at]));
         if (LayerEntity(Map.Root, id) is { } a && LayerEntity(Map.Root, other) is { } b)
         {
-            JsonNode? beforeA = SceneIds.Read(World, a, _tilemapName), beforeB = SceneIds.Read(World, b, _tilemapName);
             Tilemap ta = World.Read<Tilemap>(a), tb = World.Read<Tilemap>(b);
             if (ta.SortingLayer == tb.SortingLayer && (by > 0 ? ta.OrderInLayer <= tb.OrderInLayer : ta.OrderInLayer >= tb.OrderInLayer))
             {
@@ -389,10 +404,8 @@ internal sealed partial class Shell
                 {
                     ta.OrderInLayer += by;
                 }
-                World.Set(a, ta);
-                World.Set(b, tb);
-                RecordComponent(a, _tilemapName, beforeA, "Move Layer");
-                RecordComponent(b, _tilemapName, beforeB, "Move Layer");
+                Editor.Scene.Edit(a, ta, title);
+                Editor.Scene.Edit(b, tb, title);
             }
         }
         ArrangeLayerEntities(Map.Root);
@@ -411,13 +424,9 @@ internal sealed partial class Shell
             {
                 continue;
             }
-            int was = SceneIds.SiblingIndex(World, entity);
-            if (was != index)
+            if (SceneTree.SiblingIndex(World, entity) != index)
             {
-                ulong parent = SceneIds.IdOf(World, root);
-                World.SetParent(entity, root, (uint)index);
-                History.Push(new ParentEdit("Move Layer", SceneIds.IdOf(World, entity), (parent, was, default),
-                    (parent, SceneIds.SiblingIndex(World, entity), default)));
+                Editor.Scene.SetParent(entity, root, index);
             }
             ++index;
         }
@@ -433,11 +442,9 @@ internal sealed partial class Shell
         {
             return;
         }
-        JsonNode? before = SceneIds.Read(World, entity, _tilemapName);
         Tilemap tilemap = World.Read<Tilemap>(entity);
         tilemap.Tint = tilemap.Tint with { W = visible ? 1 : 0 };
-        World.Set(entity, tilemap);
-        RecordComponent(entity, _tilemapName, before, visible ? "Show Layer" : "Hide Layer");
+        Editor.Scene.Edit(entity, tilemap, visible ? "Show Layer" : "Hide Layer");
         LayersChanged?.Invoke();
     }
 
@@ -452,16 +459,14 @@ internal sealed partial class Shell
         {
             return;
         }
-        JsonNode? before = SceneIds.Read(World, entity, _colliderName);
         if (collides)
         {
-            World.Set(entity, new Collider2D { Shape = ShapeKind2D.Tilemap });
+            Editor.Scene.Add(entity, new Collider2D { Shape = ShapeKind2D.Tilemap }, "Layer Collides");
         }
         else
         {
-            World.Remove(entity, Components.Of<Collider2D>());
+            Editor.Scene.Remove<Collider2D>(entity, "Layer Doesn't Collide");
         }
-        RecordComponent(entity, _colliderName, before, collides ? "Layer Collides" : "Layer Doesn't Collide");
         Map.CollisionChanged();
         LayersChanged?.Invoke();
     }
@@ -473,11 +478,11 @@ internal sealed partial class Shell
         {
             return;
         }
+        const string title = "Re-create Layer";
         int order = Map.Data.Layers.FindIndex(l => l.Id == id);
-        History.BeginGroup("Re-create Layer");
-        Entity entity = MakeLayerEntity(Map.Root, Map.Map, layer, 0, order, collides: false);
+        History.BeginGroup(title);
+        MakeLayerEntity(Map.Root, Map.Map, layer, 0, order, collides: false, title);
         ArrangeLayerEntities(Map.Root);
-        RecordCreated("Re-create Layer", entity);
         History.EndGroup();
         LayersChanged?.Invoke();
     }
@@ -580,8 +585,7 @@ internal sealed partial class Shell
             Margin = margin,
             Spacing = spacing,
         };
-        string folder = Path.GetDirectoryName(texturePath)?.Replace('\\', '/') ?? "";
-        if (FreeFileName(folder, Path.GetFileNameWithoutExtension(texturePath), TilesetImporter.FileExtension) is not { } path ||
+        if (FreeFileName(AssetPaths.FolderOf(texturePath), Path.GetFileNameWithoutExtension(texturePath), TilesetImporter.FileExtension) is not { } path ||
             !WriteAssetFile(path, TilesetImporter.Format(tileset), "New Tileset"))
         {
             return AssetId.None;
@@ -597,7 +601,7 @@ internal sealed partial class Shell
             settings["Usage"]?.ToString() != nameof(Crucible.Importers.TextureUsage.Sprite))
         {
             settings["Usage"] = nameof(Crucible.Importers.TextureUsage.Sprite);
-            ApplyImportSettings(texture, settings, openSheet: false);
+            Editor.Assets.ApplySettings(texture, settings);
             Log($"{AssetPathOf(texture)} is used as a sprite now");
         }
     }
@@ -624,7 +628,7 @@ internal sealed partial class Shell
     public TilesetDialog OpenTilesetDialog(AssetId texture, AssetId editing = default)
     {
         TilesetDialog dialog = new(this, texture, editing);
-        dialog.Open(Main.Root);
+        dialog.Open(Editor.Root);
         LastTilesetDialog = dialog;
         return dialog;
     }
@@ -632,14 +636,17 @@ internal sealed partial class Shell
     /// <summary>The New Tileset dialog opened last (the checks answer it).</summary>
     internal TilesetDialog? LastTilesetDialog { get; private set; }
 
+    /// <summary>The Palette panel on its own (not map mode's), while it's open: set by the panel's factory.</summary>
+    internal PalettePanel? Palette { get; set; }
+
     /// <summary>A tileset shown alone in the Palette, its collision to edit (double-clicking one outside map mode).</summary>
     public void ShowTileset(AssetId tileset)
     {
-        if (!_open.ContainsKey("Palette"))
+        if (Palette?.Root is null)
         {
-            TogglePanel("Palette");
+            Editor.Panels.Open(TilemapsExtension.PaletteId);
         }
-        if (_open.GetValueOrDefault("Palette") is PalettePanel panel)
+        if (Palette is { Root: not null } panel)
         {
             panel.Group?.Activate(panel);
             panel.ShowAlone(tileset);
@@ -653,7 +660,7 @@ internal sealed partial class Shell
     /// </summary>
     public string TilemapFolder()
     {
-        if (Project is { } project && ScenePath is { } scene)
+        if (Project is { } project && Editor.Scene.Path is { } scene)
         {
             // Beside the scene, in the game's Assets or a source plugin's (ADR 0118).
             if (project.AssetPathOf(Path.GetDirectoryName(scene) ?? "") is { } folder && !project.IsReadOnly(folder))
@@ -665,7 +672,7 @@ internal sealed partial class Shell
     }
 
     // A map file's path in the Assets folder, by its asset ID.
-    private string? AssetPathOf(AssetId id) => id.IsNone ? null : Database?.Find(id)?.Path;
+    internal string? AssetPathOf(AssetId id) => id.IsNone ? null : Database?.Find(id)?.Path;
 
     // "<name><extension>" in a folder of the Assets folder, numbered if
     // taken (or in `taken`), as a path in the Assets folder; null without a
@@ -689,22 +696,14 @@ internal sealed partial class Shell
     }
 
     // Writes (or, with null, deletes) a file in the Assets folder as an undo
-    // step of its own, and rescans; false (logged) if it can't.
-    private bool WriteAssetFile(string path, string? text, string title = "Edit File")
-    {
-        string? before = ReadAssetFile(path);
-        if (!AssetFileEdit.Write(this, path, text))
-        {
-            return false;
-        }
-        History.Push(new AssetFileEdit(this, title, path, before, text));
-        return true;
-    }
+    // step of its own (the editor's, ADR 0123); false (said) if it can't.
+    private bool WriteAssetFile(string path, string? text, string title = "Edit File") =>
+        text is null ? Editor.Assets.Delete(path, title) : Editor.Assets.WriteText(path, text, title);
 
-    private string? ReadAssetFile(string path)
+    internal string? ReadAssetFile(string path)
     {
-        string file = Project!.FileOf(path);
-        return File.Exists(file) ? File.ReadAllText(file) : null;
+        string? file = Project?.FileOf(path);
+        return file is not null && File.Exists(file) ? File.ReadAllText(file) : null;
     }
 
     // The map file an entity keeps: a map entity's (TilemapLayers), or a
@@ -712,7 +711,7 @@ internal sealed partial class Shell
     // layer, a prefab's, or a file that isn't there.
     private (AssetId Map, string Path)? OwnMapOf(Entity entity)
     {
-        if (SceneIds.IsInsideInstance(World, entity) || World.Has(entity, Components.Of<PrefabInstance>()))
+        if (SceneTree.IsInsideInstance(World, entity) || World.Has(entity, Components.Of<PrefabInstance>()))
         {
             return null; // a prefab's maps are the prefab's
         }
@@ -724,23 +723,6 @@ internal sealed partial class Shell
         return AssetPathOf(map) is { } path && File.Exists(Project!.FileOf(path)) ? (map, path) : null;
     }
 
-    // An entity and everything under it.
-    private List<Entity> SubtreeOf(Entity root)
-    {
-        List<Entity> found = [];
-        Stack<Entity> pending = new([root]);
-        while (pending.Count > 0)
-        {
-            Entity entity = pending.Pop();
-            found.Add(entity);
-            foreach (Entity child in SceneIds.ChildrenOf(World, entity))
-            {
-                pending.Push(child);
-            }
-        }
-        return found;
-    }
-
     /// <summary>
     /// Whether a map is used other than by <paramref name="by"/> and its
     /// layers: by another entity of the open scene, or named in another
@@ -748,8 +730,8 @@ internal sealed partial class Shell
     /// </summary>
     public bool IsMapShared(AssetId map, Entity by)
     {
-        HashSet<ulong> own = [.. SubtreeOf(by).Select(entity => entity.Value)];
-        foreach (Entity other in SceneIds.Of(World).Entities)
+        HashSet<ulong> own = [.. SceneTree.SubtreeOf(World, by).Select(entity => entity.Value)];
+        foreach (Entity other in SceneTree.Entities(World))
         {
             if (!own.Contains(other.Value) &&
                 ((World.Has(other, Components.Of<Tilemap>()) && World.Read<Tilemap>(other).Map == map) ||
@@ -763,7 +745,7 @@ internal sealed partial class Shell
             return false;
         }
         string id = map.ToString();
-        string? open = ScenePath is { } scene ? Path.GetFullPath(scene) : null;
+        string? open = Editor.Scene.Path is { } scene ? Path.GetFullPath(scene) : null;
         foreach (string file in project.AssetRoots().Where(root => Directory.Exists(root.Folder))
                      .SelectMany(root => Directory.EnumerateFiles(root.Folder, "*", SearchOption.AllDirectories)))
         {
@@ -778,12 +760,16 @@ internal sealed partial class Shell
         return false;
     }
 
-    // Duplicate's part (before its step is recorded): each map in the copy
-    // copied to a file of its own, named after its entity, with a new ID.
-    private void CopyTilemaps(Entity copy)
+    // -----------------------------------------------------------------------
+    // The editor's own Duplicate, rename, and Delete (ADR 0122)
+    // -----------------------------------------------------------------------
+
+    // After a Duplicate, in its undo step: each map in the copy copied to a
+    // file of its own, named after its entity, with a new ID.
+    internal void CopyTilemaps(Entity copy)
     {
         List<string> made = [];
-        foreach (Entity entity in SubtreeOf(copy))
+        foreach (Entity entity in SceneTree.SubtreeOf(World, copy))
         {
             if (OwnMapOf(entity) is not var (_, path) || ReadAssetFile(path) is not { } text)
             {
@@ -800,30 +786,30 @@ internal sealed partial class Shell
             }
             AssetId old = data.Id;
             data.Id = AssetId.New();
-            string folder = Path.GetDirectoryName(path)?.Replace('\\', '/') ?? "";
-            if (FreeFileName(folder, LabelOf(entity), TilemapImporter.FileExtension, made) is { } to &&
-                WriteAssetFile(to, TilemapImporter.Format(data)))
+            if (FreeFileName(AssetPaths.FolderOf(path), LabelOf(entity), TilemapImporter.FileExtension, made) is { } to &&
+                WriteAssetFile(to, TilemapImporter.Format(data), "Duplicate"))
             {
                 made.Add(to);
                 // The map entity and its layers (or a map from before layers) pointed at the copy.
-                foreach (Entity under in SubtreeOf(entity))
+                foreach (Entity under in SceneTree.SubtreeOf(World, entity))
                 {
                     if (World.Has(under, Components.Of<Tilemap>()) && World.Read<Tilemap>(under) is { } tilemap && tilemap.Map == old)
                     {
-                        World.Set(under, tilemap with { Map = data.Id });
+                        Editor.Scene.Edit(under, tilemap with { Map = data.Id }, "Duplicate");
                     }
                     if (World.Has(under, Components.Of<TilemapLayers>()) && World.Read<TilemapLayers>(under).Map == old)
                     {
-                        World.Set(under, new TilemapLayers { Map = data.Id });
+                        Editor.Scene.Edit(under, new TilemapLayers { Map = data.Id }, "Duplicate");
                     }
                 }
             }
         }
     }
 
-    // Rename's part: an entity's own map file renamed after it, kept in its
-    // folder, unless another entity uses the map.
-    private void RenameTilemap(Entity entity, string name)
+    // After a rename, in its undo step: an entity's own map file renamed
+    // after it, kept in its folder, unless another entity uses the map; a
+    // layer's entity renames its layer.
+    internal void RenameTilemap(Entity entity, string name)
     {
         if (name.Length > 0 && MapRootOf(entity) is { } root && root.Value != entity.Value)
         {
@@ -834,15 +820,14 @@ internal sealed partial class Shell
         {
             return;
         }
-        string folder = Path.GetDirectoryName(path)?.Replace('\\', '/') ?? "";
         if (Path.GetFileNameWithoutExtension(path) == name ||
-            FreeFileName(folder, name, TilemapImporter.FileExtension) is not { } to || ReadAssetFile(path) is not { } text)
+            FreeFileName(AssetPaths.FolderOf(path), name, TilemapImporter.FileExtension) is not { } to || ReadAssetFile(path) is not { } text)
         {
             return;
         }
-        if (WriteAssetFile(to, text))
+        if (WriteAssetFile(to, text, "Rename"))
         {
-            WriteAssetFile(path, null);
+            WriteAssetFile(path, null, "Rename");
         }
     }
 
@@ -864,21 +849,17 @@ internal sealed partial class Shell
         }
     }
 
-    /// <summary>
-    /// Deletes an entity. If it (or what's under it) has a map file no other
-    /// entity uses, <paramref name="deleteMaps"/> says whether those go too;
-    /// null asks first, deleting nothing until answered.
-    /// </summary>
-    public void Delete(Entity entity, bool? deleteMaps)
+    // The map files only the deleted entities use.
+    internal List<string> OwnMapFiles(IEnumerable<Entity> entities)
     {
-        if (!HasLive(entity))
-        {
-            return;
-        }
         List<string> own = [];
-        if (!SceneIds.IsInsideInstance(World, entity))
+        foreach (Entity entity in entities.Where(HasLive))
         {
-            foreach (Entity under in SubtreeOf(entity))
+            if (SceneTree.IsInsideInstance(World, entity))
+            {
+                continue;
+            }
+            foreach (Entity under in SceneTree.SubtreeOf(World, entity))
             {
                 if (OwnMapOf(under) is var (map, path) && !IsMapShared(map, under) && !own.Contains(path))
                 {
@@ -886,92 +867,50 @@ internal sealed partial class Shell
                 }
             }
         }
+        return own;
+    }
+
+    // Before a Delete: map files only the deleted entities use go too, are
+    // kept, or the Delete is cancelled (ADR 0112, 0122).
+    internal void AskAboutMapFiles(SceneChange change)
+    {
+        List<string> own = OwnMapFiles(change.Entities);
         if (own.Count == 0)
         {
-            Delete(entity);
-            return;
-        }
-        if (deleteMaps is { } choice)
-        {
-            History.BeginGroup("Delete");
-            Delete(entity);
-            if (choice)
-            {
-                foreach (string path in own)
-                {
-                    WriteAssetFile(path, null);
-                }
-            }
-            History.EndGroup();
             return;
         }
         if (_deleteMaps?.IsOpen == true)
         {
+            change.Cancel(); // already asking about another
             return;
         }
+        SceneChangeHold hold = change.Hold();
         string files = own.Count == 1 ? Path.GetFileName(own[0]) : $"its {own.Count} map files";
         _deleteMaps = new Dialog($"Also delete {files}?", "Delete File", "Keep File", "Cancel");
         _deleteMaps.Chosen += (_, chosen) =>
         {
             _deleteMaps = null;
-            if (chosen is 0 or 1 && HasLive(entity))
+            if (chosen == 0)
             {
-                Delete(entity, chosen == 0);
+                change.Then(() =>
+                {
+                    foreach (string path in own)
+                    {
+                        WriteAssetFile(path, null, "Delete");
+                    }
+                });
+                hold.Go();
+            }
+            else if (chosen == 1)
+            {
+                hold.Go();
+            }
+            else
+            {
+                hold.Cancel();
             }
         };
-        _deleteMaps.Open(Main.Root);
-    }
-
-    /// <summary>A file's change already made, recorded as an undo step (map mode's edits to its map).</summary>
-    internal void PushFileEdit(string title, string path, string? before, string? after) =>
-        History.Push(new AssetFileEdit(this, title, path, before, after));
-
-    // A file in the Assets folder written or deleted (null), and back on undo.
-    private sealed class AssetFileEdit(Shell shell, string title, string path, byte[]? before, byte[]? after) : UndoStep(title)
-    {
-        public AssetFileEdit(Shell shell, string title, string path, string? before, string? after)
-            : this(shell, title, path, Bytes(before), Bytes(after))
-        {
-        }
-
-        public override bool ChangesScene => false;
-
-        public override void Undo(World world) => Write(shell, path, before);
-
-        public override void Redo(World world) => Write(shell, path, after);
-
-        public static bool Write(Shell shell, string path, string? text) => Write(shell, path, Bytes(text));
-
-        public static bool Write(Shell shell, string path, byte[]? contents)
-        {
-            if (shell.Project is not { } project || !shell.CanChange(path))
-            {
-                return false;
-            }
-            string file = project.FileOf(path);
-            try
-            {
-                if (contents is null)
-                {
-                    File.Delete(file);
-                }
-                else
-                {
-                    Directory.CreateDirectory(Path.GetDirectoryName(file)!);
-                    File.WriteAllBytes(file, contents);
-                }
-            }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-            {
-                shell.Log($"Can't {(contents is null ? "delete" : "save")} {path}: {exception.Message}");
-                return false;
-            }
-            shell.RefreshAssets();
-            return true;
-        }
-
-        // As File.WriteAllText writes it: UTF-8, no byte order mark.
-        private static byte[]? Bytes(string? text) => text is null ? null : System.Text.Encoding.UTF8.GetBytes(text);
+        _deleteMaps.Open(Editor.Root);
     }
 
     /// <summary>
@@ -996,12 +935,7 @@ internal sealed partial class Shell
         }
         change(data);
         string after = TilesetImporter.Format(data);
-        if (after == before || !AssetFileEdit.Write(this, path, after))
-        {
-            return false;
-        }
-        History.Push(new AssetFileEdit(this, title, path, before, after));
-        return true;
+        return after != before && WriteAssetFile(path, after, title);
     }
 
     // The shape presets' outlines, in a tile's pixels from its top-left, y down.
@@ -1027,4 +961,106 @@ public enum TilePreset
     Slope,       // 45°, rising to the right
     ShallowLow,  // the lower half of a 22.5° slope rising to the right
     ShallowHigh, // its upper half
+}
+
+/// <summary>
+/// A map's file saved as it was painted, recorded as one undo step after the
+/// stroke (ADR 0112, 0123): undo and redo write it back and import it at once.
+/// </summary>
+internal sealed class MapFileEdit(MapMode maps, string title, AssetId map, string path, string before, string after) : UndoStep(title)
+{
+    public override bool ChangesScene => false;
+
+    public override void Undo(World world) => Write(before);
+
+    public override void Redo(World world) => Write(after);
+
+    private void Write(string text)
+    {
+        if (maps.Project is not { } project)
+        {
+            return;
+        }
+        try
+        {
+            File.WriteAllText(project.FileOf(path), text);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            maps.Log($"Can't save {path}: {exception.Message}");
+            return;
+        }
+        maps.Editor.Assets.Reimport(map);
+    }
+}
+
+/// <summary>The open scene's tree through the world's own hierarchy, for map mode (ADR 0123).</summary>
+internal static class SceneTree
+{
+    /// <summary>Its children, in order.</summary>
+    public static Entity[] ChildrenOf(World world, Entity parent)
+    {
+        Entity[] children = new Entity[16];
+        int count = world.ChildrenOf(parent, children);
+        if (count > children.Length)
+        {
+            children = new Entity[count];
+            count = world.ChildrenOf(parent, children);
+        }
+        return children[..count];
+    }
+
+    /// <summary>Where it is among its parent's children; -1 at the top.</summary>
+    public static int SiblingIndex(World world, Entity entity)
+    {
+        Entity parent = world.ParentOf(entity);
+        return parent.IsNull ? -1 : Array.IndexOf(ChildrenOf(world, parent), entity);
+    }
+
+    /// <summary>An entity and everything under it.</summary>
+    public static List<Entity> SubtreeOf(World world, Entity root)
+    {
+        List<Entity> found = [];
+        Stack<Entity> pending = new([root]);
+        while (pending.Count > 0)
+        {
+            Entity entity = pending.Pop();
+            found.Add(entity);
+            foreach (Entity child in ChildrenOf(world, entity))
+            {
+                pending.Push(child);
+            }
+        }
+        return found;
+    }
+
+    /// <summary>Whether it's inside a prefab instance, below its root (whose shape the prefab owns).</summary>
+    public static bool IsInsideInstance(World world, Entity entity)
+    {
+        ComponentId instance = Components.Of<PrefabInstance>();
+        for (Entity parent = world.ParentOf(entity); !parent.IsNull; parent = world.ParentOf(parent))
+        {
+            if (world.Has(parent, instance))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>The scene's entities: those with a scene ID.</summary>
+    public static List<Entity> Entities(World world)
+    {
+        using Query query = world.CreateQuery([Components.Of<SceneEntityId>()]);
+        Collector collector = new() { Found = [] };
+        query.ForEachChunk(ref collector);
+        return collector.Found;
+    }
+
+    private struct Collector : IChunkJob
+    {
+        public List<Entity> Found;
+
+        public readonly void Execute(in ChunkView chunk) => Found.AddRange(chunk.Entities);
+    }
 }

@@ -1,9 +1,10 @@
 using System.Numerics;
 using Crucible.Assets.Importers;
+using Crucible.Editor;
 using Crucible.Render;
 using Crucible.UI;
 
-namespace Crucible.Editor;
+namespace Crucible.Tilemaps.Editor;
 
 /// <summary>
 /// A tileset's texture (ADR 0108, 0112) for the Palette and New Tileset: zoomed by whole

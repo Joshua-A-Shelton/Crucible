@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The Tilemaps plugin's checks (ADR 0123), for CTest's
+       launcher.jit.tilemaps: given the editor's internals and the plugin's
+       for their test helpers, which the plugin itself never sees. Beside the
+       plugin in every build but shipping ones, and loaded when it's there. -->
+
+  <PropertyGroup>
+    <AssemblyName>Tilemaps.Editor.Checks</AssemblyName>
+    <RootNamespace>Crucible.Tilemaps.Editor</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Tilemaps.Editor.csproj" Private="false" />
+    <ProjectReference Include="../../../src/managed/Crucible.Editor/Crucible.Editor.csproj" Private="false" />
+    <ProjectReference Include="../../../src/managed/Crucible.Engine/Crucible.Engine.csproj" Private="false" />
+    <ProjectReference Include="../../../src/managed/Crucible.Assets/Crucible.Assets.csproj" Private="false" />
+  </ItemGroup>
+
+  <Target Name="CopyToEditorPlugins" AfterTargets="Build" Condition="'$(CrucibleShipping)' != 'true'">
+    <!-- Where the editor looks for its official plugins (OfficialPlugins.Folder);
+         the artifacts pivot is only known once the build has started. -->
+    <PropertyGroup>
+      <CrucibleOfficialPluginFolder>$(ArtifactsPath)/bin/Crucible.Editor/$(ArtifactsPivots)/Plugins/Tilemaps</CrucibleOfficialPluginFolder>
+    </PropertyGroup>
+    <Copy SourceFiles="$(TargetPath);$(TargetDir)$(TargetName).pdb" DestinationFolder="$(CrucibleOfficialPluginFolder)" SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>

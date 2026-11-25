@@ -1769,3 +1769,27 @@ drafted after the owner tried it by hand (2026-11-24):
 | `Shell.DeleteWithChanges`, `DuplicateWithChanges`, `RenameWithChanges`, `AddCreateItems` | Editor members | The editor's operations run past extensions |
 | `SceneApiChecks`, CTest `launcher.jit.scene-api`, game arg `check-scene-api`, test folder `scene-api-project` | Tests | An extension's say in the scene |
 | docs/learning/scene-changes.md | Learning note | Before and after, holds, groups |
+
+## Official plugins (2026-11-24, ADR 0123)
+
+Names proposed before building (approved to build with, 2026-11-24) and
+added while building; all placeholders (`*`) until the owner has tried it:
+
+| Name | What it names | What it is |
+|---|---|---|
+| ADR 0123 "Official plugins"* | Decision record | Editor extensions step 7b |
+| `Tilemaps`* | Official plugin | Map mode, the Palette, the Layers, New Tileset (editor only for now) |
+| `plugins/Tilemaps/`*, `Tilemaps.crplugin`*, `Tilemaps.Editor.csproj`* | Source folder, manifest, project | In the repository's root |
+| `Tilemaps.Editor.dll`*, namespace `Crucible.Tilemaps.Editor`* | Assembly | The public API only |
+| `Tilemaps.Editor.Checks.dll`*, `plugins/Tilemaps/Checks/`* | Checks assembly | TilemapChecks moved, given the editor's and the plugin's internals |
+| `Plugins/` beside the editor* | Folder | Where official plugins are built |
+| `"Official"`*, `["*"]`* | Project file key, its "all" | The official plugins a project uses |
+| `OfficialPlugins`* (`Folder`*, `All`*, `Names`*, `Read`*), `Plugin.IsOfficial`*, `Plugin.HasEditorAssembly`*, `Project.Official`*, `Project.OfficialPlugins`* | Crucible.Assets members | Reading them |
+| `editor.Assets.AddOpener(id, title, kinds, open)`*, `AddCreate(path, create)`*, `Changed`*, `CanWrite(path)`*, `Delete(path, title)`* | API | Opening, the Assets Create menu, changes, writability, deleting |
+| Added while building: `editor.Assets.Project`*, `ApplySettings(asset, settings)`*, `Reimport(asset)`*; `editor.Scene.Path`*, `editor.Scene.AddOpener<T>(id, title, open)`* | API | The project, import settings, an import at once; the scene's file; opening from a component |
+| `EditorPanel.Tick()`* | Virtual method | Every open panel, each frame |
+| `SceneView.ShowsOutlines`*, `SceneView.TakesToolKeys`* | Properties | A view without the selection's outline or the editor's tool keys |
+| `TilemapsExtension`*, `MapMode`* (was the shell's Shell.Tilemaps.cs), `MapFileEdit`*, `SceneTree`*, `TileGlyphs`* | Plugin types | Its extension, map mode's state, a painted map's undo step, the scene's tree, the tool buttons |
+| `OfficialPluginChecks`*, `Shell.RunCreateItem`*, `RunAssetCreateItem`*, `AssetChecks.LeaveOutLocalCode` leaving the official plugins out | Editor internals | Checks for official plugins |
+| "Official plugins: Tilemaps 0.1.0"*, "Plugins/X has the name of an official plugin; rename it"*, "The project uses the official plugin X, which this editor doesn't have"* | Text users see | The log's lines |
+| docs/learning/official-plugins.md* | Learning note | Dogfooding, swappable parts, loading once |

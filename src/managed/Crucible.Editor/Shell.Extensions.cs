@@ -562,11 +562,16 @@ internal sealed partial class Shell
         return true;
     }
 
-    internal bool WriteExtensionFile(string path, byte[] contents, string title)
+    /// <summary>Whether an extension may write a file there (ADR 0123): in the game's or a plugin's Assets, and not read-only; says why if not.</summary>
+    internal bool CanWriteExtensionFile(string path) => ExtensionFileOf(path) is not null;
+
+    // The file an extension's asset path names, and the path as written;
+    // null (said) if it's outside the Assets folders or can't be changed.
+    private (string Relative, string File)? ExtensionFileOf(string path)
     {
         if (Project is not { } project || string.IsNullOrWhiteSpace(path))
         {
-            return false;
+            return null;
         }
         // The game's Assets, or a plugin's ("Dialogue:Notes/Todo.txt", ADR 0118).
         string relative = path.Replace('\\', '/');
@@ -575,7 +580,7 @@ internal sealed partial class Shell
         if (AssetPaths.PluginOf(relative) is { } plugin && project.PluginNamed(plugin) is null)
         {
             LogWarning($"Can't write {path}: there's no plugin {plugin}");
-            return false;
+            return null;
         }
         string root = Path.GetFullPath(project.FileOf(prefix));
         string file = Path.GetFullPath(Path.Combine(root, within));
@@ -583,10 +588,16 @@ internal sealed partial class Shell
         if (Path.IsPathRooted(within) || !file.StartsWith(root + Path.DirectorySeparatorChar, comparison))
         {
             LogWarning($"Can't write {path}: it isn't in the Assets folder");
-            return false;
+            return null;
         }
         relative = prefix + Path.GetRelativePath(root, file).Replace('\\', '/');
-        if (!CanChange(relative))
+        return CanChange(relative) ? (relative, file) : null;
+    }
+
+    /// <summary>An extension's file written (or, with null, deleted) as one undo step (ADR 0117, 0123).</summary>
+    internal bool WriteExtensionFile(string path, byte[]? contents, string title)
+    {
+        if (ExtensionFileOf(path) is not var (relative, file))
         {
             return false;
         }
@@ -600,11 +611,11 @@ internal sealed partial class Shell
             Log($"Can't read {relative}: {exception.Message}");
             return false;
         }
-        if (before is not null && before.AsSpan().SequenceEqual(contents))
+        if (contents is null ? before is null : before is not null && before.AsSpan().SequenceEqual(contents))
         {
             return true;
         }
-        byte[] after = [.. contents];
+        byte[]? after = contents is null ? null : [.. contents];
         if (!AssetFileEdit.Write(this, relative, after))
         {
             return false;

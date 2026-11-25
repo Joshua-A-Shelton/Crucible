@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The official plugin Tilemaps (ADR 0123): map mode, the Palette, the
+       Layers, and New Tileset, on the editor's public API alone (no
+       InternalsVisibleTo from the editor), so the compiler proves the API is
+       enough. Editor-only for now: tilemaps' runtime stays in the engine
+       until plugins can carry native code. Built into the editor's Plugins
+       folder, where every project finds it. -->
+
+  <PropertyGroup>
+    <AssemblyName>Tilemaps.Editor</AssemblyName>
+    <RootNamespace>Crucible.Tilemaps.Editor</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="*.cs" />
+    <InternalsVisibleTo Include="Tilemaps.Editor.Checks" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/managed/Crucible.Editor/Crucible.Editor.csproj" Private="false" />
+    <ProjectReference Include="../../src/managed/Crucible.Engine/Crucible.Engine.csproj" Private="false" />
+    <ProjectReference Include="../../src/managed/Crucible.Assets/Crucible.Assets.csproj" Private="false" />
+  </ItemGroup>
+
+  <Target Name="CopyToEditorPlugins" AfterTargets="Build">
+    <!-- Where the editor looks for its official plugins (OfficialPlugins.Folder);
+         the artifacts pivot is only known once the build has started. -->
+    <PropertyGroup>
+      <CrucibleOfficialPluginFolder>$(ArtifactsPath)/bin/Crucible.Editor/$(ArtifactsPivots)/Plugins/Tilemaps</CrucibleOfficialPluginFolder>
+    </PropertyGroup>
+    <Copy SourceFiles="$(TargetPath);$(TargetDir)$(TargetName).pdb;Tilemaps.crplugin"
+          DestinationFolder="$(CrucibleOfficialPluginFolder)" SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>

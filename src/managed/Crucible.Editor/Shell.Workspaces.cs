@@ -7,8 +7,8 @@ using Crucible.UI;
 namespace Crucible.Editor;
 
 /// <summary>
-/// Workspaces (ADR 0119): registered by ID (the editor's own, map mode,
-/// and extensions'), opened as tabs beside the Viewport for what they work
+/// Workspaces (ADR 0119): registered by ID (extensions', official plugins'
+/// among them: map mode, ADR 0123), opened as tabs beside the Viewport for what they work
 /// on, asked each frame whether they go on, their views rendered while
 /// shown, their keys first while they have focus, and saved with the layout
 /// to come back once what they work on is open again.
@@ -190,14 +190,6 @@ internal sealed partial class Shell
                 continue;
             }
             workspace.Toolbar.Refresh();
-            try
-            {
-                workspace.Tick();
-            }
-            catch (Exception exception)
-            {
-                LogError($"{workspace.Title}: {Message(exception)}");
-            }
         }
         foreach (PendingPanel pending in _open.Values.OfType<PendingPanel>().Where(panel => panel.Workspace is not null).ToArray())
         {
@@ -289,7 +281,7 @@ internal sealed partial class Shell
         {
             if (child is SceneView view)
             {
-                view.Render(world, view.IsMapView ? [] : outlined);
+                view.Render(world, view.ShowsOutlines ? outlined : []);
             }
             else
             {

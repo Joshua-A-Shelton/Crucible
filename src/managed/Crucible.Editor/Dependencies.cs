@@ -33,6 +33,7 @@ internal static class Dependencies
         // compiled plugins loaded once (ADR 0118), which the game uses.
         Crucible.Hosting.GameLoader.SharedAssemblies = name =>
             Shell.CompiledPlugins?.Find(name) ??
+            Shell.OfficialPluginsLoaded?.Find(name) ??
             context.Assemblies.FirstOrDefault(assembly => assembly.GetName().Name == name.Name);
         string folder = Path.GetDirectoryName(Path.GetFullPath(Crucible.Api.GamePath()))!;
         context.Resolving += (resolving, name) =>

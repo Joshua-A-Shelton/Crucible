@@ -231,6 +231,9 @@ Longer explanations of decisions, written to be reread:
 - [Scene changes](docs/learning/scene-changes.md) (ADR 0122): before and
   after events, holding an operation for a question, one undo step for
   several edits, and not reacting to your own.
+- [Official plugins](docs/learning/official-plugins.md) (ADR 0123):
+  dogfooding an API, swappable parts, shipping plugins beside the editor,
+  loading them once, and tests that see more than the code they test.
 - [Up-to-date builds](docs/learning/up-to-date-builds.md) (ADR 0110): file
   times versus content hashes, what makes a build stamp trustworthy, and
   why copies need one.
