@@ -1462,7 +1462,8 @@ discussed, its findings noted; the UI library discussed, its findings
 noted; animation and audio discussed, their findings noted (sound latency
 a high priority); physics discussed, its findings noted (joint motors and
 springs soon); the 2D path discussed, its findings noted (all after v1);
-the editor's page written, to be discussed.
+the editor discussed, its findings noted (autosave, multi-select, prefab
+editing); the shipping page written, to be discussed.
 
 Asked for by the owner (2026-11-18), before any game is built: some parts
 of the engine have grown past what the owner knows well. Go over the

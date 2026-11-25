@@ -27,6 +27,8 @@ first game), and what it decided to change:
   camera, frame animation, tilemaps and map mode, and 2D lighting.
 - [The editor](docs/review/09-editor.md): the shell and viewport, undo,
   the inspector, assets and imports, play, and the extensions API.
+- [Shipping](docs/review/10-shipping.md): running standalone, cooking,
+  loading archives, the JIT and NativeAOT packages, and platforms.
 - [Findings](docs/review/findings.md): what the review decided to change.
 
 ## Learning notes

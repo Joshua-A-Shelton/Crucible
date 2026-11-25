@@ -43,3 +43,6 @@ each as its own step.
 | 2D | Tilemap features waiting for a game: auto-tiling, animated tiles, 90° turns per cell, chunk culling, a trigger layer. | Address after v1, not critical (owner, 2026-11-25) | Noted |
 | 2D | 2D lighting has no shadows, normal maps, or lights limited to layers. | Address after v1, not critical (owner, 2026-11-25) | Noted |
 | 2D | The Sprite Sheet Editor needs Select and Draw tools; 2D sprite tooling could become an official plugin. | Address after v1, not critical (owner, 2026-11-25) | Noted |
+| Editor | A native crash in Play (in the editor's process) loses unsaved scene edits: no autosave or recovery. | Address (owner, 2026-11-25) | Noted |
+| Editor | One entity selected at a time: no multi-select for moving, deleting, duplicating, or editing fields across several. | Address (owner, 2026-11-25) | Noted |
+| Editor | Prefabs can't be made or changed from the scene: no "make a prefab", "apply overrides", or editing a prefab on its own. | Address (owner, 2026-11-25) | Noted |
