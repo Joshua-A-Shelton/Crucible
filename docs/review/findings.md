@@ -26,3 +26,8 @@ each as its own step.
 | Renderer | Material gaps: no per-instance overrides, samplers fixed to linear repeat, no shader hot reload, material type names in one C# namespace. | Revisit (owner, 2026-11-25) | Noted |
 | Renderer | Outlines are only hulls; edge-detected outlines and painted line maps were set aside. | Revisit (owner, 2026-11-25) | Noted |
 | Renderer | Late latching is ready but not built (ADR 0050); revisit with the D3D12 timing priority. | Revisit (owner, 2026-11-25) | Noted |
+| UI | No descendant selectors: icons can't follow their button's hover, tooltip text needed its own class, disabled play buttons dim by opacity. | Revisit before v1 (owner, 2026-11-25) | Noted |
+| UI | Layouts are code only: designers can restyle a HUD or menu but not arrange it; a layout asset, then an editor for it. | Revisit before v1 (owner, 2026-11-25) | Noted |
+| UI | No data binding: controls are filled and read by hand; a light binding (a property path, an observable value). | Revisit before v1 (owner, 2026-11-25) | Noted |
+| UI | Latin text only: CJK (font fallback, larger glyph caches) for Japanese titles, names, or a localized release. | Revisit after v1 (owner, 2026-11-25) | Noted |
+| UI | Composition bugs found late (a menu in a scroll view, a list in a dialog); tests cover controls alone, not combined. | Revisit before v1 (owner, 2026-11-25) | Noted |

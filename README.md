@@ -19,6 +19,8 @@ first game), and what it decided to change:
   meshes and materials, lights and shadows, and the finishing.
 - [The UI library](docs/review/05-ui.md): elements and layout, drawing,
   text, styling, input, and controls.
+- [Animation and audio](docs/review/06-animation-and-audio.md): clips and
+  the pose runtime, state machines, events, skinning, and the mixer.
 - [Findings](docs/review/findings.md): what the review decided to change.
 
 ## Learning notes
