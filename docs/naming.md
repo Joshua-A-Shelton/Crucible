@@ -1752,20 +1752,20 @@ drafted after the owner tried it by hand (2026-11-24):
 
 ## Scene edits for extensions (2026-11-24, ADR 0122)
 
-Names proposed before building (approved to build with, 2026-11-24) and
-added while building; all placeholders (`*`) until the owner has tried it:
+Names proposed before building and added while building, settled as
+drafted after the owner tried it by hand (2026-11-24):
 
 | Name | What it names | What it is |
 |---|---|---|
-| ADR 0122 "Scene edits for extensions"* | Decision record | Editor extensions step 7a |
-| `editor.Scene.Create(name, parent)`*, `Destroy(entity)`*, `SetParent(entity, parent, index)`*, `Rename(entity, name)`* | Methods | Entities made and arranged, each one undo step |
-| `editor.Scene.AddCreate(path, create)`* | Method | An item in the Hierarchy's Create menu |
-| `Duplicating`*, `Renaming`*, `Deleting`* | Events | Before the editor's own operations |
-| `Duplicated`*, `Renamed`*, `Deleted`* | Events | After them, in their undo step |
-| `SceneChange`*: `Entities`, `NewName`*, `IsCancelled`*, `Cancel()`*, `Hold()`*, `Then(action)`* | Class | What a before event gets |
-| `SceneChangeHold`*: `Go()`*, `Cancel()`* | Class | An operation waiting on a question |
-| `editor.Assets.Texture(id)`* | Method | A texture asset's GPU texture |
-| `editor.Ask(message, choices, answered)`*, `editor.Root`* | Method, property | A question in the editor's dialog; the main window's UI |
-| `Shell.DeleteWithChanges`*, `DuplicateWithChanges`*, `RenameWithChanges`*, `AddCreateItems`* | Editor members | The editor's operations run past extensions |
-| `SceneApiChecks`*, CTest `launcher.jit.scene-api`*, game arg `check-scene-api`*, test folder `scene-api-project`* | Tests | An extension's say in the scene |
-| docs/learning/scene-changes.md* | Learning note | Before and after, holds, groups |
+| ADR 0122 "Scene edits for extensions" | Decision record | Editor extensions step 7a |
+| `editor.Scene.Create(name, parent)`, `Destroy(entity)`, `SetParent(entity, parent, index)`, `Rename(entity, name)` | Methods | Entities made and arranged, each one undo step |
+| `editor.Scene.AddCreate(path, create)` | Method | An item in the Hierarchy's Create menu |
+| `Duplicating`, `Renaming`, `Deleting` | Events | Before the editor's own operations |
+| `Duplicated`, `Renamed`, `Deleted` | Events | After them, in their undo step |
+| `SceneChange`: `Entities`, `NewName`, `IsCancelled`, `Cancel()`, `Hold()`, `Then(action)` | Class | What a before event gets |
+| `SceneChangeHold`: `Go()`, `Cancel()` | Class | An operation waiting on a question |
+| `editor.Assets.Texture(id)` | Method | A texture asset's GPU texture |
+| `editor.Ask(message, choices, answered)`, `editor.Root` | Method, property | A question in the editor's dialog; the main window's UI |
+| `Shell.DeleteWithChanges`, `DuplicateWithChanges`, `RenameWithChanges`, `AddCreateItems` | Editor members | The editor's operations run past extensions |
+| `SceneApiChecks`, CTest `launcher.jit.scene-api`, game arg `check-scene-api`, test folder `scene-api-project` | Tests | An extension's say in the scene |
+| docs/learning/scene-changes.md | Learning note | Before and after, holds, groups |

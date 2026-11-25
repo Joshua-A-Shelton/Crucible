@@ -1350,8 +1350,8 @@ owner: editors registered for kinds of asset and components, opened by
 double-click, the Inspector, and Open With. Step 6 done (ADR 0121), tried
 by hand by the owner: viewport tools, the handles and Edit
 Points moved onto them, map painting its view's tool. Step 7 split by the
-owner (2026-11-24) into 7a, 7b, and 7c; 7a built (ADR 0122), to be tried
-by hand by the owner: scene edits for extensions.
+owner (2026-11-24) into 7a, 7b, and 7c; 7a done (ADR 0122), tried by hand
+by the owner: scene edits for extensions.
 
 Asked for by the owner (2026-11-20): a game's own editors, as specialized
 as map mode (ADR 0112), built by the people making the game, for example
