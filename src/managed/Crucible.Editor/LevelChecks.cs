@@ -152,7 +152,7 @@ internal sealed partial class LevelChecks : GameSystem
                 {
                     yield return wait;
                 }
-                Directory.Move(imported + "-aside", imported);
+                PutBack(imported);
                 Check(_run.Contains(loaded, StringComparison.Ordinal) &&
                       _run.Contains("reading 8 assets from Game.crpak", StringComparison.Ordinal),
                     $"{what} the game ({loaded}) reads its assets from its archive", Tail(_run));
@@ -175,7 +175,7 @@ internal sealed partial class LevelChecks : GameSystem
             {
                 yield return wait;
             }
-            Directory.Move(imported + "-aside", imported);
+            PutBack(imported);
             Check(_run.Contains("reading 8 assets from Game.crpak", StringComparison.Ordinal),
                 "the run reads its assets from the archive, with the Cache's imported files moved aside", Tail(_run));
             Compare("from the archive");
@@ -307,6 +307,19 @@ internal sealed partial class LevelChecks : GameSystem
         log.Split('\n').Count(line => line.Contains(text, StringComparison.Ordinal));
 
     private static string Tail(string log) => string.Join(" | ", log.Split('\n').TakeLast(8));
+
+    // The Cache's imported files moved back. The editor may have imported
+    // them again meanwhile (a watcher settling during the run, as on Windows
+    // after the project was copied); what it made is dropped for the real
+    // ones. The run read its archive either way, which the checks see.
+    private static void PutBack(string imported)
+    {
+        if (Directory.Exists(imported))
+        {
+            Directory.Delete(imported, recursive: true);
+        }
+        Directory.Move(imported + "-aside", imported);
+    }
 
     private void Check(bool passed, string what, string detail = "")
     {
