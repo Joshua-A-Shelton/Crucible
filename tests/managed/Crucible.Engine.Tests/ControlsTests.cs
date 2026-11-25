@@ -449,4 +449,76 @@ public class ControlsTests
             }
         }
     }
+
+    [Test]
+    public async Task ATooltipShowsOnceThePointerRestsAndGoesOnAPressOrLeaving()
+    {
+        using Rig rig = new();
+        Button button = rig.Add(new Button("Stamp") { ToolTip = "Stamp (B)" });
+        Label plain = rig.Add(new Label("Plain"));
+        rig.Send(Motion(Center(button)));
+        await Assert.That(rig.Root.ShownToolTip).IsNull();
+        await Assert.That(rig.Root.IsAnimating).IsTrue(); // frames keep coming while it waits
+        rig.Time += rig.Root.ToolTipDelay + 0.01;
+        rig.Layout();
+        await Assert.That(rig.Root.ShownToolTip).IsEqualTo("Stamp (B)");
+        // It takes no input: the button under it still gets the click.
+        int clicks = 0;
+        button.Clicked += _ => ++clicks;
+        rig.Click(button);
+        await Assert.That(clicks).IsEqualTo(1);
+        await Assert.That(rig.Root.ShownToolTip).IsNull();
+        // Not again on the same element until the pointer has left it.
+        rig.Time += 5;
+        rig.Layout();
+        await Assert.That(rig.Root.ShownToolTip).IsNull();
+        rig.Send(Motion(Center(plain)));
+        rig.Send(Motion(Center(button)));
+        rig.Time += rig.Root.ToolTipDelay + 0.01;
+        rig.Layout();
+        await Assert.That(rig.Root.ShownToolTip).IsEqualTo("Stamp (B)");
+        // Leaving for an element without one hides it; a key does too.
+        rig.Send(Motion(Center(plain)));
+        await Assert.That(rig.Root.ShownToolTip).IsNull();
+        rig.Send(Motion(Center(button)));
+        rig.Time += rig.Root.ToolTipDelay + 0.01;
+        rig.Layout();
+        rig.Send(Key(Right));
+        await Assert.That(rig.Root.ShownToolTip).IsNull();
+    }
+
+    [Test]
+    public async Task AnElementWithoutATooltipShowsItsParents()
+    {
+        using Rig rig = new();
+        Label inside = new("Inside");
+        Button button = rig.Add(new Button { Content = inside, ToolTip = "Outer" });
+        rig.Send(Motion(Center(inside)));
+        rig.Time += rig.Root.ToolTipDelay + 0.01;
+        rig.Layout();
+        await Assert.That(rig.Root.ShownToolTip).IsEqualTo("Outer");
+        // Its element leaving the tree takes it away.
+        rig.Panel.Remove(button);
+        rig.Layout();
+        await Assert.That(rig.Root.ShownToolTip).IsNull();
+    }
+
+    [Test]
+    public async Task AnIconIsAGlyphOfAFontLoadedInCodeInASquareOfItsSize()
+    {
+        using Rig rig = new();
+        FontHandle font = LoadNotoSans();
+        try
+        {
+            Icon icon = rig.Add(new Icon(font, "A") { FontSize = 20 });
+            await Assert.That(icon.DesiredSize).IsEqualTo(new Vector2(20));
+            await Assert.That(icon.Foreground).IsNotEqualTo(new Vector4(0, 0, 0, 1)); // the theme's, as text
+            rig.Panel.Remove(icon);
+            rig.Layout();
+        }
+        finally
+        {
+            Fonts.Unload(font);
+        }
+    }
 }

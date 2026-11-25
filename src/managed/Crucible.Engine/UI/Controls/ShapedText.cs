@@ -15,6 +15,9 @@ internal sealed class ShapedText
     private AssetId _fontId;
     private FontHandle _acquired;
 
+    /// <summary>A font loaded in code (an icon font, ADR 0124), used instead of the element's Font; none for that.</summary>
+    public FontHandle Loaded { get; set; }
+
     /// <summary>The text as last shaped; null without a font.</summary>
     public TextLayout? Layout => _layout;
 
@@ -59,6 +62,10 @@ internal sealed class ShapedText
     // The style's font asset (acquired once, released when it changes), or the root's default.
     private FontHandle ResolveFont(UIElement element)
     {
+        if (Loaded.Generation != 0)
+        {
+            return Loaded;
+        }
         AssetId id = element.Font;
         if (id != _fontId)
         {

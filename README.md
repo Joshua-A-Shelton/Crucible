@@ -234,6 +234,8 @@ Longer explanations of decisions, written to be reread:
 - [Official plugins](docs/learning/official-plugins.md) (ADR 0123):
   dogfooding an API, swappable parts, shipping plugins beside the editor,
   loading them once, and tests that see more than the code they test.
+- [Icons and tooltips](docs/learning/icons-and-tooltips.md) (ADR 0124):
+  icon fonts, when a tooltip shows and hides, and where a brush is held.
 - [Up-to-date builds](docs/learning/up-to-date-builds.md) (ADR 0110): file
   times versus content hashes, what makes a build stamp trustworthy, and
   why copies need one.

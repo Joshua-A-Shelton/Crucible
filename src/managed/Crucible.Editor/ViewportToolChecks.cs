@@ -88,8 +88,10 @@ internal sealed class ViewportToolChecks : GameSystem
             yield break;
         }
         yield return 2;
-        Check(viewport.ToolButtons.Select(button => button.Button.Text)
-                  .SequenceEqual(["Move (W)", "Rotate (E)", "Scale (R)", "Edit Points (P)", "Place (B)", "Hog"]),
+        // The editor's as icons, their names and keys in their tooltips (ADR
+        // 0124); the extension's, without icons, as text.
+        Check(viewport.ToolButtons.Select(button => button.Button.Text ?? $"icon: {button.Button.ToolTip}")
+                  .SequenceEqual(["icon: Move (W)", "icon: Rotate (E)", "icon: Scale (R)", "icon: Edit Points (P)", "Place (B)", "Hog"]),
             "the Viewport's toolbar has the editor's tools, then the extension's",
             string.Join(", ", viewport.ToolButtons.Select(button => button.Button.Text)));
         Check(ToolId(viewport) == "Scene.Move", "Move is on to start with");

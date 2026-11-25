@@ -123,8 +123,8 @@ internal sealed class OpenWithChecks : GameSystem
             "its transform's editor is the extension's");
         ComponentSection? section = (shell.Windows.SelectMany(window => window.DockSpace.Panels).OfType<InspectorPanel>().FirstOrDefault())
             ?.Sections.FirstOrDefault(found => found.Component == transform);
-        Check(section is not null && OpenButton(section) is { } button && button.Text == "Open in Notes",
-            "the Inspector's header names it on its Open button");
+        Check(section is not null && OpenButton(section) is { } button && button.ToolTip == "Open in Notes",
+            "the Inspector's header names it on its Open button's tooltip");
         Check(shell.OpenEntity(entity, transform) &&
               shell.Workspaces.Any(workspace => workspace.WorkspaceId == "Notes" && workspace.Entity.Value == entity.Value),
             "and opens the entity in it");
@@ -145,11 +145,11 @@ internal sealed class OpenWithChecks : GameSystem
         return Entity.Null;
     }
 
-    private static Button? OpenButton(UIElement element)
+    private static ButtonBase? OpenButton(UIElement element)
     {
         foreach (UIElement child in element.Children)
         {
-            if (child is Button { Text: { } text } button && text.StartsWith("Open", StringComparison.Ordinal))
+            if (child is ButtonBase button && button.Visibility == Visibility.Visible && button.ToolTip.StartsWith("Open", StringComparison.Ordinal))
             {
                 return button;
             }

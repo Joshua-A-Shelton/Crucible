@@ -232,13 +232,14 @@ public sealed class ComponentSection : UIElement, IFieldOwner
     private readonly InspectorPanel _inspector;
     private readonly SavedComponent _saved;
     private readonly StackPanel _fields = new() { Spacing = 3 };
-    private readonly IconButton _fold = new(IconButton.Icon.Open);
+    private readonly IconButton _fold = new("chevron-down", "Fold");
     private readonly Label _name;
     private readonly List<FieldEditor> _editors = [];
     private readonly ColliderNotice? _notice;
     private readonly Button? _editPoints;
     // Its editor (ADR 0120): "Open in Map", or "Open…" with several.
-    private readonly Button _open = new("Open") { VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
+    // Its editors (ADR 0120), an icon naming them in its tooltip (ADR 0124).
+    private readonly IconButton _open = new("square-arrow-out-up-right", "Open") { Visibility = Visibility.Collapsed };
     private JsonNode? _value;
 
     internal ComponentSection(InspectorPanel inspector, SavedComponent saved)
@@ -250,11 +251,12 @@ public sealed class ComponentSection : UIElement, IFieldOwner
         _fold.Clicked += _ =>
         {
             _fields.Visibility = _fields.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
-            _fold.Shows = _fields.Visibility == Visibility.Visible ? IconButton.Icon.Open : IconButton.Icon.Closed;
+            bool shown = _fields.Visibility == Visibility.Visible;
+            _fold.Shows = shown ? "chevron-down" : "chevron-right";
+            _fold.ToolTip = shown ? "Fold" : "Unfold";
         };
-        IconButton menu = new(IconButton.Icon.Menu);
+        IconButton menu = new("ellipsis-vertical", "More");
         menu.Clicked += _ => ShowMenu(menu);
-        _open.Classes.Add("tool");
         _open.Clicked += _ => Shell.OpenEntity(Entity, Component);
         DockPanel header = new();
         header.Classes.Add("component-header");
@@ -333,7 +335,7 @@ public sealed class ComponentSection : UIElement, IFieldOwner
         _value = SceneIds.Read(Shell.World, Entity, Component);
         IReadOnlyList<(string Id, string Title)> editors = Shell.EditorsFor(Entity, Component);
         _open.Visibility = editors.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        _open.Text = editors.Count == 1 ? $"Open in {editors[0].Title}" : "Open…";
+        _open.ToolTip = editors.Count == 1 ? $"Open in {editors[0].Title}" : "Open…";
         JsonObject? prefab = PrefabValue as JsonObject;
         bool added = InPrefab && PrefabValue is null;
         _name.Classes.Set("overridden", added);
@@ -1097,11 +1099,13 @@ public sealed class FieldEditor : UIElement
 
     private void Fold()
     {
-        IconButton fold = new(IconButton.Icon.Open);
+        IconButton fold = new("chevron-down", "Fold");
         fold.Clicked += _ =>
         {
             _children.Visibility = _children.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
-            fold.Shows = _children.Visibility == Visibility.Visible ? IconButton.Icon.Open : IconButton.Icon.Closed;
+            bool shown = _children.Visibility == Visibility.Visible;
+            fold.Shows = shown ? "chevron-down" : "chevron-right";
+            fold.ToolTip = shown ? "Fold" : "Unfold";
         };
         DockPanel.SetDock(fold, Dock.Left);
         Add(fold);
@@ -1625,65 +1629,35 @@ public sealed class FieldEditor : UIElement
     }
 }
 
-/// <summary>A small button drawn as a fold's chevron (open, closed), a menu's three dots, an arrow up or down, or a cross.</summary>
+/// <summary>A small button showing a Lucide icon (ADR 0124): a fold's chevron, a menu's dots, an arrow, a cross.</summary>
 internal sealed class IconButton : ButtonBase
 {
-    public enum Icon
-    {
-        Open,
-        Closed,
-        Menu,
-        Up,
-        Down,
-        Remove,
-    }
+    private readonly Icon _icon;
 
-    private Icon _shows;
-
-    public IconButton(Icon shows)
+    public IconButton(string shows, string toolTip = "")
     {
-        _shows = shows;
+        _shows = shows ?? "";
+        _icon = EditorIcons.Icon(_shows);
+        _icon.Classes.Add("small");
+        Content = _icon;
+        ToolTip = toolTip;
         Width = 20;
         Height = 20;
         VerticalAlignment = VerticalAlignment.Center;
     }
 
-    public Icon Shows
+    /// <summary>Its icon's Lucide name (ADR 0124): "chevron-down", "ellipsis-vertical", "x".</summary>
+    public string Shows
     {
         get => _shows;
         set
         {
-            _shows = value;
-            InvalidateVisual();
+            _shows = value ?? "";
+            _icon.Glyph = EditorIcons.Glyph(_shows);
         }
     }
 
-    protected override void OnDraw(Canvas canvas)
-    {
-        base.OnDraw(canvas);
-        Vector2 size = ActualSize;
-        if (_shows == Icon.Menu)
-        {
-            for (int i = -1; i <= 1; ++i)
-            {
-                canvas.FillRect(size * 0.5f + new Vector2(i * 5 - 1.5f, -1.5f), new Vector2(3), Foreground, 1.5f);
-            }
-            return;
-        }
-        if (_shows == Icon.Remove)
-        {
-            Vector2 c = size * 0.5f, d = new(4);
-            canvas.DrawLine(c - d, c + d, 1.5f, Foreground);
-            canvas.DrawLine(c + new Vector2(-4, 4), c + new Vector2(4, -4), 1.5f, Foreground);
-            return;
-        }
-        Chevron.Draw(canvas, size, Foreground, _shows switch
-        {
-            Icon.Open or Icon.Down => NavigationDirection.Down,
-            Icon.Up => NavigationDirection.Up,
-            _ => NavigationDirection.Right,
-        });
-    }
+    private string _shows = "";
 }
 
 /// <summary>

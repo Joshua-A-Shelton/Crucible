@@ -101,7 +101,7 @@ internal sealed class PlayToolbarChecks : GameSystem
             shell.Main.TitleBar.Title);
         Click(toolbar.PlayButton);
         yield return 8;
-        Check(shell.IsPlaying && toolbar.PlayButton.Glyph == PlayGlyph.Stop, "Play plays, and its button shows Stop");
+        Check(shell.IsPlaying && toolbar.PlayButton.IconName == "square", "Play plays, and its button shows Stop");
         double first = Speed(shell, ball);
         Check(Math.Abs(first - g * tick) < 0.01, "started paused, it ran one tick", $"{first:0.0000} m/s");
         yield return 10;
@@ -137,7 +137,7 @@ internal sealed class PlayToolbarChecks : GameSystem
         yield return 2;
         Click(toolbar.PlayButton);
         yield return 3;
-        Check(!shell.IsPlaying && toolbar.PlayButton.Glyph == PlayGlyph.Play, "Stop stops, and the button shows Play");
+        Check(!shell.IsPlaying && toolbar.PlayButton.IconName == "play", "Stop stops, and the button shows Play");
         Check(shell.IsPaused, "Pause stays on across Stop");
         Entity back = SceneIds.Of(shell.World).Entities.FirstOrDefault(entity => shell.LabelOf(entity) == "Ball");
         Check(!back.IsNull && Speed(shell, back) == 0, "the ball is back as it was");

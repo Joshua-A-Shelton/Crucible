@@ -109,13 +109,6 @@ is, and record which version fixed it.
 - Auto-tiling (M11 step 4, after the owner's try of map mode): terrain
   brushes set up per tileset, edges and corners chosen while painting and
   stored as ordinary tiles, so nothing at run time. Its own step. → 0112
-- Map mode's brush under the pointer (owner's try, 2026-11-20): Stamp
-  and Eraser put the brush's bottom-left cell under the pointer, so a
-  brush grows up and right of it, which feels off; it should sit under
-  the pointer as a map editor's does (centered on it, or held where it
-  was picked up). The owner found map mode much clearer and has more to
-  say about it later; this waits, with the rest, for map mode's rebuild
-  on the editor extensions API. → 0112
 - 2D lighting extras (M11 step 5): shadows (light blocked by colliders
   and tilemap outlines), normal-mapped sprites, and lights that light only
   the sorting layers they name, each when a game needs it. → 0113

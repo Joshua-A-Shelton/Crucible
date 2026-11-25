@@ -50,6 +50,7 @@ internal sealed partial class Shell
         Crucible.Assets.OfficialPlugins.Folder = Path.Combine(Path.GetDirectoryName(GameBuilder.EditorAssembly())!, "Plugins");
         Settings = EditorSettings.Load(settingsPath);
         _font = LoadFont();
+        EditorIcons.Font = LoadFont("lucide.ttf");
         _theme = CreateTheme();
         Main = new EditorWindow(context.Window, context.Surface, true, false, _theme, _font);
         Toolbar = new PlayToolbar(this);
@@ -260,6 +261,8 @@ internal sealed partial class Shell
             Remove(window);
         }
         Fonts.Unload(_font);
+        Fonts.Unload(EditorIcons.Font);
+        EditorIcons.Font = default;
         if (Current == this)
         {
             Current = null;
@@ -1329,14 +1332,19 @@ internal sealed partial class Shell
         }
     }
 
-    // Noto Sans, beside the editor (Fonts/, OFL), imported in memory as the
-    // asset pipeline would.
-    private static FontHandle LoadFont()
+    /// <summary>The editor's Fonts folder: beside the --game path the launcher loaded it from; in tests, beside them.</summary>
+    internal static string FontsFolder()
     {
-        // Beside the --game path the launcher loaded the editor from; in tests, beside them.
         string game = Crucible.Api.GamePath();
         string folder = game.Length > 0 ? Path.GetDirectoryName(Path.GetFullPath(game))! : AppContext.BaseDirectory;
-        byte[] font = File.ReadAllBytes(Path.Combine(folder, "Fonts", "NotoSans-Regular.ttf"));
+        return Path.Combine(folder, "Fonts");
+    }
+
+    // Noto Sans, beside the editor (Fonts/, OFL), imported in memory as the
+    // asset pipeline would; and Lucide's icons (ISC, ADR 0124) the same way.
+    private static FontHandle LoadFont(string file = "NotoSans-Regular.ttf")
+    {
+        byte[] font = File.ReadAllBytes(Path.Combine(FontsFolder(), file));
         string path = Path.Combine(Path.GetTempPath(), $"crucible-editor-{Guid.NewGuid():N}.crfont");
         try
         {
@@ -1402,7 +1410,17 @@ internal sealed partial class Shell
             .Set(UIElement.CornerRadiiProperty, new Vector4(3)));
         theme.Add(new Style("PlayToolButton.tool:hover").Set(UIElement.BackgroundProperty, hover));
         theme.Add(new Style("PlayToolButton.on").Set(UIElement.BackgroundProperty, accent with { W = 0.55f }));
-        theme.Add(new Style("PlayToolButton:disabled").Set(UIElement.ForegroundProperty, muted));
+        theme.Add(new Style("PlayToolButton:disabled").Set(UIElement.OpacityProperty, 0.4f));
+        // Icons (ADR 0124): Lucide's, in the text's color; small ones muted.
+        theme.Add(new Style("Icon.editor-icon").Set(UIElement.FontSizeProperty, 16f).Set(UIElement.ForegroundProperty, text));
+        theme.Add(new Style("Icon.small").Set(UIElement.FontSizeProperty, 14f).Set(UIElement.ForegroundProperty, muted));
+        theme.Add(new Style("Button.icon").Set(UIElement.PaddingProperty, new Thickness(6, 3, 6, 3)));
+        theme.Add(new Style("Toggle.icon")
+            .Set(UIElement.PaddingProperty, new Thickness(6, 3, 6, 3))
+            .Set(UIElement.BackgroundProperty, panel)
+            .Set(UIElement.CornerRadiiProperty, new Vector4(3)));
+        theme.Add(new Style("Toggle.icon:hover").Set(UIElement.BackgroundProperty, hover));
+        theme.Add(new Style("Toggle.icon.on").Set(UIElement.BackgroundProperty, accent with { W = 0.55f }));
         theme.Add(new Style("Label.frame-time").Set(UIElement.ForegroundProperty, muted).Set(UIElement.MarginProperty, new Thickness(8, 0, 0, 0)));
         // The inspector (ADR 0069): a card per component; prefab overrides in the accent color.
         theme.Add(new Style("DockPanel.inspector-header")

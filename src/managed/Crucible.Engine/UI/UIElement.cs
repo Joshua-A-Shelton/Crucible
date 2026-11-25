@@ -194,6 +194,13 @@ public partial class UIElement
     /// <summary>The font asset, for elements that draw text.</summary>
     public Assets.AssetId Font { get => GetValue(FontProperty); set => SetValue(FontProperty, value); }
 
+    /// <summary>
+    /// Text shown near the pointer once it rests on the element (ADR 0124):
+    /// what a button does and its key. Empty for none; an element without
+    /// one shows its nearest ancestor's.
+    /// </summary>
+    public string ToolTip { get; set => field = value ?? ""; } = "";
+
     /// <summary>The text size in logical units per em.</summary>
     public float FontSize { get => GetValue(FontSizeProperty); set => SetValue(FontSizeProperty, value); }
 

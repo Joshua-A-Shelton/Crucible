@@ -133,7 +133,7 @@ public abstract class Workspace : EditorPanel
 public sealed class WorkspaceToolbar : UIElement
 {
     private readonly StackPanel _items = new() { Orientation = Orientation.Horizontal, Spacing = 4 };
-    private readonly List<(Button Button, Command Command)> _commands = [];
+    private readonly List<(Button Button, Command Command, bool Icon)> _commands = [];
 
     internal WorkspaceToolbar(Workspace workspace)
     {
@@ -149,15 +149,29 @@ public sealed class WorkspaceToolbar : UIElement
     }
 
     /// <summary>A command's button: it runs the command, and shows whether it's on (an on-off command).</summary>
-    public Button Add(Command command)
+    public Button Add(Command command) => Add(command, null);
+
+    /// <summary>
+    /// A command's button showing an icon (ADR 0124), by its Lucide name; its
+    /// title and key are its tooltip. Null (or an unknown name) shows the title.
+    /// </summary>
+    public Button Add(Command command, string? icon)
     {
         ArgumentNullException.ThrowIfNull(command);
-        Button button = new(command.Title) { VerticalAlignment = VerticalAlignment.Center };
+        bool shown = icon is not null && EditorIcons.Has(icon);
+        Button button = shown ? EditorIcons.Button(icon!, ToolTipOf(command)) : new Button(command.Title);
+        button.VerticalAlignment = VerticalAlignment.Center;
         button.Classes.Add("tool");
         button.Clicked += _ => command.Execute();
         _items.Add(button);
-        _commands.Add((button, command));
+        _commands.Add((button, command, shown));
         return button;
+    }
+
+    private static string ToolTipOf(Command command)
+    {
+        string title = command.CurrentTitle?.Invoke() ?? command.Title;
+        return command.Shortcut is { } key ? $"{title} ({key})" : title;
     }
 
     /// <summary>Any other control (a toggle, a row of its own), after what's there.</summary>
@@ -166,10 +180,17 @@ public sealed class WorkspaceToolbar : UIElement
     // Each frame: the buttons follow their commands.
     internal void Refresh()
     {
-        foreach ((Button button, Command command) in _commands)
+        foreach ((Button button, Command command, bool icon) in _commands)
         {
             button.Classes.Set("on", command.IsChecked?.Invoke() == true);
-            button.Text = command.CurrentTitle?.Invoke() ?? command.Title;
+            if (icon)
+            {
+                button.ToolTip = ToolTipOf(command);
+            }
+            else
+            {
+                button.Text = command.CurrentTitle?.Invoke() ?? command.Title;
+            }
         }
     }
 }

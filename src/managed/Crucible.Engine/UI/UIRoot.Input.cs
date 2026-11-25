@@ -189,6 +189,7 @@ public sealed partial class UIRoot
         UpdateHover(position, modifiers);
         if (down)
         {
+            DismissToolTip();
             CountClick(position, button);
             if (_capture is null && DismissPopups(position))
             {
@@ -256,6 +257,7 @@ public sealed partial class UIRoot
 
     private void PointerWheeled(Vector2 position, Vector2 wheel, KeyModifiers modifiers)
     {
+        DismissToolTip();
         UIElement? target = HitEnabled(position);
         if (target is not null)
         {
@@ -291,6 +293,7 @@ public sealed partial class UIRoot
         }
         _hovered.Clear();
         _hovered.AddRange(now);
+        TrackToolTip(hit);
     }
 
     // The topmost enabled element: a disabled one (or one inside one) passes hits to its parent.
@@ -322,6 +325,10 @@ public sealed partial class UIRoot
 
     private void KeyChanged(int scancode, uint keycode, bool down, bool repeat, KeyModifiers modifiers)
     {
+        if (down)
+        {
+            DismissToolTip();
+        }
         if (_dragPayload is not null && down && scancode == ScancodeEscape)
         {
             CancelDrag();
@@ -734,6 +741,11 @@ public sealed partial class UIRoot
     // An element leaving the tree loses hover, capture, and focus, and no event keeps it.
     internal void Detached(UIElement element)
     {
+        if (_toolTipTarget is not null && IsWithin(_toolTipTarget, element))
+        {
+            _toolTipTarget = null; // let go at once, as hover is (ADR 0072)
+            HideToolTip();
+        }
         if (_focused is not null && IsWithin(_focused, element))
         {
             ClearFocus();

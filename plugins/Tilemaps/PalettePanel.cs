@@ -29,7 +29,7 @@ public sealed class PalettePanel : EditorPanel
     private readonly StackPanel _tabs = new() { Orientation = Orientation.Horizontal, Spacing = 2 };
     private readonly Toggle _collision = new("Collision");
     private readonly StackPanel _collisionBar = new() { Orientation = Orientation.Horizontal, Spacing = 4 };
-    private readonly Button _custom = new("Custom");
+    private readonly Button _custom = EditorIcons.Button("pen-tool", "Custom: click points on the tile; the first again closes the shape");
     private readonly Label _hint = new() { Wrap = true };
     private readonly List<Vector2> _pending = [];
     private AssetId _alone; // a tileset shown outside map mode
@@ -61,10 +61,11 @@ public sealed class PalettePanel : EditorPanel
         }
         _custom.Clicked += _ => SetDrawing(!View.Drawing);
         _collisionBar.Add(_custom);
-        Button clear = new("Clear");
+        Button clear = EditorIcons.Button("eraser", "Clear: the chosen tiles' shapes");
         clear.Clicked += _ => ClearShapes();
         _collisionBar.Add(clear);
-        Button mirrorX = new("Flip X"), mirrorY = new("Flip Y");
+        Button mirrorX = EditorIcons.Button("flip-horizontal-2", "Flip X: the chosen tiles' shapes");
+        Button mirrorY = EditorIcons.Button("flip-vertical-2", "Flip Y: the chosen tiles' shapes");
         mirrorX.Clicked += _ => MirrorShapes(x: true);
         mirrorY.Clicked += _ => MirrorShapes(x: false);
         _collisionBar.Add(mirrorX);
@@ -198,7 +199,7 @@ public sealed class PalettePanel : EditorPanel
     {
         if (!OnCollision && View.Selection is { } s && _maps.Map.IsOpen && _alone.IsNone)
         {
-            _maps.Map.SetBrush(Set, s.X0, s.Y0, s.X1, s.Y1);
+            _maps.Map.SetBrush(Set, s.X0, s.Y0, s.X1, s.Y1, View.SelectionFrom);
             _maps.RaiseMapToolChanged();
         }
         _pending.Clear();
@@ -297,7 +298,7 @@ public sealed class PalettePanel : EditorPanel
             tab.ContextRequested += at => TabMenu(tab, set, at);
             _tabs.Add(tab);
         }
-        Button add = new("+");
+        Button add = EditorIcons.Button("plus", "Add a tileset to the map");
         add.Clicked += button => AddMenu(button);
         _tabs.Add(add);
     }

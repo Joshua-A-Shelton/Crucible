@@ -27,23 +27,23 @@ public sealed class LayersPanel : EditorPanel
     {
         _maps = maps;
         _hint.Classes.Add("hint");
-        Button add = new("Add Layer"), up = new("Up"), down = new("Down"), delete = new("Delete");
+        Button add = EditorIcons.Button("plus", "Add Layer: above the one being painted");
+        Button up = EditorIcons.Button("arrow-up", "Move Up: drawn over the layer above");
+        Button down = EditorIcons.Button("arrow-down", "Move Down: drawn under the layer below");
+        Button delete = EditorIcons.Button("trash-2", "Delete Layer");
         add.Clicked += _ => _maps.AddLayer();
         up.Clicked += _ => _maps.MoveLayer(_maps.Map.ActiveLayer, +1);
         down.Clicked += _ => _maps.MoveLayer(_maps.Map.ActiveLayer, -1);
         delete.Clicked += _ => _maps.DeleteLayer(_maps.Map.ActiveLayer);
-        // Two rows, so a narrow panel shows them all.
-        StackPanel bar = new() { Orientation = Orientation.Horizontal, Spacing = 4, Margin = new Thickness(6, 4, 6, 0) };
-        bar.Add(add);
-        StackPanel moves = new() { Orientation = Orientation.Horizontal, Spacing = 4, Margin = new Thickness(6, 4, 6, 4) };
-        foreach (Button button in (Button[])[up, down, delete])
+        // One row of icons, which fits a narrow panel.
+        StackPanel bar = new() { Orientation = Orientation.Horizontal, Spacing = 4, Margin = new Thickness(6, 4, 6, 4) };
+        foreach (Button button in (Button[])[add, up, down, delete])
         {
-            moves.Add(button);
+            bar.Add(button);
         }
         StackPanel head = new();
         head.Add(_missing);
         head.Add(bar);
-        head.Add(moves);
         DockPanel.SetDock(head, Dock.Top);
         DockPanel.SetDock(_hint, Dock.Bottom);
         DockPanel layout = new();
@@ -99,15 +99,18 @@ public sealed class LayersPanel : EditorPanel
         {
             _rows.Add(Row(map.Data.Layers[i]));
         }
-        _hint.Text = "Click a layer to paint on it; double-click its name to rename it. Visible hides it in the game too.";
+        _hint.Text = "Click a layer to paint on it; double-click its name to rename it. The eye hides it in the game too.";
     }
 
     private UIElement Row(TileLayer layer)
     {
         int id = layer.Id;
         bool missing = _maps.LayerEntity(_maps.Map.Root, id) is null;
-        Toggle visible = new("Visible") { IsOn = _maps.IsLayerVisible(id) };
-        Toggle collides = new("Collides") { IsOn = _maps.LayerCollides(id) };
+        bool shown = _maps.IsLayerVisible(id);
+        Toggle visible = EditorIcons.Toggle(shown ? "eye" : "eye-off", "Visible: shown, in the game too");
+        visible.IsOn = shown;
+        Toggle collides = EditorIcons.Toggle("brick-wall", "Collides: a collider of its tiles' shapes");
+        collides.IsOn = _maps.LayerCollides(id);
         visible.Changed += toggle => _maps.SetLayerVisible(id, toggle.IsOn);
         collides.Changed += toggle => _maps.SetLayerCollides(id, toggle.IsOn);
         if (missing)

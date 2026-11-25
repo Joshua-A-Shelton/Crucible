@@ -18,6 +18,7 @@ public sealed partial class Theme
         Transition quick = new(0.12f, Easing.EaseOut);
         Theme theme = new();
         theme.Add(new Style("Label").Set(UIElement.ForegroundProperty, text));
+        theme.Add(new Style("Icon").Set(UIElement.ForegroundProperty, text));
         theme.Add(new Style("Button")
             .Set(UIElement.BackgroundProperty, control)
             .Set(UIElement.CornerRadiiProperty, new Vector4(4))
@@ -102,6 +103,14 @@ public sealed partial class Theme
             .Set(UIElement.BorderWidthProperty, 1f)
             .Set(UIElement.BorderColorProperty, edge)
             .Set(UIElement.PaddingProperty, new Thickness(4)));
+        // Tooltips (ADR 0124): a small box like a popup's, a little smaller text.
+        theme.Add(new Style(".tooltip")
+            .Set(UIElement.BackgroundProperty, control)
+            .Set(UIElement.CornerRadiiProperty, new Vector4(4))
+            .Set(UIElement.BorderWidthProperty, 1f)
+            .Set(UIElement.BorderColorProperty, edge)
+            .Set(UIElement.PaddingProperty, new Thickness(6, 3, 6, 3)));
+        theme.Add(new Style("Label.tooltip-text").Set(UIElement.FontSizeProperty, 13f));
         theme.Add(new Style("ListBox.dropdown").Set(UIElement.MaxHeightProperty, 240f));
         theme.Add(new Style("ListItem.tree")
             .Set(UIElement.PaddingProperty, new Thickness(4, 2, 8, 2))

@@ -107,7 +107,7 @@ public sealed partial class UIRoot : IRenderStep
     internal Func<double>? TestClock { get; set; }
 
     /// <summary>Whether a transition or tween is running.</summary>
-    public bool IsAnimating => _animating.Count > 0;
+    public bool IsAnimating => _animating.Count > 0 || ToolTipPending;
 
     /// <summary>The surface's size in logical units, as of the last layout.</summary>
     public Vector2 Size => _size;
@@ -126,7 +126,7 @@ public sealed partial class UIRoot : IRenderStep
             _size = size;
             _layoutDirty = true;
         }
-        if (!_layoutDirty || (_content is null && _popups.Count == 0 && _dragPreview is null))
+        if (!_layoutDirty || (_content is null && _popups.Count == 0 && _dragPreview is null && _toolTip is null))
         {
             return;
         }
@@ -139,6 +139,7 @@ public sealed partial class UIRoot : IRenderStep
             _content?.Arrange(new RectangleF(0, 0, size.X, size.Y));
             LayoutPopups();
             LayoutDragPreview();
+            LayoutToolTip();
         }
         _drawingDirty = true;
     }
@@ -198,6 +199,7 @@ public sealed partial class UIRoot : IRenderStep
             _animating.RemoveWhere(element => element.Root != this || !element.UpdateAnimations(now));
         }
         _focused?.OnFocusedTick(now);
+        TickToolTip(now);
     }
 
     private void RestyleEverything()
@@ -235,6 +237,7 @@ public sealed partial class UIRoot : IRenderStep
             _content?.Draw(_canvas);
             DrawPopups();
             DrawDragPreview();
+            DrawToolTip();
         }
         ((IRenderStep)_canvas).AddPasses(context);
     }

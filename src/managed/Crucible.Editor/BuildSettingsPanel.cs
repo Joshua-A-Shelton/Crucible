@@ -315,10 +315,10 @@ public sealed class BuildSettingsPanel : EditorPanel
         StackPanel buttons = new() { Orientation = Orientation.Horizontal, Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
         if (index is not null)
         {
-            buttons.Add(Icon(IconButton.Icon.Up, up));
-            buttons.Add(Icon(IconButton.Icon.Down, down));
+            buttons.Add(Icon("arrow-up", "Move Up", up));
+            buttons.Add(Icon("arrow-down", "Move Down", down));
         }
-        buttons.Add(Icon(IconButton.Icon.Remove, remove));
+        buttons.Add(Icon("x", "Remove", remove));
         DockPanel.SetDock(buttons, Dock.Right);
         row.Add(buttons);
         // Clipped, so a long name in a narrow panel stops short of the buttons.
@@ -337,9 +337,9 @@ public sealed class BuildSettingsPanel : EditorPanel
         return row;
     }
 
-    private static IconButton Icon(IconButton.Icon shows, Action? clicked)
+    private static IconButton Icon(string shows, string toolTip, Action? clicked)
     {
-        IconButton button = new(shows);
+        IconButton button = new(shows, toolTip);
         if (clicked is null)
         {
             button.State |= UIState.Disabled;

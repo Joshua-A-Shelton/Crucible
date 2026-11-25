@@ -492,13 +492,13 @@ public sealed class SpriteSheetPanel : EditorPanel
         TextField events = new(string.Join(", ", frame.Events)) { MinWidth = 0, Width = 90 };
         events.Committed += field => EditClip(c => c.Frames[index].Events =
             [.. field.Text.Split(',').Select(e => e.Trim()).Where(e => e.Length > 0)]);
-        IconButton up = new(IconButton.Icon.Up);
+        IconButton up = new("arrow-up", "Move Up");
         up.Clicked += _ => EditClip(c => (c.Frames[index - 1], c.Frames[index]) = (c.Frames[index], c.Frames[index - 1]));
         up.State |= index == 0 ? UIState.Disabled : 0;
-        IconButton down = new(IconButton.Icon.Down);
+        IconButton down = new("arrow-down", "Move Down");
         down.Clicked += _ => EditClip(c => (c.Frames[index], c.Frames[index + 1]) = (c.Frames[index + 1], c.Frames[index]));
         down.State |= index + 1 == clip.Frames.Count ? UIState.Disabled : 0;
-        IconButton remove = new(IconButton.Icon.Remove);
+        IconButton remove = new("x", "Remove");
         remove.Clicked += _ => EditClip(c => c.Frames.RemoveAt(index));
         StackPanel row = new() { Orientation = Orientation.Horizontal, Spacing = 4 };
         row.Add(which);

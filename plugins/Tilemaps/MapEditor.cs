@@ -60,6 +60,7 @@ internal sealed class MapEditor
     private (int X, int Y)? _moveFrom; // a Select drag moving the region from here
     private Dictionary<(int X, int Y), TileCell>? _lifted; // the cells being moved
     private (int X, int Y)? _pickFrom;
+    private (int X, int Y)? _regionFrom; // where the Select tool's region was started
     private List<List<Vector2>>? _outlines; // Show Collision's, by the colliding layers; null when stale
 
     public MapEditor(MapMode maps)
@@ -95,6 +96,14 @@ internal sealed class MapEditor
     public MapTool Tool { get; set; } = MapTool.Stamp;
 
     public IReadOnlyList<BrushTile> Brush { get; private set; } = [];
+
+    /// <summary>
+    /// The brush's cell held under the pointer (ADR 0124), in its tiles' Dx
+    /// and Dy: where the drag that made it started (in the Palette, on the
+    /// map picking up, or the Select tool's region), so Stamp and Eraser put
+    /// it down as it was grabbed.
+    /// </summary>
+    public (int X, int Y) BrushGrab { get; private set; }
 
     public bool FlipX { get; set; }
 
@@ -133,6 +142,7 @@ internal sealed class MapEditor
         }
         ActiveLayer = Data.Layers.Count > 0 ? Data.Layers[^1].Id : 0;
         Brush = [];
+        BrushGrab = (0, 0);
         BrushChanged?.Invoke();
         return true;
     }
@@ -272,8 +282,12 @@ internal sealed class MapEditor
         }
     }
 
-    /// <summary>The brush from a palette selection: a tileset's tiles by column and row, corners inclusive.</summary>
-    public void SetBrush(int set, int x0, int y0, int x1, int y1)
+    /// <summary>
+    /// The brush from a palette selection: a tileset's tiles by column and
+    /// row, corners inclusive, held at <paramref name="grab"/> (the tile the
+    /// drag started on; by default the first corner).
+    /// </summary>
+    public void SetBrush(int set, int x0, int y0, int x1, int y1, (int X, int Y)? grab = null)
     {
         if (set < 0 || set >= Tilesets.Count || Tilesets[set].Columns == 0)
         {
@@ -289,6 +303,8 @@ internal sealed class MapEditor
             }
         }
         Brush = brush;
+        (int gx, int gy) = grab ?? (x0, y0);
+        BrushGrab = (Math.Clamp(gx, x0, x1) - x0, y1 - Math.Clamp(gy, y0, y1));
         if (Tool is MapTool.Eraser or MapTool.Select)
         {
             Tool = MapTool.Stamp;
@@ -400,7 +416,7 @@ internal sealed class MapEditor
                 }
                 break;
             case MapTool.Select:
-                _from = cell;
+                _from = _regionFrom = cell;
                 Region = (cell.X, cell.Y, cell.X, cell.Y);
                 break;
             default:
@@ -452,6 +468,7 @@ internal sealed class MapEditor
                     layer.Cells[(cell.X + dx, cell.Y + dy)] = cell with { X = cell.X + dx, Y = cell.Y + dy };
                 }
                 Region = (region.X0 + dx, region.Y0 + dy, region.X1 + dx, region.Y1 + dy);
+                _regionFrom = _regionFrom is { } held ? (held.X + dx, held.Y + dy) : null;
             }
         }
         _from = _moveFrom = _last = null;
@@ -507,11 +524,14 @@ internal sealed class MapEditor
     // The brush's width and height in cells.
     private (int Width, int Height) BrushSize => Brush.Count == 0 ? (1, 1) : (Brush.Max(b => b.Dx) + 1, Brush.Max(b => b.Dy) + 1);
 
-    // A brush tile's place, mirrored with the flips so a flipped brush reads as flipped art.
+    // A brush tile's place with the brush held at `cell` by its grabbed cell,
+    // mirrored with the flips so a flipped brush reads as flipped art (the
+    // grabbed cell flips with it, staying under the pointer).
     private (int X, int Y) Placed((int X, int Y) cell, BrushTile tile)
     {
         (int width, int height) = BrushSize;
-        return (cell.X + (FlipX ? width - 1 - tile.Dx : tile.Dx), cell.Y + (FlipY ? height - 1 - tile.Dy : tile.Dy));
+        int gx = FlipX ? width - 1 - BrushGrab.X : BrushGrab.X, gy = FlipY ? height - 1 - BrushGrab.Y : BrushGrab.Y;
+        return (cell.X + (FlipX ? width - 1 - tile.Dx : tile.Dx) - gx, cell.Y + (FlipY ? height - 1 - tile.Dy : tile.Dy) - gy);
     }
 
     private bool Stamp(TileLayer layer, (int X, int Y) cell)
@@ -644,7 +664,7 @@ internal sealed class MapEditor
             return;
         }
         _pickFrom = null;
-        if (TakeBrush(layer, (Math.Min(from.X, to.X), Math.Min(from.Y, to.Y), Math.Max(from.X, to.X), Math.Max(from.Y, to.Y))))
+        if (TakeBrush(layer, (Math.Min(from.X, to.X), Math.Min(from.Y, to.Y), Math.Max(from.X, to.X), Math.Max(from.Y, to.Y)), from))
         {
             Tool = MapTool.Stamp;
             FlipX = FlipY = false;
@@ -653,8 +673,9 @@ internal sealed class MapEditor
         }
     }
 
-    // A rectangle's painted cells as the brush, by their place in it; false if it has none.
-    private bool TakeBrush(TileLayer layer, (int X0, int Y0, int X1, int Y1) area)
+    // A rectangle's painted cells as the brush, by their place in it, held
+    // at the cell `grab` (where its drag started); false if it has none.
+    private bool TakeBrush(TileLayer layer, (int X0, int Y0, int X1, int Y1) area, (int X, int Y) grab)
     {
         List<BrushTile> brush = [];
         for (int y = area.Y0; y <= area.Y1; ++y)
@@ -671,9 +692,11 @@ internal sealed class MapEditor
         {
             return false;
         }
-        // Its bottom-left at the brush's: the pointer's cell is its first painted one.
+        // Its painted cells' bottom-left at the brush's; the grabbed cell
+        // where it was in the rectangle, painted or not.
         int left = brush.Min(b => b.Dx), bottom = brush.Min(b => b.Dy);
         Brush = [.. brush.Select(b => b with { Dx = b.Dx - left, Dy = b.Dy - bottom })];
+        BrushGrab = (grab.X - area.X0 - left, grab.Y - area.Y0 - bottom);
         return true;
     }
 
@@ -684,7 +707,8 @@ internal sealed class MapEditor
     /// <summary>The region's painted cells become the brush (Ctrl+C), Stamp the tool so they can be put down.</summary>
     public bool Copy()
     {
-        if (Region is not { } region || Layer is not { } layer || !TakeBrush(layer, region))
+        if (Region is not { } region || Layer is not { } layer ||
+            !TakeBrush(layer, region, _regionFrom is { } start && Inside(region, start) ? start : (region.X0, region.Y0)))
         {
             return false;
         }
@@ -826,10 +850,17 @@ internal sealed class MapEditor
         }
         else if (Tool is MapTool.Stamp or MapTool.Rectangle or MapTool.Eraser or MapTool.Fill && Brush.Count > 0)
         {
-            foreach (BrushTile tile in Tool == MapTool.Fill ? [Brush[0] with { Dx = 0, Dy = 0 }] : Brush)
+            if (Tool == MapTool.Fill)
             {
-                (int x, int y) = Placed(hover, tile);
-                cells.Add((x, y, Tool == MapTool.Eraser ? null : tile));
+                cells.Add((hover.X, hover.Y, Brush[0])); // the cell pressed, the pattern's start
+            }
+            else
+            {
+                foreach (BrushTile tile in Brush)
+                {
+                    (int x, int y) = Placed(hover, tile);
+                    cells.Add((x, y, Tool == MapTool.Eraser ? null : tile));
+                }
             }
         }
         else if (Tool != MapTool.Select)

@@ -161,6 +161,13 @@ internal sealed partial class Shell
 /// </summary>
 internal sealed class TransformTool(Shell shell, string id, string title, HandleMode mode) : ViewportTool(id, title)
 {
+    public override string? Icon => mode switch
+    {
+        HandleMode.Rotate => "rotate-cw",
+        HandleMode.Scale => "scale-3d",
+        _ => "move",
+    };
+
     private HandlePart _hot;
     private bool _dragging;
 
@@ -232,6 +239,8 @@ internal sealed class TransformTool(Shell shell, string id, string title, Handle
 /// </summary>
 internal sealed class EditPointsTool(Shell shell) : ViewportTool("Scene.EditPoints", "Edit Points")
 {
+    public override string? Icon => "spline";
+
     private bool _dragging;
 
     public override void Activated(ToolView view)

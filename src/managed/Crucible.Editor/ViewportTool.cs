@@ -27,8 +27,14 @@ public abstract class ViewportTool
     /// <summary>Unique among tools: "Scene.Move", "Paths.Draw".</summary>
     public string Id { get; }
 
-    /// <summary>Its button's text.</summary>
+    /// <summary>Its button's text, and its tooltip when it has an icon.</summary>
     public string Title { get; }
+
+    /// <summary>
+    /// Its button's icon (ADR 0124), by its Lucide name ("move"); null shows
+    /// <see cref="Title"/> as text instead.
+    /// </summary>
+    public virtual string? Icon => null;
 
     /// <summary>Turned on in a view.</summary>
     public virtual void Activated(ToolView view)

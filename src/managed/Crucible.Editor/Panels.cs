@@ -120,8 +120,8 @@ public sealed class ViewportPanel : EditorPanel
     // The scene's tools (ADR 0121), a button each, made again when they change.
     private readonly StackPanel _toolButtons = new() { Orientation = Orientation.Horizontal, Spacing = 4 };
     private readonly List<(Button Button, ViewportTool Tool)> _buttons = [];
-    private readonly Button _space = Tool("World");
-    private readonly Toggle _grid = new("Grid") { IsOn = true, VerticalAlignment = VerticalAlignment.Center };
+    private readonly Button _space = ToolIcon("globe", "World space: the handles follow the world's axes (click for Local)");
+    private readonly Toggle _grid = EditorIcons.Toggle("grid-3x3", "Grid: the floor's lines");
     private readonly Label _time = new() { VerticalAlignment = VerticalAlignment.Center };
 
     internal ViewportPanel(Shell shell) : base("Viewport", "Viewport")
@@ -131,6 +131,7 @@ public sealed class ViewportPanel : EditorPanel
         MakeToolButtons();
         _space.Clicked += _ =>
             View.Handles.Space = View.Handles.Space == HandleSpace.World ? HandleSpace.Local : HandleSpace.World;
+        _grid.IsOn = true;
         _grid.Changed += toggle => View.ShowsGrid = toggle.IsOn;
         _time.Classes.Add("frame-time");
         StackPanel tools = new() { Orientation = Orientation.Horizontal, Spacing = 4 };
@@ -166,7 +167,8 @@ public sealed class ViewportPanel : EditorPanel
         _buttons.Clear();
         foreach ((ViewportTool tool, Shortcut? shortcut) in _shell.Tools)
         {
-            Button button = Tool(shortcut is { } key ? $"{tool.Title} ({key})" : tool.Title);
+            string title = shortcut is { } key ? $"{tool.Title} ({key})" : tool.Title;
+            Button button = tool.Icon is { } icon && EditorIcons.Has(icon) ? ToolIcon(icon, title) : Tool(title);
             button.Clicked += _ => View.Tool = tool;
             _toolButtons.Add(button);
             _buttons.Add((button, tool));
@@ -180,8 +182,23 @@ public sealed class ViewportPanel : EditorPanel
         {
             Mark(button, View.Tool == tool);
         }
-        _space.Text = View.Handles.Space == HandleSpace.World ? "World" : "Local";
+        bool world = View.Handles.Space == HandleSpace.World;
+        if (_space.Content is Icon space)
+        {
+            space.Glyph = EditorIcons.Glyph(world ? "globe" : "box");
+        }
+        _space.ToolTip = world
+            ? "World space: the handles follow the world's axes (click for Local)"
+            : "Local space: the handles follow the selection's axes (click for World)";
         _time.Text = View.Surface.Value != 0 ? $"{View.LastFrameMilliseconds:0.0} ms" : "";
+    }
+
+    // An icon in the toolbar's style, its tooltip saying what it is (ADR 0124).
+    private static Button ToolIcon(string icon, string toolTip)
+    {
+        Button button = EditorIcons.Button(icon, toolTip);
+        button.Classes.Add("tool");
+        return button;
     }
 
     private static Button Tool(string text)

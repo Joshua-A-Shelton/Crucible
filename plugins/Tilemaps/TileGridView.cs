@@ -39,6 +39,9 @@ internal sealed class TileGridView : UIElement
     /// <summary>The selected tiles, by column and row, corners inclusive; null for none.</summary>
     public (int X0, int Y0, int X1, int Y1)? Selection { get; set; }
 
+    /// <summary>The tile the selection was started on (a drag's first tile, ADR 0124): the brush is held there.</summary>
+    public (int X, int Y)? SelectionFrom { get; private set; }
+
     /// <summary>A left click gives its texel to <see cref="TexelClicked"/> instead of selecting.</summary>
     public bool Drawing { get; set; }
 
@@ -215,6 +218,7 @@ internal sealed class TileGridView : UIElement
     private void Select((int X, int Y) a, (int X, int Y) b)
     {
         (int X0, int Y0, int X1, int Y1) selection = (Math.Min(a.X, b.X), Math.Min(a.Y, b.Y), Math.Max(a.X, b.X), Math.Max(a.Y, b.Y));
+        SelectionFrom = a;
         if (Selection != selection)
         {
             Selection = selection;

@@ -18,9 +18,10 @@ internal sealed class MapWorkspace : Workspace
 {
     private readonly MapMode _maps;
     private readonly Dictionary<MapTool, Button> _toolButtons = [];
-    private readonly Toggle _flipX = new("Flip X") { VerticalAlignment = VerticalAlignment.Center };
-    private readonly Toggle _flipY = new("Flip Y") { VerticalAlignment = VerticalAlignment.Center };
-    private readonly Toggle _showCollision = new("Show Collision") { VerticalAlignment = VerticalAlignment.Center };
+    // Lucide's icons (ADR 0124), their names and keys in their tooltips.
+    private readonly Toggle _flipX = EditorIcons.Toggle("flip-horizontal-2", "Flip X (X)");
+    private readonly Toggle _flipY = EditorIcons.Toggle("flip-vertical-2", "Flip Y (Y)");
+    private readonly Toggle _showCollision = EditorIcons.Toggle("shield", "Show Collision: the colliding layers' outlines");
     private bool _refreshing;
 
     public MapWorkspace(MapMode maps) : base("Map")
@@ -39,14 +40,15 @@ internal sealed class MapWorkspace : Workspace
         // Its painting as its view's tool (ADR 0121).
         View = new SceneView { ShowsOutlines = false, TakesToolKeys = false, ShowsGrid = false, Tool = new MapPaintTool(maps) };
         Arrange(Palette, View, Layers);
-        foreach ((MapTool tool, TileGlyph glyph, string label, uint key) in new[]
+        foreach ((MapTool tool, string icon, string label, uint key) in new[]
                  {
-                     (MapTool.Stamp, TileGlyph.Stamp, "Stamp (B)", Keycode.B), (MapTool.Rectangle, TileGlyph.Rectangle, "Rectangle (R)", Keycode.R),
-                     (MapTool.Fill, TileGlyph.Fill, "Fill (F)", Keycode.F), (MapTool.Eraser, TileGlyph.Eraser, "Eraser (E)", Keycode.E),
-                     (MapTool.Select, TileGlyph.Select, "Select (S)", Keycode.S),
+                     (MapTool.Stamp, "stamp", "Stamp (B)", Keycode.B), (MapTool.Rectangle, "square", "Rectangle (R)", Keycode.R),
+                     (MapTool.Fill, "paint-bucket", "Fill (F)", Keycode.F), (MapTool.Eraser, "eraser", "Eraser (E)", Keycode.E),
+                     (MapTool.Select, "square-dashed", "Select (S)", Keycode.S),
                  })
         {
-            Button button = TileGlyphs.GlyphButton(glyph, label);
+            Button button = EditorIcons.Button(icon, label);
+            button.Classes.Add("tool");
             button.Clicked += _ => maps.SetMapTool(tool);
             _toolButtons[tool] = button;
             Toolbar.Add(button);

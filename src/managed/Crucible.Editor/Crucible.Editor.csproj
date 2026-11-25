@@ -18,8 +18,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- The editor's font: Noto Sans (SIL Open Font License, Fonts/OFL.txt). -->
-    <None Include="Fonts/NotoSans-Regular.ttf;Fonts/OFL.txt" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The editor's font: Noto Sans (SIL Open Font License, Fonts/OFL.txt);
+         and its icons, Lucide 1.79.0's font and names (ISC, Fonts/lucide-LICENSE.txt; ADR 0124). -->
+    <None Include="Fonts/NotoSans-Regular.ttf;Fonts/OFL.txt;Fonts/lucide.ttf;Fonts/lucide-codepoints.json;Fonts/lucide-LICENSE.txt"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

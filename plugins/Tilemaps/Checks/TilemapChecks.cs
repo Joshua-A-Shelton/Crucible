@@ -271,6 +271,25 @@ internal sealed class TilemapChecks : OfficialPluginChecks
         yield return 2;
         Check(Cells(copy, map, 0).Count == 4, "redo paints it again");
 
+        // Held where grabbed (ADR 0124): a brush dragged out from its right
+        // tile puts that tile under the pointer, the other left of it.
+        editor.SetBrush(1, 0, 0, 1, 0, grab: (1, 0));
+        Check(editor.BrushGrab == (1, 0), "a brush is held at the tile its drag started on", $"{editor.BrushGrab}");
+        editor.BeginStroke((10, 10));
+        editor.EndStroke();
+        yield return 2;
+        Check(Cells(copy, map, 0).TryGetValue((10, 10), out TileCell held) && held.Tile == 1 &&
+              Cells(copy, map, 0).TryGetValue((9, 10), out TileCell leftOf) && leftOf.Tile == 0,
+            "Stamp puts the grabbed tile under the pointer", string.Join(" ", Cells(copy, map, 0).Keys));
+        // Picked up on the map from its top-right: held there too.
+        editor.BeginPick((1, 1));
+        editor.Track((0, 0));
+        editor.EndPick();
+        Check(editor.BrushGrab == (1, 1), "picked up from a corner, it's held at that corner", $"{editor.BrushGrab}");
+        shell.Undo();
+        yield return 2;
+        Check(Cells(copy, map, 0).Count == 4, "and undoes");
+
         // Mixing: a tile of the first tileset on the same layer.
         editor.SetBrush(0, 1, 0, 1, 0);
         editor.BeginStroke((3, 0));
