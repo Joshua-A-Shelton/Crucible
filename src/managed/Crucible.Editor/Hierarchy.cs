@@ -43,7 +43,7 @@ public sealed class HierarchyPanel : EditorPanel
     // Its tab names the open scene (ADR 0133), a dot while it has unsaved changes, its path as the tooltip.
     internal void ShowScene(string name, bool unsaved, string? path)
     {
-        Title = Path.GetFileNameWithoutExtension(name);
+        Title = $"Hierarchy · {Path.GetFileNameWithoutExtension(name)}";
         HasUnsavedChanges = unsaved;
         TitleToolTip = path ?? "Not saved yet";
     }
