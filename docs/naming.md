@@ -1932,20 +1932,21 @@ owner's try, settled as drafted after the owner tried it by hand
 
 ## Asset thumbnails (2026-11-25, ADR 0132)
 
-Names proposed before building (marked `*` until settled):
+Names proposed before building, dropped while building, and added while
+building, settled as drafted after the owner tried it by hand (2026-11-25):
 
 | Name | What it names | What it is |
 |---|---|---|
-| ADR 0132 "Asset thumbnails" * | Decision record | The editor's look, step 4 |
-| `MaterialOverride` (`material`; C# `Material`) * | Engine component (C++ and C#), "Rendering", icon `paintbrush` | The entity's mesh drawn with this material in every slot |
-| `Thumbnails` (internal; `Acquire`, `Release`, `Update`, `Clear`, `Size`, `Sphere`, `EditorAssetsFolder`, `Renders`) and `Thumbnail` * | Editor | The queue, the hidden preview, rendering, and the cache; one asset's thumbnail |
-| `Cache/Thumbnails/<key>.crtex`, 256px * | Project cache | One file per thumbnail (drafted `.png`: see ADR 0132) |
-| `EditorAssets/Sphere.gltf` beside the editor, root `Editor:` (`Project.EditorRoot`, `Project.EditorAssetsFolder`) * | Editor assets | The mesh materials are shown on (drafted `Sphere.glb`) |
-| `AssetsPanel.TileSize`, `MinTileSize`, `MaxTileSize`; editor.json `"AssetTileSize"` (48–160, 64 by default) * | Editor | The slider's size |
-| Kinds `Sound`, `StateMachine`, `Chain`, `Tilemap`, `Tileset` added to `AssetTile.Kind` * | Editor | They showed as File |
-| Kind icons (`AssetTile.IconOf`): `folder`, `box` (Model), `package` (Prefab), `image`, `clapperboard` (Scene), `circle-dot` (Material), `code-xml` (Shader), `type` (Font), `palette` (Style), `audio-lines` (Sound), `workflow` (StateMachine), `spline` (Chain), `grid-3x3` (Tilemap), `layout-grid` (Tileset), `file` * | Editor | Lucide glyphs |
-| Classes `asset-icon`, `asset-badge`, `asset-badge-icon`, `tile-size`; token `badge` * | Editor.crstyle | The kind's icon, the corner badge, the slider |
-| `ThumbnailChecks` (CTest `launcher.jit.thumbnails`) * | Editor check | Rendering, caching, changes, the slider; thumbnails.png and thumbnails-sheet.png |
-| docs/learning/asset-thumbnails.md * | Learning note | Offscreen rendering, difference matting, caching |
-| Dropped while building: `RenderAssets.IsLoading` * | — | `Assets.Api.StartLoads` already answers it |
-| Added while building: `PreviewView.Capture`, `ContentBounds`, an unlisted constructor (internal); `DrawBatch::materialOverride`, `DrawStats::batches` (internal); `AssetTile.Thumbnail`, `ShowsImage`, `ShowsBadge`, `PictureSize` (internal); `scripts/make-sphere.py` * | Editor, renderer | Capturing a preview; overrides in batches; the check's view; the sphere's source |
+| ADR 0132 "Asset thumbnails" | Decision record | The editor's look, step 4 |
+| `MaterialOverride` (`material`; C# `Material`) | Engine component (C++ and C#), "Rendering", icon `paintbrush` | The entity's mesh drawn with this material in every slot |
+| `Thumbnails` (internal; `Acquire`, `Release`, `Update`, `Clear`, `Size`, `Sphere`, `EditorAssetsFolder`, `Renders`) and `Thumbnail` | Editor | The queue, the hidden preview, rendering, and the cache; one asset's thumbnail |
+| `Cache/Thumbnails/<key>.crtex`, 256px | Project cache | One file per thumbnail (drafted `.png`: see ADR 0132) |
+| `EditorAssets/Sphere.gltf` beside the editor, root `Editor:` (`Project.EditorRoot`, `Project.EditorAssetsFolder`) | Editor assets | The mesh materials are shown on (drafted `Sphere.glb`) |
+| `AssetsPanel.TileSize`, `MinTileSize`, `MaxTileSize`; editor.json `"AssetTileSize"` (48–160, 64 by default) | Editor | The slider's size |
+| Kinds `Sound`, `StateMachine`, `Chain`, `Tilemap`, `Tileset` added to `AssetTile.Kind` | Editor | They showed as File |
+| Kind icons (`AssetTile.IconOf`): `folder`, `box` (Model), `package` (Prefab), `image`, `clapperboard` (Scene), `circle-dot` (Material), `code-xml` (Shader), `type` (Font), `palette` (Style), `audio-lines` (Sound), `workflow` (StateMachine), `spline` (Chain), `grid-3x3` (Tilemap), `layout-grid` (Tileset), `file` | Editor | Lucide glyphs |
+| Classes `asset-icon`, `asset-badge`, `asset-badge-icon`, `tile-size`; token `badge` | Editor.crstyle | The kind's icon, the corner badge, the slider |
+| `ThumbnailChecks` (CTest `launcher.jit.thumbnails`) | Editor check | Rendering, caching, changes, the slider; thumbnails.png and thumbnails-sheet.png |
+| docs/learning/asset-thumbnails.md | Learning note | Offscreen rendering, difference matting, caching |
+| Dropped while building: `RenderAssets.IsLoading` | — | `Assets.Api.StartLoads` already answers it |
+| Added while building: `PreviewView.Capture`, `ContentBounds`, an unlisted constructor (internal); `DrawBatch::materialOverride`, `DrawStats::batches` (internal); `AssetTile.Thumbnail`, `ShowsImage`, `ShowsBadge`, `PictureSize` (internal); `scripts/make-sphere.py` | Editor, renderer | Capturing a preview; overrides in batches; the check's view; the sphere's source |
