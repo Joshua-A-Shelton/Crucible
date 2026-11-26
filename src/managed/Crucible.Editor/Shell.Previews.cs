@@ -14,6 +14,9 @@ internal sealed partial class Shell
     /// <summary>The previews not yet disposed (the checks).</summary>
     internal IReadOnlyList<PreviewView> Previews => _previews;
 
+    /// <summary>The Assets panel's rendered thumbnails (ADR 0132).</summary>
+    internal Thumbnails Thumbnails { get; }
+
     internal void AddPreview(PreviewView preview) => _previews.Add(preview);
 
     internal void RemovePreview(PreviewView preview) => _previews.Remove(preview);

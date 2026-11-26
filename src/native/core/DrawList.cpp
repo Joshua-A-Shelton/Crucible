@@ -1,4 +1,5 @@
-// The frame's draw list (ADR 0051): mesh instances resolved to loaded models,
+// The frame's draw list (ADR 0051): mesh instances resolved to loaded models
+// (and their material overrides to loaded materials, ADR 0132),
 // culled against the view (and those that cast shadows against each shadow
 // view, ADR 0054) on the job system, and grouped into instanced batches; and
 // the GPU copy of their world matrices, updated only where WorldTransform
@@ -29,6 +30,7 @@ namespace crucible::scenes {
 void registerMeshInstance()
 {
     ecs::registerComponent<MeshInstance>("Crucible.Scenes.MeshInstance");
+    ecs::registerComponent<MaterialOverride>("Crucible.Scenes.MaterialOverride");
     ecs::registerComponent<LoadedMesh>("Crucible.Scenes.LoadedMesh");
 }
 
@@ -40,6 +42,7 @@ namespace {
 
 using assets::AssetId;
 using scenes::LoadedMesh;
+using scenes::MaterialOverride;
 using scenes::MeshInstance;
 using scenes::WorldTransform;
 using Clock = std::chrono::steady_clock;
@@ -93,9 +96,17 @@ struct CachedModel
     Clock::time_point lastUsed;
 };
 
+// A material acquired for overrides (ADR 0132).
+struct CachedMaterial
+{
+    MaterialHandle handle{}; // generation 0: it failed to load, retried once expired
+    Clock::time_point lastUsed;
+};
+
 struct Cache
 {
     HashMap<AssetId, CachedModel*, AssetIdHash> models{MemoryTag::Render};
+    HashMap<AssetId, CachedMaterial, AssetIdHash> materials{MemoryTag::Render};
     // By MeshHandle index: the build that last saw an instance of the model
     // (written from culling jobs).
     Vector<uint64_t> lastBuild{MemoryTag::Render};
@@ -205,6 +216,34 @@ void resolveInstances(ecs::World& world, uint32_t lastRunVersion)
     ecs::destroyQuery(existing);
 }
 
+// An override's material, acquired on first use; used now.
+MaterialHandle resolveMaterial(const AssetId& id)
+{
+    if (isZero(id.bytes))
+    {
+        return {};
+    }
+    if (CachedMaterial* found = cache.materials.find(id))
+    {
+        found->lastUsed = Clock::now();
+        return found->handle;
+    }
+    CachedMaterial material{.lastUsed = Clock::now()};
+    if (Result<MaterialHandle> acquired = acquireMaterial(id))
+    {
+        material.handle = acquired.value();
+    }
+    else
+    {
+        char text[33];
+        printId(id, text);
+        log::warning("material overrides use material %s, which couldn't be loaded (status %d)", text,
+                     static_cast<int>(acquired.status()));
+    }
+    cache.materials.insertOrAssign(id, material);
+    return material.handle;
+}
+
 // Models no instance used for a while are released, and so are failures,
 // which are then tried again. One still loading (ADR 0099) is kept: no
 // instance draws it yet.
@@ -230,6 +269,23 @@ void expireModels()
         releaseModel(*cache.models.find(id));
         cache.models.erase(id);
     }
+    expired.clear();
+    for (auto& entry : cache.materials)
+    {
+        if (now - entry.value.lastUsed > unusedModelLifetime)
+        {
+            expired.pushBack(entry.key);
+        }
+    }
+    for (const AssetId& id : expired)
+    {
+        const CachedMaterial* material = cache.materials.find(id);
+        if (material->handle.generation != 0)
+        {
+            releaseMaterial(material->handle);
+        }
+        cache.materials.erase(id);
+    }
 }
 
 } // namespace
@@ -253,6 +309,23 @@ uint32_t startMeshLoads(ecs::World& world)
         },
         &waiting);
     ecs::destroyQuery(instances);
+    // An override waits for its material's textures, as a model does.
+    if (ecs::componentIdOf<MaterialOverride> != ecs::invalidComponent)
+    {
+        const ecs::ComponentId overrideOnly[] = {ecs::componentIdOf<MaterialOverride>};
+        ecs::Query* overrides = ecs::createQuery(world, {.required = overrideOnly});
+        ecs::forEachChunk(
+            *overrides,
+            [](const ecs::ChunkView& view, void* data) {
+                for (const MaterialOverride& material : ecs::readColumn<MaterialOverride>(view))
+                {
+                    const MaterialHandle handle = resolveMaterial(material.material);
+                    *static_cast<uint32_t*>(data) += handle.generation != 0 && !isMaterialReady(handle) ? 1 : 0;
+                }
+            },
+            &waiting);
+        ecs::destroyQuery(overrides);
+    }
     return waiting;
 }
 
@@ -291,6 +364,9 @@ struct WorkerOutput
 // batches by view, then model, mesh, and level.
 constexpr uint32_t maxViews = 256;
 constexpr uint32_t maxModelIndex = 1u << 23;
+// A key whose model has this bit names a variant (ADR 0132): a model drawn
+// with an override's material in every slot. Models' own indices stay below.
+constexpr uint32_t variantModelBit = 1u << 22;
 // A skinned instance's key (ADR 0080) has this bit, and its skin in place of
 // the mesh, so each gets a batch of its own.
 constexpr uint64_t skinnedKeyBit = uint64_t{1} << 55;
@@ -316,6 +392,16 @@ struct SkinRecord
     Vector3 boundsMax;
     uint64_t poseHash;
 };
+
+// A model drawn with an override's material in place of every slot's (ADR 0132).
+struct Variant
+{
+    uint32_t model;
+    MaterialHandle material;
+};
+
+// Every override instance, waiting while its material loads.
+constexpr uint32_t overrideWaiting = UINT32_MAX;
 
 struct RemapKey
 {
@@ -386,6 +472,12 @@ struct DrawState
     HashMap<RemapKey, Vector<int32_t>*, RemapKeyHash> remaps{MemoryTag::Render};
     uint64_t remapReloads = 0;
     uint32_t skinnedVertexCount = 0;
+    // Material overrides (ADR 0132): this frame's variants, which one an
+    // entity index draws (or overrideWaiting), and the variants by model
+    // and material.
+    Vector<Variant> variants{MemoryTag::Render};
+    HashMap<uint32_t, uint32_t> overrideOf{MemoryTag::Render};
+    HashMap<uint64_t, uint32_t> variantOf{MemoryTag::Render};
     uint32_t paletteSlot = 0;
     uint32_t deformedSlot = 0;
 };
@@ -497,9 +589,19 @@ void cullChunk(const ecs::ChunkView& view, void* data)
             std::atomic_ref<uint64_t>(cache.lastBuild[handle.index]).store(cache.build, std::memory_order_relaxed);
         }
         const int32_t meshIndex = instances[i].mesh;
-        if (meshIndex < 0 || static_cast<size_t>(meshIndex) >= model->meshes.size() || handle.index >= maxModelIndex)
+        if (meshIndex < 0 || static_cast<size_t>(meshIndex) >= model->meshes.size() || handle.index >= variantModelBit)
         {
             continue;
+        }
+        // An override's instance draws its variant, once its material can (ADR 0132).
+        uint32_t modelKey = handle.index;
+        if (const uint32_t* variant = job.state->overrideOf.find(index))
+        {
+            if (*variant == overrideWaiting)
+            {
+                continue;
+            }
+            modelKey = variantModelBit | *variant;
         }
         const assets::MeshEntry& mesh = model->meshes[static_cast<size_t>(meshIndex)];
         // A skinned instance is culled by its posed bounds (ADR 0080).
@@ -512,8 +614,8 @@ void cullChunk(const ecs::ChunkView& view, void* data)
             boundsMax = job.state->skinRecords[*skin].boundsMax;
         }
         auto keyOf = [&](uint32_t view, uint32_t lod) {
-            return skin != nullptr ? skinnedKey(view, handle.index, *skin, lod)
-                                   : batchKey(view, handle.index, static_cast<uint32_t>(meshIndex), lod);
+            return skin != nullptr ? skinnedKey(view, modelKey, *skin, lod)
+                                   : batchKey(view, modelKey, static_cast<uint32_t>(meshIndex), lod);
         };
 
         // The bounds in world space (Arvo): the center transformed, the
@@ -740,7 +842,7 @@ Result<void> gatherSkins(DrawState& state, ecs::World& world, uint32_t frameSlot
                 const MeshData* model = handle.generation != 0 ? meshData(handle) : nullptr;
                 const int32_t meshIndex = instances[i].mesh;
                 if (model == nullptr || model->skinInfluences == 0 || meshIndex < 0 ||
-                    static_cast<size_t>(meshIndex) >= model->meshes.size() || handle.index >= maxModelIndex ||
+                    static_cast<size_t>(meshIndex) >= model->meshes.size() || handle.index >= variantModelBit ||
                     state.skinned.size() >= maxSkins)
                 {
                     continue;
@@ -848,6 +950,56 @@ Result<void> gatherSkins(DrawState& state, ecs::World& world, uint32_t frameSlot
     return {};
 }
 
+// Each override instance's variant: its model with the override's material in
+// every slot, one variant per model and material (ADR 0132). One whose
+// material is still loading waits; one with no material, or one that failed,
+// draws its slots' own.
+void gatherOverrides(DrawState& state, ecs::World& world)
+{
+    state.variants.clear();
+    state.overrideOf.clear();
+    state.variantOf.clear();
+    if (ecs::componentIdOf<MaterialOverride> == ecs::invalidComponent)
+    {
+        return;
+    }
+    const ecs::ComponentId required[] = {ecs::componentIdOf<MaterialOverride>, ecs::componentIdOf<LoadedMesh>};
+    ecs::Query* query = ecs::createQuery(world, {.required = required});
+    ecs::forEachChunk(
+        *query,
+        [](const ecs::ChunkView& view, void* data) {
+            DrawState& state = *static_cast<DrawState*>(data);
+            const std::span<const MaterialOverride> overrides = ecs::readColumn<MaterialOverride>(view);
+            const std::span<const LoadedMesh> loaded = ecs::readColumn<LoadedMesh>(view);
+            const ecs::Entity* entities = ecs::entitiesOf(view);
+            for (size_t i = 0; i < overrides.size(); ++i)
+            {
+                const MaterialHandle material = resolveMaterial(overrides[i].material);
+                const MeshHandle handle = loaded[i].handle;
+                const MeshData* model = handle.generation != 0 ? meshData(handle) : nullptr;
+                if (material.generation == 0 || model == nullptr || handle.index >= variantModelBit)
+                {
+                    continue;
+                }
+                const uint32_t entity = ecs::indexOf(entities[i]);
+                if (!isMaterialReady(material))
+                {
+                    state.overrideOf.insertOrAssign(entity, overrideWaiting);
+                    continue;
+                }
+                const uint64_t key = uint64_t{handle.index} << 32 | material.index;
+                auto [variant, added] = state.variantOf.tryEmplace(key, static_cast<uint32_t>(state.variants.size()));
+                if (added)
+                {
+                    state.variants.pushBack({handle.index, material});
+                }
+                state.overrideOf.insertOrAssign(entity, *variant);
+            }
+        },
+        &state);
+    ecs::destroyQuery(query);
+}
+
 Result<void> cull(DrawState& state, ecs::World& world, const ViewConstants& view, uint32_t height, uint32_t frameSlot,
                   std::span<const ShadowCullView> shadows)
 {
@@ -935,13 +1087,17 @@ Result<void> batch(DrawState& state, uint32_t frameSlot, uint32_t viewCount)
     {
         *state.batchOf.find(key) = static_cast<uint32_t>(state.batches.size());
         ++state.viewStarts[(key >> 56) + 1];
-        const uint32_t modelIndex = static_cast<uint32_t>((key >> 32) & (maxModelIndex - 1));
+        const uint32_t modelKey = static_cast<uint32_t>((key >> 32) & (maxModelIndex - 1));
         const uint32_t meshOrSkin = static_cast<uint32_t>((key >> 8) & 0xffffff);
         const bool skinned = (key & skinnedKeyBit) != 0;
+        const Variant* variant =
+            (modelKey & variantModelBit) != 0 ? &state.variants[modelKey & ~variantModelBit] : nullptr;
+        const uint32_t modelIndex = variant != nullptr ? variant->model : modelKey;
         state.batches.pushBack({.model = meshDataAt(modelIndex),
                                 .mesh = skinned ? state.skinned[meshOrSkin].mesh : meshOrSkin,
                                 .lod = static_cast<uint32_t>(key & 0xff),
                                 .materials = modelMaterials(modelIndex),
+                                .materialOverride = variant != nullptr ? variant->material : MaterialHandle{},
                                 .deformedOffset = skinned ? state.skinned[meshOrSkin].deformedOffset : UINT32_MAX});
         state.cursors.pushBack(0);
     }
@@ -1078,6 +1234,7 @@ Result<DrawList> buildDrawList(DrawState& state, ecs::World* world, const ViewCo
     {
         return skins.status();
     }
+    gatherOverrides(state, *world);
     if (Result<void> culled = cull(state, *world, view, height, frameSlot, shadowViews); !culled)
     {
         return culled.status();
@@ -1097,6 +1254,7 @@ Result<DrawList> buildDrawList(DrawState& state, ecs::World* world, const ViewCo
     }
     expireModels();
     stats.cachedModels = static_cast<uint32_t>(cache.models.size());
+    stats.batches = state.viewStarts.empty() ? 0 : state.viewStarts[1];
     stats.cpuNs =
         static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now() - started).count());
     return withSkins(
@@ -1135,6 +1293,14 @@ void stopDrawing()
         releaseModel(entry.value);
     }
     cache.models.clear();
+    for (auto& entry : cache.materials)
+    {
+        if (entry.value.handle.generation != 0)
+        {
+            releaseMaterial(entry.value.handle);
+        }
+    }
+    cache.materials.clear();
     cache.lastBuild.clear();
 }
 

@@ -709,6 +709,19 @@ if(CRUCIBLE_BUILD_TESTS)
         ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
         PASS_REGULAR_EXPRESSION "PreviewChecks: all [0-9]+ checks passed")
 
+    # Asset thumbnails checking themselves (ADR 0132): on a copy of the
+    # Diorama's project with a material, a prefab, a tileset, and a tilemap
+    # added: thumbnails rendered on a clear background, cached, read back,
+    # rendered again after a change; the tile size slider.
+    add_test(NAME launcher.jit.thumbnails
+        COMMAND crucible_editor --managed-dir "${engineDirectory}" --headless --frames 100000
+            --game-arg "warm-project=${dioramaWarm}/Diorama.crproject"
+            --game-arg "check-thumbnails=${CMAKE_CURRENT_BINARY_DIR}"
+            --game-arg "settings=${CMAKE_CURRENT_BINARY_DIR}/thumbnails-settings.json")
+    set_tests_properties(launcher.jit.thumbnails PROPERTIES LABELS "integration;gpu" TIMEOUT 600
+        ENVIRONMENT "SDL_VIDEO_DRIVER=offscreen"
+        PASS_REGULAR_EXPRESSION "ThumbnailChecks: all [0-9]+ checks passed")
+
     # Plugins checking themselves (ADR 0118): on a copy of the Walker's
     # project, a source plugin built, loaded, run, and reloaded with the
     # game, packaged without its editor code, and built to share; a second
@@ -847,6 +860,7 @@ if(CRUCIBLE_BUILD_TESTS)
         launcher.jit.play
         launcher.jit.standalone
         launcher.jit.native
+        launcher.jit.thumbnails
         APPEND PROPERTY FIXTURES_REQUIRED diorama-warm)
     if(CRUCIBLE_BUILD_AOT)
         set_property(TEST samples.walker-package-aot samples.walker-package-aot-shipping

@@ -40,13 +40,17 @@ public sealed class PreviewView : UIElement, IDisposable
     private uint _lastRun;
     private Vector2 _drag;
     private PointerButton _dragging;
+    private readonly bool _listed;
+    private SurfaceHandle _capture;
 
     public PreviewView() : this(Shell.Current ?? throw new InvalidOperationException("A PreviewView needs the editor running"))
     {
     }
 
-    internal PreviewView(Shell shell)
+    // Unlisted (thumbnails, ADR 0132): the shell neither ticks nor frees it; its owner does.
+    internal PreviewView(Shell shell, bool listed = true)
     {
+        _listed = listed;
         _shell = shell;
         _world = new World();
         IsFocusable = true;
@@ -57,7 +61,10 @@ public sealed class PreviewView : UIElement, IDisposable
         Camera.Distance = 4;
         Camera.Pivot = new Vector3(0, 1, 0);
         MakeRig();
-        shell.AddPreview(this);
+        if (listed)
+        {
+            shell.AddPreview(this);
+        }
     }
 
     /// <summary>Its world: what it shows. Throws once it's disposed.</summary>
@@ -167,6 +174,22 @@ public sealed class PreviewView : UIElement, IDisposable
     /// </summary>
     public void Frame()
     {
+        (Vector3 min, Vector3 max) = ContentBounds();
+        Vector3 center = (min + max) * 0.5f;
+        float radius = MathF.Max((max - min).Length() * 0.5f, 0.25f);
+        if (Is2D)
+        {
+            Camera.Pivot = center with { Z = 0 };
+            ViewHeight = MathF.Max(max.Y - min.Y, (max.X - min.X) * (ActualSize.Y > 0 ? ActualSize.Y / MathF.Max(ActualSize.X, 1) : 1)) * 1.2f + 0.5f;
+            Camera.Distance = 50;
+            return;
+        }
+        Camera.Frame(center, radius);
+    }
+
+    // What Frame fits, in world space: everything but the rig (a unit box around the origin for nothing).
+    internal (Vector3 Min, Vector3 Max) ContentBounds()
+    {
         World world = World;
         PlaceTransforms(world);
         Vector3 min = new(float.MaxValue), max = new(float.MinValue);
@@ -190,16 +213,7 @@ public sealed class PreviewView : UIElement, IDisposable
             min = new Vector3(-1);
             max = new Vector3(1);
         }
-        Vector3 center = (min + max) * 0.5f;
-        float radius = MathF.Max((max - min).Length() * 0.5f, 0.25f);
-        if (Is2D)
-        {
-            Camera.Pivot = center with { Z = 0 };
-            ViewHeight = MathF.Max(max.Y - min.Y, (max.X - min.X) * (ActualSize.Y > 0 ? ActualSize.Y / MathF.Max(ActualSize.X, 1) : 1)) * 1.2f + 0.5f;
-            Camera.Distance = 50;
-            return;
-        }
-        Camera.Frame(center, radius);
+        return (min, max);
     }
 
     /// <summary>Frees its world and its image; the editor does it when what holds it closes.</summary>
@@ -209,11 +223,19 @@ public sealed class PreviewView : UIElement, IDisposable
         {
             return;
         }
-        _shell.RemovePreview(this);
+        if (_listed)
+        {
+            _shell.RemovePreview(this);
+        }
         if (_surface.Value != 0)
         {
             Crucible.Render.Api.DestroySurface(_surface);
             _surface = default;
+        }
+        if (_capture.Value != 0)
+        {
+            Crucible.Render.Api.DestroySurface(_capture);
+            _capture = default;
         }
         _world.Dispose();
         _world = null;
@@ -290,6 +312,44 @@ public sealed class PreviewView : UIElement, IDisposable
         }
         _drawn = true;
         InvalidateVisual();
+    }
+
+    /// <summary>
+    /// Draws it once into a square image of its own, on a background (linear),
+    /// and reads it back as rows of B8G8R8A8 (thumbnails, ADR 0132). False
+    /// if it can't be drawn.
+    /// </summary>
+    internal bool Capture(uint size, Vector3 background, byte[] bgra)
+    {
+        if (_world is not { } world)
+        {
+            return false;
+        }
+        try
+        {
+            if (_capture.Value == 0)
+            {
+                _capture = Crucible.Render.Api.CreateOffscreenSurface(size, size);
+                Crucible.Render.Api.SetSurfaceGrid(_capture, false);
+            }
+            Camera camera = Is2D
+                ? new Camera { Projection = CameraProjection.Orthographic, OrthographicHeight = ViewHeight, NearPlane = 0.1f, FarPlane = 1000 }
+                : Camera.Camera;
+            Crucible.Render.Api.SetSurfaceCamera(_capture, Camera.Position, Camera.Rotation, camera);
+            Status rendered = Crucible.Render.Api.RenderFrame(_capture, world.Handle, _lastRun, background.X, background.Y, background.Z, 1);
+            _lastRun = world.CurrentVersion;
+            world.AdvanceVersion();
+            if (rendered < 0)
+            {
+                return false;
+            }
+            Crucible.Render.Api.ReadSurfacePixels(_capture, bgra);
+            return true;
+        }
+        catch (CrucibleException)
+        {
+            return false;
+        }
     }
 
     // The engine's transform propagation, as its system does it for the
@@ -401,7 +461,42 @@ public sealed class PreviewView : UIElement, IDisposable
         {
             return (new Vector3(-size * 0.5f, 0), new Vector3(size * 0.5f, 0));
         }
+        if (world.Has(entity, Components.Of<Tilemap>()) && TilemapBounds(world.Read<Tilemap>(entity)) is { } cells)
+        {
+            return cells;
+        }
         return (Vector3.Zero, Vector3.Zero);
+    }
+
+    // A tilemap layer's painted cells (ADR 0132): from its source, in cells of its imported size.
+    private (Vector3, Vector3)? TilemapBounds(Tilemap tilemap)
+    {
+        if (_shell.Database is not { } database || database.Find(tilemap.Map) is not { } entry ||
+            database.ImportedFile(tilemap.Map) is not { } imported)
+        {
+            return null;
+        }
+        try
+        {
+            TilemapInfo info;
+            using (ImportedFile file = ImportedFile.Open(imported, TilemapImporter.Kind, TilemapImporter.KindVersion))
+            {
+                info = MemoryMarshal.Read<TilemapInfo>(file.Read(file.Find(Tag.Of("INFO"))));
+            }
+            TilemapData data = TilemapImporter.Read(File.ReadAllBytes(database.Project.FileOf(entry.Path)));
+            TileLayer? layer = data.Layers.FirstOrDefault(each => each.Id == tilemap.Layer);
+            if (layer is null || layer.Cells.Count == 0)
+            {
+                return null;
+            }
+            int left = layer.Cells.Keys.Min(cell => cell.X), right = layer.Cells.Keys.Max(cell => cell.X) + 1;
+            int bottom = layer.Cells.Keys.Min(cell => cell.Y), top = layer.Cells.Keys.Max(cell => cell.Y) + 1;
+            return (new Vector3(left * info.CellWidth, bottom * info.CellHeight, 0), new Vector3(right * info.CellWidth, top * info.CellHeight, 0));
+        }
+        catch (Exception exception) when (exception is CrucibleException or IOException or InvalidDataException or System.Text.Json.JsonException)
+        {
+            return null;
+        }
     }
 
     private (Vector3, Vector3)? MeshBounds(MeshInstance instance)

@@ -132,7 +132,14 @@ public sealed class AssetDatabase
 
     public IReadOnlyList<AssetWarning> Warnings => _warnings;
 
-    public IEnumerable<AssetEntry> Assets => _byPath.Values.OrderBy(entry => entry.Path, StringComparer.Ordinal);
+    /// <summary>
+    /// The game's and its plugins' assets, by path. Not the editor's own
+    /// (ADR 0132), which only <see cref="Find(AssetId)"/> finds: they're never
+    /// picked, listed, or cooked into a game.
+    /// </summary>
+    public IEnumerable<AssetEntry> Assets => _byPath.Values
+        .Where(entry => !entry.Path.StartsWith(Project.EditorRoot, StringComparison.Ordinal))
+        .OrderBy(entry => entry.Path, StringComparer.Ordinal);
 
     /// <summary>How many files the last scan hashed (the others' stamps were unchanged).</summary>
     public int FilesHashed { get; private set; }

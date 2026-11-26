@@ -7,13 +7,14 @@
 // entity's index, and the transform buffer holds world matrices by entity
 // index (kept on the GPU, updated only where WorldTransform changed).
 
+#include <crucible/RenderAssets.h>
+
 #include <cstdint>
 #include <span>
 
 namespace crucible::render {
 
 struct MeshData;
-struct MaterialHandle;
 
 // The visible instances of one mesh at one level of detail: one instanced
 // drawIndexed per submesh, all with the same instances.
@@ -28,6 +29,9 @@ struct DrawBatch
     // MeshRange::material picks one. Empty for a model without generated
     // materials, whose submeshes draw the fallback.
     std::span<const MaterialHandle> materials;
+    // A MaterialOverride's material (ADR 0132), drawn in place of every
+    // submesh's own; generation 0 for none.
+    MaterialHandle materialOverride{};
     // A skinned instance's batch (ADR 0080, always one instance): its first
     // vertex in the frame's skinned vertices; UINT32_MAX for a batch drawn
     // from the model's own.

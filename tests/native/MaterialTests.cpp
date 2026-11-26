@@ -161,6 +161,82 @@ TEST_SUITE("gpu")
 
 TEST_SUITE("gpu")
 {
+    TEST_CASE("Material overrides draw a mesh with another material on every backend")
+    {
+        scenes::registerTransforms();
+        scenes::registerMeshInstance();
+        render::registerCamera();
+        render::registerLights();
+        const assets::AssetId shader = test::idOf(7), flat = test::idOf(8), red = test::idOf(10);
+        const std::vector<uint8_t> shaderBytes = test::readFile(CRUCIBLE_SHADER_DIR "/TestMaterials.crshader");
+        const test::TypeLayout layout = test::typeNamed(shaderBytes, "Flat");
+        test::library[7] = shaderBytes;
+        test::library[8] = test::materialFile(shader, layout.index, layout.defaults);
+        test::library[10] = test::quadModel({.baseColor = {1, 0, 0, 1}});
+        assets::setAssetReader(reinterpret_cast<uint64_t>(&test::readTestAsset));
+        REQUIRE(platform::initialize());
+        for (slag::Backend backend : {slag::Backend::D3D12, slag::Backend::Vulkan})
+        {
+            if (!slag::isBackendAvailable(backend) || !render::initialize(backend))
+            {
+                continue;
+            }
+            CAPTURE(static_cast<int>(backend));
+            constexpr uint32_t width = 128, height = 64;
+            Result<render::SurfaceHandle> surface = render::createOffscreenSurface(width, height);
+            REQUIRE(surface);
+            {
+                test::Scene scene;
+                scene.defaultLighting();
+                addCamera(scene);
+                // Two overridden (one batch: same model, same material) and one as imported.
+                const ecs::Entity left = scene.quad(red, {-4, 0, 0}, 2);
+                const ecs::Entity middle = scene.quad(red, {0, 0, 0}, 2);
+                scene.quad(red, {4, 0, 0}, 2);
+                for (ecs::Entity entity : {left, middle})
+                {
+                    ecs::addComponent(*scene.world, entity, ecs::componentIdOf<scenes::MaterialOverride>);
+                    ecs::get<scenes::MaterialOverride>(*scene.world, entity)->material = flat;
+                }
+                // The first frames resolve the model and load the material.
+                for (int i = 0; i < 3; ++i)
+                {
+                    scene.render(surface.value());
+                }
+                const render::ViewConstants view = render::viewConstants(scene.world, width, height, 0);
+                std::vector<uint8_t> pixels = test::readPixels(surface.value(), width, height);
+                for (Vector3 at : {Vector3{-4, 0, 0}, Vector3{0, 0, 0}})
+                {
+                    CAPTURE(at.x);
+                    CHECK(test::pixelOf(pixels, view, at).r < 5); // the Flat material's green
+                    CHECK(test::pixelOf(pixels, view, at).g > 200);
+                }
+                CHECK(test::pixelOf(pixels, view, {4, 0, 0}).r > 150); // its own red
+                CHECK(test::pixelOf(pixels, view, {4, 0, 0}).g < 30);
+                CHECK(render::drawStats().visible == 3);
+                CHECK(render::drawStats().batches == 2);
+
+                // Its material taken away: its slots' own again, batched with the other.
+                ecs::get<scenes::MaterialOverride>(*scene.world, middle)->material = {};
+                scene.render(surface.value());
+                pixels = test::readPixels(surface.value(), width, height);
+                CHECK(test::pixelOf(pixels, view, {0, 0, 0}).r > 150);
+                CHECK(test::pixelOf(pixels, view, {-4, 0, 0}).r < 5);
+                CHECK(render::drawStats().batches == 2);
+                ecs::removeComponent(*scene.world, left, ecs::componentIdOf<scenes::MaterialOverride>);
+                scene.render(surface.value());
+                pixels = test::readPixels(surface.value(), width, height);
+                CHECK(test::pixelOf(pixels, view, {-4, 0, 0}).r > 150);
+                CHECK(render::drawStats().batches == 1);
+            }
+            render::destroySurface(surface.value());
+            render::shutdown();
+        }
+        platform::shutdown();
+        assets::setAssetReader(0);
+        test::library.clear();
+    }
+
     TEST_CASE("Game materials draw with their own shading model on every backend")
     {
         scenes::registerTransforms();

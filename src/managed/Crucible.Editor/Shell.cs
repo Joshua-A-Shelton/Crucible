@@ -56,6 +56,9 @@ internal sealed partial class Shell
         // The editor's look (ADR 0129), from Editor.crstyle beside the editor.
         _editorTheme = new EditorTheme(Path.Combine(Path.GetDirectoryName(FontsFolder())!, EditorTheme.FileName));
         _theme = _editorTheme.Theme;
+        Thumbnails = new Thumbnails(this);
+        // The shader library beside the editor (not beside the launcher hosting it), for game materials.
+        ShaderImporter.LibraryFolder = Path.Combine(Path.GetDirectoryName(FontsFolder())!, "shaders");
         if (_editorTheme.Load() is { } themeError)
         {
             _themeError = themeError; // logged once the Log exists
@@ -258,6 +261,7 @@ internal sealed partial class Shell
         {
             preview.Dispose();
         }
+        Thumbnails.Dispose();
         Crucible.Log.Api.Received -= EngineMessage;
         _watcher?.Dispose();
         _codeWatcher?.Dispose();
@@ -292,6 +296,8 @@ internal sealed partial class Shell
         try
         {
             Project = Project.Open(projectFile);
+            Project.EditorAssetsFolder = Thumbnails.EditorAssetsFolder();
+            Thumbnails.Clear();
             RuntimeSettings.Install(Project.RuntimeSettings);
             LastBuild = null;
         }
@@ -316,7 +322,7 @@ internal sealed partial class Shell
     {
         AssetDatabase database = AssetDatabase.Open(project,
             [
-                new TextureImporter(), new MeshImporter(), new ShaderImporter(), new FontImporter(), new StyleImporter(),
+                new TextureImporter(), new MeshImporter(), new ShaderImporter(), new MaterialImporter(), new FontImporter(), new StyleImporter(),
                 new StateMachineImporter(), new SoundImporter(), new ChainImporter(), new TilesetImporter(),
                 new TilemapImporter(),
             ]);
@@ -426,6 +432,8 @@ internal sealed partial class Shell
     public void RenderViewports()
     {
         PollTheme();
+        // The Assets panel's thumbnails (ADR 0132): one step of the one rendering.
+        Thumbnails.Update();
         if (!_context.HasWorld)
         {
             return;
@@ -617,7 +625,7 @@ internal sealed partial class Shell
         }
     }
 
-    private void SaveSettings()
+    internal void SaveSettings()
     {
         try
         {

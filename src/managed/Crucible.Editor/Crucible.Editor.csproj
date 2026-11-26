@@ -24,6 +24,8 @@
           CopyToOutputDirectory="PreserveNewest" />
     <!-- The editor's look (ADR 0129), read beside it and again when it changes. -->
     <None Include="Editor.crstyle" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The editor's own assets (ADR 0132): the sphere materials are shown on, from scripts/make-sphere.py. -->
+    <None Include="EditorAssets/Sphere.gltf;EditorAssets/Sphere.gltf.crmeta" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

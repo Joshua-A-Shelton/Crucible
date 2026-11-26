@@ -281,6 +281,9 @@ Longer explanations of decisions, written to be reread:
   clipping, wrapping, and trimming, where to cut, and cutting at carets.
 - [Component icons](docs/learning/component-icons.md) (ADR 0131): why icons
   help scanning, where they come from, and groups inside groups.
+- [Asset thumbnails](docs/learning/asset-thumbnails.md) (ADR 0132):
+  rendering offscreen, a clear background from two captures, mipmaps by
+  alpha, caching by import key, and material overrides.
 - [Up-to-date builds](docs/learning/up-to-date-builds.md) (ADR 0110): file
   times versus content hashes, what makes a build stamp trustworthy, and
   why copies need one.

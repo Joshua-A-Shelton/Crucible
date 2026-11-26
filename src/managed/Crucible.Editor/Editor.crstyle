@@ -24,6 +24,7 @@
     "override": "#5aa9ff",
     "icon": "@muted",
     "icon-selected": "@accent",
+    "badge": "#101010d9",
     "radius": 5,
     "small-radius": 3
   },
@@ -203,6 +204,13 @@
     { "Selector": "AssetTile.selected", "Set": { "Background": "@selection", "Foreground": "@text" } },
     { "Selector": "AssetTile:focus", "Set": { "BorderWidth": 1 } },
     { "Selector": "Label.asset-name", "Set": { "FontSize": 12 } },
+    // Tiles' pictures (ADR 0132): a kind's icon until there's an image; a
+    // rendered thumbnail carries its kind in a corner.
+    { "Selector": "Icon.asset-icon", "Set": { "Foreground": "@icon" } },
+    { "Selector": "AssetTile.selected Icon.asset-icon", "Set": { "Foreground": "@icon-selected" } },
+    { "Selector": "StackPanel.asset-badge", "Set": { "Background": "@badge", "CornerRadii": 10, "Width": 20, "Height": 20, "Margin": [0, 0, 1, 1] } },
+    { "Selector": "Icon.asset-badge-icon", "Set": { "FontSize": 12, "Foreground": "@text" } },
+    { "Selector": "Slider.tile-size", "Set": { "Margin": [8, 0, 8, 0] } },
     { "Selector": "Label.drag-preview", "Set": { "Background": "@control", "BorderColor": "@accent", "BorderWidth": 1, "CornerRadii": "@radius", "Padding": [8, 3, 8, 3] } },
 
     // The Build Settings window (ADR 0098): sections with a title over muted

@@ -117,6 +117,7 @@ public class PluginTests
         Directory.CreateDirectory(Path.Combine(scratch.Project.PluginsFolder, "Loose"));
         scratch.Add("Renamed", manifestName: "Other");
         scratch.Add("Game");
+        scratch.Add("Editor");
         scratch.Add("Two_Words");
         scratch.Refresh();
         await Assert.That(Names(scratch.Project)).IsEqualTo("Two_Words");
@@ -124,6 +125,21 @@ public class PluginTests
         await Assert.That(scratch.Project.PluginProblems)
             .Contains("Renamed.crplugin names the plugin \"Other\": a plugin's name is its folder's");
         await Assert.That(scratch.Project.PluginProblems).Contains("Game can't be a plugin's name: it's the game's");
+        await Assert.That(scratch.Project.PluginProblems).Contains("Editor can't be a plugin's name: it's the editor's");
+    }
+
+    [Test]
+    public async Task TheEditorsAssetsHaveARootOfTheirOwn()
+    {
+        using Scratch scratch = new();
+        string folder = Path.Combine(scratch.Project.Root, "EditorAssets");
+        Directory.CreateDirectory(folder);
+        await Assert.That(scratch.Project.AssetRoots().Any(root => root.Root == Project.EditorRoot)).IsFalse();
+        scratch.Project.EditorAssetsFolder = folder;
+        await Assert.That(scratch.Project.AssetRoots().Last()).IsEqualTo((folder, "Editor:"));
+        await Assert.That(scratch.Project.FileOf("Editor:Sphere.gltf")).IsEqualTo(Path.Combine(folder, "Sphere.gltf"));
+        await Assert.That(scratch.Project.AssetPathOf(Path.Combine(folder, "Sphere.gltf"))).IsEqualTo("Editor:Sphere.gltf");
+        await Assert.That(scratch.Project.IsReadOnly("Editor:Sphere.gltf")).IsTrue();
     }
 
     [Test]

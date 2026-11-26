@@ -163,7 +163,8 @@ public sealed class Project
     public string FileOf(string assetPath)
     {
         string root = AssetPaths.PluginOf(assetPath) is { } plugin
-            ? PluginNamed(plugin)?.AssetsFolder ?? Path.Combine(PluginsFolder, plugin, "Assets")
+            ? plugin == EditorRootName && EditorAssetsFolder is { } editor ? editor
+            : PluginNamed(plugin)?.AssetsFolder ?? Path.Combine(PluginsFolder, plugin, "Assets")
             : AssetsFolder;
         string within = AssetPaths.WithinRoot(assetPath);
         return within.Length == 0 ? root : Path.Combine(root, within.Replace('/', Path.DirectorySeparatorChar));
@@ -189,13 +190,27 @@ public sealed class Project
         return null;
     }
 
-    /// <summary>The folders assets are in, with their paths' roots: Assets ("") and each plugin's ("Dialogue:").</summary>
+    /// <summary>The folders assets are in, with their paths' roots: Assets (""), each plugin's ("Dialogue:"), and the editor's ("Editor:").</summary>
     public IEnumerable<(string Folder, string Root)> AssetRoots() =>
-        [(AssetsFolder, ""), .. Plugins.Select(plugin => (plugin.AssetsFolder, plugin.AssetRoot))];
+        [(AssetsFolder, ""), .. Plugins.Select(plugin => (plugin.AssetsFolder, plugin.AssetRoot)),
+            .. EditorAssetsFolder is { } editor ? [(editor, EditorRoot)] : Array.Empty<(string, string)>()];
 
-    /// <summary>Whether an asset path is in a compiled plugin, whose assets the editor doesn't change (ADR 0118).</summary>
+    /// <summary>The root of the editor's own assets' paths.</summary>
+    public const string EditorRoot = EditorRootName + ":";
+
+    internal const string EditorRootName = "Editor";
+
+    /// <summary>
+    /// The editor's own assets (ADR 0132), the sphere materials are shown on:
+    /// a folder beside the editor, its paths under <see cref="EditorRoot"/>
+    /// ("Editor:Sphere.glb"). Imported like the game's, never changed, shown
+    /// in the browser, or built into a game. Null outside the editor.
+    /// </summary>
+    public string? EditorAssetsFolder { get; set; }
+
+    /// <summary>Whether an asset path is in a compiled plugin, whose assets the editor doesn't change (ADR 0118), or the editor's own.</summary>
     public bool IsReadOnly(string assetPath) =>
-        AssetPaths.PluginOf(assetPath) is { } name && PluginNamed(name) is { IsCompiled: true };
+        AssetPaths.PluginOf(assetPath) is { } name && (name == EditorRootName || PluginNamed(name) is { IsCompiled: true });
 
     public static Project Open(string projectFile)
     {

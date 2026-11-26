@@ -1514,7 +1514,11 @@ Steps, each tried by hand:
 3. **Icons:** the attribute, hierarchy rows, inspector headers, and Add
    Component with its polish. Done (2026-11-25, ADR 0131): tried by
    hand, with prefab overrides given their own color and an edge bar.
-4. **Asset thumbnails.**
+4. **Asset thumbnails.** Built (2026-11-25, ADR 0132), to be tried by
+   hand: models, prefabs, materials (on a sphere, through a new
+   MaterialOverride component), and tilemaps rendered and cached; tilesets
+   show their sheet; every kind an icon; a tile-size slider and a kind
+   badge.
 5. **Tuning the colors** (the owner, after trying step 1): the palette
    gone over once everything else is in.
 

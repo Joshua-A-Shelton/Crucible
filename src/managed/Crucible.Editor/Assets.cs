@@ -27,9 +27,13 @@ public sealed class AssetsPanel : EditorPanel
 {
     private const float FolderWidth = 170;
 
+    /// <summary>The tile size's range (ADR 0132): the picture's width and height.</summary>
+    public const float MinTileSize = 48, MaxTileSize = 160;
+
     private readonly Shell _shell;
     private readonly TreeView _folders = new() { Width = FolderWidth };
     private readonly Label _crumb = new() { VerticalAlignment = VerticalAlignment.Center };
+    private readonly Slider _size = new() { Minimum = MinTileSize, Maximum = MaxTileSize, Step = 8, Width = 96, VerticalAlignment = VerticalAlignment.Center };
     private readonly TileGrid _tiles = new();
     private readonly Label _empty = new("No project open");
     private readonly Dictionary<string, ulong> _folderIds = new(StringComparer.Ordinal) { [""] = 1 };
@@ -52,9 +56,17 @@ public sealed class AssetsPanel : EditorPanel
         };
         _crumb.Classes.Add("asset-crumb");
         _empty.Classes.Add("placeholder");
+        _size.Value = shell.Settings.AssetTileSize;
+        _size.Classes.Add("tile-size");
+        _size.ToolTip = "Tile size";
+        _size.ValueChanged += slider => TileSize = slider.Value;
+        DockPanel bar = new();
+        DockPanel.SetDock(_size, Dock.Right);
+        bar.Add(_size);
+        bar.Add(_crumb);
         DockPanel right = new();
-        DockPanel.SetDock(_crumb, Dock.Top);
-        right.Add(_crumb);
+        DockPanel.SetDock(bar, Dock.Top);
+        right.Add(bar);
         right.Add(new ScrollView { Content = _tiles, Padding = new Thickness(6) });
         DockPanel page = new();
         DockPanel.SetDock(_folders, Dock.Left);
@@ -78,6 +90,31 @@ public sealed class AssetsPanel : EditorPanel
     protected override void OnDragLeave(DragEvent e) => Classes.Remove("drop-over");
 
     protected override void OnDrop(DragEvent e) => Classes.Remove("drop-over");
+
+    /// <summary>
+    /// The tiles' size (ADR 0132), <see cref="MinTileSize"/> to
+    /// <see cref="MaxTileSize"/>: its pictures' width and height, kept in the
+    /// person's editor settings.
+    /// </summary>
+    public float TileSize
+    {
+        get => _shell.Settings.AssetTileSize;
+        set
+        {
+            float size = Math.Clamp(MathF.Round(value), MinTileSize, MaxTileSize);
+            if (size == _shell.Settings.AssetTileSize)
+            {
+                return;
+            }
+            _shell.Settings.AssetTileSize = size;
+            _size.Value = size;
+            foreach (AssetTile tile in Tiles)
+            {
+                tile.Resize(size);
+            }
+            _shell.SaveSettings();
+        }
+    }
 
     /// <summary>The folder shown, as a path under Assets ("" for Assets itself, "Models"; "Dialogue:", "Dialogue:Icons" in a plugin's).</summary>
     public string Folder => _folder;
@@ -352,7 +389,8 @@ public sealed class AssetTile : UIElement
     private const float DragThreshold = 4;
 
     private readonly AssetsPanel _panel;
-    private readonly Icon _icon;
+    private readonly Picture _picture;
+    private readonly StackPanel _body;
     private Vector2? _pressedAt;
     private bool _selected;
 
@@ -363,13 +401,13 @@ public sealed class AssetTile : UIElement
         Asset = asset;
         IsFolder = isFolder;
         IsFocusable = true;
-        _icon = new Icon(this);
+        _picture = new Picture(this);
         Label name = new(System.IO.Path.GetFileName(path)) { Wrap = true, HorizontalAlignment = HorizontalAlignment.Center };
         name.Classes.Add("asset-name");
-        StackPanel body = new() { Spacing = 4, Width = 84 };
-        body.Add(_icon);
-        body.Add(name);
-        AddChild(body);
+        _body = new StackPanel { Spacing = 4, Width = panel.TileSize + 20 };
+        _body.Add(_picture);
+        _body.Add(name);
+        AddChild(_body);
         AllowDrop = isFolder;
     }
 
@@ -406,7 +444,11 @@ public sealed class AssetTile : UIElement
         }
     }
 
-    /// <summary>Its kind, as the icon shows it: Folder, Model, Prefab, Texture, Scene, Shader, Font, Style, Material, or File.</summary>
+    /// <summary>
+    /// Its kind, as its picture shows it: Folder, Model, Prefab, Texture,
+    /// Scene, Shader, Font, Style, Material, Sound, StateMachine, Chain,
+    /// Tilemap, Tileset, or File.
+    /// </summary>
     public string Kind =>
         IsFolder ? "Folder"
         : Path.EndsWith(Prefab.Extension, StringComparison.OrdinalIgnoreCase) ? "Prefab"
@@ -414,9 +456,29 @@ public sealed class AssetTile : UIElement
         : Asset?.Importer switch
         {
             "Mesh" or "Fbx" => "Model",
-            "Texture" or "Shader" or "Font" or "Style" or "Material" => Asset.Importer,
+            "Texture" or "Shader" or "Font" or "Style" or "Material" or "Sound" or "StateMachine" or "Chain" or "Tilemap"
+                or "Tileset" => Asset.Importer,
             _ => "File",
         };
+
+    /// <summary>Its rendered thumbnail (ADR 0132), while it has one.</summary>
+    internal Thumbnail? Thumbnail => _picture.Thumbnail;
+
+    /// <summary>Whether its picture is an image (a texture's, a tileset's, or a thumbnail), not its kind's icon.</summary>
+    internal bool ShowsImage => _picture.ShowsImage;
+
+    /// <summary>Whether its thumbnail carries its kind's badge.</summary>
+    internal bool ShowsBadge => _picture.ShowsBadge;
+
+    /// <summary>Its picture's size.</summary>
+    internal float PictureSize => _picture.Width;
+
+    // The panel's tile size changed.
+    internal void Resize(float size)
+    {
+        _picture.Resize(size);
+        _body.Width = size + 20;
+    }
 
     /// <summary>Whether dropping it in the scene places an instance (a model or a prefab).</summary>
     public bool CanPlace => Asset is not null && Kind is "Model" or "Prefab";
@@ -464,28 +526,74 @@ public sealed class AssetTile : UIElement
         _panel.Select(this);
     }
 
-    // The icon: a texture's own image, or a drawing by kind.
-    private sealed class Icon : UIElement
+    // The picture: a texture's (or a tileset's) own image, a rendered
+    // thumbnail (ADR 0132) with its kind's badge, or the kind's icon.
+    private sealed class Picture : UIElement
     {
         private readonly AssetTile _tile;
+        private readonly UI.Icon _kind;
+        private readonly StackPanel _badge;
         private TextureHandle _texture;
+        private Thumbnail? _thumbnail;
 
-        public Icon(AssetTile tile)
+        public Picture(AssetTile tile)
         {
             _tile = tile;
-            Width = 64;
-            Height = 64;
             HorizontalAlignment = HorizontalAlignment.Center;
             IsHitTestVisible = false;
+            _kind = EditorIcons.Icon(IconOf(tile.Kind));
+            _kind.Classes.Add("asset-icon");
+            AddChild(_kind);
+            _badge = new StackPanel { HorizontalAlignment = HorizontalAlignment.End, VerticalAlignment = VerticalAlignment.End };
+            _badge.Classes.Add("asset-badge");
+            UI.Icon glyph = EditorIcons.Icon(IconOf(tile.Kind));
+            glyph.Classes.Add("asset-badge-icon");
+            _badge.Add(glyph);
+            AddChild(_badge);
+            Resize(tile._panel.TileSize);
         }
+
+        public void Resize(float size)
+        {
+            Width = size;
+            Height = size;
+            // The kind's icon about half the picture; no smaller than the old drawings read.
+            _kind.FontSize = MathF.Round(MathF.Max(size * 0.5f, 24));
+            Update();
+        }
+
+        public Thumbnail? Thumbnail => _thumbnail;
+
+        public bool ShowsImage => Image.Generation != 0;
+
+        public bool ShowsBadge => _badge.Visibility == Visibility.Visible;
+
+        // The image, if one's ready to draw.
+        private TextureHandle Image =>
+            _texture.Generation != 0 ? _texture : _thumbnail?.Texture ?? default;
 
         protected override void OnAttached(UIRoot root)
         {
-            if (_tile.Kind == "Texture" && _tile.Asset is { } asset &&
-                _tile._panel.Shell.Database?.ImportedFile(asset.Id) is not null)
+            Shell shell = _tile._panel.Shell;
+            if (_tile.Asset is { } asset && shell.Database is { } database)
             {
-                _texture = RenderAssets.AcquireTexture(asset.Id);
+                // A tileset shows its sheet; a thumbnail knows for itself whether it's up to date (a prefab isn't imported).
+                AssetId? image = database.ImportedFile(asset.Id) is null ? null : _tile.Kind switch
+                {
+                    "Texture" => asset.Id,
+                    "Tileset" => database.ReferencesOf(asset.Id).FirstOrDefault(id => database.Find(id)?.Importer == "Texture"),
+                    _ => null,
+                };
+                if (image is { IsNone: false } texture)
+                {
+                    _texture = RenderAssets.AcquireTexture(texture);
+                }
+                else if ((_thumbnail = shell.Thumbnails.Acquire(asset, _tile.Kind)) is not null)
+                {
+                    _thumbnail.Ready += Update;
+                }
             }
+            Update();
         }
 
         protected override void OnDetached(UIRoot root)
@@ -495,55 +603,63 @@ public sealed class AssetTile : UIElement
                 RenderAssets.ReleaseTexture(_texture);
                 _texture = default;
             }
+            if (_thumbnail is not null)
+            {
+                _thumbnail.Ready -= Update;
+                _tile._panel.Shell.Thumbnails.Release(_thumbnail);
+                _thumbnail = null;
+            }
+        }
+
+        // Which parts show: the kind's icon until there's an image; the
+        // badge on a rendered thumbnail big enough to carry one.
+        private void Update()
+        {
+            bool image = Image.Generation != 0;
+            _kind.Visibility = image ? Visibility.Collapsed : Visibility.Visible;
+            _badge.Visibility = image && _thumbnail?.Texture.Generation is not (null or 0) && Width >= 64
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            InvalidateVisual();
         }
 
         protected override void OnDraw(Canvas canvas)
         {
-            Vector2 size = ActualSize;
-            Vector4 line = Foreground, fill = Foreground with { W = 0.18f };
-            if (_texture.Generation != 0)
+            TextureHandle image = Image;
+            if (image.Generation == 0)
             {
-                canvas.DrawImage(_texture, new Vector2(4), size - new Vector2(8));
                 return;
             }
-            switch (_tile.Kind)
+            // Fitted, keeping its shape (a texture may not be square).
+            Vector2 area = ActualSize - new Vector2(4);
+            TextureSize texels = Crucible.Render.Api.TextureSize(image);
+            Vector2 size = area;
+            if (texels.Width > 0 && texels.Height > 0)
             {
-                case "Folder":
-                    canvas.FillRect(new Vector2(6, 14), new Vector2(24, 8), fill, 2);
-                    canvas.FillRect(new Vector2(6, 20), new Vector2(52, 34), fill, 3);
-                    canvas.StrokeRect(new Vector2(6, 20), new Vector2(52, 34), line, 1.5f, new Vector4(3));
-                    break;
-                case "Model" or "Prefab":
-                    {
-                        // A cube: front square, top and side faces.
-                        Vector2 a = new(14, 24), b = new(42, 24), c = new(42, 52), d = new(14, 52), up = new(10, -10);
-                        if (_tile.Kind == "Prefab")
-                        {
-                            canvas.FillRect(a, c - a, fill);
-                        }
-                        canvas.DrawPolyline([a, b, c, d, a], 1.5f, line);
-                        canvas.DrawPolyline([a, a + up, b + up, b], 1.5f, line);
-                        canvas.DrawPolyline([b + up, c + up, c], 1.5f, line);
-                        break;
-                    }
-                case "Scene":
-                    canvas.StrokeRect(new Vector2(8, 12), new Vector2(48, 40), line, 1.5f, new Vector4(3));
-                    canvas.DrawPolyline([new(10, 48), new(24, 30), new(34, 40), new(42, 32), new(54, 48)], 1.5f, line);
-                    canvas.FillRect(new Vector2(40, 18), new Vector2(7, 7), line, 3.5f);
-                    break;
-                default:
-                    {
-                        // A page with its corner turned, and the kind's initial.
-                        canvas.DrawPolyline([new(16, 8), new(40, 8), new(50, 18), new(50, 56), new(16, 56), new(16, 8)], 1.5f, line);
-                        canvas.DrawPolyline([new(40, 8), new(40, 18), new(50, 18)], 1.5f, line);
-                        float y = 28;
-                        for (int i = 0; i < 3; ++i, y += 8)
-                        {
-                            canvas.FillRect(new Vector2(22, y), new Vector2(i == 2 ? 14 : 22, 2), fill with { W = 0.5f });
-                        }
-                        break;
-                    }
+                float aspect = texels.Width / (float)texels.Height;
+                size = aspect >= 1 ? new Vector2(area.X, area.X / aspect) : new Vector2(area.Y * aspect, area.Y);
             }
+            canvas.DrawImage(image, (ActualSize - size) * 0.5f, size);
         }
     }
+
+    /// <summary>The Lucide icon a kind shows (ADR 0132).</summary>
+    internal static string IconOf(string kind) => kind switch
+    {
+        "Folder" => "folder",
+        "Model" => "box",
+        "Prefab" => "package",
+        "Texture" => "image",
+        "Scene" => "clapperboard",
+        "Material" => "circle-dot",
+        "Shader" => "code-xml",
+        "Font" => "type",
+        "Style" => "palette",
+        "Sound" => "audio-lines",
+        "StateMachine" => "workflow",
+        "Chain" => "spline",
+        "Tilemap" => "grid-3x3",
+        "Tileset" => "layout-grid",
+        _ => "file",
+    };
 }

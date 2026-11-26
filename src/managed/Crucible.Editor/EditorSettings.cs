@@ -29,6 +29,11 @@ public sealed class EditorSettings
 
     public const float DefaultInspectorNameWidth = 92;
 
+    public const float DefaultAssetTileSize = 64;
+
+    /// <summary>The Assets panel's tile size, as its slider last set it (ADR 0132).</summary>
+    public float AssetTileSize { get; set; } = DefaultAssetTileSize;
+
     /// <summary>The Inspector's name column, as last dragged (ADR 0130).</summary>
     public float InspectorNameWidth { get; set; } = DefaultInspectorNameWidth;
 
@@ -73,6 +78,10 @@ public sealed class EditorSettings
                 double.IsFinite(width))
             {
                 settings.InspectorNameWidth = Math.Clamp((float)width, InspectorPanel.MinNameWidth, InspectorPanel.MaxNameWidth);
+            }
+            if (root["AssetTileSize"] is JsonValue tileSize && tileSize.TryGetValue(out double tile) && double.IsFinite(tile))
+            {
+                settings.AssetTileSize = Math.Clamp((float)tile, AssetsPanel.MinTileSize, AssetsPanel.MaxTileSize);
             }
             if (root["CollapsedCategories"] is JsonArray collapsed)
             {
@@ -120,6 +129,10 @@ public sealed class EditorSettings
         if (InspectorNameWidth != DefaultInspectorNameWidth)
         {
             root["InspectorNameWidth"] = InspectorNameWidth;
+        }
+        if (AssetTileSize != DefaultAssetTileSize)
+        {
+            root["AssetTileSize"] = AssetTileSize;
         }
         if (CollapsedCategories.Count > 0)
         {

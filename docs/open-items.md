@@ -196,8 +196,7 @@ is, and record which version fixed it.
   in M5 step 6b's sanitizer run; look at whether upstream has fixed it, or
   patch it where it's fetched. → 0043
 - Game materials after 6b (ADR 0052): shader hot reload in the editor
-  (pipelines and shaders are kept until the renderer stops); per-instance
-  material overrides; material type names share one C# namespace
+  (pipelines and shaders are kept until the renderer stops); material type names share one C# namespace
   (`Crucible.Materials`), so two shaders can't both declare a `Brick`;
   arrays whose elements are padded can't be mirrored in C#. → 0052
 - Materials after 6a (ADR 0052): materials choose samplers (the built-in

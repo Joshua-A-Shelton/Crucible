@@ -110,7 +110,8 @@ void gatherDraws(const DrawList& draws, Pass kind, Vector<Draw>& out)
                 continue;
             }
             const MaterialHandle handle =
-                range.material >= 0 && static_cast<size_t>(range.material) < batch.materials.size()
+                batch.materialOverride.generation != 0 ? batch.materialOverride
+                : range.material >= 0 && static_cast<size_t>(range.material) < batch.materials.size()
                     ? batch.materials[static_cast<size_t>(range.material)]
                     : MaterialHandle{};
             const MaterialDraw material = materialDraw(handle);

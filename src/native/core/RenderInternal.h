@@ -241,6 +241,7 @@ struct DrawStats
     uint32_t instances;    // mesh instances seen
     uint32_t visible;      // instances drawn
     uint32_t cachedModels; // models held for instances
+    uint32_t batches;      // the camera's batches (ADR 0132: overrides batch by model and material)
     uint64_t cpuNs;        // building the list, uploads included
 };
 DrawStats drawStats();

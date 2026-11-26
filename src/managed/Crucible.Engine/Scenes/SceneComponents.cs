@@ -46,6 +46,15 @@ public partial struct Transform2D
 public partial struct MeshInstance;
 
 /// <summary>
+/// Draws the entity's MeshInstance with one material in place of every
+/// slot's own (ADR 0132). Declared in C++ (crucible/MeshInstance.h).
+/// </summary>
+[System.ComponentModel.Category("Rendering"), System.ComponentModel.Description("Draws the mesh with another material.")]
+[Serialized]
+[Crucible.Scenes.ComponentIcon("paintbrush")]
+public partial struct MaterialOverride;
+
+/// <summary>
 /// The engine's own components, registered before scenes and prefabs use
 /// them. Games' components come from their generated registration (ADR 0041).
 /// </summary>
@@ -76,6 +85,7 @@ internal static class EngineComponents
         Components.Register<Crucible.Render.Camera>();
         Components.Register<Crucible.Render.PostProcess>();
         Components.Register<MeshInstance>();
+        Components.Register<MaterialOverride>();
         Components.Register<LoadedMesh>();
         Components.Register<Crucible.Render.DirectionalLight>();
         Components.Register<Crucible.Render.PointLight>();
@@ -113,6 +123,7 @@ internal static class EngineComponents
         SavedComponents.Add<Transform2D>();
         SavedComponents.AddManaged<EntityName>();
         SavedComponents.Add<MeshInstance>();
+        SavedComponents.Add<MaterialOverride>();
         SavedComponents.Add<Crucible.Render.Camera>();
         SavedComponents.Add<Crucible.Render.PostProcess>();
         SavedComponents.Add<Crucible.Render.DirectionalLight>();

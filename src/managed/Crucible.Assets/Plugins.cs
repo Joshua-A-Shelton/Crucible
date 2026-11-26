@@ -154,11 +154,14 @@ public static class ProjectPlugins
             problems.Add($"{name}{Plugin.Extension} names the plugin \"{manifest.Name}\": a plugin's name is its folder's");
             return null;
         }
-        if (!IsName(name) || string.Equals(name, reserved, StringComparison.OrdinalIgnoreCase))
+        // "Editor" names the editor's own assets' root (ADR 0132).
+        bool editors = string.Equals(name, Project.EditorRootName, StringComparison.OrdinalIgnoreCase);
+        if (!IsName(name) || editors || string.Equals(name, reserved, StringComparison.OrdinalIgnoreCase))
         {
-            problems.Add(IsName(name)
-                ? $"{name} can't be a plugin's name: it's the game's"
-                : $"{name} can't be a plugin's name: use letters, digits, and _, not starting with a digit");
+            problems.Add(!IsName(name)
+                ? $"{name} can't be a plugin's name: use letters, digits, and _, not starting with a digit"
+                : editors ? $"{name} can't be a plugin's name: it's the editor's"
+                : $"{name} can't be a plugin's name: it's the game's");
             return null;
         }
         Plugin plugin = new(folder, manifest, official);
