@@ -332,6 +332,7 @@ public sealed class ComponentSection : UIElement, IFieldOwner
         };
         StackPanel body = new() { Spacing = 4 };
         body.Classes.Add("component");
+        _fields.Classes.Add("component-fields");
         body.Add(header);
         body.Add(_fields);
         AddChild(body);
@@ -598,6 +599,7 @@ public sealed class ImportSettingsSection : UIElement, IFieldOwner
         header.Classes.Add("component-header");
         header.Add(title);
         StackPanel list = new() { Spacing = 3 };
+        list.Classes.Add("component-fields");
         foreach (SerializedField field in fields)
         {
             if (field.Header is { } heading)

@@ -73,7 +73,7 @@ public class StyleTests
         Probe probe = rig.Add(new Probe());
         await Assert.That(probe.Background).IsEqualTo(_red);
         await Assert.That(probe.CornerRadii).IsEqualTo(new Vector4(4)); // a type beats "*"
-        await Assert.That(rig.Panel.BorderWidth).IsEqualTo(5f);
+        await Assert.That(rig.Panel.BorderWidth).IsEqualTo(new Thickness(5));
 
         probe.Classes.Add("big");
         rig.Update();
@@ -84,7 +84,28 @@ public class StyleTests
         probe.Classes.Remove("big");
         rig.Update();
         await Assert.That(probe.Background).IsEqualTo(_red);
-        await Assert.That(probe.BorderWidth).IsEqualTo(2f);
+        await Assert.That(probe.BorderWidth).IsEqualTo(new Thickness(2));
+    }
+
+    [Test]
+    public async Task BordersTakeOneWidthOrOnePerSide()
+    {
+        Theme theme = Theme.Parse("""
+            { "Styles": [
+              { "Selector": "Probe", "Set": { "BorderWidth": 1.5 } },
+              { "Selector": "Probe.selected", "Set": { "BorderWidth": [2, 0, 0, 0] } }
+            ] }
+            """);
+        Rig rig = new(theme);
+        Probe probe = rig.Add(new Probe());
+        await Assert.That(probe.BorderWidth).IsEqualTo(new Thickness(1.5f));
+        await Assert.That(probe.BorderWidth.IsUniform).IsTrue();
+        probe.Classes.Add("selected");
+        rig.Update();
+        await Assert.That(probe.BorderWidth).IsEqualTo(new Thickness(2, 0, 0, 0));
+        await Assert.That(probe.BorderWidth.IsUniform).IsFalse();
+        probe.BorderWidth = 3; // one number in code is every side too
+        await Assert.That(probe.BorderWidth).IsEqualTo(new Thickness(3));
     }
 
     [Test]

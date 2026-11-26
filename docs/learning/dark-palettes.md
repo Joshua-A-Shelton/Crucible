@@ -1,0 +1,62 @@
+# Dark palettes
+
+What made the editor's first dark palette hard to read, and how the tuned
+one (ADR 0133) fixes it. The theme mechanics are in
+[themes and tokens](themes-and-tokens.md).
+
+## Surfaces need steps you can see
+
+A dark interface is layers: the page under everything, the strips holding
+tabs and toolbars, the panels, and the headers inside them. Each layer
+needs a step of lightness from its neighbours. Near black, the eye tells
+apart smaller steps than it does near white, but not steps of 3 or 4
+levels out of 255. The first palette had the page, strips, and panels
+within 10 levels of each other, so everything blurred.
+
+The tuned palette spaces them out, darkest to lightest:
+
+| Surface | Color |
+|---|---|
+| Page | #121212 |
+| Strip | #171717 |
+| Panel | #1f1f1f |
+| Header | #262626 |
+| Divider | #353535 |
+
+A divider has to be lighter than both surfaces it separates, or it's
+invisible.
+
+## Tints of orange go brown
+
+On a dark background, a tint of a warm accent goes brown. Orange at 30%
+over charcoal mixes to a rust-brown, which is where the first selection
+color came from. Saturated, light hues stay clean as small marks and turn
+muddy as large fills.
+
+So keep the accent for small things that must stand out (an edge, an
+icon, a focus ring), and make large fills neutral. The selected row is a
+lighter grey, and a 2px orange bar on its left edge says "selected".
+Scanning a long tree, the eye finds the one orange mark at once.
+
+## Inputs should look like inputs
+
+A field darker than its panel, with no edge, reads as a hole. An outline
+a step lighter than the panel marks its bounds. Text fields in most dark
+editors are slightly sunk *and* outlined. Focus then changes only the
+outline's color, to the accent, so nothing jumps.
+
+## Borders on some sides
+
+CSS has had borders per side for decades. A border width becomes four
+numbers (left, top, right, bottom), and one number means all four. Here a
+uniform border is stroked around the rounded rectangle. Uneven sides are
+drawn as straight strips, which is right for a bar or an underline. Few
+designs want a rounded corner on a bar anyway.
+
+## Try it
+
+1. Open `Editor.crstyle` beside the built editor, with the editor running.
+2. Change `"selection-edge"` to `"#5aa9ff"` and save: selected rows and
+   tiles get a blue edge.
+3. Change `"panel"` to `"#1a1a1a"` and save: the headers and dividers stand
+   out more and the panels recede. Then put it back.

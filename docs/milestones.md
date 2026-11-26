@@ -1519,7 +1519,10 @@ Steps, each tried by hand:
    component), and tilemaps rendered and cached; tilesets show their
    sheet; every kind an icon; a tile-size slider and a kind badge.
 5. **Tuning the colors** (the owner, after trying step 1): the palette
-   gone over once everything else is in.
+   gone over once everything else is in. Built (2026-11-25, ADR 0133), to
+   be tried by hand: palette C (surfaces a step apart, a neutral
+   selection with an orange edge, outlined fields), and `BorderWidth` per
+   side in the UI library.
 
 Composition tests are added in each step.
 

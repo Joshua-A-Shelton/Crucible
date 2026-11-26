@@ -1950,3 +1950,16 @@ building, settled as drafted after the owner tried it by hand (2026-11-25):
 | docs/learning/asset-thumbnails.md | Learning note | Offscreen rendering, difference matting, caching |
 | Dropped while building: `RenderAssets.IsLoading` | — | `Assets.Api.StartLoads` already answers it |
 | Added while building: `PreviewView.Capture`, `ContentBounds`, an unlisted constructor (internal); `DrawBatch::materialOverride`, `DrawStats::batches` (internal); `AssetTile.Thumbnail`, `ShowsImage`, `ShowsBadge`, `PictureSize` (internal); `scripts/make-sphere.py` | Editor, renderer | Capturing a preview; overrides in batches; the check's view; the sphere's source |
+
+## Tuning the editor's colors (2026-11-25, ADR 0133)
+
+Names proposed before building (marked `*` until settled):
+
+| Name | What it names | What it is |
+|---|---|---|
+| ADR 0133 "Tuning the editor's colors" * | Decision record | The editor's look, step 5 |
+| `UIElement.BorderWidth` as a `Thickness` (.crstyle: a number or `[left, top, right, bottom]`) * | UI library | A border's width, per side |
+| `Thickness.IsUniform`; `Thickness` from a number (implicit) * | UI library | Every side the same; one number for every side |
+| Tokens `header`, `selection-edge` * | Editor.crstyle | Component headers' band; the selection's edge |
+| Classes `component-header` (styled now), `component-fields` * | Editor.crstyle | A component's header band; its fields, inset |
+| docs/learning/dark-palettes.md * | Learning note | Surface steps, accents, inputs, borders per side |

@@ -33,6 +33,12 @@ public readonly record struct Thickness(float Left, float Top, float Right, floa
     {
     }
 
+    /// <summary>One number for every side (a border's width: 1).</summary>
+    public static implicit operator Thickness(float uniform) => new(uniform);
+
+    /// <summary>Whether every side is the same.</summary>
+    public bool IsUniform => Left == Top && Top == Right && Right == Bottom;
+
     public float Horizontal => Left + Right;
 
     public float Vertical => Top + Bottom;
@@ -109,8 +115,8 @@ public partial class UIElement
         "Background", Vector4.Zero, Invalidates.Visual, StyleValues.ReadColor, StyleValues.LerpColor);
     public static readonly StyledProperty<Vector4> CornerRadiiProperty = StyledProperty<Vector4>.Register<UIElement>(
         "CornerRadii", Vector4.Zero, Invalidates.Visual, StyleValues.ReadVector4, StyleValues.Lerp);
-    public static readonly StyledProperty<float> BorderWidthProperty = StyledProperty<float>.Register<UIElement>(
-        "BorderWidth", 0, Invalidates.Visual, StyleValues.ReadFloat, StyleValues.Lerp);
+    public static readonly StyledProperty<Thickness> BorderWidthProperty = StyledProperty<Thickness>.Register<UIElement>(
+        "BorderWidth", default, Invalidates.Visual, StyleValues.ReadThickness, StyleValues.Lerp);
     public static readonly StyledProperty<Vector4> BorderColorProperty = StyledProperty<Vector4>.Register<UIElement>(
         "BorderColor", Vector4.Zero, Invalidates.Visual, StyleValues.ReadColor, StyleValues.LerpColor);
     public static readonly StyledProperty<float> OpacityProperty = StyledProperty<float>.Register<UIElement>(
@@ -180,8 +186,13 @@ public partial class UIElement
     /// <summary>The background's and border's corners: top left, top right, bottom right, bottom left.</summary>
     public Vector4 CornerRadii { get => GetValue(CornerRadiiProperty); set => SetValue(CornerRadiiProperty, value); }
 
-    /// <summary>A border inside the bounds, over the background.</summary>
-    public float BorderWidth { get => GetValue(BorderWidthProperty); set => SetValue(BorderWidthProperty, value); }
+    /// <summary>
+    /// A border inside the bounds, over the background: one width for every
+    /// side, or one per side (a selected row's bar on its left: [2, 0, 0, 0]).
+    /// Sides of different widths are drawn as straight strips, without the
+    /// corners' rounding.
+    /// </summary>
+    public Thickness BorderWidth { get => GetValue(BorderWidthProperty); set => SetValue(BorderWidthProperty, value); }
 
     public Vector4 BorderColor { get => GetValue(BorderColorProperty); set => SetValue(BorderColorProperty, value); }
 
@@ -499,9 +510,30 @@ public partial class UIElement
         {
             canvas.FillRect(Vector2.Zero, ActualSize, Background, radii);
         }
-        if (BorderWidth > 0 && BorderColor.W > 0)
+        Thickness border = BorderWidth;
+        if (BorderColor.W > 0 && border.IsUniform && border.Left > 0)
         {
-            canvas.StrokeRect(Vector2.Zero, ActualSize, BorderColor, BorderWidth, radii);
+            canvas.StrokeRect(Vector2.Zero, ActualSize, BorderColor, border.Left, radii);
+        }
+        else if (BorderColor.W > 0 && !border.IsUniform)
+        {
+            Vector2 size = ActualSize;
+            if (border.Left > 0)
+            {
+                canvas.FillRect(Vector2.Zero, new Vector2(border.Left, size.Y), BorderColor);
+            }
+            if (border.Right > 0)
+            {
+                canvas.FillRect(new Vector2(size.X - border.Right, 0), new Vector2(border.Right, size.Y), BorderColor);
+            }
+            if (border.Top > 0)
+            {
+                canvas.FillRect(Vector2.Zero, new Vector2(size.X, border.Top), BorderColor);
+            }
+            if (border.Bottom > 0)
+            {
+                canvas.FillRect(new Vector2(0, size.Y - border.Bottom), new Vector2(size.X, border.Bottom), BorderColor);
+            }
         }
         OnDraw(canvas);
         canvas.PopTransform();

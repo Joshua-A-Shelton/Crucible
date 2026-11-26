@@ -284,6 +284,9 @@ Longer explanations of decisions, written to be reread:
 - [Asset thumbnails](docs/learning/asset-thumbnails.md) (ADR 0132):
   rendering offscreen, a clear background from two captures, mipmaps by
   alpha, caching by import key, and material overrides.
+- [Dark palettes](docs/learning/dark-palettes.md) (ADR 0133): surfaces a
+  visible step apart, why orange tints go brown, inputs that look like
+  inputs, and borders on some sides.
 - [Up-to-date builds](docs/learning/up-to-date-builds.md) (ADR 0110): file
   times versus content hashes, what makes a build stamp trustworthy, and
   why copies need one.

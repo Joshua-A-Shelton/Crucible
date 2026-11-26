@@ -1,24 +1,28 @@
 {
   // The editor's look (ADR 0129): "Forge", neutral charcoal with a molten
-  // orange accent, compact, hairline dividers. Layered over the engine's
+  // orange accent, compact, hairline dividers. Tuned (ADR 0133): surfaces
+  // a step apart, a neutral selection marked by an orange edge, outlined
+  // fields. Layered over the engine's
   // default theme; read at start and again whenever this file changes, so
   // it can be tuned while the editor runs. Extensions read the tokens
   // through editor.Theme.
   "Tokens": {
-    "page": "#151515",
-    "panel": "#1e1e1e",
-    "strip": "#1a1a1a",
-    "field": "#141414",
+    "page": "#121212",
+    "panel": "#1f1f1f",
+    "strip": "#171717",
+    "header": "#262626",
+    "field": "#181818",
     "control": "#2a2a2a",
-    "hover": "#303030",
+    "hover": "#2c2c2c",
     "pressed": "#242424",
-    "divider": "#2c2c2c",
-    "edge": "#3a3a3a",
+    "divider": "#353535",
+    "edge": "#3d3d3d",
     "text": "#e8e8e8",
-    "muted": "#8c8c8c",
+    "muted": "#8f8f8f",
     "accent": "#ff7418",
     "on-accent": "#1a1a1a",
-    "selection": "#6e2c08",
+    "selection": "#3a3a3a",
+    "selection-edge": "@accent",
     "warning": "#f0c060",
     "error": "#f07070",
     "override": "#5aa9ff",
@@ -72,10 +76,13 @@
     { "Selector": "ScrollThumb:hover", "Set": { "Background": "@muted/75%" } },
 
     { "Selector": "ListBox", "Set": { "Background": "@field", "CornerRadii": "@radius" } },
+    // Trees fill their panels (the Hierarchy, the asset folders): on the panel, not sunk like a field's list.
+    { "Selector": "TreeView ListBox", "Set": { "Background": "@panel" } },
     { "Selector": "ListItem", "Set": { "Padding": [8, 3, 8, 3], "CornerRadii": "@small-radius", "BorderColor": "@accent" } },
     { "Selector": "ListItem:hover", "Set": { "Background": "@hover" } },
-    { "Selector": "ListItem.selected", "Set": { "Background": "@selection" } },
+    { "Selector": "ListItem.selected", "Set": { "Background": "@selection", "BorderColor": "@selection-edge", "BorderWidth": [2, 0, 0, 0] } },
     { "Selector": "ListItem:focus", "Set": { "BorderWidth": 1 } },
+    { "Selector": "ListItem.selected:focus", "Set": { "BorderWidth": [2, 0, 0, 0] } },
     { "Selector": "ListItem.tree", "Set": { "Padding": [2, 2, 8, 2] } },
     { "Selector": "TreeExpander", "Set": { "Width": 14, "Foreground": "@muted" } },
     { "Selector": "TreeExpander:hover", "Set": { "Foreground": "@text" } },
@@ -85,8 +92,10 @@
     { "Selector": ".tooltip", "Set": { "Background": "@control", "CornerRadii": "@small-radius", "BorderColor": "@edge", "Padding": [6, 2, 6, 2] } },
     { "Selector": "Label.tooltip-text", "Set": { "FontSize": 12 } },
 
-    { "Selector": "ColorField", "Set": { "Background": "@field", "CornerRadii": "@small-radius", "BorderColor": "@accent" } },
-    { "Selector": "Spinner", "Set": { "Background": "@field", "CornerRadii": "@small-radius", "BorderColor": "@accent" } },
+    { "Selector": "ColorField", "Set": { "Background": "@field", "CornerRadii": "@small-radius", "BorderWidth": 1, "BorderColor": "@edge" } },
+    { "Selector": "ColorField:focus", "Set": { "BorderColor": "@accent" } },
+    { "Selector": "Spinner", "Set": { "Background": "@field", "CornerRadii": "@small-radius", "BorderWidth": 1, "BorderColor": "@edge" } },
+    { "Selector": "Spinner:focus", "Set": { "BorderColor": "@accent" } },
     { "Selector": "SpinnerArrow", "Set": { "Width": 18, "Height": 18, "Foreground": "@muted" } },
     { "Selector": "SpinnerArrow:hover", "Set": { "Background": "@hover", "Foreground": "@text" } },
     { "Selector": "SpinnerArrow:pressed", "Set": { "Background": "@pressed" } },
@@ -96,8 +105,8 @@
     { "Selector": "ComboBox:focus", "Set": { "BorderWidth": 1.5 } },
     { "Selector": "ComboBoxArrow", "Set": { "Width": 14, "Height": 14, "Margin": [6, 0, 0, 0], "Foreground": "@muted" } },
 
-    { "Selector": "TextField", "Set": { "Background": "@field", "Foreground": "@text", "CornerRadii": "@small-radius", "Padding": [6, 3, 6, 3], "MinWidth": 80, "BorderWidth": 1, "BorderColor": "@divider", "CaretColor": "@accent", "SelectionColor": "@accent/40%" } },
-    { "Selector": "TextField:hover", "Set": { "BorderColor": "@edge" } },
+    { "Selector": "TextField", "Set": { "Background": "@field", "Foreground": "@text", "CornerRadii": "@small-radius", "Padding": [6, 3, 6, 3], "MinWidth": 80, "BorderWidth": 1, "BorderColor": "@edge", "CaretColor": "@accent", "SelectionColor": "@accent/40%" } },
+    { "Selector": "TextField:hover", "Set": { "BorderColor": "@muted/60%" } },
     { "Selector": "TextField:focus", "Set": { "BorderColor": "@accent", "BorderWidth": 1 } },
     { "Selector": "NumberField", "Set": { "MinWidth": 48 } },
 
@@ -184,7 +193,9 @@
     { "Selector": "Label.inspector-title", "Set": { "FontSize": 14 } },
     { "Selector": "StackPanel.inspector-sections", "Set": { "Background": "@divider" } },
     { "Selector": "StackPanel.inspector-sections > Label.placeholder", "Set": { "Background": "@panel", "Padding": [0, 6, 0, 6] } },
-    { "Selector": "StackPanel.component", "Set": { "Background": "@panel", "Padding": [8, 4, 8, 6] } },
+    { "Selector": "StackPanel.component", "Set": { "Background": "@panel", "Padding": [0, 0, 0, 6] } },
+    { "Selector": "DockPanel.component-header", "Set": { "Background": "@header", "Padding": [8, 3, 8, 3] } },
+    { "Selector": "StackPanel.component-fields", "Set": { "Margin": [8, 0, 8, 0] } },
     { "Selector": "IconButton", "Set": { "Foreground": "@muted", "CornerRadii": "@small-radius" } },
     { "Selector": "IconButton:hover", "Set": { "Background": "@hover", "Foreground": "@text" } },
     { "Selector": "IconButton:disabled", "Set": { "Opacity": 0.3 } },
@@ -201,8 +212,9 @@
     { "Selector": "AssetTile:hover", "Set": { "Background": "@hover" } },
     { "Selector": "AssetTile.drop-over", "Set": { "Background": "@accent/45%" } },
     { "Selector": "AssetsPanel.drop-over", "Set": { "Background": "@accent/12%" } },
-    { "Selector": "AssetTile.selected", "Set": { "Background": "@selection", "Foreground": "@text" } },
+    { "Selector": "AssetTile.selected", "Set": { "Background": "@selection", "Foreground": "@text", "BorderColor": "@selection-edge", "BorderWidth": [0, 0, 0, 2] } },
     { "Selector": "AssetTile:focus", "Set": { "BorderWidth": 1 } },
+    { "Selector": "AssetTile.selected:focus", "Set": { "BorderWidth": [0, 0, 0, 2] } },
     { "Selector": "Label.asset-name", "Set": { "FontSize": 12 } },
     // Tiles' pictures (ADR 0132): a kind's icon until there's an image; a
     // rendered thumbnail carries its kind in a corner.
