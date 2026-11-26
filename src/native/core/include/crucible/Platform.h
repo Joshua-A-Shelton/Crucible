@@ -153,6 +153,11 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE Result<WindowHandle> createWindow(uint32_t width
                                                                   std::string_view title);
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void destroyWindow(WindowHandle window);
 
+// The window's title, as the system shows it (its taskbar, its window
+// switcher), whether or not the window draws its own title bar (ADR 0133).
+// Nothing for a window that doesn't exist.
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE void setWindowTitle(WindowHandle window, std::string_view title);
+
 // The window's size in pixels, which can differ from the size it was created
 // with on high-DPI displays. Zero for a window that doesn't exist.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE WindowSize windowPixelSize(WindowHandle window);

@@ -716,6 +716,7 @@ public sealed class DockTab : UIElement
     private const float CloseSize = 14;
 
     private readonly Label _title;
+    private readonly UIElement _unsaved = new() { VerticalAlignment = VerticalAlignment.Center };
     private Vector2 _pressedAt;
     private bool _pressed;
     private bool _dragging;
@@ -725,9 +726,13 @@ public sealed class DockTab : UIElement
         Panel = panel;
         _title = new Label(panel.Title) { VerticalAlignment = VerticalAlignment.Center };
         AddChild(_title);
+        // A dot after the title while the panel has unsaved changes (ADR 0133).
+        _unsaved.Classes.Add("tab-unsaved");
+        AddChild(_unsaved);
+        ShowPanel();
         panel.TitleChanged += () =>
         {
-            _title.Text = panel.Title;
+            ShowPanel();
             InvalidateMeasure();
         };
     }
@@ -745,15 +750,28 @@ public sealed class DockTab : UIElement
         }
     }
 
+    private void ShowPanel()
+    {
+        _title.Text = Panel.Title;
+        ToolTip = Panel.TitleToolTip;
+        _unsaved.Visibility = Panel.HasUnsavedChanges ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    // The dot's room: its width and the gap before it, while it shows.
+    private float UnsavedWidth => _unsaved.Visibility == Visibility.Visible ? _unsaved.DesiredSize.X + 5 : 0;
+
     protected override Vector2 MeasureCore(Vector2 available)
     {
         _title.Measure(available);
-        return new Vector2(_title.DesiredSize.X + 8 + CloseSize, _title.DesiredSize.Y);
+        _unsaved.Measure(available);
+        return new Vector2(_title.DesiredSize.X + UnsavedWidth + 8 + CloseSize, _title.DesiredSize.Y);
     }
 
     protected override void ArrangeCore(RectangleF content)
     {
         _title.Arrange(new RectangleF(content.X, content.Y, _title.DesiredSize.X, content.Height));
+        float dot = _unsaved.DesiredSize.X;
+        _unsaved.Arrange(new RectangleF(content.X + _title.DesiredSize.X + 5, content.Y, dot, content.Height));
     }
 
     protected override void OnDraw(Canvas canvas)

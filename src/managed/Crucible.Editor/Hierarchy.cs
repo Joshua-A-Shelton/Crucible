@@ -22,6 +22,7 @@ public sealed class HierarchyPanel : EditorPanel
 
     internal HierarchyPanel(Shell shell) : base("Hierarchy", "Hierarchy")
     {
+        ShowScene(shell.SceneName, shell.IsDirty, shell.ScenePath);
         _shell = shell;
         Tree = new TreeView { CanDrag = true, ChildrenOf = ChildrenOf, BindRow = BindRow };
         Tree.Classes.Add("hierarchy");
@@ -37,6 +38,14 @@ public sealed class HierarchyPanel : EditorPanel
         Tree.ContextRequested += (_, node, at) => ShowMenu(node, at);
         AddChild(Tree);
         AllowDrop = true;
+    }
+
+    // Its tab names the open scene (ADR 0133), a dot while it has unsaved changes, its path as the tooltip.
+    internal void ShowScene(string name, bool unsaved, string? path)
+    {
+        Title = Path.GetFileNameWithoutExtension(name);
+        HasUnsavedChanges = unsaved;
+        TitleToolTip = path ?? "Not saved yet";
     }
 
     public TreeView Tree { get; }

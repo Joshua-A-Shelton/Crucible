@@ -30,6 +30,35 @@ public abstract class EditorPanel : UIElement
         }
     }
 
+    /// <summary>
+    /// Whether what it shows has changes not yet saved (ADR 0133): its tab
+    /// shows a dot after its title. The Hierarchy's follows the scene; an
+    /// extension's editor sets its own.
+    /// </summary>
+    public bool HasUnsavedChanges
+    {
+        get;
+        protected set
+        {
+            if (field != value)
+            {
+                field = value;
+                TitleChanged?.Invoke();
+            }
+        }
+    }
+
+    /// <summary>Its tab's tooltip (the Hierarchy's: the scene's path); empty for none.</summary>
+    public string TitleToolTip
+    {
+        get;
+        protected set
+        {
+            field = value ?? "";
+            TitleChanged?.Invoke();
+        }
+    } = "";
+
     internal event Action? TitleChanged;
 
     /// <summary>The group showing it, if it's docked.</summary>

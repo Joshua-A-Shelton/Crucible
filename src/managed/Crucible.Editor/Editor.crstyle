@@ -25,6 +25,7 @@
     "selection-edge": "@accent",
     "title-glow": "@accent/55%",
     "tab-glow": "@accent/35%",
+    "unsaved": "@accent",
     "playing": "@accent/25%",
     "warning": "#f0c060",
     "error": "#f07070",
@@ -150,6 +151,9 @@
     { "Selector": "Splitter:pressed", "Set": { "Background": "@accent" } },
     { "Selector": "StatusBar", "Set": { "Background": "@strip", "Padding": [10, 2, 10, 2] } },
     { "Selector": "Label.status", "Set": { "Foreground": "@muted" } },
+    { "Selector": "Label.status-project", "Set": { "Foreground": "@muted" } },
+    // A tab's dot while its panel has unsaved changes (ADR 0133).
+    { "Selector": ".tab-unsaved", "Set": { "Width": 6, "Height": 6, "CornerRadii": 3, "Background": "@unsaved" } },
     // While playing (ADR 0133): a faint glow along the status bar, so edits
     // made now (lost when play stops) aren't a surprise.
     { "Selector": "DockPanel.playing StatusBar", "Set": { "GradientFrom": "@playing", "GradientLength": 1 } },

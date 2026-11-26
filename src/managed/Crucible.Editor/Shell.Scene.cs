@@ -134,6 +134,15 @@ internal sealed partial class Shell
         Main.TitleBar.Title = Project is { } project
             ? $"{scene} — {project.Name} — {EngineInfo.Name}"
             : $"{scene} — {EngineInfo.Name}";
+        // The title bar doesn't show it (ADR 0133): the system's title does
+        // (the taskbar, the window switcher), the Hierarchy's tab names the
+        // scene, and the status bar the project.
+        Crucible.Platform.Api.SetWindowTitle(Main.Window, Main.TitleBar.Title);
+        if (_open.GetValueOrDefault("Hierarchy") is HierarchyPanel hierarchy)
+        {
+            hierarchy.ShowScene(SceneName, IsDirty, ScenePath);
+        }
+        Main.StatusBar.Project = Project?.Name ?? "";
     }
 
     /// <summary>Saves to the scene's file, or asks for one (Save As) if it has none. False when it couldn't save now.</summary>

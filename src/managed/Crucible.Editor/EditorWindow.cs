@@ -1,3 +1,4 @@
+using System.Drawing;
 using System.Numerics;
 using Crucible.Platform;
 using Crucible.Render;
@@ -163,11 +164,36 @@ public sealed class EditorWindow : IDisposable
 public sealed class StatusBar : UIElement
 {
     private readonly Label _text = new() { VerticalAlignment = VerticalAlignment.Center };
+    private readonly Label _project = new() { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.End };
 
     public StatusBar()
     {
         _text.Classes.Add("status");
+        _project.Classes.Add("status-project");
         AddChild(_text);
+        AddChild(_project);
+    }
+
+    /// <summary>The project's name, at the right end (ADR 0133); empty for none.</summary>
+    public string Project
+    {
+        get => _project.Text;
+        set => _project.Text = value ?? "";
+    }
+
+    // The message from the left, the project at the right; the message gives way.
+    protected override Vector2 MeasureCore(Vector2 available)
+    {
+        _project.Measure(available);
+        _text.Measure(new Vector2(MathF.Max(available.X - _project.DesiredSize.X - 16, 0), available.Y));
+        return new Vector2(_text.DesiredSize.X + _project.DesiredSize.X + 16, MathF.Max(_text.DesiredSize.Y, _project.DesiredSize.Y));
+    }
+
+    protected override void ArrangeCore(RectangleF content)
+    {
+        float right = _project.DesiredSize.X;
+        _project.Arrange(new RectangleF(content.Right - right, content.Y, right, content.Height));
+        _text.Arrange(new RectangleF(content.X, content.Y, MathF.Max(content.Width - right - 16, 0), content.Height));
     }
 
     public string Text

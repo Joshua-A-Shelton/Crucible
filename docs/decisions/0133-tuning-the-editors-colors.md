@@ -111,8 +111,19 @@ tokens and opacities work on each end as on any color.
   editors of their own open the scene isn't necessarily what's being
   worked on, so the owner chose to take it out (rather than move the play
   buttons). `Label.title` is collapsed in Editor.crstyle; `TitleBar.Title`
-  is still kept up to date, so it's one line to bring back. Nothing else
-  shows the scene's unsaved state yet.
+  is still kept up to date, so it's one line to bring back.
+- **Where the title's parts went** (the owner's choice):
+  - The Hierarchy's tab names the open scene ("Village"), with a dot in
+    the accent while it has unsaved changes, and its path as the tooltip.
+    For this, `EditorPanel` gains `HasUnsavedChanges` (a dot on any
+    panel's tab, for extensions' editors too) and `TitleToolTip`.
+  - The project's name is at the right end of the status bar
+    (`StatusBar.Project`).
+  - The system's window title (the taskbar, the window switcher) follows
+    what the bar used to say, through a new platform call,
+    `setWindowTitle` (SDL's).
+  - Play state is already shown by the play buttons and the status bar's
+    glow.
 
 **Fixed in passing:** the Inspector's "Nothing selected" was centered on
 the divider color, showing lighter blocks either side of it. It now spans

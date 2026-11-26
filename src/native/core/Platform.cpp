@@ -534,6 +534,19 @@ Result<WindowHandle> createWindow(uint32_t width, uint32_t height, std::string_v
     return WindowHandle{SDL_GetWindowID(window)};
 }
 
+void setWindowTitle(WindowHandle window, std::string_view title)
+{
+    SDL_Window* sdlWindow = find(window);
+    if (sdlWindow == nullptr)
+    {
+        return;
+    }
+    SmallVector<char, 256> terminated(MemoryTag::Platform);
+    terminated.assign(std::span<const char>(title.data(), title.size()));
+    terminated.pushBack('\0');
+    SDL_SetWindowTitle(sdlWindow, terminated.data());
+}
+
 void destroyWindow(WindowHandle window)
 {
     if (SDL_Window* sdlWindow = find(window))
