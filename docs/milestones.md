@@ -1522,7 +1522,9 @@ Steps, each tried by hand:
    gone over once everything else is in. Built (2026-11-25, ADR 0133), to
    be tried by hand: palette C (surfaces a step apart, a neutral
    selection with an orange edge, outlined fields), and `BorderWidth` per
-   side in the UI library.
+   side in the UI library. After the owner's try, more color: the title
+   bar and active tabs glow orange (gradients in the UI library), and
+   play mode turns the frame and status bar orange.
 
 Composition tests are added in each step.
 

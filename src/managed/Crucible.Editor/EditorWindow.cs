@@ -64,6 +64,13 @@ public sealed class EditorWindow : IDisposable
 
     private readonly DockPanel _page;
 
+    /// <summary>Whether the game is playing (ADR 0133): its content has the class <c>playing</c>, for the theme to show it.</summary>
+    internal bool ShowsPlaying
+    {
+        get => _page.Classes.Contains("playing");
+        set => _page.Classes.Set("playing", value);
+    }
+
     public WindowHandle Window { get; }
 
     public SurfaceHandle Surface { get; }

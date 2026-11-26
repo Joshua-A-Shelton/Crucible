@@ -38,6 +38,20 @@ icon, a focus ring), and make large fills neutral. The selected row is a
 lighter grey, and a 2px orange bar on its left edge says "selected".
 Scanning a long tree, the eye finds the one orange mark at once.
 
+## Color where it means something
+
+More of the accent can still read well if it's on the frame, not on the
+content. The title bar's top glows orange and fades out, and so do active
+tabs, so the color is around the work rather than over it. And while the
+game is playing, the gaps between panels and the status bar turn orange:
+there, the color is a warning that edits made now will be lost.
+
+A **gradient** in the theme is two colors and a direction:
+`"GradientFrom": "@accent/55%"` with no `GradientTo` fades from the accent
+into whatever is behind it. The fade is computed in linear light, and a
+clear end takes the other end's color at no opacity. Fading orange to
+"clear black" would otherwise pass through a dirty brown.
+
 ## Inputs should look like inputs
 
 A field darker than its panel, with no edge, reads as a hole. An outline
@@ -60,3 +74,5 @@ designs want a rounded corner on a bar anyway.
    tiles get a blue edge.
 3. Change `"panel"` to `"#1a1a1a"` and save: the headers and dividers stand
    out more and the panels recede. Then put it back.
+4. Change `"title-glow"` to `"@accent/90%"`, or add `"GradientTo": "@accent/20%"`
+   to the TitleBar style, and save to see the glow change.

@@ -46,6 +46,16 @@ public readonly record struct Thickness(float Left, float Top, float Right, floa
     public Vector2 Total => new(Horizontal, Vertical);
 }
 
+/// <summary>Which way a background gradient runs (ADR 0133): from its <c>GradientFrom</c> color to its <c>GradientTo</c>.</summary>
+public enum GradientDirection
+{
+    /// <summary>Top to bottom.</summary>
+    Down,
+
+    /// <summary>Left to right.</summary>
+    Right,
+}
+
 /// <summary>
 /// An element of the UI tree (ADR 0060): laid out in two passes, measure
 /// then arrange (WPF's), drawn with a <see cref="Canvas"/>, and hit by
@@ -113,6 +123,13 @@ public partial class UIElement
         "Visibility", Visibility.Visible, Invalidates.Measure | Invalidates.Visual, StyleValues.ReadEnum<Visibility>);
     public static readonly StyledProperty<Vector4> BackgroundProperty = StyledProperty<Vector4>.Register<UIElement>(
         "Background", Vector4.Zero, Invalidates.Visual, StyleValues.ReadColor, StyleValues.LerpColor);
+    public static readonly StyledProperty<Vector4> GradientFromProperty = StyledProperty<Vector4>.Register<UIElement>(
+        "GradientFrom", Vector4.Zero, Invalidates.Visual, StyleValues.ReadColor, StyleValues.LerpColor);
+    public static readonly StyledProperty<Vector4> GradientToProperty = StyledProperty<Vector4>.Register<UIElement>(
+        "GradientTo", Vector4.Zero, Invalidates.Visual, StyleValues.ReadColor, StyleValues.LerpColor);
+    public static readonly StyledProperty<GradientDirection> GradientDirectionProperty =
+        StyledProperty<GradientDirection>.Register<UIElement>("GradientDirection", GradientDirection.Down, Invalidates.Visual,
+            StyleValues.ReadEnum<GradientDirection>);
     public static readonly StyledProperty<Vector4> CornerRadiiProperty = StyledProperty<Vector4>.Register<UIElement>(
         "CornerRadii", Vector4.Zero, Invalidates.Visual, StyleValues.ReadVector4, StyleValues.Lerp);
     public static readonly StyledProperty<Thickness> BorderWidthProperty = StyledProperty<Thickness>.Register<UIElement>(
@@ -182,6 +199,20 @@ public partial class UIElement
 
     /// <summary>Filled behind the element's drawing (sRGB, straight alpha); transparent by default.</summary>
     public Vector4 Background { get => GetValue(BackgroundProperty); set => SetValue(BackgroundProperty, value); }
+
+    /// <summary>
+    /// A gradient over the background (ADR 0133), from this color at the top
+    /// (or left, <see cref="GradientDirection"/>) to <see cref="GradientTo"/>;
+    /// none while both are clear. A clear end fades into the background:
+    /// a title bar's glow at its top is <c>"GradientFrom": "@accent/60%"</c>.
+    /// </summary>
+    public Vector4 GradientFrom { get => GetValue(GradientFromProperty); set => SetValue(GradientFromProperty, value); }
+
+    /// <summary>The gradient's color at the bottom (or right).</summary>
+    public Vector4 GradientTo { get => GetValue(GradientToProperty); set => SetValue(GradientToProperty, value); }
+
+    /// <summary>Which way the gradient runs: down (the default) or right.</summary>
+    public GradientDirection GradientDirection { get => GetValue(GradientDirectionProperty); set => SetValue(GradientDirectionProperty, value); }
 
     /// <summary>The background's and border's corners: top left, top right, bottom right, bottom left.</summary>
     public Vector4 CornerRadii { get => GetValue(CornerRadiiProperty); set => SetValue(CornerRadiiProperty, value); }
@@ -509,6 +540,15 @@ public partial class UIElement
         if (Background.W > 0)
         {
             canvas.FillRect(Vector2.Zero, ActualSize, Background, radii);
+        }
+        Vector4 first = GradientFrom, last = GradientTo;
+        if (first.W > 0 || last.W > 0)
+        {
+            // A clear end is the other's color, clear: fading out doesn't pass through black.
+            first = first.W > 0 ? first : last with { W = 0 };
+            last = last.W > 0 ? last : first with { W = 0 };
+            Vector2 end = GradientDirection == GradientDirection.Right ? new Vector2(ActualSize.X, 0) : new Vector2(0, ActualSize.Y);
+            canvas.FillRect(Vector2.Zero, ActualSize, Gradient.Linear(Vector2.Zero, end, first, last), radii);
         }
         Thickness border = BorderWidth;
         if (BorderColor.W > 0 && border.IsUniform && border.Left > 0)

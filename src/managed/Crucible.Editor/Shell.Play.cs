@@ -53,6 +53,15 @@ internal sealed partial class Shell
     /// <summary>Play started or stopped.</summary>
     public event Action? PlayStateChanged;
 
+    // Every window marked while playing (ADR 0133), for the theme's warning colors.
+    private void ShowPlaying()
+    {
+        foreach (EditorWindow window in _windows)
+        {
+            window.ShowsPlaying = IsPlaying;
+        }
+    }
+
     /// <summary>
     /// A new build of the game is about to replace the old one, which
     /// unloads after: whatever holds the old version's types (the
@@ -104,6 +113,7 @@ internal sealed partial class Shell
             _stepPending = false;
         }
         UpdateTitle();
+        ShowPlaying();
         PlayStateChanged?.Invoke();
         Status(paused ? "Paused" : IsPlaying ? $"Playing {_builder?.AssemblyName}" : "Pause off");
     }
@@ -350,6 +360,7 @@ internal sealed partial class Shell
             game.View.TakeInput(true);
         }
         UpdateTitle();
+        ShowPlaying();
         PlayStateChanged?.Invoke();
         Log(_game is null ? "Playing (no game code: nothing runs)" : $"Playing {_builder?.AssemblyName}");
     }
@@ -394,6 +405,7 @@ internal sealed partial class Shell
         Selection.Selected = SceneIds.Find(world, selected);
         SceneChanged?.Invoke();
         UpdateTitle();
+        ShowPlaying();
         PlayStateChanged?.Invoke();
         Log("Stopped: the scene is as it was");
     }

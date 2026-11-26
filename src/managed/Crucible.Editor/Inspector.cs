@@ -26,7 +26,7 @@ public sealed class InspectorPanel : EditorPanel
     private readonly Button _add = new("Add Component") { HorizontalAlignment = HorizontalAlignment.End };
     // Sections one unit apart over the divider color: hairlines between them (ADR 0129).
     private readonly StackPanel _sections = new() { Spacing = 1, VerticalAlignment = VerticalAlignment.Start };
-    private readonly Label _empty = new("Nothing selected") { HorizontalAlignment = HorizontalAlignment.Center };
+    private readonly Label _empty = new("Nothing selected");
     private Entity _entity;
     private string? _shape; // the entity and its component names, when the sections were made (null: not yet)
     private bool _stale = true;

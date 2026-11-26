@@ -109,6 +109,23 @@ public class StyleTests
     }
 
     [Test]
+    public async Task GradientsTakeTokensAndADirection()
+    {
+        Theme theme = Theme.Parse("""
+            {
+              "Tokens": { "accent": "#ff8000" },
+              "Styles": [ { "Selector": "Probe", "Set": { "GradientFrom": "@accent/50%", "GradientDirection": "Right" } } ]
+            }
+            """);
+        Rig rig = new(theme);
+        Probe probe = rig.Add(new Probe());
+        await Assert.That(probe.GradientFrom.W).IsEqualTo(0.5f);
+        await Assert.That(probe.GradientTo).IsEqualTo(Vector4.Zero); // clear: it fades into the background
+        await Assert.That(probe.GradientDirection).IsEqualTo(GradientDirection.Right);
+        await Assert.That(new Probe().GradientDirection).IsEqualTo(GradientDirection.Down);
+    }
+
+    [Test]
     public async Task StyleChangesTransitionButAFirstLookDoesnt()
     {
         Theme theme = new Theme()

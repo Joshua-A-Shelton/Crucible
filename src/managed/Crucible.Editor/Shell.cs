@@ -1085,6 +1085,7 @@ internal sealed partial class Shell
     private void Add(EditorWindow window)
     {
         _windows.Add(window);
+        window.ShowsPlaying = IsPlaying;
         _shells[window.Root] = this;
         window.Root.DragOutside = DragLeftWindow;
         if (window.Root.Content is { } content)

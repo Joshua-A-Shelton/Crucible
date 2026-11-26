@@ -57,6 +57,38 @@ Decided by the owner (2026-11-25):
   take the panel's color (`TreeView ListBox`), no longer the field's.
   Lists inside forms keep the field's.
 
+## More color (after the owner's try)
+
+The owner found the palette readable but short on orange, and asked for
+more color where it wouldn't cost readability. They suggested a title bar
+whose top is orange, fading to its color. In an interactive mockup they
+chose:
+
+- **The title bar's glow:** the accent at 55% at its top, fading into the
+  strip (`title-glow`). The menus and play buttons in it are now clear,
+  so the glow shows through.
+- **The same on active tabs:** the accent at 28% (`tab-glow`), the owner's
+  suggestion.
+- **Play mode in the accent:** the gaps between panels, the splitters,
+  and the status bar turn orange while the game runs (`playing`), because
+  edits made then are lost when it stops. The shell marks every window's
+  content with the class `playing` (`EditorWindow.ShowsPlaying`). Added
+  on the recommendation: it's a warning, not decoration.
+- **Left out for now:** a tint on the focused panel's tabs, and Add
+  Component in the accent. Each is a line in Editor.crstyle.
+
+**Gradients in the UI library:** `GradientFrom` and `GradientTo` (colors),
+and `GradientDirection` (`Down` by default, or `Right`). They're styled
+properties drawn over `Background`, interpolated in linear light. A clear
+end takes the other end's color at no opacity, so a fade doesn't pass
+through black, and `"GradientFrom": "@accent/55%"` alone fades into the
+background. They're separate color properties, not one gradient value, so
+tokens and opacities work on each end as on any color.
+
+**Fixed in passing:** the Inspector's "Nothing selected" was centered on
+the divider color, showing lighter blocks either side of it. It now spans
+the panel's width and starts at the left, like the other placeholders.
+
 ## Consequences
 
 - Games' themes can draw a border on some sides only (an underline, a tab
@@ -64,4 +96,7 @@ Decided by the owner (2026-11-25):
   `Thickness` now. Setting it from a number still works.
 - The palette lives in `Editor.crstyle`'s tokens: tuning goes on there,
   live, as before.
-- `StyleTests` checks one width and widths per side.
+- `StyleTests` checks one width and widths per side, and gradients from
+  tokens with a direction. `PlayChecks` checks that every window shows
+  it's playing, and stops showing it after.
+- Games' themes can use gradients the same way.

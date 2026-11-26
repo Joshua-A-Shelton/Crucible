@@ -106,6 +106,7 @@ internal sealed class PlayChecks : GameSystem
         shell.Commands.Find("Play.Toggle")!.Execute();
         yield return 10;
         Check(shell.IsPlaying && shell.Main.TitleBar.Title.Contains("Playing"), "Play starts playing", shell.Main.TitleBar.Title);
+        Check(shell.Windows.All(window => window.ShowsPlaying), "every window shows it's playing (ADR 0133)");
         Quaternion turning = world.Read<LocalTransform>(hero).Rotation;
         Check(MathF.Abs(Quaternion.Dot(turning, before)) < 0.9999f, "the game's system turns the hero");
         GamePanel? game = shell.Main.DockSpace.Panels.OfType<GamePanel>().FirstOrDefault();
@@ -126,6 +127,7 @@ internal sealed class PlayChecks : GameSystem
         yield return 3;
         Entity back = SceneIds.Find(world, heroId);
         Check(!shell.IsPlaying && !shell.Main.TitleBar.Title.Contains("Playing"), "Stop stops");
+        Check(shell.Windows.All(window => !window.ShowsPlaying), "and no window shows playing");
         Check(!back.IsNull && Quaternion.Dot(world.Read<LocalTransform>(back).Rotation, before) > 0.99999f,
             "Stop puts the hero back");
         Check(world.EntityCount == entities, "what was made while playing is gone", $"{entities} then {world.EntityCount}");
