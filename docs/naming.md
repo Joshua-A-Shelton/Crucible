@@ -1911,19 +1911,21 @@ drafted after the owner tried it by hand (2026-11-25):
 
 ## Component icons (2026-11-25, ADR 0131)
 
-Names proposed before building (marked `*` until settled):
+Names proposed before building, added while building, and added after the
+owner's try, settled as drafted after the owner tried it by hand
+(2026-11-25):
 
 | Name | What it names | What it is |
 |---|---|---|
-| ADR 0131 "Component icons" * | Decision record | The editor's look, step 3 |
-| `ComponentIconAttribute` (`[ComponentIcon("…")]`, `Name`) * | Engine (Crucible.Scenes) | A component's Lucide icon |
-| `CRUCIBLE_HINT_ICON("…")` * | C++ hint | The same, on an exposed struct |
-| `TreeRow.Icon`, `TreeRow.Mark` (classes `tree-icon`, `tree-mark`) * | UI library | A row's icon and mark |
-| `Shell.IconOf`, `EditorIcons.OfComponent` * | Editor | A row's icon; a type's icon |
-| editor.json `"CollapsedCategories"` * | Editor settings | Add Component's folded groups |
-| Tokens `icon`, `icon-selected`; classes `entity-icon`, `picker-category`, `picker-rule` * | Editor.crstyle | Icons' colors; the picker's headings |
-| Category paths `"Physics/2D"`, `"2D/Lights"` * | Engine components | Groups inside groups |
-| The engine's icons (Camera `video`, MeshInstance `box`, … as in ADR 0131's table) * | Engine components | Their Lucide names |
-| Added while building: `Shell.PrefabIcon` ("package"), `ComponentPicker.Fold`, `ComponentPicker.ShownGroups`, `PickerRow` (private) * | Editor | The prefab icon; folding; the check's view |
-| Added after the owner's try: token `override` * | Editor.crstyle | Prefab overrides' color and edge bar |
-| docs/learning/component-icons.md * | Learning note | Icons and groups |
+| ADR 0131 "Component icons" | Decision record | The editor's look, step 3 |
+| `ComponentIconAttribute` (`[ComponentIcon("…")]`, `Name`) | Engine (Crucible.Scenes) | A component's Lucide icon |
+| `CRUCIBLE_HINT_ICON("…")` | C++ hint | The same, on an exposed struct |
+| `TreeRow.Icon`, `TreeRow.Mark` (classes `tree-icon`, `tree-mark`) | UI library | A row's icon and mark |
+| `Shell.IconOf`, `EditorIcons.OfComponent` | Editor | A row's icon; a type's icon |
+| editor.json `"CollapsedCategories"` | Editor settings | Add Component's folded groups |
+| Tokens `icon`, `icon-selected`; classes `entity-icon`, `picker-category`, `picker-rule` | Editor.crstyle | Icons' colors; the picker's headings |
+| Category paths `"Physics/2D"`, `"2D/Lights"` | Engine components | Groups inside groups |
+| The engine's icons (Camera `video`, MeshInstance `box`, … as in ADR 0131's table) | Engine components | Their Lucide names |
+| Added while building: `Shell.PrefabIcon` ("package"), `ComponentPicker.Fold`, `ComponentPicker.ShownGroups`, `PickerRow` (private) | Editor | The prefab icon; folding; the check's view |
+| Added after the owner's try: token `override` | Editor.crstyle | Prefab overrides' color and edge bar |
+| docs/learning/component-icons.md | Learning note | Icons and groups |
