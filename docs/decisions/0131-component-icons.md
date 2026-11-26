@@ -75,6 +75,11 @@ Decided by the owner (2026-11-25):
 `ComponentPicker.Fold` and `ShownGroups` (for its check); the Diorama's
 `Bob` names `arrow-up-down` in C++, checked by `launcher.jit.native`.
 
+**After the owner's try:** prefab overrides had been marked in the
+accent, the header icons' color, and the two blurred together. They now
+have a color of their own (token `override`, a cool blue against the
+orange) and a thin bar of it left of an overridden row's name.
+
 ## Consequences
 
 - A game's and a plugin's components get icons with one attribute, and

@@ -21,6 +21,7 @@
     "selection": "#6e2c08",
     "warning": "#f0c060",
     "error": "#f07070",
+    "override": "#5aa9ff",
     "icon": "@muted",
     "icon-selected": "@accent",
     "radius": 5,
@@ -190,7 +191,7 @@
     { "Selector": ".name-grip:hover", "Set": { "Background": "@accent/50%" } },
     { "Selector": ".name-grip:pressed", "Set": { "Background": "@accent" } },
     { "Selector": "Label.field-header", "Set": { "Foreground": "@text", "Margin": [0, 6, 0, 0] } },
-    { "Selector": "Label.overridden", "Set": { "Foreground": "@accent" } },
+    { "Selector": "Label.overridden", "Set": { "Foreground": "@override" } },
     { "Selector": "Label.field-warning", "Set": { "Foreground": "@warning" } },
 
     // The asset browser and drags (ADR 0071).

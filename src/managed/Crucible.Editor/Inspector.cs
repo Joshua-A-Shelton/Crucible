@@ -843,12 +843,26 @@ public sealed class FieldEditor : UIElement
     /// <summary>The controls in the row: number fields, a toggle, a drop-down, a swatch.</summary>
     public IEnumerable<UIElement> Controls => _row.Children.Where(child => child != _name);
 
+    // An overridden row's bar, in the margin left of its name, down its own
+    // line (not its nested fields'), so overrides read at a glance.
+    protected override void OnDraw(Canvas canvas)
+    {
+        if (IsOverridden)
+        {
+            canvas.FillRect(new Vector2(-6, 0), new Vector2(2, _row.ActualSize.Y), Shell.ThemeColor("override"), 1);
+        }
+    }
+
     /// <summary>The editors inside it: a nested type's fields, or a list's items.</summary>
     public IReadOnlyList<FieldEditor> Nested => [.. _children.Children.OfType<FieldEditor>()];
 
     internal void Update(JsonNode? value, bool overridden)
     {
         _value = value;
+        if (IsOverridden != overridden)
+        {
+            InvalidateVisual(); // its edge bar
+        }
         IsOverridden = overridden;
         Classes.Set("overridden", overridden);
         _name.Classes.Set("overridden", overridden);

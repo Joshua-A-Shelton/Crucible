@@ -1925,4 +1925,5 @@ Names proposed before building (marked `*` until settled):
 | Category paths `"Physics/2D"`, `"2D/Lights"` * | Engine components | Groups inside groups |
 | The engine's icons (Camera `video`, MeshInstance `box`, … as in ADR 0131's table) * | Engine components | Their Lucide names |
 | Added while building: `Shell.PrefabIcon` ("package"), `ComponentPicker.Fold`, `ComponentPicker.ShownGroups`, `PickerRow` (private) * | Editor | The prefab icon; folding; the check's view |
+| Added after the owner's try: token `override` * | Editor.crstyle | Prefab overrides' color and edge bar |
 | docs/learning/component-icons.md * | Learning note | Icons and groups |
