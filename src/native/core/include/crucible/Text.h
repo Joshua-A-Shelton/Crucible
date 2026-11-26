@@ -107,6 +107,19 @@ CRUCIBLE_EXPORT CRUCIBLE_EXPOSE uint32_t hitTestText(TextLayoutHandle layout, fl
 // of its cluster; past the end, to the end.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE TextCaret textCaret(TextLayoutHandle layout, uint32_t offset);
 
+// The box the layout's glyphs' outlines cover, in its units from its top
+// left (left, top, right, bottom); empty (all 0) for no ink. An icon centers
+// this, not its line, so a glyph sitting on the baseline looks centered
+// (ADR 0133).
+struct CRUCIBLE_EXPOSE TextInk
+{
+    float left;
+    float top;
+    float right;
+    float bottom;
+};
+CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL TextInk textInk(TextLayoutHandle layout);
+
 // Drawing (ADR 0059), for the engine's Canvas: the layout's glyphs, an upper
 // bound on the quads writeTextQuads writes.
 CRUCIBLE_EXPORT CRUCIBLE_EXPOSE_INTERNAL uint32_t textGlyphCount(TextLayoutHandle layout);

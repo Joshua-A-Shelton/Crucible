@@ -11,6 +11,7 @@
 
 #include <hb.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 
@@ -521,6 +522,34 @@ TextCaret textCaret(TextLayoutHandle handle, uint32_t offset)
         }
     }
     return {x, record.line.top, record.line.height, line};
+}
+
+TextInk textInk(TextLayoutHandle handle)
+{
+    const Layout* layout = layoutOf(handle);
+    if (layout == nullptr || layout->font == nullptr || layout->font->unitsPerEm <= 0)
+    {
+        return {};
+    }
+    // HarfBuzz's font is at units per em; extents are y up from the origin.
+    const float scale = layout->style.size / layout->font->unitsPerEm;
+    TextInk ink{1e30f, 1e30f, -1e30f, -1e30f};
+    for (const PositionedGlyph& glyph : layout->glyphs)
+    {
+        hb_glyph_extents_t extents{};
+        if (!hb_font_get_glyph_extents(layout->font->hbFont, glyph.glyph, &extents) || extents.width == 0 ||
+            extents.height == 0)
+        {
+            continue;
+        }
+        const float left = glyph.x + static_cast<float>(extents.x_bearing) * scale;
+        const float top = glyph.y - static_cast<float>(extents.y_bearing) * scale;
+        ink.left = std::min(ink.left, left);
+        ink.top = std::min(ink.top, top);
+        ink.right = std::max(ink.right, left + static_cast<float>(extents.width) * scale);
+        ink.bottom = std::max(ink.bottom, top - static_cast<float>(extents.height) * scale);
+    }
+    return ink.left > ink.right ? TextInk{} : ink;
 }
 
 std::span<const PositionedGlyph> textGlyphs(TextLayoutHandle handle)

@@ -24,7 +24,7 @@
     "selection": "#3a3a3a",
     "selection-edge": "@accent",
     "title-glow": "@accent/55%",
-    "tab-glow": "@accent/28%",
+    "tab-glow": "@accent/35%",
     "playing": "@accent/25%",
     "warning": "#f0c060",
     "error": "#f07070",
@@ -125,8 +125,11 @@
 
     // The title bar glows orange at its top, fading into the strip (ADR 0133);
     // the menus and play buttons in it are clear, over the glow.
-    { "Selector": "TitleBar", "Set": { "Background": "@strip", "GradientFrom": "@title-glow", "GradientLength": 0.7, "MinHeight": 30 } },
-    { "Selector": "Label.title", "Set": { "Foreground": "@muted" } },
+    { "Selector": "TitleBar", "Set": { "Background": "@strip", "GradientFrom": "@title-glow", "GradientLength": 1, "MinHeight": 30 } },
+    // No title in the bar (ADR 0133): with editors of their own open, the
+    // scene isn't necessarily what's being worked on. TitleBar.Title is still
+    // kept up to date; remove the Visibility to show it again.
+    { "Selector": "Label.title", "Set": { "Foreground": "@muted", "Visibility": "Collapsed" } },
     { "Selector": "WindowButton", "Set": { "Width": 40, "Foreground": "@text" } },
     { "Selector": "WindowButton:hover", "Set": { "Background": "@hover" } },
     { "Selector": "WindowButton:pressed", "Set": { "Background": "@pressed" } },
@@ -138,7 +141,7 @@
     { "Selector": "StackPanel.dock-tabs", "Set": { "Background": "@strip" } },
     { "Selector": "DockTab", "Set": { "Padding": [10, 4, 6, 4], "Foreground": "@muted", "CornerRadii": [5, 5, 0, 0] } },
     { "Selector": "DockTab:hover", "Set": { "Background": "@hover" } },
-    { "Selector": "DockTab.active", "Set": { "Background": "@panel", "GradientFrom": "@tab-glow", "GradientLength": 0.75, "Foreground": "@text", "BorderColor": "@accent" } },
+    { "Selector": "DockTab.active", "Set": { "Background": "@panel", "GradientFrom": "@tab-glow", "GradientLength": 0.95, "Foreground": "@text", "BorderColor": "@accent" } },
     { "Selector": "DockTab Label", "Set": { "Foreground": "@muted" } },
     { "Selector": "DockTab.active Label", "Set": { "Foreground": "@text" } },
     { "Selector": "DropPreview", "Set": { "Foreground": "@accent" } },
@@ -149,7 +152,7 @@
     { "Selector": "Label.status", "Set": { "Foreground": "@muted" } },
     // While playing (ADR 0133): a faint glow along the status bar, so edits
     // made now (lost when play stops) aren't a surprise.
-    { "Selector": "DockPanel.playing StatusBar", "Set": { "GradientFrom": "@playing", "GradientLength": 0.8 } },
+    { "Selector": "DockPanel.playing StatusBar", "Set": { "GradientFrom": "@playing", "GradientLength": 1 } },
     { "Selector": "Label.placeholder", "Set": { "Foreground": "@muted" } },
     { "Selector": "Label.log-warning", "Set": { "Foreground": "@warning" } },
     { "Selector": "Label.log-error", "Set": { "Foreground": "@error" } },

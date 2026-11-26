@@ -55,13 +55,19 @@ public class Icon : UIElement
         return new Vector2(FontSize);
     }
 
-    // The glyph centered in its square.
+    // The glyph's ink centered in its square (ADR 0133): centering its line
+    // instead leaves a glyph that sits on the baseline low, by however much
+    // the font's line reaches below and above it.
     protected override void OnDraw(Canvas canvas)
     {
         if (_shaped.Layout is { } layout)
         {
             Vector2 size = new(FontSize);
-            canvas.DrawText(layout, (size - layout.Size) * 0.5f, Foreground);
+            Text.TextInk ink = Text.Api.TextInk(layout.Handle);
+            Vector2 at = ink.Right > ink.Left
+                ? (size - new Vector2(ink.Right - ink.Left, ink.Bottom - ink.Top)) * 0.5f - new Vector2(ink.Left, ink.Top)
+                : (size - layout.Size) * 0.5f;
+            canvas.DrawText(layout, at, Foreground);
         }
     }
 

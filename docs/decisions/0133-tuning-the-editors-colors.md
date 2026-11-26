@@ -97,6 +97,23 @@ tokens and opacities work on each end as on any color.
   holds after (the shader clamps). The title bar fades over its top 70%,
   active tabs over 75%, the status bar's glow over 80%.
 
+**After the owner's third look:**
+- **The owner's own tuning,** kept: active tabs' glow at 35%, and the
+  title bar's, tabs', and status bar's fades over their full length (1,
+  0.95, and 1).
+- **Icons sat low in their buttons** (the owner saw it hovering the play
+  buttons): `Icon` centered its text line, and Lucide's glyphs sit on the
+  baseline in a line that reaches 1.09 em, so they landed about 0.09 em
+  low (1.3px at 15px). Icons now center their glyph's ink, from the
+  font's outlines (`textInk`, internal; HarfBuzz's glyph extents). Every
+  icon in the editor moves with it.
+- **No title in the bar:** the scene's name read as out of place, and with
+  editors of their own open the scene isn't necessarily what's being
+  worked on, so the owner chose to take it out (rather than move the play
+  buttons). `Label.title` is collapsed in Editor.crstyle; `TitleBar.Title`
+  is still kept up to date, so it's one line to bring back. Nothing else
+  shows the scene's unsaved state yet.
+
 **Fixed in passing:** the Inspector's "Nothing selected" was centered on
 the divider color, showing lighter blocks either side of it. It now spans
 the panel's width and starts at the left, like the other placeholders.
