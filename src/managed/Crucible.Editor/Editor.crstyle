@@ -147,6 +147,7 @@
     { "Selector": "DockTab.active Label", "Set": { "Foreground": "@text" } },
     // What a panel shows, after its title (ADR 0133): quieter, as the title bar's title was.
     { "Selector": "DockTab Label.tab-detail", "Set": { "Foreground": "@muted" } },
+    { "Selector": "DockTab Icon.tab-separator", "Set": { "FontSize": 12, "Foreground": "@muted" } },
     { "Selector": "DropPreview", "Set": { "Foreground": "@accent" } },
     { "Selector": "Splitter", "Set": { "Background": "@page" } },
     { "Selector": "Splitter:hover", "Set": { "Background": "@accent/60%" } },

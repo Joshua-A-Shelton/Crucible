@@ -113,7 +113,7 @@ tokens and opacities work on each end as on any color.
   buttons). `Label.title` is collapsed in Editor.crstyle; `TitleBar.Title`
   is still kept up to date, so it's one line to bring back.
 - **Where the title's parts went** (the owner's choice):
-  - The Hierarchy's tab names the open scene ("Hierarchy · Village.crscene":
+  - The Hierarchy's tab names the open scene ("Hierarchy › Village.crscene", a small muted chevron between:
     the panel's name, then the file's in the muted color, at the owner's
     request; `EditorPanel.TitleDetail`, any panel's), with a dot in
     the accent while it has unsaved changes, and its path as the tooltip.
