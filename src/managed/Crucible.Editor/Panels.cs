@@ -297,21 +297,28 @@ public sealed class ViewportPanel : EditorPanel
 }
 
 
-/// <summary>The editor's messages, newest last.</summary>
+/// <summary>
+/// The editor's messages, newest last (ADR 0133): each a row with its
+/// severity's icon, warnings and errors tinted, its text selectable and
+/// copyable (Ctrl+C), and Copy Line and Copy All on its right-click menu.
+/// </summary>
 public sealed class LogPanel : EditorPanel
 {
     private const int MaxLines = 500;
 
-    private readonly StackPanel _lines = new() { Spacing = 2 };
+    private readonly StackPanel _lines = new() { Spacing = 1 };
     private readonly ScrollView _scroll;
 
     public LogPanel() : base("Log", "Log")
     {
-        _scroll = new ScrollView { Content = _lines, Padding = new Thickness(8, 4, 8, 4) };
+        _scroll = new ScrollView { Content = _lines, Padding = new Thickness(4, 4, 4, 4) };
         AddChild(_scroll);
     }
 
     public int LineCount => _lines.Children.Count;
+
+    /// <summary>Every line's text, oldest first.</summary>
+    public IEnumerable<string> Lines => _lines.Children.OfType<LogRow>().Select(row => row.Text);
 
     /// <summary>A line, with a style class (log-warning, log-error) if given.</summary>
     public void Add(string message, string? style = null)
@@ -320,12 +327,57 @@ public sealed class LogPanel : EditorPanel
         {
             _lines.Remove(_lines.Children[0]);
         }
-        Label line = new(message) { Wrap = true };
-        if (style is not null)
-        {
-            line.Classes.Add(style);
-        }
-        _lines.Add(line);
+        LogRow row = new(this, message, style);
+        _lines.Add(row);
         _scroll.ScrollTo(Orientation.Vertical, float.PositiveInfinity);
+    }
+
+    internal void ShowMenu(LogRow row, Vector2 at)
+    {
+        ContextMenu menu = new();
+        menu.Add("Copy Line", () => Clipboard.Text = row.Text);
+        menu.Add("Copy All", () => Clipboard.Text = string.Join(Environment.NewLine, Lines));
+        menu.Open(row, at);
+    }
+
+    // One message: its icon, then its text, read-only but selectable.
+    internal sealed class LogRow : UIElement
+    {
+        private readonly TextField _text;
+
+        public LogRow(LogPanel log, string message, string? style)
+        {
+            Classes.Add("log-row");
+            Icon icon = EditorIcons.Icon(style switch
+            {
+                "log-error" => "circle-x",
+                "log-warning" => "triangle-alert",
+                _ => "info",
+            });
+            icon.Classes.Add("log-icon");
+            icon.VerticalAlignment = VerticalAlignment.Start;
+            _text = new TextField { Text = message, IsReadOnly = true, Multiline = true };
+            _text.Classes.Add("log-text");
+            if (style is not null)
+            {
+                Classes.Add(style);
+                _text.Classes.Add(style);
+            }
+            DockPanel row = new();
+            DockPanel.SetDock(icon, Dock.Left);
+            row.Add(icon);
+            row.Add(_text);
+            AddChild(row);
+            PointerDown += (_, e) =>
+            {
+                if (e.Button == PointerButton.Right)
+                {
+                    e.Handled = true;
+                    log.ShowMenu(this, e.Position);
+                }
+            };
+        }
+
+        public string Text => _text.Text;
     }
 }

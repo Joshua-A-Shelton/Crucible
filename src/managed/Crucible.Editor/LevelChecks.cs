@@ -286,7 +286,7 @@ internal sealed partial class LevelChecks : GameSystem
 
     private static string Log(Shell shell) =>
         shell.LogPanel is { } log
-            ? string.Join("\n", H.Descendants(log).OfType<Label>().Select(label => label.Text))
+            ? string.Join("\n", log.Lines)
             : "";
 
     // The log from the latest run's start (the log keeps its last 500 lines).

@@ -78,7 +78,7 @@ internal sealed partial class Shell
                 {
                     ++failed;
                     _failures[result.Path] = error;
-                    Log($"Can't import {result.Path}: {error}");
+                    LogError($"Can't import {result.Path}: {error}");
                 }
             }
             else

@@ -373,7 +373,7 @@ internal sealed class DemonstrationChecks : GameSystem
 
     private static string Log(Shell shell) =>
         shell.LogPanel is { } log
-            ? string.Join("\n", H.Descendants(log).OfType<Label>().Select(label => label.Text))
+            ? string.Join("\n", log.Lines)
             : "";
 
     private static string Tail(string log) => string.Join(" | ", log.Split('\n').TakeLast(8));

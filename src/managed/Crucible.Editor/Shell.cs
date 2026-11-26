@@ -336,7 +336,7 @@ internal sealed partial class Shell
             else if (result.Outcome is not (ImportOutcome.UpToDate or ImportOutcome.NoImporter))
             {
                 ++failed;
-                Log($"Can't import {result.Path}: {result.Outcome} {result.Error}");
+                LogError($"Can't import {result.Path}: {result.Outcome} {result.Error}");
             }
         }
         Database = database;

@@ -168,6 +168,19 @@
     { "Selector": "Label.placeholder", "Set": { "Foreground": "@muted" } },
     { "Selector": "Label.log-warning", "Set": { "Foreground": "@warning" } },
     { "Selector": "Label.log-error", "Set": { "Foreground": "@error" } },
+    // The Log (ADR 0133): rows with their severity's icon, warnings and errors
+    // tinted; the text read-only but selectable, looking like plain text.
+    { "Selector": "LogRow", "Set": { "Padding": [6, 2, 6, 2], "CornerRadii": "@small-radius" } },
+    { "Selector": "LogRow.log-warning", "Set": { "Background": "@warning/8%" } },
+    { "Selector": "LogRow.log-error", "Set": { "Background": "@error/10%" } },
+    { "Selector": "Icon.log-icon", "Set": { "FontSize": 13, "Foreground": "@icon", "Margin": [0, 2, 8, 0] } },
+    { "Selector": "LogRow.log-warning Icon.log-icon", "Set": { "Foreground": "@warning" } },
+    { "Selector": "LogRow.log-error Icon.log-icon", "Set": { "Foreground": "@error" } },
+    { "Selector": "TextField.log-text", "Set": { "Background": "#0000", "BorderWidth": 0, "Padding": 0, "MinWidth": 0 } },
+    { "Selector": "TextField.log-text:hover", "Set": { "BorderWidth": 0 } },
+    { "Selector": "TextField.log-text:focus", "Set": { "BorderWidth": 0 } },
+    { "Selector": "TextField.log-text.log-warning", "Set": { "Foreground": "@warning" } },
+    { "Selector": "TextField.log-text.log-error", "Set": { "Foreground": "@error" } },
 
     // Toolbars: flat tools, the one that's on in the accent.
     { "Selector": ".toolbar-separator", "Set": { "Background": "@divider" } },

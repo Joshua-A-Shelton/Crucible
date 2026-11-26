@@ -115,6 +115,13 @@ public class TextField : UIElement
         }
     }
 
+    /// <summary>
+    /// Read-only (ADR 0133): its text can be selected and copied, not
+    /// changed (typing, pasting, cutting, deleting, and undo do nothing),
+    /// and it shows no caret. Code can still set <see cref="Text"/>.
+    /// </summary>
+    public bool IsReadOnly { get; set; }
+
     public Vector4 CaretColor { get => GetValue(CaretColorProperty); set => SetValue(CaretColorProperty, value); }
 
     public Vector4 SelectionColor { get => GetValue(SelectionColorProperty); set => SetValue(SelectionColorProperty, value); }
@@ -215,7 +222,7 @@ public class TextField : UIElement
             DrawSelection(canvas, layout, origin);
         }
         canvas.DrawText(_isTrimmed && !IsFocused && _trimmed.Layout is { } cut ? cut : layout, origin, Foreground);
-        if (IsFocused && _caretShown)
+        if (IsFocused && _caretShown && !IsReadOnly)
         {
             TextCaret caret = layout.Caret(_caret);
             float scale = Root?.Scale ?? 1;
@@ -568,6 +575,10 @@ public class TextField : UIElement
 
     private void Edit(string text, int caret, int anchor, EditKind kind)
     {
+        if (IsReadOnly)
+        {
+            return;
+        }
         bool continues = kind is EditKind.Typing or EditKind.Deleting && kind == _lastEdit && _undo.Count > 0;
         if (!continues)
         {
@@ -580,7 +591,7 @@ public class TextField : UIElement
 
     private bool Restore(List<Snapshot> from, List<Snapshot> to)
     {
-        if (from.Count == 0)
+        if (from.Count == 0 || IsReadOnly)
         {
             return false;
         }

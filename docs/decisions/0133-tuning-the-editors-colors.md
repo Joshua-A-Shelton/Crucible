@@ -162,6 +162,21 @@ tokens and opacities work on each end as on any color.
 - **Tabs' close buttons showed no hover:** under the pointer, the cross is
   at full strength over a round backing.
 
+**The Log** (the owner's choice: each line selectable, with a Copy menu):
+- Each message is a row (`LogRow`): its severity's icon (`info`,
+  `triangle-alert`, `circle-x`), warnings and errors tinted, and its text
+  in a read-only, wrapping `TextField`. The text is selected with the
+  pointer (a word with a double-click) and copied with Ctrl+C, so an error
+  can go straight into a web search. A selection can't span lines.
+- Right-clicking a row offers Copy Line and Copy All.
+- `TextField.IsReadOnly`, in the UI library: selecting and copying work,
+  and nothing the person does changes the text (typing, pasting, cutting,
+  deleting, undo). It shows no caret, and code can still set `Text`.
+- Import failures are logged as errors now (they were plain messages).
+- `LogPanel.Lines` gives every line's text. The checks read the Log
+  through it, as its rows hold text fields, not labels. The asset check
+  saves the Log as assets.log.png.
+
 **Fixed in passing:** the Inspector's "Nothing selected" was centered on
 the divider color, showing lighter blocks either side of it. It now spans
 the panel's width and starts at the left, like the other placeholders.

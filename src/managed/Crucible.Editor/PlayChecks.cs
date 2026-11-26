@@ -170,7 +170,7 @@ internal sealed class PlayChecks : GameSystem
             "a file added to Code is built and hot-reloaded", $"after {Environment.TickCount64 - started} ms; {LogText(shell)}");
         Check(SavedComponents.Find("Diorama.Spin") is { } spun && world.Has(SceneIds.Find(world, heroId), spun.Id),
             "the hero keeps its Spin across the reload");
-        string all = string.Join(" | ", H.Descendants(shell.LogPanel!).OfType<Label>().Select(label => label.Text));
+        string all = string.Join(" | ", shell.LogPanel!.Lines);
         Check(!all.Contains("didn't unload", StringComparison.Ordinal),
             "and the old build unloads, a field of its Spin being edited", LogText(shell));
         Check(SceneIds.Read(world, SceneIds.Find(world, heroId), "Diorama.Spin")?["PerFrame"]?.GetValue<float>() == 0.25f,
@@ -199,7 +199,7 @@ internal sealed class PlayChecks : GameSystem
         File.AppendAllText(Path.Combine(assets, "Models", "Hero.gltf"), "\n");
         shell.RefreshAssets();
         yield return 3;
-        string reloads = string.Join(" | ", H.Descendants(shell.LogPanel!).OfType<Label>().Select(label => label.Text));
+        string reloads = string.Join(" | ", shell.LogPanel!.Lines);
         Check(reloads.Contains("Grass.png on the GPU", StringComparison.Ordinal), "a changed texture reloads on the GPU",
             LogText(shell));
         Check(reloads.Contains("Hero.gltf on the GPU", StringComparison.Ordinal), "and a changed model", LogText(shell));
@@ -228,7 +228,7 @@ internal sealed class PlayChecks : GameSystem
 
     private static string LogText(Shell shell) =>
         shell.LogPanel is { } log
-            ? string.Join(" | ", H.Descendants(log).OfType<Label>().Select(label => label.Text).TakeLast(6))
+            ? string.Join(" | ", log.Lines.TakeLast(6))
             : "";
 
     private void Check(bool passed, string what, string detail = "")

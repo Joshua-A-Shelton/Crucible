@@ -147,7 +147,7 @@ internal sealed partial class WalkerChecks : GameSystem
 
     private static string Log(Shell shell) =>
         shell.LogPanel is { } log
-            ? string.Join("\n", H.Descendants(log).OfType<Label>().Select(label => label.Text))
+            ? string.Join("\n", log.Lines)
             : "";
 
     private static int Count(string log, string text) =>

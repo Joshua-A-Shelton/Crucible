@@ -1971,5 +1971,6 @@ Names proposed before building (marked `*` until settled):
 | The rest of the pass: `UIElement.ShadowColor`, `ShadowBlur`, `ShadowOffset`; token `shadow` * | UI library, Editor.crstyle | A soft shadow under an element; popups' |
 | The rest of the pass: a toggle's mark draws a check in its `Foreground`; class `quiet` * | UI library, Editor.crstyle | Checkboxes with a check; fill-less icon toggles |
 | The rest of the pass: classes `empty-state`, `empty-icon`, `empty-hint`; folder-tree icons `folder`, `puzzle`; `TabStrip` (internal) * | Editor | The Inspector's empty state; the folder tree; tabs that give way |
+| The Log: `TextField.IsReadOnly`; `LogPanel.Lines`, `LogRow` (internal); classes `log-icon`, `log-text`; icons `info`, `triangle-alert`, `circle-x`; menu items Copy Line, Copy All * | UI library, editor | Selectable, copyable Log rows |
 | Added after the owner's third look: `TextInk` (`left`, `top`, `right`, `bottom`) and `textInk` (internal) * | Text | The box a layout's glyph outlines cover, for centering icons |
 | Added after the owner's try: tokens `title-glow`, `tab-glow`, `playing`; class `playing` (`EditorWindow.ShowsPlaying`, internal) * | Editor.crstyle, editor | The title bar's and active tabs' glow; play mode in the accent |

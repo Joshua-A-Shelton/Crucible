@@ -127,6 +127,14 @@ internal sealed class AssetChecks : GameSystem
         }
         yield return 2;
         Check(log is null || log.LineCount - before == 1, "a failing import is logged once", $"{(log?.LineCount ?? 0) - before} lines");
+        // The Log with that error and a warning (ADR 0133): saved as assets.log.png to look at.
+        shell.LogWarning("A warning, for the Log's capture");
+        shell.OpenPanel("Log");
+        yield return 3;
+        Check(log is null || log.Lines.Any(line => line.Contains("Broken.png", StringComparison.Ordinal)), "the Log's lines read back");
+        V.Save(shell.Main.Surface, Path.ChangeExtension(_capture, ".log.png"));
+        shell.OpenPanel("Assets");
+        yield return 2;
         AssetTile grass = assets.Tiles.First(tile => tile.Path == "Textures/Grass.png");
         grass.Focus();
         yield return 2;

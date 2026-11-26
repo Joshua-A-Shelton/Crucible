@@ -297,7 +297,7 @@ internal sealed partial class Shell
             bool isFolder = Directory.Exists(source);
             if (!isFolder && !File.Exists(source))
             {
-                shell.Log($"Can't import {source}: it isn't there any more");
+                shell.LogError($"Can't import {source}: it isn't there any more");
                 return true;
             }
             if (name.EndsWith(Sidecar.Extension, StringComparison.OrdinalIgnoreCase))

@@ -225,6 +225,23 @@ public class TextFieldTests
     }
 
     [Test]
+    public async Task AReadOnlyFieldSelectsAndCopiesButDoesntChange()
+    {
+        using Rig rig = new();
+        TextField field = rig.Add(new TextField("can't import Broken.png") { IsReadOnly = true });
+        field.Focus();
+        field.Select(13, 23);
+        rig.Send(Key(C, KeyModifiers.Ctrl));
+        await Assert.That(Clipboard.Text).IsEqualTo("Broken.png");
+        rig.Type("x");
+        rig.Send(Key(Backspace), Key(X, KeyModifiers.Ctrl), Key(V, KeyModifiers.Ctrl), Key(Z, KeyModifiers.Ctrl));
+        await Assert.That(field.Text).IsEqualTo("can't import Broken.png");
+        await Assert.That(Clipboard.Text).IsEqualTo("Broken.png"); // Ctrl+X copied, didn't cut
+        field.Text = "set from code"; // code still can
+        await Assert.That(field.Text).IsEqualTo("set from code");
+    }
+
+    [Test]
     public async Task CopyCutAndPaste()
     {
         using Rig rig = new();
