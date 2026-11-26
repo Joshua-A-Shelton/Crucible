@@ -716,6 +716,7 @@ public sealed class DockTab : UIElement
     private const float CloseSize = 14;
 
     private readonly Label _title;
+    private readonly Label _detail = new() { VerticalAlignment = VerticalAlignment.Center };
     private readonly UIElement _unsaved = new() { VerticalAlignment = VerticalAlignment.Center };
     private Vector2 _pressedAt;
     private bool _pressed;
@@ -726,6 +727,9 @@ public sealed class DockTab : UIElement
         Panel = panel;
         _title = new Label(panel.Title) { VerticalAlignment = VerticalAlignment.Center };
         AddChild(_title);
+        // What the panel shows (its TitleDetail), quieter, after the title.
+        _detail.Classes.Add("tab-detail");
+        AddChild(_detail);
         // A dot after the title while the panel has unsaved changes (ADR 0133).
         _unsaved.Classes.Add("tab-unsaved");
         AddChild(_unsaved);
@@ -753,6 +757,8 @@ public sealed class DockTab : UIElement
     private void ShowPanel()
     {
         _title.Text = Panel.Title;
+        _detail.Text = Panel.TitleDetail.Length > 0 ? "· " + Panel.TitleDetail : "";
+        _detail.Visibility = Panel.TitleDetail.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         ToolTip = Panel.TitleToolTip;
         _unsaved.Visibility = Panel.HasUnsavedChanges ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -760,18 +766,27 @@ public sealed class DockTab : UIElement
     // The dot's room: its width and the gap before it, while it shows.
     private float UnsavedWidth => _unsaved.Visibility == Visibility.Visible ? _unsaved.DesiredSize.X + 5 : 0;
 
+    private float DetailWidth => _detail.Visibility == Visibility.Visible ? _detail.DesiredSize.X + 4 : 0;
+
     protected override Vector2 MeasureCore(Vector2 available)
     {
         _title.Measure(available);
+        _detail.Measure(available);
         _unsaved.Measure(available);
-        return new Vector2(_title.DesiredSize.X + UnsavedWidth + 8 + CloseSize, _title.DesiredSize.Y);
+        return new Vector2(_title.DesiredSize.X + DetailWidth + UnsavedWidth + 8 + CloseSize, _title.DesiredSize.Y);
     }
 
     protected override void ArrangeCore(RectangleF content)
     {
-        _title.Arrange(new RectangleF(content.X, content.Y, _title.DesiredSize.X, content.Height));
-        float dot = _unsaved.DesiredSize.X;
-        _unsaved.Arrange(new RectangleF(content.X + _title.DesiredSize.X + 5, content.Y, dot, content.Height));
+        float x = content.X;
+        _title.Arrange(new RectangleF(x, content.Y, _title.DesiredSize.X, content.Height));
+        x += _title.DesiredSize.X;
+        if (_detail.Visibility == Visibility.Visible)
+        {
+            _detail.Arrange(new RectangleF(x + 4, content.Y, _detail.DesiredSize.X, content.Height));
+            x += DetailWidth;
+        }
+        _unsaved.Arrange(new RectangleF(x + 5, content.Y, _unsaved.DesiredSize.X, content.Height));
     }
 
     protected override void OnDraw(Canvas canvas)

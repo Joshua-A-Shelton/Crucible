@@ -48,6 +48,21 @@ public abstract class EditorPanel : UIElement
         }
     }
 
+    /// <summary>
+    /// A second part of its tab's text, after its title and quieter (ADR
+    /// 0133): what it's showing, as the Hierarchy shows its scene's file
+    /// name. Empty for none.
+    /// </summary>
+    public string TitleDetail
+    {
+        get;
+        protected set
+        {
+            field = value ?? "";
+            TitleChanged?.Invoke();
+        }
+    } = "";
+
     /// <summary>Its tab's tooltip (the Hierarchy's: the scene's path); empty for none.</summary>
     public string TitleToolTip
     {

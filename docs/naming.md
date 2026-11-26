@@ -1966,7 +1966,7 @@ Names proposed before building (marked `*` until settled):
 | Added after the owner's try: `UIElement.GradientFrom`, `GradientTo`, `GradientDirection` (enum `GradientDirection`: `Down`, `Right`) * | UI library | A gradient over the background |
 | Added after the owner's second look: `UIElement.GradientLength` (0 to 1, 1 by default) * | UI library | How far along the element the gradient reaches its end color |
 | Added after the owner's third look: `setWindowTitle` (C# `Platform.Api.SetWindowTitle`) * | Platform | The system's title for a window |
-| Added after the owner's third look: `EditorPanel.HasUnsavedChanges`, `EditorPanel.TitleToolTip`; the Hierarchy titled by its scene * | Editor API | A dot on a panel's tab; its tab's tooltip |
+| Added after the owner's third look: `EditorPanel.HasUnsavedChanges`, `EditorPanel.TitleToolTip`, `EditorPanel.TitleDetail` (class `tab-detail`); the Hierarchy's detail its scene's file name * | Editor API | A dot on a panel's tab; its tab's tooltip |
 | Added after the owner's third look: `StatusBar.Project`; classes `tab-unsaved`, `status-project`; token `unsaved` * | Editor, Editor.crstyle | The project's name in the status bar; the dot |
 | Added after the owner's third look: `TextInk` (`left`, `top`, `right`, `bottom`) and `textInk` (internal) * | Text | The box a layout's glyph outlines cover, for centering icons |
 | Added after the owner's try: tokens `title-glow`, `tab-glow`, `playing`; class `playing` (`EditorWindow.ShowsPlaying`, internal) * | Editor.crstyle, editor | The title bar's and active tabs' glow; play mode in the accent |
