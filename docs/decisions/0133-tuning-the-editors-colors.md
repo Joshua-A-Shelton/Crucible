@@ -69,9 +69,10 @@ chose:
   so the glow shows through.
 - **The same on active tabs:** the accent at 28% (`tab-glow`), the owner's
   suggestion.
-- **Play mode in the accent:** the gaps between panels, the splitters,
-  and the status bar turn orange while the game runs (`playing`), because
-  edits made then are lost when it stops. The shell marks every window's
+- **Play mode in the accent:** at first the gaps between panels, the
+  splitters, and the status bar turned orange while the game ran
+  (`playing`), because edits made then are lost when it stops (made
+  subtler after the second look, below). The shell marks every window's
   content with the class `playing` (`EditorWindow.ShowsPlaying`). Added
   on the recommendation: it's a warning, not decoration.
 - **Left out for now:** a tint on the focused panel's tabs, and Add
@@ -84,6 +85,17 @@ end takes the other end's color at no opacity, so a fade doesn't pass
 through black, and `"GradientFrom": "@accent/55%"` alone fades into the
 background. They're separate color properties, not one gradient value, so
 tokens and opacities work on each end as on any color.
+
+**After the owner's second look:**
+- **The play colors were too loud.** Play mode is now only a faint glow
+  along the status bar (`playing`, the accent at 25%). The owner wants to
+  see it in use before deciding between that and nothing.
+- **The menu titles were still grey.** The engine's default theme gives
+  `MenuBar` a background; the editor's now clears it.
+- **Fades end before the far edge:** `GradientLength`, a fraction of the
+  element (1 by default), is where `GradientTo` is reached; the color
+  holds after (the shader clamps). The title bar fades over its top 70%,
+  active tabs over 75%, the status bar's glow over 80%.
 
 **Fixed in passing:** the Inspector's "Nothing selected" was centered on
 the divider color, showing lighter blocks either side of it. It now spans

@@ -1524,7 +1524,8 @@ Steps, each tried by hand:
    selection with an orange edge, outlined fields), and `BorderWidth` per
    side in the UI library. After the owner's try, more color: the title
    bar and active tabs glow orange (gradients in the UI library), and
-   play mode turns the frame and status bar orange.
+   play mode gives the status bar a faint glow (the owner trying it before
+   deciding).
 
 Composition tests are added in each step.
 

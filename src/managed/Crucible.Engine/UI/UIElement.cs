@@ -127,6 +127,8 @@ public partial class UIElement
         "GradientFrom", Vector4.Zero, Invalidates.Visual, StyleValues.ReadColor, StyleValues.LerpColor);
     public static readonly StyledProperty<Vector4> GradientToProperty = StyledProperty<Vector4>.Register<UIElement>(
         "GradientTo", Vector4.Zero, Invalidates.Visual, StyleValues.ReadColor, StyleValues.LerpColor);
+    public static readonly StyledProperty<float> GradientLengthProperty = StyledProperty<float>.Register<UIElement>(
+        "GradientLength", 1, Invalidates.Visual, StyleValues.ReadFloat, StyleValues.Lerp);
     public static readonly StyledProperty<GradientDirection> GradientDirectionProperty =
         StyledProperty<GradientDirection>.Register<UIElement>("GradientDirection", GradientDirection.Down, Invalidates.Visual,
             StyleValues.ReadEnum<GradientDirection>);
@@ -210,6 +212,13 @@ public partial class UIElement
 
     /// <summary>The gradient's color at the bottom (or right).</summary>
     public Vector4 GradientTo { get => GetValue(GradientToProperty); set => SetValue(GradientToProperty, value); }
+
+    /// <summary>
+    /// How far along the element the gradient reaches <see cref="GradientTo"/>,
+    /// as a fraction (1, the default, at its far edge); it holds that color
+    /// after: 0.7 fades over the top 70% of a title bar.
+    /// </summary>
+    public float GradientLength { get => GetValue(GradientLengthProperty); set => SetValue(GradientLengthProperty, value); }
 
     /// <summary>Which way the gradient runs: down (the default) or right.</summary>
     public GradientDirection GradientDirection { get => GetValue(GradientDirectionProperty); set => SetValue(GradientDirectionProperty, value); }
@@ -547,7 +556,8 @@ public partial class UIElement
             // A clear end is the other's color, clear: fading out doesn't pass through black.
             first = first.W > 0 ? first : last with { W = 0 };
             last = last.W > 0 ? last : first with { W = 0 };
-            Vector2 end = GradientDirection == GradientDirection.Right ? new Vector2(ActualSize.X, 0) : new Vector2(0, ActualSize.Y);
+            float length = Math.Clamp(GradientLength, 0.01f, 1);
+            Vector2 end = GradientDirection == GradientDirection.Right ? new Vector2(ActualSize.X * length, 0) : new Vector2(0, ActualSize.Y * length);
             canvas.FillRect(Vector2.Zero, ActualSize, Gradient.Linear(Vector2.Zero, end, first, last), radii);
         }
         Thickness border = BorderWidth;

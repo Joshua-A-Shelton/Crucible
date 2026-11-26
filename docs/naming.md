@@ -1964,4 +1964,5 @@ Names proposed before building (marked `*` until settled):
 | Classes `component-header` (styled now), `component-fields` * | Editor.crstyle | A component's header band; its fields, inset |
 | docs/learning/dark-palettes.md * | Learning note | Surface steps, accents, inputs, borders per side |
 | Added after the owner's try: `UIElement.GradientFrom`, `GradientTo`, `GradientDirection` (enum `GradientDirection`: `Down`, `Right`) * | UI library | A gradient over the background |
+| Added after the owner's second look: `UIElement.GradientLength` (0 to 1, 1 by default) * | UI library | How far along the element the gradient reaches its end color |
 | Added after the owner's try: tokens `title-glow`, `tab-glow`, `playing`; class `playing` (`EditorWindow.ShowsPlaying`, internal) * | Editor.crstyle, editor | The title bar's and active tabs' glow; play mode in the accent |

@@ -48,7 +48,10 @@ there, the color is a warning that edits made now will be lost.
 
 A **gradient** in the theme is two colors and a direction:
 `"GradientFrom": "@accent/55%"` with no `GradientTo` fades from the accent
-into whatever is behind it. The fade is computed in linear light, and a
+into whatever is behind it, and `"GradientLength": 0.7` finishes the fade
+70% of the way along: a glow that settles before the edge looks lit,
+where one fading the whole way looks like a stain. The fade is computed
+in linear light, and a
 clear end takes the other end's color at no opacity. Fading orange to
 "clear black" would otherwise pass through a dirty brown.
 

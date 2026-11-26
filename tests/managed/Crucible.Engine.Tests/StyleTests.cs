@@ -114,7 +114,7 @@ public class StyleTests
         Theme theme = Theme.Parse("""
             {
               "Tokens": { "accent": "#ff8000" },
-              "Styles": [ { "Selector": "Probe", "Set": { "GradientFrom": "@accent/50%", "GradientDirection": "Right" } } ]
+              "Styles": [ { "Selector": "Probe", "Set": { "GradientFrom": "@accent/50%", "GradientDirection": "Right", "GradientLength": 0.7 } } ]
             }
             """);
         Rig rig = new(theme);
@@ -122,7 +122,9 @@ public class StyleTests
         await Assert.That(probe.GradientFrom.W).IsEqualTo(0.5f);
         await Assert.That(probe.GradientTo).IsEqualTo(Vector4.Zero); // clear: it fades into the background
         await Assert.That(probe.GradientDirection).IsEqualTo(GradientDirection.Right);
+        await Assert.That(probe.GradientLength).IsEqualTo(0.7f);
         await Assert.That(new Probe().GradientDirection).IsEqualTo(GradientDirection.Down);
+        await Assert.That(new Probe().GradientLength).IsEqualTo(1f); // to the far edge
     }
 
     [Test]
