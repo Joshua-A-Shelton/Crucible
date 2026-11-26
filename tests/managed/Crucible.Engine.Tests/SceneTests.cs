@@ -93,6 +93,36 @@ public class SceneTests
         await Assert.That(Text(Scene.Save(loaded, _sceneId))).IsEqualTo(Text(first));
     }
 
+    // ADR 0130: top-level entities keep an order, as children do.
+    [Test]
+    public async Task TopLevelEntitiesKeepTheirOrder()
+    {
+        using World original = Sample(out _);
+        byte[] file = Scene.Save(original, _sceneId);
+        using World world = new();
+        SceneLoad first = Scene.Load(world, file);
+        await Assert.That(RootOrder.RootsOf(world).SequenceEqual(first.Roots)).IsTrue();
+        // Another scene's roots go after the world's.
+        SceneLoad second = Scene.Load(world, file, newIds: true);
+        IReadOnlyList<Entity> roots = RootOrder.RootsOf(world);
+        await Assert.That(roots.Count).IsEqualTo(first.Roots.Count * 2);
+        await Assert.That(roots.Skip(first.Roots.Count).SequenceEqual(second.Roots)).IsTrue();
+        // Moved first, it's saved first and loads first.
+        Entity last = roots[^1];
+        RootOrder.Insert(world, last, 0);
+        await Assert.That(RootOrder.IndexOf(world, last)).IsEqualTo(0);
+        await Assert.That(RootOrder.RootsOf(world)[1]).IsEqualTo(roots[0]);
+        using World again = new();
+        SceneLoad reloaded = Scene.Load(again, Scene.Save(world, _sceneId));
+        await Assert.That(again.Read<SceneEntityId>(reloaded.Roots[0]).Value).IsEqualTo(world.Read<SceneEntityId>(last).Value);
+        // Children aren't top-level; -1 puts one last.
+        Entity[] children = new Entity[4];
+        world.ChildrenOf(first.Roots[0], children);
+        await Assert.That(RootOrder.IndexOf(world, children[0])).IsEqualTo(-1);
+        RootOrder.Insert(world, last, -1);
+        await Assert.That(RootOrder.RootsOf(world)[^1]).IsEqualTo(last);
+    }
+
     [Test]
     public async Task LoadingRebuildsEntitiesHierarchyAndReferences()
     {

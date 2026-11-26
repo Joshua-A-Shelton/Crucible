@@ -204,6 +204,17 @@ internal sealed class AssetChecks : GameSystem
         yield return 2;
         Check(shell.Placing.IsNull && shell.History.NextUndo?.Title == "Place House", "and the drop keeps it",
             shell.History.NextUndo?.Title ?? "");
+        // Placed after previews were made and removed, it's still listed
+        // last, after what was there before (the M7 note, ADR 0130).
+        if (shell.Main.DockSpace.Panels.OfType<HierarchyPanel>().FirstOrDefault() is { } listing &&
+            listing.Tree.ChildrenOf?.Invoke(null) is { Count: > 0 } roots)
+        {
+            Check(roots[^1] == shell.Selection.Selected.Value, "the hierarchy lists it last", $"{roots.Count} roots");
+        }
+        else
+        {
+            Check(false, "the hierarchy lists it last", "no hierarchy");
+        }
         shell.Undo();
         yield return 2;
 

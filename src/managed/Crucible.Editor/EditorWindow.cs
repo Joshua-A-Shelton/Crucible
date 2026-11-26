@@ -64,15 +64,6 @@ public sealed class EditorWindow : IDisposable
 
     private readonly DockPanel _page;
 
-    /// <summary>A strip under the title bar, above the panels (the main window's play toolbar, ADR 0088).</summary>
-    internal void AddStrip(UIElement strip)
-    {
-        _page.Remove(DockSpace);
-        DockPanel.SetDock(strip, Dock.Top);
-        _page.Add(strip);
-        _page.Add(DockSpace);
-    }
-
     public WindowHandle Window { get; }
 
     public SurfaceHandle Surface { get; }

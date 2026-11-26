@@ -6,8 +6,8 @@ using Crucible.UI;
 namespace Crucible.Editor;
 
 /// <summary>
-/// The scene's entities as a tree (ADR 0068): roots by scene ID (the order
-/// they're saved in), children in order. Selecting a row selects the entity
+/// The scene's entities as a tree (ADR 0068): top-level entities and
+/// children each in their order (ADR 0130), as they're saved. Selecting a row selects the entity
 /// and the other way around; F2 renames it; dragging
 /// a row onto another reparents or reorders it; a right-click opens a menu
 /// (Create Empty, Rename, Duplicate, Delete). Each entity is labeled by its
@@ -128,14 +128,7 @@ public sealed class HierarchyPanel : EditorPanel
         World world = _shell.World;
         if (node is not { } value)
         {
-            SceneIds ids = SceneIds.Of(world);
-            return
-            [
-                .. ids.Entities.Where(entity => world.ParentOf(entity).IsNull)
-                    .Select(entity => (Entity: entity, Id: ids.TryToScene(entity, out ulong id) ? id : 0))
-                    .OrderBy(item => item.Id)
-                    .Select(item => item.Entity.Value),
-            ];
+            return [.. RootOrder.RootsOf(world).Select(entity => entity.Value)];
         }
         Entity entity = EntityOf(value);
         return world.IsAlive(entity) ? [.. SceneIds.ChildrenOf(world, entity).Select(child => child.Value)] : [];
@@ -169,12 +162,10 @@ public sealed class HierarchyPanel : EditorPanel
             return;
         }
         Entity parent = world.ParentOf(target);
-        int index = -1;
-        if (!parent.IsNull)
-        {
-            Entity[] others = [.. SceneIds.ChildrenOf(world, parent).Where(child => child.Value != entity.Value)];
-            index = Array.IndexOf(others, target) + (drop.Position == TreeDropPosition.After ? 1 : 0);
-        }
+        // Among the parent's children, or the top-level entities (ADR 0130).
+        Entity[] others = [.. (parent.IsNull ? RootOrder.RootsOf(world) : SceneIds.ChildrenOf(world, parent))
+            .Where(child => child.Value != entity.Value)];
+        int index = Array.IndexOf(others, target) + (drop.Position == TreeDropPosition.After ? 1 : 0);
         _shell.Reparent(entity, parent, index);
     }
 

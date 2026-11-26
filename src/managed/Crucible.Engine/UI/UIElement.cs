@@ -201,6 +201,9 @@ public partial class UIElement
     /// </summary>
     public string ToolTip { get; set => field = value ?? ""; } = "";
 
+    // The tooltip shown for it: its ToolTip, or a trimmed label's whole text (ADR 0130).
+    internal virtual string ToolTipText => ToolTip;
+
     /// <summary>The text size in logical units per em.</summary>
     public float FontSize { get => GetValue(FontSizeProperty); set => SetValue(FontSizeProperty, value); }
 

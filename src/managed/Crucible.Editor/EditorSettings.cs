@@ -27,6 +27,11 @@ public sealed class EditorSettings
     /// </summary>
     public Dictionary<string, string> OpenWith { get; } = new(StringComparer.Ordinal);
 
+    public const float DefaultInspectorNameWidth = 92;
+
+    /// <summary>The Inspector's name column, as last dragged (ADR 0130).</summary>
+    public float InspectorNameWidth { get; set; } = DefaultInspectorNameWidth;
+
     /// <summary>Where the settings live; null when the platform has no preferences folder.</summary>
     public static string? DefaultPath
     {
@@ -61,6 +66,11 @@ public sealed class EditorSettings
                 }
             }
             settings.Layout = root["Layout"]?.DeepClone() as JsonObject;
+            if (root["InspectorNameWidth"] is JsonValue nameWidth && nameWidth.TryGetValue(out double width) &&
+                double.IsFinite(width))
+            {
+                settings.InspectorNameWidth = Math.Clamp((float)width, InspectorPanel.MinNameWidth, InspectorPanel.MaxNameWidth);
+            }
             if (root["OpenWith"] is JsonObject openWith)
             {
                 foreach ((string kind, JsonNode? editor) in openWith)
@@ -93,6 +103,10 @@ public sealed class EditorSettings
         if (Layout is not null)
         {
             root["Layout"] = Layout.DeepClone();
+        }
+        if (InspectorNameWidth != DefaultInspectorNameWidth)
+        {
+            root["InspectorNameWidth"] = InspectorNameWidth;
         }
         if (OpenWith.Count > 0)
         {

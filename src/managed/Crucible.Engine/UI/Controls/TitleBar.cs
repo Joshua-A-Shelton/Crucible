@@ -120,7 +120,9 @@ public sealed class WindowButton : UIElement
 /// A window's own title bar (ADR 0066), for windows without the system's
 /// frame: <see cref="Leading"/> content on the left (a menu bar), the
 /// <see cref="Title"/> centered, and minimize, maximize, and close buttons
-/// on the right. Dragging its empty parts moves the window (the system's
+/// on the right. With <see cref="Center"/> content (an editor's play
+/// controls, ADR 0130), that's centered instead and the title follows the
+/// leading content, cut with "…" where it meets it. Dragging its empty parts moves the window (the system's
 /// move, with its snapping), a double-click maximizes or restores it, and a
 /// right-click shows the system's window menu.
 /// </summary>
@@ -128,9 +130,10 @@ public class TitleBar : UIElement
 {
     private const float MoveThreshold = 4; // units moved before a press moves the window
 
-    private readonly Label _title = new() { VerticalAlignment = VerticalAlignment.Center };
+    private readonly Label _title = new() { VerticalAlignment = VerticalAlignment.Center, Trimming = TextTrimming.End };
     private readonly StackPanel _buttons = new() { Orientation = Orientation.Horizontal };
     private UIElement? _leading;
+    private UIElement? _center;
     private bool _pressed;
     private Vector2 _pressedAt;
 
@@ -178,6 +181,29 @@ public class TitleBar : UIElement
         }
     }
 
+    /// <summary>Content centered on the bar (the window), between the leading content and the buttons (ADR 0130).</summary>
+    public UIElement? Center
+    {
+        get => _center;
+        set
+        {
+            if (_center == value)
+            {
+                return;
+            }
+            if (_center is not null)
+            {
+                RemoveChild(_center);
+            }
+            _center = value;
+            if (value is not null)
+            {
+                AddChild(value);
+            }
+            InvalidateMeasure();
+        }
+    }
+
     public WindowButton MinimizeButton { get; }
 
     public WindowButton MaximizeButton { get; }
@@ -191,9 +217,10 @@ public class TitleBar : UIElement
         _leading?.Measure(infinite);
         _title.Measure(infinite);
         _buttons.Measure(infinite);
-        Vector2 leading = _leading?.DesiredSize ?? Vector2.Zero;
-        return new Vector2(leading.X + _title.DesiredSize.X + _buttons.DesiredSize.X,
-            MathF.Max(MathF.Max(leading.Y, _title.DesiredSize.Y), _buttons.DesiredSize.Y));
+        _center?.Measure(infinite);
+        Vector2 leading = _leading?.DesiredSize ?? Vector2.Zero, center = _center?.DesiredSize ?? Vector2.Zero;
+        return new Vector2(leading.X + _title.DesiredSize.X + center.X + _buttons.DesiredSize.X,
+            MathF.Max(MathF.Max(MathF.Max(leading.Y, _title.DesiredSize.Y), _buttons.DesiredSize.Y), center.Y));
     }
 
     protected override void ArrangeCore(RectangleF content)
@@ -204,6 +231,18 @@ public class TitleBar : UIElement
         // Centered on the whole bar (the window) if it fits between the two
         // ends, else in the room between them.
         float left = content.X + leading, right = content.Right - buttons;
+        if (_center is { } center)
+        {
+            // The center content on the window's middle, kept between the
+            // ends; the title after the leading content, up to it.
+            float width = center.DesiredSize.X;
+            float at = Math.Clamp(Bounds.X + (Bounds.Width - width) * 0.5f, left, MathF.Max(right - width, left));
+            center.Arrange(new RectangleF(at, content.Y, MathF.Min(width, MathF.Max(right - at, 0)), content.Height));
+            const float gap = 12;
+            float start = left + gap;
+            _title.Arrange(new RectangleF(start, content.Y, MathF.Min(title, MathF.Max(at - gap - start, 0)), content.Height));
+            return;
+        }
         float x = Math.Clamp(Bounds.X + (Bounds.Width - title) * 0.5f, left, MathF.Max(right - title, left));
         _title.Arrange(new RectangleF(x, content.Y, MathF.Min(title, MathF.Max(right - x, 0)), content.Height));
     }

@@ -50,6 +50,10 @@ public static class Prefab
         }
         Entity root = frame.ToWorld(rootId);
         world.Set(root, new PrefabInstance { Prefab = prefab });
+        if (world.ParentOf(root).IsNull)
+        {
+            world.Set(root, new RootOrder { Value = RootOrder.Next(world, [root]) }); // last (ADR 0130)
+        }
         return root;
     }
 

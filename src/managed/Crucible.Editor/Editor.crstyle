@@ -30,6 +30,17 @@
     { "Selector": "Label", "Set": { "Foreground": "@text" } },
     { "Selector": "Icon", "Set": { "Foreground": "@text" } },
 
+    // Text that doesn't fit ends in "…" (ADR 0130); paths keep their file name.
+    { "Selector": "DockTab Label", "Set": { "Trimming": "End" } },
+    { "Selector": "ComboBox > DockPanel > Label", "Set": { "Trimming": "Path" } },
+    { "Selector": "ListItem Label", "Set": { "Trimming": "End" } },
+    { "Selector": "Label.status", "Set": { "Trimming": "End" } },
+    { "Selector": "Label.asset-name", "Set": { "Trimming": "End" } },
+    { "Selector": "Label.asset-crumb", "Set": { "Trimming": "Path" } },
+    { "Selector": "Label.inspector-title", "Set": { "Trimming": "End" } },
+    { "Selector": "DockPanel.build-row Label", "Set": { "Trimming": "End" } },
+    { "Selector": "Label.row-detail", "Set": { "Trimming": "Path" } },
+
     // The engine's controls, in the editor's colors and density.
     { "Selector": "Button", "Set": { "Background": "@control", "CornerRadii": "@radius", "Padding": [10, 4, 10, 4], "BorderColor": "@accent" } },
     { "Selector": "Button:hover", "Set": { "Background": "@hover" } },
@@ -154,11 +165,14 @@
     { "Selector": "DockPanel.inspector-header", "Set": { "Background": "@strip", "Padding": [8, 3, 6, 3] } },
     { "Selector": "Label.inspector-title", "Set": { "FontSize": 14 } },
     { "Selector": "StackPanel.inspector-sections", "Set": { "Background": "@divider" } },
+    { "Selector": "StackPanel.inspector-sections > Label.placeholder", "Set": { "Background": "@panel", "Padding": [0, 6, 0, 6] } },
     { "Selector": "StackPanel.component", "Set": { "Background": "@panel", "Padding": [8, 4, 8, 6] } },
     { "Selector": "IconButton", "Set": { "Foreground": "@muted", "CornerRadii": "@small-radius" } },
     { "Selector": "IconButton:hover", "Set": { "Background": "@hover", "Foreground": "@text" } },
     { "Selector": "IconButton:disabled", "Set": { "Opacity": 0.3 } },
     { "Selector": "Label.field-name", "Set": { "Foreground": "@muted" } },
+    { "Selector": ".name-grip:hover", "Set": { "Background": "@accent/50%" } },
+    { "Selector": ".name-grip:pressed", "Set": { "Background": "@accent" } },
     { "Selector": "Label.field-header", "Set": { "Foreground": "@text", "Margin": [0, 6, 0, 0] } },
     { "Selector": "Label.overridden", "Set": { "Foreground": "@accent" } },
     { "Selector": "Label.field-warning", "Set": { "Foreground": "@warning" } },

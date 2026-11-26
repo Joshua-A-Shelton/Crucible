@@ -548,8 +548,11 @@ public sealed partial class Theme
 
     private static Theme Read(JsonElement root)
     {
-        // UIElement's properties register with its static fields.
+        // The library's properties register with their types' static fields:
+        // UIElement's, and the controls' own.
         System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(UIElement).TypeHandle);
+        System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(Label).TypeHandle);
+        System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(TextField).TypeHandle);
         if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("Styles", out JsonElement styles) ||
             styles.ValueKind != JsonValueKind.Array)
         {

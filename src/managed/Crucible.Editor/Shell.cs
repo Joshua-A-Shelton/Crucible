@@ -61,8 +61,9 @@ internal sealed partial class Shell
             _themeError = themeError; // logged once the Log exists
         }
         Main = new EditorWindow(context.Window, context.Surface, true, false, _theme, _font);
+        // The play controls centered in the title bar's row (ADR 0130).
         Toolbar = new PlayToolbar(this);
-        Main.AddStrip(Toolbar);
+        Main.TitleBar.Center = Toolbar;
         Add(Main);
         RegisterPanels();
         // What the editor's own editors open (ADR 0120), and its tools (ADR 0121).

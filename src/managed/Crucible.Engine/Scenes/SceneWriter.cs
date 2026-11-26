@@ -43,9 +43,8 @@ internal sealed class SceneWriter
         List<(Entity Entity, ComponentId[] Components)> contents = world.Contents();
         Map map = AssignIds(world, contents);
         Dictionary<Entity, SavedComponent[]> saved = SavedOf(world, contents);
-        roots ??= [.. contents.Select(item => item.Entity)
-            .Where(entity => world.ParentOf(entity).IsNull)
-            .OrderBy(entity => map.SceneIdOf(entity))];
+        // In the world's order of top-level entities (ADR 0130).
+        roots ??= RootOrder.Order(world, contents.Select(item => item.Entity).Where(entity => world.ParentOf(entity).IsNull));
 
         ArrayBufferWriter<byte> buffer = new();
         using (EntityReferences.Use(map))

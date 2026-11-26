@@ -403,6 +403,10 @@ internal sealed partial class Shell
     private void RecordCreated(string title, Entity entity)
     {
         Entity parent = World.ParentOf(entity);
+        if (parent.IsNull && !World.Has(entity, Components.Of<RootOrder>()))
+        {
+            RootOrder.Insert(World, entity, -1); // a new top-level entity goes last (ADR 0130)
+        }
         History.Push(new SubtreeEdit(title, SceneIds.IdOf(World, entity), SceneIds.Capture(World, entity, Prefabs),
             SceneIds.IdOf(World, parent), SceneIds.SiblingIndex(World, entity), created: true, Prefabs));
     }
@@ -426,9 +430,9 @@ internal sealed partial class Shell
 
     /// <summary>
     /// Moves an entity under <paramref name="parent"/> (or to the top for
-    /// none), at <paramref name="index"/> among its other children (-1:
-    /// last), keeping where it is in the world. Roots have no order: they're
-    /// listed and saved by scene ID.
+    /// none), at <paramref name="index"/> among its other children, or
+    /// among the top-level entities (-1: last; ADR 0130), keeping where it
+    /// is in the world.
     /// </summary>
     public bool Reparent(Entity entity, Entity parent, int index)
     {
@@ -453,6 +457,10 @@ internal sealed partial class Shell
             placed ? world.Read<LocalTransform>(entity) : default);
         LocalTransform local = placed ? ParentEdit.Keeping(world, entity, parent) : default;
         world.SetParent(entity, parent, parent.IsNull || index < 0 ? uint.MaxValue : (uint)index);
+        if (parent.IsNull)
+        {
+            RootOrder.Insert(world, entity, index);
+        }
         if (placed)
         {
             world.Set(entity, local);

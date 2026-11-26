@@ -1509,7 +1509,9 @@ Steps, each tried by hand:
    hand, everything behaving; the colors want more work (step 5).
 2. **Layout and clipping:** play controls into the menu bar's row; text
    ending in an ellipsis instead of wrapping mid-word or being cut off;
-   the M7 fixes.
+   the M7 fixes. Built (2026-11-25, ADR 0130), with top-level entities
+   given a real order (the M7 hierarchy fix ran deeper), to be tried by
+   hand.
 3. **Icons:** the attribute, hierarchy rows, inspector headers, and Add
    Component with its polish.
 4. **Asset thumbnails.**

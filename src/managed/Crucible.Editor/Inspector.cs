@@ -53,6 +53,48 @@ public sealed class InspectorPanel : EditorPanel
 
     internal Shell Shell => _shell;
 
+    /// <summary>The narrowest and widest the name column can be dragged (ADR 0130).</summary>
+    internal const float MinNameWidth = 48, MaxNameWidth = 320;
+
+    private readonly HashSet<FieldEditor> _named = [];
+
+    /// <summary>
+    /// The width of the fields' name column (ADR 0130), dragged at any
+    /// row's name edge: one for the whole Inspector, kept in the person's
+    /// editor settings.
+    /// </summary>
+    public float NameWidth
+    {
+        get => _shell.Settings.InspectorNameWidth;
+        set
+        {
+            float width = Math.Clamp(MathF.Round(value), MinNameWidth, MaxNameWidth);
+            if (width == _shell.Settings.InspectorNameWidth)
+            {
+                return;
+            }
+            _shell.Settings.InspectorNameWidth = width;
+            foreach (FieldEditor row in _named)
+            {
+                row.NameWidth = width;
+            }
+        }
+    }
+
+    // A field row shown in it follows its name width while it's there.
+    internal void Track(FieldEditor field, bool shown)
+    {
+        if (shown)
+        {
+            _named.Add(field);
+            field.NameWidth = NameWidth;
+        }
+        else
+        {
+            _named.Remove(field);
+        }
+    }
+
     /// <summary>The selected entity being shown, or <see cref="Entity.Null"/>.</summary>
     public Entity Entity => _entity;
 
@@ -693,7 +735,8 @@ public sealed class ImportSettingsSection : UIElement, IFieldOwner
 /// </summary>
 public sealed class FieldEditor : UIElement
 {
-    private const float LabelWidth = 92;
+    private float _nameWidth = EditorSettings.DefaultInspectorNameWidth;
+    private InspectorPanel? _panel; // the Inspector it's in, whose name width it follows
 
     private readonly IFieldOwner _section;
     private readonly object[] _path;
@@ -718,11 +761,15 @@ public sealed class FieldEditor : UIElement
         Field = field;
         _label = label;
         _path = path;
-        // Long names wrap within the column rather than run under the controls.
-        _name = new Label(label) { VerticalAlignment = VerticalAlignment.Center, Width = LabelWidth, Wrap = true };
+        // Long names end in "…" within the column, the whole name their
+        // tooltip; the column's edge drags its width (ADR 0130).
+        _name = new Label(label) { VerticalAlignment = VerticalAlignment.Center, Width = _nameWidth, Trimming = TextTrimming.End };
         _name.Classes.Add("field-name");
         DockPanel.SetDock(_name, Dock.Left);
         _row.Add(_name);
+        NameGrip grip = new(this);
+        DockPanel.SetDock(grip, Dock.Left);
+        _row.Add(grip);
         StackPanel all = new() { Spacing = 3 };
         all.Add(_row);
         all.Add(_children);
@@ -848,7 +895,49 @@ public sealed class FieldEditor : UIElement
         }
     }
 
-    protected override void OnDetached(UIRoot root) => EndDrag();
+    protected override void OnAttached(UIRoot root)
+    {
+        for (UIElement? at = Parent; at is not null; at = at.Parent)
+        {
+            if (at is InspectorPanel panel)
+            {
+                _panel = panel;
+                panel.Track(this, true);
+                break;
+            }
+        }
+    }
+
+    protected override void OnDetached(UIRoot root)
+    {
+        EndDrag();
+        _panel?.Track(this, false);
+        _panel = null;
+    }
+
+    /// <summary>Its name column's width: the Inspector's (ADR 0130), or the default elsewhere.</summary>
+    internal float NameWidth
+    {
+        get => _nameWidth;
+        set
+        {
+            _nameWidth = value;
+            _name.Width = value;
+            foreach (MatrixRow row in _children.Children.OfType<MatrixRow>())
+            {
+                row.Indent(value);
+            }
+        }
+    }
+
+    // Its name column's edge dragged: the Inspector's name width follows.
+    internal void DragName(float width)
+    {
+        if (_panel is not null)
+        {
+            _panel.NameWidth = width;
+        }
+    }
 
     private void Add(UIElement control) => _row.Add(control);
 
@@ -1654,10 +1743,13 @@ public sealed class FieldEditor : UIElement
     // A matrix row: four numbers at an offset of the matrix's sixteen.
     private sealed class MatrixRow : UIElement
     {
+        private readonly Grid _numbers;
+
         public MatrixRow(FieldEditor owner, int row)
         {
             Grid numbers = EvenRow(4);
-            numbers.Margin = new Thickness(LabelWidth, 0, 0, 0);
+            _numbers = numbers;
+            numbers.Margin = new Thickness(owner.NameWidth, 0, 0, 0);
             NumberField[] fields = new NumberField[4];
             for (int i = 0; i < 4; ++i)
             {
@@ -1685,6 +1777,44 @@ public sealed class FieldEditor : UIElement
                     }
                 }
             };
+        }
+
+        // Under the values, past the name column.
+        public void Indent(float nameWidth) => _numbers.Margin = new Thickness(nameWidth, 0, 0, 0);
+    }
+}
+
+// The edge of a field's name column (ADR 0130): dragging it sets the
+// Inspector's name width, every row following.
+internal sealed class NameGrip : UIElement
+{
+    private readonly FieldEditor _field;
+    private float _startX, _startWidth;
+
+    public NameGrip(FieldEditor field)
+    {
+        _field = field;
+        Width = 5;
+        Classes.Add("name-grip");
+        ToolTip = "Drag to widen or narrow the names";
+    }
+
+    protected override void OnPointerDown(PointerEvent e)
+    {
+        if (e.Button == PointerButton.Left)
+        {
+            e.Handled = true;
+            _startX = e.Position.X;
+            _startWidth = _field.NameWidth;
+        }
+    }
+
+    protected override void OnPointerMove(PointerEvent e)
+    {
+        if ((State & UIState.Pressed) != 0)
+        {
+            e.Handled = true;
+            _field.DragName(_startWidth + e.Position.X - _startX);
         }
     }
 }

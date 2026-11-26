@@ -95,13 +95,13 @@ internal sealed class SceneIds : IEntityMap
         }
     }
 
-    /// <summary>The entity's place among its parent's children (or -1 for a root).</summary>
+    /// <summary>The entity's place among its parent's children, or among the top-level entities (ADR 0130).</summary>
     public static int SiblingIndex(World world, Entity entity)
     {
         Entity parent = world.ParentOf(entity);
         if (parent.IsNull)
         {
-            return -1;
+            return RootOrder.IndexOf(world, entity);
         }
         Entity[] children = ChildrenOf(world, parent);
         return Array.IndexOf(children, entity);
@@ -147,6 +147,10 @@ internal sealed class SceneIds : IEntityMap
         if (!parent.IsNull)
         {
             world.SetParent(root, parent, index < 0 ? uint.MaxValue : (uint)index);
+        }
+        else
+        {
+            RootOrder.Insert(world, root, index); // back in its place among the top-level entities (ADR 0130)
         }
         return root;
     }
@@ -251,6 +255,10 @@ internal sealed class ParentEdit(string title, ulong entity, (ulong Parent, int 
         }
         Entity parent = ids.ToWorld(place.Parent);
         world.SetParent(child, parent, place.Index < 0 ? uint.MaxValue : (uint)place.Index);
+        if (parent.IsNull)
+        {
+            RootOrder.Insert(world, child, place.Index);
+        }
         // A 2D entity (ADR 0093) keeps its Transform2D as it is.
         if (world.Has(child, Components.Of<LocalTransform>()))
         {

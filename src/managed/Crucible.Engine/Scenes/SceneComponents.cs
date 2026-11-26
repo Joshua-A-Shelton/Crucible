@@ -103,6 +103,7 @@ internal static class EngineComponents
         Components.Register<Crucible.Render2D.SpotLight2D>();
         Components.Register<Crucible.Render2D.AmbientLight2D>();
         Components.Register<SceneEntityId>();
+        Components.Register<RootOrder>();
         Components.RegisterManaged<EntityName>();
         Components.Register<PrefabInstance>();
         SavedComponents.Add<LocalTransform>();

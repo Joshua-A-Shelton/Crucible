@@ -277,6 +277,8 @@ Longer explanations of decisions, written to be reread:
 - [Themes, tokens, and selectors](docs/learning/themes-and-tokens.md) (ADR
   0129): rules and specificity, selectors that look at ancestors, naming
   values once, and the editor's live theme file.
+- [Text that doesn't fit](docs/learning/text-that-doesnt-fit.md) (ADR 0130):
+  clipping, wrapping, and trimming, where to cut, and cutting at carets.
 - [Up-to-date builds](docs/learning/up-to-date-builds.md) (ADR 0110): file
   times versus content hashes, what makes a build stamp trustworthy, and
   why copies need one.

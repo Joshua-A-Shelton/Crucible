@@ -28,7 +28,7 @@ public sealed partial class UIRoot
     private void TrackToolTip(UIElement? hit)
     {
         UIElement? target = hit;
-        while (target is not null && target.ToolTip.Length == 0)
+        while (target is not null && target.ToolTipText.Length == 0)
         {
             target = target.Parent;
         }
@@ -64,7 +64,7 @@ public sealed partial class UIRoot
     // enough, its text following the element's, gone with the element.
     private void TickToolTip(double now)
     {
-        if (_toolTipTarget is { } target && (target.Root != this || target.ToolTip.Length == 0))
+        if (_toolTipTarget is { } target && (target.Root != this || target.ToolTipText.Length == 0))
         {
             HideToolTip();
             _toolTipTarget = null;
@@ -76,9 +76,9 @@ public sealed partial class UIRoot
         }
         if (_toolTip is { } shown)
         {
-            if (shown.Text != _toolTipTarget.ToolTip)
+            if (shown.Text != _toolTipTarget.ToolTipText)
             {
-                shown.Text = _toolTipTarget.ToolTip;
+                shown.Text = _toolTipTarget.ToolTipText;
                 InvalidateLayout();
             }
             return;
@@ -87,7 +87,7 @@ public sealed partial class UIRoot
         {
             return;
         }
-        ToolTipView view = new(_toolTipTarget.ToolTip, _pointer + _toolTipOffset);
+        ToolTipView view = new(_toolTipTarget.ToolTipText, _pointer + _toolTipOffset);
         _toolTip = view;
         view.Attach(this);
         MarkAll(view);

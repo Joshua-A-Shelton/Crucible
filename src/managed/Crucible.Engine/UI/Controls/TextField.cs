@@ -32,6 +32,8 @@ public class TextField : UIElement
     private const double BlinkPeriod = 1.0; // shown for the first half
 
     private readonly ShapedText _shaped = new();
+    private readonly TrimmedText _trimmed = new(); // not being edited, cut to fit (ADR 0130)
+    private bool _isTrimmed;
     private string _text = "";
     private bool _multiline;
     private int _caret;
@@ -184,6 +186,13 @@ public class TextField : UIElement
     protected override void ArrangeCore(RectangleF content)
     {
         base.ArrangeCore(content);
+        // Not being edited: shown from the start, "…" where it's cut (ADR 0130).
+        if (!IsFocused && !_multiline)
+        {
+            _scrollX = 0;
+        }
+        _isTrimmed = !IsFocused && !_multiline && _shaped.Layout is { } full &&
+                     _trimmed.Fit(this, GlyphRendering.Exact, full, content.Width, TextTrimming.End);
         ClampScroll(content.Width);
         if (_revealCaret)
         {
@@ -205,7 +214,7 @@ public class TextField : UIElement
         {
             DrawSelection(canvas, layout, origin);
         }
-        canvas.DrawText(layout, origin, Foreground);
+        canvas.DrawText(_isTrimmed && !IsFocused && _trimmed.Layout is { } cut ? cut : layout, origin, Foreground);
         if (IsFocused && _caretShown)
         {
             TextCaret caret = layout.Caret(_caret);
@@ -219,7 +228,12 @@ public class TextField : UIElement
     // As a label's: shaped anew when attached again.
     protected override void OnAttached(UIRoot root) => InvalidateMeasure();
 
-    protected override void OnDetached(UIRoot root) => _shaped.Detach();
+    protected override void OnDetached(UIRoot root)
+    {
+        _shaped.Detach();
+        _trimmed.Detach();
+        _isTrimmed = false;
+    }
 
     // One physical pixel at 1x, whole pixels above.
     private float CaretWidth
@@ -302,6 +316,7 @@ public class TextField : UIElement
     {
         _revert = _text;
         _lastEdit = EditKind.None;
+        InvalidateMeasure(); // whole again while edited (ADR 0130)
         // Focus from the keyboard or a gamepad selects everything, ready to
         // type over; a click then puts the caret where it landed.
         SelectAll();
@@ -311,7 +326,7 @@ public class TextField : UIElement
     {
         _selecting = false;
         Commit();
-        InvalidateVisual();
+        InvalidateMeasure(); // back to the start, cut to fit
     }
 
     protected internal override void OnFocusedTick(double now)

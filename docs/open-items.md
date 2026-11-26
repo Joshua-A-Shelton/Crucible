@@ -134,14 +134,6 @@ is, and record which version fixed it.
   ranges (a hitbox's active frames) as 3D clips have them come when a game
   needs them. → 0107
 
-## Small editor fixes noticed in M7 (ADR 0077)
-
-- The hierarchy orders top-level entities by their entity slot, so a model
-  placed after a drag (whose preview entity was made and removed) can land
-  above entities made before it.
-- The inspector's position fields clip a long number (17.7836 shows as
-  "7836").
-
 ## Revisit once there is a prototype to test against
 
 

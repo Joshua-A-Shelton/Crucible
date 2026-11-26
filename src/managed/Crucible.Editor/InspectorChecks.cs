@@ -84,7 +84,8 @@ internal sealed class InspectorChecks : GameSystem
         Check(inspector.Sections.Count == 0, "nothing selected, no sections");
 
         // A house: its transform's section, with its position in the fields.
-        Entity house = SceneIds.Of(world).Entities.First(entity => shell.LabelOf(entity) == "House");
+        // A top-level house: a prefab instance's root (its model's own "House" node is inside it).
+        Entity house = RootOrder.RootsOf(world).First(entity => shell.LabelOf(entity) == "House");
         shell.Selection.Selected = house;
         yield return 2;
         ComponentSection? transform = inspector.Sections.FirstOrDefault(section => section.Component == typeof(LocalTransform).FullName);

@@ -105,6 +105,15 @@ public static class Scene
                 : PrefabIds.Derive(Rename(entry.Instance), entry.Inner);
             world.Set(entry.Entity, new SceneEntityId { Value = id });
         }
+        // Its roots after the world's, in file order (ADR 0130).
+        long next = RootOrder.Next(world, roots);
+        foreach (Entity root in roots)
+        {
+            if (world.ParentOf(root).IsNull)
+            {
+                world.Set(root, new RootOrder { Value = next++ });
+            }
+        }
         return new SceneLoad(file.Id, roots, [.. loader.Skipped.Distinct()]);
     }
 

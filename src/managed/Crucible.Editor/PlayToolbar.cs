@@ -3,7 +3,8 @@ using Crucible.UI;
 namespace Crucible.Editor;
 
 /// <summary>
-/// The play toolbar (ADR 0088), a strip under the main window's menu bar:
+/// The play toolbar (ADR 0088), centered in the main window's title bar
+/// (ADR 0130):
 /// Play/Stop, Pause (on while paused, before Play too), and Step (one fixed
 /// tick, while paused), centered, as Lucide icons (ADR 0124). Each button's
 /// shortcut shows in its tooltip, and in the status bar while the pointer is on it.
