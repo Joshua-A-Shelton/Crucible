@@ -1,8 +1,8 @@
 # 0130 — Layout and clipping
 
 **Status:** Accepted (2026-11-25); step 2 of the editor's look
-(milestones). Names are placeholders until the owner settles them
-(docs/naming.md).
+(milestones), tried by hand by the owner. Names settled by the owner as
+drafted (2026-11-25; docs/naming.md).
 
 ## Context
 

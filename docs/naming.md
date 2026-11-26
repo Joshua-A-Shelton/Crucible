@@ -1895,15 +1895,16 @@ drafted after the owner tried it by hand (2026-11-25):
 
 ## Layout and clipping (2026-11-25, ADR 0130)
 
-Names proposed before building (marked `*` until settled):
+Names proposed before building and added while building, settled as
+drafted after the owner tried it by hand (2026-11-25):
 
 | Name | What it names | What it is |
 |---|---|---|
-| ADR 0130 "Layout and clipping" * | Decision record | The editor's look, step 2 |
-| `TextTrimming` (`None`, `End`, `Path`) * | UI library | How cut text ends |
-| `Label.Trimming` (styled, `"Trimming"`), `Label.IsTrimmed` * | UI library | A label's trimming, and whether it's cut |
-| `TitleBar.Center` * | UI library | Content centered on a title bar |
-| `InspectorPanel.NameWidth`, editor.json `"InspectorNameWidth"`, class `name-grip` * | Editor | The Inspector's resizable name column |
-| `RootOrder` (`Value`, `RootsOf`, `IndexOf`, `Insert`) * | Engine (Crucible.Scenes) | Top-level entities' order |
-| Added while building: `Label.ShownText` *; `TrimmedText`, `NameGrip`, `EditorSettings.DefaultInspectorNameWidth` (internal or editor-only) | UI library, editor | The text as drawn; the shared cutter; the grip |
-| docs/learning/text-that-doesnt-fit.md * | Learning note | Clipping, wrapping, trimming |
+| ADR 0130 "Layout and clipping" | Decision record | The editor's look, step 2 |
+| `TextTrimming` (`None`, `End`, `Path`) | UI library | How cut text ends |
+| `Label.Trimming` (styled, `"Trimming"`), `Label.IsTrimmed` | UI library | A label's trimming, and whether it's cut |
+| `TitleBar.Center` | UI library | Content centered on a title bar |
+| `InspectorPanel.NameWidth`, editor.json `"InspectorNameWidth"`, class `name-grip` | Editor | The Inspector's resizable name column |
+| `RootOrder` (`Value`, `RootsOf`, `IndexOf`, `Insert`) | Engine (Crucible.Scenes) | Top-level entities' order |
+| Added while building: `Label.ShownText`; `TrimmedText`, `NameGrip`, `EditorSettings.DefaultInspectorNameWidth` (internal or editor-only) | UI library, editor | The text as drawn; the shared cutter; the grip |
+| docs/learning/text-that-doesnt-fit.md | Learning note | Clipping, wrapping, trimming |
