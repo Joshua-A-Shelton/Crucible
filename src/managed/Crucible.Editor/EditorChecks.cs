@@ -100,6 +100,8 @@ internal sealed class EditorChecks : GameSystem
 
         // The log's tab dragged over the hierarchy: the preview covers it.
         EditorPanel log = Panel(shell, "Log"), hierarchy = Panel(shell, "Hierarchy");
+        Check(hierarchy is HierarchyPanel { EmptyTitle: "No project open" }, "with no project, the Hierarchy says so (ADR 0133)",
+            (hierarchy as HierarchyPanel)?.EmptyTitle ?? "no empty state");
         DockGroup target = hierarchy.Group!;
         Vector2 from = Center(Tab(log)), over = Center(target);
         Send(root, Motion(from), Button(from, true), Motion(from + new Vector2(20, 0)), Motion(over));

@@ -158,6 +158,7 @@ internal sealed class SpriteSheetChecks : GameSystem
         Check(MathF.Abs(panel.Edited.Clips[0].Frames[0].Duration - 1 / 12f) < 1e-5f, "at the clip's frame rate");
         yield return 5;
         Check(panel.Preview.FrameShown >= 0, "the preview plays the clip");
+        ViewportChecks.Save(shell.Main.Surface, Path.Combine(_folder, "sprite-sheet.png"));
         Check(panel.HasChanges && panel.ApplyButton.IsEnabled, "edits enable Apply");
         panel.Apply();
         yield return 4;

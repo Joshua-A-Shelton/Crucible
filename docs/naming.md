@@ -1953,24 +1953,25 @@ building, settled as drafted after the owner tried it by hand (2026-11-25):
 
 ## Tuning the editor's colors (2026-11-25, ADR 0133)
 
-Names proposed before building (marked `*` until settled):
+Names proposed before building and added while building, after each of the owner's looks; settled as drafted when the owner closed the look pass (2026-11-26):
 
 | Name | What it names | What it is |
 |---|---|---|
-| ADR 0133 "Tuning the editor's colors" * | Decision record | The editor's look, step 5 |
-| `UIElement.BorderWidth` as a `Thickness` (.crstyle: a number or `[left, top, right, bottom]`) * | UI library | A border's width, per side |
-| `Thickness.IsUniform`; `Thickness` from a number (implicit) * | UI library | Every side the same; one number for every side |
-| Tokens `header`, `selection-edge` * | Editor.crstyle | Component headers' band; the selection's edge |
-| Classes `component-header` (styled now), `component-fields` * | Editor.crstyle | A component's header band; its fields, inset |
-| docs/learning/dark-palettes.md * | Learning note | Surface steps, accents, inputs, borders per side |
-| Added after the owner's try: `UIElement.GradientFrom`, `GradientTo`, `GradientDirection` (enum `GradientDirection`: `Down`, `Right`) * | UI library | A gradient over the background |
-| Added after the owner's second look: `UIElement.GradientLength` (0 to 1, 1 by default) * | UI library | How far along the element the gradient reaches its end color |
-| Added after the owner's third look: `setWindowTitle` (C# `Platform.Api.SetWindowTitle`) * | Platform | The system's title for a window |
-| Added after the owner's third look: `EditorPanel.HasUnsavedChanges`, `EditorPanel.TitleToolTip`, `EditorPanel.TitleDetail` (classes `tab-detail`, `tab-separator`); the Hierarchy's detail its scene's file name * | Editor API | A dot on a panel's tab; its tab's tooltip |
-| Added after the owner's third look: `StatusBar.Project`; classes `tab-unsaved`, `status-project`; token `unsaved` * | Editor, Editor.crstyle | The project's name in the status bar; the dot |
-| The rest of the pass: `UIElement.ShadowColor`, `ShadowBlur`, `ShadowOffset`; token `shadow` * | UI library, Editor.crstyle | A soft shadow under an element; popups' |
-| The rest of the pass: a toggle's mark draws a check in its `Foreground`; class `quiet` * | UI library, Editor.crstyle | Checkboxes with a check; fill-less icon toggles |
-| The rest of the pass: classes `empty-state`, `empty-icon`, `empty-hint`; folder-tree icons `folder`, `puzzle`; `TabStrip` (internal) * | Editor | The Inspector's empty state; the folder tree; tabs that give way |
-| The Log: `TextField.IsReadOnly`; `LogPanel.Lines`, `LogRow` (internal); classes `log-icon`, `log-text`; icons `info`, `triangle-alert`, `circle-x`; menu items Copy Line, Copy All * | UI library, editor | Selectable, copyable Log rows |
-| Added after the owner's third look: `TextInk` (`left`, `top`, `right`, `bottom`) and `textInk` (internal) * | Text | The box a layout's glyph outlines cover, for centering icons |
-| Added after the owner's try: tokens `title-glow`, `tab-glow`, `playing`; class `playing` (`EditorWindow.ShowsPlaying`, internal) * | Editor.crstyle, editor | The title bar's and active tabs' glow; play mode in the accent |
+| ADR 0133 "Tuning the editor's colors" | Decision record | The editor's look, step 5 |
+| `UIElement.BorderWidth` as a `Thickness` (.crstyle: a number or `[left, top, right, bottom]`) | UI library | A border's width, per side |
+| `Thickness.IsUniform`; `Thickness` from a number (implicit) | UI library | Every side the same; one number for every side |
+| Tokens `header`, `selection-edge` | Editor.crstyle | Component headers' band; the selection's edge |
+| Classes `component-header` (styled now), `component-fields` | Editor.crstyle | A component's header band; its fields, inset |
+| docs/learning/dark-palettes.md | Learning note | Surface steps, accents, inputs, borders per side |
+| Added after the owner's try: `UIElement.GradientFrom`, `GradientTo`, `GradientDirection` (enum `GradientDirection`: `Down`, `Right`) | UI library | A gradient over the background |
+| Added after the owner's second look: `UIElement.GradientLength` (0 to 1, 1 by default) | UI library | How far along the element the gradient reaches its end color |
+| Added after the owner's third look: `setWindowTitle` (C# `Platform.Api.SetWindowTitle`) | Platform | The system's title for a window |
+| Added after the owner's third look: `EditorPanel.HasUnsavedChanges`, `EditorPanel.TitleToolTip`, `EditorPanel.TitleDetail` (classes `tab-detail`, `tab-separator`); the Hierarchy's detail its scene's file name | Editor API | A dot on a panel's tab; its tab's tooltip |
+| Added after the owner's third look: `StatusBar.Project`; classes `tab-unsaved`, `status-project`; token `unsaved` | Editor, Editor.crstyle | The project's name in the status bar; the dot |
+| The rest of the pass: `UIElement.ShadowColor`, `ShadowBlur`, `ShadowOffset`; token `shadow` | UI library, Editor.crstyle | A soft shadow under an element; popups' |
+| The rest of the pass: a toggle's mark draws a check in its `Foreground`; class `quiet` | UI library, Editor.crstyle | Checkboxes with a check; fill-less icon toggles |
+| The rest of the pass: classes `empty-state`, `empty-icon`, `empty-hint`; folder-tree icons `folder`, `puzzle`; `TabStrip` (internal) | Editor | The Inspector's empty state; the folder tree; tabs that give way |
+| Closing the pass: the Hierarchy's empty states (`empty-state` classes; `HierarchyPanel.EmptyTitle`, internal); class `selected` on a button (the Sprite Sheet Editor's chosen clip) | Editor | "No project open", "This scene is empty"; a chosen item as a selected row |
+| The Log: `TextField.IsReadOnly`; `LogPanel.Lines`, `LogRow` (internal); classes `log-icon`, `log-text`; icons `info`, `triangle-alert`, `circle-x`; menu items Copy Line, Copy All | UI library, editor | Selectable, copyable Log rows |
+| Added after the owner's third look: `TextInk` (`left`, `top`, `right`, `bottom`) and `textInk` (internal) | Text | The box a layout's glyph outlines cover, for centering icons |
+| Added after the owner's try: tokens `title-glow`, `tab-glow`, `playing`; class `playing` (`EditorWindow.ShowsPlaying`, internal) | Editor.crstyle, editor | The title bar's and active tabs' glow; play mode in the accent |

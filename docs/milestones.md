@@ -1477,8 +1477,9 @@ each walk-through are decided with the owner at its start.
 
 ## After the review: the editor's look
 
-**Status:** In progress (started 2026-11-25). A pass over the editor
-focused on making it look nicer, with an identity of its own.
+**Status:** Done (2026-11-25 to 2026-11-26; ADRs 0129 to 0133). A pass
+over the editor focused on making it look nicer, with an identity of its
+own.
 
 Decided by the owner (2026-11-25):
 
@@ -1519,8 +1520,8 @@ Steps, each tried by hand:
    component), and tilemaps rendered and cached; tilesets show their
    sheet; every kind an icon; a tile-size slider and a kind badge.
 5. **Tuning the colors** (the owner, after trying step 1): the palette
-   gone over once everything else is in. Built (2026-11-25, ADR 0133), to
-   be tried by hand: palette C (surfaces a step apart, a neutral
+   gone over once everything else is in. Done (2026-11-26, ADR 0133),
+   tried by hand over several looks: palette C (surfaces a step apart, a neutral
    selection with an orange edge, outlined fields), and `BorderWidth` per
    side in the UI library. After the owner's try, more color: the title
    bar and active tabs glow orange (gradients in the UI library), and
@@ -1530,6 +1531,8 @@ Steps, each tried by hand:
 Composition tests are added in each step.
 
 ## After the editor's look: the review's findings
+
+**Status:** Next.
 
 Worked through in the order findings.md gives ("Order"), each as its own
 step with design questions first.

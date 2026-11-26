@@ -424,7 +424,7 @@ public sealed class SpriteSheetPanel : EditorPanel
             {
                 HorizontalAlignment = HorizontalAlignment.Stretch,
             };
-            pick.Classes.Set("primary", i == SelectedClip);
+            pick.Classes.Set("selected", i == SelectedClip); // chosen, as a selected row (ADR 0133), not a primary action
             pick.Clicked += _ => SelectClip(at);
             _clips.Add(pick);
         }

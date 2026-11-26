@@ -65,6 +65,8 @@
     { "Selector": "Button.primary", "Set": { "Background": "@accent" } },
     { "Selector": "Button.primary:hover", "Set": { "Background": "@accent/85%" } },
     { "Selector": "Button.primary > Label", "Set": { "Foreground": "@on-accent" } },
+    // A button standing for what's chosen in a list (the Sprite Sheet Editor's clips), as a selected row (ADR 0133).
+    { "Selector": "Button.selected", "Set": { "Background": "@selection", "BorderColor": "@selection-edge", "BorderWidth": [2, 0, 0, 0] } },
 
     { "Selector": "Toggle", "Set": { "Padding": 3, "CornerRadii": "@radius", "BorderColor": "@accent" } },
     { "Selector": "Toggle:focus", "Set": { "BorderWidth": 1.5 } },
@@ -239,6 +241,8 @@
     { "Selector": "StackPanel.empty-state", "Set": { "Background": "@panel", "Padding": [24, 40, 24, 24] } },
     { "Selector": "Icon.empty-icon", "Set": { "FontSize": 28, "Foreground": "@icon", "HorizontalAlignment": "Center" } },
     { "Selector": "Label.empty-hint", "Set": { "Foreground": "@muted", "FontSize": 12 } },
+    // Over the Hierarchy's tree: clear, so a drop's highlight shows through.
+    { "Selector": "HierarchyPanel StackPanel.empty-state", "Set": { "Background": "#0000" } },
     { "Selector": "StackPanel.component", "Set": { "Background": "@panel", "Padding": [0, 0, 0, 6] } },
     { "Selector": "DockPanel.component-header", "Set": { "Background": "@header", "Padding": [8, 3, 8, 3] } },
     { "Selector": "StackPanel.component-fields", "Set": { "Margin": [8, 0, 8, 0] } },

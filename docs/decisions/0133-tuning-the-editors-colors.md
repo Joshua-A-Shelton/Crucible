@@ -1,8 +1,8 @@
 # 0133 — Tuning the editor's colors
 
 **Status:** Accepted (2026-11-25); step 5 of the editor's look
-(milestones). Names are placeholders until the owner settles them
-(docs/naming.md).
+(milestones), tried by hand by the owner over several looks. Names settled
+by the owner as drafted (2026-11-26; docs/naming.md).
 
 ## Context
 
@@ -176,6 +176,17 @@ tokens and opacities work on each end as on any color.
 - `LogPanel.Lines` gives every line's text. The checks read the Log
   through it, as its rows hold text fields, not labels. The asset check
   saves the Log as assets.log.png.
+
+**Closing the pass:**
+- **The Hierarchy's empty states:** "No project open" (open or create one
+  from the File menu) and "This scene is empty" (drag a model in, or
+  right-click to add an entity), in the Inspector's style, over the tree
+  but letting the pointer through. A project opening without a scene
+  updates it.
+- **The Sprite Sheet Editor's chosen clip** showed as a primary (solid
+  orange) button. It's a selected row now (`Button.selected`). The
+  Character Editor in the Walker sample's plugin does the same and is
+  left as it is. The Sprite Sheet check now saves sprite-sheet.png.
 
 **Fixed in passing:** the Inspector's "Nothing selected" was centered on
 the divider color, showing lighter blocks either side of it. It now spans

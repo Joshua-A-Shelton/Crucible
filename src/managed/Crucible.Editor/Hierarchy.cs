@@ -18,6 +18,12 @@ public sealed class HierarchyPanel : EditorPanel
 {
     private readonly Shell _shell;
     private bool _stale = true;
+    private bool _hadProject;
+    // Over the tree when it's empty (ADR 0133): no project, or an empty scene.
+    private readonly StackPanel _empty = new() { Spacing = 6, VerticalAlignment = VerticalAlignment.Start, IsHitTestVisible = false };
+    private readonly Icon _emptyIcon = EditorIcons.Icon("box");
+    private readonly Label _emptyTitle = new() { HorizontalAlignment = HorizontalAlignment.Center };
+    private readonly Label _emptyHint = new() { Wrap = true, HorizontalAlignment = HorizontalAlignment.Center };
     private bool _syncing;
 
     internal HierarchyPanel(Shell shell) : base("Hierarchy", "Hierarchy")
@@ -37,6 +43,14 @@ public sealed class HierarchyPanel : EditorPanel
         Tree.Dropped += (_, drop) => Move(drop);
         Tree.ContextRequested += (_, node, at) => ShowMenu(node, at);
         AddChild(Tree);
+        _empty.Classes.Add("empty-state");
+        _emptyIcon.Classes.Add("empty-icon");
+        _emptyTitle.Classes.Add("placeholder");
+        _emptyHint.Classes.Add("empty-hint");
+        _empty.Add(_emptyIcon);
+        _empty.Add(_emptyTitle);
+        _empty.Add(_emptyHint);
+        AddChild(_empty);
         AllowDrop = true;
     }
 
@@ -68,6 +82,8 @@ public sealed class HierarchyPanel : EditorPanel
     /// <summary>Reads the scene again if it changed; each frame, before the viewports render.</summary>
     internal void Update()
     {
+        // A project opening without a scene changes what the empty tree says.
+        _stale |= _hadProject != _shell.Project is not null;
         if (!_stale)
         {
             return;
@@ -77,7 +93,29 @@ public sealed class HierarchyPanel : EditorPanel
         Tree.Refresh();
         Tree.SelectedNode = _shell.Selection.Selected.Value != 0 ? _shell.Selection.Selected.Value : null;
         _syncing = false;
+        ShowEmpty();
     }
+
+    // What the tree is when it's empty, and what to do about it.
+    private void ShowEmpty()
+    {
+        bool project = _shell.Project is not null;
+        _hadProject = project;
+        bool empty = !project || ChildrenOf(null).Count == 0;
+        _empty.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
+        if (!empty)
+        {
+            return;
+        }
+        _emptyIcon.Glyph = EditorIcons.Glyph(project ? "box" : "folder-open");
+        _emptyTitle.Text = project ? "This scene is empty" : "No project open";
+        _emptyHint.Text = project
+            ? "Drag a model in from Assets, or right-click here to add an entity."
+            : "Open or create one from the File menu.";
+    }
+
+    /// <summary>Whether it shows its empty state, and its title (for the checks).</summary>
+    internal string? EmptyTitle => _empty.Visibility == Visibility.Visible ? _emptyTitle.Text : null;
 
     /// <summary>Starts renaming an entity's row, showing it first.</summary>
     internal bool BeginRename(Entity entity)
