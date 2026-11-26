@@ -9,6 +9,7 @@ namespace Crucible.Audio;
 /// <summary>A sound at its entity's position, or everywhere unless spatial.</summary>
 [System.ComponentModel.Category("Audio"), System.ComponentModel.Description("Plays a sound, in 3D at the entity or flat.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("volume-2")]
 public partial struct AudioSource
 {
     public AudioSource()
@@ -24,4 +25,5 @@ public partial struct AudioSource
 
 /// <summary>Where sounds are heard from (a tag): usually on the camera.</summary>
 [System.ComponentModel.Category("Audio"), System.ComponentModel.Description("Where sounds are heard from: usually on the camera.")]
+[Crucible.Scenes.ComponentIcon("ear")]
 public partial struct AudioListener;

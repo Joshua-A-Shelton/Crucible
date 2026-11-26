@@ -61,10 +61,6 @@ is, and record which version fixed it.
 
 ## Revisit (owner's notes)
 
-- Add Component's dialog polish (owner's try of ADR 0127, 2026-11-25):
-  nesting (categories within categories) and categories that look more
-  distinct from the entries under them. For a polishing pass. → 0127
-
 - Flaky Crucible.Engine.Tests (Linux debug, 2026-11-25): in full parallel
   runs, `SettingsComeFromAProjectFileAndTellTheRendererWhichLayersYSort`
   and `ADefaultIsInstalledWhenNothingElseIs` each failed once and passed

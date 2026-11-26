@@ -279,6 +279,8 @@ Longer explanations of decisions, written to be reread:
   values once, and the editor's live theme file.
 - [Text that doesn't fit](docs/learning/text-that-doesnt-fit.md) (ADR 0130):
   clipping, wrapping, and trimming, where to cut, and cutting at carets.
+- [Component icons](docs/learning/component-icons.md) (ADR 0131): why icons
+  help scanning, where they come from, and groups inside groups.
 - [Up-to-date builds](docs/learning/up-to-date-builds.md) (ADR 0110): file
   times versus content hashes, what makes a build stamp trustworthy, and
   why copies need one.

@@ -10,6 +10,7 @@ namespace Crucible.Render2D;
 /// </summary>
 [System.ComponentModel.Category("2D"), System.ComponentModel.Description("Draws a texture, or a region of one, on the 2D plane.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("image")]
 public partial struct Sprite
 {
     public Sprite()
@@ -31,6 +32,7 @@ public partial struct SpriteRegion;
 /// </summary>
 [System.ComponentModel.Category("2D"), System.ComponentModel.Description("Renders the 2D view at a low resolution for crisp pixel art.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("scan")]
 public partial struct PixelCamera
 {
     public PixelCamera()
@@ -52,6 +54,7 @@ public partial struct PixelCamera
 /// </summary>
 [System.ComponentModel.Category("2D"), System.ComponentModel.Description("Plays a sprite sheet's animation clips.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("film")]
 public partial struct SpriteAnimator
 {
     public SpriteAnimator()

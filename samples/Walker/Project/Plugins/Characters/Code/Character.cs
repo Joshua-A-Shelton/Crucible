@@ -11,6 +11,7 @@ namespace Characters;
 /// </summary>
 [Component, Serialized]
 [Category("Characters"), Description("A character's stats; Pace sets how fast it animates.")]
+[Crucible.Scenes.ComponentIcon("user")]
 public partial struct Character
 {
     public Character()

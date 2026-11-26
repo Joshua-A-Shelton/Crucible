@@ -16,6 +16,7 @@ namespace Crucible.Animation;
 /// </summary>
 [System.ComponentModel.Category("Animation"), System.ComponentModel.Description("Plays a skeleton's clips or a state machine, posing the model.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("person-standing")]
 public partial struct Animator
 {
     public Animator()
@@ -122,6 +123,7 @@ public partial struct Animator
 /// </summary>
 [System.ComponentModel.Category("Animation"), System.ComponentModel.Description("Keeps the entity on a bone of an Animator above it.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("paperclip")]
 public partial struct BoneAttachment
 {
     public BoneAttachment()

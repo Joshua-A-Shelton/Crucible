@@ -1512,7 +1512,8 @@ Steps, each tried by hand:
    the M7 fixes. Done (2026-11-25, ADR 0130), with top-level entities
    given a real order (the M7 hierarchy fix ran deeper); tried by hand.
 3. **Icons:** the attribute, hierarchy rows, inspector headers, and Add
-   Component with its polish.
+   Component with its polish. Built (2026-11-25, ADR 0131), to be tried
+   by hand.
 4. **Asset thumbnails.**
 5. **Tuning the colors** (the owner, after trying step 1): the palette
    gone over once everything else is in.

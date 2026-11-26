@@ -27,6 +27,7 @@ internal sealed class Parser
     private const string HintBone = "crucible_hint_bone";
     private const string HintWindow = "crucible_hint_window";
     private const string HintSortingLayer = "crucible_hint_sorting_layer";
+    private const string HintIconPrefix = "crucible_hint_icon:";
 
     private readonly HashSet<string> _headerFiles;
     // The namespace exposed declarations are under: crucible, or a native
@@ -490,8 +491,14 @@ internal sealed class Parser
             .Select(Libclang.Spelling)
             .FirstOrDefault(annotation => annotation.StartsWith(ExposeAsPrefix, StringComparison.Ordinal))?
             [ExposeAsPrefix.Length..];
+        // A component's icon (ADR 0131), as the stringized argument: "\"name\"".
+        string? icon = Libclang.Children(cursor)
+            .Where(child => child.Kind == CursorKind.AnnotateAttr)
+            .Select(Libclang.Spelling)
+            .FirstOrDefault(annotation => annotation.StartsWith(HintIconPrefix, StringComparison.Ordinal))?
+            [HintIconPrefix.Length..].Trim().Trim('"');
         ExposedStruct exposed = new(qualifiedName, Libclang.Spelling(cursor), scope, Libclang.TypeGetSizeOf(type),
-            mapped);
+            mapped, icon);
         foreach (CXCursor field in Libclang.Children(cursor).Where(child => child.Kind == CursorKind.FieldDecl))
         {
             string name = Libclang.Spelling(field);

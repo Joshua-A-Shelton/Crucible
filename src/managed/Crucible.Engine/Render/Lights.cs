@@ -10,6 +10,7 @@ namespace Crucible.Render;
 /// <summary>A light from far away, shining along its entity's +Z: the sun.</summary>
 [System.ComponentModel.Category("Lights"), System.ComponentModel.Description("Light from far away along the entity's direction, as the sun's.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("sun")]
 public partial struct DirectionalLight
 {
     public DirectionalLight()
@@ -24,6 +25,7 @@ public partial struct DirectionalLight
 /// <summary>A light at its entity's position, fading to nothing at its range.</summary>
 [System.ComponentModel.Category("Lights"), System.ComponentModel.Description("Light from a point, fading out at its range.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("lightbulb")]
 public partial struct PointLight
 {
     public PointLight()
@@ -37,6 +39,7 @@ public partial struct PointLight
 /// <summary>A cone of light along its entity's +Z, fading to nothing at its range.</summary>
 [System.ComponentModel.Category("Lights"), System.ComponentModel.Description("A cone of light, fading out at its range.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("flashlight")]
 public partial struct SpotLight
 {
     public SpotLight()
@@ -52,6 +55,7 @@ public partial struct SpotLight
 /// <summary>Light that isn't from a light: sky above, ground below. One per world.</summary>
 [System.ComponentModel.Category("Lights"), System.ComponentModel.Description("Light from everywhere: the sky's color above, the ground's below.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("sun-dim")]
 public partial struct AmbientLight
 {
     public AmbientLight()
@@ -65,6 +69,7 @@ public partial struct AmbientLight
 /// <summary>The sky drawn behind everything (ADR 0055): a gradient and the sun's disk. One per world.</summary>
 [System.ComponentModel.Category("Rendering"), System.ComponentModel.Description("The sky drawn behind everything, and the sun's disk.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("cloud-sun")]
 public partial struct Sky
 {
     public Sky()

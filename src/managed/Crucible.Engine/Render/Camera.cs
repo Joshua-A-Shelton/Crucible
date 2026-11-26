@@ -9,6 +9,7 @@ namespace Crucible.Render;
 /// </summary>
 [System.ComponentModel.Category("Rendering"), System.ComponentModel.Description("What the game is seen through: perspective or orthographic.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("video")]
 public partial struct Camera
 {
     public Camera()
@@ -28,4 +29,5 @@ public partial struct Camera
 /// </summary>
 [System.ComponentModel.Category("Rendering"), System.ComponentModel.Description("How a camera's image is finished: exposure, bloom, tonemapping, grading.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("sparkles")]
 public partial struct PostProcess;

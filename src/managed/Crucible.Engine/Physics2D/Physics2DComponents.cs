@@ -10,8 +10,9 @@ namespace Crucible.Physics2D;
 // component starts with when it's added, as 3D's do.
 
 /// <summary>An entity simulated by 2D physics; it needs a <see cref="Collider2D"/> (and a Transform2D) too.</summary>
-[System.ComponentModel.Category("Physics 2D"), System.ComponentModel.Description("Moves the entity by 2D physics: dynamic, kinematic, or static.")]
+[System.ComponentModel.Category("Physics/2D"), System.ComponentModel.Description("Moves the entity by 2D physics: dynamic, kinematic, or static.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("weight")]
 public partial struct RigidBody2D
 {
     /// <summary>A body's pose as of the last tick, in the world (its Transform2D is interpolated).</summary>
@@ -28,8 +29,9 @@ public partial struct RigidBody2D
 }
 
 /// <summary>The shape 2D physics sees, in the entity's space.</summary>
-[System.ComponentModel.Category("Physics 2D"), System.ComponentModel.Description("A 2D shape for physics and queries: a box, circle, capsule, polygon, chain, or tilemap.")]
+[System.ComponentModel.Category("Physics/2D"), System.ComponentModel.Description("A 2D shape for physics and queries: a box, circle, capsule, polygon, chain, or tilemap.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("shapes")]
 public partial struct Collider2D
 {
     /// <summary>Debug lines along every 2D collider's outline, this frame (while editing too).</summary>
@@ -44,16 +46,18 @@ public partial struct Collider2D
 }
 
 /// <summary>Joins its entity's body to another's, or (Other none) to the world (ADR 0094).</summary>
-[System.ComponentModel.Category("Physics 2D"), System.ComponentModel.Description("Connects two 2D bodies: a hinge, a distance, a slider, a weld.")]
+[System.ComponentModel.Category("Physics/2D"), System.ComponentModel.Description("Connects two 2D bodies: a hinge, a distance, a slider, a weld.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("link-2")]
 public partial struct Joint2D;
 
 /// <summary>
 /// A capsule the game moves with <see cref="Move"/> (ADR 0094), sliding, stepping, and
 /// falling as 3D's does; its entity's position is its feet.
 /// </summary>
-[System.ComponentModel.Category("Physics 2D"), System.ComponentModel.Description("Walks a 2D character over the ground and up steps and slopes.")]
+[System.ComponentModel.Category("Physics/2D"), System.ComponentModel.Description("Walks a 2D character over the ground and up steps and slopes.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("footprints")]
 public partial struct CharacterController2D
 {
     /// <summary>Moves a character by a displacement over a time; where it ended up, and whether it's on the ground.</summary>
@@ -78,8 +82,9 @@ public partial struct CharacterController2D
 }
 
 /// <summary>A 2D shape that strikes (ADR 0096), swept as 3D's <see cref="Crucible.Physics.Hitbox"/> is.</summary>
-[System.ComponentModel.Category("Physics 2D"), System.ComponentModel.Description("A 2D shape that finds what it overlaps, for attacks and triggers.")]
+[System.ComponentModel.Category("Physics/2D"), System.ComponentModel.Description("A 2D shape that finds what it overlaps, for attacks and triggers.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("swords")]
 public partial struct Hitbox2D
 {
     public Hitbox2D()

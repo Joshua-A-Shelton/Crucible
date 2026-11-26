@@ -128,6 +128,10 @@ internal static class CSharpWriter
 
         text.AppendLine($"    /// <summary>Mirror of <c>{exposed.QualifiedName}</c>.</summary>");
         text.AppendLine($"    [StructLayout(LayoutKind.Explicit, Size = {exposed.Size})]");
+        if (exposed.Icon is { Length: > 0 } icon)
+        {
+            text.AppendLine($"    [global::Crucible.Scenes.ComponentIcon(\"{icon}\")]");
+        }
         text.AppendLine($"    public partial struct {exposed.Name}");
         text.AppendLine("    {");
         foreach (Field field in exposed.Fields)

@@ -10,6 +10,7 @@ namespace Crucible.Physics;
 /// <summary>An entity simulated by physics; it needs a <see cref="Collider"/> too.</summary>
 [System.ComponentModel.Category("Physics"), System.ComponentModel.Description("Moves the entity by physics: dynamic, kinematic, or static.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("weight")]
 public partial struct RigidBody
 {
     /// <summary>
@@ -32,6 +33,7 @@ public partial struct RigidBody
 /// <summary>The shape physics sees, in the entity's space.</summary>
 [System.ComponentModel.Category("Physics"), System.ComponentModel.Description("A shape for physics and queries: a box, sphere, capsule, or a model's mesh.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("shapes")]
 public partial struct Collider
 {
     /// <summary>
@@ -67,6 +69,7 @@ public partial struct Collider
 /// <summary>Joins its entity's body to another's.</summary>
 [System.ComponentModel.Category("Physics"), System.ComponentModel.Description("Connects two bodies: a hinge, a ball joint, a slider, a weld.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("link-2")]
 public partial struct Joint;
 
 /// <summary>
@@ -76,6 +79,7 @@ public partial struct Joint;
 /// </summary>
 [System.ComponentModel.Category("Physics"), System.ComponentModel.Description("Walks a character over the ground and up steps and slopes.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("footprints")]
 public partial struct CharacterController
 {
     /// <summary>Sets a character's speed up (a jump), off the ground from its next move.</summary>
@@ -101,6 +105,7 @@ public partial struct CharacterController
 /// </summary>
 [System.ComponentModel.Category("Physics"), System.ComponentModel.Description("A shape that finds what it overlaps, for attacks and triggers.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("swords")]
 public partial struct Hitbox
 {
     public Hitbox()

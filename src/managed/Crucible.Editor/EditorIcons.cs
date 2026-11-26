@@ -20,6 +20,22 @@ public static class EditorIcons
     /// <summary>Whether there's an icon by that name.</summary>
     public static bool Has(string name) => Codes.ContainsKey(name ?? "");
 
+    // Weak keys: a game's component types unload with its build.
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Type, string> _components = [];
+
+    /// <summary>A component type's icon, from its [ComponentIcon] (ADR 0131); "" for none.</summary>
+    public static string OfComponent(Type type)
+    {
+        ArgumentNullException.ThrowIfNull(type);
+        if (!_components.TryGetValue(type, out string? name))
+        {
+            name = type.GetCustomAttributes(typeof(Crucible.Scenes.ComponentIconAttribute), false)
+                .OfType<Crucible.Scenes.ComponentIconAttribute>().FirstOrDefault()?.Name ?? "";
+            _components.AddOrUpdate(type, name);
+        }
+        return name;
+    }
+
     /// <summary>An icon by its Lucide name, at the editor's icon size; an unknown name draws nothing.</summary>
     public static Icon Icon(string name)
     {

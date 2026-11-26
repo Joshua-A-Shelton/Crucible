@@ -10,8 +10,8 @@
 namespace diorama {
 
 // Moves its entity up and down around where it was placed: the lamp posts'
-// lights bobbing.
-struct CRUCIBLE_EXPOSE Bob
+// lights bobbing. Its icon in the editor (ADR 0131) is Lucide's.
+struct CRUCIBLE_EXPOSE CRUCIBLE_HINT_ICON("arrow-up-down") Bob
 {
     CRUCIBLE_HINT_RANGE(0, 1) float height; // how far above and below, in meters
     CRUCIBLE_HINT_RANGE(0, 4) float speed;  // bobs per second

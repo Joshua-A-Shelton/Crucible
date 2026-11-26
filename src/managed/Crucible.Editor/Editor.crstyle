@@ -21,6 +21,8 @@
     "selection": "#6e2c08",
     "warning": "#f0c060",
     "error": "#f07070",
+    "icon": "@muted",
+    "icon-selected": "@accent",
     "radius": 5,
     "small-radius": 3
   },
@@ -159,6 +161,20 @@
     { "Selector": "Toggle.icon.on", "Set": { "Background": "@accent/30%" } },
     { "Selector": "Toggle.icon.on Icon", "Set": { "Foreground": "@accent" } },
     { "Selector": "Label.frame-time", "Set": { "Foreground": "@muted", "Margin": [8, 0, 0, 0] } },
+
+    // Components' icons (ADR 0131): quiet, in the accent where they're
+    // selected (a selected row, the Inspector's headers, Add Component's
+    // highlighted row).
+    { "Selector": "Icon.tree-icon", "Set": { "FontSize": 14, "Foreground": "@icon", "Margin": [0, 0, 4, 0] } },
+    { "Selector": "Icon.tree-mark", "Set": { "FontSize": 11, "Foreground": "@icon", "Margin": [5, 0, 0, 0] } },
+    { "Selector": "ListItem.selected Icon.tree-icon", "Set": { "Foreground": "@icon-selected" } },
+    { "Selector": "ListItem.selected Icon.tree-mark", "Set": { "Foreground": "@text" } },
+    { "Selector": "Icon.entity-icon", "Set": { "FontSize": 14, "Foreground": "@icon-selected" } },
+    { "Selector": "PickerRow Icon", "Set": { "FontSize": 14, "Foreground": "@icon" } },
+    { "Selector": "ListItem.selected PickerRow Icon", "Set": { "Foreground": "@icon-selected" } },
+    { "Selector": "PickerRow.picker-category", "Set": { "Padding": [0, 6, 0, 1] } },
+    { "Selector": "Label.picker-category", "Set": { "FontSize": 11, "Foreground": "@muted" } },
+    { "Selector": ".picker-rule", "Set": { "Background": "@divider" } },
 
     // The inspector (ADR 0069): flat sections between hairlines; prefab
     // overrides in the accent.

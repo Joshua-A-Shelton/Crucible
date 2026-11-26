@@ -138,6 +138,16 @@ public sealed class HierarchyPanel : EditorPanel
     {
         Entity entity = EntityOf(row.Node);
         row.Text = _shell.HasWorld ? _shell.LabelOf(entity) : "";
+        // Its icon, and a prefab instance's mark (ADR 0131).
+        row.Icon.IconFont = EditorIcons.Font;
+        string icon = _shell.HasWorld ? _shell.IconOf(entity) : "";
+        row.Icon.Glyph = EditorIcons.Glyph(icon);
+        row.Icon.ToolTip = icon == Shell.PrefabIcon ? "A prefab instance" : "";
+        row.Mark.IconFont = EditorIcons.Font;
+        bool instance = _shell.HasWorld && _shell.World.IsAlive(entity) &&
+                        _shell.World.Has(entity, Components.Of<PrefabInstance>()) && icon != Shell.PrefabIcon;
+        row.Mark.Glyph = instance ? EditorIcons.Glyph(Shell.PrefabIcon) : "";
+        row.Mark.ToolTip = instance ? "A prefab instance" : "";
     }
 
     // Before or after a row: beside it, under its parent; inside: its last child.

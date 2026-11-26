@@ -509,6 +509,42 @@ internal sealed partial class Shell
         return "Entity";
     }
 
+    /// <summary>
+    /// The icon a Hierarchy row shows (ADR 0131): its main component's (as
+    /// for its label), else that of another of its components that names one
+    /// (by name), else a prefab instance's "package" (an instance whose root
+    /// has nothing telling of its own), else a dot.
+    /// </summary>
+    public string IconOf(Entity entity)
+    {
+        World world = World;
+        if (!world.IsAlive(entity))
+        {
+            return "";
+        }
+        foreach (string component in _mainComponents)
+        {
+            if (SavedComponents.Find(component) is { } saved && world.Has(entity, saved.Id) &&
+                EditorIcons.OfComponent(saved.Type) is { Length: > 0 } icon)
+            {
+                return icon;
+            }
+        }
+        string? other = SavedComponents.All()
+            .Where(saved => !_plainComponents.Contains(saved.Type) && world.Has(entity, saved.Id))
+            .OrderBy(saved => saved.Type.Name, StringComparer.Ordinal)
+            .Select(saved => EditorIcons.OfComponent(saved.Type))
+            .FirstOrDefault(icon => icon.Length > 0);
+        return other ?? (world.Has(entity, Components.Of<PrefabInstance>()) ? PrefabIcon : "dot");
+    }
+
+    /// <summary>A prefab instance's icon, and the mark beside an instance whose icon is its component's.</summary>
+    public const string PrefabIcon = "package";
+
+    // What every entity has, saying nothing about what it is.
+    private static readonly HashSet<Type> _plainComponents =
+        [typeof(LocalTransform), typeof(Transform2D), typeof(EntityName)];
+
     // Which of an entity's components says what it is, most telling first.
     private static readonly string[] _mainComponents =
     [

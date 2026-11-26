@@ -123,8 +123,9 @@ internal sealed record ExposedOpaque(string QualifiedName, string Name, Scope Sc
 /// Set by CRUCIBLE_EXPOSE_AS: the existing C# type it crosses as
 /// ("System.Numerics.Vector3"), so no mirror is generated.
 /// </param>
+/// <param name="Icon">Set by CRUCIBLE_HINT_ICON: a component's Lucide icon (ADR 0131).</param>
 internal sealed record ExposedStruct(string QualifiedName, string Name, Scope Scope, long Size,
-    string? MappedCSharpType = null)
+    string? MappedCSharpType = null, string? Icon = null)
 {
     public List<Field> Fields { get; } = [];
 }

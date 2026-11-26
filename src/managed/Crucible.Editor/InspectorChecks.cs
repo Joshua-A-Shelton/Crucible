@@ -102,6 +102,14 @@ internal sealed class InspectorChecks : GameSystem
         Check(position.Length == 3 && Math.Abs(position[0].Value - start.X) < 1e-3, "the position shows",
             $"{position.FirstOrDefault()?.Value} vs {start.X}");
         Check(transform.Editors[0].IsOverridden, "an instance's root position differs from its prefab");
+        // Icons (ADR 0131): the house (an instance, its meshes inside it) shows a
+        // prefab's; a camera its own; its transform's header its own.
+        Check(shell.IconOf(house) == Shell.PrefabIcon, "an instance's row shows a prefab's icon", shell.IconOf(house));
+        Entity camera0 = RootOrder.RootsOf(world).First(entity => world.Has(entity, Components.Of<Crucible.Render.Camera>()));
+        Check(shell.IconOf(camera0) == "video", "a camera's row shows a camera's", shell.IconOf(camera0));
+        Check(H.Descendants(transform).OfType<Icon>().Any(icon => icon.Classes.Contains("entity-icon") &&
+                                                                  icon.Glyph == EditorIcons.Glyph("move-3d")),
+            "its transform's header shows its icon");
 
         // Typed: Enter sets it, one undo step puts it back.
         int steps = shell.History.UndoCount;
@@ -230,9 +238,21 @@ internal sealed class InspectorChecks : GameSystem
         yield return 2;
         V.Save(shell.Main.Surface, Path.ChangeExtension(_capture, ".add-component.png"));
         string[] groups = [.. picker.Shown.Select((choice, i) => (choice, i)).Where(row => row.choice is null)
-            .Select(row => picker.Shown.Skip(row.i + 1).FirstOrDefault()?.Category ?? "")];
-        Check(groups.Contains("Physics 2D") && groups.Contains("Lights") && groups.SequenceEqual(groups.Order(StringComparer.Ordinal)),
-            "its components grouped by category", string.Join(", ", groups));
+            .Select(row => picker.ShownGroups[row.i])];
+        Check(groups.Contains("Physics") && groups.Contains("Physics/2D") && groups.Contains("2D/Lights") &&
+              groups.SequenceEqual(groups.Order(StringComparer.Ordinal)),
+            "its components grouped by category, groups inside groups", string.Join(", ", groups));
+        Check(picker.Shown.FirstOrDefault(choice => choice?.Title == "Spot Light")?.Icon == "flashlight", "each with its icon (ADR 0131)");
+        // A group folds shut, what's inside it with it, and opens again; remembered per person.
+        picker.Fold("Physics");
+        yield return 1;
+        Check(!picker.ShownGroups.Any(group => group.StartsWith("Physics/", StringComparison.Ordinal)) &&
+              picker.Shown.All(choice => choice?.Title != "Rigid Body") && shell.Settings.CollapsedCategories.Contains("Physics"),
+            "a folded group hides what's inside it, remembered");
+        picker.Fold("Physics");
+        yield return 1;
+        Check(picker.Shown.Any(choice => choice?.Title == "Rigid Body 2D") && shell.Settings.CollapsedCategories.Count == 0,
+            "and opens again");
         Check(picker.Shown.All(choice => choice is null || choice.Name != camera), "without the ones it has");
         Check(picker.Shown.FirstOrDefault(choice => choice?.Title == "Rigid Body 2D")?.Description.Length > 0, "each with its description");
         picker.Search.Text = "spot";

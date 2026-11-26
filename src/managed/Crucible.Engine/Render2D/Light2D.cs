@@ -9,8 +9,9 @@ namespace Crucible.Render2D;
 /// this half adds saving and what a new one starts with: white light,
 /// intensity 1, a range of 3 m, a smooth fade.
 /// </summary>
-[System.ComponentModel.Category("2D"), System.ComponentModel.Description("Light from a point on the 2D plane.")]
+[System.ComponentModel.Category("2D/Lights"), System.ComponentModel.Description("Light from a point on the 2D plane.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("lightbulb")]
 public partial struct PointLight2D
 {
     public PointLight2D()
@@ -26,8 +27,9 @@ public partial struct PointLight2D
 /// Declared in C++ (crucible/Light2D.h); this half adds saving and what a
 /// new one starts with: as a point light's, in a cone of 60°, full inside 40°.
 /// </summary>
-[System.ComponentModel.Category("2D"), System.ComponentModel.Description("A cone of light on the 2D plane.")]
+[System.ComponentModel.Category("2D/Lights"), System.ComponentModel.Description("A cone of light on the 2D plane.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("flashlight")]
 public partial struct SpotLight2D
 {
     public SpotLight2D()
@@ -45,8 +47,9 @@ public partial struct SpotLight2D
 /// Declared in C++ (crucible/Light2D.h); this half adds saving and what a
 /// new one starts with: a dim blue night, so lights show.
 /// </summary>
-[System.ComponentModel.Category("2D"), System.ComponentModel.Description("Light over the whole 2D scene.")]
+[System.ComponentModel.Category("2D/Lights"), System.ComponentModel.Description("Light over the whole 2D scene.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("sun-dim")]
 public partial struct AmbientLight2D
 {
     public AmbientLight2D()

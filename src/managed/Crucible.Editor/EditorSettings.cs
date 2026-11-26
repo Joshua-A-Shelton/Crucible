@@ -32,6 +32,9 @@ public sealed class EditorSettings
     /// <summary>The Inspector's name column, as last dragged (ADR 0130).</summary>
     public float InspectorNameWidth { get; set; } = DefaultInspectorNameWidth;
 
+    /// <summary>Add Component's groups folded shut, by category path (ADR 0131).</summary>
+    public HashSet<string> CollapsedCategories { get; } = new(StringComparer.Ordinal);
+
     /// <summary>Where the settings live; null when the platform has no preferences folder.</summary>
     public static string? DefaultPath
     {
@@ -71,6 +74,16 @@ public sealed class EditorSettings
             {
                 settings.InspectorNameWidth = Math.Clamp((float)width, InspectorPanel.MinNameWidth, InspectorPanel.MaxNameWidth);
             }
+            if (root["CollapsedCategories"] is JsonArray collapsed)
+            {
+                foreach (JsonNode? entry in collapsed)
+                {
+                    if (entry?.GetValueKind() == JsonValueKind.String)
+                    {
+                        settings.CollapsedCategories.Add(entry.GetValue<string>());
+                    }
+                }
+            }
             if (root["OpenWith"] is JsonObject openWith)
             {
                 foreach ((string kind, JsonNode? editor) in openWith)
@@ -107,6 +120,11 @@ public sealed class EditorSettings
         if (InspectorNameWidth != DefaultInspectorNameWidth)
         {
             root["InspectorNameWidth"] = InspectorNameWidth;
+        }
+        if (CollapsedCategories.Count > 0)
+        {
+            root["CollapsedCategories"] = new JsonArray(
+                [.. CollapsedCategories.Order(StringComparer.Ordinal).Select(group => (JsonNode)JsonValue.Create(group))]);
         }
         if (OpenWith.Count > 0)
         {

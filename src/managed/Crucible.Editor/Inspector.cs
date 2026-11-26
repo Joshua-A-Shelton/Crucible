@@ -311,7 +311,14 @@ public sealed class ComponentSection : UIElement, IFieldOwner
         DockPanel.SetDock(_fold, Dock.Left);
         DockPanel.SetDock(menu, Dock.Right);
         DockPanel.SetDock(_open, Dock.Right);
+        // Its icon (ADR 0131), between the fold and the name.
+        Icon icon = EditorIcons.Icon(EditorIcons.OfComponent(saved.Type));
+        icon.Classes.Add("entity-icon");
+        icon.Margin = new Thickness(2, 0, 6, 0);
+        icon.Visibility = icon.Glyph.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        DockPanel.SetDock(icon, Dock.Left);
         header.Add(_fold);
+        header.Add(icon);
         header.Add(menu);
         header.Add(_open);
         header.Add(_name);

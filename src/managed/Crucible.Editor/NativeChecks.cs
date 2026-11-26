@@ -87,6 +87,8 @@ internal sealed class NativeChecks : GameSystem
               log.IndexOf("Loaded Diorama.dll", StringComparison.Ordinal), "before its C#");
         SavedComponent? bob = SavedComponents.Find("Diorama.Bob");
         Check(bob is not null, "Bob is known to C#");
+        Check(bob is not null && EditorIcons.OfComponent(bob.Type) == "arrow-up-down", "with the icon its C++ names (ADR 0131)",
+            bob is null ? "" : EditorIcons.OfComponent(bob.Type));
         shell.OpenScene(Path.Combine(copy, "Assets", "Scenes", "Village.crscene"));
         yield return 3;
         World world = shell.World;

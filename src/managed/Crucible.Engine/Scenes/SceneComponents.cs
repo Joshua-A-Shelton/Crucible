@@ -13,6 +13,7 @@ namespace Crucible.Scenes;
 /// </summary>
 [System.ComponentModel.Category("Scene"), System.ComponentModel.Description("Position, rotation, and scale in 3D, relative to its parent.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("move-3d")]
 public partial struct LocalTransform
 {
     public static LocalTransform Identity => new() { Rotation = Quaternion.Identity, Scale = Vector3.One };
@@ -26,6 +27,7 @@ public partial struct LocalTransform
 /// </summary>
 [System.ComponentModel.Category("Scene"), System.ComponentModel.Description("Position, angle, scale, and depth on the 2D plane, relative to its parent.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("move")]
 public partial struct Transform2D
 {
     public Transform2D() => Scale = Vector2.One;
@@ -40,6 +42,7 @@ public partial struct Transform2D
 /// </summary>
 [System.ComponentModel.Category("Rendering"), System.ComponentModel.Description("Draws one mesh of a model.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("box")]
 public partial struct MeshInstance;
 
 /// <summary>

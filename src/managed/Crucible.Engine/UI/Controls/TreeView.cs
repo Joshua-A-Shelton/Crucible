@@ -64,9 +64,13 @@ public sealed class TreeRow : UIElement
         _expander = new TreeExpander(this) { VerticalAlignment = VerticalAlignment.Stretch };
         _field.Ended += EndRename;
         StackPanel line = new() { Orientation = Orientation.Horizontal, Spacing = 2 };
+        Icon.Classes.Add("tree-icon");
+        Mark.Classes.Add("tree-mark");
         line.Add(_expander);
+        line.Add(Icon);
         line.Add(_label);
         line.Add(_field);
+        line.Add(Mark);
         AddChild(line);
     }
 
@@ -83,6 +87,16 @@ public sealed class TreeRow : UIElement
         get => _label.Text;
         set => _label.Text = value;
     }
+
+    /// <summary>
+    /// An icon before the text (ADR 0131), set when the row is bound (its
+    /// IconFont and Glyph); shown only while it has a glyph. Class
+    /// <c>tree-icon</c>.
+    /// </summary>
+    public Icon Icon { get; } = new() { VerticalAlignment = VerticalAlignment.Center };
+
+    /// <summary>A small icon after the text (a prefab instance's mark), likewise; class <c>tree-mark</c>.</summary>
+    public Icon Mark { get; } = new() { VerticalAlignment = VerticalAlignment.Center };
 
     public bool IsRenaming => _editing;
 
@@ -104,6 +118,8 @@ public sealed class TreeRow : UIElement
         _expander.Visibility = hasChildren ? Visibility.Visible : Visibility.Hidden;
         _expander.Classes.Set("open", expanded);
         Tree.BindRow?.Invoke(this);
+        Icon.Visibility = Icon.Glyph.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        Mark.Visibility = Mark.Glyph.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     internal void BeginRename()

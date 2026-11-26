@@ -12,6 +12,7 @@ namespace Crucible.Render2D;
 /// </summary>
 [System.ComponentModel.Category("2D"), System.ComponentModel.Description("Draws one layer of a tilemap, and can collide with its tiles' shapes.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("grid-2x2")]
 public partial struct Tilemap
 {
     public Tilemap()
@@ -28,4 +29,5 @@ public partial struct Tilemap
 /// </summary>
 [System.ComponentModel.Category("2D"), System.ComponentModel.Description("Makes the entity a map: its children draw the map's layers.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("layers")]
 public partial struct TilemapLayers;

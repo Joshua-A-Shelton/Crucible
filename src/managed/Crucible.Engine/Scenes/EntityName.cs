@@ -9,6 +9,7 @@ namespace Crucible.Scenes;
 /// </summary>
 [System.ComponentModel.Category("Scene"), System.ComponentModel.Description("The entity's name, as the Hierarchy shows it.")]
 [Serialized]
+[Crucible.Scenes.ComponentIcon("tag")]
 public sealed partial class EntityName
 {
     public string Value { get; set; } = "";

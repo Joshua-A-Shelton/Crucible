@@ -50,6 +50,11 @@
 //     CRUCIBLE_HINT_BONE uint32_t bone;
 //     CRUCIBLE_HINT_WINDOW uint32_t window;
 //
+// A component's icon in the editor (ADR 0131), a Lucide name, on the
+// struct: the C# mirror's [ComponentIcon].
+//
+//     struct CRUCIBLE_EXPOSE CRUCIBLE_HINT_ICON("lightbulb") Lantern { ... };
+//
 // Names are placeholders (docs/naming.md).
 
 #if defined(CRUCIBLE_BINDGEN)
@@ -70,6 +75,7 @@
 #define CRUCIBLE_HINT_MESH_OF(field) __attribute__((annotate("crucible_hint_mesh_of:" #field)))
 #define CRUCIBLE_HINT_BONE __attribute__((annotate("crucible_hint_bone")))
 #define CRUCIBLE_HINT_WINDOW __attribute__((annotate("crucible_hint_window")))
+#define CRUCIBLE_HINT_ICON(name) __attribute__((annotate("crucible_hint_icon:" #name)))
 #else
 #define CRUCIBLE_EXPOSE
 #define CRUCIBLE_EXPOSE_STATUS
@@ -87,4 +93,5 @@
 #define CRUCIBLE_HINT_MESH_OF(field)
 #define CRUCIBLE_HINT_BONE
 #define CRUCIBLE_HINT_WINDOW
+#define CRUCIBLE_HINT_ICON(name)
 #endif
