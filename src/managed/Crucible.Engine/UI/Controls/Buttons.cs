@@ -101,6 +101,20 @@ public sealed class ToggleMark : UIElement
     internal ToggleMark()
     {
     }
+
+    // A check stroke in its Foreground, when a style gives it one (ADR 0133);
+    // a switch's style fills its Background instead and leaves this clear.
+    protected override void OnDraw(Canvas canvas)
+    {
+        Vector4 color = Foreground;
+        Vector2 size = ActualSize;
+        if (color.W <= 0 || size.X <= 0 || size.Y <= 0)
+        {
+            return;
+        }
+        float width = MathF.Max(1.5f, size.X * 0.16f);
+        canvas.DrawPolyline([size * new Vector2(0.12f, 0.55f), size * new Vector2(0.4f, 0.82f), size * new Vector2(0.9f, 0.2f)], width, color);
+    }
 }
 
 /// <summary>

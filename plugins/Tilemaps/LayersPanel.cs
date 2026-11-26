@@ -111,6 +111,9 @@ public sealed class LayersPanel : EditorPanel
         visible.IsOn = shown;
         Toggle collides = EditorIcons.Toggle("brick-wall", "Collides: a collider of its tiles' shapes");
         collides.IsOn = _maps.LayerCollides(id);
+        // Quiet: their icons light up when on, without a fill (ADR 0133), as a row has two.
+        visible.Classes.Add("quiet");
+        collides.Classes.Add("quiet");
         visible.Changed += toggle => _maps.SetLayerVisible(id, toggle.IsOn);
         collides.Changed += toggle => _maps.SetLayerCollides(id, toggle.IsOn);
         if (missing)

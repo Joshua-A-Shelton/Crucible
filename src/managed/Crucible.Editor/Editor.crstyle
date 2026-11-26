@@ -33,6 +33,7 @@
     "icon": "@muted",
     "icon-selected": "@accent",
     "badge": "#101010d9",
+    "shadow": "#000000a0",
     "radius": 5,
     "small-radius": 3
   },
@@ -69,7 +70,8 @@
     { "Selector": "Toggle:focus", "Set": { "BorderWidth": 1.5 } },
     { "Selector": "ToggleBox", "Set": { "Width": 14, "Height": 14, "CornerRadii": "@small-radius", "Background": "@field", "BorderColor": "@edge", "BorderWidth": 1 } },
     { "Selector": "ToggleBox.on", "Set": { "Background": "@accent", "BorderColor": "@accent" } },
-    { "Selector": "ToggleMark", "Set": { "Width": 6, "Height": 6, "Background": "@on-accent" } },
+    // A check in the box (ADR 0133), not a small square.
+    { "Selector": "ToggleMark", "Set": { "Width": 10, "Height": 10, "Background": "#0000", "Foreground": "@on-accent" } },
 
     { "Selector": "Slider", "Set": { "Height": 20, "BorderColor": "@accent" } },
     { "Selector": "SliderTrack", "Set": { "Background": "@edge" } },
@@ -92,8 +94,9 @@
     { "Selector": "TreeExpander:hover", "Set": { "Foreground": "@text" } },
     { "Selector": ".tree-drop", "Set": { "Foreground": "@accent" } },
 
-    { "Selector": "Popup", "Set": { "Background": "@control", "CornerRadii": "@radius", "BorderColor": "@edge", "Padding": 3 } },
-    { "Selector": ".tooltip", "Set": { "Background": "@control", "CornerRadii": "@small-radius", "BorderColor": "@edge", "Padding": [6, 2, 6, 2] } },
+    // Popups lift off the editor (ADR 0133): menus, dialogs, Add Component, tooltips.
+    { "Selector": "Popup", "Set": { "Background": "@control", "CornerRadii": "@radius", "BorderColor": "@edge", "Padding": 3, "ShadowColor": "@shadow", "ShadowBlur": 18, "ShadowOffset": [0, 4] } },
+    { "Selector": ".tooltip", "Set": { "Background": "@control", "CornerRadii": "@small-radius", "BorderColor": "@edge", "Padding": [6, 2, 6, 2], "ShadowColor": "@shadow/60%", "ShadowBlur": 8, "ShadowOffset": [0, 2] } },
     { "Selector": "Label.tooltip-text", "Set": { "FontSize": 12 } },
 
     { "Selector": "ColorField", "Set": { "Background": "@field", "CornerRadii": "@small-radius", "BorderWidth": 1, "BorderColor": "@edge" } },
@@ -114,13 +117,14 @@
     { "Selector": "TextField:focus", "Set": { "BorderColor": "@accent", "BorderWidth": 1 } },
     { "Selector": "NumberField", "Set": { "MinWidth": 48 } },
 
-    { "Selector": "MenuBar", "Set": { "Background": "#0000", "Padding": [4, 0, 4, 0] } },
+    { "Selector": "MenuBar", "Set": { "Background": "#0000", "Padding": [4, 0, 4, 0], "VerticalAlignment": "Center" } },
     { "Selector": "Menu", "Set": { "MinWidth": 200 } },
     { "Selector": "MenuItem", "Set": { "Padding": [8, 3, 10, 3], "CornerRadii": "@small-radius", "Foreground": "@text" } },
     { "Selector": "MenuItem.bar", "Set": { "Padding": [8, 3, 8, 3] } },
-    { "Selector": "MenuItem:hover", "Set": { "Background": "@hover" } },
-    { "Selector": "MenuItem:focus", "Set": { "Background": "@hover" } },
-    { "Selector": "MenuItem.open", "Set": { "Background": "@hover" } },
+    // Menu rows light up as selected rows do (the hover color barely shows on a popup's).
+    { "Selector": "MenuItem:hover", "Set": { "Background": "@selection" } },
+    { "Selector": "MenuItem:focus", "Set": { "Background": "@selection" } },
+    { "Selector": "MenuItem.open", "Set": { "Background": "@selection" } },
     { "Selector": "MenuSeparator", "Set": { "Margin": [6, 3, 6, 3], "Background": "@divider" } },
     { "Selector": "Label.shortcut", "Set": { "Foreground": "@muted" } },
 
@@ -139,7 +143,7 @@
     { "Selector": "DockPanel.editor", "Set": { "Background": "@page" } },
     { "Selector": "DockSpace.editor", "Set": { "Background": "@page" } },
     { "Selector": "DockGroup", "Set": { "Background": "@panel", "CornerRadii": "@radius", "Margin": 1 } },
-    { "Selector": "StackPanel.dock-tabs", "Set": { "Background": "@strip" } },
+    { "Selector": "TabStrip.dock-tabs", "Set": { "Background": "@strip" } },
     { "Selector": "DockTab", "Set": { "Padding": [10, 4, 6, 4], "Foreground": "@muted", "CornerRadii": [5, 5, 0, 0] } },
     { "Selector": "DockTab:hover", "Set": { "Background": "@hover" } },
     { "Selector": "DockTab.active", "Set": { "Background": "@panel", "GradientFrom": "@tab-glow", "GradientLength": 0.95, "Foreground": "@text", "BorderColor": "@accent" } },
@@ -190,6 +194,12 @@
     { "Selector": "Toggle.icon:hover", "Set": { "Background": "@hover" } },
     { "Selector": "Toggle.icon.on", "Set": { "Background": "@accent/30%" } },
     { "Selector": "Toggle.icon.on Icon", "Set": { "Foreground": "@accent" } },
+    // Quiet toggles (ADR 0133): no fill when on, only the icon in the accent; off, muted.
+    { "Selector": "Toggle.icon.quiet", "Set": { "Background": "#0000" } },
+    { "Selector": "Toggle.icon.quiet.on", "Set": { "Background": "#0000" } },
+    { "Selector": "Toggle.icon.quiet Icon", "Set": { "Foreground": "@muted" } },
+    { "Selector": "Toggle.icon.quiet.on Icon", "Set": { "Foreground": "@accent" } },
+    { "Selector": "Toggle.icon.quiet:hover", "Set": { "Background": "@hover" } },
     { "Selector": "Label.frame-time", "Set": { "Foreground": "@muted", "Margin": [8, 0, 0, 0] } },
 
     // Components' icons (ADR 0131): quiet, in the accent where they're
@@ -212,6 +222,10 @@
     { "Selector": "Label.inspector-title", "Set": { "FontSize": 14 } },
     { "Selector": "StackPanel.inspector-sections", "Set": { "Background": "@divider" } },
     { "Selector": "StackPanel.inspector-sections > Label.placeholder", "Set": { "Background": "@panel", "Padding": [8, 6, 8, 6] } },
+    // The Inspector with nothing selected (ADR 0133): centered, quiet.
+    { "Selector": "StackPanel.empty-state", "Set": { "Background": "@panel", "Padding": [24, 40, 24, 24] } },
+    { "Selector": "Icon.empty-icon", "Set": { "FontSize": 28, "Foreground": "@icon", "HorizontalAlignment": "Center" } },
+    { "Selector": "Label.empty-hint", "Set": { "Foreground": "@muted", "FontSize": 12 } },
     { "Selector": "StackPanel.component", "Set": { "Background": "@panel", "Padding": [0, 0, 0, 6] } },
     { "Selector": "DockPanel.component-header", "Set": { "Background": "@header", "Padding": [8, 3, 8, 3] } },
     { "Selector": "StackPanel.component-fields", "Set": { "Margin": [8, 0, 8, 0] } },

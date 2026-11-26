@@ -26,7 +26,9 @@ public sealed class InspectorPanel : EditorPanel
     private readonly Button _add = new("Add Component") { HorizontalAlignment = HorizontalAlignment.End };
     // Sections one unit apart over the divider color: hairlines between them (ADR 0129).
     private readonly StackPanel _sections = new() { Spacing = 1, VerticalAlignment = VerticalAlignment.Start };
-    private readonly Label _empty = new("Nothing selected");
+    // With nothing selected (ADR 0133): an icon, what's going on, and what to do.
+    private readonly StackPanel _empty = new() { Spacing = 6, HorizontalAlignment = HorizontalAlignment.Stretch };
+    private readonly DockPanel _header = new();
     private Entity _entity;
     private string? _shape; // the entity and its component names, when the sections were made (null: not yet)
     private bool _stale = true;
@@ -37,9 +39,21 @@ public sealed class InspectorPanel : EditorPanel
         _shell = shell;
         _title.Classes.Add("inspector-title");
         _sections.Classes.Add("inspector-sections");
-        _empty.Classes.Add("placeholder");
+        _empty.Classes.Add("empty-state");
+        Icon emptyIcon = EditorIcons.Icon("mouse-pointer-click");
+        emptyIcon.Classes.Add("empty-icon");
+        Label emptyTitle = new("Nothing selected") { HorizontalAlignment = HorizontalAlignment.Center };
+        emptyTitle.Classes.Add("placeholder");
+        Label emptyHint = new("Select an entity or an asset to see it here.")
+        {
+            Wrap = true, HorizontalAlignment = HorizontalAlignment.Center,
+        };
+        emptyHint.Classes.Add("empty-hint");
+        _empty.Add(emptyIcon);
+        _empty.Add(emptyTitle);
+        _empty.Add(emptyHint);
         _add.Clicked += _ => ShowAddMenu();
-        DockPanel header = new();
+        DockPanel header = _header;
         header.Classes.Add("inspector-header");
         DockPanel.SetDock(_add, Dock.Right);
         header.Add(_add);
@@ -170,6 +184,8 @@ public sealed class InspectorPanel : EditorPanel
         }
         _stale = false;
         _add.Visibility = selected.IsNull ? Visibility.Collapsed : Visibility.Visible;
+        // No header over the empty state: it would be an empty strip.
+        _header.Visibility = selected.IsNull && asset is null ? Visibility.Collapsed : Visibility.Visible;
         _title.Text = !selected.IsNull ? _shell.LabelOf(selected) : asset?.Path ?? "";
         foreach (ComponentSection section in _sections.Children.OfType<ComponentSection>())
         {

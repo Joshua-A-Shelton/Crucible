@@ -743,7 +743,7 @@ internal sealed partial class Shell
 
         Menu build = Main.MenuBar.Add("Build");
         build.Add(Commands.Find("Build.Settings")!);
-        build.Add(Commands.Find("Build.Cook")!);
+        build.Add(Commands.Find("Build.Build")!);
 
         Menu window = Main.MenuBar.Add("Window");
         _windowMenu = window;

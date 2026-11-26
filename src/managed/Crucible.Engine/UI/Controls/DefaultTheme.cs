@@ -51,6 +51,7 @@ public sealed partial class Theme
             .Set(UIElement.HeightProperty, 8f)
             .Set(UIElement.CornerRadiiProperty, new Vector4(2))
             .Set(UIElement.BackgroundProperty, text)
+            .Set(UIElement.ForegroundProperty, Vector4.Zero) // no check stroke: a filled square
             .Set(UIElement.OpacityProperty, 0f)
             .Set(UIElement.RenderScaleProperty, new Vector2(0.5f))
             .Transition(UIElement.OpacityProperty, quick.Duration, quick.Easing)

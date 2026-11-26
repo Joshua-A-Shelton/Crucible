@@ -45,7 +45,16 @@ public sealed class AssetsPanel : EditorPanel
     {
         _shell = shell;
         _folders.ChildrenOf = FolderChildren;
-        _folders.BindRow = row => row.Text = RowText(_folderPaths[row.Node]);
+        _folders.BindRow = row =>
+        {
+            string path = _folderPaths[row.Node];
+            row.Text = RowText(path);
+            // A folder's icon, a plugin's root its own (ADR 0133).
+            bool plugin = path.Length > 0 && path[^1] == AssetPaths.PluginSeparator;
+            row.Icon.IconFont = EditorIcons.Font;
+            row.Icon.Glyph = EditorIcons.Glyph(plugin ? "puzzle" : "folder");
+            row.Icon.ToolTip = plugin ? "A plugin's assets" : "";
+        };
         _folders.SetExpanded(1, true);
         _folders.SelectionChanged += tree =>
         {

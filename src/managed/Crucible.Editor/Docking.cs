@@ -503,6 +503,71 @@ public sealed class Splitter : UIElement
 }
 
 /// <summary>
+/// A group's tabs in a row (ADR 0133): each as wide as it wants while they
+/// fit; when they don't, the widest give way first (down to a minimum), so
+/// every tab stays visible, its text ending in "…".
+/// </summary>
+internal sealed class TabStrip : Panel
+{
+    private const float Spacing = 1;
+    private const float MinTab = 56;
+
+    protected override Vector2 MeasureCore(Vector2 available)
+    {
+        float width = 0, height = 0;
+        foreach (UIElement child in Children)
+        {
+            child.Measure(new Vector2(float.PositiveInfinity, available.Y));
+            width += child.DesiredSize.X;
+            height = MathF.Max(height, child.DesiredSize.Y);
+        }
+        width += Spacing * MathF.Max(Children.Count - 1, 0);
+        return new Vector2(float.IsFinite(available.X) ? MathF.Min(width, available.X) : width, height);
+    }
+
+    protected override void ArrangeCore(RectangleF content)
+    {
+        int count = Children.Count(child => child.Visibility != Visibility.Collapsed);
+        float room = content.Width - Spacing * MathF.Max(count - 1, 0);
+        float cap = Cap(room);
+        float x = content.X;
+        foreach (UIElement child in Children)
+        {
+            float width = MathF.Min(child.DesiredSize.X, cap);
+            // A squeezed tab takes only what its parts use: no gap where its detail was.
+            if (width < child.DesiredSize.X && child is DockTab tab)
+            {
+                width = tab.WidthWithin(width);
+            }
+            child.Arrange(new RectangleF(x, content.Y, width, content.Height));
+            x += width + Spacing;
+        }
+    }
+
+    // The widest any tab may be so all fit in the room: the smallest cap where
+    // the tabs, each at the cap or its own width if less, add up to the room.
+    private float Cap(float room)
+    {
+        List<float> widths = [.. Children.Select(child => child.DesiredSize.X).Order()];
+        if (widths.Sum() <= room)
+        {
+            return float.PositiveInfinity;
+        }
+        float used = 0;
+        for (int i = 0; i < widths.Count; ++i)
+        {
+            float cap = (room - used) / (widths.Count - i);
+            if (cap <= widths[i])
+            {
+                return MathF.Max(cap, MinTab);
+            }
+            used += widths[i];
+        }
+        return MinTab;
+    }
+}
+
+/// <summary>
 /// Tabbed panels (ADR 0066): a strip of <see cref="DockTab"/>s over the
 /// active panel. Clicking a tab shows its panel; dragging one docks its
 /// panel elsewhere, or tears it off into a window of its own.
@@ -511,7 +576,7 @@ public sealed class DockGroup : UIElement
 {
     private const float MoveThreshold = 4; // units moved before a press on the strip moves the window
 
-    private readonly StackPanel _strip = new() { Orientation = Orientation.Horizontal, Spacing = 1 };
+    private readonly TabStrip _strip = new();
     private readonly List<EditorPanel> _panels = [];
     private int _active = -1;
     private UIElement? _stripEnd;
@@ -722,6 +787,7 @@ public sealed class DockTab : UIElement
     private Vector2 _pressedAt;
     private bool _pressed;
     private bool _dragging;
+    private bool _overClose;
 
     internal DockTab(EditorPanel panel)
     {
@@ -782,17 +848,47 @@ public sealed class DockTab : UIElement
         return new Vector2(_title.DesiredSize.X + DetailWidth + UnsavedWidth + 8 + CloseSize, _title.DesiredSize.Y);
     }
 
+    // A detail narrower than this is left out rather than shown as "…".
+    private const float MinDetail = 48;
+
+    // The parts' widths at a given width (ADR 0133): the detail gives way
+    // first (left out below MinDetail), then the title, both ending in "…";
+    // the dot and the close button keep their room.
+    private (float Title, float Detail) Parts(float width)
+    {
+        float room = MathF.Max(width - Padding.Horizontal - UnsavedWidth - 8 - CloseSize, 0);
+        float title = MathF.Min(_title.DesiredSize.X, room);
+        if (_detail.Visibility != Visibility.Visible)
+        {
+            return (title, 0);
+        }
+        float detail = MathF.Min(_detail.DesiredSize.X, MathF.Max(room - title - _separator.DesiredSize.X - 6, 0));
+        return (title, detail >= MinDetail || detail >= _detail.DesiredSize.X ? detail : 0);
+    }
+
+    /// <summary>How wide it is when given at most <paramref name="width"/>: no wider than its parts need.</summary>
+    internal float WidthWithin(float width)
+    {
+        (float title, float detail) = Parts(width);
+        float parts = title + (detail > 0 ? detail + _separator.DesiredSize.X + 6 : 0);
+        return MathF.Min(width, Padding.Horizontal + parts + UnsavedWidth + 8 + CloseSize);
+    }
+
     protected override void ArrangeCore(RectangleF content)
     {
+        (float title, float detail) = Parts(content.Width + Padding.Horizontal);
         float x = content.X;
-        _title.Arrange(new RectangleF(x, content.Y, _title.DesiredSize.X, content.Height));
-        x += _title.DesiredSize.X;
+        _title.Arrange(new RectangleF(x, content.Y, title, content.Height));
+        x += title;
+        bool shows = detail > 0;
+        _separator.Opacity = shows ? 1 : 0;
+        _detail.Opacity = shows ? 1 : 0;
         if (_detail.Visibility == Visibility.Visible)
         {
             float chevron = _separator.DesiredSize.X;
-            _separator.Arrange(new RectangleF(x + 3, content.Y, chevron, content.Height));
-            _detail.Arrange(new RectangleF(x + 6 + chevron, content.Y, _detail.DesiredSize.X, content.Height));
-            x += DetailWidth;
+            _separator.Arrange(new RectangleF(x + 3, content.Y, shows ? chevron : 0, content.Height));
+            _detail.Arrange(new RectangleF(x + 6 + chevron, content.Y, detail, content.Height));
+            x += shows ? detail + chevron + 6 : 0;
         }
         _unsaved.Arrange(new RectangleF(x + 5, content.Y, _unsaved.DesiredSize.X, content.Height));
     }
@@ -807,7 +903,12 @@ public sealed class DockTab : UIElement
         RectangleF area = CloseArea;
         Vector2 c = new(area.X - Bounds.X + area.Width * 0.5f, area.Y - Bounds.Y + area.Height * 0.5f);
         float s = CloseSize * 0.22f, width = MathF.Max(1.25f, CloseSize * 0.1f);
-        Vector4 color = Foreground with { W = Foreground.W * 0.7f };
+        // Under the pointer, a round backing and full strength (ADR 0133).
+        if (_overClose)
+        {
+            canvas.FillRect(c - new Vector2(area.Width * 0.5f), new Vector2(area.Width), Foreground with { W = Foreground.W * 0.18f }, area.Width * 0.5f);
+        }
+        Vector4 color = Foreground with { W = Foreground.W * (_overClose ? 1 : 0.7f) };
         canvas.DrawLine(c - new Vector2(s), c + new Vector2(s), width, color);
         canvas.DrawLine(c + new Vector2(-s, s), c + new Vector2(s, -s), width, color);
     }
@@ -836,8 +937,22 @@ public sealed class DockTab : UIElement
         _pressedAt = e.Position;
     }
 
+    // The close button lights up under the pointer.
+    private void TrackClose(Vector2 at, bool inside)
+    {
+        bool over = inside && CloseArea.Contains(at.X, at.Y);
+        if (over != _overClose)
+        {
+            _overClose = over;
+            InvalidateVisual();
+        }
+    }
+
+    protected override void OnPointerLeave(PointerEvent e) => TrackClose(e.Position, false);
+
     protected override void OnPointerMove(PointerEvent e)
     {
+        TrackClose(e.Position, true);
         if (!_pressed)
         {
             return;

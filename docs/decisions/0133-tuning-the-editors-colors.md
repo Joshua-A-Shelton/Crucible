@@ -127,6 +127,41 @@ tokens and opacities work on each end as on any color.
   - Play state is already shown by the play buttons and the status bar's
     glow.
 
+**The rest of the pass** (the owner's go-ahead on a list of what was left):
+- **The Inspector's empty state:** with nothing selected, no header strip,
+  and a quiet centered `mouse-pointer-click` icon, "Nothing selected", and
+  a hint (`empty-state`, `empty-icon`, `empty-hint`).
+- **The asset folder tree's icons:** `folder` on folders, `puzzle` on a
+  plugin's root, as the Hierarchy's rows carry theirs.
+- **Shadows, in the UI library:** `ShadowColor`, `ShadowBlur`,
+  `ShadowOffset`, styled properties drawn under the element with the
+  canvas's rounded-box shadow. Popups (menus, dialogs, Add Component)
+  and tooltips carry one (token `shadow`). They're subtle on dark panels
+  and plain over the viewport.
+- **Checkboxes show a check:** a toggle's mark draws a check stroke in its
+  `Foreground`. The default theme keeps its filled square by leaving the
+  mark's `Foreground` clear, so games' checkboxes don't change.
+- **Quiet toggles:** an icon toggle with the class `quiet` has no fill:
+  off it's muted, on its icon is in the accent. Map mode's layer toggles
+  use it, as a row has two.
+- **Tabs that don't fit give way:** a group's tabs (`TabStrip`, internal)
+  keep their widths while they fit; when they don't, the widest shrink
+  first, down to 56 units. A squeezed tab drops its detail first (below
+  48 units it's left out, not shown as "…"), then trims its title, and
+  takes only the width its parts use. Found when "Hierarchy › Level.crscene"
+  pushed Build Settings' tab out of its strip.
+
+**From the owner's try of the rest:**
+- **The menu titles sat high in the title bar** (about 2.5px): the menu
+  bar is now centered in it, level with the play buttons.
+- **Menu rows barely lit up:** the hover color on a popup's fill was a
+  shade apart. Menu rows now light up in the selection's color, as
+  selected rows do.
+- **Build had an empty entry:** the menu still asked for `Build.Cook`,
+  which no longer exists. It's `Build.Build` now.
+- **Tabs' close buttons showed no hover:** under the pointer, the cross is
+  at full strength over a round backing.
+
 **Fixed in passing:** the Inspector's "Nothing selected" was centered on
 the divider color, showing lighter blocks either side of it. It now spans
 the panel's width and starts at the left, like the other placeholders.

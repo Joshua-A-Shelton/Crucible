@@ -132,6 +132,12 @@ public partial class UIElement
     public static readonly StyledProperty<GradientDirection> GradientDirectionProperty =
         StyledProperty<GradientDirection>.Register<UIElement>("GradientDirection", GradientDirection.Down, Invalidates.Visual,
             StyleValues.ReadEnum<GradientDirection>);
+    public static readonly StyledProperty<Vector4> ShadowColorProperty = StyledProperty<Vector4>.Register<UIElement>(
+        "ShadowColor", Vector4.Zero, Invalidates.Visual, StyleValues.ReadColor, StyleValues.LerpColor);
+    public static readonly StyledProperty<float> ShadowBlurProperty = StyledProperty<float>.Register<UIElement>(
+        "ShadowBlur", 0, Invalidates.Visual, StyleValues.ReadFloat, StyleValues.Lerp);
+    public static readonly StyledProperty<Vector2> ShadowOffsetProperty = StyledProperty<Vector2>.Register<UIElement>(
+        "ShadowOffset", Vector2.Zero, Invalidates.Visual, StyleValues.ReadVector2, StyleValues.Lerp);
     public static readonly StyledProperty<Vector4> CornerRadiiProperty = StyledProperty<Vector4>.Register<UIElement>(
         "CornerRadii", Vector4.Zero, Invalidates.Visual, StyleValues.ReadVector4, StyleValues.Lerp);
     public static readonly StyledProperty<Thickness> BorderWidthProperty = StyledProperty<Thickness>.Register<UIElement>(
@@ -222,6 +228,19 @@ public partial class UIElement
 
     /// <summary>Which way the gradient runs: down (the default) or right.</summary>
     public GradientDirection GradientDirection { get => GetValue(GradientDirectionProperty); set => SetValue(GradientDirectionProperty, value); }
+
+    /// <summary>
+    /// A soft shadow under the element (ADR 0133), as CSS's box-shadow: its
+    /// color (clear, the default, for none), blurred by <see cref="ShadowBlur"/>
+    /// and moved by <see cref="ShadowOffset"/>, with the element's corners.
+    /// </summary>
+    public Vector4 ShadowColor { get => GetValue(ShadowColorProperty); set => SetValue(ShadowColorProperty, value); }
+
+    /// <summary>How soft the shadow is: its blur radius, in units.</summary>
+    public float ShadowBlur { get => GetValue(ShadowBlurProperty); set => SetValue(ShadowBlurProperty, value); }
+
+    /// <summary>Where the shadow falls from the element: [x, y], down and right positive.</summary>
+    public Vector2 ShadowOffset { get => GetValue(ShadowOffsetProperty); set => SetValue(ShadowOffsetProperty, value); }
 
     /// <summary>The background's and border's corners: top left, top right, bottom right, bottom left.</summary>
     public Vector4 CornerRadii { get => GetValue(CornerRadiiProperty); set => SetValue(CornerRadiiProperty, value); }
@@ -546,6 +565,10 @@ public partial class UIElement
         }
         canvas.PushTransform(Matrix3x2.CreateTranslation(Bounds.X, Bounds.Y));
         Vector4 radii = CornerRadii;
+        if (ShadowColor.W > 0)
+        {
+            canvas.DrawShadow(ShadowOffset, ActualSize, radii.X, ShadowBlur, ShadowColor);
+        }
         if (Background.W > 0)
         {
             canvas.FillRect(Vector2.Zero, ActualSize, Background, radii);

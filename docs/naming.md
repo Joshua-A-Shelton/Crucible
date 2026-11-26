@@ -1968,5 +1968,8 @@ Names proposed before building (marked `*` until settled):
 | Added after the owner's third look: `setWindowTitle` (C# `Platform.Api.SetWindowTitle`) * | Platform | The system's title for a window |
 | Added after the owner's third look: `EditorPanel.HasUnsavedChanges`, `EditorPanel.TitleToolTip`, `EditorPanel.TitleDetail` (classes `tab-detail`, `tab-separator`); the Hierarchy's detail its scene's file name * | Editor API | A dot on a panel's tab; its tab's tooltip |
 | Added after the owner's third look: `StatusBar.Project`; classes `tab-unsaved`, `status-project`; token `unsaved` * | Editor, Editor.crstyle | The project's name in the status bar; the dot |
+| The rest of the pass: `UIElement.ShadowColor`, `ShadowBlur`, `ShadowOffset`; token `shadow` * | UI library, Editor.crstyle | A soft shadow under an element; popups' |
+| The rest of the pass: a toggle's mark draws a check in its `Foreground`; class `quiet` * | UI library, Editor.crstyle | Checkboxes with a check; fill-less icon toggles |
+| The rest of the pass: classes `empty-state`, `empty-icon`, `empty-hint`; folder-tree icons `folder`, `puzzle`; `TabStrip` (internal) * | Editor | The Inspector's empty state; the folder tree; tabs that give way |
 | Added after the owner's third look: `TextInk` (`left`, `top`, `right`, `bottom`) and `textInk` (internal) * | Text | The box a layout's glyph outlines cover, for centering icons |
 | Added after the owner's try: tokens `title-glow`, `tab-glow`, `playing`; class `playing` (`EditorWindow.ShowsPlaying`, internal) * | Editor.crstyle, editor | The title bar's and active tabs' glow; play mode in the accent |
